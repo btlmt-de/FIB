@@ -877,5 +877,6 @@ descriptions:
     - "&7"
     - "&7Structure - Chest Loot Table:"
     - "&eBastion&7- &a10.1% (generic chest)"
-DIRT:
-  -
+  DIRT:
+    - "&b&lDirt &7| &6Item Information"
+    - "&7"
