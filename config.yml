@@ -938,7 +938,7 @@ descriptions:
     - "&7Biomes: &aMangrove Swamp"
     - "&7Mud generates in the mangrove swamp biome and can also generate in trail ruins"
     - "&7Can be created by using a &awater bottle &7on &adirt block"
-  COOBLESTONE:
+  COBBLESTONE:
     - "&b&lCobblestone &7| &6Item Information"
     - "&7"
     - "&7Cobblestone occurs naturally in &amonster rooms&7, &ajungle pyramids&7, &apillager outposts&7, &aocean ruins&7, &astrongholds&7, plains/taiga and snowy plains &avillages&7, &awoodland mansions&7, and &atrail ruins"
@@ -1031,7 +1031,7 @@ descriptions:
     - "&7Tool: &aStone Pickaxe &7or &abetter (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted stone pickaxe &7or &abetter"
     - "&7Deepslate iron ore generates in the Overworld &abelow Y=8"
-  COOPER_ORE:
+  COPPER_ORE:
     - "&b&lCopper Ore &7| &6Item Information"
     - "&7"
     - "&7Tool: &aStone Pickaxe &7or &abetter (Silk Touch required)"
@@ -1076,12 +1076,12 @@ descriptions:
     - "&7Tool: &aIron Pickaxe &7or &abetter (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted iron pickaxe &7or &abetter"
     - "&7Deepslate emerald ore generates in the Overworld &abelow Y=8"
-  LAPIS_LAZULI_ORE:
+  LAPIS_ORE:
     - "&b&lLapis Lazuli Ore &7| &6Item Information"
     - "&7"
     - "&7Tool: &aStone Pickaxe &7or &abetter (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted stone pickaxe &7or &abetter"
-  DEEPSLATE_LAPIS_LAZULI_ORE:
+  DEEPSLATE_LAPIS_ORE:
     - "&b&lDeepslate Lapis Lazuli Ore &7| &6Item Information"
     - "&7"
     - "&7Tool: &aStone Pickaxe &7or &abetter (Silk Touch required)"
@@ -1104,8 +1104,8 @@ descriptions:
     - "&7"
     - "&7Tool: &aPickaxe (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted pickaxe"
-  NETHER_QUARZ_ORE:
-    - "&b&lNether Quarz Ore &7| &6Item Information"
+  NETHER_QUARTZ_ORE:
+    - "&b&lNether Quartz Ore &7| &6Item Information"
     - "&7"
     - "&7Tool: &aPickaxe (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted pickaxe"
@@ -1260,8 +1260,8 @@ descriptions:
     - "&7Biomes: &aWarped Forest"
     - "&7Tool: &aAxe"
     - "&7Can be obtained by right-clicking on a warped stem with an axe"
-  BLOCK_OF_STRIPPED_BAMBOO:
-    - "&b&lBlock of Stripped Bamboo &7| &6Item Information"
+  STRIPPED_BAMBOO_BLOCK:
+    - "&b&lStripped Bamboo Block &7| &6Item Information"
     - "&7"
     - "&7Biomes: &aJungle&7, &aBamboo Jungle"
     - "&7Tool: &aAxe"
