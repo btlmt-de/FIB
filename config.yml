@@ -127,7 +127,7 @@ descriptions:
     - "&7Biomes: &aFrozen Ocean, Deep Frozen Ocean"
     - "&7Structures: &aSnowy Plains Village, Ancient City"
     - "&7Tool: &aany (Silk Touch required)"
-    - "&7Can be mined with a &asilk touch enchanted &7or found as &achest loot &7in the mentioned structures"
+    - "&7Can be mined with a &asilk touch enchanted tool &7or found as &achest loot &7in the mentioned structures"
     - "&aWandering traders &7have &a1⁄6 &7chance to sell &ablue ice for 6 emeralds"
   BRAIN_CORAL_FAN:
     - "&b&lBrain Coral Fan &7| &6Item Information"
