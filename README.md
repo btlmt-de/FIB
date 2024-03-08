@@ -34,11 +34,17 @@ If you want to have item descriptions (useful in case items don't have a craftin
     
 ## Screenshots
 
-![Settings Menu](https://imgur.com/kyTK8qE)
+![Settings Menu](https://github.com/btlmt-de/FIB/assets/77849496/e8c586d1-908b-4a14-8bfe-2741758814a7)
 
-![Preset Menu](https://imgur.com/a/WGpJC4b)
 
-![Crafting Recipe](https://imgur.com/a/q1r9Tfy)
+![Preset Menu](https://github.com/btlmt-de/FIB/assets/77849496/7fdc1752-60db-471e-83f6-0b6d47de595d)
 
-![Item Description](https://imgur.com/a/7es51gJ)
+
+![Crafting Recipe](https://github.com/btlmt-de/FIB/assets/77849496/bfadbcda-ee08-4fb3-a6fd-7eec51c4c6c1)
+
+
+![Item Description](https://github.com/btlmt-de/FIB/assets/77849496/1b719e82-475a-4962-91e3-f9d719373be9)
+
+
+
 
