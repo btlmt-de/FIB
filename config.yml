@@ -128,9 +128,8 @@ descriptions:
     - "&7Structures: &aSnowy Plains Village&7, &aAncient City"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted tool"
-    - "&7Structure: &aVillage"
-    - "&7Village - Loot Chance:"
-    - "&eSnowy House Chest &7- &69.9%"
+    - "&7Structure - Chest Loot Table:"
+    - "&eSnowy Village Hosue Chest &7- &69.9%"
     - "&aWandering traders &7have &a1⁄6 chance &7to sell &ablue ice &7for &a6 emeralds"
   BRAIN_CORAL_FAN:
     - "&b&lBrain Coral Fan &7| &6Item Information"
