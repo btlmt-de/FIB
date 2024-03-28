@@ -1,0 +1,8658 @@
+[
+  {
+    "material": "STONE_BRICK_STAIRS",
+    "unicode": "\ue71c"
+  },
+  {
+    "material": "BROWN_BANNER",
+    "unicode": "\uea25"
+  },
+  {
+    "material": "OAK_STAIRS",
+    "unicode": "\ue731"
+  },
+  {
+    "material": "IRON_HORSE_ARMOR",
+    "unicode": "\uea10"
+  },
+  {
+    "material": "BLACK_CONCRETE",
+    "unicode": "\ue7ec"
+  },
+  {
+    "material": "LIGHTNING_ROD",
+    "unicode": "\ue853"
+  },
+  {
+    "material": "RED_GLAZED_TERRACOTTA",
+    "unicode": "\ue7db"
+  },
+  {
+    "material": "DEEPSLATE_TILES",
+    "unicode": "\ue70e"
+  },
+  {
+    "material": "MUSIC_DISC_OTHERSIDE",
+    "unicode": "\uea48"
+  },
+  {
+    "material": "BLUE_BANNER",
+    "unicode": "\uea24"
+  },
+  {
+    "material": "DIORITE_SLAB",
+    "unicode": "\ue83d"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_STAIRS",
+    "unicode": "\ue823"
+  },
+  {
+    "material": "PIGLIN_BANNER_PATTERN",
+    "unicode": "\uea59"
+  },
+  {
+    "material": "MOSS_CARPET",
+    "unicode": "\ue6a7"
+  },
+  {
+    "material": "SPRUCE_BUTTON",
+    "unicode": "\ue85f"
+  },
+  {
+    "material": "DARK_OAK_LOG",
+    "unicode": "\ue63c"
+  },
+  {
+    "material": "DEAD_TUBE_CORAL_FAN",
+    "unicode": "\ue818"
+  },
+  {
+    "material": "IRON_HELMET",
+    "unicode": "\ue910"
+  },
+  {
+    "material": "MOSSY_STONE_BRICK_SLAB",
+    "unicode": "\ue833"
+  },
+  {
+    "material": "ACTIVATOR_RAIL",
+    "unicode": "\ue8ae"
+  },
+  {
+    "material": "LAPIS_BLOCK",
+    "unicode": "\ue670"
+  },
+  {
+    "material": "WHITE_GLAZED_TERRACOTTA",
+    "unicode": "\ue7cd"
+  },
+  {
+    "material": "MAGENTA_STAINED_GLASS",
+    "unicode": "\ue78b"
+  },
+  {
+    "material": "YELLOW_CANDLE",
+    "unicode": "\uea85"
+  },
+  {
+    "material": "LILY_OF_THE_VALLEY",
+    "unicode": "\ue697"
+  },
+  {
+    "material": "SKULL_BANNER_PATTERN",
+    "unicode": "\uea56"
+  },
+  {
+    "material": "BIRCH_BUTTON",
+    "unicode": "\ue860"
+  },
+  {
+    "material": "GOLDEN_HORSE_ARMOR",
+    "unicode": "\uea11"
+  },
+  {
+    "material": "LEATHER_CHESTPLATE",
+    "unicode": "\ue909"
+  },
+  {
+    "material": "PURPLE_STAINED_GLASS_PANE",
+    "unicode": "\ue7a3"
+  },
+  {
+    "material": "STRIPPED_BIRCH_WOOD",
+    "unicode": "\ue64f"
+  },
+  {
+    "material": "CYAN_CARPET",
+    "unicode": "\ue779"
+  },
+  {
+    "material": "WHEAT_SEEDS",
+    "unicode": "\ue905"
+  },
+  {
+    "material": "SHAPER_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa9"
+  },
+  {
+    "material": "PINK_BED",
+    "unicode": "\ue97a"
+  },
+  {
+    "material": "COOKED_PORKCHOP",
+    "unicode": "\ue922"
+  },
+  {
+    "material": "DARK_OAK_WOOD",
+    "unicode": "\ue65e"
+  },
+  {
+    "material": "DEAD_BRAIN_CORAL_FAN",
+    "unicode": "\ue819"
+  },
+  {
+    "material": "CRIMSON_BUTTON",
+    "unicode": "\ue867"
+  },
+  {
+    "material": "MUD_BRICKS",
+    "unicode": "\ue70b"
+  },
+  {
+    "material": "GRAY_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d4"
+  },
+  {
+    "material": "QUARTZ_BRICKS",
+    "unicode": "\ue75a"
+  },
+  {
+    "material": "CUT_COPPER_SLAB",
+    "unicode": "\ue61e"
+  },
+  {
+    "material": "RAW_COPPER_BLOCK",
+    "unicode": "\ue606"
+  },
+  {
+    "material": "CLAY",
+    "unicode": "\ue6e7"
+  },
+  {
+    "material": "CHERRY_BUTTON",
+    "unicode": "\ue863"
+  },
+  {
+    "material": "WARPED_FUNGUS_ON_A_STICK",
+    "unicode": "\ue8b6"
+  },
+  {
+    "material": "EXPLORER_POTTERY_SHERD",
+    "unicode": "\ueab4"
+  },
+  {
+    "material": "SPECTRAL_ARROW",
+    "unicode": "\uea33"
+  },
+  {
+    "material": "DIAMOND_BLOCK",
+    "unicode": "\ue60d"
+  },
+  {
+    "material": "CHISELED_POLISHED_BLACKSTONE",
+    "unicode": "\uea7a"
+  },
+  {
+    "material": "WARPED_FENCE",
+    "unicode": "\ue6f3"
+  },
+  {
+    "material": "JUNGLE_BUTTON",
+    "unicode": "\ue861"
+  },
+  {
+    "material": "BROWN_SHULKER_BOX",
+    "unicode": "\ue7c9"
+  },
+  {
+    "material": "BLACK_GLAZED_TERRACOTTA",
+    "unicode": "\ue7dc"
+  },
+  {
+    "material": "OAK_SIGN",
+    "unicode": "\ue926"
+  },
+  {
+    "material": "BOOKSHELF",
+    "unicode": "\ue6d0"
+  },
+  {
+    "material": "BREAD",
+    "unicode": "\ue907"
+  },
+  {
+    "material": "SPRUCE_FENCE_GATE",
+    "unicode": "\ue8a1"
+  },
+  {
+    "material": "DEEPSLATE",
+    "unicode": "\ue5bb"
+  },
+  {
+    "material": "MUSIC_DISC_PIGSTEP",
+    "unicode": "\uea4b"
+  },
+  {
+    "material": "CRACKED_DEEPSLATE_TILES",
+    "unicode": "\ue70f"
+  },
+  {
+    "material": "LARGE_AMETHYST_BUD",
+    "unicode": "\uea93"
+  },
+  {
+    "material": "CHAINMAIL_HELMET",
+    "unicode": "\ue90c"
+  },
+  {
+    "material": "DEAD_BRAIN_CORAL",
+    "unicode": "\ue80e"
+  },
+  {
+    "material": "NETHERITE_SHOVEL",
+    "unicode": "\ue8fb"
+  },
+  {
+    "material": "ORANGE_BANNER",
+    "unicode": "\uea1a"
+  },
+  {
+    "material": "PURPUR_BLOCK",
+    "unicode": "\ue6d9"
+  },
+  {
+    "material": "EMERALD_BLOCK",
+    "unicode": "\ue730"
+  },
+  {
+    "material": "AXOLOTL_BUCKET",
+    "unicode": "\ue947"
+  },
+  {
+    "material": "BIRCH_HANGING_SIGN",
+    "unicode": "\ue933"
+  },
+  {
+    "material": "MAGENTA_SHULKER_BOX",
+    "unicode": "\ue7bf"
+  },
+  {
+    "material": "COCOA_BEANS",
+    "unicode": "\ue95f"
+  },
+  {
+    "material": "NETHERITE_BLOCK",
+    "unicode": "\ue60e"
+  },
+  {
+    "material": "WAXED_CUT_COPPER",
+    "unicode": "\ue62a"
+  },
+  {
+    "material": "LANTERN",
+    "unicode": "\uea65"
+  },
+  {
+    "material": "STONE_BRICKS",
+    "unicode": "\ue706"
+  },
+  {
+    "material": "DARK_OAK_FENCE_GATE",
+    "unicode": "\ue8a6"
+  },
+  {
+    "material": "PURPLE_BANNER",
+    "unicode": "\uea23"
+  },
+  {
+    "material": "CHERRY_LOG",
+    "unicode": "\ue63b"
+  },
+  {
+    "material": "LIGHT_GRAY_CANDLE",
+    "unicode": "\uea89"
+  },
+  {
+    "material": "END_STONE_BRICK_STAIRS",
+    "unicode": "\ue824"
+  },
+  {
+    "material": "HEAVY_WEIGHTED_PRESSURE_PLATE",
+    "unicode": "\ue86c"
+  },
+  {
+    "material": "LECTERN",
+    "unicode": "\ue850"
+  },
+  {
+    "material": "MANGROVE_BOAT",
+    "unicode": "\ue8c6"
+  },
+  {
+    "material": "BLAZE_ROD",
+    "unicode": "\ue992"
+  },
+  {
+    "material": "NETHER_BRICK_SLAB",
+    "unicode": "\ue6c3"
+  },
+  {
+    "material": "OBSIDIAN",
+    "unicode": "\ue6d4"
+  },
+  {
+    "material": "SPRUCE_PLANKS",
+    "unicode": "\ue5d8"
+  },
+  {
+    "material": "LEATHER_HELMET",
+    "unicode": "\ue908"
+  },
+  {
+    "material": "SPRUCE_BOAT",
+    "unicode": "\ue8ba"
+  },
+  {
+    "material": "MAGENTA_WOOL",
+    "unicode": "\ue67e"
+  },
+  {
+    "material": "LIGHT_GRAY_CARPET",
+    "unicode": "\ue778"
+  },
+  {
+    "material": "DEEPSLATE_BRICK_STAIRS",
+    "unicode": "\ue82f"
+  },
+  {
+    "material": "MUSIC_DISC_13",
+    "unicode": "\uea3c"
+  },
+  {
+    "material": "WARPED_DOOR",
+    "unicode": "\ue883"
+  },
+  {
+    "material": "CHAINMAIL_BOOTS",
+    "unicode": "\ue90f"
+  },
+  {
+    "material": "SHULKER_SHELL",
+    "unicode": "\uea38"
+  },
+  {
+    "material": "SPRUCE_SLAB",
+    "unicode": "\ue6af"
+  },
+  {
+    "material": "DEAD_HORN_CORAL",
+    "unicode": "\ue811"
+  },
+  {
+    "material": "GRAY_CANDLE",
+    "unicode": "\uea88"
+  },
+  {
+    "material": "GRINDSTONE",
+    "unicode": "\uea61"
+  },
+  {
+    "material": "TNT",
+    "unicode": "\ue859"
+  },
+  {
+    "material": "CHORUS_FLOWER",
+    "unicode": "\ue6d8"
+  },
+  {
+    "material": "SNORT_POTTERY_SHERD",
+    "unicode": "\ueac0"
+  },
+  {
+    "material": "LIGHT_BLUE_BANNER",
+    "unicode": "\uea1c"
+  },
+  {
+    "material": "FEATHER",
+    "unicode": "\ue903"
+  },
+  {
+    "material": "DARK_OAK_PLANKS",
+    "unicode": "\ue5dd"
+  },
+  {
+    "material": "DEEPSLATE_BRICK_SLAB",
+    "unicode": "\ue840"
+  },
+  {
+    "material": "NETHERITE_UPGRADE_SMITHING_TEMPLATE",
+    "unicode": "\uea9c"
+  },
+  {
+    "material": "GRANITE_WALL",
+    "unicode": "\ue745"
+  },
+  {
+    "material": "YELLOW_BANNER",
+    "unicode": "\uea1d"
+  },
+  {
+    "material": "RAW_COPPER",
+    "unicode": "\ue8db"
+  },
+  {
+    "material": "LOOM",
+    "unicode": "\uea53"
+  },
+  {
+    "material": "STRIPPED_WARPED_STEM",
+    "unicode": "\ue64c"
+  },
+  {
+    "material": "NETHER_WART_BLOCK",
+    "unicode": "\ue7b7"
+  },
+  {
+    "material": "ORANGE_CANDLE",
+    "unicode": "\uea82"
+  },
+  {
+    "material": "INK_SAC",
+    "unicode": "\ue95d"
+  },
+  {
+    "material": "CRIMSON_STAIRS",
+    "unicode": "\ue73b"
+  },
+  {
+    "material": "REPEATER",
+    "unicode": "\ue846"
+  },
+  {
+    "material": "TROPICAL_FISH_BUCKET",
+    "unicode": "\ue946"
+  },
+  {
+    "material": "JUNGLE_SIGN",
+    "unicode": "\ue929"
+  },
+  {
+    "material": "BLUE_SHULKER_BOX",
+    "unicode": "\ue7c8"
+  },
+  {
+    "material": "MAGENTA_STAINED_GLASS_PANE",
+    "unicode": "\ue79b"
+  },
+  {
+    "material": "POLISHED_DIORITE_SLAB",
+    "unicode": "\ue834"
+  },
+  {
+    "material": "STRIPPED_DARK_OAK_LOG",
+    "unicode": "\ue649"
+  },
+  {
+    "material": "ORANGE_CONCRETE",
+    "unicode": "\ue7de"
+  },
+  {
+    "material": "BASALT",
+    "unicode": "\ue6fa"
+  },
+  {
+    "material": "RED_NETHER_BRICK_STAIRS",
+    "unicode": "\ue82a"
+  },
+  {
+    "material": "TERRACOTTA",
+    "unicode": "\ue780"
+  },
+  {
+    "material": "CRIMSON_SIGN",
+    "unicode": "\ue92f"
+  },
+  {
+    "material": "COAL",
+    "unicode": "\ue8d2"
+  },
+  {
+    "material": "DEEPSLATE_TILE_WALL",
+    "unicode": "\ue754"
+  },
+  {
+    "material": "OAK_WOOD",
+    "unicode": "\ue658"
+  },
+  {
+    "material": "COOKED_SALMON",
+    "unicode": "\ue95c"
+  },
+  {
+    "material": "MAGMA_CREAM",
+    "unicode": "\ue99b"
+  },
+  {
+    "material": "ORANGE_GLAZED_TERRACOTTA",
+    "unicode": "\ue7ce"
+  },
+  {
+    "material": "DIAMOND_HELMET",
+    "unicode": "\ue914"
+  },
+  {
+    "material": "PINK_SHULKER_BOX",
+    "unicode": "\ue7c3"
+  },
+  {
+    "material": "SCULK",
+    "unicode": "\ue725"
+  },
+  {
+    "material": "HEART_OF_THE_SEA",
+    "unicode": "\uea50"
+  },
+  {
+    "material": "CHAIN",
+    "unicode": "\ue716"
+  },
+  {
+    "material": "POLISHED_BASALT",
+    "unicode": "\ue6fb"
+  },
+  {
+    "material": "DIAMOND_ORE",
+    "unicode": "\ue5ff"
+  },
+  {
+    "material": "SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa7"
+  },
+  {
+    "material": "COARSE_DIRT",
+    "unicode": "\ue5d0"
+  },
+  {
+    "material": "RED_NETHER_BRICK_SLAB",
+    "unicode": "\ue83b"
+  },
+  {
+    "material": "CRIMSON_FENCE",
+    "unicode": "\ue6f2"
+  },
+  {
+    "material": "BREWING_STAND",
+    "unicode": "\ue99c"
+  },
+  {
+    "material": "COAL_ORE",
+    "unicode": "\ue5f1"
+  },
+  {
+    "material": "CALIBRATED_SCULK_SENSOR",
+    "unicode": "\ue856"
+  },
+  {
+    "material": "WHITE_BED",
+    "unicode": "\ue974"
+  },
+  {
+    "material": "DIAMOND",
+    "unicode": "\ue8d4"
+  },
+  {
+    "material": "IRON_AXE",
+    "unicode": "\ue8f3"
+  },
+  {
+    "material": "END_STONE_BRICKS",
+    "unicode": "\ue72c"
+  },
+  {
+    "material": "CHISELED_STONE_BRICKS",
+    "unicode": "\ue709"
+  },
+  {
+    "material": "COBBLESTONE_WALL",
+    "unicode": "\ue73f"
+  },
+  {
+    "material": "YELLOW_STAINED_GLASS",
+    "unicode": "\ue78d"
+  },
+  {
+    "material": "DARK_PRISMARINE",
+    "unicode": "\ue7ab"
+  },
+  {
+    "material": "SOUL_LANTERN",
+    "unicode": "\uea66"
+  },
+  {
+    "material": "WARPED_ROOTS",
+    "unicode": "\ue6a1"
+  },
+  {
+    "material": "END_STONE_BRICK_WALL",
+    "unicode": "\ue74c"
+  },
+  {
+    "material": "BONE_MEAL",
+    "unicode": "\ue970"
+  },
+  {
+    "material": "MOSS_BLOCK",
+    "unicode": "\ue6a9"
+  },
+  {
+    "material": "ANDESITE_WALL",
+    "unicode": "\ue749"
+  },
+  {
+    "material": "DEAD_HORN_CORAL_BLOCK",
+    "unicode": "\ue803"
+  },
+  {
+    "material": "BEEF",
+    "unicode": "\ue98c"
+  },
+  {
+    "material": "GRAY_STAINED_GLASS",
+    "unicode": "\ue790"
+  },
+  {
+    "material": "LIME_STAINED_GLASS_PANE",
+    "unicode": "\ue79e"
+  },
+  {
+    "material": "BLAST_FURNACE",
+    "unicode": "\uea5e"
+  },
+  {
+    "material": "CYAN_WOOL",
+    "unicode": "\ue685"
+  },
+  {
+    "material": "PINK_STAINED_GLASS",
+    "unicode": "\ue78f"
+  },
+  {
+    "material": "YELLOW_SHULKER_BOX",
+    "unicode": "\ue7c1"
+  },
+  {
+    "material": "LIGHT_BLUE_STAINED_GLASS",
+    "unicode": "\ue78c"
+  },
+  {
+    "material": "MAGENTA_GLAZED_TERRACOTTA",
+    "unicode": "\ue7cf"
+  },
+  {
+    "material": "GOLDEN_HOE",
+    "unicode": "\ue8ef"
+  },
+  {
+    "material": "END_STONE",
+    "unicode": "\ue72b"
+  },
+  {
+    "material": "POLISHED_GRANITE",
+    "unicode": "\ue5b6"
+  },
+  {
+    "material": "MAGENTA_CARPET",
+    "unicode": "\ue772"
+  },
+  {
+    "material": "NETHER_WART",
+    "unicode": "\ue995"
+  },
+  {
+    "material": "GUNPOWDER",
+    "unicode": "\ue904"
+  },
+  {
+    "material": "ACACIA_LOG",
+    "unicode": "\ue63a"
+  },
+  {
+    "material": "OAK_PRESSURE_PLATE",
+    "unicode": "\ue86d"
+  },
+  {
+    "material": "RED_WOOL",
+    "unicode": "\ue68a"
+  },
+  {
+    "material": "RED_TERRACOTTA",
+    "unicode": "\ue76b"
+  },
+  {
+    "material": "BRUSH",
+    "unicode": "\uea9b"
+  },
+  {
+    "material": "PURPLE_SHULKER_BOX",
+    "unicode": "\ue7c7"
+  },
+  {
+    "material": "PRIZE_POTTERY_SHERD",
+    "unicode": "\ueabc"
+  },
+  {
+    "material": "GOLDEN_BOOTS",
+    "unicode": "\ue91b"
+  },
+  {
+    "material": "HOPPER",
+    "unicode": "\ue84d"
+  },
+  {
+    "material": "CHERRY_SAPLING",
+    "unicode": "\ue5e8"
+  },
+  {
+    "material": "SUGAR",
+    "unicode": "\ue972"
+  },
+  {
+    "material": "COOKED_COD",
+    "unicode": "\ue95b"
+  },
+  {
+    "material": "STONE_STAIRS",
+    "unicode": "\ue825"
+  },
+  {
+    "material": "NETHER_SPROUTS",
+    "unicode": "\ue6a2"
+  },
+  {
+    "material": "SPRUCE_DOOR",
+    "unicode": "\ue87a"
+  },
+  {
+    "material": "BUBBLE_CORAL_BLOCK",
+    "unicode": "\ue806"
+  },
+  {
+    "material": "CAKE",
+    "unicode": "\ue973"
+  },
+  {
+    "material": "SPRUCE_LEAVES",
+    "unicode": "\ue663"
+  },
+  {
+    "material": "SPIDER_EYE",
+    "unicode": "\ue998"
+  },
+  {
+    "material": "BAKED_POTATO",
+    "unicode": "\ue9f7"
+  },
+  {
+    "material": "RED_CANDLE",
+    "unicode": "\uea8f"
+  },
+  {
+    "material": "WARPED_FENCE_GATE",
+    "unicode": "\ue8aa"
+  },
+  {
+    "material": "BIRCH_SAPLING",
+    "unicode": "\ue5e5"
+  },
+  {
+    "material": "ACACIA_SLAB",
+    "unicode": "\ue6b2"
+  },
+  {
+    "material": "FILLED_MAP",
+    "unicode": "\ue986"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICKS",
+    "unicode": "\uea7b"
+  },
+  {
+    "material": "RED_TULIP",
+    "unicode": "\ue691"
+  },
+  {
+    "material": "WRITTEN_BOOK",
+    "unicode": "\ue9f1"
+  },
+  {
+    "material": "CHERRY_LEAVES",
+    "unicode": "\ue667"
+  },
+  {
+    "material": "YELLOW_CARPET",
+    "unicode": "\ue774"
+  },
+  {
+    "material": "BAMBOO_PRESSURE_PLATE",
+    "unicode": "\ue875"
+  },
+  {
+    "material": "NETHERITE_LEGGINGS",
+    "unicode": "\ue91e"
+  },
+  {
+    "material": "REDSTONE",
+    "unicode": "\ue843"
+  },
+  {
+    "material": "DARK_OAK_BUTTON",
+    "unicode": "\ue864"
+  },
+  {
+    "material": "GRAY_WOOL",
+    "unicode": "\ue683"
+  },
+  {
+    "material": "CHAINMAIL_CHESTPLATE",
+    "unicode": "\ue90d"
+  },
+  {
+    "material": "GLASS",
+    "unicode": "\ue66e"
+  },
+  {
+    "material": "GRANITE",
+    "unicode": "\ue5b5"
+  },
+  {
+    "material": "STONE_BRICK_WALL",
+    "unicode": "\ue746"
+  },
+  {
+    "material": "PRISMARINE_STAIRS",
+    "unicode": "\ue7ac"
+  },
+  {
+    "material": "COPPER_BLOCK",
+    "unicode": "\ue60b"
+  },
+  {
+    "material": "CHISELED_RED_SANDSTONE",
+    "unicode": "\ue7b1"
+  },
+  {
+    "material": "JUNGLE_LEAVES",
+    "unicode": "\ue665"
+  },
+  {
+    "material": "DEEPSLATE_DIAMOND_ORE",
+    "unicode": "\ue600"
+  },
+  {
+    "material": "BAMBOO_MOSAIC",
+    "unicode": "\ue5e2"
+  },
+  {
+    "material": "HORN_CORAL_BLOCK",
+    "unicode": "\ue808"
+  },
+  {
+    "material": "STONE_HOE",
+    "unicode": "\ue8ea"
+  },
+  {
+    "material": "FIREWORK_STAR",
+    "unicode": "\uea05"
+  },
+  {
+    "material": "PODZOL",
+    "unicode": "\ue5d1"
+  },
+  {
+    "material": "HOPPER_MINECART",
+    "unicode": "\ue8b4"
+  },
+  {
+    "material": "PURPLE_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d7"
+  },
+  {
+    "material": "SMOOTH_STONE",
+    "unicode": "\ue6ce"
+  },
+  {
+    "material": "SUNFLOWER",
+    "unicode": "\ue783"
+  },
+  {
+    "material": "GREEN_STAINED_GLASS_PANE",
+    "unicode": "\ue7a6"
+  },
+  {
+    "material": "GILDED_BLACKSTONE",
+    "unicode": "\uea76"
+  },
+  {
+    "material": "BIRCH_LEAVES",
+    "unicode": "\ue664"
+  },
+  {
+    "material": "LIGHT_BLUE_CANDLE",
+    "unicode": "\uea84"
+  },
+  {
+    "material": "CRIMSON_HYPHAE",
+    "unicode": "\ue660"
+  },
+  {
+    "material": "CHEST_MINECART",
+    "unicode": "\ue8b1"
+  },
+  {
+    "material": "DIAMOND_HOE",
+    "unicode": "\ue8f9"
+  },
+  {
+    "material": "GLOWSTONE_DUST",
+    "unicode": "\ue956"
+  },
+  {
+    "material": "BEE_NEST",
+    "unicode": "\uea6d"
+  },
+  {
+    "material": "ANDESITE",
+    "unicode": "\ue5b9"
+  },
+  {
+    "material": "ORANGE_CARPET",
+    "unicode": "\ue771"
+  },
+  {
+    "material": "GOLDEN_HELMET",
+    "unicode": "\ue918"
+  },
+  {
+    "material": "BROWN_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d9"
+  },
+  {
+    "material": "BIG_DRIPLEAF",
+    "unicode": "\ue6ab"
+  },
+  {
+    "material": "BARREL",
+    "unicode": "\uea5c"
+  },
+  {
+    "material": "KELP",
+    "unicode": "\ue6a6"
+  },
+  {
+    "material": "CHERRY_HANGING_SIGN",
+    "unicode": "\ue936"
+  },
+  {
+    "material": "CRAFTING_TABLE",
+    "unicode": "\ue6de"
+  },
+  {
+    "material": "BLUE_STAINED_GLASS_PANE",
+    "unicode": "\ue7a4"
+  },
+  {
+    "material": "BAMBOO_BUTTON",
+    "unicode": "\ue866"
+  },
+  {
+    "material": "BAMBOO_TRAPDOOR",
+    "unicode": "\ue895"
+  },
+  {
+    "material": "MUD_BRICK_STAIRS",
+    "unicode": "\ue71d"
+  },
+  {
+    "material": "COD_BUCKET",
+    "unicode": "\ue945"
+  },
+  {
+    "material": "BLAZE_POWDER",
+    "unicode": "\ue99a"
+  },
+  {
+    "material": "RABBIT",
+    "unicode": "\uea0a"
+  },
+  {
+    "material": "COMPASS",
+    "unicode": "\ue950"
+  },
+  {
+    "material": "NETHERITE_HOE",
+    "unicode": "\ue8fe"
+  },
+  {
+    "material": "NETHER_BRICK_STAIRS",
+    "unicode": "\ue724"
+  },
+  {
+    "material": "AMETHYST_BLOCK",
+    "unicode": "\ue608"
+  },
+  {
+    "material": "LIME_STAINED_GLASS",
+    "unicode": "\ue78e"
+  },
+  {
+    "material": "STICK",
+    "unicode": "\ue8ff"
+  },
+  {
+    "material": "SOUL_TORCH",
+    "unicode": "\ue6fd"
+  },
+  {
+    "material": "WILD_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa0"
+  },
+  {
+    "material": "DIRT",
+    "unicode": "\ue5cf"
+  },
+  {
+    "material": "ICE",
+    "unicode": "\ue6e4"
+  },
+  {
+    "material": "MAGENTA_CANDLE",
+    "unicode": "\uea83"
+  },
+  {
+    "material": "COBWEB",
+    "unicode": "\ue674"
+  },
+  {
+    "material": "CAMPFIRE",
+    "unicode": "\uea69"
+  },
+  {
+    "material": "STRIPPED_WARPED_HYPHAE",
+    "unicode": "\ue656"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_SLAB",
+    "unicode": "\uea78"
+  },
+  {
+    "material": "BRICK_STAIRS",
+    "unicode": "\ue71b"
+  },
+  {
+    "material": "LEATHER_HORSE_ARMOR",
+    "unicode": "\uea13"
+  },
+  {
+    "material": "JUNGLE_SLAB",
+    "unicode": "\ue6b1"
+  },
+  {
+    "material": "CRIMSON_FENCE_GATE",
+    "unicode": "\ue8a9"
+  },
+  {
+    "material": "NETHERITE_PICKAXE",
+    "unicode": "\ue8fc"
+  },
+  {
+    "material": "CHERRY_STAIRS",
+    "unicode": "\ue736"
+  },
+  {
+    "material": "DEAD_FIRE_CORAL_BLOCK",
+    "unicode": "\ue802"
+  },
+  {
+    "material": "LIGHT_GRAY_SHULKER_BOX",
+    "unicode": "\ue7c5"
+  },
+  {
+    "material": "DROPPER",
+    "unicode": "\ue84f"
+  },
+  {
+    "material": "LIGHT_GRAY_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d5"
+  },
+  {
+    "material": "ACACIA_HANGING_SIGN",
+    "unicode": "\ue935"
+  },
+  {
+    "material": "SEAGRASS",
+    "unicode": "\ue67a"
+  },
+  {
+    "material": "POTATO",
+    "unicode": "\ue9f6"
+  },
+  {
+    "material": "CACTUS",
+    "unicode": "\ue6e6"
+  },
+  {
+    "material": "SHROOMLIGHT",
+    "unicode": "\uea6b"
+  },
+  {
+    "material": "BUBBLE_CORAL_FAN",
+    "unicode": "\ue815"
+  },
+  {
+    "material": "LEAD",
+    "unicode": "\uea14"
+  },
+  {
+    "material": "DIAMOND_PICKAXE",
+    "unicode": "\ue8f7"
+  },
+  {
+    "material": "MANGROVE_SIGN",
+    "unicode": "\ue92d"
+  },
+  {
+    "material": "STRING",
+    "unicode": "\ue902"
+  },
+  {
+    "material": "BEETROOT_SOUP",
+    "unicode": "\uea30"
+  },
+  {
+    "material": "BRAIN_CORAL_BLOCK",
+    "unicode": "\ue805"
+  },
+  {
+    "material": "BIRCH_SIGN",
+    "unicode": "\ue928"
+  },
+  {
+    "material": "DEEPSLATE_BRICKS",
+    "unicode": "\ue70c"
+  },
+  {
+    "material": "BEETROOT_SEEDS",
+    "unicode": "\uea2f"
+  },
+  {
+    "material": "JUNGLE_CHEST_BOAT",
+    "unicode": "\ue8bf"
+  },
+  {
+    "material": "YELLOW_DYE",
+    "unicode": "\ue964"
+  },
+  {
+    "material": "CHERRY_WOOD",
+    "unicode": "\ue65d"
+  },
+  {
+    "material": "PUFFERFISH",
+    "unicode": "\ue95a"
+  },
+  {
+    "material": "CRIMSON_DOOR",
+    "unicode": "\ue882"
+  },
+  {
+    "material": "STRIPPED_CRIMSON_HYPHAE",
+    "unicode": "\ue655"
+  },
+  {
+    "material": "MAGENTA_DYE",
+    "unicode": "\ue962"
+  },
+  {
+    "material": "CRIMSON_ROOTS",
+    "unicode": "\ue6a0"
+  },
+  {
+    "material": "LIME_DYE",
+    "unicode": "\ue965"
+  },
+  {
+    "material": "NETHER_BRICK_FENCE",
+    "unicode": "\ue723"
+  },
+  {
+    "material": "BAMBOO_FENCE",
+    "unicode": "\ue6f1"
+  },
+  {
+    "material": "CHEST",
+    "unicode": "\ue6dd"
+  },
+  {
+    "material": "LODESTONE",
+    "unicode": "\uea71"
+  },
+  {
+    "material": "PHANTOM_MEMBRANE",
+    "unicode": "\uea4e"
+  },
+  {
+    "material": "DIAMOND_BOOTS",
+    "unicode": "\ue917"
+  },
+  {
+    "material": "ARMOR_STAND",
+    "unicode": "\uea0f"
+  },
+  {
+    "material": "OAK_SLAB",
+    "unicode": "\ue6ae"
+  },
+  {
+    "material": "HONEYCOMB_BLOCK",
+    "unicode": "\uea70"
+  },
+  {
+    "material": "IRON_NUGGET",
+    "unicode": "\uea39"
+  },
+  {
+    "material": "JUNGLE_PRESSURE_PLATE",
+    "unicode": "\ue870"
+  },
+  {
+    "material": "RED_MUSHROOM_BLOCK",
+    "unicode": "\ue713"
+  },
+  {
+    "material": "MUD",
+    "unicode": "\ue5d3"
+  },
+  {
+    "material": "RESPAWN_ANCHOR",
+    "unicode": "\uea7f"
+  },
+  {
+    "material": "GLOBE_BANNER_PATTERN",
+    "unicode": "\uea58"
+  },
+  {
+    "material": "STONE",
+    "unicode": "\ue5b4"
+  },
+  {
+    "material": "SCULK_CATALYST",
+    "unicode": "\ue727"
+  },
+  {
+    "material": "BLACK_CARPET",
+    "unicode": "\ue77f"
+  },
+  {
+    "material": "QUARTZ_BLOCK",
+    "unicode": "\ue759"
+  },
+  {
+    "material": "RAW_GOLD",
+    "unicode": "\ue8dd"
+  },
+  {
+    "material": "FLINT_AND_STEEL",
+    "unicode": "\ue8ce"
+  },
+  {
+    "material": "STRIPPED_OAK_WOOD",
+    "unicode": "\ue64d"
+  },
+  {
+    "material": "WARPED_WART_BLOCK",
+    "unicode": "\ue7b8"
+  },
+  {
+    "material": "CRIMSON_PLANKS",
+    "unicode": "\ue5e0"
+  },
+  {
+    "material": "POLISHED_ANDESITE",
+    "unicode": "\ue5ba"
+  },
+  {
+    "material": "NAUTILUS_SHELL",
+    "unicode": "\uea4f"
+  },
+  {
+    "material": "COOKED_CHICKEN",
+    "unicode": "\ue98f"
+  },
+  {
+    "material": "OAK_FENCE_GATE",
+    "unicode": "\ue8a0"
+  },
+  {
+    "material": "STRIPPED_ACACIA_LOG",
+    "unicode": "\ue647"
+  },
+  {
+    "material": "TUBE_CORAL",
+    "unicode": "\ue809"
+  },
+  {
+    "material": "CRACKED_STONE_BRICKS",
+    "unicode": "\ue708"
+  },
+  {
+    "material": "RED_BED",
+    "unicode": "\ue982"
+  },
+  {
+    "material": "DRIED_KELP",
+    "unicode": "\ue989"
+  },
+  {
+    "material": "MILK_BUCKET",
+    "unicode": "\ue942"
+  },
+  {
+    "material": "MUSIC_DISC_CAT",
+    "unicode": "\uea3d"
+  },
+  {
+    "material": "BROWN_CARPET",
+    "unicode": "\ue77c"
+  },
+  {
+    "material": "CHIPPED_ANVIL",
+    "unicode": "\ue756"
+  },
+  {
+    "material": "BEEHIVE",
+    "unicode": "\uea6e"
+  },
+  {
+    "material": "OAK_BUTTON",
+    "unicode": "\ue85e"
+  },
+  {
+    "material": "ENDER_PEARL",
+    "unicode": "\ue991"
+  },
+  {
+    "material": "DEAD_BRAIN_CORAL_BLOCK",
+    "unicode": "\ue800"
+  },
+  {
+    "material": "PURPLE_WOOL",
+    "unicode": "\ue686"
+  },
+  {
+    "material": "SANDSTONE_SLAB",
+    "unicode": "\ue6bc"
+  },
+  {
+    "material": "BIRCH_TRAPDOOR",
+    "unicode": "\ue88f"
+  },
+  {
+    "material": "CUT_SANDSTONE_SLAB",
+    "unicode": "\ue6bd"
+  },
+  {
+    "material": "DEAD_BUSH",
+    "unicode": "\ue679"
+  },
+  {
+    "material": "JUNGLE_DOOR",
+    "unicode": "\ue87c"
+  },
+  {
+    "material": "PRISMARINE_CRYSTALS",
+    "unicode": "\uea09"
+  },
+  {
+    "material": "PINK_CARPET",
+    "unicode": "\ue776"
+  },
+  {
+    "material": "ACACIA_BUTTON",
+    "unicode": "\ue862"
+  },
+  {
+    "material": "SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\uea9d"
+  },
+  {
+    "material": "SCULK_VEIN",
+    "unicode": "\ue726"
+  },
+  {
+    "material": "NOTE_BLOCK",
+    "unicode": "\ue85b"
+  },
+  {
+    "material": "DARK_OAK_PRESSURE_PLATE",
+    "unicode": "\ue873"
+  },
+  {
+    "material": "RED_SANDSTONE_WALL",
+    "unicode": "\ue743"
+  },
+  {
+    "material": "SALMON_BUCKET",
+    "unicode": "\ue944"
+  },
+  {
+    "material": "RED_NETHER_BRICKS",
+    "unicode": "\ue7b9"
+  },
+  {
+    "material": "PRISMARINE",
+    "unicode": "\ue7a9"
+  },
+  {
+    "material": "PINK_CANDLE",
+    "unicode": "\uea87"
+  },
+  {
+    "material": "MAP",
+    "unicode": "\ue9f9"
+  },
+  {
+    "material": "MELON",
+    "unicode": "\ue718"
+  },
+  {
+    "material": "IRON_BOOTS",
+    "unicode": "\ue913"
+  },
+  {
+    "material": "PRISMARINE_SLAB",
+    "unicode": "\ue6c8"
+  },
+  {
+    "material": "HONEY_BOTTLE",
+    "unicode": "\uea6f"
+  },
+  {
+    "material": "DARK_OAK_CHEST_BOAT",
+    "unicode": "\ue8c5"
+  },
+  {
+    "material": "SCAFFOLDING",
+    "unicode": "\ue842"
+  },
+  {
+    "material": "EMERALD_ORE",
+    "unicode": "\ue5fb"
+  },
+  {
+    "material": "BLUE_CANDLE",
+    "unicode": "\uea8c"
+  },
+  {
+    "material": "HANGING_ROOTS",
+    "unicode": "\ue6aa"
+  },
+  {
+    "material": "CALCITE",
+    "unicode": "\ue5be"
+  },
+  {
+    "material": "MUTTON",
+    "unicode": "\uea17"
+  },
+  {
+    "material": "LIME_CONCRETE_POWDER",
+    "unicode": "\ue7f2"
+  },
+  {
+    "material": "RED_SANDSTONE",
+    "unicode": "\ue7b0"
+  },
+  {
+    "material": "YELLOW_BED",
+    "unicode": "\ue978"
+  },
+  {
+    "material": "GRAY_TERRACOTTA",
+    "unicode": "\ue764"
+  },
+  {
+    "material": "CYAN_CANDLE",
+    "unicode": "\uea8a"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_SLAB",
+    "unicode": "\ue835"
+  },
+  {
+    "material": "LEATHER_BOOTS",
+    "unicode": "\ue90b"
+  },
+  {
+    "material": "STRIPPED_BIRCH_LOG",
+    "unicode": "\ue645"
+  },
+  {
+    "material": "GRAY_DYE",
+    "unicode": "\ue967"
+  },
+  {
+    "material": "WARPED_FUNGUS",
+    "unicode": "\ue69f"
+  },
+  {
+    "material": "RED_SAND",
+    "unicode": "\ue5ef"
+  },
+  {
+    "material": "CHERRY_FENCE_GATE",
+    "unicode": "\ue8a5"
+  },
+  {
+    "material": "IRON_BARS",
+    "unicode": "\ue715"
+  },
+  {
+    "material": "BOW",
+    "unicode": "\ue8d0"
+  },
+  {
+    "material": "BRICK",
+    "unicode": "\ue949"
+  },
+  {
+    "material": "PURPLE_CANDLE",
+    "unicode": "\uea8b"
+  },
+  {
+    "material": "SLIME_BLOCK",
+    "unicode": "\ue84a"
+  },
+  {
+    "material": "PURPLE_TERRACOTTA",
+    "unicode": "\ue767"
+  },
+  {
+    "material": "CHERRY_PRESSURE_PLATE",
+    "unicode": "\ue872"
+  },
+  {
+    "material": "BIRCH_STAIRS",
+    "unicode": "\ue733"
+  },
+  {
+    "material": "LIGHT_BLUE_CONCRETE_POWDER",
+    "unicode": "\ue7f0"
+  },
+  {
+    "material": "CRIMSON_FUNGUS",
+    "unicode": "\ue69e"
+  },
+  {
+    "material": "NETHERITE_SWORD",
+    "unicode": "\ue8fa"
+  },
+  {
+    "material": "OAK_FENCE",
+    "unicode": "\ue6e9"
+  },
+  {
+    "material": "DARK_OAK_HANGING_SIGN",
+    "unicode": "\ue937"
+  },
+  {
+    "material": "STONE_SHOVEL",
+    "unicode": "\ue8e7"
+  },
+  {
+    "material": "BIRCH_WOOD",
+    "unicode": "\ue65a"
+  },
+  {
+    "material": "FURNACE",
+    "unicode": "\ue6e0"
+  },
+  {
+    "material": "FLOWER_POT",
+    "unicode": "\ue9f4"
+  },
+  {
+    "material": "DIAMOND_SHOVEL",
+    "unicode": "\ue8f6"
+  },
+  {
+    "material": "LARGE_FERN",
+    "unicode": "\ue788"
+  },
+  {
+    "material": "NETHER_GOLD_ORE",
+    "unicode": "\ue601"
+  },
+  {
+    "material": "IRON_CHESTPLATE",
+    "unicode": "\ue911"
+  },
+  {
+    "material": "DUNE_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\uea9e"
+  },
+  {
+    "material": "POLISHED_GRANITE_SLAB",
+    "unicode": "\ue831"
+  },
+  {
+    "material": "WARPED_PLANKS",
+    "unicode": "\ue5e1"
+  },
+  {
+    "material": "BLACK_SHULKER_BOX",
+    "unicode": "\ue7cc"
+  },
+  {
+    "material": "SPRUCE_SIGN",
+    "unicode": "\ue927"
+  },
+  {
+    "material": "COD",
+    "unicode": "\ue957"
+  },
+  {
+    "material": "STRIPPED_CRIMSON_STEM",
+    "unicode": "\ue64b"
+  },
+  {
+    "material": "LIGHT_BLUE_CARPET",
+    "unicode": "\ue773"
+  },
+  {
+    "material": "SCULK_SENSOR",
+    "unicode": "\ue855"
+  },
+  {
+    "material": "SMOOTH_SANDSTONE",
+    "unicode": "\ue6cd"
+  },
+  {
+    "material": "AMETHYST_SHARD",
+    "unicode": "\ue8d8"
+  },
+  {
+    "material": "PURPLE_STAINED_GLASS",
+    "unicode": "\ue793"
+  },
+  {
+    "material": "LIME_BANNER",
+    "unicode": "\uea1e"
+  },
+  {
+    "material": "BLUE_CONCRETE_POWDER",
+    "unicode": "\ue7f8"
+  },
+  {
+    "material": "BLACKSTONE_STAIRS",
+    "unicode": "\uea75"
+  },
+  {
+    "material": "SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa5"
+  },
+  {
+    "material": "TROPICAL_FISH",
+    "unicode": "\ue959"
+  },
+  {
+    "material": "GOLDEN_AXE",
+    "unicode": "\ue8ee"
+  },
+  {
+    "material": "TORCH",
+    "unicode": "\ue6d5"
+  },
+  {
+    "material": "TNT_MINECART",
+    "unicode": "\ue8b3"
+  },
+  {
+    "material": "WHITE_DYE",
+    "unicode": "\ue960"
+  },
+  {
+    "material": "PRISMARINE_BRICK_STAIRS",
+    "unicode": "\ue7ad"
+  },
+  {
+    "material": "ORANGE_STAINED_GLASS_PANE",
+    "unicode": "\ue79a"
+  },
+  {
+    "material": "HAY_BLOCK",
+    "unicode": "\ue76f"
+  },
+  {
+    "material": "MANGROVE_FENCE_GATE",
+    "unicode": "\ue8a7"
+  },
+  {
+    "material": "QUARTZ",
+    "unicode": "\ue8d7"
+  },
+  {
+    "material": "IRON_TRAPDOOR",
+    "unicode": "\ue88c"
+  },
+  {
+    "material": "REDSTONE_TORCH",
+    "unicode": "\ue844"
+  },
+  {
+    "material": "BAMBOO_MOSAIC_SLAB",
+    "unicode": "\ue6b7"
+  },
+  {
+    "material": "SPRUCE_HANGING_SIGN",
+    "unicode": "\ue932"
+  },
+  {
+    "material": "WHITE_BANNER",
+    "unicode": "\uea19"
+  },
+  {
+    "material": "WAXED_CUT_COPPER_STAIRS",
+    "unicode": "\ue62e"
+  },
+  {
+    "material": "NETHERITE_AXE",
+    "unicode": "\ue8fd"
+  },
+  {
+    "material": "MANGROVE_ROOTS",
+    "unicode": "\ue63e"
+  },
+  {
+    "material": "DEEPSLATE_TILE_STAIRS",
+    "unicode": "\ue830"
+  },
+  {
+    "material": "MELON_SEEDS",
+    "unicode": "\ue98b"
+  },
+  {
+    "material": "VEX_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa3"
+  },
+  {
+    "material": "GOLDEN_CHESTPLATE",
+    "unicode": "\ue919"
+  },
+  {
+    "material": "YELLOW_STAINED_GLASS_PANE",
+    "unicode": "\ue79d"
+  },
+  {
+    "material": "CUT_COPPER",
+    "unicode": "\ue616"
+  },
+  {
+    "material": "ARCHER_POTTERY_SHERD",
+    "unicode": "\ueaae"
+  },
+  {
+    "material": "GRANITE_SLAB",
+    "unicode": "\ue839"
+  },
+  {
+    "material": "NETHERRACK",
+    "unicode": "\ue6f7"
+  },
+  {
+    "material": "DRIED_KELP_BLOCK",
+    "unicode": "\ue94b"
+  },
+  {
+    "material": "STRIPPED_SPRUCE_WOOD",
+    "unicode": "\ue64e"
+  },
+  {
+    "material": "WHITE_SHULKER_BOX",
+    "unicode": "\ue7bd"
+  },
+  {
+    "material": "LIGHT_BLUE_DYE",
+    "unicode": "\ue963"
+  },
+  {
+    "material": "RAW_GOLD_BLOCK",
+    "unicode": "\ue607"
+  },
+  {
+    "material": "DIAMOND_HORSE_ARMOR",
+    "unicode": "\uea12"
+  },
+  {
+    "material": "FURNACE_MINECART",
+    "unicode": "\ue8b2"
+  },
+  {
+    "material": "STONE_SLAB",
+    "unicode": "\ue6ba"
+  },
+  {
+    "material": "LIME_CARPET",
+    "unicode": "\ue775"
+  },
+  {
+    "material": "STRIPPED_DARK_OAK_WOOD",
+    "unicode": "\ue653"
+  },
+  {
+    "material": "OAK_HANGING_SIGN",
+    "unicode": "\ue931"
+  },
+  {
+    "material": "WOODEN_AXE",
+    "unicode": "\ue8e4"
+  },
+  {
+    "material": "BELL",
+    "unicode": "\uea64"
+  },
+  {
+    "material": "SANDSTONE_WALL",
+    "unicode": "\ue74b"
+  },
+  {
+    "material": "MYCELIUM",
+    "unicode": "\ue71e"
+  },
+  {
+    "material": "DEEPSLATE_COAL_ORE",
+    "unicode": "\ue5f2"
+  },
+  {
+    "material": "TOTEM_OF_UNDYING",
+    "unicode": "\uea37"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_SLAB",
+    "unicode": "\ue83f"
+  },
+  {
+    "material": "STRIPPED_JUNGLE_LOG",
+    "unicode": "\ue646"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE",
+    "unicode": "\ue5bc"
+  },
+  {
+    "material": "GOLDEN_SWORD",
+    "unicode": "\ue8eb"
+  },
+  {
+    "material": "PAPER",
+    "unicode": "\ue94c"
+  },
+  {
+    "material": "GREEN_CANDLE",
+    "unicode": "\uea8e"
+  },
+  {
+    "material": "FLETCHING_TABLE",
+    "unicode": "\uea60"
+  },
+  {
+    "material": "HORN_CORAL_FAN",
+    "unicode": "\ue817"
+  },
+  {
+    "material": "RABBIT_STEW",
+    "unicode": "\uea0c"
+  },
+  {
+    "material": "ACACIA_BOAT",
+    "unicode": "\ue8c0"
+  },
+  {
+    "material": "PINK_BANNER",
+    "unicode": "\uea1f"
+  },
+  {
+    "material": "BROWN_STAINED_GLASS",
+    "unicode": "\ue795"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICK_WALL",
+    "unicode": "\ue750"
+  },
+  {
+    "material": "TUBE_CORAL_FAN",
+    "unicode": "\ue813"
+  },
+  {
+    "material": "BONE",
+    "unicode": "\ue971"
+  },
+  {
+    "material": "LEVER",
+    "unicode": "\ue852"
+  },
+  {
+    "material": "PLENTY_POTTERY_SHERD",
+    "unicode": "\ueabb"
+  },
+  {
+    "material": "BLACK_STAINED_GLASS",
+    "unicode": "\ue798"
+  },
+  {
+    "material": "ANDESITE_SLAB",
+    "unicode": "\ue83a"
+  },
+  {
+    "material": "PINK_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d3"
+  },
+  {
+    "material": "GOLDEN_CARROT",
+    "unicode": "\ue9fa"
+  },
+  {
+    "material": "NETHER_BRICK",
+    "unicode": "\uea07"
+  },
+  {
+    "material": "CRYING_OBSIDIAN",
+    "unicode": "\uea72"
+  },
+  {
+    "material": "LIGHT_GRAY_WOOL",
+    "unicode": "\ue684"
+  },
+  {
+    "material": "CARROT",
+    "unicode": "\ue9f5"
+  },
+  {
+    "material": "STRIPPED_ACACIA_WOOD",
+    "unicode": "\ue651"
+  },
+  {
+    "material": "CORNFLOWER",
+    "unicode": "\ue696"
+  },
+  {
+    "material": "DARK_OAK_BOAT",
+    "unicode": "\ue8c4"
+  },
+  {
+    "material": "BIRCH_FENCE",
+    "unicode": "\ue6eb"
+  },
+  {
+    "material": "PUMPKIN",
+    "unicode": "\ue6f4"
+  },
+  {
+    "material": "MANGROVE_LOG",
+    "unicode": "\ue63d"
+  },
+  {
+    "material": "LAPIS_LAZULI",
+    "unicode": "\ue8d6"
+  },
+  {
+    "material": "COOKIE",
+    "unicode": "\ue984"
+  },
+  {
+    "material": "LIGHT_GRAY_CONCRETE_POWDER",
+    "unicode": "\ue7f5"
+  },
+  {
+    "material": "APPLE",
+    "unicode": "\ue8cf"
+  },
+  {
+    "material": "CUT_COPPER_STAIRS",
+    "unicode": "\ue61a"
+  },
+  {
+    "material": "GREEN_SHULKER_BOX",
+    "unicode": "\ue7ca"
+  },
+  {
+    "material": "CLOCK",
+    "unicode": "\ue954"
+  },
+  {
+    "material": "POPPY",
+    "unicode": "\ue68d"
+  },
+  {
+    "material": "BLUE_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d8"
+  },
+  {
+    "material": "CHERRY_PLANKS",
+    "unicode": "\ue5dc"
+  },
+  {
+    "material": "SEA_LANTERN",
+    "unicode": "\ue7af"
+  },
+  {
+    "material": "STRIPPED_BAMBOO_BLOCK",
+    "unicode": "\ue657"
+  },
+  {
+    "material": "HONEY_BLOCK",
+    "unicode": "\ue84b"
+  },
+  {
+    "material": "CHORUS_FRUIT",
+    "unicode": "\uea2a"
+  },
+  {
+    "material": "MAGENTA_BED",
+    "unicode": "\ue976"
+  },
+  {
+    "material": "GREEN_TERRACOTTA",
+    "unicode": "\ue76a"
+  },
+  {
+    "material": "ITEM_FRAME",
+    "unicode": "\ue9f2"
+  },
+  {
+    "material": "SNOW",
+    "unicode": "\ue6e3"
+  },
+  {
+    "material": "FLINT",
+    "unicode": "\ue920"
+  },
+  {
+    "material": "GREEN_CARPET",
+    "unicode": "\ue77d"
+  },
+  {
+    "material": "DEEPSLATE_BRICK_WALL",
+    "unicode": "\ue753"
+  },
+  {
+    "material": "CYAN_CONCRETE",
+    "unicode": "\ue7e6"
+  },
+  {
+    "material": "GOLDEN_APPLE",
+    "unicode": "\ue924"
+  },
+  {
+    "material": "MINER_POTTERY_SHERD",
+    "unicode": "\ueab9"
+  },
+  {
+    "material": "BROWN_MUSHROOM",
+    "unicode": "\ue69c"
+  },
+  {
+    "material": "FIREWORK_ROCKET",
+    "unicode": "\uea04"
+  },
+  {
+    "material": "DEAD_BUBBLE_CORAL_BLOCK",
+    "unicode": "\ue801"
+  },
+  {
+    "material": "HOST_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaac"
+  },
+  {
+    "material": "BLUE_CARPET",
+    "unicode": "\ue77b"
+  },
+  {
+    "material": "SPRUCE_TRAPDOOR",
+    "unicode": "\ue88e"
+  },
+  {
+    "material": "ANCIENT_DEBRIS",
+    "unicode": "\ue603"
+  },
+  {
+    "material": "DEAD_FIRE_CORAL",
+    "unicode": "\ue810"
+  },
+  {
+    "material": "STRIPPED_MANGROVE_WOOD",
+    "unicode": "\ue654"
+  },
+  {
+    "material": "ARROW",
+    "unicode": "\ue8d1"
+  },
+  {
+    "material": "DRIPSTONE_BLOCK",
+    "unicode": "\ue5cd"
+  },
+  {
+    "material": "CARROT_ON_A_STICK",
+    "unicode": "\ue8b5"
+  },
+  {
+    "material": "DECORATED_POT",
+    "unicode": "\ue6d2"
+  },
+  {
+    "material": "ACACIA_PLANKS",
+    "unicode": "\ue5db"
+  },
+  {
+    "material": "BLACKSTONE_SLAB",
+    "unicode": "\uea74"
+  },
+  {
+    "material": "JACK_O_LANTERN",
+    "unicode": "\ue6f6"
+  },
+  {
+    "material": "CYAN_STAINED_GLASS_PANE",
+    "unicode": "\ue7a2"
+  },
+  {
+    "material": "WHITE_STAINED_GLASS",
+    "unicode": "\ue789"
+  },
+  {
+    "material": "JUNGLE_SAPLING",
+    "unicode": "\ue5e6"
+  },
+  {
+    "material": "IRON_DOOR",
+    "unicode": "\ue878"
+  },
+  {
+    "material": "MINECART",
+    "unicode": "\ue8b0"
+  },
+  {
+    "material": "BAMBOO_PLANKS",
+    "unicode": "\ue5df"
+  },
+  {
+    "material": "DISPENSER",
+    "unicode": "\ue84e"
+  },
+  {
+    "material": "BROWN_WOOL",
+    "unicode": "\ue688"
+  },
+  {
+    "material": "BAMBOO_HANGING_SIGN",
+    "unicode": "\ue939"
+  },
+  {
+    "material": "BURN_POTTERY_SHERD",
+    "unicode": "\ueab2"
+  },
+  {
+    "material": "CUT_RED_SANDSTONE",
+    "unicode": "\ue7b2"
+  },
+  {
+    "material": "DIAMOND_LEGGINGS",
+    "unicode": "\ue916"
+  },
+  {
+    "material": "MANGROVE_HANGING_SIGN",
+    "unicode": "\ue938"
+  },
+  {
+    "material": "SPRUCE_LOG",
+    "unicode": "\ue637"
+  },
+  {
+    "material": "DEEPSLATE_IRON_ORE",
+    "unicode": "\ue5f4"
+  },
+  {
+    "material": "AMETHYST_CLUSTER",
+    "unicode": "\uea94"
+  },
+  {
+    "material": "BLUE_ORCHID",
+    "unicode": "\ue68e"
+  },
+  {
+    "material": "SMOOTH_QUARTZ_STAIRS",
+    "unicode": "\ue827"
+  },
+  {
+    "material": "DANGER_POTTERY_SHERD",
+    "unicode": "\ueab3"
+  },
+  {
+    "material": "PURPUR_PILLAR",
+    "unicode": "\ue6da"
+  },
+  {
+    "material": "RED_SANDSTONE_STAIRS",
+    "unicode": "\ue7b3"
+  },
+  {
+    "material": "RED_STAINED_GLASS",
+    "unicode": "\ue797"
+  },
+  {
+    "material": "RAW_IRON",
+    "unicode": "\ue8d9"
+  },
+  {
+    "material": "WARPED_BUTTON",
+    "unicode": "\ue868"
+  },
+  {
+    "material": "OAK_LEAVES",
+    "unicode": "\ue662"
+  },
+  {
+    "material": "STONE_BUTTON",
+    "unicode": "\ue85c"
+  },
+  {
+    "material": "YELLOW_WOOL",
+    "unicode": "\ue680"
+  },
+  {
+    "material": "CHERRY_DOOR",
+    "unicode": "\ue87e"
+  },
+  {
+    "material": "CUT_SANDSTONE",
+    "unicode": "\ue673"
+  },
+  {
+    "material": "ACACIA_FENCE_GATE",
+    "unicode": "\ue8a4"
+  },
+  {
+    "material": "CYAN_STAINED_GLASS",
+    "unicode": "\ue792"
+  },
+  {
+    "material": "MOSSY_STONE_BRICK_WALL",
+    "unicode": "\ue744"
+  },
+  {
+    "material": "HORN_CORAL",
+    "unicode": "\ue80d"
+  },
+  {
+    "material": "CAULDRON",
+    "unicode": "\ue99d"
+  },
+  {
+    "material": "RED_DYE",
+    "unicode": "\ue96e"
+  },
+  {
+    "material": "PURPLE_CONCRETE_POWDER",
+    "unicode": "\ue7f7"
+  },
+  {
+    "material": "FERN",
+    "unicode": "\ue676"
+  },
+  {
+    "material": "CYAN_SHULKER_BOX",
+    "unicode": "\ue7c6"
+  },
+  {
+    "material": "GRAY_CONCRETE",
+    "unicode": "\ue7e4"
+  },
+  {
+    "material": "DARK_PRISMARINE_SLAB",
+    "unicode": "\ue6ca"
+  },
+  {
+    "material": "DIORITE_STAIRS",
+    "unicode": "\ue82c"
+  },
+  {
+    "material": "ENCHANTED_BOOK",
+    "unicode": "\uea06"
+  },
+  {
+    "material": "ENDER_CHEST",
+    "unicode": "\ue72f"
+  },
+  {
+    "material": "BLACK_BED",
+    "unicode": "\ue983"
+  },
+  {
+    "material": "LADDER",
+    "unicode": "\ue6e1"
+  },
+  {
+    "material": "PINK_TULIP",
+    "unicode": "\ue694"
+  },
+  {
+    "material": "CHERRY_SIGN",
+    "unicode": "\ue92b"
+  },
+  {
+    "material": "POWDER_SNOW_BUCKET",
+    "unicode": "\ue93f"
+  },
+  {
+    "material": "CARVED_PUMPKIN",
+    "unicode": "\ue6f5"
+  },
+  {
+    "material": "GRAY_CONCRETE_POWDER",
+    "unicode": "\ue7f4"
+  },
+  {
+    "material": "MEDIUM_AMETHYST_BUD",
+    "unicode": "\uea92"
+  },
+  {
+    "material": "ACACIA_STAIRS",
+    "unicode": "\ue735"
+  },
+  {
+    "material": "DEEPSLATE_LAPIS_ORE",
+    "unicode": "\ue5fe"
+  },
+  {
+    "material": "CYAN_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d6"
+  },
+  {
+    "material": "ENDER_EYE",
+    "unicode": "\ue99e"
+  },
+  {
+    "material": "IRON_INGOT",
+    "unicode": "\ue8da"
+  },
+  {
+    "material": "MANGROVE_STAIRS",
+    "unicode": "\ue738"
+  },
+  {
+    "material": "JUNGLE_TRAPDOOR",
+    "unicode": "\ue890"
+  },
+  {
+    "material": "PAINTING",
+    "unicode": "\ue923"
+  },
+  {
+    "material": "MUD_BRICK_SLAB",
+    "unicode": "\ue6c2"
+  },
+  {
+    "material": "BIRCH_PRESSURE_PLATE",
+    "unicode": "\ue86f"
+  },
+  {
+    "material": "CRIMSON_STEM",
+    "unicode": "\ue640"
+  },
+  {
+    "material": "STONE_PICKAXE",
+    "unicode": "\ue8e8"
+  },
+  {
+    "material": "SALMON",
+    "unicode": "\ue958"
+  },
+  {
+    "material": "WARPED_SLAB",
+    "unicode": "\ue6b9"
+  },
+  {
+    "material": "RIB_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa6"
+  },
+  {
+    "material": "CHISELED_BOOKSHELF",
+    "unicode": "\ue6d1"
+  },
+  {
+    "material": "ACACIA_SAPLING",
+    "unicode": "\ue5e7"
+  },
+  {
+    "material": "SNOW_BLOCK",
+    "unicode": "\ue6e5"
+  },
+  {
+    "material": "POISONOUS_POTATO",
+    "unicode": "\ue9f8"
+  },
+  {
+    "material": "SPRUCE_SAPLING",
+    "unicode": "\ue5e4"
+  },
+  {
+    "material": "REDSTONE_ORE",
+    "unicode": "\ue5f9"
+  },
+  {
+    "material": "CHISELED_DEEPSLATE",
+    "unicode": "\ue710"
+  },
+  {
+    "material": "PISTON",
+    "unicode": "\ue848"
+  },
+  {
+    "material": "FIRE_CORAL_FAN",
+    "unicode": "\ue816"
+  },
+  {
+    "material": "WHEAT",
+    "unicode": "\ue906"
+  },
+  {
+    "material": "ACACIA_TRAPDOOR",
+    "unicode": "\ue891"
+  },
+  {
+    "material": "IRON_PICKAXE",
+    "unicode": "\ue8f2"
+  },
+  {
+    "material": "WARD_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa1"
+  },
+  {
+    "material": "ORANGE_SHULKER_BOX",
+    "unicode": "\ue7be"
+  },
+  {
+    "material": "SMOKER",
+    "unicode": "\uea5d"
+  },
+  {
+    "material": "BAMBOO_FENCE_GATE",
+    "unicode": "\ue8a8"
+  },
+  {
+    "material": "POINTED_DRIPSTONE",
+    "unicode": "\uea95"
+  },
+  {
+    "material": "RED_CONCRETE_POWDER",
+    "unicode": "\ue7fb"
+  },
+  {
+    "material": "LIME_BED",
+    "unicode": "\ue979"
+  },
+  {
+    "material": "DARK_OAK_SLAB",
+    "unicode": "\ue6b4"
+  },
+  {
+    "material": "DEAD_BUBBLE_CORAL_FAN",
+    "unicode": "\ue81a"
+  },
+  {
+    "material": "ACACIA_PRESSURE_PLATE",
+    "unicode": "\ue871"
+  },
+  {
+    "material": "GRAY_BED",
+    "unicode": "\ue97b"
+  },
+  {
+    "material": "PURPLE_CARPET",
+    "unicode": "\ue77a"
+  },
+  {
+    "material": "WRITABLE_BOOK",
+    "unicode": "\ue9f0"
+  },
+  {
+    "material": "BLUE_TERRACOTTA",
+    "unicode": "\ue768"
+  },
+  {
+    "material": "VINE",
+    "unicode": "\ue719"
+  },
+  {
+    "material": "JUKEBOX",
+    "unicode": "\ue6e8"
+  },
+  {
+    "material": "RED_STAINED_GLASS_PANE",
+    "unicode": "\ue7a7"
+  },
+  {
+    "material": "ORANGE_DYE",
+    "unicode": "\ue961"
+  },
+  {
+    "material": "BLACK_STAINED_GLASS_PANE",
+    "unicode": "\ue7a8"
+  },
+  {
+    "material": "AZALEA",
+    "unicode": "\ue677"
+  },
+  {
+    "material": "GOLD_BLOCK",
+    "unicode": "\ue60c"
+  },
+  {
+    "material": "GLISTERING_MELON_SLICE",
+    "unicode": "\ue99f"
+  },
+  {
+    "material": "BOWL",
+    "unicode": "\ue900"
+  },
+  {
+    "material": "SEA_PICKLE",
+    "unicode": "\ue67b"
+  },
+  {
+    "material": "WARPED_HYPHAE",
+    "unicode": "\ue661"
+  },
+  {
+    "material": "COBBLESTONE_SLAB",
+    "unicode": "\ue6bf"
+  },
+  {
+    "material": "MUDDY_MANGROVE_ROOTS",
+    "unicode": "\ue63f"
+  },
+  {
+    "material": "BROWN_CONCRETE_POWDER",
+    "unicode": "\ue7f9"
+  },
+  {
+    "material": "ACACIA_DOOR",
+    "unicode": "\ue87d"
+  },
+  {
+    "material": "ORANGE_TERRACOTTA",
+    "unicode": "\ue75e"
+  },
+  {
+    "material": "COPPER_ORE",
+    "unicode": "\ue5f5"
+  },
+  {
+    "material": "STRIPPED_JUNGLE_WOOD",
+    "unicode": "\ue650"
+  },
+  {
+    "material": "TRIPWIRE_HOOK",
+    "unicode": "\ue857"
+  },
+  {
+    "material": "BAMBOO_BLOCK",
+    "unicode": "\ue642"
+  },
+  {
+    "material": "BLUE_DYE",
+    "unicode": "\ue96b"
+  },
+  {
+    "material": "BRICK_WALL",
+    "unicode": "\ue741"
+  },
+  {
+    "material": "STRIPPED_MANGROVE_LOG",
+    "unicode": "\ue64a"
+  },
+  {
+    "material": "FISHING_ROD",
+    "unicode": "\ue953"
+  },
+  {
+    "material": "NAME_TAG",
+    "unicode": "\uea15"
+  },
+  {
+    "material": "FRIEND_POTTERY_SHERD",
+    "unicode": "\ueab5"
+  },
+  {
+    "material": "SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaaa"
+  },
+  {
+    "material": "MUSHROOM_STEW",
+    "unicode": "\ue901"
+  },
+  {
+    "material": "PINK_PETALS",
+    "unicode": "\ue6a8"
+  },
+  {
+    "material": "SOUL_CAMPFIRE",
+    "unicode": "\uea6a"
+  },
+  {
+    "material": "TADPOLE_BUCKET",
+    "unicode": "\ue948"
+  },
+  {
+    "material": "LAVA_BUCKET",
+    "unicode": "\ue93e"
+  },
+  {
+    "material": "BIRCH_DOOR",
+    "unicode": "\ue87b"
+  },
+  {
+    "material": "SPRUCE_WOOD",
+    "unicode": "\ue659"
+  },
+  {
+    "material": "BAMBOO_SLAB",
+    "unicode": "\ue6b6"
+  },
+  {
+    "material": "DEAD_HORN_CORAL_FAN",
+    "unicode": "\ue81c"
+  },
+  {
+    "material": "GOLD_NUGGET",
+    "unicode": "\ue994"
+  },
+  {
+    "material": "LIGHT_GRAY_CONCRETE",
+    "unicode": "\ue7e5"
+  },
+  {
+    "material": "FIRE_CHARGE",
+    "unicode": "\ue9ef"
+  },
+  {
+    "material": "DEEPSLATE_EMERALD_ORE",
+    "unicode": "\ue5fc"
+  },
+  {
+    "material": "HOWL_POTTERY_SHERD",
+    "unicode": "\ueab8"
+  },
+  {
+    "material": "CRACKED_DEEPSLATE_BRICKS",
+    "unicode": "\ue70d"
+  },
+  {
+    "material": "FERMENTED_SPIDER_EYE",
+    "unicode": "\ue999"
+  },
+  {
+    "material": "SANDSTONE",
+    "unicode": "\ue671"
+  },
+  {
+    "material": "ACACIA_WOOD",
+    "unicode": "\ue65c"
+  },
+  {
+    "material": "MUD_BRICK_WALL",
+    "unicode": "\ue747"
+  },
+  {
+    "material": "ACACIA_CHEST_BOAT",
+    "unicode": "\ue8c1"
+  },
+  {
+    "material": "GREEN_CONCRETE_POWDER",
+    "unicode": "\ue7fa"
+  },
+  {
+    "material": "ORANGE_BED",
+    "unicode": "\ue975"
+  },
+  {
+    "material": "DARK_PRISMARINE_STAIRS",
+    "unicode": "\ue7ae"
+  },
+  {
+    "material": "OAK_LOG",
+    "unicode": "\ue636"
+  },
+  {
+    "material": "CRIMSON_HANGING_SIGN",
+    "unicode": "\ue93a"
+  },
+  {
+    "material": "GOLD_ORE",
+    "unicode": "\ue5f7"
+  },
+  {
+    "material": "COMPOSTER",
+    "unicode": "\uea5b"
+  },
+  {
+    "material": "SMALL_AMETHYST_BUD",
+    "unicode": "\uea91"
+  },
+  {
+    "material": "DEAD_TUBE_CORAL_BLOCK",
+    "unicode": "\ue7ff"
+  },
+  {
+    "material": "MELON_SLICE",
+    "unicode": "\ue988"
+  },
+  {
+    "material": "ANDESITE_STAIRS",
+    "unicode": "\ue829"
+  },
+  {
+    "material": "LIME_TERRACOTTA",
+    "unicode": "\ue762"
+  },
+  {
+    "material": "STONE_SWORD",
+    "unicode": "\ue8e6"
+  },
+  {
+    "material": "MUSHROOM_STEM",
+    "unicode": "\ue714"
+  },
+  {
+    "material": "END_STONE_BRICK_SLAB",
+    "unicode": "\ue836"
+  },
+  {
+    "material": "EXPERIENCE_BOTTLE",
+    "unicode": "\ue9ee"
+  },
+  {
+    "material": "LIME_CANDLE",
+    "unicode": "\uea86"
+  },
+  {
+    "material": "SHEAF_POTTERY_SHERD",
+    "unicode": "\ueabd"
+  },
+  {
+    "material": "POWERED_RAIL",
+    "unicode": "\ue8ab"
+  },
+  {
+    "material": "WHITE_TULIP",
+    "unicode": "\ue693"
+  },
+  {
+    "material": "GREEN_STAINED_GLASS",
+    "unicode": "\ue796"
+  },
+  {
+    "material": "BROWN_DYE",
+    "unicode": "\ue96c"
+  },
+  {
+    "material": "SKULL_POTTERY_SHERD",
+    "unicode": "\ueabf"
+  },
+  {
+    "material": "LIME_WOOL",
+    "unicode": "\ue681"
+  },
+  {
+    "material": "POLISHED_ANDESITE_STAIRS",
+    "unicode": "\ue82b"
+  },
+  {
+    "material": "SPYGLASS",
+    "unicode": "\ue955"
+  },
+  {
+    "material": "WOODEN_PICKAXE",
+    "unicode": "\ue8e3"
+  },
+  {
+    "material": "WARPED_STEM",
+    "unicode": "\ue641"
+  },
+  {
+    "material": "SPRUCE_FENCE",
+    "unicode": "\ue6ea"
+  },
+  {
+    "material": "SPLASH_POTION",
+    "unicode": "\uea32"
+  },
+  {
+    "material": "BIRCH_PLANKS",
+    "unicode": "\ue5d9"
+  },
+  {
+    "material": "LEATHER_LEGGINGS",
+    "unicode": "\ue90a"
+  },
+  {
+    "material": "BIRCH_FENCE_GATE",
+    "unicode": "\ue8a2"
+  },
+  {
+    "material": "BAMBOO_RAFT",
+    "unicode": "\ue8c8"
+  },
+  {
+    "material": "JUNGLE_PLANKS",
+    "unicode": "\ue5da"
+  },
+  {
+    "material": "NETHERITE_HELMET",
+    "unicode": "\ue91c"
+  },
+  {
+    "material": "END_CRYSTAL",
+    "unicode": "\uea29"
+  },
+  {
+    "material": "GREEN_BED",
+    "unicode": "\ue981"
+  },
+  {
+    "material": "RABBIT_FOOT",
+    "unicode": "\uea0d"
+  },
+  {
+    "material": "DARK_OAK_DOOR",
+    "unicode": "\ue87f"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_STAIRS",
+    "unicode": "\ue82d"
+  },
+  {
+    "material": "DARK_OAK_FENCE",
+    "unicode": "\ue6ef"
+  },
+  {
+    "material": "ORANGE_TULIP",
+    "unicode": "\ue692"
+  },
+  {
+    "material": "SHELTER_POTTERY_SHERD",
+    "unicode": "\ueabe"
+  },
+  {
+    "material": "BLACK_CANDLE",
+    "unicode": "\uea90"
+  },
+  {
+    "material": "STRIPPED_CHERRY_LOG",
+    "unicode": "\ue648"
+  },
+  {
+    "material": "CROSSBOW",
+    "unicode": "\uea51"
+  },
+  {
+    "material": "LILAC",
+    "unicode": "\ue784"
+  },
+  {
+    "material": "BAMBOO_STAIRS",
+    "unicode": "\ue739"
+  },
+  {
+    "material": "RED_SANDSTONE_SLAB",
+    "unicode": "\ue6c5"
+  },
+  {
+    "material": "COAL_BLOCK",
+    "unicode": "\ue604"
+  },
+  {
+    "material": "ORANGE_STAINED_GLASS",
+    "unicode": "\ue78a"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BUTTON",
+    "unicode": "\ue85d"
+  },
+  {
+    "material": "PURPUR_STAIRS",
+    "unicode": "\ue6db"
+  },
+  {
+    "material": "DARK_OAK_SIGN",
+    "unicode": "\ue92c"
+  },
+  {
+    "material": "WET_SPONGE",
+    "unicode": "\ue66d"
+  },
+  {
+    "material": "CUT_RED_SANDSTONE_SLAB",
+    "unicode": "\ue6c6"
+  },
+  {
+    "material": "IRON_LEGGINGS",
+    "unicode": "\ue912"
+  },
+  {
+    "material": "MANGROVE_PROPAGULE",
+    "unicode": "\ue5ea"
+  },
+  {
+    "material": "BUBBLE_CORAL",
+    "unicode": "\ue80b"
+  },
+  {
+    "material": "CLAY_BALL",
+    "unicode": "\ue94a"
+  },
+  {
+    "material": "DEEPSLATE_GOLD_ORE",
+    "unicode": "\ue5f8"
+  },
+  {
+    "material": "QUARTZ_STAIRS",
+    "unicode": "\ue75c"
+  },
+  {
+    "material": "HEARTBREAK_POTTERY_SHERD",
+    "unicode": "\ueab7"
+  },
+  {
+    "material": "IRON_SHOVEL",
+    "unicode": "\ue8f1"
+  },
+  {
+    "material": "SMITHING_TABLE",
+    "unicode": "\uea62"
+  },
+  {
+    "material": "FLOWERING_AZALEA_LEAVES",
+    "unicode": "\ue66b"
+  },
+  {
+    "material": "DIORITE_WALL",
+    "unicode": "\ue74d"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE",
+    "unicode": "\uea77"
+  },
+  {
+    "material": "REDSTONE_LAMP",
+    "unicode": "\ue85a"
+  },
+  {
+    "material": "GREEN_DYE",
+    "unicode": "\ue96d"
+  },
+  {
+    "material": "PUMPKIN_PIE",
+    "unicode": "\uea03"
+  },
+  {
+    "material": "GLOW_INK_SAC",
+    "unicode": "\ue95e"
+  },
+  {
+    "material": "JUNGLE_STAIRS",
+    "unicode": "\ue734"
+  },
+  {
+    "material": "ANGLER_POTTERY_SHERD",
+    "unicode": "\ueaad"
+  },
+  {
+    "material": "NETHER_BRICK_WALL",
+    "unicode": "\ue748"
+  },
+  {
+    "material": "RED_SHULKER_BOX",
+    "unicode": "\ue7cb"
+  },
+  {
+    "material": "STONE_AXE",
+    "unicode": "\ue8e9"
+  },
+  {
+    "material": "BLACK_DYE",
+    "unicode": "\ue96f"
+  },
+  {
+    "material": "BLACK_TERRACOTTA",
+    "unicode": "\ue76c"
+  },
+  {
+    "material": "CHERRY_FENCE",
+    "unicode": "\ue6ee"
+  },
+  {
+    "material": "COPPER_INGOT",
+    "unicode": "\ue8dc"
+  },
+  {
+    "material": "COMPARATOR",
+    "unicode": "\ue847"
+  },
+  {
+    "material": "GLOWSTONE",
+    "unicode": "\ue6fe"
+  },
+  {
+    "material": "FIRE_CORAL_BLOCK",
+    "unicode": "\ue807"
+  },
+  {
+    "material": "CHERRY_CHEST_BOAT",
+    "unicode": "\ue8c3"
+  },
+  {
+    "material": "ACACIA_SIGN",
+    "unicode": "\ue92a"
+  },
+  {
+    "material": "SHORT_GRASS",
+    "unicode": "\ue675"
+  },
+  {
+    "material": "FIRE_CORAL",
+    "unicode": "\ue80c"
+  },
+  {
+    "material": "YELLOW_CONCRETE",
+    "unicode": "\ue7e1"
+  },
+  {
+    "material": "GOLD_INGOT",
+    "unicode": "\ue8de"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_PRESSURE_PLATE",
+    "unicode": "\ue86a"
+  },
+  {
+    "material": "WHITE_WOOL",
+    "unicode": "\ue67c"
+  },
+  {
+    "material": "BRICKS",
+    "unicode": "\ue6cf"
+  },
+  {
+    "material": "LIGHT_GRAY_DYE",
+    "unicode": "\ue968"
+  },
+  {
+    "material": "PINK_TERRACOTTA",
+    "unicode": "\ue763"
+  },
+  {
+    "material": "MANGROVE_SLAB",
+    "unicode": "\ue6b5"
+  },
+  {
+    "material": "STRIPPED_SPRUCE_LOG",
+    "unicode": "\ue644"
+  },
+  {
+    "material": "CHERRY_SLAB",
+    "unicode": "\ue6b3"
+  },
+  {
+    "material": "DIORITE",
+    "unicode": "\ue5b7"
+  },
+  {
+    "material": "DIAMOND_SWORD",
+    "unicode": "\ue8f5"
+  },
+  {
+    "material": "PINK_DYE",
+    "unicode": "\ue966"
+  },
+  {
+    "material": "STONE_BRICK_SLAB",
+    "unicode": "\ue6c1"
+  },
+  {
+    "material": "SOUL_SOIL",
+    "unicode": "\ue6f9"
+  },
+  {
+    "material": "TUBE_CORAL_BLOCK",
+    "unicode": "\ue804"
+  },
+  {
+    "material": "POLISHED_GRANITE_STAIRS",
+    "unicode": "\ue81f"
+  },
+  {
+    "material": "MANGROVE_TRAPDOOR",
+    "unicode": "\ue894"
+  },
+  {
+    "material": "NETHERITE_INGOT",
+    "unicode": "\ue8df"
+  },
+  {
+    "material": "ECHO_SHARD",
+    "unicode": "\uea9a"
+  },
+  {
+    "material": "STONECUTTER",
+    "unicode": "\uea63"
+  },
+  {
+    "material": "RED_NETHER_BRICK_WALL",
+    "unicode": "\ue74a"
+  },
+  {
+    "material": "MANGROVE_CHEST_BOAT",
+    "unicode": "\ue8c7"
+  },
+  {
+    "material": "BLUE_ICE",
+    "unicode": "\ue81d"
+  },
+  {
+    "material": "STRIPPED_CHERRY_WOOD",
+    "unicode": "\ue652"
+  },
+  {
+    "material": "LIGHT_BLUE_CONCRETE",
+    "unicode": "\ue7e0"
+  },
+  {
+    "material": "IRON_SWORD",
+    "unicode": "\ue8f0"
+  },
+  {
+    "material": "POLISHED_DIORITE_STAIRS",
+    "unicode": "\ue822"
+  },
+  {
+    "material": "BIRCH_BOAT",
+    "unicode": "\ue8bc"
+  },
+  {
+    "material": "IRON_BLOCK",
+    "unicode": "\ue60a"
+  },
+  {
+    "material": "COOKED_RABBIT",
+    "unicode": "\uea0b"
+  },
+  {
+    "material": "WITHER_SKELETON_SKULL",
+    "unicode": "\ue9fc"
+  },
+  {
+    "material": "SMOOTH_RED_SANDSTONE_STAIRS",
+    "unicode": "\ue820"
+  },
+  {
+    "material": "SUSPICIOUS_STEW",
+    "unicode": "\uea52"
+  },
+  {
+    "material": "PRISMARINE_WALL",
+    "unicode": "\ue742"
+  },
+  {
+    "material": "LIME_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d2"
+  },
+  {
+    "material": "GLASS_PANE",
+    "unicode": "\ue717"
+  },
+  {
+    "material": "LIGHT_BLUE_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d0"
+  },
+  {
+    "material": "MANGROVE_DOOR",
+    "unicode": "\ue880"
+  },
+  {
+    "material": "QUARTZ_PILLAR",
+    "unicode": "\ue75b"
+  },
+  {
+    "material": "MAGENTA_TERRACOTTA",
+    "unicode": "\ue75f"
+  },
+  {
+    "material": "NETHER_QUARTZ_ORE",
+    "unicode": "\ue602"
+  },
+  {
+    "material": "BRAIN_CORAL",
+    "unicode": "\ue80a"
+  },
+  {
+    "material": "DISC_FRAGMENT_5",
+    "unicode": "\uea4c"
+  },
+  {
+    "material": "BLUE_STAINED_GLASS",
+    "unicode": "\ue794"
+  },
+  {
+    "material": "CHARCOAL",
+    "unicode": "\ue8d3"
+  },
+  {
+    "material": "GRAY_CARPET",
+    "unicode": "\ue777"
+  },
+  {
+    "material": "BOOK",
+    "unicode": "\ue94d"
+  },
+  {
+    "material": "ENCHANTED_GOLDEN_APPLE",
+    "unicode": "\ue925"
+  },
+  {
+    "material": "MOSSY_STONE_BRICKS",
+    "unicode": "\ue707"
+  },
+  {
+    "material": "COOKED_BEEF",
+    "unicode": "\ue98d"
+  },
+  {
+    "material": "GOLDEN_SHOVEL",
+    "unicode": "\ue8ec"
+  },
+  {
+    "material": "YELLOW_CONCRETE_POWDER",
+    "unicode": "\ue7f1"
+  },
+  {
+    "material": "WARPED_NYLIUM",
+    "unicode": "\ue5d5"
+  },
+  {
+    "material": "NETHERITE_BOOTS",
+    "unicode": "\ue91f"
+  },
+  {
+    "material": "PRISMARINE_BRICK_SLAB",
+    "unicode": "\ue6c9"
+  },
+  {
+    "material": "ROSE_BUSH",
+    "unicode": "\ue785"
+  },
+  {
+    "material": "SNIFFER_EGG",
+    "unicode": "\ue7fe"
+  },
+  {
+    "material": "CRIMSON_PRESSURE_PLATE",
+    "unicode": "\ue876"
+  },
+  {
+    "material": "SPRUCE_STAIRS",
+    "unicode": "\ue732"
+  },
+  {
+    "material": "SCULK_SHRIEKER",
+    "unicode": "\ue728"
+  },
+  {
+    "material": "LIGHT_GRAY_STAINED_GLASS_PANE",
+    "unicode": "\ue7a1"
+  },
+  {
+    "material": "LIGHT_BLUE_SHULKER_BOX",
+    "unicode": "\ue7c0"
+  },
+  {
+    "material": "WATER_BUCKET",
+    "unicode": "\ue93d"
+  },
+  {
+    "material": "BLACK_BANNER",
+    "unicode": "\uea28"
+  },
+  {
+    "material": "MUSIC_DISC_RELIC",
+    "unicode": "\uea49"
+  },
+  {
+    "material": "POPPED_CHORUS_FRUIT",
+    "unicode": "\uea2b"
+  },
+  {
+    "material": "DARK_OAK_STAIRS",
+    "unicode": "\ue737"
+  },
+  {
+    "material": "SHIELD",
+    "unicode": "\uea36"
+  },
+  {
+    "material": "ROOTED_DIRT",
+    "unicode": "\ue5d2"
+  },
+  {
+    "material": "CHAINMAIL_LEGGINGS",
+    "unicode": "\ue90e"
+  },
+  {
+    "material": "CRIMSON_SLAB",
+    "unicode": "\ue6b8"
+  },
+  {
+    "material": "WAXED_COPPER_BLOCK",
+    "unicode": "\ue622"
+  },
+  {
+    "material": "CANDLE",
+    "unicode": "\uea80"
+  },
+  {
+    "material": "PEONY",
+    "unicode": "\ue786"
+  },
+  {
+    "material": "ANVIL",
+    "unicode": "\ue755"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_STAIRS",
+    "unicode": "\ue82e"
+  },
+  {
+    "material": "GRANITE_STAIRS",
+    "unicode": "\ue828"
+  },
+  {
+    "material": "DEAD_BUBBLE_CORAL",
+    "unicode": "\ue80f"
+  },
+  {
+    "material": "COAST_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\uea9f"
+  },
+  {
+    "material": "JUNGLE_LOG",
+    "unicode": "\ue639"
+  },
+  {
+    "material": "MAGMA_BLOCK",
+    "unicode": "\ue7b6"
+  },
+  {
+    "material": "GHAST_TEAR",
+    "unicode": "\ue993"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE",
+    "unicode": "\ue6d3"
+  },
+  {
+    "material": "LAPIS_ORE",
+    "unicode": "\ue5fd"
+  },
+  {
+    "material": "MOJANG_BANNER_PATTERN",
+    "unicode": "\uea57"
+  },
+  {
+    "material": "JUNGLE_BOAT",
+    "unicode": "\ue8be"
+  },
+  {
+    "material": "NETHER_BRICKS",
+    "unicode": "\ue720"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_WALL",
+    "unicode": "\ue752"
+  },
+  {
+    "material": "LEATHER",
+    "unicode": "\ue941"
+  },
+  {
+    "material": "JUNGLE_FENCE_GATE",
+    "unicode": "\ue8a3"
+  },
+  {
+    "material": "MAGENTA_CONCRETE",
+    "unicode": "\ue7df"
+  },
+  {
+    "material": "MANGROVE_LEAVES",
+    "unicode": "\ue669"
+  },
+  {
+    "material": "BROWN_BED",
+    "unicode": "\ue980"
+  },
+  {
+    "material": "RAW_IRON_BLOCK",
+    "unicode": "\ue605"
+  },
+  {
+    "material": "BLACK_CONCRETE_POWDER",
+    "unicode": "\ue7fc"
+  },
+  {
+    "material": "BRAIN_CORAL_FAN",
+    "unicode": "\ue814"
+  },
+  {
+    "material": "LIGHT_BLUE_BED",
+    "unicode": "\ue977"
+  },
+  {
+    "material": "OAK_DOOR",
+    "unicode": "\ue879"
+  },
+  {
+    "material": "POLISHED_DIORITE",
+    "unicode": "\ue5b8"
+  },
+  {
+    "material": "WOODEN_HOE",
+    "unicode": "\ue8e5"
+  },
+  {
+    "material": "PURPUR_SLAB",
+    "unicode": "\ue6c7"
+  },
+  {
+    "material": "BONE_BLOCK",
+    "unicode": "\ue7ba"
+  },
+  {
+    "material": "WOODEN_SHOVEL",
+    "unicode": "\ue8e2"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_WALL",
+    "unicode": "\ue74f"
+  },
+  {
+    "material": "LIGHT_WEIGHTED_PRESSURE_PLATE",
+    "unicode": "\ue86b"
+  },
+  {
+    "material": "DRAGON_HEAD",
+    "unicode": "\uea00"
+  },
+  {
+    "material": "BAMBOO_SIGN",
+    "unicode": "\ue92e"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_SLAB",
+    "unicode": "\ue83e"
+  },
+  {
+    "material": "OAK_SAPLING",
+    "unicode": "\ue5e3"
+  },
+  {
+    "material": "TUFF",
+    "unicode": "\ue5bf"
+  },
+  {
+    "material": "FLOWER_BANNER_PATTERN",
+    "unicode": "\uea54"
+  },
+  {
+    "material": "TWISTING_VINES",
+    "unicode": "\ue6a4"
+  },
+  {
+    "material": "GREEN_WOOL",
+    "unicode": "\ue689"
+  },
+  {
+    "material": "PINK_WOOL",
+    "unicode": "\ue682"
+  },
+  {
+    "material": "BIRCH_SLAB",
+    "unicode": "\ue6b0"
+  },
+  {
+    "material": "MOSSY_STONE_BRICK_STAIRS",
+    "unicode": "\ue821"
+  },
+  {
+    "material": "GOAT_HORN",
+    "unicode": "\uea5a"
+  },
+  {
+    "material": "CHISELED_QUARTZ_BLOCK",
+    "unicode": "\ue758"
+  },
+  {
+    "material": "ACACIA_FENCE",
+    "unicode": "\ue6ed"
+  },
+  {
+    "material": "RED_CARPET",
+    "unicode": "\ue77e"
+  },
+  {
+    "material": "JUNGLE_WOOD",
+    "unicode": "\ue65b"
+  },
+  {
+    "material": "SANDSTONE_STAIRS",
+    "unicode": "\ue72e"
+  },
+  {
+    "material": "MOURNER_POTTERY_SHERD",
+    "unicode": "\ueaba"
+  },
+  {
+    "material": "JUNGLE_HANGING_SIGN",
+    "unicode": "\ue934"
+  },
+  {
+    "material": "GRAY_STAINED_GLASS_PANE",
+    "unicode": "\ue7a0"
+  },
+  {
+    "material": "BROWN_MUSHROOM_BLOCK",
+    "unicode": "\ue712"
+  },
+  {
+    "material": "LILY_PAD",
+    "unicode": "\ue71f"
+  },
+  {
+    "material": "LIGHT_BLUE_STAINED_GLASS_PANE",
+    "unicode": "\ue79c"
+  },
+  {
+    "material": "CHISELED_NETHER_BRICKS",
+    "unicode": "\ue722"
+  },
+  {
+    "material": "TINTED_GLASS",
+    "unicode": "\ue66f"
+  },
+  {
+    "material": "PURPLE_BED",
+    "unicode": "\ue97e"
+  },
+  {
+    "material": "DEAD_TUBE_CORAL",
+    "unicode": "\ue812"
+  },
+  {
+    "material": "LIGHT_GRAY_BANNER",
+    "unicode": "\uea21"
+  },
+  {
+    "material": "CYAN_DYE",
+    "unicode": "\ue969"
+  },
+  {
+    "material": "LIGHT_GRAY_STAINED_GLASS",
+    "unicode": "\ue791"
+  },
+  {
+    "material": "SNOWBALL",
+    "unicode": "\ue940"
+  },
+  {
+    "material": "LIME_CONCRETE",
+    "unicode": "\ue7e2"
+  },
+  {
+    "material": "WARPED_SIGN",
+    "unicode": "\ue930"
+  },
+  {
+    "material": "PINK_CONCRETE",
+    "unicode": "\ue7e3"
+  },
+  {
+    "material": "BAMBOO_CHEST_RAFT",
+    "unicode": "\ue8c9"
+  },
+  {
+    "material": "GREEN_GLAZED_TERRACOTTA",
+    "unicode": "\ue7da"
+  },
+  {
+    "material": "MANGROVE_FENCE",
+    "unicode": "\ue6f0"
+  },
+  {
+    "material": "OAK_PLANKS",
+    "unicode": "\ue5d7"
+  },
+  {
+    "material": "LIGHT_BLUE_TERRACOTTA",
+    "unicode": "\ue760"
+  },
+  {
+    "material": "PACKED_ICE",
+    "unicode": "\ue781"
+  },
+  {
+    "material": "RED_MUSHROOM",
+    "unicode": "\ue69d"
+  },
+  {
+    "material": "PACKED_MUD",
+    "unicode": "\ue70a"
+  },
+  {
+    "material": "ENCHANTING_TABLE",
+    "unicode": "\ue729"
+  },
+  {
+    "material": "SPORE_BLOSSOM",
+    "unicode": "\ue69b"
+  },
+  {
+    "material": "MAGENTA_CONCRETE_POWDER",
+    "unicode": "\ue7ef"
+  },
+  {
+    "material": "TALL_GRASS",
+    "unicode": "\ue787"
+  },
+  {
+    "material": "LIGHT_GRAY_TERRACOTTA",
+    "unicode": "\ue765"
+  },
+  {
+    "material": "OAK_TRAPDOOR",
+    "unicode": "\ue88d"
+  },
+  {
+    "material": "WOODEN_SWORD",
+    "unicode": "\ue8e1"
+  },
+  {
+    "material": "MANGROVE_WOOD",
+    "unicode": "\ue65f"
+  },
+  {
+    "material": "STICKY_PISTON",
+    "unicode": "\ue849"
+  },
+  {
+    "material": "BLUE_CONCRETE",
+    "unicode": "\ue7e8"
+  },
+  {
+    "material": "WHITE_CONCRETE",
+    "unicode": "\ue7dd"
+  },
+  {
+    "material": "DAMAGED_ANVIL",
+    "unicode": "\ue757"
+  },
+  {
+    "material": "SMOOTH_BASALT",
+    "unicode": "\ue6fc"
+  },
+  {
+    "material": "RED_BANNER",
+    "unicode": "\uea27"
+  },
+  {
+    "material": "BRICK_SLAB",
+    "unicode": "\ue6c0"
+  },
+  {
+    "material": "SADDLE",
+    "unicode": "\ue8af"
+  },
+  {
+    "material": "BAMBOO_DOOR",
+    "unicode": "\ue881"
+  },
+  {
+    "material": "YELLOW_TERRACOTTA",
+    "unicode": "\ue761"
+  },
+  {
+    "material": "IRON_HOE",
+    "unicode": "\ue8f4"
+  },
+  {
+    "material": "OAK_BOAT",
+    "unicode": "\ue8b8"
+  },
+  {
+    "material": "DEEPSLATE_COPPER_ORE",
+    "unicode": "\ue5f6"
+  },
+  {
+    "material": "FLOWERING_AZALEA",
+    "unicode": "\ue678"
+  },
+  {
+    "material": "SMOOTH_SANDSTONE_STAIRS",
+    "unicode": "\ue826"
+  },
+  {
+    "material": "BLADE_POTTERY_SHERD",
+    "unicode": "\ueab0"
+  },
+  {
+    "material": "DARK_OAK_SAPLING",
+    "unicode": "\ue5e9"
+  },
+  {
+    "material": "GRAY_BANNER",
+    "unicode": "\uea20"
+  },
+  {
+    "material": "DEEPSLATE_REDSTONE_ORE",
+    "unicode": "\ue5fa"
+  },
+  {
+    "material": "GOLDEN_LEGGINGS",
+    "unicode": "\ue91a"
+  },
+  {
+    "material": "RAIL",
+    "unicode": "\ue8ad"
+  },
+  {
+    "material": "CRIMSON_TRAPDOOR",
+    "unicode": "\ue896"
+  },
+  {
+    "material": "GREEN_CONCRETE",
+    "unicode": "\ue7ea"
+  },
+  {
+    "material": "MANGROVE_BUTTON",
+    "unicode": "\ue865"
+  },
+  {
+    "material": "SHEARS",
+    "unicode": "\ue987"
+  },
+  {
+    "material": "BLUE_WOOL",
+    "unicode": "\ue687"
+  },
+  {
+    "material": "SMOOTH_QUARTZ",
+    "unicode": "\ue6cb"
+  },
+  {
+    "material": "WHITE_CANDLE",
+    "unicode": "\uea81"
+  },
+  {
+    "material": "PINK_CONCRETE_POWDER",
+    "unicode": "\ue7f3"
+  },
+  {
+    "material": "SLIME_BALL",
+    "unicode": "\ue94e"
+  },
+  {
+    "material": "BLACKSTONE_WALL",
+    "unicode": "\ue74e"
+  },
+  {
+    "material": "CHERRY_BOAT",
+    "unicode": "\ue8c2"
+  },
+  {
+    "material": "QUARTZ_SLAB",
+    "unicode": "\ue6c4"
+  },
+  {
+    "material": "TIDE_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa4"
+  },
+  {
+    "material": "CYAN_BANNER",
+    "unicode": "\uea22"
+  },
+  {
+    "material": "GLASS_BOTTLE",
+    "unicode": "\ue997"
+  },
+  {
+    "material": "COOKED_MUTTON",
+    "unicode": "\uea18"
+  },
+  {
+    "material": "PUFFERFISH_BUCKET",
+    "unicode": "\ue943"
+  },
+  {
+    "material": "WARPED_PRESSURE_PLATE",
+    "unicode": "\ue877"
+  },
+  {
+    "material": "TRAPPED_CHEST",
+    "unicode": "\ue858"
+  },
+  {
+    "material": "GRAVEL",
+    "unicode": "\ue5f0"
+  },
+  {
+    "material": "STRIPPED_OAK_LOG",
+    "unicode": "\ue643"
+  },
+  {
+    "material": "CHISELED_SANDSTONE",
+    "unicode": "\ue672"
+  },
+  {
+    "material": "TARGET",
+    "unicode": "\ue851"
+  },
+  {
+    "material": "YELLOW_GLAZED_TERRACOTTA",
+    "unicode": "\ue7d1"
+  },
+  {
+    "material": "SMOOTH_RED_SANDSTONE",
+    "unicode": "\ue6cc"
+  },
+  {
+    "material": "EMERALD",
+    "unicode": "\ue8d5"
+  },
+  {
+    "material": "CYAN_TERRACOTTA",
+    "unicode": "\ue766"
+  },
+  {
+    "material": "SPRUCE_PRESSURE_PLATE",
+    "unicode": "\ue86e"
+  },
+  {
+    "material": "DANDELION",
+    "unicode": "\ue68c"
+  },
+  {
+    "material": "SMOOTH_RED_SANDSTONE_SLAB",
+    "unicode": "\ue832"
+  },
+  {
+    "material": "ALLIUM",
+    "unicode": "\ue68f"
+  },
+  {
+    "material": "OXEYE_DAISY",
+    "unicode": "\ue695"
+  },
+  {
+    "material": "PURPLE_CONCRETE",
+    "unicode": "\ue7e7"
+  },
+  {
+    "material": "GLOW_BERRIES",
+    "unicode": "\uea68"
+  },
+  {
+    "material": "WHITE_CONCRETE_POWDER",
+    "unicode": "\ue7ed"
+  },
+  {
+    "material": "COBBLESTONE_STAIRS",
+    "unicode": "\ue6e2"
+  },
+  {
+    "material": "ACACIA_LEAVES",
+    "unicode": "\ue666"
+  },
+  {
+    "material": "LIME_SHULKER_BOX",
+    "unicode": "\ue7c2"
+  },
+  {
+    "material": "BIRCH_CHEST_BOAT",
+    "unicode": "\ue8bd"
+  },
+  {
+    "material": "BROWN_STAINED_GLASS_PANE",
+    "unicode": "\ue7a5"
+  },
+  {
+    "material": "GLOW_ITEM_FRAME",
+    "unicode": "\ue9f3"
+  },
+  {
+    "material": "BROWN_TERRACOTTA",
+    "unicode": "\ue769"
+  },
+  {
+    "material": "MAGENTA_BANNER",
+    "unicode": "\uea1b"
+  },
+  {
+    "material": "WHITE_CARPET",
+    "unicode": "\ue770"
+  },
+  {
+    "material": "CHICKEN",
+    "unicode": "\ue98e"
+  },
+  {
+    "material": "HONEYCOMB",
+    "unicode": "\uea6c"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_WALL",
+    "unicode": "\ue740"
+  },
+  {
+    "material": "AZALEA_LEAVES",
+    "unicode": "\ue66a"
+  },
+  {
+    "material": "TRIDENT",
+    "unicode": "\uea4d"
+  },
+  {
+    "material": "BEETROOT",
+    "unicode": "\uea2e"
+  },
+  {
+    "material": "WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaa8"
+  },
+  {
+    "material": "BIRCH_LOG",
+    "unicode": "\ue638"
+  },
+  {
+    "material": "PORKCHOP",
+    "unicode": "\ue921"
+  },
+  {
+    "material": "PINK_STAINED_GLASS_PANE",
+    "unicode": "\ue79f"
+  },
+  {
+    "material": "SHULKER_BOX",
+    "unicode": "\ue7bc"
+  },
+  {
+    "material": "NETHERITE_SCRAP",
+    "unicode": "\ue8e0"
+  },
+  {
+    "material": "CRACKED_POLISHED_BLACKSTONE_BRICKS",
+    "unicode": "\uea7e"
+  },
+  {
+    "material": "SUGAR_CANE",
+    "unicode": "\ue6a5"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE",
+    "unicode": "\ue5bd"
+  },
+  {
+    "material": "BAMBOO",
+    "unicode": "\ue6ad"
+  },
+  {
+    "material": "CARTOGRAPHY_TABLE",
+    "unicode": "\uea5f"
+  },
+  {
+    "material": "WARPED_TRAPDOOR",
+    "unicode": "\ue897"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICK_STAIRS",
+    "unicode": "\uea7d"
+  },
+  {
+    "material": "COBBLESTONE",
+    "unicode": "\ue5d6"
+  },
+  {
+    "material": "PRISMARINE_BRICKS",
+    "unicode": "\ue7aa"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_WALL",
+    "unicode": "\ue751"
+  },
+  {
+    "material": "ROTTEN_FLESH",
+    "unicode": "\ue990"
+  },
+  {
+    "material": "BAMBOO_MOSAIC_STAIRS",
+    "unicode": "\ue73a"
+  },
+  {
+    "material": "OAK_CHEST_BOAT",
+    "unicode": "\ue8b9"
+  },
+  {
+    "material": "WARPED_STAIRS",
+    "unicode": "\ue73c"
+  },
+  {
+    "material": "BUCKET",
+    "unicode": "\ue93c"
+  },
+  {
+    "material": "LIGHT_BLUE_WOOL",
+    "unicode": "\ue67f"
+  },
+  {
+    "material": "SMOOTH_SANDSTONE_SLAB",
+    "unicode": "\ue837"
+  },
+  {
+    "material": "POLISHED_ANDESITE_SLAB",
+    "unicode": "\ue83c"
+  },
+  {
+    "material": "WHITE_TERRACOTTA",
+    "unicode": "\ue75d"
+  },
+  {
+    "material": "PRISMARINE_SHARD",
+    "unicode": "\uea08"
+  },
+  {
+    "material": "MANGROVE_PLANKS",
+    "unicode": "\ue5de"
+  },
+  {
+    "material": "CYAN_BED",
+    "unicode": "\ue97d"
+  },
+  {
+    "material": "DETECTOR_RAIL",
+    "unicode": "\ue8ac"
+  },
+  {
+    "material": "DIAMOND_CHESTPLATE",
+    "unicode": "\ue915"
+  },
+  {
+    "material": "CRACKED_NETHER_BRICKS",
+    "unicode": "\ue721"
+  },
+  {
+    "material": "WEEPING_VINES",
+    "unicode": "\ue6a3"
+  },
+  {
+    "material": "WHITE_STAINED_GLASS_PANE",
+    "unicode": "\ue799"
+  },
+  {
+    "material": "ELYTRA",
+    "unicode": "\ue8b7"
+  },
+  {
+    "material": "CHERRY_TRAPDOOR",
+    "unicode": "\ue892"
+  },
+  {
+    "material": "END_ROD",
+    "unicode": "\ue6d6"
+  },
+  {
+    "material": "EGG",
+    "unicode": "\ue94f"
+  },
+  {
+    "material": "SPONGE",
+    "unicode": "\ue66c"
+  },
+  {
+    "material": "SMOOTH_STONE_SLAB",
+    "unicode": "\ue6bb"
+  },
+  {
+    "material": "BROWN_CONCRETE",
+    "unicode": "\ue7e9"
+  },
+  {
+    "material": "JUNGLE_FENCE",
+    "unicode": "\ue6ec"
+  },
+  {
+    "material": "STONE_PRESSURE_PLATE",
+    "unicode": "\ue869"
+  },
+  {
+    "material": "GOLDEN_PICKAXE",
+    "unicode": "\ue8ed"
+  },
+  {
+    "material": "ORANGE_CONCRETE_POWDER",
+    "unicode": "\ue7ee"
+  },
+  {
+    "material": "GRAY_SHULKER_BOX",
+    "unicode": "\ue7c4"
+  },
+  {
+    "material": "AZURE_BLUET",
+    "unicode": "\ue690"
+  },
+  {
+    "material": "RABBIT_HIDE",
+    "unicode": "\uea0e"
+  },
+  {
+    "material": "BLUE_BED",
+    "unicode": "\ue97f"
+  },
+  {
+    "material": "CYAN_CONCRETE_POWDER",
+    "unicode": "\ue7f6"
+  },
+  {
+    "material": "SMOOTH_QUARTZ_SLAB",
+    "unicode": "\ue838"
+  },
+  {
+    "material": "DARK_OAK_LEAVES",
+    "unicode": "\ue668"
+  },
+  {
+    "material": "RED_CONCRETE",
+    "unicode": "\ue7eb"
+  },
+  {
+    "material": "IRON_ORE",
+    "unicode": "\ue5f3"
+  },
+  {
+    "material": "WARPED_HANGING_SIGN",
+    "unicode": "\ue93b"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICK_SLAB",
+    "unicode": "\uea7c"
+  },
+  {
+    "material": "DIAMOND_AXE",
+    "unicode": "\ue8f8"
+  },
+  {
+    "material": "DEEPSLATE_TILE_SLAB",
+    "unicode": "\ue841"
+  },
+  {
+    "material": "DAYLIGHT_DETECTOR",
+    "unicode": "\ue854"
+  },
+  {
+    "material": "SAND",
+    "unicode": "\ue5ec"
+  },
+  {
+    "material": "OBSERVER",
+    "unicode": "\ue84c"
+  },
+  {
+    "material": "MANGROVE_PRESSURE_PLATE",
+    "unicode": "\ue874"
+  },
+  {
+    "material": "DARK_OAK_TRAPDOOR",
+    "unicode": "\ue893"
+  },
+  {
+    "material": "GREEN_BANNER",
+    "unicode": "\uea26"
+  },
+  {
+    "material": "CRIMSON_NYLIUM",
+    "unicode": "\ue5d4"
+  },
+  {
+    "material": "BROWN_CANDLE",
+    "unicode": "\uea8d"
+  },
+  {
+    "material": "REDSTONE_BLOCK",
+    "unicode": "\ue845"
+  },
+  {
+    "material": "BLACKSTONE",
+    "unicode": "\uea73"
+  },
+  {
+    "material": "DEAD_FIRE_CORAL_FAN",
+    "unicode": "\ue81b"
+  },
+  {
+    "material": "GLOW_LICHEN",
+    "unicode": "\ue71a"
+  },
+  {
+    "material": "LIGHT_GRAY_BED",
+    "unicode": "\ue97c"
+  },
+  {
+    "material": "PUMPKIN_SEEDS",
+    "unicode": "\ue98a"
+  },
+  {
+    "material": "SPRUCE_CHEST_BOAT",
+    "unicode": "\ue8bb"
+  },
+  {
+    "material": "ORANGE_WOOL",
+    "unicode": "\ue67d"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_STAIRS",
+    "unicode": "\uea79"
+  },
+  {
+    "material": "SWEET_BERRIES",
+    "unicode": "\uea67"
+  },
+  {
+    "material": "SMALL_DRIPLEAF",
+    "unicode": "\ue6ac"
+  },
+  {
+    "material": "RAISER_ARMOR_TRIM_SMITHING_TEMPLATE",
+    "unicode": "\ueaab"
+  },
+  {
+    "material": "PURPLE_DYE",
+    "unicode": "\ue96a"
+  },
+  {
+    "material": "HEART_POTTERY_SHERD",
+    "unicode": "\ueab6"
+  },
+  {
+    "material": "GRASS_BLOCK",
+    "unicode": "\ue5ce"
+  },
+  {
+    "material": "NETHERITE_CHESTPLATE",
+    "unicode": "\ue91d"
+  },
+  {
+    "material": "BLACK_WOOL",
+    "unicode": "\ue68b"
+  },
+  {
+    "material": "SOUL_SAND",
+    "unicode": "\ue6f8"
+  },
+  {
+    "material": "WAXED_CUT_COPPER_SLAB",
+    "unicode": "\ue632"
+  },
+  {
+    "material": "STONE_BRICK_STAIRS_tabChat",
+    "unicode": "\uf71c"
+  },
+  {
+    "material": "BROWN_BANNER_tabChat",
+    "unicode": "\ufa25"
+  },
+  {
+    "material": "OAK_STAIRS_tabChat",
+    "unicode": "\uf731"
+  },
+  {
+    "material": "IRON_HORSE_ARMOR_tabChat",
+    "unicode": "\ufa10"
+  },
+  {
+    "material": "BLACK_CONCRETE_tabChat",
+    "unicode": "\uf7ec"
+  },
+  {
+    "material": "LIGHTNING_ROD_tabChat",
+    "unicode": "\uf853"
+  },
+  {
+    "material": "RED_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7db"
+  },
+  {
+    "material": "DEEPSLATE_TILES_tabChat",
+    "unicode": "\uf70e"
+  },
+  {
+    "material": "MUSIC_DISC_OTHERSIDE_tabChat",
+    "unicode": "\ufa48"
+  },
+  {
+    "material": "BLUE_BANNER_tabChat",
+    "unicode": "\ufa24"
+  },
+  {
+    "material": "DIORITE_SLAB_tabChat",
+    "unicode": "\uf83d"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_STAIRS_tabChat",
+    "unicode": "\uf823"
+  },
+  {
+    "material": "PIGLIN_BANNER_PATTERN_tabChat",
+    "unicode": "\ufa59"
+  },
+  {
+    "material": "MOSS_CARPET_tabChat",
+    "unicode": "\uf6a7"
+  },
+  {
+    "material": "SPRUCE_BUTTON_tabChat",
+    "unicode": "\uf85f"
+  },
+  {
+    "material": "DARK_OAK_LOG_tabChat",
+    "unicode": "\uf63c"
+  },
+  {
+    "material": "DEAD_TUBE_CORAL_FAN_tabChat",
+    "unicode": "\uf818"
+  },
+  {
+    "material": "IRON_HELMET_tabChat",
+    "unicode": "\uf910"
+  },
+  {
+    "material": "MOSSY_STONE_BRICK_SLAB_tabChat",
+    "unicode": "\uf833"
+  },
+  {
+    "material": "ACTIVATOR_RAIL_tabChat",
+    "unicode": "\uf8ae"
+  },
+  {
+    "material": "LAPIS_BLOCK_tabChat",
+    "unicode": "\uf670"
+  },
+  {
+    "material": "WHITE_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7cd"
+  },
+  {
+    "material": "MAGENTA_STAINED_GLASS_tabChat",
+    "unicode": "\uf78b"
+  },
+  {
+    "material": "YELLOW_CANDLE_tabChat",
+    "unicode": "\ufa85"
+  },
+  {
+    "material": "LILY_OF_THE_VALLEY_tabChat",
+    "unicode": "\uf697"
+  },
+  {
+    "material": "SKULL_BANNER_PATTERN_tabChat",
+    "unicode": "\ufa56"
+  },
+  {
+    "material": "BIRCH_BUTTON_tabChat",
+    "unicode": "\uf860"
+  },
+  {
+    "material": "GOLDEN_HORSE_ARMOR_tabChat",
+    "unicode": "\ufa11"
+  },
+  {
+    "material": "LEATHER_CHESTPLATE_tabChat",
+    "unicode": "\uf909"
+  },
+  {
+    "material": "PURPLE_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a3"
+  },
+  {
+    "material": "STRIPPED_BIRCH_WOOD_tabChat",
+    "unicode": "\uf64f"
+  },
+  {
+    "material": "CYAN_CARPET_tabChat",
+    "unicode": "\uf779"
+  },
+  {
+    "material": "WHEAT_SEEDS_tabChat",
+    "unicode": "\uf905"
+  },
+  {
+    "material": "SHAPER_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa9"
+  },
+  {
+    "material": "PINK_BED_tabChat",
+    "unicode": "\uf97a"
+  },
+  {
+    "material": "COOKED_PORKCHOP_tabChat",
+    "unicode": "\uf922"
+  },
+  {
+    "material": "DARK_OAK_WOOD_tabChat",
+    "unicode": "\uf65e"
+  },
+  {
+    "material": "DEAD_BRAIN_CORAL_FAN_tabChat",
+    "unicode": "\uf819"
+  },
+  {
+    "material": "CRIMSON_BUTTON_tabChat",
+    "unicode": "\uf867"
+  },
+  {
+    "material": "MUD_BRICKS_tabChat",
+    "unicode": "\uf70b"
+  },
+  {
+    "material": "GRAY_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d4"
+  },
+  {
+    "material": "QUARTZ_BRICKS_tabChat",
+    "unicode": "\uf75a"
+  },
+  {
+    "material": "CUT_COPPER_SLAB_tabChat",
+    "unicode": "\uf61e"
+  },
+  {
+    "material": "RAW_COPPER_BLOCK_tabChat",
+    "unicode": "\uf606"
+  },
+  {
+    "material": "CLAY_tabChat",
+    "unicode": "\uf6e7"
+  },
+  {
+    "material": "CHERRY_BUTTON_tabChat",
+    "unicode": "\uf863"
+  },
+  {
+    "material": "WARPED_FUNGUS_ON_A_STICK_tabChat",
+    "unicode": "\uf8b6"
+  },
+  {
+    "material": "EXPLORER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab4"
+  },
+  {
+    "material": "SPECTRAL_ARROW_tabChat",
+    "unicode": "\ufa33"
+  },
+  {
+    "material": "DIAMOND_BLOCK_tabChat",
+    "unicode": "\uf60d"
+  },
+  {
+    "material": "CHISELED_POLISHED_BLACKSTONE_tabChat",
+    "unicode": "\ufa7a"
+  },
+  {
+    "material": "WARPED_FENCE_tabChat",
+    "unicode": "\uf6f3"
+  },
+  {
+    "material": "JUNGLE_BUTTON_tabChat",
+    "unicode": "\uf861"
+  },
+  {
+    "material": "BROWN_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c9"
+  },
+  {
+    "material": "BLACK_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7dc"
+  },
+  {
+    "material": "OAK_SIGN_tabChat",
+    "unicode": "\uf926"
+  },
+  {
+    "material": "BOOKSHELF_tabChat",
+    "unicode": "\uf6d0"
+  },
+  {
+    "material": "BREAD_tabChat",
+    "unicode": "\uf907"
+  },
+  {
+    "material": "SPRUCE_FENCE_GATE_tabChat",
+    "unicode": "\uf8a1"
+  },
+  {
+    "material": "DEEPSLATE_tabChat",
+    "unicode": "\uf5bb"
+  },
+  {
+    "material": "MUSIC_DISC_PIGSTEP_tabChat",
+    "unicode": "\ufa4b"
+  },
+  {
+    "material": "CRACKED_DEEPSLATE_TILES_tabChat",
+    "unicode": "\uf70f"
+  },
+  {
+    "material": "LARGE_AMETHYST_BUD_tabChat",
+    "unicode": "\ufa93"
+  },
+  {
+    "material": "CHAINMAIL_HELMET_tabChat",
+    "unicode": "\uf90c"
+  },
+  {
+    "material": "DEAD_BRAIN_CORAL_tabChat",
+    "unicode": "\uf80e"
+  },
+  {
+    "material": "NETHERITE_SHOVEL_tabChat",
+    "unicode": "\uf8fb"
+  },
+  {
+    "material": "ORANGE_BANNER_tabChat",
+    "unicode": "\ufa1a"
+  },
+  {
+    "material": "PURPUR_BLOCK_tabChat",
+    "unicode": "\uf6d9"
+  },
+  {
+    "material": "EMERALD_BLOCK_tabChat",
+    "unicode": "\uf730"
+  },
+  {
+    "material": "AXOLOTL_BUCKET_tabChat",
+    "unicode": "\uf947"
+  },
+  {
+    "material": "BIRCH_HANGING_SIGN_tabChat",
+    "unicode": "\uf933"
+  },
+  {
+    "material": "MAGENTA_SHULKER_BOX_tabChat",
+    "unicode": "\uf7bf"
+  },
+  {
+    "material": "COCOA_BEANS_tabChat",
+    "unicode": "\uf95f"
+  },
+  {
+    "material": "NETHERITE_BLOCK_tabChat",
+    "unicode": "\uf60e"
+  },
+  {
+    "material": "WAXED_CUT_COPPER_tabChat",
+    "unicode": "\uf62a"
+  },
+  {
+    "material": "LANTERN_tabChat",
+    "unicode": "\ufa65"
+  },
+  {
+    "material": "STONE_BRICKS_tabChat",
+    "unicode": "\uf706"
+  },
+  {
+    "material": "DARK_OAK_FENCE_GATE_tabChat",
+    "unicode": "\uf8a6"
+  },
+  {
+    "material": "PURPLE_BANNER_tabChat",
+    "unicode": "\ufa23"
+  },
+  {
+    "material": "CHERRY_LOG_tabChat",
+    "unicode": "\uf63b"
+  },
+  {
+    "material": "LIGHT_GRAY_CANDLE_tabChat",
+    "unicode": "\ufa89"
+  },
+  {
+    "material": "END_STONE_BRICK_STAIRS_tabChat",
+    "unicode": "\uf824"
+  },
+  {
+    "material": "HEAVY_WEIGHTED_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf86c"
+  },
+  {
+    "material": "LECTERN_tabChat",
+    "unicode": "\uf850"
+  },
+  {
+    "material": "MANGROVE_BOAT_tabChat",
+    "unicode": "\uf8c6"
+  },
+  {
+    "material": "BLAZE_ROD_tabChat",
+    "unicode": "\uf992"
+  },
+  {
+    "material": "NETHER_BRICK_SLAB_tabChat",
+    "unicode": "\uf6c3"
+  },
+  {
+    "material": "OBSIDIAN_tabChat",
+    "unicode": "\uf6d4"
+  },
+  {
+    "material": "SPRUCE_PLANKS_tabChat",
+    "unicode": "\uf5d8"
+  },
+  {
+    "material": "LEATHER_HELMET_tabChat",
+    "unicode": "\uf908"
+  },
+  {
+    "material": "SPRUCE_BOAT_tabChat",
+    "unicode": "\uf8ba"
+  },
+  {
+    "material": "MAGENTA_WOOL_tabChat",
+    "unicode": "\uf67e"
+  },
+  {
+    "material": "LIGHT_GRAY_CARPET_tabChat",
+    "unicode": "\uf778"
+  },
+  {
+    "material": "DEEPSLATE_BRICK_STAIRS_tabChat",
+    "unicode": "\uf82f"
+  },
+  {
+    "material": "MUSIC_DISC_13_tabChat",
+    "unicode": "\ufa3c"
+  },
+  {
+    "material": "WARPED_DOOR_tabChat",
+    "unicode": "\uf883"
+  },
+  {
+    "material": "CHAINMAIL_BOOTS_tabChat",
+    "unicode": "\uf90f"
+  },
+  {
+    "material": "SHULKER_SHELL_tabChat",
+    "unicode": "\ufa38"
+  },
+  {
+    "material": "SPRUCE_SLAB_tabChat",
+    "unicode": "\uf6af"
+  },
+  {
+    "material": "DEAD_HORN_CORAL_tabChat",
+    "unicode": "\uf811"
+  },
+  {
+    "material": "GRAY_CANDLE_tabChat",
+    "unicode": "\ufa88"
+  },
+  {
+    "material": "GRINDSTONE_tabChat",
+    "unicode": "\ufa61"
+  },
+  {
+    "material": "TNT_tabChat",
+    "unicode": "\uf859"
+  },
+  {
+    "material": "CHORUS_FLOWER_tabChat",
+    "unicode": "\uf6d8"
+  },
+  {
+    "material": "SNORT_POTTERY_SHERD_tabChat",
+    "unicode": "\ufac0"
+  },
+  {
+    "material": "LIGHT_BLUE_BANNER_tabChat",
+    "unicode": "\ufa1c"
+  },
+  {
+    "material": "FEATHER_tabChat",
+    "unicode": "\uf903"
+  },
+  {
+    "material": "DARK_OAK_PLANKS_tabChat",
+    "unicode": "\uf5dd"
+  },
+  {
+    "material": "DEEPSLATE_BRICK_SLAB_tabChat",
+    "unicode": "\uf840"
+  },
+  {
+    "material": "NETHERITE_UPGRADE_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufa9c"
+  },
+  {
+    "material": "GRANITE_WALL_tabChat",
+    "unicode": "\uf745"
+  },
+  {
+    "material": "YELLOW_BANNER_tabChat",
+    "unicode": "\ufa1d"
+  },
+  {
+    "material": "RAW_COPPER_tabChat",
+    "unicode": "\uf8db"
+  },
+  {
+    "material": "LOOM_tabChat",
+    "unicode": "\ufa53"
+  },
+  {
+    "material": "STRIPPED_WARPED_STEM_tabChat",
+    "unicode": "\uf64c"
+  },
+  {
+    "material": "NETHER_WART_BLOCK_tabChat",
+    "unicode": "\uf7b7"
+  },
+  {
+    "material": "ORANGE_CANDLE_tabChat",
+    "unicode": "\ufa82"
+  },
+  {
+    "material": "INK_SAC_tabChat",
+    "unicode": "\uf95d"
+  },
+  {
+    "material": "CRIMSON_STAIRS_tabChat",
+    "unicode": "\uf73b"
+  },
+  {
+    "material": "REPEATER_tabChat",
+    "unicode": "\uf846"
+  },
+  {
+    "material": "TROPICAL_FISH_BUCKET_tabChat",
+    "unicode": "\uf946"
+  },
+  {
+    "material": "JUNGLE_SIGN_tabChat",
+    "unicode": "\uf929"
+  },
+  {
+    "material": "BLUE_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c8"
+  },
+  {
+    "material": "MAGENTA_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf79b"
+  },
+  {
+    "material": "POLISHED_DIORITE_SLAB_tabChat",
+    "unicode": "\uf834"
+  },
+  {
+    "material": "STRIPPED_DARK_OAK_LOG_tabChat",
+    "unicode": "\uf649"
+  },
+  {
+    "material": "ORANGE_CONCRETE_tabChat",
+    "unicode": "\uf7de"
+  },
+  {
+    "material": "BASALT_tabChat",
+    "unicode": "\uf6fa"
+  },
+  {
+    "material": "RED_NETHER_BRICK_STAIRS_tabChat",
+    "unicode": "\uf82a"
+  },
+  {
+    "material": "TERRACOTTA_tabChat",
+    "unicode": "\uf780"
+  },
+  {
+    "material": "CRIMSON_SIGN_tabChat",
+    "unicode": "\uf92f"
+  },
+  {
+    "material": "COAL_tabChat",
+    "unicode": "\uf8d2"
+  },
+  {
+    "material": "DEEPSLATE_TILE_WALL_tabChat",
+    "unicode": "\uf754"
+  },
+  {
+    "material": "OAK_WOOD_tabChat",
+    "unicode": "\uf658"
+  },
+  {
+    "material": "COOKED_SALMON_tabChat",
+    "unicode": "\uf95c"
+  },
+  {
+    "material": "MAGMA_CREAM_tabChat",
+    "unicode": "\uf99b"
+  },
+  {
+    "material": "ORANGE_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7ce"
+  },
+  {
+    "material": "DIAMOND_HELMET_tabChat",
+    "unicode": "\uf914"
+  },
+  {
+    "material": "PINK_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c3"
+  },
+  {
+    "material": "SCULK_tabChat",
+    "unicode": "\uf725"
+  },
+  {
+    "material": "HEART_OF_THE_SEA_tabChat",
+    "unicode": "\ufa50"
+  },
+  {
+    "material": "CHAIN_tabChat",
+    "unicode": "\uf716"
+  },
+  {
+    "material": "POLISHED_BASALT_tabChat",
+    "unicode": "\uf6fb"
+  },
+  {
+    "material": "DIAMOND_ORE_tabChat",
+    "unicode": "\uf5ff"
+  },
+  {
+    "material": "SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa7"
+  },
+  {
+    "material": "COARSE_DIRT_tabChat",
+    "unicode": "\uf5d0"
+  },
+  {
+    "material": "RED_NETHER_BRICK_SLAB_tabChat",
+    "unicode": "\uf83b"
+  },
+  {
+    "material": "CRIMSON_FENCE_tabChat",
+    "unicode": "\uf6f2"
+  },
+  {
+    "material": "BREWING_STAND_tabChat",
+    "unicode": "\uf99c"
+  },
+  {
+    "material": "COAL_ORE_tabChat",
+    "unicode": "\uf5f1"
+  },
+  {
+    "material": "CALIBRATED_SCULK_SENSOR_tabChat",
+    "unicode": "\uf856"
+  },
+  {
+    "material": "WHITE_BED_tabChat",
+    "unicode": "\uf974"
+  },
+  {
+    "material": "DIAMOND_tabChat",
+    "unicode": "\uf8d4"
+  },
+  {
+    "material": "IRON_AXE_tabChat",
+    "unicode": "\uf8f3"
+  },
+  {
+    "material": "END_STONE_BRICKS_tabChat",
+    "unicode": "\uf72c"
+  },
+  {
+    "material": "CHISELED_STONE_BRICKS_tabChat",
+    "unicode": "\uf709"
+  },
+  {
+    "material": "COBBLESTONE_WALL_tabChat",
+    "unicode": "\uf73f"
+  },
+  {
+    "material": "YELLOW_STAINED_GLASS_tabChat",
+    "unicode": "\uf78d"
+  },
+  {
+    "material": "DARK_PRISMARINE_tabChat",
+    "unicode": "\uf7ab"
+  },
+  {
+    "material": "SOUL_LANTERN_tabChat",
+    "unicode": "\ufa66"
+  },
+  {
+    "material": "WARPED_ROOTS_tabChat",
+    "unicode": "\uf6a1"
+  },
+  {
+    "material": "END_STONE_BRICK_WALL_tabChat",
+    "unicode": "\uf74c"
+  },
+  {
+    "material": "BONE_MEAL_tabChat",
+    "unicode": "\uf970"
+  },
+  {
+    "material": "MOSS_BLOCK_tabChat",
+    "unicode": "\uf6a9"
+  },
+  {
+    "material": "ANDESITE_WALL_tabChat",
+    "unicode": "\uf749"
+  },
+  {
+    "material": "DEAD_HORN_CORAL_BLOCK_tabChat",
+    "unicode": "\uf803"
+  },
+  {
+    "material": "BEEF_tabChat",
+    "unicode": "\uf98c"
+  },
+  {
+    "material": "GRAY_STAINED_GLASS_tabChat",
+    "unicode": "\uf790"
+  },
+  {
+    "material": "LIME_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf79e"
+  },
+  {
+    "material": "BLAST_FURNACE_tabChat",
+    "unicode": "\ufa5e"
+  },
+  {
+    "material": "CYAN_WOOL_tabChat",
+    "unicode": "\uf685"
+  },
+  {
+    "material": "PINK_STAINED_GLASS_tabChat",
+    "unicode": "\uf78f"
+  },
+  {
+    "material": "YELLOW_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c1"
+  },
+  {
+    "material": "LIGHT_BLUE_STAINED_GLASS_tabChat",
+    "unicode": "\uf78c"
+  },
+  {
+    "material": "MAGENTA_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7cf"
+  },
+  {
+    "material": "GOLDEN_HOE_tabChat",
+    "unicode": "\uf8ef"
+  },
+  {
+    "material": "END_STONE_tabChat",
+    "unicode": "\uf72b"
+  },
+  {
+    "material": "POLISHED_GRANITE_tabChat",
+    "unicode": "\uf5b6"
+  },
+  {
+    "material": "MAGENTA_CARPET_tabChat",
+    "unicode": "\uf772"
+  },
+  {
+    "material": "NETHER_WART_tabChat",
+    "unicode": "\uf995"
+  },
+  {
+    "material": "GUNPOWDER_tabChat",
+    "unicode": "\uf904"
+  },
+  {
+    "material": "ACACIA_LOG_tabChat",
+    "unicode": "\uf63a"
+  },
+  {
+    "material": "OAK_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf86d"
+  },
+  {
+    "material": "RED_WOOL_tabChat",
+    "unicode": "\uf68a"
+  },
+  {
+    "material": "RED_TERRACOTTA_tabChat",
+    "unicode": "\uf76b"
+  },
+  {
+    "material": "BRUSH_tabChat",
+    "unicode": "\ufa9b"
+  },
+  {
+    "material": "PURPLE_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c7"
+  },
+  {
+    "material": "PRIZE_POTTERY_SHERD_tabChat",
+    "unicode": "\ufabc"
+  },
+  {
+    "material": "GOLDEN_BOOTS_tabChat",
+    "unicode": "\uf91b"
+  },
+  {
+    "material": "HOPPER_tabChat",
+    "unicode": "\uf84d"
+  },
+  {
+    "material": "CHERRY_SAPLING_tabChat",
+    "unicode": "\uf5e8"
+  },
+  {
+    "material": "SUGAR_tabChat",
+    "unicode": "\uf972"
+  },
+  {
+    "material": "COOKED_COD_tabChat",
+    "unicode": "\uf95b"
+  },
+  {
+    "material": "STONE_STAIRS_tabChat",
+    "unicode": "\uf825"
+  },
+  {
+    "material": "NETHER_SPROUTS_tabChat",
+    "unicode": "\uf6a2"
+  },
+  {
+    "material": "SPRUCE_DOOR_tabChat",
+    "unicode": "\uf87a"
+  },
+  {
+    "material": "BUBBLE_CORAL_BLOCK_tabChat",
+    "unicode": "\uf806"
+  },
+  {
+    "material": "CAKE_tabChat",
+    "unicode": "\uf973"
+  },
+  {
+    "material": "SPRUCE_LEAVES_tabChat",
+    "unicode": "\uf663"
+  },
+  {
+    "material": "SPIDER_EYE_tabChat",
+    "unicode": "\uf998"
+  },
+  {
+    "material": "BAKED_POTATO_tabChat",
+    "unicode": "\uf9f7"
+  },
+  {
+    "material": "RED_CANDLE_tabChat",
+    "unicode": "\ufa8f"
+  },
+  {
+    "material": "WARPED_FENCE_GATE_tabChat",
+    "unicode": "\uf8aa"
+  },
+  {
+    "material": "BIRCH_SAPLING_tabChat",
+    "unicode": "\uf5e5"
+  },
+  {
+    "material": "ACACIA_SLAB_tabChat",
+    "unicode": "\uf6b2"
+  },
+  {
+    "material": "FILLED_MAP_tabChat",
+    "unicode": "\uf986"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICKS_tabChat",
+    "unicode": "\ufa7b"
+  },
+  {
+    "material": "RED_TULIP_tabChat",
+    "unicode": "\uf691"
+  },
+  {
+    "material": "WRITTEN_BOOK_tabChat",
+    "unicode": "\uf9f1"
+  },
+  {
+    "material": "CHERRY_LEAVES_tabChat",
+    "unicode": "\uf667"
+  },
+  {
+    "material": "YELLOW_CARPET_tabChat",
+    "unicode": "\uf774"
+  },
+  {
+    "material": "BAMBOO_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf875"
+  },
+  {
+    "material": "NETHERITE_LEGGINGS_tabChat",
+    "unicode": "\uf91e"
+  },
+  {
+    "material": "REDSTONE_tabChat",
+    "unicode": "\uf843"
+  },
+  {
+    "material": "DARK_OAK_BUTTON_tabChat",
+    "unicode": "\uf864"
+  },
+  {
+    "material": "GRAY_WOOL_tabChat",
+    "unicode": "\uf683"
+  },
+  {
+    "material": "CHAINMAIL_CHESTPLATE_tabChat",
+    "unicode": "\uf90d"
+  },
+  {
+    "material": "GLASS_tabChat",
+    "unicode": "\uf66e"
+  },
+  {
+    "material": "GRANITE_tabChat",
+    "unicode": "\uf5b5"
+  },
+  {
+    "material": "STONE_BRICK_WALL_tabChat",
+    "unicode": "\uf746"
+  },
+  {
+    "material": "PRISMARINE_STAIRS_tabChat",
+    "unicode": "\uf7ac"
+  },
+  {
+    "material": "COPPER_BLOCK_tabChat",
+    "unicode": "\uf60b"
+  },
+  {
+    "material": "CHISELED_RED_SANDSTONE_tabChat",
+    "unicode": "\uf7b1"
+  },
+  {
+    "material": "JUNGLE_LEAVES_tabChat",
+    "unicode": "\uf665"
+  },
+  {
+    "material": "DEEPSLATE_DIAMOND_ORE_tabChat",
+    "unicode": "\uf600"
+  },
+  {
+    "material": "BAMBOO_MOSAIC_tabChat",
+    "unicode": "\uf5e2"
+  },
+  {
+    "material": "HORN_CORAL_BLOCK_tabChat",
+    "unicode": "\uf808"
+  },
+  {
+    "material": "STONE_HOE_tabChat",
+    "unicode": "\uf8ea"
+  },
+  {
+    "material": "FIREWORK_STAR_tabChat",
+    "unicode": "\ufa05"
+  },
+  {
+    "material": "PODZOL_tabChat",
+    "unicode": "\uf5d1"
+  },
+  {
+    "material": "HOPPER_MINECART_tabChat",
+    "unicode": "\uf8b4"
+  },
+  {
+    "material": "PURPLE_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d7"
+  },
+  {
+    "material": "SMOOTH_STONE_tabChat",
+    "unicode": "\uf6ce"
+  },
+  {
+    "material": "SUNFLOWER_tabChat",
+    "unicode": "\uf783"
+  },
+  {
+    "material": "GREEN_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a6"
+  },
+  {
+    "material": "GILDED_BLACKSTONE_tabChat",
+    "unicode": "\ufa76"
+  },
+  {
+    "material": "BIRCH_LEAVES_tabChat",
+    "unicode": "\uf664"
+  },
+  {
+    "material": "LIGHT_BLUE_CANDLE_tabChat",
+    "unicode": "\ufa84"
+  },
+  {
+    "material": "CRIMSON_HYPHAE_tabChat",
+    "unicode": "\uf660"
+  },
+  {
+    "material": "CHEST_MINECART_tabChat",
+    "unicode": "\uf8b1"
+  },
+  {
+    "material": "DIAMOND_HOE_tabChat",
+    "unicode": "\uf8f9"
+  },
+  {
+    "material": "GLOWSTONE_DUST_tabChat",
+    "unicode": "\uf956"
+  },
+  {
+    "material": "BEE_NEST_tabChat",
+    "unicode": "\ufa6d"
+  },
+  {
+    "material": "ANDESITE_tabChat",
+    "unicode": "\uf5b9"
+  },
+  {
+    "material": "ORANGE_CARPET_tabChat",
+    "unicode": "\uf771"
+  },
+  {
+    "material": "GOLDEN_HELMET_tabChat",
+    "unicode": "\uf918"
+  },
+  {
+    "material": "BROWN_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d9"
+  },
+  {
+    "material": "BIG_DRIPLEAF_tabChat",
+    "unicode": "\uf6ab"
+  },
+  {
+    "material": "BARREL_tabChat",
+    "unicode": "\ufa5c"
+  },
+  {
+    "material": "KELP_tabChat",
+    "unicode": "\uf6a6"
+  },
+  {
+    "material": "CHERRY_HANGING_SIGN_tabChat",
+    "unicode": "\uf936"
+  },
+  {
+    "material": "CRAFTING_TABLE_tabChat",
+    "unicode": "\uf6de"
+  },
+  {
+    "material": "BLUE_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a4"
+  },
+  {
+    "material": "BAMBOO_BUTTON_tabChat",
+    "unicode": "\uf866"
+  },
+  {
+    "material": "BAMBOO_TRAPDOOR_tabChat",
+    "unicode": "\uf895"
+  },
+  {
+    "material": "MUD_BRICK_STAIRS_tabChat",
+    "unicode": "\uf71d"
+  },
+  {
+    "material": "COD_BUCKET_tabChat",
+    "unicode": "\uf945"
+  },
+  {
+    "material": "BLAZE_POWDER_tabChat",
+    "unicode": "\uf99a"
+  },
+  {
+    "material": "RABBIT_tabChat",
+    "unicode": "\ufa0a"
+  },
+  {
+    "material": "COMPASS_tabChat",
+    "unicode": "\uf950"
+  },
+  {
+    "material": "NETHERITE_HOE_tabChat",
+    "unicode": "\uf8fe"
+  },
+  {
+    "material": "NETHER_BRICK_STAIRS_tabChat",
+    "unicode": "\uf724"
+  },
+  {
+    "material": "AMETHYST_BLOCK_tabChat",
+    "unicode": "\uf608"
+  },
+  {
+    "material": "LIME_STAINED_GLASS_tabChat",
+    "unicode": "\uf78e"
+  },
+  {
+    "material": "STICK_tabChat",
+    "unicode": "\uf8ff"
+  },
+  {
+    "material": "SOUL_TORCH_tabChat",
+    "unicode": "\uf6fd"
+  },
+  {
+    "material": "WILD_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa0"
+  },
+  {
+    "material": "DIRT_tabChat",
+    "unicode": "\uf5cf"
+  },
+  {
+    "material": "ICE_tabChat",
+    "unicode": "\uf6e4"
+  },
+  {
+    "material": "MAGENTA_CANDLE_tabChat",
+    "unicode": "\ufa83"
+  },
+  {
+    "material": "COBWEB_tabChat",
+    "unicode": "\uf674"
+  },
+  {
+    "material": "CAMPFIRE_tabChat",
+    "unicode": "\ufa69"
+  },
+  {
+    "material": "STRIPPED_WARPED_HYPHAE_tabChat",
+    "unicode": "\uf656"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_SLAB_tabChat",
+    "unicode": "\ufa78"
+  },
+  {
+    "material": "BRICK_STAIRS_tabChat",
+    "unicode": "\uf71b"
+  },
+  {
+    "material": "LEATHER_HORSE_ARMOR_tabChat",
+    "unicode": "\ufa13"
+  },
+  {
+    "material": "JUNGLE_SLAB_tabChat",
+    "unicode": "\uf6b1"
+  },
+  {
+    "material": "CRIMSON_FENCE_GATE_tabChat",
+    "unicode": "\uf8a9"
+  },
+  {
+    "material": "NETHERITE_PICKAXE_tabChat",
+    "unicode": "\uf8fc"
+  },
+  {
+    "material": "CHERRY_STAIRS_tabChat",
+    "unicode": "\uf736"
+  },
+  {
+    "material": "DEAD_FIRE_CORAL_BLOCK_tabChat",
+    "unicode": "\uf802"
+  },
+  {
+    "material": "LIGHT_GRAY_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c5"
+  },
+  {
+    "material": "DROPPER_tabChat",
+    "unicode": "\uf84f"
+  },
+  {
+    "material": "LIGHT_GRAY_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d5"
+  },
+  {
+    "material": "ACACIA_HANGING_SIGN_tabChat",
+    "unicode": "\uf935"
+  },
+  {
+    "material": "SEAGRASS_tabChat",
+    "unicode": "\uf67a"
+  },
+  {
+    "material": "POTATO_tabChat",
+    "unicode": "\uf9f6"
+  },
+  {
+    "material": "CACTUS_tabChat",
+    "unicode": "\uf6e6"
+  },
+  {
+    "material": "SHROOMLIGHT_tabChat",
+    "unicode": "\ufa6b"
+  },
+  {
+    "material": "BUBBLE_CORAL_FAN_tabChat",
+    "unicode": "\uf815"
+  },
+  {
+    "material": "LEAD_tabChat",
+    "unicode": "\ufa14"
+  },
+  {
+    "material": "DIAMOND_PICKAXE_tabChat",
+    "unicode": "\uf8f7"
+  },
+  {
+    "material": "MANGROVE_SIGN_tabChat",
+    "unicode": "\uf92d"
+  },
+  {
+    "material": "STRING_tabChat",
+    "unicode": "\uf902"
+  },
+  {
+    "material": "BEETROOT_SOUP_tabChat",
+    "unicode": "\ufa30"
+  },
+  {
+    "material": "BRAIN_CORAL_BLOCK_tabChat",
+    "unicode": "\uf805"
+  },
+  {
+    "material": "BIRCH_SIGN_tabChat",
+    "unicode": "\uf928"
+  },
+  {
+    "material": "DEEPSLATE_BRICKS_tabChat",
+    "unicode": "\uf70c"
+  },
+  {
+    "material": "BEETROOT_SEEDS_tabChat",
+    "unicode": "\ufa2f"
+  },
+  {
+    "material": "JUNGLE_CHEST_BOAT_tabChat",
+    "unicode": "\uf8bf"
+  },
+  {
+    "material": "YELLOW_DYE_tabChat",
+    "unicode": "\uf964"
+  },
+  {
+    "material": "CHERRY_WOOD_tabChat",
+    "unicode": "\uf65d"
+  },
+  {
+    "material": "PUFFERFISH_tabChat",
+    "unicode": "\uf95a"
+  },
+  {
+    "material": "CRIMSON_DOOR_tabChat",
+    "unicode": "\uf882"
+  },
+  {
+    "material": "STRIPPED_CRIMSON_HYPHAE_tabChat",
+    "unicode": "\uf655"
+  },
+  {
+    "material": "MAGENTA_DYE_tabChat",
+    "unicode": "\uf962"
+  },
+  {
+    "material": "CRIMSON_ROOTS_tabChat",
+    "unicode": "\uf6a0"
+  },
+  {
+    "material": "LIME_DYE_tabChat",
+    "unicode": "\uf965"
+  },
+  {
+    "material": "NETHER_BRICK_FENCE_tabChat",
+    "unicode": "\uf723"
+  },
+  {
+    "material": "BAMBOO_FENCE_tabChat",
+    "unicode": "\uf6f1"
+  },
+  {
+    "material": "CHEST_tabChat",
+    "unicode": "\uf6dd"
+  },
+  {
+    "material": "LODESTONE_tabChat",
+    "unicode": "\ufa71"
+  },
+  {
+    "material": "PHANTOM_MEMBRANE_tabChat",
+    "unicode": "\ufa4e"
+  },
+  {
+    "material": "DIAMOND_BOOTS_tabChat",
+    "unicode": "\uf917"
+  },
+  {
+    "material": "ARMOR_STAND_tabChat",
+    "unicode": "\ufa0f"
+  },
+  {
+    "material": "OAK_SLAB_tabChat",
+    "unicode": "\uf6ae"
+  },
+  {
+    "material": "HONEYCOMB_BLOCK_tabChat",
+    "unicode": "\ufa70"
+  },
+  {
+    "material": "IRON_NUGGET_tabChat",
+    "unicode": "\ufa39"
+  },
+  {
+    "material": "JUNGLE_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf870"
+  },
+  {
+    "material": "RED_MUSHROOM_BLOCK_tabChat",
+    "unicode": "\uf713"
+  },
+  {
+    "material": "MUD_tabChat",
+    "unicode": "\uf5d3"
+  },
+  {
+    "material": "RESPAWN_ANCHOR_tabChat",
+    "unicode": "\ufa7f"
+  },
+  {
+    "material": "GLOBE_BANNER_PATTERN_tabChat",
+    "unicode": "\ufa58"
+  },
+  {
+    "material": "STONE_tabChat",
+    "unicode": "\uf5b4"
+  },
+  {
+    "material": "SCULK_CATALYST_tabChat",
+    "unicode": "\uf727"
+  },
+  {
+    "material": "BLACK_CARPET_tabChat",
+    "unicode": "\uf77f"
+  },
+  {
+    "material": "QUARTZ_BLOCK_tabChat",
+    "unicode": "\uf759"
+  },
+  {
+    "material": "RAW_GOLD_tabChat",
+    "unicode": "\uf8dd"
+  },
+  {
+    "material": "FLINT_AND_STEEL_tabChat",
+    "unicode": "\uf8ce"
+  },
+  {
+    "material": "STRIPPED_OAK_WOOD_tabChat",
+    "unicode": "\uf64d"
+  },
+  {
+    "material": "WARPED_WART_BLOCK_tabChat",
+    "unicode": "\uf7b8"
+  },
+  {
+    "material": "CRIMSON_PLANKS_tabChat",
+    "unicode": "\uf5e0"
+  },
+  {
+    "material": "POLISHED_ANDESITE_tabChat",
+    "unicode": "\uf5ba"
+  },
+  {
+    "material": "NAUTILUS_SHELL_tabChat",
+    "unicode": "\ufa4f"
+  },
+  {
+    "material": "COOKED_CHICKEN_tabChat",
+    "unicode": "\uf98f"
+  },
+  {
+    "material": "OAK_FENCE_GATE_tabChat",
+    "unicode": "\uf8a0"
+  },
+  {
+    "material": "STRIPPED_ACACIA_LOG_tabChat",
+    "unicode": "\uf647"
+  },
+  {
+    "material": "TUBE_CORAL_tabChat",
+    "unicode": "\uf809"
+  },
+  {
+    "material": "CRACKED_STONE_BRICKS_tabChat",
+    "unicode": "\uf708"
+  },
+  {
+    "material": "RED_BED_tabChat",
+    "unicode": "\uf982"
+  },
+  {
+    "material": "DRIED_KELP_tabChat",
+    "unicode": "\uf989"
+  },
+  {
+    "material": "MILK_BUCKET_tabChat",
+    "unicode": "\uf942"
+  },
+  {
+    "material": "MUSIC_DISC_CAT_tabChat",
+    "unicode": "\ufa3d"
+  },
+  {
+    "material": "BROWN_CARPET_tabChat",
+    "unicode": "\uf77c"
+  },
+  {
+    "material": "CHIPPED_ANVIL_tabChat",
+    "unicode": "\uf756"
+  },
+  {
+    "material": "BEEHIVE_tabChat",
+    "unicode": "\ufa6e"
+  },
+  {
+    "material": "OAK_BUTTON_tabChat",
+    "unicode": "\uf85e"
+  },
+  {
+    "material": "ENDER_PEARL_tabChat",
+    "unicode": "\uf991"
+  },
+  {
+    "material": "DEAD_BRAIN_CORAL_BLOCK_tabChat",
+    "unicode": "\uf800"
+  },
+  {
+    "material": "PURPLE_WOOL_tabChat",
+    "unicode": "\uf686"
+  },
+  {
+    "material": "SANDSTONE_SLAB_tabChat",
+    "unicode": "\uf6bc"
+  },
+  {
+    "material": "BIRCH_TRAPDOOR_tabChat",
+    "unicode": "\uf88f"
+  },
+  {
+    "material": "CUT_SANDSTONE_SLAB_tabChat",
+    "unicode": "\uf6bd"
+  },
+  {
+    "material": "DEAD_BUSH_tabChat",
+    "unicode": "\uf679"
+  },
+  {
+    "material": "JUNGLE_DOOR_tabChat",
+    "unicode": "\uf87c"
+  },
+  {
+    "material": "PRISMARINE_CRYSTALS_tabChat",
+    "unicode": "\ufa09"
+  },
+  {
+    "material": "PINK_CARPET_tabChat",
+    "unicode": "\uf776"
+  },
+  {
+    "material": "ACACIA_BUTTON_tabChat",
+    "unicode": "\uf862"
+  },
+  {
+    "material": "SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufa9d"
+  },
+  {
+    "material": "SCULK_VEIN_tabChat",
+    "unicode": "\uf726"
+  },
+  {
+    "material": "NOTE_BLOCK_tabChat",
+    "unicode": "\uf85b"
+  },
+  {
+    "material": "DARK_OAK_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf873"
+  },
+  {
+    "material": "RED_SANDSTONE_WALL_tabChat",
+    "unicode": "\uf743"
+  },
+  {
+    "material": "SALMON_BUCKET_tabChat",
+    "unicode": "\uf944"
+  },
+  {
+    "material": "RED_NETHER_BRICKS_tabChat",
+    "unicode": "\uf7b9"
+  },
+  {
+    "material": "PRISMARINE_tabChat",
+    "unicode": "\uf7a9"
+  },
+  {
+    "material": "PINK_CANDLE_tabChat",
+    "unicode": "\ufa87"
+  },
+  {
+    "material": "MAP_tabChat",
+    "unicode": "\uf9f9"
+  },
+  {
+    "material": "MELON_tabChat",
+    "unicode": "\uf718"
+  },
+  {
+    "material": "IRON_BOOTS_tabChat",
+    "unicode": "\uf913"
+  },
+  {
+    "material": "PRISMARINE_SLAB_tabChat",
+    "unicode": "\uf6c8"
+  },
+  {
+    "material": "HONEY_BOTTLE_tabChat",
+    "unicode": "\ufa6f"
+  },
+  {
+    "material": "DARK_OAK_CHEST_BOAT_tabChat",
+    "unicode": "\uf8c5"
+  },
+  {
+    "material": "SCAFFOLDING_tabChat",
+    "unicode": "\uf842"
+  },
+  {
+    "material": "EMERALD_ORE_tabChat",
+    "unicode": "\uf5fb"
+  },
+  {
+    "material": "BLUE_CANDLE_tabChat",
+    "unicode": "\ufa8c"
+  },
+  {
+    "material": "HANGING_ROOTS_tabChat",
+    "unicode": "\uf6aa"
+  },
+  {
+    "material": "CALCITE_tabChat",
+    "unicode": "\uf5be"
+  },
+  {
+    "material": "MUTTON_tabChat",
+    "unicode": "\ufa17"
+  },
+  {
+    "material": "LIME_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f2"
+  },
+  {
+    "material": "RED_SANDSTONE_tabChat",
+    "unicode": "\uf7b0"
+  },
+  {
+    "material": "YELLOW_BED_tabChat",
+    "unicode": "\uf978"
+  },
+  {
+    "material": "GRAY_TERRACOTTA_tabChat",
+    "unicode": "\uf764"
+  },
+  {
+    "material": "CYAN_CANDLE_tabChat",
+    "unicode": "\ufa8a"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_SLAB_tabChat",
+    "unicode": "\uf835"
+  },
+  {
+    "material": "LEATHER_BOOTS_tabChat",
+    "unicode": "\uf90b"
+  },
+  {
+    "material": "STRIPPED_BIRCH_LOG_tabChat",
+    "unicode": "\uf645"
+  },
+  {
+    "material": "GRAY_DYE_tabChat",
+    "unicode": "\uf967"
+  },
+  {
+    "material": "WARPED_FUNGUS_tabChat",
+    "unicode": "\uf69f"
+  },
+  {
+    "material": "RED_SAND_tabChat",
+    "unicode": "\uf5ef"
+  },
+  {
+    "material": "CHERRY_FENCE_GATE_tabChat",
+    "unicode": "\uf8a5"
+  },
+  {
+    "material": "IRON_BARS_tabChat",
+    "unicode": "\uf715"
+  },
+  {
+    "material": "BOW_tabChat",
+    "unicode": "\uf8d0"
+  },
+  {
+    "material": "BRICK_tabChat",
+    "unicode": "\uf949"
+  },
+  {
+    "material": "PURPLE_CANDLE_tabChat",
+    "unicode": "\ufa8b"
+  },
+  {
+    "material": "SLIME_BLOCK_tabChat",
+    "unicode": "\uf84a"
+  },
+  {
+    "material": "PURPLE_TERRACOTTA_tabChat",
+    "unicode": "\uf767"
+  },
+  {
+    "material": "CHERRY_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf872"
+  },
+  {
+    "material": "BIRCH_STAIRS_tabChat",
+    "unicode": "\uf733"
+  },
+  {
+    "material": "LIGHT_BLUE_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f0"
+  },
+  {
+    "material": "CRIMSON_FUNGUS_tabChat",
+    "unicode": "\uf69e"
+  },
+  {
+    "material": "NETHERITE_SWORD_tabChat",
+    "unicode": "\uf8fa"
+  },
+  {
+    "material": "OAK_FENCE_tabChat",
+    "unicode": "\uf6e9"
+  },
+  {
+    "material": "DARK_OAK_HANGING_SIGN_tabChat",
+    "unicode": "\uf937"
+  },
+  {
+    "material": "STONE_SHOVEL_tabChat",
+    "unicode": "\uf8e7"
+  },
+  {
+    "material": "BIRCH_WOOD_tabChat",
+    "unicode": "\uf65a"
+  },
+  {
+    "material": "FURNACE_tabChat",
+    "unicode": "\uf6e0"
+  },
+  {
+    "material": "FLOWER_POT_tabChat",
+    "unicode": "\uf9f4"
+  },
+  {
+    "material": "DIAMOND_SHOVEL_tabChat",
+    "unicode": "\uf8f6"
+  },
+  {
+    "material": "LARGE_FERN_tabChat",
+    "unicode": "\uf788"
+  },
+  {
+    "material": "NETHER_GOLD_ORE_tabChat",
+    "unicode": "\uf601"
+  },
+  {
+    "material": "IRON_CHESTPLATE_tabChat",
+    "unicode": "\uf911"
+  },
+  {
+    "material": "DUNE_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufa9e"
+  },
+  {
+    "material": "POLISHED_GRANITE_SLAB_tabChat",
+    "unicode": "\uf831"
+  },
+  {
+    "material": "WARPED_PLANKS_tabChat",
+    "unicode": "\uf5e1"
+  },
+  {
+    "material": "BLACK_SHULKER_BOX_tabChat",
+    "unicode": "\uf7cc"
+  },
+  {
+    "material": "SPRUCE_SIGN_tabChat",
+    "unicode": "\uf927"
+  },
+  {
+    "material": "COD_tabChat",
+    "unicode": "\uf957"
+  },
+  {
+    "material": "STRIPPED_CRIMSON_STEM_tabChat",
+    "unicode": "\uf64b"
+  },
+  {
+    "material": "LIGHT_BLUE_CARPET_tabChat",
+    "unicode": "\uf773"
+  },
+  {
+    "material": "SCULK_SENSOR_tabChat",
+    "unicode": "\uf855"
+  },
+  {
+    "material": "SMOOTH_SANDSTONE_tabChat",
+    "unicode": "\uf6cd"
+  },
+  {
+    "material": "AMETHYST_SHARD_tabChat",
+    "unicode": "\uf8d8"
+  },
+  {
+    "material": "PURPLE_STAINED_GLASS_tabChat",
+    "unicode": "\uf793"
+  },
+  {
+    "material": "LIME_BANNER_tabChat",
+    "unicode": "\ufa1e"
+  },
+  {
+    "material": "BLUE_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f8"
+  },
+  {
+    "material": "BLACKSTONE_STAIRS_tabChat",
+    "unicode": "\ufa75"
+  },
+  {
+    "material": "SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa5"
+  },
+  {
+    "material": "TROPICAL_FISH_tabChat",
+    "unicode": "\uf959"
+  },
+  {
+    "material": "GOLDEN_AXE_tabChat",
+    "unicode": "\uf8ee"
+  },
+  {
+    "material": "TORCH_tabChat",
+    "unicode": "\uf6d5"
+  },
+  {
+    "material": "TNT_MINECART_tabChat",
+    "unicode": "\uf8b3"
+  },
+  {
+    "material": "WHITE_DYE_tabChat",
+    "unicode": "\uf960"
+  },
+  {
+    "material": "PRISMARINE_BRICK_STAIRS_tabChat",
+    "unicode": "\uf7ad"
+  },
+  {
+    "material": "ORANGE_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf79a"
+  },
+  {
+    "material": "HAY_BLOCK_tabChat",
+    "unicode": "\uf76f"
+  },
+  {
+    "material": "MANGROVE_FENCE_GATE_tabChat",
+    "unicode": "\uf8a7"
+  },
+  {
+    "material": "QUARTZ_tabChat",
+    "unicode": "\uf8d7"
+  },
+  {
+    "material": "IRON_TRAPDOOR_tabChat",
+    "unicode": "\uf88c"
+  },
+  {
+    "material": "REDSTONE_TORCH_tabChat",
+    "unicode": "\uf844"
+  },
+  {
+    "material": "BAMBOO_MOSAIC_SLAB_tabChat",
+    "unicode": "\uf6b7"
+  },
+  {
+    "material": "SPRUCE_HANGING_SIGN_tabChat",
+    "unicode": "\uf932"
+  },
+  {
+    "material": "WHITE_BANNER_tabChat",
+    "unicode": "\ufa19"
+  },
+  {
+    "material": "WAXED_CUT_COPPER_STAIRS_tabChat",
+    "unicode": "\uf62e"
+  },
+  {
+    "material": "NETHERITE_AXE_tabChat",
+    "unicode": "\uf8fd"
+  },
+  {
+    "material": "MANGROVE_ROOTS_tabChat",
+    "unicode": "\uf63e"
+  },
+  {
+    "material": "DEEPSLATE_TILE_STAIRS_tabChat",
+    "unicode": "\uf830"
+  },
+  {
+    "material": "MELON_SEEDS_tabChat",
+    "unicode": "\uf98b"
+  },
+  {
+    "material": "VEX_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa3"
+  },
+  {
+    "material": "GOLDEN_CHESTPLATE_tabChat",
+    "unicode": "\uf919"
+  },
+  {
+    "material": "YELLOW_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf79d"
+  },
+  {
+    "material": "CUT_COPPER_tabChat",
+    "unicode": "\uf616"
+  },
+  {
+    "material": "ARCHER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufaae"
+  },
+  {
+    "material": "GRANITE_SLAB_tabChat",
+    "unicode": "\uf839"
+  },
+  {
+    "material": "NETHERRACK_tabChat",
+    "unicode": "\uf6f7"
+  },
+  {
+    "material": "DRIED_KELP_BLOCK_tabChat",
+    "unicode": "\uf94b"
+  },
+  {
+    "material": "STRIPPED_SPRUCE_WOOD_tabChat",
+    "unicode": "\uf64e"
+  },
+  {
+    "material": "WHITE_SHULKER_BOX_tabChat",
+    "unicode": "\uf7bd"
+  },
+  {
+    "material": "LIGHT_BLUE_DYE_tabChat",
+    "unicode": "\uf963"
+  },
+  {
+    "material": "RAW_GOLD_BLOCK_tabChat",
+    "unicode": "\uf607"
+  },
+  {
+    "material": "DIAMOND_HORSE_ARMOR_tabChat",
+    "unicode": "\ufa12"
+  },
+  {
+    "material": "FURNACE_MINECART_tabChat",
+    "unicode": "\uf8b2"
+  },
+  {
+    "material": "STONE_SLAB_tabChat",
+    "unicode": "\uf6ba"
+  },
+  {
+    "material": "LIME_CARPET_tabChat",
+    "unicode": "\uf775"
+  },
+  {
+    "material": "STRIPPED_DARK_OAK_WOOD_tabChat",
+    "unicode": "\uf653"
+  },
+  {
+    "material": "OAK_HANGING_SIGN_tabChat",
+    "unicode": "\uf931"
+  },
+  {
+    "material": "WOODEN_AXE_tabChat",
+    "unicode": "\uf8e4"
+  },
+  {
+    "material": "BELL_tabChat",
+    "unicode": "\ufa64"
+  },
+  {
+    "material": "SANDSTONE_WALL_tabChat",
+    "unicode": "\uf74b"
+  },
+  {
+    "material": "MYCELIUM_tabChat",
+    "unicode": "\uf71e"
+  },
+  {
+    "material": "DEEPSLATE_COAL_ORE_tabChat",
+    "unicode": "\uf5f2"
+  },
+  {
+    "material": "TOTEM_OF_UNDYING_tabChat",
+    "unicode": "\ufa37"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_SLAB_tabChat",
+    "unicode": "\uf83f"
+  },
+  {
+    "material": "STRIPPED_JUNGLE_LOG_tabChat",
+    "unicode": "\uf646"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_tabChat",
+    "unicode": "\uf5bc"
+  },
+  {
+    "material": "GOLDEN_SWORD_tabChat",
+    "unicode": "\uf8eb"
+  },
+  {
+    "material": "PAPER_tabChat",
+    "unicode": "\uf94c"
+  },
+  {
+    "material": "GREEN_CANDLE_tabChat",
+    "unicode": "\ufa8e"
+  },
+  {
+    "material": "FLETCHING_TABLE_tabChat",
+    "unicode": "\ufa60"
+  },
+  {
+    "material": "HORN_CORAL_FAN_tabChat",
+    "unicode": "\uf817"
+  },
+  {
+    "material": "RABBIT_STEW_tabChat",
+    "unicode": "\ufa0c"
+  },
+  {
+    "material": "ACACIA_BOAT_tabChat",
+    "unicode": "\uf8c0"
+  },
+  {
+    "material": "PINK_BANNER_tabChat",
+    "unicode": "\ufa1f"
+  },
+  {
+    "material": "BROWN_STAINED_GLASS_tabChat",
+    "unicode": "\uf795"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICK_WALL_tabChat",
+    "unicode": "\uf750"
+  },
+  {
+    "material": "TUBE_CORAL_FAN_tabChat",
+    "unicode": "\uf813"
+  },
+  {
+    "material": "BONE_tabChat",
+    "unicode": "\uf971"
+  },
+  {
+    "material": "LEVER_tabChat",
+    "unicode": "\uf852"
+  },
+  {
+    "material": "PLENTY_POTTERY_SHERD_tabChat",
+    "unicode": "\ufabb"
+  },
+  {
+    "material": "BLACK_STAINED_GLASS_tabChat",
+    "unicode": "\uf798"
+  },
+  {
+    "material": "ANDESITE_SLAB_tabChat",
+    "unicode": "\uf83a"
+  },
+  {
+    "material": "PINK_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d3"
+  },
+  {
+    "material": "GOLDEN_CARROT_tabChat",
+    "unicode": "\uf9fa"
+  },
+  {
+    "material": "NETHER_BRICK_tabChat",
+    "unicode": "\ufa07"
+  },
+  {
+    "material": "CRYING_OBSIDIAN_tabChat",
+    "unicode": "\ufa72"
+  },
+  {
+    "material": "LIGHT_GRAY_WOOL_tabChat",
+    "unicode": "\uf684"
+  },
+  {
+    "material": "CARROT_tabChat",
+    "unicode": "\uf9f5"
+  },
+  {
+    "material": "STRIPPED_ACACIA_WOOD_tabChat",
+    "unicode": "\uf651"
+  },
+  {
+    "material": "CORNFLOWER_tabChat",
+    "unicode": "\uf696"
+  },
+  {
+    "material": "DARK_OAK_BOAT_tabChat",
+    "unicode": "\uf8c4"
+  },
+  {
+    "material": "BIRCH_FENCE_tabChat",
+    "unicode": "\uf6eb"
+  },
+  {
+    "material": "PUMPKIN_tabChat",
+    "unicode": "\uf6f4"
+  },
+  {
+    "material": "MANGROVE_LOG_tabChat",
+    "unicode": "\uf63d"
+  },
+  {
+    "material": "LAPIS_LAZULI_tabChat",
+    "unicode": "\uf8d6"
+  },
+  {
+    "material": "COOKIE_tabChat",
+    "unicode": "\uf984"
+  },
+  {
+    "material": "LIGHT_GRAY_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f5"
+  },
+  {
+    "material": "APPLE_tabChat",
+    "unicode": "\uf8cf"
+  },
+  {
+    "material": "CUT_COPPER_STAIRS_tabChat",
+    "unicode": "\uf61a"
+  },
+  {
+    "material": "GREEN_SHULKER_BOX_tabChat",
+    "unicode": "\uf7ca"
+  },
+  {
+    "material": "CLOCK_tabChat",
+    "unicode": "\uf954"
+  },
+  {
+    "material": "POPPY_tabChat",
+    "unicode": "\uf68d"
+  },
+  {
+    "material": "BLUE_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d8"
+  },
+  {
+    "material": "CHERRY_PLANKS_tabChat",
+    "unicode": "\uf5dc"
+  },
+  {
+    "material": "SEA_LANTERN_tabChat",
+    "unicode": "\uf7af"
+  },
+  {
+    "material": "STRIPPED_BAMBOO_BLOCK_tabChat",
+    "unicode": "\uf657"
+  },
+  {
+    "material": "HONEY_BLOCK_tabChat",
+    "unicode": "\uf84b"
+  },
+  {
+    "material": "CHORUS_FRUIT_tabChat",
+    "unicode": "\ufa2a"
+  },
+  {
+    "material": "MAGENTA_BED_tabChat",
+    "unicode": "\uf976"
+  },
+  {
+    "material": "GREEN_TERRACOTTA_tabChat",
+    "unicode": "\uf76a"
+  },
+  {
+    "material": "ITEM_FRAME_tabChat",
+    "unicode": "\uf9f2"
+  },
+  {
+    "material": "SNOW_tabChat",
+    "unicode": "\uf6e3"
+  },
+  {
+    "material": "FLINT_tabChat",
+    "unicode": "\uf920"
+  },
+  {
+    "material": "GREEN_CARPET_tabChat",
+    "unicode": "\uf77d"
+  },
+  {
+    "material": "DEEPSLATE_BRICK_WALL_tabChat",
+    "unicode": "\uf753"
+  },
+  {
+    "material": "CYAN_CONCRETE_tabChat",
+    "unicode": "\uf7e6"
+  },
+  {
+    "material": "GOLDEN_APPLE_tabChat",
+    "unicode": "\uf924"
+  },
+  {
+    "material": "MINER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab9"
+  },
+  {
+    "material": "BROWN_MUSHROOM_tabChat",
+    "unicode": "\uf69c"
+  },
+  {
+    "material": "FIREWORK_ROCKET_tabChat",
+    "unicode": "\ufa04"
+  },
+  {
+    "material": "DEAD_BUBBLE_CORAL_BLOCK_tabChat",
+    "unicode": "\uf801"
+  },
+  {
+    "material": "HOST_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaac"
+  },
+  {
+    "material": "BLUE_CARPET_tabChat",
+    "unicode": "\uf77b"
+  },
+  {
+    "material": "SPRUCE_TRAPDOOR_tabChat",
+    "unicode": "\uf88e"
+  },
+  {
+    "material": "ANCIENT_DEBRIS_tabChat",
+    "unicode": "\uf603"
+  },
+  {
+    "material": "DEAD_FIRE_CORAL_tabChat",
+    "unicode": "\uf810"
+  },
+  {
+    "material": "STRIPPED_MANGROVE_WOOD_tabChat",
+    "unicode": "\uf654"
+  },
+  {
+    "material": "ARROW_tabChat",
+    "unicode": "\uf8d1"
+  },
+  {
+    "material": "DRIPSTONE_BLOCK_tabChat",
+    "unicode": "\uf5cd"
+  },
+  {
+    "material": "CARROT_ON_A_STICK_tabChat",
+    "unicode": "\uf8b5"
+  },
+  {
+    "material": "DECORATED_POT_tabChat",
+    "unicode": "\uf6d2"
+  },
+  {
+    "material": "ACACIA_PLANKS_tabChat",
+    "unicode": "\uf5db"
+  },
+  {
+    "material": "BLACKSTONE_SLAB_tabChat",
+    "unicode": "\ufa74"
+  },
+  {
+    "material": "JACK_O_LANTERN_tabChat",
+    "unicode": "\uf6f6"
+  },
+  {
+    "material": "CYAN_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a2"
+  },
+  {
+    "material": "WHITE_STAINED_GLASS_tabChat",
+    "unicode": "\uf789"
+  },
+  {
+    "material": "JUNGLE_SAPLING_tabChat",
+    "unicode": "\uf5e6"
+  },
+  {
+    "material": "IRON_DOOR_tabChat",
+    "unicode": "\uf878"
+  },
+  {
+    "material": "MINECART_tabChat",
+    "unicode": "\uf8b0"
+  },
+  {
+    "material": "BAMBOO_PLANKS_tabChat",
+    "unicode": "\uf5df"
+  },
+  {
+    "material": "DISPENSER_tabChat",
+    "unicode": "\uf84e"
+  },
+  {
+    "material": "BROWN_WOOL_tabChat",
+    "unicode": "\uf688"
+  },
+  {
+    "material": "BAMBOO_HANGING_SIGN_tabChat",
+    "unicode": "\uf939"
+  },
+  {
+    "material": "BURN_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab2"
+  },
+  {
+    "material": "CUT_RED_SANDSTONE_tabChat",
+    "unicode": "\uf7b2"
+  },
+  {
+    "material": "DIAMOND_LEGGINGS_tabChat",
+    "unicode": "\uf916"
+  },
+  {
+    "material": "MANGROVE_HANGING_SIGN_tabChat",
+    "unicode": "\uf938"
+  },
+  {
+    "material": "SPRUCE_LOG_tabChat",
+    "unicode": "\uf637"
+  },
+  {
+    "material": "DEEPSLATE_IRON_ORE_tabChat",
+    "unicode": "\uf5f4"
+  },
+  {
+    "material": "AMETHYST_CLUSTER_tabChat",
+    "unicode": "\ufa94"
+  },
+  {
+    "material": "BLUE_ORCHID_tabChat",
+    "unicode": "\uf68e"
+  },
+  {
+    "material": "SMOOTH_QUARTZ_STAIRS_tabChat",
+    "unicode": "\uf827"
+  },
+  {
+    "material": "DANGER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab3"
+  },
+  {
+    "material": "PURPUR_PILLAR_tabChat",
+    "unicode": "\uf6da"
+  },
+  {
+    "material": "RED_SANDSTONE_STAIRS_tabChat",
+    "unicode": "\uf7b3"
+  },
+  {
+    "material": "RED_STAINED_GLASS_tabChat",
+    "unicode": "\uf797"
+  },
+  {
+    "material": "RAW_IRON_tabChat",
+    "unicode": "\uf8d9"
+  },
+  {
+    "material": "WARPED_BUTTON_tabChat",
+    "unicode": "\uf868"
+  },
+  {
+    "material": "OAK_LEAVES_tabChat",
+    "unicode": "\uf662"
+  },
+  {
+    "material": "STONE_BUTTON_tabChat",
+    "unicode": "\uf85c"
+  },
+  {
+    "material": "YELLOW_WOOL_tabChat",
+    "unicode": "\uf680"
+  },
+  {
+    "material": "CHERRY_DOOR_tabChat",
+    "unicode": "\uf87e"
+  },
+  {
+    "material": "CUT_SANDSTONE_tabChat",
+    "unicode": "\uf673"
+  },
+  {
+    "material": "ACACIA_FENCE_GATE_tabChat",
+    "unicode": "\uf8a4"
+  },
+  {
+    "material": "CYAN_STAINED_GLASS_tabChat",
+    "unicode": "\uf792"
+  },
+  {
+    "material": "MOSSY_STONE_BRICK_WALL_tabChat",
+    "unicode": "\uf744"
+  },
+  {
+    "material": "HORN_CORAL_tabChat",
+    "unicode": "\uf80d"
+  },
+  {
+    "material": "CAULDRON_tabChat",
+    "unicode": "\uf99d"
+  },
+  {
+    "material": "RED_DYE_tabChat",
+    "unicode": "\uf96e"
+  },
+  {
+    "material": "PURPLE_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f7"
+  },
+  {
+    "material": "FERN_tabChat",
+    "unicode": "\uf676"
+  },
+  {
+    "material": "CYAN_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c6"
+  },
+  {
+    "material": "GRAY_CONCRETE_tabChat",
+    "unicode": "\uf7e4"
+  },
+  {
+    "material": "DARK_PRISMARINE_SLAB_tabChat",
+    "unicode": "\uf6ca"
+  },
+  {
+    "material": "DIORITE_STAIRS_tabChat",
+    "unicode": "\uf82c"
+  },
+  {
+    "material": "ENCHANTED_BOOK_tabChat",
+    "unicode": "\ufa06"
+  },
+  {
+    "material": "ENDER_CHEST_tabChat",
+    "unicode": "\uf72f"
+  },
+  {
+    "material": "BLACK_BED_tabChat",
+    "unicode": "\uf983"
+  },
+  {
+    "material": "LADDER_tabChat",
+    "unicode": "\uf6e1"
+  },
+  {
+    "material": "PINK_TULIP_tabChat",
+    "unicode": "\uf694"
+  },
+  {
+    "material": "CHERRY_SIGN_tabChat",
+    "unicode": "\uf92b"
+  },
+  {
+    "material": "POWDER_SNOW_BUCKET_tabChat",
+    "unicode": "\uf93f"
+  },
+  {
+    "material": "CARVED_PUMPKIN_tabChat",
+    "unicode": "\uf6f5"
+  },
+  {
+    "material": "GRAY_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f4"
+  },
+  {
+    "material": "MEDIUM_AMETHYST_BUD_tabChat",
+    "unicode": "\ufa92"
+  },
+  {
+    "material": "ACACIA_STAIRS_tabChat",
+    "unicode": "\uf735"
+  },
+  {
+    "material": "DEEPSLATE_LAPIS_ORE_tabChat",
+    "unicode": "\uf5fe"
+  },
+  {
+    "material": "CYAN_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d6"
+  },
+  {
+    "material": "ENDER_EYE_tabChat",
+    "unicode": "\uf99e"
+  },
+  {
+    "material": "IRON_INGOT_tabChat",
+    "unicode": "\uf8da"
+  },
+  {
+    "material": "MANGROVE_STAIRS_tabChat",
+    "unicode": "\uf738"
+  },
+  {
+    "material": "JUNGLE_TRAPDOOR_tabChat",
+    "unicode": "\uf890"
+  },
+  {
+    "material": "PAINTING_tabChat",
+    "unicode": "\uf923"
+  },
+  {
+    "material": "MUD_BRICK_SLAB_tabChat",
+    "unicode": "\uf6c2"
+  },
+  {
+    "material": "BIRCH_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf86f"
+  },
+  {
+    "material": "CRIMSON_STEM_tabChat",
+    "unicode": "\uf640"
+  },
+  {
+    "material": "STONE_PICKAXE_tabChat",
+    "unicode": "\uf8e8"
+  },
+  {
+    "material": "SALMON_tabChat",
+    "unicode": "\uf958"
+  },
+  {
+    "material": "WARPED_SLAB_tabChat",
+    "unicode": "\uf6b9"
+  },
+  {
+    "material": "RIB_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa6"
+  },
+  {
+    "material": "CHISELED_BOOKSHELF_tabChat",
+    "unicode": "\uf6d1"
+  },
+  {
+    "material": "ACACIA_SAPLING_tabChat",
+    "unicode": "\uf5e7"
+  },
+  {
+    "material": "SNOW_BLOCK_tabChat",
+    "unicode": "\uf6e5"
+  },
+  {
+    "material": "POISONOUS_POTATO_tabChat",
+    "unicode": "\uf9f8"
+  },
+  {
+    "material": "SPRUCE_SAPLING_tabChat",
+    "unicode": "\uf5e4"
+  },
+  {
+    "material": "REDSTONE_ORE_tabChat",
+    "unicode": "\uf5f9"
+  },
+  {
+    "material": "CHISELED_DEEPSLATE_tabChat",
+    "unicode": "\uf710"
+  },
+  {
+    "material": "PISTON_tabChat",
+    "unicode": "\uf848"
+  },
+  {
+    "material": "FIRE_CORAL_FAN_tabChat",
+    "unicode": "\uf816"
+  },
+  {
+    "material": "WHEAT_tabChat",
+    "unicode": "\uf906"
+  },
+  {
+    "material": "ACACIA_TRAPDOOR_tabChat",
+    "unicode": "\uf891"
+  },
+  {
+    "material": "IRON_PICKAXE_tabChat",
+    "unicode": "\uf8f2"
+  },
+  {
+    "material": "WARD_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa1"
+  },
+  {
+    "material": "ORANGE_SHULKER_BOX_tabChat",
+    "unicode": "\uf7be"
+  },
+  {
+    "material": "SMOKER_tabChat",
+    "unicode": "\ufa5d"
+  },
+  {
+    "material": "BAMBOO_FENCE_GATE_tabChat",
+    "unicode": "\uf8a8"
+  },
+  {
+    "material": "POINTED_DRIPSTONE_tabChat",
+    "unicode": "\ufa95"
+  },
+  {
+    "material": "RED_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7fb"
+  },
+  {
+    "material": "LIME_BED_tabChat",
+    "unicode": "\uf979"
+  },
+  {
+    "material": "DARK_OAK_SLAB_tabChat",
+    "unicode": "\uf6b4"
+  },
+  {
+    "material": "DEAD_BUBBLE_CORAL_FAN_tabChat",
+    "unicode": "\uf81a"
+  },
+  {
+    "material": "ACACIA_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf871"
+  },
+  {
+    "material": "GRAY_BED_tabChat",
+    "unicode": "\uf97b"
+  },
+  {
+    "material": "PURPLE_CARPET_tabChat",
+    "unicode": "\uf77a"
+  },
+  {
+    "material": "WRITABLE_BOOK_tabChat",
+    "unicode": "\uf9f0"
+  },
+  {
+    "material": "BLUE_TERRACOTTA_tabChat",
+    "unicode": "\uf768"
+  },
+  {
+    "material": "VINE_tabChat",
+    "unicode": "\uf719"
+  },
+  {
+    "material": "JUKEBOX_tabChat",
+    "unicode": "\uf6e8"
+  },
+  {
+    "material": "RED_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a7"
+  },
+  {
+    "material": "ORANGE_DYE_tabChat",
+    "unicode": "\uf961"
+  },
+  {
+    "material": "BLACK_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a8"
+  },
+  {
+    "material": "AZALEA_tabChat",
+    "unicode": "\uf677"
+  },
+  {
+    "material": "GOLD_BLOCK_tabChat",
+    "unicode": "\uf60c"
+  },
+  {
+    "material": "GLISTERING_MELON_SLICE_tabChat",
+    "unicode": "\uf99f"
+  },
+  {
+    "material": "BOWL_tabChat",
+    "unicode": "\uf900"
+  },
+  {
+    "material": "SEA_PICKLE_tabChat",
+    "unicode": "\uf67b"
+  },
+  {
+    "material": "WARPED_HYPHAE_tabChat",
+    "unicode": "\uf661"
+  },
+  {
+    "material": "COBBLESTONE_SLAB_tabChat",
+    "unicode": "\uf6bf"
+  },
+  {
+    "material": "MUDDY_MANGROVE_ROOTS_tabChat",
+    "unicode": "\uf63f"
+  },
+  {
+    "material": "BROWN_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f9"
+  },
+  {
+    "material": "ACACIA_DOOR_tabChat",
+    "unicode": "\uf87d"
+  },
+  {
+    "material": "ORANGE_TERRACOTTA_tabChat",
+    "unicode": "\uf75e"
+  },
+  {
+    "material": "COPPER_ORE_tabChat",
+    "unicode": "\uf5f5"
+  },
+  {
+    "material": "STRIPPED_JUNGLE_WOOD_tabChat",
+    "unicode": "\uf650"
+  },
+  {
+    "material": "TRIPWIRE_HOOK_tabChat",
+    "unicode": "\uf857"
+  },
+  {
+    "material": "BAMBOO_BLOCK_tabChat",
+    "unicode": "\uf642"
+  },
+  {
+    "material": "BLUE_DYE_tabChat",
+    "unicode": "\uf96b"
+  },
+  {
+    "material": "BRICK_WALL_tabChat",
+    "unicode": "\uf741"
+  },
+  {
+    "material": "STRIPPED_MANGROVE_LOG_tabChat",
+    "unicode": "\uf64a"
+  },
+  {
+    "material": "FISHING_ROD_tabChat",
+    "unicode": "\uf953"
+  },
+  {
+    "material": "NAME_TAG_tabChat",
+    "unicode": "\ufa15"
+  },
+  {
+    "material": "FRIEND_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab5"
+  },
+  {
+    "material": "SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaaa"
+  },
+  {
+    "material": "MUSHROOM_STEW_tabChat",
+    "unicode": "\uf901"
+  },
+  {
+    "material": "PINK_PETALS_tabChat",
+    "unicode": "\uf6a8"
+  },
+  {
+    "material": "SOUL_CAMPFIRE_tabChat",
+    "unicode": "\ufa6a"
+  },
+  {
+    "material": "TADPOLE_BUCKET_tabChat",
+    "unicode": "\uf948"
+  },
+  {
+    "material": "LAVA_BUCKET_tabChat",
+    "unicode": "\uf93e"
+  },
+  {
+    "material": "BIRCH_DOOR_tabChat",
+    "unicode": "\uf87b"
+  },
+  {
+    "material": "SPRUCE_WOOD_tabChat",
+    "unicode": "\uf659"
+  },
+  {
+    "material": "BAMBOO_SLAB_tabChat",
+    "unicode": "\uf6b6"
+  },
+  {
+    "material": "DEAD_HORN_CORAL_FAN_tabChat",
+    "unicode": "\uf81c"
+  },
+  {
+    "material": "GOLD_NUGGET_tabChat",
+    "unicode": "\uf994"
+  },
+  {
+    "material": "LIGHT_GRAY_CONCRETE_tabChat",
+    "unicode": "\uf7e5"
+  },
+  {
+    "material": "FIRE_CHARGE_tabChat",
+    "unicode": "\uf9ef"
+  },
+  {
+    "material": "DEEPSLATE_EMERALD_ORE_tabChat",
+    "unicode": "\uf5fc"
+  },
+  {
+    "material": "HOWL_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab8"
+  },
+  {
+    "material": "CRACKED_DEEPSLATE_BRICKS_tabChat",
+    "unicode": "\uf70d"
+  },
+  {
+    "material": "FERMENTED_SPIDER_EYE_tabChat",
+    "unicode": "\uf999"
+  },
+  {
+    "material": "SANDSTONE_tabChat",
+    "unicode": "\uf671"
+  },
+  {
+    "material": "ACACIA_WOOD_tabChat",
+    "unicode": "\uf65c"
+  },
+  {
+    "material": "MUD_BRICK_WALL_tabChat",
+    "unicode": "\uf747"
+  },
+  {
+    "material": "ACACIA_CHEST_BOAT_tabChat",
+    "unicode": "\uf8c1"
+  },
+  {
+    "material": "GREEN_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7fa"
+  },
+  {
+    "material": "ORANGE_BED_tabChat",
+    "unicode": "\uf975"
+  },
+  {
+    "material": "DARK_PRISMARINE_STAIRS_tabChat",
+    "unicode": "\uf7ae"
+  },
+  {
+    "material": "OAK_LOG_tabChat",
+    "unicode": "\uf636"
+  },
+  {
+    "material": "CRIMSON_HANGING_SIGN_tabChat",
+    "unicode": "\uf93a"
+  },
+  {
+    "material": "GOLD_ORE_tabChat",
+    "unicode": "\uf5f7"
+  },
+  {
+    "material": "COMPOSTER_tabChat",
+    "unicode": "\ufa5b"
+  },
+  {
+    "material": "SMALL_AMETHYST_BUD_tabChat",
+    "unicode": "\ufa91"
+  },
+  {
+    "material": "DEAD_TUBE_CORAL_BLOCK_tabChat",
+    "unicode": "\uf7ff"
+  },
+  {
+    "material": "MELON_SLICE_tabChat",
+    "unicode": "\uf988"
+  },
+  {
+    "material": "ANDESITE_STAIRS_tabChat",
+    "unicode": "\uf829"
+  },
+  {
+    "material": "LIME_TERRACOTTA_tabChat",
+    "unicode": "\uf762"
+  },
+  {
+    "material": "STONE_SWORD_tabChat",
+    "unicode": "\uf8e6"
+  },
+  {
+    "material": "MUSHROOM_STEM_tabChat",
+    "unicode": "\uf714"
+  },
+  {
+    "material": "END_STONE_BRICK_SLAB_tabChat",
+    "unicode": "\uf836"
+  },
+  {
+    "material": "EXPERIENCE_BOTTLE_tabChat",
+    "unicode": "\uf9ee"
+  },
+  {
+    "material": "LIME_CANDLE_tabChat",
+    "unicode": "\ufa86"
+  },
+  {
+    "material": "SHEAF_POTTERY_SHERD_tabChat",
+    "unicode": "\ufabd"
+  },
+  {
+    "material": "POWERED_RAIL_tabChat",
+    "unicode": "\uf8ab"
+  },
+  {
+    "material": "WHITE_TULIP_tabChat",
+    "unicode": "\uf693"
+  },
+  {
+    "material": "GREEN_STAINED_GLASS_tabChat",
+    "unicode": "\uf796"
+  },
+  {
+    "material": "BROWN_DYE_tabChat",
+    "unicode": "\uf96c"
+  },
+  {
+    "material": "SKULL_POTTERY_SHERD_tabChat",
+    "unicode": "\ufabf"
+  },
+  {
+    "material": "LIME_WOOL_tabChat",
+    "unicode": "\uf681"
+  },
+  {
+    "material": "POLISHED_ANDESITE_STAIRS_tabChat",
+    "unicode": "\uf82b"
+  },
+  {
+    "material": "SPYGLASS_tabChat",
+    "unicode": "\uf955"
+  },
+  {
+    "material": "WOODEN_PICKAXE_tabChat",
+    "unicode": "\uf8e3"
+  },
+  {
+    "material": "WARPED_STEM_tabChat",
+    "unicode": "\uf641"
+  },
+  {
+    "material": "SPRUCE_FENCE_tabChat",
+    "unicode": "\uf6ea"
+  },
+  {
+    "material": "SPLASH_POTION_tabChat",
+    "unicode": "\ufa32"
+  },
+  {
+    "material": "BIRCH_PLANKS_tabChat",
+    "unicode": "\uf5d9"
+  },
+  {
+    "material": "LEATHER_LEGGINGS_tabChat",
+    "unicode": "\uf90a"
+  },
+  {
+    "material": "BIRCH_FENCE_GATE_tabChat",
+    "unicode": "\uf8a2"
+  },
+  {
+    "material": "BAMBOO_RAFT_tabChat",
+    "unicode": "\uf8c8"
+  },
+  {
+    "material": "JUNGLE_PLANKS_tabChat",
+    "unicode": "\uf5da"
+  },
+  {
+    "material": "NETHERITE_HELMET_tabChat",
+    "unicode": "\uf91c"
+  },
+  {
+    "material": "END_CRYSTAL_tabChat",
+    "unicode": "\ufa29"
+  },
+  {
+    "material": "GREEN_BED_tabChat",
+    "unicode": "\uf981"
+  },
+  {
+    "material": "RABBIT_FOOT_tabChat",
+    "unicode": "\ufa0d"
+  },
+  {
+    "material": "DARK_OAK_DOOR_tabChat",
+    "unicode": "\uf87f"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_STAIRS_tabChat",
+    "unicode": "\uf82d"
+  },
+  {
+    "material": "DARK_OAK_FENCE_tabChat",
+    "unicode": "\uf6ef"
+  },
+  {
+    "material": "ORANGE_TULIP_tabChat",
+    "unicode": "\uf692"
+  },
+  {
+    "material": "SHELTER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufabe"
+  },
+  {
+    "material": "BLACK_CANDLE_tabChat",
+    "unicode": "\ufa90"
+  },
+  {
+    "material": "STRIPPED_CHERRY_LOG_tabChat",
+    "unicode": "\uf648"
+  },
+  {
+    "material": "CROSSBOW_tabChat",
+    "unicode": "\ufa51"
+  },
+  {
+    "material": "LILAC_tabChat",
+    "unicode": "\uf784"
+  },
+  {
+    "material": "BAMBOO_STAIRS_tabChat",
+    "unicode": "\uf739"
+  },
+  {
+    "material": "RED_SANDSTONE_SLAB_tabChat",
+    "unicode": "\uf6c5"
+  },
+  {
+    "material": "COAL_BLOCK_tabChat",
+    "unicode": "\uf604"
+  },
+  {
+    "material": "ORANGE_STAINED_GLASS_tabChat",
+    "unicode": "\uf78a"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BUTTON_tabChat",
+    "unicode": "\uf85d"
+  },
+  {
+    "material": "PURPUR_STAIRS_tabChat",
+    "unicode": "\uf6db"
+  },
+  {
+    "material": "DARK_OAK_SIGN_tabChat",
+    "unicode": "\uf92c"
+  },
+  {
+    "material": "WET_SPONGE_tabChat",
+    "unicode": "\uf66d"
+  },
+  {
+    "material": "CUT_RED_SANDSTONE_SLAB_tabChat",
+    "unicode": "\uf6c6"
+  },
+  {
+    "material": "IRON_LEGGINGS_tabChat",
+    "unicode": "\uf912"
+  },
+  {
+    "material": "MANGROVE_PROPAGULE_tabChat",
+    "unicode": "\uf5ea"
+  },
+  {
+    "material": "BUBBLE_CORAL_tabChat",
+    "unicode": "\uf80b"
+  },
+  {
+    "material": "CLAY_BALL_tabChat",
+    "unicode": "\uf94a"
+  },
+  {
+    "material": "DEEPSLATE_GOLD_ORE_tabChat",
+    "unicode": "\uf5f8"
+  },
+  {
+    "material": "QUARTZ_STAIRS_tabChat",
+    "unicode": "\uf75c"
+  },
+  {
+    "material": "HEARTBREAK_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab7"
+  },
+  {
+    "material": "IRON_SHOVEL_tabChat",
+    "unicode": "\uf8f1"
+  },
+  {
+    "material": "SMITHING_TABLE_tabChat",
+    "unicode": "\ufa62"
+  },
+  {
+    "material": "FLOWERING_AZALEA_LEAVES_tabChat",
+    "unicode": "\uf66b"
+  },
+  {
+    "material": "DIORITE_WALL_tabChat",
+    "unicode": "\uf74d"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_tabChat",
+    "unicode": "\ufa77"
+  },
+  {
+    "material": "REDSTONE_LAMP_tabChat",
+    "unicode": "\uf85a"
+  },
+  {
+    "material": "GREEN_DYE_tabChat",
+    "unicode": "\uf96d"
+  },
+  {
+    "material": "PUMPKIN_PIE_tabChat",
+    "unicode": "\ufa03"
+  },
+  {
+    "material": "GLOW_INK_SAC_tabChat",
+    "unicode": "\uf95e"
+  },
+  {
+    "material": "JUNGLE_STAIRS_tabChat",
+    "unicode": "\uf734"
+  },
+  {
+    "material": "ANGLER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufaad"
+  },
+  {
+    "material": "NETHER_BRICK_WALL_tabChat",
+    "unicode": "\uf748"
+  },
+  {
+    "material": "RED_SHULKER_BOX_tabChat",
+    "unicode": "\uf7cb"
+  },
+  {
+    "material": "STONE_AXE_tabChat",
+    "unicode": "\uf8e9"
+  },
+  {
+    "material": "BLACK_DYE_tabChat",
+    "unicode": "\uf96f"
+  },
+  {
+    "material": "BLACK_TERRACOTTA_tabChat",
+    "unicode": "\uf76c"
+  },
+  {
+    "material": "CHERRY_FENCE_tabChat",
+    "unicode": "\uf6ee"
+  },
+  {
+    "material": "COPPER_INGOT_tabChat",
+    "unicode": "\uf8dc"
+  },
+  {
+    "material": "COMPARATOR_tabChat",
+    "unicode": "\uf847"
+  },
+  {
+    "material": "GLOWSTONE_tabChat",
+    "unicode": "\uf6fe"
+  },
+  {
+    "material": "FIRE_CORAL_BLOCK_tabChat",
+    "unicode": "\uf807"
+  },
+  {
+    "material": "CHERRY_CHEST_BOAT_tabChat",
+    "unicode": "\uf8c3"
+  },
+  {
+    "material": "ACACIA_SIGN_tabChat",
+    "unicode": "\uf92a"
+  },
+  {
+    "material": "SHORT_GRASS_tabChat",
+    "unicode": "\uf675"
+  },
+  {
+    "material": "FIRE_CORAL_tabChat",
+    "unicode": "\uf80c"
+  },
+  {
+    "material": "YELLOW_CONCRETE_tabChat",
+    "unicode": "\uf7e1"
+  },
+  {
+    "material": "GOLD_INGOT_tabChat",
+    "unicode": "\uf8de"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf86a"
+  },
+  {
+    "material": "WHITE_WOOL_tabChat",
+    "unicode": "\uf67c"
+  },
+  {
+    "material": "BRICKS_tabChat",
+    "unicode": "\uf6cf"
+  },
+  {
+    "material": "LIGHT_GRAY_DYE_tabChat",
+    "unicode": "\uf968"
+  },
+  {
+    "material": "PINK_TERRACOTTA_tabChat",
+    "unicode": "\uf763"
+  },
+  {
+    "material": "MANGROVE_SLAB_tabChat",
+    "unicode": "\uf6b5"
+  },
+  {
+    "material": "STRIPPED_SPRUCE_LOG_tabChat",
+    "unicode": "\uf644"
+  },
+  {
+    "material": "CHERRY_SLAB_tabChat",
+    "unicode": "\uf6b3"
+  },
+  {
+    "material": "DIORITE_tabChat",
+    "unicode": "\uf5b7"
+  },
+  {
+    "material": "DIAMOND_SWORD_tabChat",
+    "unicode": "\uf8f5"
+  },
+  {
+    "material": "PINK_DYE_tabChat",
+    "unicode": "\uf966"
+  },
+  {
+    "material": "STONE_BRICK_SLAB_tabChat",
+    "unicode": "\uf6c1"
+  },
+  {
+    "material": "SOUL_SOIL_tabChat",
+    "unicode": "\uf6f9"
+  },
+  {
+    "material": "TUBE_CORAL_BLOCK_tabChat",
+    "unicode": "\uf804"
+  },
+  {
+    "material": "POLISHED_GRANITE_STAIRS_tabChat",
+    "unicode": "\uf81f"
+  },
+  {
+    "material": "MANGROVE_TRAPDOOR_tabChat",
+    "unicode": "\uf894"
+  },
+  {
+    "material": "NETHERITE_INGOT_tabChat",
+    "unicode": "\uf8df"
+  },
+  {
+    "material": "ECHO_SHARD_tabChat",
+    "unicode": "\ufa9a"
+  },
+  {
+    "material": "STONECUTTER_tabChat",
+    "unicode": "\ufa63"
+  },
+  {
+    "material": "RED_NETHER_BRICK_WALL_tabChat",
+    "unicode": "\uf74a"
+  },
+  {
+    "material": "MANGROVE_CHEST_BOAT_tabChat",
+    "unicode": "\uf8c7"
+  },
+  {
+    "material": "BLUE_ICE_tabChat",
+    "unicode": "\uf81d"
+  },
+  {
+    "material": "STRIPPED_CHERRY_WOOD_tabChat",
+    "unicode": "\uf652"
+  },
+  {
+    "material": "LIGHT_BLUE_CONCRETE_tabChat",
+    "unicode": "\uf7e0"
+  },
+  {
+    "material": "IRON_SWORD_tabChat",
+    "unicode": "\uf8f0"
+  },
+  {
+    "material": "POLISHED_DIORITE_STAIRS_tabChat",
+    "unicode": "\uf822"
+  },
+  {
+    "material": "BIRCH_BOAT_tabChat",
+    "unicode": "\uf8bc"
+  },
+  {
+    "material": "IRON_BLOCK_tabChat",
+    "unicode": "\uf60a"
+  },
+  {
+    "material": "COOKED_RABBIT_tabChat",
+    "unicode": "\ufa0b"
+  },
+  {
+    "material": "WITHER_SKELETON_SKULL_tabChat",
+    "unicode": "\uf9fc"
+  },
+  {
+    "material": "SMOOTH_RED_SANDSTONE_STAIRS_tabChat",
+    "unicode": "\uf820"
+  },
+  {
+    "material": "SUSPICIOUS_STEW_tabChat",
+    "unicode": "\ufa52"
+  },
+  {
+    "material": "PRISMARINE_WALL_tabChat",
+    "unicode": "\uf742"
+  },
+  {
+    "material": "LIME_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d2"
+  },
+  {
+    "material": "GLASS_PANE_tabChat",
+    "unicode": "\uf717"
+  },
+  {
+    "material": "LIGHT_BLUE_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d0"
+  },
+  {
+    "material": "MANGROVE_DOOR_tabChat",
+    "unicode": "\uf880"
+  },
+  {
+    "material": "QUARTZ_PILLAR_tabChat",
+    "unicode": "\uf75b"
+  },
+  {
+    "material": "MAGENTA_TERRACOTTA_tabChat",
+    "unicode": "\uf75f"
+  },
+  {
+    "material": "NETHER_QUARTZ_ORE_tabChat",
+    "unicode": "\uf602"
+  },
+  {
+    "material": "BRAIN_CORAL_tabChat",
+    "unicode": "\uf80a"
+  },
+  {
+    "material": "DISC_FRAGMENT_5_tabChat",
+    "unicode": "\ufa4c"
+  },
+  {
+    "material": "BLUE_STAINED_GLASS_tabChat",
+    "unicode": "\uf794"
+  },
+  {
+    "material": "CHARCOAL_tabChat",
+    "unicode": "\uf8d3"
+  },
+  {
+    "material": "GRAY_CARPET_tabChat",
+    "unicode": "\uf777"
+  },
+  {
+    "material": "BOOK_tabChat",
+    "unicode": "\uf94d"
+  },
+  {
+    "material": "ENCHANTED_GOLDEN_APPLE_tabChat",
+    "unicode": "\uf925"
+  },
+  {
+    "material": "MOSSY_STONE_BRICKS_tabChat",
+    "unicode": "\uf707"
+  },
+  {
+    "material": "COOKED_BEEF_tabChat",
+    "unicode": "\uf98d"
+  },
+  {
+    "material": "GOLDEN_SHOVEL_tabChat",
+    "unicode": "\uf8ec"
+  },
+  {
+    "material": "YELLOW_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f1"
+  },
+  {
+    "material": "WARPED_NYLIUM_tabChat",
+    "unicode": "\uf5d5"
+  },
+  {
+    "material": "NETHERITE_BOOTS_tabChat",
+    "unicode": "\uf91f"
+  },
+  {
+    "material": "PRISMARINE_BRICK_SLAB_tabChat",
+    "unicode": "\uf6c9"
+  },
+  {
+    "material": "ROSE_BUSH_tabChat",
+    "unicode": "\uf785"
+  },
+  {
+    "material": "SNIFFER_EGG_tabChat",
+    "unicode": "\uf7fe"
+  },
+  {
+    "material": "CRIMSON_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf876"
+  },
+  {
+    "material": "SPRUCE_STAIRS_tabChat",
+    "unicode": "\uf732"
+  },
+  {
+    "material": "SCULK_SHRIEKER_tabChat",
+    "unicode": "\uf728"
+  },
+  {
+    "material": "LIGHT_GRAY_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a1"
+  },
+  {
+    "material": "LIGHT_BLUE_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c0"
+  },
+  {
+    "material": "WATER_BUCKET_tabChat",
+    "unicode": "\uf93d"
+  },
+  {
+    "material": "BLACK_BANNER_tabChat",
+    "unicode": "\ufa28"
+  },
+  {
+    "material": "MUSIC_DISC_RELIC_tabChat",
+    "unicode": "\ufa49"
+  },
+  {
+    "material": "POPPED_CHORUS_FRUIT_tabChat",
+    "unicode": "\ufa2b"
+  },
+  {
+    "material": "DARK_OAK_STAIRS_tabChat",
+    "unicode": "\uf737"
+  },
+  {
+    "material": "SHIELD_tabChat",
+    "unicode": "\ufa36"
+  },
+  {
+    "material": "ROOTED_DIRT_tabChat",
+    "unicode": "\uf5d2"
+  },
+  {
+    "material": "CHAINMAIL_LEGGINGS_tabChat",
+    "unicode": "\uf90e"
+  },
+  {
+    "material": "CRIMSON_SLAB_tabChat",
+    "unicode": "\uf6b8"
+  },
+  {
+    "material": "WAXED_COPPER_BLOCK_tabChat",
+    "unicode": "\uf622"
+  },
+  {
+    "material": "CANDLE_tabChat",
+    "unicode": "\ufa80"
+  },
+  {
+    "material": "PEONY_tabChat",
+    "unicode": "\uf786"
+  },
+  {
+    "material": "ANVIL_tabChat",
+    "unicode": "\uf755"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_STAIRS_tabChat",
+    "unicode": "\uf82e"
+  },
+  {
+    "material": "GRANITE_STAIRS_tabChat",
+    "unicode": "\uf828"
+  },
+  {
+    "material": "DEAD_BUBBLE_CORAL_tabChat",
+    "unicode": "\uf80f"
+  },
+  {
+    "material": "COAST_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufa9f"
+  },
+  {
+    "material": "JUNGLE_LOG_tabChat",
+    "unicode": "\uf639"
+  },
+  {
+    "material": "MAGMA_BLOCK_tabChat",
+    "unicode": "\uf7b6"
+  },
+  {
+    "material": "GHAST_TEAR_tabChat",
+    "unicode": "\uf993"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_tabChat",
+    "unicode": "\uf6d3"
+  },
+  {
+    "material": "LAPIS_ORE_tabChat",
+    "unicode": "\uf5fd"
+  },
+  {
+    "material": "MOJANG_BANNER_PATTERN_tabChat",
+    "unicode": "\ufa57"
+  },
+  {
+    "material": "JUNGLE_BOAT_tabChat",
+    "unicode": "\uf8be"
+  },
+  {
+    "material": "NETHER_BRICKS_tabChat",
+    "unicode": "\uf720"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_WALL_tabChat",
+    "unicode": "\uf752"
+  },
+  {
+    "material": "LEATHER_tabChat",
+    "unicode": "\uf941"
+  },
+  {
+    "material": "JUNGLE_FENCE_GATE_tabChat",
+    "unicode": "\uf8a3"
+  },
+  {
+    "material": "MAGENTA_CONCRETE_tabChat",
+    "unicode": "\uf7df"
+  },
+  {
+    "material": "MANGROVE_LEAVES_tabChat",
+    "unicode": "\uf669"
+  },
+  {
+    "material": "BROWN_BED_tabChat",
+    "unicode": "\uf980"
+  },
+  {
+    "material": "RAW_IRON_BLOCK_tabChat",
+    "unicode": "\uf605"
+  },
+  {
+    "material": "BLACK_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7fc"
+  },
+  {
+    "material": "BRAIN_CORAL_FAN_tabChat",
+    "unicode": "\uf814"
+  },
+  {
+    "material": "LIGHT_BLUE_BED_tabChat",
+    "unicode": "\uf977"
+  },
+  {
+    "material": "OAK_DOOR_tabChat",
+    "unicode": "\uf879"
+  },
+  {
+    "material": "POLISHED_DIORITE_tabChat",
+    "unicode": "\uf5b8"
+  },
+  {
+    "material": "WOODEN_HOE_tabChat",
+    "unicode": "\uf8e5"
+  },
+  {
+    "material": "PURPUR_SLAB_tabChat",
+    "unicode": "\uf6c7"
+  },
+  {
+    "material": "BONE_BLOCK_tabChat",
+    "unicode": "\uf7ba"
+  },
+  {
+    "material": "WOODEN_SHOVEL_tabChat",
+    "unicode": "\uf8e2"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_WALL_tabChat",
+    "unicode": "\uf74f"
+  },
+  {
+    "material": "LIGHT_WEIGHTED_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf86b"
+  },
+  {
+    "material": "DRAGON_HEAD_tabChat",
+    "unicode": "\ufa00"
+  },
+  {
+    "material": "BAMBOO_SIGN_tabChat",
+    "unicode": "\uf92e"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_SLAB_tabChat",
+    "unicode": "\uf83e"
+  },
+  {
+    "material": "OAK_SAPLING_tabChat",
+    "unicode": "\uf5e3"
+  },
+  {
+    "material": "TUFF_tabChat",
+    "unicode": "\uf5bf"
+  },
+  {
+    "material": "FLOWER_BANNER_PATTERN_tabChat",
+    "unicode": "\ufa54"
+  },
+  {
+    "material": "TWISTING_VINES_tabChat",
+    "unicode": "\uf6a4"
+  },
+  {
+    "material": "GREEN_WOOL_tabChat",
+    "unicode": "\uf689"
+  },
+  {
+    "material": "PINK_WOOL_tabChat",
+    "unicode": "\uf682"
+  },
+  {
+    "material": "BIRCH_SLAB_tabChat",
+    "unicode": "\uf6b0"
+  },
+  {
+    "material": "MOSSY_STONE_BRICK_STAIRS_tabChat",
+    "unicode": "\uf821"
+  },
+  {
+    "material": "GOAT_HORN_tabChat",
+    "unicode": "\ufa5a"
+  },
+  {
+    "material": "CHISELED_QUARTZ_BLOCK_tabChat",
+    "unicode": "\uf758"
+  },
+  {
+    "material": "ACACIA_FENCE_tabChat",
+    "unicode": "\uf6ed"
+  },
+  {
+    "material": "RED_CARPET_tabChat",
+    "unicode": "\uf77e"
+  },
+  {
+    "material": "JUNGLE_WOOD_tabChat",
+    "unicode": "\uf65b"
+  },
+  {
+    "material": "SANDSTONE_STAIRS_tabChat",
+    "unicode": "\uf72e"
+  },
+  {
+    "material": "MOURNER_POTTERY_SHERD_tabChat",
+    "unicode": "\ufaba"
+  },
+  {
+    "material": "JUNGLE_HANGING_SIGN_tabChat",
+    "unicode": "\uf934"
+  },
+  {
+    "material": "GRAY_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a0"
+  },
+  {
+    "material": "BROWN_MUSHROOM_BLOCK_tabChat",
+    "unicode": "\uf712"
+  },
+  {
+    "material": "LILY_PAD_tabChat",
+    "unicode": "\uf71f"
+  },
+  {
+    "material": "LIGHT_BLUE_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf79c"
+  },
+  {
+    "material": "CHISELED_NETHER_BRICKS_tabChat",
+    "unicode": "\uf722"
+  },
+  {
+    "material": "TINTED_GLASS_tabChat",
+    "unicode": "\uf66f"
+  },
+  {
+    "material": "PURPLE_BED_tabChat",
+    "unicode": "\uf97e"
+  },
+  {
+    "material": "DEAD_TUBE_CORAL_tabChat",
+    "unicode": "\uf812"
+  },
+  {
+    "material": "LIGHT_GRAY_BANNER_tabChat",
+    "unicode": "\ufa21"
+  },
+  {
+    "material": "CYAN_DYE_tabChat",
+    "unicode": "\uf969"
+  },
+  {
+    "material": "LIGHT_GRAY_STAINED_GLASS_tabChat",
+    "unicode": "\uf791"
+  },
+  {
+    "material": "SNOWBALL_tabChat",
+    "unicode": "\uf940"
+  },
+  {
+    "material": "LIME_CONCRETE_tabChat",
+    "unicode": "\uf7e2"
+  },
+  {
+    "material": "WARPED_SIGN_tabChat",
+    "unicode": "\uf930"
+  },
+  {
+    "material": "PINK_CONCRETE_tabChat",
+    "unicode": "\uf7e3"
+  },
+  {
+    "material": "BAMBOO_CHEST_RAFT_tabChat",
+    "unicode": "\uf8c9"
+  },
+  {
+    "material": "GREEN_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7da"
+  },
+  {
+    "material": "MANGROVE_FENCE_tabChat",
+    "unicode": "\uf6f0"
+  },
+  {
+    "material": "OAK_PLANKS_tabChat",
+    "unicode": "\uf5d7"
+  },
+  {
+    "material": "LIGHT_BLUE_TERRACOTTA_tabChat",
+    "unicode": "\uf760"
+  },
+  {
+    "material": "PACKED_ICE_tabChat",
+    "unicode": "\uf781"
+  },
+  {
+    "material": "RED_MUSHROOM_tabChat",
+    "unicode": "\uf69d"
+  },
+  {
+    "material": "PACKED_MUD_tabChat",
+    "unicode": "\uf70a"
+  },
+  {
+    "material": "ENCHANTING_TABLE_tabChat",
+    "unicode": "\uf729"
+  },
+  {
+    "material": "SPORE_BLOSSOM_tabChat",
+    "unicode": "\uf69b"
+  },
+  {
+    "material": "MAGENTA_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7ef"
+  },
+  {
+    "material": "TALL_GRASS_tabChat",
+    "unicode": "\uf787"
+  },
+  {
+    "material": "LIGHT_GRAY_TERRACOTTA_tabChat",
+    "unicode": "\uf765"
+  },
+  {
+    "material": "OAK_TRAPDOOR_tabChat",
+    "unicode": "\uf88d"
+  },
+  {
+    "material": "WOODEN_SWORD_tabChat",
+    "unicode": "\uf8e1"
+  },
+  {
+    "material": "MANGROVE_WOOD_tabChat",
+    "unicode": "\uf65f"
+  },
+  {
+    "material": "STICKY_PISTON_tabChat",
+    "unicode": "\uf849"
+  },
+  {
+    "material": "BLUE_CONCRETE_tabChat",
+    "unicode": "\uf7e8"
+  },
+  {
+    "material": "WHITE_CONCRETE_tabChat",
+    "unicode": "\uf7dd"
+  },
+  {
+    "material": "DAMAGED_ANVIL_tabChat",
+    "unicode": "\uf757"
+  },
+  {
+    "material": "SMOOTH_BASALT_tabChat",
+    "unicode": "\uf6fc"
+  },
+  {
+    "material": "RED_BANNER_tabChat",
+    "unicode": "\ufa27"
+  },
+  {
+    "material": "BRICK_SLAB_tabChat",
+    "unicode": "\uf6c0"
+  },
+  {
+    "material": "SADDLE_tabChat",
+    "unicode": "\uf8af"
+  },
+  {
+    "material": "BAMBOO_DOOR_tabChat",
+    "unicode": "\uf881"
+  },
+  {
+    "material": "YELLOW_TERRACOTTA_tabChat",
+    "unicode": "\uf761"
+  },
+  {
+    "material": "IRON_HOE_tabChat",
+    "unicode": "\uf8f4"
+  },
+  {
+    "material": "OAK_BOAT_tabChat",
+    "unicode": "\uf8b8"
+  },
+  {
+    "material": "DEEPSLATE_COPPER_ORE_tabChat",
+    "unicode": "\uf5f6"
+  },
+  {
+    "material": "FLOWERING_AZALEA_tabChat",
+    "unicode": "\uf678"
+  },
+  {
+    "material": "SMOOTH_SANDSTONE_STAIRS_tabChat",
+    "unicode": "\uf826"
+  },
+  {
+    "material": "BLADE_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab0"
+  },
+  {
+    "material": "DARK_OAK_SAPLING_tabChat",
+    "unicode": "\uf5e9"
+  },
+  {
+    "material": "GRAY_BANNER_tabChat",
+    "unicode": "\ufa20"
+  },
+  {
+    "material": "DEEPSLATE_REDSTONE_ORE_tabChat",
+    "unicode": "\uf5fa"
+  },
+  {
+    "material": "GOLDEN_LEGGINGS_tabChat",
+    "unicode": "\uf91a"
+  },
+  {
+    "material": "RAIL_tabChat",
+    "unicode": "\uf8ad"
+  },
+  {
+    "material": "CRIMSON_TRAPDOOR_tabChat",
+    "unicode": "\uf896"
+  },
+  {
+    "material": "GREEN_CONCRETE_tabChat",
+    "unicode": "\uf7ea"
+  },
+  {
+    "material": "MANGROVE_BUTTON_tabChat",
+    "unicode": "\uf865"
+  },
+  {
+    "material": "SHEARS_tabChat",
+    "unicode": "\uf987"
+  },
+  {
+    "material": "BLUE_WOOL_tabChat",
+    "unicode": "\uf687"
+  },
+  {
+    "material": "SMOOTH_QUARTZ_tabChat",
+    "unicode": "\uf6cb"
+  },
+  {
+    "material": "WHITE_CANDLE_tabChat",
+    "unicode": "\ufa81"
+  },
+  {
+    "material": "PINK_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f3"
+  },
+  {
+    "material": "SLIME_BALL_tabChat",
+    "unicode": "\uf94e"
+  },
+  {
+    "material": "BLACKSTONE_WALL_tabChat",
+    "unicode": "\uf74e"
+  },
+  {
+    "material": "CHERRY_BOAT_tabChat",
+    "unicode": "\uf8c2"
+  },
+  {
+    "material": "QUARTZ_SLAB_tabChat",
+    "unicode": "\uf6c4"
+  },
+  {
+    "material": "TIDE_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa4"
+  },
+  {
+    "material": "CYAN_BANNER_tabChat",
+    "unicode": "\ufa22"
+  },
+  {
+    "material": "GLASS_BOTTLE_tabChat",
+    "unicode": "\uf997"
+  },
+  {
+    "material": "COOKED_MUTTON_tabChat",
+    "unicode": "\ufa18"
+  },
+  {
+    "material": "PUFFERFISH_BUCKET_tabChat",
+    "unicode": "\uf943"
+  },
+  {
+    "material": "WARPED_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf877"
+  },
+  {
+    "material": "TRAPPED_CHEST_tabChat",
+    "unicode": "\uf858"
+  },
+  {
+    "material": "GRAVEL_tabChat",
+    "unicode": "\uf5f0"
+  },
+  {
+    "material": "STRIPPED_OAK_LOG_tabChat",
+    "unicode": "\uf643"
+  },
+  {
+    "material": "CHISELED_SANDSTONE_tabChat",
+    "unicode": "\uf672"
+  },
+  {
+    "material": "TARGET_tabChat",
+    "unicode": "\uf851"
+  },
+  {
+    "material": "YELLOW_GLAZED_TERRACOTTA_tabChat",
+    "unicode": "\uf7d1"
+  },
+  {
+    "material": "SMOOTH_RED_SANDSTONE_tabChat",
+    "unicode": "\uf6cc"
+  },
+  {
+    "material": "EMERALD_tabChat",
+    "unicode": "\uf8d5"
+  },
+  {
+    "material": "CYAN_TERRACOTTA_tabChat",
+    "unicode": "\uf766"
+  },
+  {
+    "material": "SPRUCE_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf86e"
+  },
+  {
+    "material": "DANDELION_tabChat",
+    "unicode": "\uf68c"
+  },
+  {
+    "material": "SMOOTH_RED_SANDSTONE_SLAB_tabChat",
+    "unicode": "\uf832"
+  },
+  {
+    "material": "ALLIUM_tabChat",
+    "unicode": "\uf68f"
+  },
+  {
+    "material": "OXEYE_DAISY_tabChat",
+    "unicode": "\uf695"
+  },
+  {
+    "material": "PURPLE_CONCRETE_tabChat",
+    "unicode": "\uf7e7"
+  },
+  {
+    "material": "GLOW_BERRIES_tabChat",
+    "unicode": "\ufa68"
+  },
+  {
+    "material": "WHITE_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7ed"
+  },
+  {
+    "material": "COBBLESTONE_STAIRS_tabChat",
+    "unicode": "\uf6e2"
+  },
+  {
+    "material": "ACACIA_LEAVES_tabChat",
+    "unicode": "\uf666"
+  },
+  {
+    "material": "LIME_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c2"
+  },
+  {
+    "material": "BIRCH_CHEST_BOAT_tabChat",
+    "unicode": "\uf8bd"
+  },
+  {
+    "material": "BROWN_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf7a5"
+  },
+  {
+    "material": "GLOW_ITEM_FRAME_tabChat",
+    "unicode": "\uf9f3"
+  },
+  {
+    "material": "BROWN_TERRACOTTA_tabChat",
+    "unicode": "\uf769"
+  },
+  {
+    "material": "MAGENTA_BANNER_tabChat",
+    "unicode": "\ufa1b"
+  },
+  {
+    "material": "WHITE_CARPET_tabChat",
+    "unicode": "\uf770"
+  },
+  {
+    "material": "CHICKEN_tabChat",
+    "unicode": "\uf98e"
+  },
+  {
+    "material": "HONEYCOMB_tabChat",
+    "unicode": "\ufa6c"
+  },
+  {
+    "material": "MOSSY_COBBLESTONE_WALL_tabChat",
+    "unicode": "\uf740"
+  },
+  {
+    "material": "AZALEA_LEAVES_tabChat",
+    "unicode": "\uf66a"
+  },
+  {
+    "material": "TRIDENT_tabChat",
+    "unicode": "\ufa4d"
+  },
+  {
+    "material": "BEETROOT_tabChat",
+    "unicode": "\ufa2e"
+  },
+  {
+    "material": "WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaa8"
+  },
+  {
+    "material": "BIRCH_LOG_tabChat",
+    "unicode": "\uf638"
+  },
+  {
+    "material": "PORKCHOP_tabChat",
+    "unicode": "\uf921"
+  },
+  {
+    "material": "PINK_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf79f"
+  },
+  {
+    "material": "SHULKER_BOX_tabChat",
+    "unicode": "\uf7bc"
+  },
+  {
+    "material": "NETHERITE_SCRAP_tabChat",
+    "unicode": "\uf8e0"
+  },
+  {
+    "material": "CRACKED_POLISHED_BLACKSTONE_BRICKS_tabChat",
+    "unicode": "\ufa7e"
+  },
+  {
+    "material": "SUGAR_CANE_tabChat",
+    "unicode": "\uf6a5"
+  },
+  {
+    "material": "POLISHED_DEEPSLATE_tabChat",
+    "unicode": "\uf5bd"
+  },
+  {
+    "material": "BAMBOO_tabChat",
+    "unicode": "\uf6ad"
+  },
+  {
+    "material": "CARTOGRAPHY_TABLE_tabChat",
+    "unicode": "\ufa5f"
+  },
+  {
+    "material": "WARPED_TRAPDOOR_tabChat",
+    "unicode": "\uf897"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICK_STAIRS_tabChat",
+    "unicode": "\ufa7d"
+  },
+  {
+    "material": "COBBLESTONE_tabChat",
+    "unicode": "\uf5d6"
+  },
+  {
+    "material": "PRISMARINE_BRICKS_tabChat",
+    "unicode": "\uf7aa"
+  },
+  {
+    "material": "COBBLED_DEEPSLATE_WALL_tabChat",
+    "unicode": "\uf751"
+  },
+  {
+    "material": "ROTTEN_FLESH_tabChat",
+    "unicode": "\uf990"
+  },
+  {
+    "material": "BAMBOO_MOSAIC_STAIRS_tabChat",
+    "unicode": "\uf73a"
+  },
+  {
+    "material": "OAK_CHEST_BOAT_tabChat",
+    "unicode": "\uf8b9"
+  },
+  {
+    "material": "WARPED_STAIRS_tabChat",
+    "unicode": "\uf73c"
+  },
+  {
+    "material": "BUCKET_tabChat",
+    "unicode": "\uf93c"
+  },
+  {
+    "material": "LIGHT_BLUE_WOOL_tabChat",
+    "unicode": "\uf67f"
+  },
+  {
+    "material": "SMOOTH_SANDSTONE_SLAB_tabChat",
+    "unicode": "\uf837"
+  },
+  {
+    "material": "POLISHED_ANDESITE_SLAB_tabChat",
+    "unicode": "\uf83c"
+  },
+  {
+    "material": "WHITE_TERRACOTTA_tabChat",
+    "unicode": "\uf75d"
+  },
+  {
+    "material": "PRISMARINE_SHARD_tabChat",
+    "unicode": "\ufa08"
+  },
+  {
+    "material": "MANGROVE_PLANKS_tabChat",
+    "unicode": "\uf5de"
+  },
+  {
+    "material": "CYAN_BED_tabChat",
+    "unicode": "\uf97d"
+  },
+  {
+    "material": "DETECTOR_RAIL_tabChat",
+    "unicode": "\uf8ac"
+  },
+  {
+    "material": "DIAMOND_CHESTPLATE_tabChat",
+    "unicode": "\uf915"
+  },
+  {
+    "material": "CRACKED_NETHER_BRICKS_tabChat",
+    "unicode": "\uf721"
+  },
+  {
+    "material": "WEEPING_VINES_tabChat",
+    "unicode": "\uf6a3"
+  },
+  {
+    "material": "WHITE_STAINED_GLASS_PANE_tabChat",
+    "unicode": "\uf799"
+  },
+  {
+    "material": "ELYTRA_tabChat",
+    "unicode": "\uf8b7"
+  },
+  {
+    "material": "CHERRY_TRAPDOOR_tabChat",
+    "unicode": "\uf892"
+  },
+  {
+    "material": "END_ROD_tabChat",
+    "unicode": "\uf6d6"
+  },
+  {
+    "material": "EGG_tabChat",
+    "unicode": "\uf94f"
+  },
+  {
+    "material": "SPONGE_tabChat",
+    "unicode": "\uf66c"
+  },
+  {
+    "material": "SMOOTH_STONE_SLAB_tabChat",
+    "unicode": "\uf6bb"
+  },
+  {
+    "material": "BROWN_CONCRETE_tabChat",
+    "unicode": "\uf7e9"
+  },
+  {
+    "material": "JUNGLE_FENCE_tabChat",
+    "unicode": "\uf6ec"
+  },
+  {
+    "material": "STONE_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf869"
+  },
+  {
+    "material": "GOLDEN_PICKAXE_tabChat",
+    "unicode": "\uf8ed"
+  },
+  {
+    "material": "ORANGE_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7ee"
+  },
+  {
+    "material": "GRAY_SHULKER_BOX_tabChat",
+    "unicode": "\uf7c4"
+  },
+  {
+    "material": "AZURE_BLUET_tabChat",
+    "unicode": "\uf690"
+  },
+  {
+    "material": "RABBIT_HIDE_tabChat",
+    "unicode": "\ufa0e"
+  },
+  {
+    "material": "BLUE_BED_tabChat",
+    "unicode": "\uf97f"
+  },
+  {
+    "material": "CYAN_CONCRETE_POWDER_tabChat",
+    "unicode": "\uf7f6"
+  },
+  {
+    "material": "SMOOTH_QUARTZ_SLAB_tabChat",
+    "unicode": "\uf838"
+  },
+  {
+    "material": "DARK_OAK_LEAVES_tabChat",
+    "unicode": "\uf668"
+  },
+  {
+    "material": "RED_CONCRETE_tabChat",
+    "unicode": "\uf7eb"
+  },
+  {
+    "material": "IRON_ORE_tabChat",
+    "unicode": "\uf5f3"
+  },
+  {
+    "material": "WARPED_HANGING_SIGN_tabChat",
+    "unicode": "\uf93b"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_BRICK_SLAB_tabChat",
+    "unicode": "\ufa7c"
+  },
+  {
+    "material": "DIAMOND_AXE_tabChat",
+    "unicode": "\uf8f8"
+  },
+  {
+    "material": "DEEPSLATE_TILE_SLAB_tabChat",
+    "unicode": "\uf841"
+  },
+  {
+    "material": "DAYLIGHT_DETECTOR_tabChat",
+    "unicode": "\uf854"
+  },
+  {
+    "material": "SAND_tabChat",
+    "unicode": "\uf5ec"
+  },
+  {
+    "material": "OBSERVER_tabChat",
+    "unicode": "\uf84c"
+  },
+  {
+    "material": "MANGROVE_PRESSURE_PLATE_tabChat",
+    "unicode": "\uf874"
+  },
+  {
+    "material": "DARK_OAK_TRAPDOOR_tabChat",
+    "unicode": "\uf893"
+  },
+  {
+    "material": "GREEN_BANNER_tabChat",
+    "unicode": "\ufa26"
+  },
+  {
+    "material": "CRIMSON_NYLIUM_tabChat",
+    "unicode": "\uf5d4"
+  },
+  {
+    "material": "BROWN_CANDLE_tabChat",
+    "unicode": "\ufa8d"
+  },
+  {
+    "material": "REDSTONE_BLOCK_tabChat",
+    "unicode": "\uf845"
+  },
+  {
+    "material": "BLACKSTONE_tabChat",
+    "unicode": "\ufa73"
+  },
+  {
+    "material": "DEAD_FIRE_CORAL_FAN_tabChat",
+    "unicode": "\uf81b"
+  },
+  {
+    "material": "GLOW_LICHEN_tabChat",
+    "unicode": "\uf71a"
+  },
+  {
+    "material": "LIGHT_GRAY_BED_tabChat",
+    "unicode": "\uf97c"
+  },
+  {
+    "material": "PUMPKIN_SEEDS_tabChat",
+    "unicode": "\uf98a"
+  },
+  {
+    "material": "SPRUCE_CHEST_BOAT_tabChat",
+    "unicode": "\uf8bb"
+  },
+  {
+    "material": "ORANGE_WOOL_tabChat",
+    "unicode": "\uf67d"
+  },
+  {
+    "material": "POLISHED_BLACKSTONE_STAIRS_tabChat",
+    "unicode": "\ufa79"
+  },
+  {
+    "material": "SWEET_BERRIES_tabChat",
+    "unicode": "\ufa67"
+  },
+  {
+    "material": "SMALL_DRIPLEAF_tabChat",
+    "unicode": "\uf6ac"
+  },
+  {
+    "material": "RAISER_ARMOR_TRIM_SMITHING_TEMPLATE_tabChat",
+    "unicode": "\ufaab"
+  },
+  {
+    "material": "PURPLE_DYE_tabChat",
+    "unicode": "\uf96a"
+  },
+  {
+    "material": "HEART_POTTERY_SHERD_tabChat",
+    "unicode": "\ufab6"
+  },
+  {
+    "material": "GRASS_BLOCK_tabChat",
+    "unicode": "\uf5ce"
+  },
+  {
+    "material": "NETHERITE_CHESTPLATE_tabChat",
+    "unicode": "\uf91d"
+  },
+  {
+    "material": "BLACK_WOOL_tabChat",
+    "unicode": "\uf68b"
+  },
+  {
+    "material": "SOUL_SAND_tabChat",
+    "unicode": "\uf6f8"
+  },
+  {
+    "material": "WAXED_CUT_COPPER_SLAB_tabChat",
+    "unicode": "\uf632"
+  }
+]
