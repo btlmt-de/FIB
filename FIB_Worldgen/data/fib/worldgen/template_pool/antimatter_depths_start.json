@@ -1,0 +1,15 @@
+{
+  "name": "fib:antimatter_depths_start",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 9,
+      "element": {
+        "location": "fib:antimatter_depths/main_section",
+        "processors": "minecraft:empty",
+		"projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}

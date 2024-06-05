@@ -1,0 +1,43 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:fire_coral_fan"
+    },
+    "title": "Boon and Bane",
+    "description": "Obtain a Silk Touch tool of a ruined portal chest",
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "minecraft:story/smelt_iron",
+  "criteria": {
+    "silk_touch": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": [
+              "minecraft:golden_pickaxe",
+              "minecraft:golden_axe",
+              "minecraft:golden_shovel",
+              "minecraft:golden_hoe"
+            ],
+            "enchantments": [
+              {
+                "enchantment": "minecraft:silk_touch",
+                "levels": 1
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "silk_touch"
+    ]
+  ],
+  "sends_telemetry_event": true
+}
