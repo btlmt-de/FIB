@@ -12,6 +12,15 @@
   },
   {
     "type": "bitmap",
+    "file": "minecraft:fib/antimatter_locator.png",
+    "height": 15,
+    "ascent": 9,
+    "chars": [
+      "\ue000"
+    ]
+  },
+  {
+    "type": "bitmap",
     "file": "minecraft:fib/cobbled_deepslate.png",
     "height": 15,
     "ascent": 9,
@@ -9773,6 +9782,15 @@
     "ascent": 9,
     "chars": [
       "\uf6fc"
+    ]
+  },
+  {
+    "type": "bitmap",
+    "file": "minecraft:fib/antimatter_locator.png",
+    "height": 10,
+    "ascent": 9,
+    "chars": [
+      "\ue001"
     ]
   },
   {
