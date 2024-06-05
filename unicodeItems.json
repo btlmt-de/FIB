@@ -28,6 +28,10 @@
     "unicode": "\ue7db"
   },
   {
+    "material": "KNOWLEDGE_BOOK",
+    "unicode": "\ue000"
+  },
+  {
     "material": "DEEPSLATE_TILES",
     "unicode": "\ue70e"
   },
@@ -5622,6 +5626,10 @@
   {
     "material": "STONE_tabChat",
     "unicode": "\uf5b4"
+  },
+  {
+    "material": "KNOWLEDGE_BOOK_tabChat",
+    "unicode": "\ue001"
   },
   {
     "material": "SCULK_CATALYST_tabChat",
