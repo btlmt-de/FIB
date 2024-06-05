@@ -1,0 +1,16 @@
+{
+  "structures": [
+    {
+      "structure": "fib:antimatter_depths",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 10387319,
+    "frequency_reduction_method": "legacy_type_1",
+    "frequency": 0.1,
+    "spacing": 30,
+    "separation": 12
+  }
+}

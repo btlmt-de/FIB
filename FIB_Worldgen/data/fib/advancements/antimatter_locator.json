@@ -1,0 +1,27 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:knowledge_book"
+    },
+    "title": "Antimatter",
+    "description": "Craft the Antimatter Locator",
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "minecraft:story/enter_the_nether",
+  "criteria": {
+    "crafted_antimatter_locator": {
+      "trigger": "minecraft:recipe_crafted",
+      "conditions": {
+        "recipe": "minecraft:knowledge_book"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "crafted_antimatter_locator"
+    ]
+  ]
+}

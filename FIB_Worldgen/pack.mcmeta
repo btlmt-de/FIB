@@ -1,0 +1,20 @@
+{
+  "pack": {
+    "pack_format": 26,
+    "description": [
+      {
+        "text": "FIB Worldgeneration",
+        "color": "#22BAC5",
+        "bold": true
+      },
+      {
+        "text": "\nCreated by ",
+        "color": "gray"
+      },
+      {
+        "text": "FireBladeHunter",
+        "color": "#208F1A"
+      }
+    ]
+  }
+}
