@@ -15,7 +15,7 @@
     "crafted_antimatter_locator": {
       "trigger": "minecraft:recipe_crafted",
       "conditions": {
-        "recipe_id": "minecraft:knowledge_book"
+        "recipe_id": "fib:antimatter_locator"
       }
     }
   },
