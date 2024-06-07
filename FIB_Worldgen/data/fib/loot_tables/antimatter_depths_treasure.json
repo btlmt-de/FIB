@@ -10,6 +10,26 @@
       "entries": [
         {
           "type": "minecraft:item",
+          "name": "minecraft:acacia_sapling",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:jungle_sapling",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cherry_sapling",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:mangrove_propagule",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:item",
           "name": "minecraft:anvil",
           "weight": 1,
           "functions": [
@@ -83,7 +103,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:diamond",
-          "weight": 96
+          "weight": 49
         },
         {
           "type": "minecraft:item",
@@ -103,7 +123,7 @@
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:quartz",
+          "name": "minecraft:leather",
           "weight": 96,
           "functions": [
             {
@@ -118,7 +138,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:golden_apple",
-          "weight": 96,
+          "weight": 48,
           "functions": [
             {
               "function": "minecraft:set_name",
@@ -144,7 +164,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:leather_helmet",
-          "weight": 96,
+          "weight": 82,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
@@ -152,11 +172,7 @@
             },
             {
               "function": "minecraft:set_count",
-              "count": {
-                "type": "minecraft:uniform",
-                "min": 1,
-                "max": 0
-              },
+              "count": 1,
               "add": false
             }
           ]
@@ -169,7 +185,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:dirt",
-          "weight": 101,
+          "weight": 96,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -199,7 +215,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:ender_pearl",
-          "weight": 96,
+          "weight": 66,
           "functions": [
             {
               "function": "minecraft:set_count",
