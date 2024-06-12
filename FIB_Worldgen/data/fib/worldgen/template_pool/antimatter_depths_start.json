@@ -5,7 +5,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/main_section",
+        "location": "fib:antimatter_depths/main_section_stairs",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
