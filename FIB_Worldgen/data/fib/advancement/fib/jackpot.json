@@ -1,0 +1,75 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:smithing_table",
+      "count": 1
+    },
+    "title": "Jackpot",
+    "description": "Obtain a legendary item from the Antimatter Depths Legendary Chest",
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "fib:fib/antimatter",
+  "criteria": {
+    "snout": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:snout_armor_trim_smithing_template"],
+            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Snout Template\",\"color\":\"#383636\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+          }
+        ]
+      }
+    },
+    "netherite_upgrade": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:netherite_upgrade_smithing_template"],
+            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Netherite Upgrade\",\"color\":\"#79250F\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+          }
+        ]
+      }
+    },
+    "wild": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:wild_armor_trim_smithing_template"],
+            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Wild Template\",\"color\":\"#2A9215\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+          }
+        ]
+      }
+    },
+    "dune": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:dune_armor_trim_smithing_template"],
+            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Dune Template\",\"italic\":false,\"underlined\":false,\"color\":\"#F2EE90\",\"bold\":true}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+          }
+        ]
+      }
+    },
+    "sentry": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:sentry_armor_trim_smithing_template"],
+            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Sentry Template\",\"color\":\"#3E2413\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    ["snout", "netherite_upgrade", "wild", "dune", "sentry"]
+  ]
+}
