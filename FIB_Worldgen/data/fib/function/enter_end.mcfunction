@@ -1,1 +1,0 @@
-schedule function fib:kill_dragon 1s
