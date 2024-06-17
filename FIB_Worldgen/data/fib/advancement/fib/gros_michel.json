@@ -22,10 +22,10 @@
         "player": [],
         "items": [
           {
-            "items": [
-              "minecraft:golden_apple"
-            ],
-            "nbt": "{display: {Name: '{\"text\":\"Gros Michel\",\"italic\":false,\"underlined\":false,\"color\":\"#E0B916\",\"bold\":true}'}}"
+            "items": "minecraft:golden_apple",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"Gros Michel\",\"italic\":false,\"underlined\":false,\"color\":\"#E0B916\",\"bold\":true}"
+            }
           }
         ]
       }

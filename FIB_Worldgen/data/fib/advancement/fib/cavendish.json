@@ -22,10 +22,10 @@
         "player": [],
         "items": [
           {
-            "items": [
-              "minecraft:enchanted_golden_apple"
-            ],
-            "nbt": "{display: {Name: '{\"text\":\"Cavendish\",\"italic\":false,\"underlined\":true,\"color\":\"#EDC830\",\"bold\":true}'}}"
+            "items": "minecraft:enchanted_golden_apple",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"Cavendish\",\"italic\":false,\"underlined\":true,\"color\":\"#EDC830\",\"bold\":true}"
+            }
           }
         ]
       }
