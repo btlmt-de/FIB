@@ -16,10 +16,13 @@
     "snout": {
       "trigger": "minecraft:inventory_changed",
       "conditions": {
+        "player": [],
         "items": [
           {
-            "items": ["minecraft:snout_armor_trim_smithing_template"],
-            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Snout Template\",\"color\":\"#383636\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+            "items": "minecraft:snout_armor_trim_smithing_template",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Snout Template\",\"color\":\"#383636\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}"
+            }
           }
         ]
       }
@@ -29,8 +32,10 @@
       "conditions": {
         "items": [
           {
-            "items": ["minecraft:netherite_upgrade_smithing_template"],
-            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Netherite Upgrade\",\"color\":\"#79250F\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+            "items": "minecraft:netherite_upgrade_smithing_template",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Netherite Upgrade\",\"color\":\"#79250F\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}"
+            }
           }
         ]
       }
@@ -40,8 +45,10 @@
       "conditions": {
         "items": [
           {
-            "items": ["minecraft:wild_armor_trim_smithing_template"],
-            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Wild Template\",\"color\":\"#2A9215\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+            "items": "minecraft:wild_armor_trim_smithing_template",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Wild Template\",\"color\":\"#2A9215\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}"
+            }
           }
         ]
       }
@@ -51,8 +58,10 @@
       "conditions": {
         "items": [
           {
-            "items": ["minecraft:dune_armor_trim_smithing_template"],
-            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Dune Template\",\"italic\":false,\"underlined\":false,\"color\":\"#F2EE90\",\"bold\":true}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+            "items": "minecraft:dune_armor_trim_smithing_template",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Dune Template\",\"italic\":false,\"underlined\":false,\"color\":\"#F2EE90\",\"bold\":true}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}"
+            }
           }
         ]
       }
@@ -62,14 +71,22 @@
       "conditions": {
         "items": [
           {
-            "items": ["minecraft:sentry_armor_trim_smithing_template"],
-            "nbt": "{display:{Name:'{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Sentry Template\",\"color\":\"#3E2413\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}'}}"
+            "items": "minecraft:sentry_armor_trim_smithing_template",
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"[LEGENDARY]\",\"extra\":[{\"text\":\" Sentry Template\",\"color\":\"#3E2413\"}],\"italic\":false,\"underlined\":false,\"color\":\"#FFD700\",\"bold\":true}"
+            }
           }
         ]
       }
     }
   },
   "requirements": [
-    ["snout", "netherite_upgrade", "wild", "dune", "sentry"]
+    [
+      "snout",
+      "netherite_upgrade",
+      "wild",
+      "dune",
+      "sentry"
+    ]
   ]
 }
