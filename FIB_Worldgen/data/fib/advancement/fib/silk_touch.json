@@ -24,12 +24,11 @@
               "minecraft:golden_shovel",
               "minecraft:golden_hoe"
             ],
-            "enchantments": [
-              {
-                "enchantment": "minecraft:silk_touch",
-                "levels": 1
+            "components": {
+              "minecraft:enchantments": {
+                "minecraft:silk_touch": 1
               }
-            ]
+            }
           }
         ]
       }

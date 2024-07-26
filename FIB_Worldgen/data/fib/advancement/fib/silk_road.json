@@ -22,7 +22,9 @@
             "items": [
               "minecraft:anvil"
             ],
-            "nbt": "{display: {Name: '{\"text\":\"SILK TOUCH BABY\",\"italic\":false,\"underlined\":true,\"color\":\"#6EE911\",\"bold\":true}'}}"
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"SILK TOUCH BABY\",\"italic\":false,\"underlined\":true,\"color\":\"#6EE911\",\"bold\":true}"
+            }
           }
         ]
       }

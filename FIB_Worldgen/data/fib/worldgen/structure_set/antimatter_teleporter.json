@@ -1,0 +1,16 @@
+{
+  "structures": [
+    {
+      "structure": "fib:antimatter_teleporter",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 165745296,
+    "frequency_reduction_method": "legacy_type_1",
+    "frequency": 0.2,
+    "spacing": 24,
+    "separation": 10
+  }
+}

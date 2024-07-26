@@ -1,0 +1,15 @@
+{
+  "name": "fib:antimatter_teleporter_start",
+  "fallback": "minecraft:empty",
+  "elements": [
+    {
+      "weight": 9,
+      "element": {
+        "location": "fib:antimatter_teleporter/antimatter_teleporter",
+        "processors": "minecraft:empty",
+	"projection": "rigid",
+        "element_type": "minecraft:single_pool_element"
+      }
+    }
+  ]
+}
