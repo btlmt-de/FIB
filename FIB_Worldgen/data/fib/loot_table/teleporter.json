@@ -1,0 +1,47 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:cookie",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Imagine you don't even hit 50%",
+                "color": "red",
+                "italic": false
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:nether_star",
+          "weight": 10,
+          "functions": [
+            {
+              "function": "minecraft:set_components",
+              "components": {
+                "minecraft:custom_model_data": 7
+              }
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Wheel of Fortune",
+                "color": "yellow",
+                "bold": true,
+                "italic": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

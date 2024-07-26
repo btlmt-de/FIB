@@ -1,0 +1,38 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:anvil",
+      "count": 1
+    },
+    "title": "Silk Road",
+    "description": "Obtain the Anvil in the Antimatter Depths",
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "fib:fib/antimatter",
+  "criteria": {
+    "silk_road": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "player": [],
+        "items": [
+          {
+            "items": [
+              "minecraft:anvil"
+            ],
+            "components": {
+              "minecraft:custom_name": "{\"text\":\"SILK TOUCH BABY\",\"italic\":false,\"underlined\":true,\"color\":\"#6EE911\",\"bold\":true}"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "silk_road"
+    ]
+  ]
+}
