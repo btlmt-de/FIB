@@ -5,6 +5,15 @@ settings:
   keepinventory: true
   food: true
   backpack: true
+  backpackRows: 3
+  pvp: false
+  hard: true
+  extreme: false
+  fasterRandomTick: false
+  position: true
+  trading: true
+  tradingCooldown: true
+  stats: true
 standard:
   countdown: 30
   jokers: 3
@@ -1660,7 +1669,7 @@ descriptions:
     - "&eAncient City &7- &a35.9%"
     - "&eTrial Chambers:"
     - "&eSupply Chest &7- &a20.4%"
-    - "&eTrial Omnious Spawner &7- &a7%"
+    - "&eTrial Ominous Spawner &7- &a7%"
     - "&eTrial Spawner &7- &a5%"
     - "&eHint: Minecraft registers a &awater bottle &eas potion"
   TRIAL_KEY:
@@ -1677,3 +1686,52 @@ descriptions:
     - "&7Structure: &aTrial Chambers"
     - "&7Mob-Loot: &aBreeze"
     - "&aBreezes &7have a &a100% chance &7of &adropping a breeze rod &7when killed"
+  WIND_CHARGE:
+    - "&b&lWind Charge &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Trial Chambers - Loot Chance:"
+    - "&eOminous Vault &7- &a47.4%"
+    - "&eVault &7- &a24%"
+  FLOW_ARMOR_TRIM_SMITHING_TEMPLATE:
+    - "&b&lFlow Armor Trim Smithing Template &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Trial Chambers - Loot Chance:"
+    - "&eOminous Vault &7- &a22.5%"
+  BOLT_ARMOR_TRIM_SMITHING_TEMPLATE:
+    - "&b&lBolt Armor Trim Smithing Template &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Trial Chambers - Loot Chance:"
+    - "&eVault &7- &a6.3%"
+  FLOW_POTTERY_SHERD:
+    - "&b&lFlow Pottery Sherd &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Decorated pots with &aflow pottery sherds &7naturally generate in trial chambers"
+    - "&7Breaking a decorated pot causes it to drop all of the pottery sherds used to craft it"
+  GUSTER_POTTERY_SHERD:
+    - "&b&lGuster Pottery Sherd &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Decorated pots with &aguster pottery sherds &7naturally generate in trial chambers"
+    - "&7Breaking a decorated pot causes it to drop all of the pottery sherds used to craft it"
+  SCRAPE_POTTERY_SHERD:
+    - "&b&lScrape Pottery Sherd &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Decorated pots with &ascrape pottery sherds &7naturally generate in trial chambers"
+    - "&7Breaking a decorated pot causes it to drop all of the pottery sherds used to craft it"
+  FLOW_BANNER_PATTERN:
+    - "&b&lFlow Banner Pattern &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Trial Chambers - Loot Chance:"
+    - "&eOminous Vault &7- &a15%"
+  GUSTER_BANNER_PATTERN:
+    - "&b&lGuster Banner Pattern &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Trial Chambers - Loot Chance:"
+    - "&eVault &7- &a4.2%"
