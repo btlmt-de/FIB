@@ -36,7 +36,7 @@ descriptions:
     - "&7Biomes: &aDesert"
     - "&7Tool: &aBrush"
     - "&7Brush &asuspicious sand &7to obtain the item"
-    - "&7Chance: &a12.5%"
+    - "&7Chance: &a25%"
   BLADE_POTTERY_SHERD:
     - "&b&lBlade Pottery Sherd &7| &6Item Information"
     - "&7"
@@ -60,7 +60,7 @@ descriptions:
     - "&7Biomes: &aDesert"
     - "&7Tool: &aBrush"
     - "&7Brush &asuspicious sand &7to obtain the item"
-    - "&7Chance: &a12.5%"
+    - "&7Chance: &a25%"
   MOURNER_POTTERY_SHERD:
     - "&b&lMourner Pottery Sherd &7| &6Item Information"
     - "&7"
@@ -84,7 +84,7 @@ descriptions:
     - "&7Biomes: &aDesert"
     - "&7Tool: &aBrush"
     - "&7Brush &asuspicious sand &7to obtain the item"
-    - "&7Chance: &a12.5%"
+    - "&7Chance: &a25%"
   SHELTER_POTTERY_SHERD:
     - "&b&lAngler Pottery Sherd &7| &6Item Information"
     - "&7"
@@ -100,7 +100,7 @@ descriptions:
     - "&7Biomes: &aDesert"
     - "&7Tool: &aBrush"
     - "&7Brush &asuspicious sand &7to obtain the item"
-    - "&7Chance: &a12.5%"
+    - "&7Chance: &a25%"
   SNORT_POTTERY_SHERD:
     - "&b&lAngler Pottery Sherd &7| &6Item Information"
     - "&7"
@@ -1649,7 +1649,7 @@ descriptions:
     - "&7Structure - Chest Loot Table:"
     - "&eAncient City &7- &a35.9%"
     - "&eDesert Pyramid &7- &a23.5%"
-    - "&Ocean Ruins &7- &a21.7%"
+    - "&eOcean Ruins &7- &a21.7%"
     - "&eWoodland Mansion &7- &a14.9%"
     - "&eMonster Spawner &7- &a14.7%"
     - "&eMineshaft &7- &a14.1%"
@@ -1658,7 +1658,7 @@ descriptions:
     - "&b&lSplash Potion &7| &6Item Information"
     - "&7"
     - "&7Structure: &aTrial Chambers"
-    - "&7There is a &3.4% chance &7that any &achamber dispenser &7contains a splash potion"
+    - "&7There is a &c3.4% &7chance that any &achamber dispenser &7contains a splash potion"
     - "&7Splash Potions can be found in &aigloo basements"
     - "&7Splash Potions are brewed by adding &agunpowder to a normal potion"
   POTION:
@@ -1669,8 +1669,8 @@ descriptions:
     - "&eAncient City &7- &a35.9%"
     - "&eTrial Chambers:"
     - "&eSupply Chest &7- &a20.4%"
-    - "&eTrial Ominous Spawner &7- &a7%"
-    - "&eTrial Spawner &7- &a5%"
+    - "&eTrial Ominous Spawner &7- &67%"
+    - "&eTrial Spawner &7- &65%"
     - "&eHint: Minecraft registers a &awater bottle &eas potion"
   TRIAL_KEY:
     - "&b&lTrial Key &7| &6Item Information"
@@ -1678,8 +1678,8 @@ descriptions:
     - "&7Structure: Trial Chambers"
     - "&7Trial Chambers - Loot Chance:"
     - "&eTrial Spawner &7- &a50%"
-    - "&eEntrance Chest &7- &a6.8%"
-    - "&eCorridor Pot &7- &a2.8%"
+    - "&eEntrance Chest &7- &66.8%"
+    - "&eCorridor Pot &7- &c2.8%"
   BREEZE_ROD:
     - "&b&lBreeze Rod &7| &6Item Information"
     - "&7"
@@ -1704,7 +1704,7 @@ descriptions:
     - "&7"
     - "&7Structure: &aTrial Chambers"
     - "&7Trial Chambers - Loot Chance:"
-    - "&eVault &7- &a6.3%"
+    - "&eVault &7- &66.3%"
   FLOW_POTTERY_SHERD:
     - "&b&lFlow Pottery Sherd &7| &6Item Information"
     - "&7"
@@ -1734,7 +1734,7 @@ descriptions:
     - "&7"
     - "&7Structure: &aTrial Chambers"
     - "&7Trial Chambers - Loot Chance:"
-    - "&eVault &7- &a4.2%"
+    - "&eVault &7- &c4.2%"
   TIPPED_ARROW:
     - "&b&lTipped Arrow &7| &6Item Information"
     - "&7"
@@ -1764,19 +1764,19 @@ descriptions:
     - "&7"
     - "&7Structure: &aTrial Chambers"
     - "&7Trial Chambers - Loot Chance:"
-    - "&eOminous Vault &7- &a7.5%"
+    - "&eOminous Vault &7- &67.5%"
   MUSIC_DISC_CREATOR:
     - "&b&lMusic Disc (Creator) &7| &6Item Information"
     - "&7"
     - "&7Structure: &aTrial Chambers"
     - "&7Trial Chambers - Loot Chance:"
-    - "&eOminous Vault &7- &a7.5%"
+    - "&eOminous Vault &7- &67.5%"
   MUSIC_DISC_PRECIPICE:
     - "&b&lMusic Disc (Precipice) &7| &6Item Information"
     - "&7"
     - "&7Structure: &aTrial Chambers"
     - "&7Trial Chambers - Loot Chance:"
-    - "&eVault &7- &a4.2%"
+    - "&eVault &7- &c4.2%"
   OMINOUS_BOTTLE:
     - "&b&lOminous Bottle &7| &6Item Information"
     - "&7"
@@ -1798,7 +1798,7 @@ descriptions:
     - "&7"
     - "&7Structure: &aAncient City"
     - "&7Ancient City - Loot Chance:"
-    - "&eChest &7- &a1.2%"
+    - "&eChest &7- &c1.2%"
   TIDE_ARMOR_TRIM_SMITHING_TEMPLATE:
     - "&b&lTide Armor Trim Smithing Template &7| &6Item Information"
     - "&7"
@@ -1810,7 +1810,7 @@ descriptions:
     - "&7"
     - "&7Structure: &aAncient City"
     - "&7Ancient City - Loot Chance:"
-    - "&eChest &7- &a5%"
+    - "&eChest &7- &65%"
   DISC_FRAGMENT_5:
     - "&b&lDisc Fragment (5) &7| &6Item Information"
     - "&7"
@@ -1827,10 +1827,15 @@ descriptions:
     - "&b&lDragon Breath &7| &6Item Information"
     - "&7"
     - "&7Dragon's breath can be obtained by using &aempty glass bottles &7on the ender dragon's breath attack while perched,"
-    - "&7or on the purple effect clouds caused by dragon fireballs."
+    - "&7or on the purple effect clouds caused by dragon fireballs"
   MUSIC_DISC_CREATOR_MUSIC_BOX:
     - "&b&lMusic Disc Creator (Music Box) &7| &6Item Information"
     - "&7"
     - "&7Structure: Trial Chambers"
     - "&7Trial Chambers - Loot Chance:"
-    - "&eCorridor Pot &7- &a1.4%"
+    - "&eCorridor Pot &7- &c1.4%"
+  WITHER_SKELETON_SKULL:
+    - "&b&lWither Skeleton Skull &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aNether Fortress"
+    - "&7A &awither skeleton &7has a &a10% &7chance of dropping a &awither skeleton skull &7when killed"
