@@ -381,7 +381,7 @@ descriptions:
     - "&7These include &astone, coal ore, copper ore, iron ore, emerald ore, log &7or &apacked ice"
     - "&7Structure: &aPillager Outpost"
     - "&7Pillager Outpost - Loot Chance:"
-    - "&eChest &7- &50%"
+    - "&eChest &7- &a50%"
   HONEYCOMB:
     - "&b&lHoneycomb &7| &6Item Information"
     - "&7"
@@ -421,10 +421,19 @@ descriptions:
     - "&7Structures: &aIgloo&7, &aAncient City"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted tool"
+  AMETHYST_CLUSTER:
+    - "&b&lAmethyst Cluster &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aAmethyst Geode"
+    - "&7Biomes: &aany Overworld biome"
+    - "&7Tool: &aany (Silk Touch required)"
+    - "&7Can be obtained with a &asilk touch enchanted tool"
+    - "&7The &aamethyst cluster &7is the &afinal stage &7of &aamethyst cluster"
+    - "&7When mined with a pickaxe the &aamethyst cluster &7drops &a4 shards &7while any other method of breaking it yields &a2 shards"
   LARGE_AMETHYST_BUD:
     - "&b&lLarge Amethyst Bud &7| &6Item Information"
     - "&7"
-    - "&7Structure: Amethyst Geode"
+    - "&7Structure: &aAmethyst Geode"
     - "&7Biomes: &aany Overworld biome"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
@@ -432,7 +441,7 @@ descriptions:
   MEDIUM_AMETHYST_BUD:
     - "&b&lLarge Amethyst Bud &7| &6Item Information"
     - "&7"
-    - "&7Structure: Amethyst Geode"
+    - "&7Structure: &aAmethyst Geode"
     - "&7Biomes: &aany Overworld biome"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
@@ -440,7 +449,7 @@ descriptions:
   SMALL_AMETHYST_BUD:
     - "&b&lLarge Amethyst Bud &7| &6Item Information"
     - "&7"
-    - "&7Structure: Amethyst Geode"
+    - "&7Structure: &aAmethyst Geode"
     - "&7Biomes: &aany Overworld biome"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
@@ -983,7 +992,7 @@ descriptions:
     - "&7Structure: &aVillage"
     - "&7Village - Loot Chance:"
     - "&eTaiga House Chest &7- &a40.6%"
-    - "7Potted spruce saplings generates in &ataiga &7and &asnowy taiga village mason houses"
+    - "&7Potted spruce saplings generates in &ataiga &7and &asnowy taiga village mason houses"
     - "&aWandering traders &7may sell the &aspruce sapling &7for &a5 Emeralds"
   BIRCH_SAPLING:
     - "&b&lBirch Sapling &7| &6Item Information"
@@ -1246,7 +1255,7 @@ descriptions:
     - "&7Biomes: &aJungle&7, &aSparse Jungle&7, &aBamboo Jungle"
     - "&7Tool: &aAxe"
     - "&7Can be obtained by right-clicking on a jungle log with an axe"
-    - "&Stripped jungle logs can generate as masts in shipwrecks"
+    - "&7Stripped jungle logs can generate as masts in shipwrecks"
   STRIPPED_ACACIA_LOG:
     - "&b&lStripped Acacia Log &7| &6Item Information"
     - "&7"
@@ -1518,7 +1527,7 @@ descriptions:
   SUGAR_CANE:
     - "&b&lSugar Cane &7| &6Item Information"
     - "&7"
-    - "Sugar cane can generate naturally near water and ice"
+    - "&7Sugar cane can generate naturally near water and ice"
     - "&aWandering traders &7may sell &asugar cane for 1 emerald"
   KELP:
     - "&b&lKelp &7| &6Item Information"
@@ -1839,3 +1848,8 @@ descriptions:
     - "&7"
     - "&7Structure: &aNether Fortress"
     - "&7A &awither skeleton &7has a &a10% &7chance of dropping a &awither skeleton skull &7when killed"
+  ARMADILLO_SCUTE:
+    - "&b&lArmadillo Scute &7| &6Item Information"
+    - "&7"
+    - "&7Biomes: &aSavanna&7, &aSavanna Plateau&7, &aWindswept Savanna&7, &aBadlands&7, &aEroded Badlands&7, &aWooded Badlands"
+    - "&7The &aarmadillo scute &7can be obtained by brushing an armadillo"
