@@ -4,7 +4,11 @@
       "id": "minecraft:golden_apple",
       "count": 1,
       "components": {
-        "minecraft:custom_model_data": 2
+        "minecraft:custom_model_data": {
+          "strings": [
+            "gros_michel"
+          ]
+        }
       }
     },
     "title": "+15 Mult",

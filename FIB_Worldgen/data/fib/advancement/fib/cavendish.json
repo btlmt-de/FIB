@@ -2,10 +2,14 @@
   "display": {
     "icon": {
       "id": "minecraft:enchanted_golden_apple",
-      "count": 1,
       "components": {
-        "minecraft:custom_model_data": 1
-      }
+        "minecraft:custom_model_data": {
+          "strings": [
+            "cavendish"
+          ]
+        }
+      },
+      "count": 1
     },
     "title": "The Holy Banana",
     "description": "Obtain Cavendish in the Antimatter Depths",
@@ -19,7 +23,6 @@
     "cavendish": {
       "trigger": "minecraft:inventory_changed",
       "conditions": {
-        "player": [],
         "items": [
           {
             "items": "minecraft:enchanted_golden_apple",
@@ -35,5 +38,6 @@
     [
       "cavendish"
     ]
-  ]
+  ],
+  "sends_telemetry_event": true
 }
