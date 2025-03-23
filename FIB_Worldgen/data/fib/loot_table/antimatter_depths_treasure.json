@@ -64,7 +64,12 @@
             },
             {
               "function": "minecraft:set_custom_model_data",
-              "value": 1
+              "strings": {
+                "values": [
+                  "cavendish"
+                ],
+                "mode": "append"
+              }
             }
           ]
         },
@@ -149,7 +154,12 @@
             },
             {
               "function": "minecraft:set_custom_model_data",
-              "value": 2
+              "strings": {
+                "values": [
+                  "gros_michel"
+                ],
+                "mode": "append"
+              }
             }
           ]
         },

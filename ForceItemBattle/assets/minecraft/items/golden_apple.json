@@ -1,0 +1,19 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "cases": [
+      {
+        "when": "gros_michel",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/gros_michel"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/golden_apple"
+    }
+  }
+}
