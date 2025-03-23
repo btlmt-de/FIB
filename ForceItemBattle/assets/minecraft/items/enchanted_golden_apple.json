@@ -1,0 +1,19 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "cases": [
+      {
+        "when": "cavendish",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/cavendish"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/enchanted_golden_apple"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "model": {
+    "type": "range_dispatch",
+    "property": "custom_model_data",
+    "entries": [
+      {
+        "threshold": 286000,
+        "model": {
+          "type": "model",
+          "model": "minecraft:item/antimatter_teleporter"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "model",
+      "model": "minecraft:item/snowball"
+    }
+  }
+}
