@@ -1832,3 +1832,9 @@ descriptions:
     - "&b&lMusic Disc Tears &7| &6Item Information"
     - "&7"
     - "&7The music disc is obtained by killing ghasts by a player-deflected ghast fireball"
+  MUSIC_DISC_LAVA_CHICKEN:
+    - "&b&lMusic Lava Chicken &7| &6Item Information"
+    - "&7"
+    - "&7The music disc is obtained by killing chicken jockeys"
+    - "&7The music disc is dropped by the baby zombies currently riding a chicken"
+    - "&7If the chicken is killed first, the zombie previously riding said chicken does not drop the disc afterwards"
