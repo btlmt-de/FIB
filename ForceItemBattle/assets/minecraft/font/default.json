@@ -26785,6 +26785,15 @@
     "chars": [
       "\ueb9f"
     ]
+  },
+  {
+    "type": "bitmap",
+    "file": "minecraft:gui/tab.png",
+    "height": 106,
+    "ascent": 66,
+    "chars": [
+      "\uebA0"
+    ]
   }
 ]
 }
