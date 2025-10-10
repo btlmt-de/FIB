@@ -26788,7 +26788,7 @@
   },
   {
     "type": "bitmap",
-    "file": "minecraft:gui/tab.png",
+    "file": "minecraft:fib/tab.png",
     "height": 106,
     "ascent": 66,
     "chars": [
