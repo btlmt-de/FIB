@@ -4,7 +4,7 @@ This config stores all item descriptions for [ForceItemBattle](https://github.co
 
 The resourcepack is needed to display the items in the bossbar and chat.
 
-Supported Minecraft Version: 1.21.7
+Supported Minecraft Version: 1.21.9
 
 **IMPORTANT**:
 
