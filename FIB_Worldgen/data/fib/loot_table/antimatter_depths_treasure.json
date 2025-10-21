@@ -10,6 +10,11 @@
       "entries": [
         {
           "type": "minecraft:item",
+          "name": "minecraft:pale_oak_sapling",
+          "weight": 12
+        },
+        {
+          "type": "minecraft:item",
           "name": "minecraft:acacia_sapling",
           "weight": 12
         },
@@ -76,7 +81,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
-          "weight": 96,
+          "weight": 91,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -90,7 +95,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:book",
-          "weight": 33,
+          "weight": 31,
           "functions": [
             {
               "function": "minecraft:enchant_randomly"
@@ -100,12 +105,12 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:diamond",
-          "weight": 49
+          "weight": 46
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:cocoa_beans",
-          "weight": 96,
+          "weight": 91,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -121,7 +126,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:leather",
-          "weight": 96,
+          "weight": 91,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -135,7 +140,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:golden_apple",
-          "weight": 48,
+          "weight": 45,
           "functions": [
             {
               "function": "minecraft:set_name",
@@ -166,7 +171,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:leather_helmet",
-          "weight": 82,
+          "weight": 77,
           "functions": [
             {
               "function": "minecraft:enchant_with_levels",
@@ -182,12 +187,12 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:string",
-          "weight": 96
+          "weight": 91
         },
         {
           "type": "minecraft:item",
           "name": "minecraft:dirt",
-          "weight": 96,
+          "weight": 91,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -202,7 +207,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:cobbled_deepslate",
-          "weight": 96,
+          "weight": 91,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -217,7 +222,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:ender_pearl",
-          "weight": 66,
+          "weight": 62,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -229,7 +234,7 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:coal",
-          "weight": 96,
+          "weight": 91,
           "functions": [
             {
               "function": "minecraft:set_count",
