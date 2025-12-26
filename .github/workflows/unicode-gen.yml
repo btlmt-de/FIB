@@ -1,0 +1,56 @@
+name: Unicode Generator
+
+on:
+  push:
+    paths:
+      - 'ForceItemBattle/assets/minecraft/textures/fib/**.png'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate font files
+        run: |
+          python scripts/generate_font_files.py \
+            ForceItemBattle/assets/minecraft/textures/fib \
+            --unicode-output unicodeItems.json \
+            --font-output ForceItemBattle/assets/minecraft/font/default.json
+
+      - name: Create resource pack zip
+        run: |
+          # Remove old zip if exists
+          rm -f ForceItemBattle.zip
+          # Create new zip (excluding hidden files)
+          cd ForceItemBattle && zip -r ../ForceItemBattle.zip . -x ".*" && cd ..
+          echo "Created ForceItemBattle.zip"
+          ls -lh ForceItemBattle.zip
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit -m "Auto-generate font files and resource pack"
+          git push
