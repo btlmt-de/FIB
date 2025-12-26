@@ -6,12 +6,7 @@ on:
       - main
     paths:
       - 'ForceItemBattle/assets/minecraft/textures/fib/**.png'
-  workflow_dispatch:
-    inputs:
-      pack_format:
-        description: 'Resource pack format (leave empty to auto-detect from wiki)'
-        required: false
-        default: ''
+  workflow_dispatch:  # Allow manual trigger
 
 permissions:
   contents: write
@@ -37,82 +32,6 @@ jobs:
             ForceItemBattle/assets/minecraft/textures/fib \
             --unicode-output unicodeItems.json \
             --font-output ForceItemBattle/assets/minecraft/font/default.json
-
-      - name: Update pack.mcmeta
-        env:
-          BRANCH_NAME: ${{ github.ref_name }}
-          MANUAL_PACK_FORMAT: ${{ github.event.inputs.pack_format }}
-        run: |
-          # Use manual input if provided, otherwise try to scrape from wiki
-          PACK_FORMAT="$MANUAL_PACK_FORMAT"
-          
-          if [ -z "$PACK_FORMAT" ]; then
-            echo "No manual pack_format provided, trying to fetch from wiki for version: $BRANCH_NAME"
-          
-            PACK_FORMAT=$(python3 - "$BRANCH_NAME" << 'PYEOF'
-          import urllib.request
-          import re
-          import sys
-
-          version = sys.argv[1]
-
-          url = "https://minecraft.wiki/w/Pack_format"
-          headers = {'User-Agent': 'Mozilla/5.0 (compatible; GitHubActions/1.0)'}
-          req = urllib.request.Request(url, headers=headers)
-
-          try:
-              with urllib.request.urlopen(req, timeout=10) as response:
-                  html = response.read().decode('utf-8')
-          except Exception as e:
-              print(f"Failed to fetch wiki: {e}", file=sys.stderr)
-              sys.exit(1)
-
-          # Find the resource pack format table and look for our version
-          patterns = [
-              rf'>{re.escape(version)}</a></td>\s*<td[^>]*>(\d+)',
-              rf'>{re.escape(version)}</td>\s*<td[^>]*>(\d+)',
-              rf'title="Java Edition {re.escape(version)}"[^>]*>[^<]*</a></td>\s*<td[^>]*>(\d+)',
-          ]
-
-          for pattern in patterns:
-              match = re.search(pattern, html, re.IGNORECASE | re.DOTALL)
-              if match:
-                  print(match.group(1))
-                  sys.exit(0)
-
-          print(f"Version {version} not found in wiki", file=sys.stderr)
-          sys.exit(1)
-          PYEOF
-            ) || true
-          fi
-          
-          if [ -n "$PACK_FORMAT" ]; then
-            echo "Updating pack.mcmeta with pack_format: $PACK_FORMAT"
-          
-            python3 - "$PACK_FORMAT" << 'PYEOF'
-          import json
-          import sys
-
-          pack_format = int(sys.argv[1])
-          mcmeta_path = 'ForceItemBattle/pack.mcmeta'
-          
-          try:
-              with open(mcmeta_path, 'r') as f:
-                  mcmeta = json.load(f)
-          except FileNotFoundError:
-              mcmeta = {"pack": {"description": "ForceItemBattle Resource Pack"}}
-
-          mcmeta['pack']['pack_format'] = pack_format
-
-          with open(mcmeta_path, 'w') as f:
-              json.dump(mcmeta, f, indent=2)
-
-          print(f"Updated pack.mcmeta with pack_format: {pack_format}")
-          PYEOF
-          else
-            echo "No pack_format found - skipping pack.mcmeta update"
-            echo "You can manually trigger this workflow with a pack_format input"
-          fi
 
       - name: Create resource pack zip
         run: |
