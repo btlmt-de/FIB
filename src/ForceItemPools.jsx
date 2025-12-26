@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/config.yml';
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-const CACHE_KEY = 'forceitem_pools_cache';
+const CACHE_KEY = 'forceitem_pools_cache_v2';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 // Minecraft color codes mapping
