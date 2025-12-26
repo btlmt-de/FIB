@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
+const CONFIG_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/config.yml';
+const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 const CACHE_KEY = 'forceitem_pools_cache';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-// Minecraft-style colors
+// Minecraft color codes mapping
+const MC_COLORS = {
+    '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
+    '4': '#AA0000', '5': '#AA00AA', '6': '#FFAA00', '7': '#AAAAAA',
+    '8': '#555555', '9': '#5555FF', 'a': '#55FF55', 'b': '#55FFFF',
+    'c': '#FF5555', 'd': '#FF55FF', 'e': '#FFFF55', 'f': '#FFFFFF'
+};
+
+// Minecraft-style colors for UI
 const COLORS = {
     early: '#55FF55',
     mid: '#FFFF55',
@@ -12,6 +22,7 @@ const COLORS = {
     nether: '#AA0000',
     end: '#AA00AA',
     extreme: '#FF55FF',
+    description: '#55FFFF',
     bg: '#1a1a2e',
     bgLight: '#252542',
     bgLighter: '#2d2d4a',
@@ -21,10 +32,96 @@ const COLORS = {
     accent: '#5865F2'
 };
 
+// Parse Minecraft formatting codes into styled spans
+function parseMinecraftFormatting(text) {
+    if (!text) return null;
+
+    const parts = [];
+    let currentColor = COLORS.text;
+    let isBold = false;
+    let isItalic = false;
+    let currentText = '';
+
+    let i = 0;
+    while (i < text.length) {
+        if (text[i] === '&' && i + 1 < text.length) {
+            // Push current text if any
+            if (currentText) {
+                parts.push({
+                    text: currentText,
+                    color: currentColor,
+                    bold: isBold,
+                    italic: isItalic
+                });
+                currentText = '';
+            }
+
+            const code = text[i + 1].toLowerCase();
+
+            if (MC_COLORS[code]) {
+                currentColor = MC_COLORS[code];
+            } else if (code === 'l') {
+                isBold = true;
+            } else if (code === 'o') {
+                isItalic = true;
+            } else if (code === 'r') {
+                currentColor = COLORS.text;
+                isBold = false;
+                isItalic = false;
+            }
+            // Skip &k (obfuscated), &m (strikethrough), &n (underline) for now
+
+            i += 2;
+        } else {
+            currentText += text[i];
+            i++;
+        }
+    }
+
+    // Push remaining text
+    if (currentText) {
+        parts.push({
+            text: currentText,
+            color: currentColor,
+            bold: isBold,
+            italic: isItalic
+        });
+    }
+
+    return parts;
+}
+
+// Render formatted text as React elements
+function FormattedText({ text }) {
+    const parts = parseMinecraftFormatting(text);
+    if (!parts) return null;
+
+    return (
+        <>
+            {parts.map((part, idx) => (
+                <span
+                    key={idx}
+                    style={{
+                        color: part.color,
+                        fontWeight: part.bold ? '700' : '400',
+                        fontStyle: part.italic ? 'italic' : 'normal'
+                    }}
+                >
+          {part.text}
+        </span>
+            ))}
+        </>
+    );
+}
+
+// Strip all formatting for plain text
+function stripFormatting(text) {
+    return text.replace(/&[0-9a-fklmnor]/gi, '');
+}
+
 function parseJavaFile(content) {
     const items = [];
 
-    // Match register() calls: register(Material.NAME, State.STATE, ItemTag.TAG, ItemTag.TAG2);
     const registerRegex = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
 
     let match;
@@ -35,11 +132,66 @@ function parseJavaFile(content) {
             material,
             state,
             tags,
-            displayName: material.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+            displayName: material.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+            description: null
         });
     }
 
     return items;
+}
+
+function parseConfigYaml(content) {
+    const descriptions = {};
+
+    // Simple YAML parser for the descriptions section
+    const lines = content.split('\n');
+    let inDescriptions = false;
+    let currentItem = null;
+    let currentLines = [];
+
+    for (const line of lines) {
+        if (line.trim() === 'descriptions:') {
+            inDescriptions = true;
+            continue;
+        }
+
+        if (!inDescriptions) continue;
+
+        // Check if it's a new top-level key (not indented with spaces beyond descriptions level)
+        if (line.match(/^[a-zA-Z]/) && !line.startsWith(' ')) {
+            // Save previous item
+            if (currentItem && currentLines.length > 0) {
+                descriptions[currentItem] = currentLines;
+            }
+            inDescriptions = false;
+            continue;
+        }
+
+        // Check for item name (e.g., "  ANGLER_POTTERY_SHERD:")
+        const itemMatch = line.match(/^\s{2}([A-Z_]+):\s*$/);
+        if (itemMatch) {
+            // Save previous item
+            if (currentItem && currentLines.length > 0) {
+                descriptions[currentItem] = currentLines;
+            }
+            currentItem = itemMatch[1];
+            currentLines = [];
+            continue;
+        }
+
+        // Check for description line (e.g., '    - "&b&lText"')
+        const lineMatch = line.match(/^\s{4}-\s*"(.*)"\s*$/);
+        if (lineMatch && currentItem) {
+            currentLines.push(lineMatch[1]);
+        }
+    }
+
+    // Save last item
+    if (currentItem && currentLines.length > 0) {
+        descriptions[currentItem] = currentLines;
+    }
+
+    return descriptions;
 }
 
 function getCache() {
@@ -68,36 +220,40 @@ function setCache(data) {
     }
 }
 
-function ItemCard({ item }) {
+function ItemCard({ item, onClick }) {
     const stateColor = COLORS[item.state.toLowerCase()] || COLORS.text;
+    const hasDescription = item.description && item.description.length > 0;
 
     return (
-        <div style={{
-            background: COLORS.bgLight,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: '4px',
-            padding: '10px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            transition: 'transform 0.15s, box-shadow 0.15s',
-            cursor: 'default',
-        }}
-             onMouseEnter={e => {
-                 e.currentTarget.style.transform = 'translateY(-2px)';
-                 e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3)`;
-             }}
-             onMouseLeave={e => {
-                 e.currentTarget.style.transform = 'translateY(0)';
-                 e.currentTarget.style.boxShadow = 'none';
-             }}>
+        <div
+            style={{
+                background: COLORS.bgLight,
+                border: `1px solid ${hasDescription ? COLORS.description + '44' : COLORS.border}`,
+                borderRadius: '4px',
+                padding: '10px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+                cursor: hasDescription ? 'pointer' : 'default',
+            }}
+            onClick={() => hasDescription && onClick(item)}
+            onMouseEnter={e => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3)`;
+            }}
+            onMouseLeave={e => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+            }}
+        >
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px'
             }}>
                 <img
-                    src={`https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib/${item.material.toLowerCase()}.png`}
+                    src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
                     alt={item.displayName}
                     style={{ width: '32px', height: '32px', imageRendering: 'pixelated' }}
                     onError={(e) => {
@@ -113,6 +269,15 @@ function ItemCard({ item }) {
                 }}>
           {item.displayName}
         </span>
+                {hasDescription && (
+                    <span style={{
+                        color: COLORS.description,
+                        fontSize: '14px',
+                        opacity: 0.7
+                    }}>
+            ℹ
+          </span>
+                )}
             </div>
 
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
@@ -142,6 +307,156 @@ function ItemCard({ item }) {
             {tag}
           </span>
                 ))}
+                {hasDescription && (
+                    <span style={{
+                        background: COLORS.description + '22',
+                        color: COLORS.description,
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>
+            INFO
+          </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function Modal({ item, onClose }) {
+    if (!item) return null;
+
+    return (
+        <div
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '20px'
+            }}
+            onClick={onClose}
+        >
+            <div
+                style={{
+                    background: COLORS.bgLight,
+                    border: `2px solid ${COLORS.description}`,
+                    borderRadius: '8px',
+                    padding: '24px',
+                    maxWidth: '500px',
+                    width: '100%',
+                    maxHeight: '80vh',
+                    overflowY: 'auto'
+                }}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    marginBottom: '20px',
+                    paddingBottom: '16px',
+                    borderBottom: `1px solid ${COLORS.border}`
+                }}>
+                    <img
+                        src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
+                        alt={item.displayName}
+                        style={{
+                            width: '64px',
+                            height: '64px',
+                            imageRendering: 'pixelated',
+                            border: `2px solid ${COLORS.border}`,
+                            borderRadius: '4px',
+                            background: COLORS.bgLighter
+                        }}
+                        onError={(e) => {
+                            e.target.style.display = 'none';
+                        }}
+                    />
+                    <div>
+                        <h2 style={{
+                            color: COLORS.text,
+                            fontSize: '20px',
+                            fontWeight: '600',
+                            marginBottom: '8px'
+                        }}>
+                            {item.displayName}
+                        </h2>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{
+                  background: (COLORS[item.state.toLowerCase()] || COLORS.text) + '22',
+                  color: COLORS[item.state.toLowerCase()] || COLORS.text,
+                  padding: '3px 8px',
+                  borderRadius: '3px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textTransform: 'uppercase'
+              }}>
+                {item.state}
+              </span>
+                            {item.tags.map(tag => (
+                                <span key={tag} style={{
+                                    background: (COLORS[tag.toLowerCase()] || COLORS.accent) + '22',
+                                    color: COLORS[tag.toLowerCase()] || COLORS.accent,
+                                    padding: '3px 8px',
+                                    borderRadius: '3px',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    textTransform: 'uppercase'
+                                }}>
+                  {tag}
+                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Description */}
+                <div style={{
+                    background: COLORS.bgLighter,
+                    borderRadius: '4px',
+                    padding: '16px',
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: '14px',
+                    lineHeight: '1.6'
+                }}>
+                    {item.description.map((line, idx) => (
+                        <div key={idx} style={{ minHeight: '20px' }}>
+                            <FormattedText text={line} />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Close button */}
+                <button
+                    onClick={onClose}
+                    style={{
+                        marginTop: '20px',
+                        width: '100%',
+                        padding: '10px',
+                        background: COLORS.bgLighter,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '4px',
+                        color: COLORS.text,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={e => e.target.style.background = COLORS.border}
+                    onMouseLeave={e => e.target.style.background = COLORS.bgLighter}
+                >
+                    Close
+                </button>
             </div>
         </div>
     );
@@ -176,8 +491,9 @@ export default function ForceItemPools() {
     const [error, setError] = useState(null);
     const [search, setSearch] = useState('');
     const [stateFilter, setStateFilter] = useState('ALL');
-    const [tagFilters, setTagFilters] = useState({ NETHER: false, END: false, EXTREME: false });
+    const [tagFilters, setTagFilters] = useState({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [selectedItem, setSelectedItem] = useState(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -191,11 +507,29 @@ export default function ForceItemPools() {
             }
 
             try {
-                const response = await fetch(GITHUB_RAW_URL);
-                if (!response.ok) throw new Error('Failed to fetch from GitHub');
+                // Fetch both files in parallel
+                const [javaResponse, configResponse] = await Promise.all([
+                    fetch(GITHUB_RAW_URL),
+                    fetch(CONFIG_URL)
+                ]);
 
-                const content = await response.text();
-                const parsedItems = parseJavaFile(content);
+                if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
+
+                const javaContent = await javaResponse.text();
+                const parsedItems = parseJavaFile(javaContent);
+
+                // Parse descriptions if available
+                if (configResponse.ok) {
+                    const configContent = await configResponse.text();
+                    const descriptions = parseConfigYaml(configContent);
+
+                    // Merge descriptions into items
+                    parsedItems.forEach(item => {
+                        if (descriptions[item.material]) {
+                            item.description = descriptions[item.material];
+                        }
+                    });
+                }
 
                 const cacheData = { items: parsedItems, timestamp: Date.now() };
                 setCache(cacheData);
@@ -224,10 +558,16 @@ export default function ForceItemPools() {
                 return false;
             }
 
-            // Tag filters (show items that have ANY of the selected tags)
+            // Tag filters
             const activeTags = Object.entries(tagFilters).filter(([, v]) => v).map(([k]) => k);
-            if (activeTags.length > 0 && !activeTags.some(tag => item.tags.includes(tag))) {
-                return false;
+            if (activeTags.length > 0) {
+                const hasRequiredTag = activeTags.some(tag => {
+                    if (tag === 'DESCRIPTION') {
+                        return item.description && item.description.length > 0;
+                    }
+                    return item.tags.includes(tag);
+                });
+                if (!hasRequiredTag) return false;
             }
 
             return true;
@@ -242,6 +582,7 @@ export default function ForceItemPools() {
         nether: items.filter(i => i.tags.includes('NETHER')).length,
         end: items.filter(i => i.tags.includes('END')).length,
         extreme: items.filter(i => i.tags.includes('EXTREME')).length,
+        description: items.filter(i => i.description && i.description.length > 0).length,
     }), [items]);
 
     const toggleTag = (tag) => {
@@ -303,6 +644,9 @@ export default function ForceItemPools() {
             color: COLORS.text,
             padding: '24px'
         }}>
+            {/* Modal */}
+            <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
+
             {/* Header */}
             <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -346,6 +690,7 @@ export default function ForceItemPools() {
                         { label: 'Nether', value: stats.nether, color: COLORS.nether },
                         { label: 'End', value: stats.end, color: COLORS.end },
                         { label: 'Extreme', value: stats.extreme, color: COLORS.extreme },
+                        { label: 'With Info', value: stats.description, color: COLORS.description },
                     ].map(stat => (
                         <div key={stat.label} style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: stat.color }}>
@@ -411,14 +756,14 @@ export default function ForceItemPools() {
                             Item Tags
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {['NETHER', 'END', 'EXTREME'].map(tag => (
+                            {['NETHER', 'END', 'EXTREME', 'DESCRIPTION'].map(tag => (
                                 <FilterButton
                                     key={tag}
                                     active={tagFilters[tag]}
                                     onClick={() => toggleTag(tag)}
                                     color={COLORS[tag.toLowerCase()]}
                                 >
-                                    {tag} ({stats[tag.toLowerCase()]})
+                                    {tag === 'DESCRIPTION' ? 'HAS INFO' : tag} ({stats[tag.toLowerCase()]})
                                 </FilterButton>
                             ))}
                         </div>
@@ -432,6 +777,11 @@ export default function ForceItemPools() {
                     fontSize: '13px'
                 }}>
                     Showing {filteredItems.length} of {stats.total} items
+                    {stats.description > 0 && (
+                        <span style={{ color: COLORS.description, marginLeft: '8px' }}>
+              • Click items with ℹ for details
+            </span>
+                    )}
                 </div>
 
                 {/* Item Grid */}
@@ -441,7 +791,11 @@ export default function ForceItemPools() {
                     gap: '12px'
                 }}>
                     {filteredItems.map(item => (
-                        <ItemCard key={item.material} item={item} />
+                        <ItemCard
+                            key={item.material}
+                            item={item}
+                            onClick={setSelectedItem}
+                        />
                     ))}
                 </div>
 
