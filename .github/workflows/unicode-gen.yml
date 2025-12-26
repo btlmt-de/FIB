@@ -1,4 +1,4 @@
-name: Unicode Generator
+name: FIB Auto-Build
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'ForceItemBattle/assets/minecraft/textures/fib/**.png'
+      - 'FIB_Worldgen/**'
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
@@ -42,6 +43,15 @@ jobs:
           echo "Created ForceItemBattle.zip"
           ls -lh ForceItemBattle.zip
 
+      - name: Create datapack zip
+        run: |
+          # Remove old zip if exists
+          rm -f FIB_Worldgen.zip
+          # Create new zip (excluding hidden files)
+          cd FIB_Worldgen && zip -r ../FIB_Worldgen.zip . -x ".*" && cd ..
+          echo "Created FIB_Worldgen.zip"
+          ls -lh FIB_Worldgen.zip
+
       - name: Check for changes
         id: changes
         run: |
@@ -57,5 +67,5 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git commit -m "Auto-generate font files and resource pack"
+          git commit -m "Auto-generate files and update zips"
           git push
