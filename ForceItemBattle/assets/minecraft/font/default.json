@@ -272,7 +272,7 @@
     },
     {
       "type": "bitmap",
-      "file": "minecraft:fib/acacia_stairs2.png",
+      "file": "minecraft:fib/acacia_stairs.png",
       "height": 15,
       "ascent": 9,
       "chars": [
@@ -281,7 +281,7 @@
     },
     {
       "type": "bitmap",
-      "file": "minecraft:fib/acacia_stairs2.png",
+      "file": "minecraft:fib/acacia_stairs.png",
       "height": 10,
       "ascent": 9,
       "chars": [
