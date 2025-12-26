@@ -23,7 +23,7 @@ jobs:
 
       - name: Generate font files
         run: |
-          python scripts/generate_font_files.py \
+          python scripts/unicodeGen.py \
             ForceItemBattle/assets/minecraft/textures/fib \
             --unicode-output unicodeItems.json \
             --font-output ForceItemBattle/assets/minecraft/font/default.json
