@@ -1889,3 +1889,9 @@ descriptions:
     - "&7"
     - "&7A copper golem statue is the result of a copper golem fully oxidizing and petrifying into a block"
     - "&7Right click the golem statue with an axe to get the different variations"
+  ACACIA_CHEST_BOAT:
+    - "&b&lAcacia Chest Boat &7| &6Item Information"
+    - "&7"
+    - "&7Tool: &aTest"
+    - "&7Characteristics: &aTest"
+    - "&7Chance: &a15%"
