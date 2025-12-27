@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DescriptionEditor from './DescriptionEditor';
+import GitHistory from './GitHistory';
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
@@ -569,6 +570,7 @@ export default function ForceItemPools() {
     const [editMode, setEditMode] = useState(false);
     const [editItem, setEditItem] = useState(null);
     const [currentBranch, setCurrentBranch] = useState(getStoredBranch());
+    const [showHistory, setShowHistory] = useState(false);
 
     // Handle description save from editor
     const handleDescriptionSave = (materialName, newDescription) => {
@@ -975,6 +977,27 @@ export default function ForceItemPools() {
                             }}>↻</span>
                             Refresh
                         </button>
+                        <button
+                            onClick={() => setShowHistory(true)}
+                            title="View git commit history"
+                            style={{
+                                padding: '8px 16px',
+                                background: 'transparent',
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '4px',
+                                color: COLORS.textMuted,
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <span>📜</span>
+                            History
+                        </button>
                         {currentBranch !== DEFAULT_BRANCH && (
                             <span style={{
                                 padding: '6px 10px',
@@ -988,7 +1011,7 @@ export default function ForceItemPools() {
                                 alignItems: 'center',
                                 gap: '4px'
                             }}>
-                                {currentBranch}
+                                🌿 {currentBranch}
                             </span>
                         )}
                     </div>
@@ -1038,9 +1061,15 @@ export default function ForceItemPools() {
             {editItem && (
                 <DescriptionEditor
                     item={editItem}
+                    allItems={items}
                     onClose={() => setEditItem(null)}
                     onSave={handleDescriptionSave}
                 />
+            )}
+
+            {/* Git History Modal */}
+            {showHistory && (
+                <GitHistory onClose={() => setShowHistory(false)} />
             )}
         </div>
     );

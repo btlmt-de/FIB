@@ -33,7 +33,15 @@ const COLORS = {
     accent: '#5865F2',
     success: '#55FF55',
     error: '#FF5555',
-    warning: '#FFFF55'
+    warning: '#FFFF55',
+    // State colors for reference panel
+    early: '#55FF55',
+    mid: '#FFFF55',
+    late: '#FF5555',
+    nether: '#AA0000',
+    end: '#AA00AA',
+    extreme: '#FF55FF',
+    description: '#55FFFF'
 };
 
 // Common field templates based on config.yml patterns
@@ -440,7 +448,7 @@ function TemplateButton({ template, onClick }) {
     );
 }
 
-export default function DescriptionEditor({ item, onClose, onSave }) {
+export default function DescriptionEditor({ item, allItems = [], onClose, onSave }) {
     // Check for existing draft
     const existingDraft = getStoredDraft(item.material);
 
@@ -475,6 +483,21 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
     const [selectedBranch, setSelectedBranch] = useState(getStoredBranch());
     const [hasDraft, setHasDraft] = useState(!!existingDraft);
     const [draftTimestamp, setDraftTimestamp] = useState(existingDraft?.timestamp || null);
+
+    // Reference panel state
+    const [showReference, setShowReference] = useState(false);
+    const [referenceSearch, setReferenceSearch] = useState('');
+    const [selectedReference, setSelectedReference] = useState(null);
+
+    // Filter items for reference search (only items with descriptions, excluding current item)
+    const referenceItems = allItems.filter(i =>
+        i.material !== item.material &&
+        i.description &&
+        i.description.length > 0 &&
+        (referenceSearch === '' ||
+            i.displayName.toLowerCase().includes(referenceSearch.toLowerCase()) ||
+            i.material.toLowerCase().includes(referenceSearch.toLowerCase()))
+    ).slice(0, 20); // Limit to 20 results
 
     // Check if item has an existing description (not just default template)
     const hasExistingDescription = item.description && item.description.length > 0;
@@ -950,10 +973,11 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
                 background: COLORS.bg,
                 borderRadius: '12px',
                 width: '100%',
-                maxWidth: '1000px',
+                maxWidth: showReference ? '1400px' : '1000px',
                 maxHeight: '90vh',
                 overflow: 'auto',
-                border: `1px solid ${COLORS.border}`
+                border: `1px solid ${COLORS.border}`,
+                transition: 'max-width 0.2s ease'
             }}>
                 {/* Header */}
                 <div style={{
@@ -1083,6 +1107,33 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
                                     />
                                 ))}
                             </div>
+                        </div>
+
+                        {/* Reference toggle button */}
+                        <div style={{ marginBottom: '16px' }}>
+                            <button
+                                onClick={() => setShowReference(!showReference)}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    background: showReference ? COLORS.accent + '22' : 'transparent',
+                                    border: `1px solid ${showReference ? COLORS.accent : COLORS.border}`,
+                                    borderRadius: '4px',
+                                    color: showReference ? COLORS.accent : COLORS.textMuted,
+                                    fontSize: '11px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '6px',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <span>📋</span>
+                                <span>{showReference ? 'Hide Reference Panel' : 'Show Reference Panel'}</span>
+                            </button>
                         </div>
 
                         <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -1281,6 +1332,179 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
                             </div>
                         </div>
                     </div>
+
+                    {/* Reference Panel - Side by side */}
+                    {showReference && (
+                        <div style={{
+                            flex: '1 1 300px',
+                            minWidth: '280px',
+                            maxWidth: '350px',
+                            background: COLORS.bgLight,
+                            borderRadius: '6px',
+                            padding: '12px',
+                            border: `1px solid ${COLORS.accent}44`,
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '10px'
+                            }}>
+                                <div style={{ fontSize: '11px', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                    📋 Reference
+                                </div>
+                                <button
+                                    onClick={() => setShowReference(false)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: COLORS.textMuted,
+                                        cursor: 'pointer',
+                                        fontSize: '16px',
+                                        padding: '0 4px'
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <input
+                                type="text"
+                                placeholder="Search items..."
+                                value={referenceSearch}
+                                onChange={e => {
+                                    setReferenceSearch(e.target.value);
+                                    setSelectedReference(null);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 10px',
+                                    background: COLORS.bg,
+                                    border: `1px solid ${COLORS.border}`,
+                                    borderRadius: '4px',
+                                    color: COLORS.text,
+                                    fontSize: '12px',
+                                    marginBottom: '8px'
+                                }}
+                            />
+
+                            {/* Item list */}
+                            <div style={{
+                                flex: selectedReference ? '0 0 auto' : '1',
+                                maxHeight: selectedReference ? '120px' : '200px',
+                                overflowY: 'auto',
+                                marginBottom: '8px',
+                                background: COLORS.bg,
+                                borderRadius: '4px',
+                                padding: '4px'
+                            }}>
+                                {referenceItems.length === 0 ? (
+                                    <div style={{ color: COLORS.textMuted, fontSize: '11px', padding: '12px', textAlign: 'center' }}>
+                                        {referenceSearch ? 'No matches' : 'Type to search'}
+                                    </div>
+                                ) : (
+                                    referenceItems.map(refItem => (
+                                        <div
+                                            key={refItem.material}
+                                            onClick={() => setSelectedReference(
+                                                selectedReference?.material === refItem.material ? null : refItem
+                                            )}
+                                            style={{
+                                                padding: '6px 8px',
+                                                background: selectedReference?.material === refItem.material
+                                                    ? COLORS.accent + '33'
+                                                    : 'transparent',
+                                                borderRadius: '3px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                fontSize: '11px',
+                                                color: COLORS.text,
+                                                transition: 'background 0.1s'
+                                            }}
+                                            onMouseEnter={e => {
+                                                if (selectedReference?.material !== refItem.material) {
+                                                    e.currentTarget.style.background = COLORS.bgLighter;
+                                                }
+                                            }}
+                                            onMouseLeave={e => {
+                                                if (selectedReference?.material !== refItem.material) {
+                                                    e.currentTarget.style.background = 'transparent';
+                                                }
+                                            }}
+                                        >
+                                            <span>{refItem.displayName}</span>
+                                            <span style={{
+                                                color: COLORS[refItem.state.toLowerCase()] || COLORS.textMuted,
+                                                fontSize: '9px',
+                                                textTransform: 'uppercase'
+                                            }}>
+                                                {refItem.state}
+                                            </span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Selected reference preview */}
+                            {selectedReference && (
+                                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                                    <div style={{
+                                        fontSize: '10px',
+                                        color: COLORS.text,
+                                        marginBottom: '6px',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        fontWeight: '600'
+                                    }}>
+                                        <span>{selectedReference.displayName}</span>
+                                        <span style={{ color: COLORS.description, fontWeight: '400' }}>
+                                            {selectedReference.description.length} lines
+                                        </span>
+                                    </div>
+
+                                    {/* Formatted preview */}
+                                    <div style={{
+                                        background: '#000',
+                                        padding: '8px 10px',
+                                        borderRadius: '3px',
+                                        fontFamily: "'Minecraft', monospace",
+                                        fontSize: '11px',
+                                        flex: '1',
+                                        overflowY: 'auto',
+                                        marginBottom: '8px',
+                                        minHeight: '80px'
+                                    }}>
+                                        {selectedReference.description.map((descLine, idx) => (
+                                            <div key={idx} style={{ marginBottom: '2px' }}>
+                                                <FormattedLine text={descLine} />
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Raw codes */}
+                                    <div style={{
+                                        fontSize: '9px',
+                                        color: COLORS.textMuted,
+                                        fontFamily: 'monospace',
+                                        background: COLORS.bg,
+                                        padding: '6px 8px',
+                                        borderRadius: '3px',
+                                        maxHeight: '80px',
+                                        overflowY: 'auto'
+                                    }}>
+                                        {selectedReference.description.map((descLine, idx) => (
+                                            <div key={idx} style={{ marginBottom: '1px' }}>{descLine}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer - Auth & Actions */}
