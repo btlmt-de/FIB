@@ -101,6 +101,46 @@ const DEFAULT_BRANCH = 'main';
 // If empty, GitHub's own permission system handles access control
 const ALLOWED_USERS = []; // e.g., ['username1', 'username2']
 
+// Draft auto-save key prefix
+const DRAFT_KEY_PREFIX = 'fib_draft_';
+
+// Draft storage functions
+function getDraftKey(material) {
+    return `${DRAFT_KEY_PREFIX}${material}`;
+}
+
+function getStoredDraft(material) {
+    try {
+        const draft = localStorage.getItem(getDraftKey(material));
+        if (draft) {
+            const { lines, timestamp } = JSON.parse(draft);
+            return { lines, timestamp };
+        }
+    } catch (e) {
+        console.error('Draft read error:', e);
+    }
+    return null;
+}
+
+function storeDraft(material, lines) {
+    try {
+        localStorage.setItem(getDraftKey(material), JSON.stringify({
+            lines,
+            timestamp: Date.now()
+        }));
+    } catch (e) {
+        console.error('Draft write error:', e);
+    }
+}
+
+function clearDraft(material) {
+    try {
+        localStorage.removeItem(getDraftKey(material));
+    } catch (e) {
+        console.error('Draft clear error:', e);
+    }
+}
+
 // Parse Minecraft formatting codes into styled spans
 function parseMinecraftFormatting(text) {
     if (!text) return null;
@@ -401,8 +441,15 @@ function TemplateButton({ template, onClick }) {
 }
 
 export default function DescriptionEditor({ item, onClose, onSave }) {
-    // Initialize with existing description or default template
+    // Check for existing draft
+    const existingDraft = getStoredDraft(item.material);
+
+    // Initialize with draft, existing description, or default template
     const getInitialLines = () => {
+        // Check for saved draft first
+        if (existingDraft) {
+            return [...existingDraft.lines];
+        }
         if (item.description && item.description.length > 0) {
             return [...item.description];
         }
@@ -426,9 +473,35 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
     const [hasAccess, setHasAccess] = useState(null);
     const [branches, setBranches] = useState([DEFAULT_BRANCH]);
     const [selectedBranch, setSelectedBranch] = useState(getStoredBranch());
+    const [hasDraft, setHasDraft] = useState(!!existingDraft);
+    const [draftTimestamp, setDraftTimestamp] = useState(existingDraft?.timestamp || null);
 
     // Check if item has an existing description (not just default template)
     const hasExistingDescription = item.description && item.description.length > 0;
+
+    // Auto-save draft when lines change (debounced)
+    useEffect(() => {
+        // Don't save if lines match the original description exactly
+        const originalLines = item.description || [];
+        const linesMatch = lines.length === originalLines.length &&
+            lines.every((line, i) => line === originalLines[i]);
+
+        if (linesMatch) {
+            // Clear draft if we're back to original
+            clearDraft(item.material);
+            setHasDraft(false);
+            return;
+        }
+
+        // Debounce the save
+        const timeoutId = setTimeout(() => {
+            storeDraft(item.material, lines);
+            setHasDraft(true);
+            setDraftTimestamp(Date.now());
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [lines, item.material, item.description]);
 
     // Verify token on mount if we have one stored
     useEffect(() => {
@@ -438,6 +511,16 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
             setHasAccess(true);
             // Fetch branches if we have a stored user
             fetchBranches(githubToken).then(b => setBranches(b));
+        }
+
+        // Show notification if draft was restored
+        if (existingDraft) {
+            setSaveStatus({
+                type: 'info',
+                message: `📝 Draft restored from ${new Date(existingDraft.timestamp).toLocaleString()}`
+            });
+            // Auto-clear after 3 seconds
+            setTimeout(() => setSaveStatus(null), 3000);
         }
     }, []);
 
@@ -579,6 +662,10 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
 
             setSaveStatus({ type: 'success', message: `Successfully saved to ${selectedBranch}!` });
 
+            // Clear draft since we've saved successfully
+            clearDraft(item.material);
+            setHasDraft(false);
+
             // Invalidate cache - clear both old and new cache keys and set edit timestamp
             try {
                 localStorage.removeItem('forceitem_pools_cache_v2');
@@ -606,6 +693,22 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
         setHasAccess(null);
         setShowTokenInput(true);
         setSaveStatus(null);
+    };
+
+    const handleDiscardDraft = () => {
+        clearDraft(item.material);
+        setHasDraft(false);
+        // Reset to original description or default template
+        if (item.description && item.description.length > 0) {
+            setLines([...item.description]);
+        } else {
+            setLines([
+                generateDefaultHeader(item.displayName),
+                '&7',
+            ]);
+        }
+        setSaveStatus({ type: 'info', message: 'Draft discarded' });
+        setTimeout(() => setSaveStatus(null), 2000);
     };
 
     const handleDelete = async () => {
@@ -641,6 +744,10 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
             );
 
             setSaveStatus({ type: 'success', message: `Description deleted from ${selectedBranch}!` });
+
+            // Clear draft since we've deleted successfully
+            clearDraft(item.material);
+            setHasDraft(false);
 
             // Invalidate cache
             try {
@@ -892,8 +999,37 @@ export default function DescriptionEditor({ item, onClose, onSave }) {
                                 📖 Wiki
                             </a>
                         </h2>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '4px' }}>
+                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {item.material}
+                            {hasDraft && (
+                                <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '2px 8px',
+                                    background: '#FFAA0022',
+                                    border: '1px solid #FFAA0044',
+                                    borderRadius: '4px',
+                                    color: '#FFAA00',
+                                    fontSize: '11px'
+                                }}>
+                                    💾 Draft saved {draftTimestamp && `• ${new Date(draftTimestamp).toLocaleTimeString()}`}
+                                    <button
+                                        onClick={handleDiscardDraft}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#FF5555',
+                                            cursor: 'pointer',
+                                            padding: '0 2px',
+                                            fontSize: '11px',
+                                            textDecoration: 'underline'
+                                        }}
+                                    >
+                                        Discard
+                                    </button>
+                                </span>
+                            )}
                         </div>
                     </div>
                     <button
