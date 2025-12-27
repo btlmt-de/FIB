@@ -1,10 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import DescriptionEditor from './DescriptionEditor';
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
-const CONFIG_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/config.yml';
+const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-const CACHE_KEY = 'forceitem_pools_cache_v2';
+const CACHE_KEY = 'forceitem_pools_cache_v3';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const LAST_EDIT_KEY = 'forceitem_last_edit';
+const BRANCH_KEY = 'fib_github_branch';
+const DEFAULT_BRANCH = 'main';
+
+// Get the stored branch or default to main
+function getStoredBranch() {
+    try {
+        return localStorage.getItem(BRANCH_KEY) || DEFAULT_BRANCH;
+    } catch {
+        return DEFAULT_BRANCH;
+    }
+}
+
+// Get config URL for a specific branch
+function getConfigUrl(branch) {
+    return `${CONFIG_BASE_URL}/${branch}/config.yml`;
+}
 
 // Minecraft color codes mapping
 const MC_COLORS = {
@@ -194,11 +212,31 @@ function parseConfigYaml(content) {
     return descriptions;
 }
 
-function getCache() {
+function getCache(branch) {
     try {
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
-            const { data, timestamp } = JSON.parse(cached);
+            const { data, timestamp, cachedBranch } = JSON.parse(cached);
+
+            // Check if cache is for a different branch
+            if (cachedBranch && cachedBranch !== branch) {
+                console.log(`Cache invalidated: branch changed from ${cachedBranch} to ${branch}`);
+                localStorage.removeItem(CACHE_KEY);
+                return null;
+            }
+
+            // Check if there was a recent edit that should invalidate the cache
+            const lastEdit = localStorage.getItem(LAST_EDIT_KEY);
+            if (lastEdit) {
+                const lastEditTime = parseInt(lastEdit, 10);
+                // If the cache was created before the last edit, invalidate it
+                if (timestamp < lastEditTime) {
+                    console.log('Cache invalidated due to recent edit');
+                    localStorage.removeItem(CACHE_KEY);
+                    return null;
+                }
+            }
+
             if (Date.now() - timestamp < CACHE_DURATION) {
                 return data;
             }
@@ -209,18 +247,30 @@ function getCache() {
     return null;
 }
 
-function setCache(data) {
+function setCache(data, branch) {
     try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({
             data,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            cachedBranch: branch
         }));
+        // Clear the last edit marker since we now have fresh data
+        localStorage.removeItem(LAST_EDIT_KEY);
     } catch (e) {
         console.error('Cache write error:', e);
     }
 }
 
-function ItemCard({ item, onClick }) {
+function invalidateCache() {
+    try {
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.setItem(LAST_EDIT_KEY, Date.now().toString());
+    } catch (e) {
+        console.error('Cache invalidation error:', e);
+    }
+}
+
+function ItemCard({ item, onClick, editMode, onEdit }) {
     const stateColor = COLORS[item.state.toLowerCase()] || COLORS.text;
     const hasDescription = item.description && item.description.length > 0;
 
@@ -228,16 +278,23 @@ function ItemCard({ item, onClick }) {
         <div
             style={{
                 background: COLORS.bgLight,
-                border: `1px solid ${hasDescription ? COLORS.description + '44' : COLORS.border}`,
+                border: `1px solid ${editMode ? COLORS.accent + '44' : hasDescription ? COLORS.description + '44' : COLORS.border}`,
                 borderRadius: '4px',
                 padding: '10px 12px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '6px',
                 transition: 'transform 0.15s, box-shadow 0.15s',
-                cursor: hasDescription ? 'pointer' : 'default',
+                cursor: editMode || hasDescription ? 'pointer' : 'default',
+                position: 'relative'
             }}
-            onClick={() => hasDescription && onClick(item)}
+            onClick={() => {
+                if (editMode) {
+                    onEdit(item);
+                } else if (hasDescription) {
+                    onClick(item);
+                }
+            }}
             onMouseEnter={e => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3)`;
@@ -247,6 +304,21 @@ function ItemCard({ item, onClick }) {
                 e.currentTarget.style.boxShadow = 'none';
             }}
         >
+            {editMode && (
+                <div style={{
+                    position: 'absolute',
+                    top: '6px',
+                    right: '6px',
+                    background: COLORS.accent,
+                    color: '#fff',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    fontSize: '10px',
+                    fontWeight: '600'
+                }}>
+                    ✎
+                </div>
+            )}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -494,11 +566,73 @@ export default function ForceItemPools() {
     const [tagFilters, setTagFilters] = useState({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
     const [lastUpdated, setLastUpdated] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
+    const [editMode, setEditMode] = useState(false);
+    const [editItem, setEditItem] = useState(null);
+    const [currentBranch, setCurrentBranch] = useState(getStoredBranch());
+
+    // Handle description save from editor
+    const handleDescriptionSave = (materialName, newDescription) => {
+        setItems(prevItems => prevItems.map(item =>
+            item.material === materialName
+                ? { ...item, description: newDescription }
+                : item
+        ));
+        // Update current branch to match what was used in editor
+        setCurrentBranch(getStoredBranch());
+        // Invalidate cache so next reload fetches fresh data
+        invalidateCache();
+    };
+
+    // Manual refresh function
+    const handleRefresh = async () => {
+        // Get the latest branch setting
+        const branch = getStoredBranch();
+        setCurrentBranch(branch);
+
+        invalidateCache();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const [javaResponse, configResponse] = await Promise.all([
+                fetch(GITHUB_RAW_URL),
+                fetch(getConfigUrl(branch))
+            ]);
+
+            if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
+
+            const javaContent = await javaResponse.text();
+            const parsedItems = parseJavaFile(javaContent);
+
+            if (configResponse.ok) {
+                const configContent = await configResponse.text();
+                const descriptions = parseConfigYaml(configContent);
+
+                parsedItems.forEach(item => {
+                    if (descriptions[item.material]) {
+                        item.description = descriptions[item.material];
+                    }
+                });
+            }
+
+            const cacheData = { items: parsedItems, timestamp: Date.now() };
+            setCache(cacheData, branch);
+            setItems(parsedItems);
+            setLastUpdated(new Date());
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         async function fetchData() {
+            const branch = getStoredBranch();
+            setCurrentBranch(branch);
+
             // Check cache first
-            const cached = getCache();
+            const cached = getCache(branch);
             if (cached) {
                 setItems(cached.items);
                 setLastUpdated(new Date(cached.timestamp));
@@ -510,7 +644,7 @@ export default function ForceItemPools() {
                 // Fetch both files in parallel
                 const [javaResponse, configResponse] = await Promise.all([
                     fetch(GITHUB_RAW_URL),
-                    fetch(CONFIG_URL)
+                    fetch(getConfigUrl(branch))
                 ]);
 
                 if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
@@ -532,7 +666,7 @@ export default function ForceItemPools() {
                 }
 
                 const cacheData = { items: parsedItems, timestamp: Date.now() };
-                setCache(cacheData);
+                setCache(cacheData, branch);
                 setItems(parsedItems);
                 setLastUpdated(new Date());
             } catch (e) {
@@ -774,14 +908,90 @@ export default function ForceItemPools() {
                 <div style={{
                     marginBottom: '16px',
                     color: COLORS.textMuted,
-                    fontSize: '13px'
+                    fontSize: '13px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
                 }}>
-                    Showing {filteredItems.length} of {stats.total} items
-                    {stats.description > 0 && (
-                        <span style={{ color: COLORS.description, marginLeft: '8px' }}>
-              • Click items with ℹ for details
-            </span>
-                    )}
+                    <div>
+                        Showing {filteredItems.length} of {stats.total} items
+                        {stats.description > 0 && !editMode && (
+                            <span style={{ color: COLORS.description, marginLeft: '8px' }}>
+                              • Click items with ℹ for details
+                            </span>
+                        )}
+                        {editMode && (
+                            <span style={{ color: COLORS.accent, marginLeft: '8px' }}>
+                              • Click any item to edit its description
+                            </span>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button
+                            onClick={() => setEditMode(!editMode)}
+                            style={{
+                                padding: '8px 16px',
+                                background: editMode ? COLORS.accent : 'transparent',
+                                border: `1px solid ${editMode ? COLORS.accent : COLORS.border}`,
+                                borderRadius: '4px',
+                                color: editMode ? '#fff' : COLORS.textMuted,
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <span>✎</span>
+                            {editMode ? 'Exit Edit Mode' : 'Edit Descriptions'}
+                        </button>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={loading}
+                            title={`Refresh data from ${currentBranch} branch`}
+                            style={{
+                                padding: '8px 16px',
+                                background: 'transparent',
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '4px',
+                                color: COLORS.textMuted,
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                opacity: loading ? 0.5 : 1
+                            }}
+                        >
+                            <span style={{
+                                display: 'inline-block',
+                                animation: loading ? 'spin 1s linear infinite' : 'none'
+                            }}>↻</span>
+                            Refresh
+                        </button>
+                        {currentBranch !== DEFAULT_BRANCH && (
+                            <span style={{
+                                padding: '6px 10px',
+                                background: '#FFAA0022',
+                                border: '1px solid #FFAA0044',
+                                borderRadius: '4px',
+                                color: '#FFAA00',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                            }}>
+                                🌿 {currentBranch}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Item Grid */}
@@ -795,6 +1005,8 @@ export default function ForceItemPools() {
                             key={item.material}
                             item={item}
                             onClick={setSelectedItem}
+                            editMode={editMode}
+                            onEdit={setEditItem}
                         />
                     ))}
                 </div>
@@ -821,6 +1033,15 @@ export default function ForceItemPools() {
                     Data fetched from GitHub
                 </div>
             </div>
+
+            {/* Description Editor Modal */}
+            {editItem && (
+                <DescriptionEditor
+                    item={editItem}
+                    onClose={() => setEditItem(null)}
+                    onSave={handleDescriptionSave}
+                />
+            )}
         </div>
     );
 }
