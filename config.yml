@@ -1892,6 +1892,4 @@ descriptions:
   ACACIA_CHEST_BOAT:
     - "&b&lAcacia Chest Boat &7| &6Item Information"
     - "&7"
-    - "&7Tool: &aTest"
-    - "&7Characteristics: &aTest"
-    - "&7Chance: &a15%"
+    - "Test"
