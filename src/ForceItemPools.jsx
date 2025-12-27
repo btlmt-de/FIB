@@ -988,7 +988,7 @@ export default function ForceItemPools() {
                                 alignItems: 'center',
                                 gap: '4px'
                             }}>
-                                🌿 {currentBranch}
+                                {currentBranch}
                             </span>
                         )}
                     </div>
