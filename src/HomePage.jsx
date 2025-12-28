@@ -25,8 +25,13 @@ const CREATORS = [
     },
     {
         username: 'eltobito',
-        role: 'Game Designer',
+        role: 'Content & Systems',
         color: COLORS.aqua
+    },
+    {
+        username: 'stupxd',
+        role: 'Developer',
+        color: COLORS.gold
     },
     {
         username: 'apppaa',
@@ -41,13 +46,6 @@ const CREATORS = [
 ];
 
 const SPECIAL_THANKS = [
-    {
-        username: 'stupxd',
-        description: 'Early development and concept work',
-        color: COLORS.gold,
-        type: 'github',
-        link: 'https://github.com/stupxd'
-    },
     {
         username: '170yt',
         description: 'Original project we forked and built upon',
@@ -64,7 +62,7 @@ const SPECIAL_THANKS = [
     },
     {
         username: 'Owen1212055',
-        description: 'Resource Pack Contributions',
+        description: 'Custom resourcepack for item display',
         color: COLORS.gold,
         type: 'github',
         link: 'https://github.com/Owen1212055/'
@@ -454,7 +452,7 @@ export default function HomePage({ onNavigate }) {
                     </a>
                 </div>
                 <p style={{ margin: 0 }}>
-                    Made with ❤️
+                    Made with love
                 </p>
                 <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                     Not affiliated with Mojang Studios
