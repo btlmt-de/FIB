@@ -130,7 +130,9 @@ export default function HowToPlay() {
             minHeight: '100vh',
             background: `linear-gradient(180deg, ${COLORS.bg} 0%, #0f0f1a 100%)`,
             color: COLORS.text,
-            fontFamily: "'Segoe UI', system-ui, sans-serif"
+            fontFamily: "'Segoe UI', system-ui, sans-serif",
+            display: 'flex',
+            flexDirection: 'column'
         }}>
             {/* Header */}
             <div style={{
@@ -165,7 +167,8 @@ export default function HowToPlay() {
                 padding: '48px 20px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '24px'
+                gap: '24px',
+                flex: 1
             }}>
                 {/* Option 1: Self-host */}
                 <OptionCard number="1" title="Host your own game" recommended>
@@ -255,6 +258,19 @@ export default function HowToPlay() {
 
                 {/* Option 2: Official server */}
                 <OptionCard number="2" title="Play on our server">
+                    <div style={{
+                        marginBottom: '20px',
+                        padding: '14px 16px',
+                        background: COLORS.accent + '15',
+                        border: `1px solid ${COLORS.accent}33`,
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        color: COLORS.text,
+                        lineHeight: '1.6'
+                    }}>
+                        For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soon™</span>
+                    </div>
+
                     <p style={{
                         color: COLORS.textMuted,
                         fontSize: '15px',
@@ -292,7 +308,7 @@ export default function HowToPlay() {
                                     Join the community
                                 </div>
                                 <a
-                                    href="https://discord.gg/mcplayhd"
+                                    href="http://mcplayhd.net/discord"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     style={{
@@ -366,6 +382,59 @@ export default function HowToPlay() {
                         <strong>Note:</strong> Rounds are hosted spontaneously and participation may be limited. We reserve the right to only invite players who we believe will follow the rules.
                     </div>
                 </OptionCard>
+            </div>
+
+            {/* Footer */}
+            <div style={{
+                textAlign: 'center',
+                padding: '32px 20px',
+                borderTop: `1px solid ${COLORS.border}`,
+                color: COLORS.textMuted,
+                fontSize: '13px'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '24px',
+                    marginBottom: '20px'
+                }}>
+                    <a
+                        href="https://github.com/McPlayHDnet/ForceItemBattle"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            color: COLORS.textMuted,
+                            textDecoration: 'none',
+                            fontSize: '13px',
+                            transition: 'color 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                    >
+                        GitHub
+                    </a>
+                    <a
+                        href="https://mcplayhd.net"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                            color: COLORS.textMuted,
+                            textDecoration: 'none',
+                            fontSize: '13px',
+                            transition: 'color 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                    >
+                        McPlayHD.net
+                    </a>
+                </div>
+                <p style={{ margin: 0 }}>
+                    Made with ❤️
+                </p>
+                <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
+                    Not affiliated with Mojang Studios
+                </p>
             </div>
         </div>
     );
