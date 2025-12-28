@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import HomePage from './HomePage.jsx';
+import HomePage from './HomePage';
 import ForceItemPools from './ForceItemPools';
+import HowToPlay from './HowToPlay';
 
 const COLORS = {
     bg: '#1a1a2e',
@@ -82,6 +83,29 @@ function Navigation({ currentPage, onNavigate }) {
                 </button>
 
                 <button
+                    onClick={() => onNavigate('how-to-play')}
+                    style={{
+                        background: currentPage === 'how-to-play' ? COLORS.bgLight : 'transparent',
+                        border: 'none',
+                        color: currentPage === 'how-to-play' ? COLORS.text : COLORS.textMuted,
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        padding: '8px 14px',
+                        borderRadius: '4px',
+                        transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                        if (currentPage !== 'how-to-play') e.currentTarget.style.background = COLORS.bgLight;
+                    }}
+                    onMouseLeave={e => {
+                        if (currentPage !== 'how-to-play') e.currentTarget.style.background = 'transparent';
+                    }}
+                >
+                    How to Play
+                </button>
+
+                <button
                     onClick={() => onNavigate('pools')}
                     style={{
                         background: currentPage === 'pools' ? COLORS.bgLight : 'transparent',
@@ -105,7 +129,7 @@ function Navigation({ currentPage, onNavigate }) {
                 </button>
 
                 {/* Future nav items - disabled */}
-                {['How to Play', 'Settings', 'Commands'].map(item => (
+                {['Settings', 'Commands'].map(item => (
                     <button
                         key={item}
                         disabled
@@ -134,6 +158,7 @@ export default function App() {
     const getPageFromHash = () => {
         const hash = window.location.hash.slice(1);
         if (hash === 'pools') return 'pools';
+        if (hash === 'how-to-play') return 'how-to-play';
         return 'home';
     };
 
@@ -162,6 +187,10 @@ export default function App() {
 
             {currentPage === 'home' && (
                 <HomePage onNavigate={navigate} />
+            )}
+
+            {currentPage === 'how-to-play' && (
+                <HowToPlay />
             )}
 
             {currentPage === 'pools' && (

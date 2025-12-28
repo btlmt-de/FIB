@@ -70,7 +70,6 @@ const SPECIAL_THANKS = [
 ];
 
 const FUTURE_PAGES = [
-    { name: 'How to Play', description: 'Learn the basics' },
     { name: 'Game Settings', description: 'Configuration options' },
     { name: 'Custom Structures', description: 'Unique world generation' },
     { name: 'Commands', description: 'All available commands' },
@@ -452,7 +451,7 @@ export default function HomePage({ onNavigate }) {
                     </a>
                 </div>
                 <p style={{ margin: 0 }}>
-                    Made with love
+                    Made with ❤️
                 </p>
                 <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                     Not affiliated with Mojang Studios
