@@ -32,9 +32,20 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Debug SSH Key
+        run: |
+          echo "Key file size:"
+          wc -c ~/.ssh/deploy_key
+          echo ""
+          echo "Key fingerprint:"
+          ssh-keygen -lf ~/.ssh/deploy_key || echo "Failed to read key - likely corrupted"
+          echo ""
+          echo "Line count:"
+          wc -l ~/.ssh/deploy_key
+
       - name: Test SSH Connection
         run: |
-          ssh -i ~/.ssh/deploy_key -o BatchMode=yes ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -v ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
 
       - name: Deploy with rsync
         run: |
