@@ -1758,7 +1758,7 @@ descriptions:
     - "&7Biomes: &aPale Garden"
     - "&aThe Pale Garden &7typically generates inside of the &adark forest &7(meaning the dark forest typically surrounds this biome)"
     - "&7It changes state depending on the daylight cycle, closing during the day and &aopening at night"
-    - "&aWandering traders &7may sell the &aopen eyeblossom &7for &a1 Emerald"
+    - "&aThe Wandering Trader &7may sell &aopen eyeblossom"
   CLOSED_EYEBLOSSOM:
     - "&b&lOpen Eyeblossom &7| &6Item Information"
     - "&7"
