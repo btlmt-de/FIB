@@ -1038,7 +1038,7 @@ descriptions:
     - "&7"
     - "&7Biomes: &aMangrove Swamp"
     - "&7Hanging &amangrove propagules &7generate under leaf blocks of mangrove trees that spawn in &amangrove swamps"
-    - "&aWandering traders &7may sell the &amangrove propagule &7for &a5 Emeralds"
+    - "&aThe Wandering Trader &7may sell &amangrove propagules"
   RED_SAND:
     - "&b&lRed Sand &7| &6Item Information"
     - "&7"
