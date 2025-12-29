@@ -1026,7 +1026,7 @@ descriptions:
   CHERRY_SAPLING:
     - "&b&lCherry Sapling &7| &6Item Information"
     - "&7"
-    - "&aWandering traders &7may sell the &acherry sapling &7for &a5 Emeralds"
+    - "&aThe Wandering Trader &7may sell &acherry saplings"
   DARK_OAK_SAPLING:
     - "&b&lDark Oak Sapling &7| &6Item Information"
     - "&7"
