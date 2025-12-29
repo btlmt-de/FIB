@@ -1791,7 +1791,7 @@ descriptions:
     - "&7Firefly bushes generate in the form of random patches, on grass blocks near water in most Overworld biomes"
     - "&7They also can generate on mud blocks near water in mangrove swamps"
     - "&7In swamps, firefly bushes can generate anywhere, instead of being limited to near water"
-    - "&aWandering traders &7may sell &afirefly bushes &7for &a3 Emeralds"
+    - "&aThe Wandering Trader &7may sell &afirefly bushes"
   LEAF_LITTER:
     - "&b&lLeaf Litter &7| &6Item Information"
     - "&7"
