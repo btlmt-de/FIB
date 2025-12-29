@@ -1290,7 +1290,7 @@ descriptions:
     - "&7"
     - "&7Biomes: &aPlains&7, &aSunflower Plains&7, &aFlower Forest"
     - "&7Characteristics: &ared"
-    - "&aWandering traders &7may sell a &ared tulip &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &ared tulips"
     - "&7Potted red tulips can be found in woodland mansions"
   ORANGE_TULIP:
     - "&b&lOrange Tulip &7| &6Item Information"
