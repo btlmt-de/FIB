@@ -1159,12 +1159,6 @@ descriptions:
     - "&b&lNether Sprouts &7| &6Item Information"
     - "&7"
     - "&aNether sprouts &7are a non-solid fungi block that generate in &awarped forests"
-  OAK_LOG:
-    - "&b&lOak Log &7| &6Item Information"
-    - "&7"
-    - "&7Biomes: &aPlains"
-    - "&aOak logs &7generate as part of houses and at some meeting points in &aplains villages&7, and as supporting beams of &aswamp huts &7and normal &amineshafts"
-    - "&aOak logs &7also generate &aas masts in shipwrecks"
   SPRUCE_LOG:
     - "&b&lSpruce Log &7| &6Item Information"
     - "&7"
