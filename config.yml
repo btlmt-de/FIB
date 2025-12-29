@@ -509,7 +509,7 @@ descriptions:
     - "&7Biomes: &aOld Growth Taiga&7, &aBamboo Jungle"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
-    - "&aWandering traders &7have 1⁄6 chance to sell &a3 podzol &7for &a3 emeralds"
+    - "&aThe Wandering Trader &7may sell &apodzol"
   SHULKER_SHELL:
     - "&b&lShulker Shell &7| &6Item Information"
     - "&7"
