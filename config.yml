@@ -1195,11 +1195,6 @@ descriptions:
     - "&b&lStripped Dark Oak Log &7| &6Item Information"
     - "&7"
     - "&7Stripped dark oak logs can generate as masts in shipwrecks"
-  AZALEA_LEAVES:
-    - "&b&lAzalea Leaves &7| &6Item Information"
-    - "&7"
-    - "&7Tool: &aShears &7or &aany (Silk Touch required)"
-    - "&7Can be obtained with &ashears &7or a &asilk touch enchanted tool"
   FLOWERING_AZALEA_LEAVES:
     - "&b&lFlowering Azalea Leaves &7| &6Item Information"
     - "&7"
