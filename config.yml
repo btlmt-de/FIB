@@ -1840,7 +1840,9 @@ descriptions:
     - "&7"
     - "&7Biomes: &Savanna&7, &aSavanna Plateau&7, &aWindswept Savanna&7, &aJungle&7, &aSparse Jungle&7, &aBamboo Jungle"
     - "&aBadlands&7, &aEroded Badlands&7, &aWooded Badlands"
-    - "&7Harass a chicken to make it lay an egg"
+    - "&7Characteristics: &abrown&7, &aorange"
+    - "&aBrown eggs &7are dropped by &awarm chickens"
+    - "&7You can find &awarm chickens &7in the mentioned biomes"
   MUSIC_DISC_TEARS:
     - "&b&lMusic Disc Tears &7| &6Item Information"
     - "&7"
