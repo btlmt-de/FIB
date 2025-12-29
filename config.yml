@@ -1854,8 +1854,8 @@ descriptions:
     - "&eMonster Spawner &7- &a19.4%"
     - "&eNether Fortress &7- &a17.9%"
     - "&eDesert Pyramid &7- &a17%"
-    - "&eVillage &7- &65.6% (Weaponsmith Chest)"
-    - "&eEnd City &7- &c4.6%"
+    - "&eVillage &7- &65% (Weaponsmith Chest)"
+    - "&eEnd City &7- &c4.4%"
     - "&eJungle Temple &7- &c4.4%"
     - "&eStronghold &7- &c2.5%"
   COPPER_GOLEM_STATUE:
