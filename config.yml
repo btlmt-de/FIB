@@ -1006,8 +1006,7 @@ descriptions:
     - "&7Structure: &aVillage"
     - "&7Village - Loot Chance:"
     - "&eSavanna House Chest &7- &a71.7%"
-    - "&aTwo acacia saplings &7generate in front of each &asavanna village library"
-    - "&aWandering traders &7may sell the &aacacia sapling &7for &a5 Emeralds"
+    - "&aThe Wandering trader &7may sell &aacacia saplings&7"
   CHERRY_SAPLING:
     - "&b&lCherry Sapling &7| &6Item Information"
     - "&7"
