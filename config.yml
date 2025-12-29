@@ -1170,10 +1170,6 @@ descriptions:
     - "&7"
     - "&7Biomes: &aTaiga&7, &aSnowy Taiga&7, &aOld Growth Pine Taiga&7, &aOld Growth Spruce Taiga"
     - "&aSpruce logs &7generate as part of &ahouses in taiga &7and &asnowy plains villages&7, and &aas masts in shipwrecks"
-  BIRCH_LOG:
-    - "&b&lBirch Log &7| &6Item Information"
-    - "&7"
-    - "&7Biomes: &aPlains&7, &aFlower Forest&7, &aBirch Forest&7, &aOld Growth Birch Forest"
   JUNGLE_LOG:
     - "&b&lJungle Log &7| &6Item Information"
     - "&7"
