@@ -1735,7 +1735,7 @@ descriptions:
     - "&7"
     - "&7Biomes: &aPale Garden"
     - "&aThe Pale Garden &7typically generates inside of the &adark forest &7(meaning the dark forest typically surrounds this biome)"
-    - "&aWandering traders &7may sell the &aoak sapling &7for &a5 Emeralds"
+    - "&aThe Wandering Trader &7may sell &apale moss saplings"
   PALE_HANGING_MOSS:
     - "&b&lPale Hanging Moss &7| &6Item Information"
     - "&7"
