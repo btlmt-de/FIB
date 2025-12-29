@@ -20,27 +20,27 @@ const getHeadUrl = (username) => `https://mc-heads.net/avatar/${username}/100`;
 const CREATORS = [
     {
         username: 'threeseconds',
-        role: 'Lead Developer',
+        role: 'Core Development',
         color: '#AA0000'
     },
     {
         username: 'eltobito',
-        role: 'Content & Systems',
+        role: 'Content, Datapacks & Resource Packs',
         color: COLORS.aqua
     },
     {
         username: 'stupxd',
-        role: 'Developer',
+        role: 'Bug Fixing & Quality Improvements',
         color: COLORS.gold
     },
     {
         username: 'apppaa',
-        role: 'Writer',
+        role: 'Item Descriptions',
         color: COLORS.yellow
     },
     {
         username: 'CH0RD',
-        role: 'Builder',
+        role: 'Structure Design',
         color: COLORS.green
     }
 ];
@@ -62,10 +62,10 @@ const SPECIAL_THANKS = [
     },
     {
         username: 'Owen1212055',
-        description: 'Custom resourcepack for item display',
+        description: 'Item Renders for Resource Pack',
         color: COLORS.gold,
         type: 'github',
-        link: 'https://github.com/Owen1212055/'
+        link: 'https://github.com/Owen1212055/mc-assets'
     }
 ];
 
@@ -74,8 +74,7 @@ const FUTURE_PAGES = [
     { name: 'Custom Structures', description: 'Unique world generation' },
     { name: 'Commands', description: 'All available commands' },
     { name: 'Tips & Tricks', description: 'Pro strategies' },
-    { name: 'Stats', description: 'Player statistics' },
-    { name: 'Changelog', description: 'Version history' }
+    { name: 'Stats', description: 'Player statistics' }
 ];
 
 function CreatorCard({ username, role, color }) {
@@ -448,6 +447,19 @@ export default function HomePage({ onNavigate }) {
                         onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
                     >
                         McPlayHD.net
+                    </a>
+                    <a
+                        href="/#imprint"
+                        style={{
+                            color: COLORS.textMuted,
+                            textDecoration: 'none',
+                            fontSize: '13px',
+                            transition: 'color 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                    >
+                        Imprint
                     </a>
                 </div>
                 <p style={{ margin: 0 }}>

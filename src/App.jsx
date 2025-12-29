@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import HomePage from './HomePage';
 import ForceItemPools from './ForceItemPools';
 import HowToPlay from './HowToPlay';
+import Changelog from './Changelog';
+import Imprint from './Imprint';
 
 const COLORS = {
     bg: '#1a1a2e',
@@ -128,6 +130,29 @@ function Navigation({ currentPage, onNavigate }) {
                     Item Pools
                 </button>
 
+                <button
+                    onClick={() => onNavigate('changelog')}
+                    style={{
+                        background: currentPage === 'changelog' ? COLORS.bgLight : 'transparent',
+                        border: 'none',
+                        color: currentPage === 'changelog' ? COLORS.text : COLORS.textMuted,
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        padding: '8px 14px',
+                        borderRadius: '4px',
+                        transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                        if (currentPage !== 'changelog') e.currentTarget.style.background = COLORS.bgLight;
+                    }}
+                    onMouseLeave={e => {
+                        if (currentPage !== 'changelog') e.currentTarget.style.background = 'transparent';
+                    }}
+                >
+                    Changelog
+                </button>
+
                 {/* Future nav items - disabled */}
                 {['Settings', 'Commands'].map(item => (
                     <button
@@ -159,6 +184,8 @@ export default function App() {
         const hash = window.location.hash.slice(1);
         if (hash === 'pools') return 'pools';
         if (hash === 'how-to-play') return 'how-to-play';
+        if (hash === 'changelog') return 'changelog';
+        if (hash === 'imprint') return 'imprint';
         return 'home';
     };
 
@@ -191,6 +218,14 @@ export default function App() {
 
             {currentPage === 'how-to-play' && (
                 <HowToPlay />
+            )}
+
+            {currentPage === 'changelog' && (
+                <Changelog />
+            )}
+
+            {currentPage === 'imprint' && (
+                <Imprint />
             )}
 
             {currentPage === 'pools' && (

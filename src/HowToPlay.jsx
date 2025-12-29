@@ -428,6 +428,19 @@ export default function HowToPlay() {
                     >
                         McPlayHD.net
                     </a>
+                    <a
+                        href="/#imprint"
+                        style={{
+                            color: COLORS.textMuted,
+                            textDecoration: 'none',
+                            fontSize: '13px',
+                            transition: 'color 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                    >
+                        Imprint
+                    </a>
                 </div>
                 <p style={{ margin: 0 }}>
                     Made with ❤️
