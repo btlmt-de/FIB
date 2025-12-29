@@ -1806,7 +1806,7 @@ descriptions:
     - "&7Tool: &aShears"
     - "&7Can be obtained by using &ashears"
     - "&7Tall dry grass grows on sand and terracotta"
-    - "&aWandering traders &7may sell the &atall dry grass &7for &a1 Emerald"
+    - "&aThe Wandering Trader &7may sell &atall dry grass"
   EGG:
     - "&b&lEgg &7| &6Item Information"
     - "&7"
