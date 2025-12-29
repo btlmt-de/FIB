@@ -1451,7 +1451,7 @@ descriptions:
     - "&7Biomes: &aJungle&7, &aBamboo Jungle&7, &aSparse Jungle&7, &aSwamps&7, &aLush Caves"
     - "&7Tool: &aShears"
     - "&7Can be obtained by using &ashears"
-    - "&aWandering traders &7may sell &avines &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &avines"
   GLOW_LICHEN:
     - "&b&lGlow Lichen &7| &6Item Information"
     - "&7"
