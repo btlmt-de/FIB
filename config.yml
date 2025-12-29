@@ -687,7 +687,7 @@ descriptions:
     - "&7Tool: &aWater Bucket"
     - "&7Biomes: &aLukewarm Ocean&7, &aDeep Lukewarm Ocean&7, &aWarm Ocean&7, &aMangrove Swamp&7, &aLush Caves"
     - "&7A bucket of pufferfish can be obtained by using a water bucket on a tropical fish"
-    - "&aWandering traders &7have 1⁄6 chance to sell &a1 bucket of tropical fish &7for &a5 emeralds"
+    - "&aThe Wandering Trader &7may sell &abucket of tropical fish"
   POWDER_SNOW_BUCKET:
     - "&b&lPowder Snow Bucket &7| &6Item Information"
     - "&7"
