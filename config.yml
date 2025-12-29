@@ -831,7 +831,7 @@ descriptions:
     - "&7Generation: &aAzalea Tree"
     - "&aRooted dirt &7can be found underneath &aAzalea trees"
     - "&7Can be mined by hand or any tool"
-    - "&7Wandering traders can sell &a2 rooted dirt &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &arooted dirt"
   HANGING_ROOTS:
     - "&b&lHanging Roots &7| &6Item Information"
     - "&7"
