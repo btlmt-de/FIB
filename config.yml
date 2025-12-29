@@ -1830,9 +1830,11 @@ descriptions:
   BLUE_EGG:
     - "&b&lBlue Egg &7| &6Item Information"
     - "&7"
-    - "&7Biomes: &aTaiga&7, &aSnowy Taiga&7, &aOld Growth Pine Taiga&7, &aOld Growth Spruce Taiga&7, &aWindswept Hills"
+    - "&7Biomes: &aTaiga&7, &aSnowy Taiga&7, &aOld Growth Pine Taiga&7, &aOld Growth Spruce Taiga&7, &aWindswept Hills&7,"
     - "&aWindswept Gravelly Hills&7, &aWindswept Forest"
-    - "&7Harass a chicken to make it lay an egg"
+    - "&7Characteristics: &adark blue&7, &agray"
+    - "&aBlue eggs &7are dropped by &acold chickens"
+    - "&7You can find &acold chickens &7in the mentioned biomes"
   BROWN_EGG:
     - "&b&lBrown Egg &7| &6Item Information"
     - "&7"
