@@ -462,11 +462,11 @@ descriptions:
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
   MUSIC_DISC_13:
-    - "&b&lMusic Disc (13) &7| &6Item Information"
+    - "&b&lMusic Disc 13 &7| &6Item Information"
     - "&7"
     - "&7Structure - Chest Loot Table:"
     - "&eWoodland Mansion &7- &a21.8%"
-    - "&eMonster Spawner &7- &a21.5%"
+    - "&eMonster Spawner &7- &a19.4%"
     - "&eAncient City &7- &a16.1%"
   MUSIC_DISC_CAT:
     - "&b&lMusic Disc (cat) &7| &6Item Information"
