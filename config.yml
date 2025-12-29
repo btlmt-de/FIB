@@ -1239,7 +1239,7 @@ descriptions:
     - "&7Mob-Drop: &aTurtle"
     - "&7Biomes: &aNon-Frozen Oceans&7, &aRiver&7, &aSwamp&7, &aunderwater caves"
     - "&7Tool: &aShears"
-    - "&7can be obtained by using &ashears"
+    - "&7Can be obtained by using &ashears"
   SEA_PICKLE:
     - "&b&lSea Pickle &7| &6Item Information"
     - "&7"
