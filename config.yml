@@ -1193,10 +1193,6 @@ descriptions:
     - "&b&lStripped Jungle Log &7| &6Item Information"
     - "&7"
     - "&7Stripped jungle logs can generate as masts in shipwrecks"
-  STRIPPED_ACACIA_LOG:
-    - "&b&lStripped Acacia Log &7| &6Item Information"
-    - "&7"
-    - "&7Stripped acacia logs generate as part of houses in savanna villages"
   STRIPPED_DARK_OAK_LOG:
     - "&b&lStripped Dark Oak Log &7| &6Item Information"
     - "&7"
