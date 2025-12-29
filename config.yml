@@ -528,9 +528,8 @@ descriptions:
     - "&7"
     - "&7Structure: &aAncient City"
     - "&7Biome: &aDeep Dark"
-    - "&7Tool: &aany"
-    - "&7Can be mined with any tool"
-    - "&7Structure: &aAncient City"
+    - "&7Tool: &aany (Silk Touch required)"
+    - "&7Can be obtained with a &asilk touch enchanted tool"
     - "&7Ancient City - Loot Chance:"
     - "&eChest &7- &a16.1%"
   SCULK_VEIN:
