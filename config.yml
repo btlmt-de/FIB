@@ -1526,7 +1526,7 @@ descriptions:
   TRIAL_KEY:
     - "&b&lTrial Key &7| &6Item Information"
     - "&7"
-    - "&7Structure: Trial Chambers"
+    - "&7Structure: &aTrial Chambers"
     - "&7Trial Chambers - Loot Chance:"
     - "&eTrial Spawner &7- &a50%"
     - "&eEntrance Chest &7- &66.8%"
