@@ -1010,8 +1010,7 @@ descriptions:
   BIRCH_SAPLING:
     - "&b&lBirch Sapling &7| &6Item Information"
     - "&7"
-    - "&7Potted birch saplings generate in a room in &awoodland mansions"
-    - "&aWandering traders &7may sell the &abirch sapling &7for &a5 Emeralds"
+    - "&aThe Wandering trader &7may sell &abirch saplings"
   JUNGLE_SAPLING:
     - "&b&lJungle Sapling &7| &6Item Information"
     - "&7"
