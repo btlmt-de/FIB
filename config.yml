@@ -1423,10 +1423,10 @@ descriptions:
     - "&7"
     - "&7Structure - Chest Loot Table:"
     - "&eRuined Portal &7- &a46.4%"
-    - "&eVillage &7- &a25.6% (Weaponsmiths Chest)"
+    - "&eVillage &7- &a22.9% (Weaponsmiths Chest)"
     - "&eBastion &7- &a24.4% (Generic Chest)"
-    - "&eNether Fortress &7- &68%"
-    - "&aPiglins &7may barter a &ablock of obsidian &7when given a gold ingot with a chance of &68.71%"
+    - "&eNether Fortress &7- &67.5%"
+    - "&aPiglins &7may barter a &ablock of obsidian &7when given a gold ingot with a chance of &68.53%"
   CACTUS:
     - "&b&lCactus &7| &6Item Information"
     - "&7"
