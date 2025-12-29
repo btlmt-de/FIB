@@ -1442,8 +1442,8 @@ descriptions:
     - "&7Structure: &aShipwreck"
     - "&7Shipwreck - Loot Chance:"
     - "&eSupply Chest &7- &a14.4%"
+    - "&aThe Wandering Trader &7may sell &apumpkins"
     - "&a4 pumpkins &7generate naturally in &awoolen tents in pillager outposts"
-    - "&aWandering traders &7may sell a &apumpkin &7for &a1 emerald"
     - "&aPumpkins &7naturally generate in &astem farm rooms in woodland mansions"
   CARVED_PUMPKIN:
     - "&b&lCarved Pumpkin &7| &6Item Information"
