@@ -1006,7 +1006,7 @@ descriptions:
     - "&7Village - Loot Chance:"
     - "&eTaiga House Chest &7- &a40.6%"
     - "&7Potted spruce saplings generates in &ataiga &7and &asnowy taiga village mason houses"
-    - "&aWandering traders &7may sell the &aspruce sapling &7for &a5 Emeralds"
+    - "&aThe Wandering Trader &7may sell &aspruce saplings"
   BIRCH_SAPLING:
     - "&b&lBirch Sapling &7| &6Item Information"
     - "&7"
