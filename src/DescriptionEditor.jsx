@@ -1216,6 +1216,27 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                             ↓
                                         </button>
                                         <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(line).then(() => {
+                                                    // Brief visual feedback
+                                                }).catch(err => {
+                                                    console.error('Failed to copy:', err);
+                                                });
+                                            }}
+                                            title="Copy line"
+                                            style={{
+                                                padding: '4px 6px',
+                                                background: COLORS.bgLight,
+                                                border: `1px solid ${COLORS.border}`,
+                                                borderRadius: '3px',
+                                                color: COLORS.text,
+                                                cursor: 'pointer',
+                                                fontSize: '11px'
+                                            }}
+                                        >
+                                            ⧉
+                                        </button>
+                                        <button
                                             onClick={() => removeLine(index)}
                                             disabled={lines.length <= 1}
                                             title="Delete line"
