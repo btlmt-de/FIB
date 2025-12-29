@@ -1410,6 +1410,8 @@ descriptions:
     - "&b&lBig Dripleaf &7| &6Item Information"
     - "&7"
     - "&7Biomes: &aLush Caves"
+    - "&7Bone meal can be used on a &asmall dripleaf &7to turn it into a &abig dripleaf"
+    - "&aThe Wandering trader &7may sell &asmall dripleafs"
   SMALL_DRIPLEAF:
     - "&b&lSmall Dripleaf &7| &6Item Information"
     - "&7"
