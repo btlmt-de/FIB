@@ -973,12 +973,6 @@ descriptions:
     - "&7Biomes: &aOcean"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
-  COBBLED_DEEPSLATE:
-    - "&b&lCobbled Deepslate &7| &6Item Information"
-    - "&7"
-    - "&7Cobbled deepslate can be obtained by mining deepslate"
-    - "&7Deepslate generates in the Overworld anywhere &abelow Y=8"
-    - "&7Cobbled deepslate generates naturally in &aancient cities."
   DIRT:
     - "&b&lDirt &7| &6Item Information"
     - "&7"
