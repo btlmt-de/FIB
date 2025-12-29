@@ -868,7 +868,8 @@ descriptions:
     - "&7Biomes: &aWarm Ocean"
     - "&7Characteristics: &dpink"
     - "&7Tool: &aPickaxe"
-    - "&7Dead variants an be obtained by mining the required coral block with any pickaxe"
+    - "&7Dead variants can be obtained by mining the required coral block with any pickaxe"
+    - "&aThe Wandering Trader &7may sell &abrain coral blocks"
   DEAD_TUBE_CORAL_BLOCK:
     - "&b&lDead Tube Coral Block &7| &6Item Information"
     - "&7"
