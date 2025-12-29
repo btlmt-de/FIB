@@ -1297,8 +1297,8 @@ descriptions:
     - "&7"
     - "&7Biomes: &aPlains&7, &aSunflower Plains&7, &aFlower Forest"
     - "&7Characteristics: &awhite"
-    - "&aWandering traders &7may sell a &awhite tulip &7for &a1 emerald"
     - "&7Potted white tulips can be found in woodland mansions"
+    - "&aThe Wandering Trader &7may sell &awhite tulips"
   PINK_TULIP:
     - "&b&lPink Tulip &7| &6Item Information"
     - "&7"
