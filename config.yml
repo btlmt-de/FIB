@@ -173,7 +173,7 @@ descriptions:
     - "&7Characteristics: &5purple"
     - "&7Tool: &aPickaxe (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted pickaxe"
-    - "&aWandering traders &7can sell the &abubble coral block &7for &a3 emeralds"
+    - "&aThe Wandering Trader &7may sell &abubble coral blocks"
   BUBBLE_CORAL_FAN:
     - "&b&lBubble Coral Fan &7| &6Item Information"
     - "&7"
