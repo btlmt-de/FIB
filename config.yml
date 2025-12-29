@@ -640,7 +640,7 @@ descriptions:
     - "&7Characteristics: &9blue"
     - "&7Tool: &aPickaxe (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted pickaxe"
-    - "&aWandering traders &7can sell the &atube coral block &7for &a3 emeralds"
+    - "&aThe Wandering Trader &7may sell &atube coral blocks"
   TUBE_CORAL_FAN:
     - "&b&lTube Coral Fan &7| &6Item Information"
     - "&7"
