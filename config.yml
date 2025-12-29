@@ -1297,7 +1297,7 @@ descriptions:
     - "&7"
     - "&7Biomes: &aPlains&7, &aSunflower Plains&7, &aFlower Forest"
     - "&7Characteristics: &aorange"
-    - "&aWandering traders &7may sell a &aorange tulip &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &aorange tulips"
   WHITE_TULIP:
     - "&b&lWhite Tulip &7| &6Item Information"
     - "&7"
