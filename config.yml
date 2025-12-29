@@ -1823,9 +1823,11 @@ descriptions:
   EGG:
     - "&b&lEgg &7| &6Item Information"
     - "&7"
-    - "&7Biomes: &aPlains&7, &aSunflower Plains&7, &aForest&7, &aFlower Forest&7, &aBirch Forest&7, Old Growth Birch Forest"
+    - "&7Biomes: &aPlains&7, &aSunflower Plains&7, &aForest&7, &aFlower Forest&7, &aBirch Forest&7, &aOld Growth Birch Forest&7,"
     - "&aDark Forest&7, &aSwamp"
-    - "&7Harass a chicken to make it lay an egg"
+    - "&7Characteristics: &awhite"
+    - "&aEggs &7are dropped by &atemperate chickens"
+    - "&7You can find &atemperate chickens &7in the mentioned biomes"
   BLUE_EGG:
     - "&b&lBlue Egg &7| &6Item Information"
     - "&7"
