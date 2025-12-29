@@ -488,6 +488,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
     const [showReference, setShowReference] = useState(false);
     const [referenceSearch, setReferenceSearch] = useState('');
     const [selectedReference, setSelectedReference] = useState(null);
+    const [copiedIndex, setCopiedIndex] = useState(null);
 
     // Filter items for reference search (only items with descriptions, excluding current item)
     const referenceItems = allItems.filter(i =>
@@ -1218,7 +1219,8 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         <button
                                             onClick={() => {
                                                 navigator.clipboard.writeText(line).then(() => {
-                                                    // Brief visual feedback
+                                                    setCopiedIndex(index);
+                                                    setTimeout(() => setCopiedIndex(null), 1500);
                                                 }).catch(err => {
                                                     console.error('Failed to copy:', err);
                                                 });
@@ -1226,15 +1228,16 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                             title="Copy line"
                                             style={{
                                                 padding: '4px 6px',
-                                                background: COLORS.bgLight,
-                                                border: `1px solid ${COLORS.border}`,
+                                                background: copiedIndex === index ? '#00AA0033' : COLORS.bgLight,
+                                                border: `1px solid ${copiedIndex === index ? COLORS.success : COLORS.border}`,
                                                 borderRadius: '3px',
-                                                color: COLORS.text,
+                                                color: copiedIndex === index ? COLORS.success : COLORS.text,
                                                 cursor: 'pointer',
-                                                fontSize: '11px'
+                                                fontSize: '11px',
+                                                transition: 'all 0.15s'
                                             }}
                                         >
-                                            ⧉
+                                            {copiedIndex === index ? '✓' : '⧉'}
                                         </button>
                                         <button
                                             onClick={() => removeLine(index)}

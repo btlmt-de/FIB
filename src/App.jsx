@@ -5,6 +5,7 @@ import HowToPlay from './HowToPlay';
 import Changelog from './Changelog';
 import Imprint from './Imprint';
 import Commands from './Commands';
+import CustomStructures from './CustomStructures';
 
 const COLORS = {
     bg: '#1a1a2e',
@@ -42,7 +43,8 @@ function Navigation({ currentPage, onNavigate }) {
         { id: 'how-to-play', label: 'How to Play' },
         { id: 'pools', label: 'Item Pools' },
         { id: 'changelog', label: 'Changelog' },
-        { id: 'commands', label: 'Commands' }
+        { id: 'commands', label: 'Commands' },
+        { id: 'structures', label: 'Custom Content' }
     ];
 
     const disabledItems = ['Settings'];
@@ -276,6 +278,7 @@ export default function App() {
         if (hash === 'changelog') return 'changelog';
         if (hash === 'imprint') return 'imprint';
         if (hash === 'commands') return 'commands';
+        if (hash === 'structures') return 'structures';
         return 'home';
     };
 
@@ -324,6 +327,10 @@ export default function App() {
 
             {currentPage === 'commands' && (
                 <Commands />
+            )}
+
+            {currentPage === 'structures' && (
+                <CustomStructures />
             )}
         </div>
     );

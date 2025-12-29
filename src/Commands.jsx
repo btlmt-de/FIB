@@ -191,12 +191,16 @@ export default function Commands() {
                         description="Sends a global message to all players (team chat is default)."
                     />
                     <CommandItem
+                        command="/shout"
+                        description="Toggle shout mode on/off. When enabled, all messages are sent globally."
+                    />
+                    <CommandItem
                         command="/pos <n>"
-                        description="Save position with a name to your current location."
+                        description="Save position with a name to your current location. Announced in chat for all players."
                     />
                     <CommandItem
                         command="/pos"
-                        description="Pull up all saved positions."
+                        description="Pull up all saved positions. Positions are shared and viewable by all players."
                     />
                     <CommandItem
                         command="/pause"
