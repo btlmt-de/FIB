@@ -496,7 +496,7 @@ descriptions:
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be obtained with a &asilk touch enchanted tool"
     - "&7There is a &a80.5% chance &7to get packed ice in a &aAncient City chest&7, it also generates naturally there"
-    - "&aWandering traders &7have &a1⁄6 chance &7to sell &apacked ice &7for &a3 emeralds"
+    - "&aThe Wandering Trader &7may sell &apacked ice"
   PHANTOM_MEMBRANE:
     - "&b&lPhantom Membrane &7| &6Item Information"
     - "&7"
