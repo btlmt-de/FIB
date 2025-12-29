@@ -1713,7 +1713,7 @@ descriptions:
     - "&7There is a &a5-second cooldown &7before hitting a creaking can generate resin clumps again"
     - "&7It also drops when a creaking heart is mined or destroyed"
     - "&7Structure: &aWoodland Mansion"
-    - "&eChest &7- &a44.5%"
+    - "&eChest &7- &a53.8%"
     - "&eQuantity&: &c2&7-&c4"
   RESIN_BLOCK:
     - "&b&lResin Block &7| &6Item Information"
