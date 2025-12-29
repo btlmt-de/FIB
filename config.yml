@@ -815,9 +815,10 @@ descriptions:
   FIRE_CHARGE:
     - "&b&lFire Charge &7| &6Item Information"
     - "&7"
-    - "&7Structure - Chest Loot Table:"
+    - "&7Structure - Loot Table:"
     - "&eRuined Portal &7- &a46.4%"
-    - "&aPiglins &7may barter a &asingle fire charge &7when given &aa gold ingot"
+    - "&eTrial Chambers &7- &a20.7% &6(Chamber dispenser)"
+    - "&aPiglins &7have a &6~8.53% &achance &7to barter &a1 fire charge &7when given a gold ingot"
   SPORE_BLOSSOM:
     - "&b&lSpore Blossom &7| &6Item Information"
     - "&7"
