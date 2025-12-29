@@ -405,7 +405,7 @@ descriptions:
     - "&7Characteristics: &eyellow"
     - "&7Tool: &aPickaxe (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted pickaxe"
-    - "&aWandering traders &7can sell the &ahorn coral block &7for &a3 emeralds"
+    - "&aThe Wandering Trader &7may sell &ahorn coral blocks"
   HORN_CORAL_FAN:
     - "&b&lHorn Coral Fan &7| &6Item Information"
     - "&7"
