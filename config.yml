@@ -1229,7 +1229,7 @@ descriptions:
     - "&7Structure: &aVillage"
     - "&7Village - Loot Chance:"
     - "&eTaiga House Chest &7- &a18.6%"
-    - "&aWandering traders &7can sell &aferns &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &aferns"
   DEAD_BUSH:
     - "&b&lDead Bush &7| &6Item Information"
     - "&7"
