@@ -1339,7 +1339,7 @@ descriptions:
     - "&b&lBrown Mushroom &7| &6Item Information"
     - "&7"
     - "&7Biomes: &aDark Forest&7, &aSwamp&7, &aOld Growth Spruce Taiga&7, &aOld Growth Pine Taiga&7, &aNether"
-    - "&aWandering traders &7may sell a &abrown mushroom &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &abrown mushrooms"
   RED_MUSHROOM:
     - "&b&lRed Mushroom &7| &6Item Information"
     - "&7"
