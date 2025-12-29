@@ -84,7 +84,7 @@ descriptions:
     - "&7Biomes: &aDesert"
     - "&7Tool: &aBrush"
     - "&7Brush &asuspicious sand &7to obtain the item"
-    - "&7Chance: &a25%"
+    - "&7Chance: &a12.5%"
   SHELTER_POTTERY_SHERD:
     - "&b&lAngler Pottery Sherd &7| &6Item Information"
     - "&7"
