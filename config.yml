@@ -877,6 +877,7 @@ descriptions:
     - "&7Characteristics: &9blue"
     - "&7Tool: &aPickaxe"
     - "&7Dead variants an be obtained by mining the required coral block with any pickaxe"
+    - "&aThe Wandering Trader &7may sell &atube coral blocks"
   DEAD_BUBBLE_CORAL_BLOCK:
     - "&b&lDead Bubble Coral Block &7| &6Item Information"
     - "&7"
