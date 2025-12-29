@@ -884,6 +884,7 @@ descriptions:
     - "&7Characteristics: &5purple"
     - "&7Tool: &aPickaxe"
     - "&7Dead variants an be obtained by mining the required coral block with any pickaxe"
+    - "&aThe Wandering Trader &7may sell &abubble coral blocks"
   DEAD_FIRE_CORAL_BLOCK:
     - "&b&lDead Fire Coral Block &7| &6Item Information"
     - "&7"
