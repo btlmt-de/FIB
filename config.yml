@@ -362,7 +362,7 @@ descriptions:
     - "&7Characteristics: &cred"
     - "&7Tool: &aPickaxe (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted pickaxe"
-    - "&aWandering traders &7can sell the &afire coral block &7for &a3 emeralds"
+    - "&aThe Wandering Trader &7may sell &afire coral blocks"
   FIRE_CORAL_FAN:
     - "&b&lFire Coral Fan &7| &6Item Information"
     - "&7"
