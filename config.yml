@@ -1043,7 +1043,7 @@ descriptions:
     - "&b&lRed Sand &7| &6Item Information"
     - "&7"
     - "&7Biomes: &aBadlands"
-    - "&aWandering traders &7can sell &a2 red sand &7for &a1 emerald"
+    - "&aThe Wandering Trader &7may sell &ared sand"
   COAL_ORE:
     - "&b&lCoal Ore &7| &6Item Information"
     - "&7"
