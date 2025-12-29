@@ -892,6 +892,7 @@ descriptions:
     - "&7Characteristics: &cred"
     - "&7Tool: &aPickaxe"
     - "&7Dead variants an be obtained by mining the required coral block with any pickaxe"
+    - "&aThe Wandering Trader &7may sell &afire coral blocks"
   DEAD_HORN_CORAL_BLOCK:
     - "&b&lDead Horn Coral Block &7| &6Item Information"
     - "&7"
