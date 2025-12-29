@@ -1744,7 +1744,7 @@ descriptions:
     - "&7Pale hanging moss is a block found under the logs and leaves of pale oaks"
     - "&7Tool: &aShears"
     - "&7Can be obtained by using &ashears"
-    - "&aWandering traders &7may sell the &apale hanging moss &7for &a1 Emerald"
+    - "&aThe Wandering Trader &7may sell &apale hanging moss"
   PALE_MOSS_BLOCK:
     - "&b&lPale Moss Block &7| &6Item Information"
     - "&7"
