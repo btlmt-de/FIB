@@ -1401,7 +1401,7 @@ descriptions:
     - "&7Structure - Chest Loot Table:"
     - "&eShipwreck &7- &a42.1% (Supply Chest)"
     - "&eTrail Chambers &7- &a20.4% (Supply Chest)"
-    - "&aWandering traders &7may sell 2 &amoss blocks for 1 emerald"
+    - "&aThe Wandering Trader &7may sell &amoss blocks"
   BIG_DRIPLEAF:
     - "&b&lBig Dripleaf &7| &6Item Information"
     - "&7"
