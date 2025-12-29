@@ -915,7 +915,7 @@ descriptions:
     - "&7Structure - Chest Loot Table:"
     - "&eWoodland Mansion &7- &a28.3%"
     - "&eAncient City &7- &a16.1%"
-    - "&eTrail Ruins &7- &c2.2%"
+    - "&eTrail Ruins &7- &c2.2% &6(suspicious gravel)"
   PRISMARINE_CRYSTALS:
     - "&b&lPrismarine Crystals &7| &6Item Information"
     - "&7"
