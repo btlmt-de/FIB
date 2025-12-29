@@ -62,10 +62,10 @@ const SPECIAL_THANKS = [
     },
     {
         username: 'Owen1212055',
-        description: 'Custom resourcepack for item display',
+        description: 'Item Renders for Resource Pack',
         color: COLORS.gold,
         type: 'github',
-        link: 'https://github.com/Owen1212055/'
+        link: 'https://github.com/Owen1212055/mc-assets'
     }
 ];
 
