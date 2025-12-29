@@ -1015,7 +1015,7 @@ descriptions:
   JUNGLE_SAPLING:
     - "&b&lJungle Sapling &7| &6Item Information"
     - "&7"
-    - "&aWandering traders &7may the &ajungle sapling &7for &a5 Emeralds"
+    - "&aThe Wandering Trader &7may sell &ajungle saplings"
   ACACIA_SAPLING:
     - "&b&lAcacia Sapling &7| &6Item Information"
     - "&7"
