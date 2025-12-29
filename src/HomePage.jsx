@@ -20,27 +20,27 @@ const getHeadUrl = (username) => `https://mc-heads.net/avatar/${username}/100`;
 const CREATORS = [
     {
         username: 'threeseconds',
-        role: 'Lead Developer',
+        role: 'Core Development',
         color: '#AA0000'
     },
     {
         username: 'eltobito',
-        role: 'Content & Systems',
+        role: 'Content, Datapacks & Resource Packs',
         color: COLORS.aqua
     },
     {
         username: 'stupxd',
-        role: 'Developer',
+        role: 'Bug Fixing & Quality Improvements',
         color: COLORS.gold
     },
     {
         username: 'apppaa',
-        role: 'Writer',
+        role: 'Item Descriptions',
         color: COLORS.yellow
     },
     {
         username: 'CH0RD',
-        role: 'Builder',
+        role: 'Structure Design',
         color: COLORS.green
     }
 ];
