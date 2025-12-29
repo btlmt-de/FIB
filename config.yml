@@ -621,6 +621,9 @@ descriptions:
     - "&7Biomes: &aall Ocean biomes&7, &aDripstone Cave&7, &ahighest rate in River biome"
     - "&7Mob-Drop: &aDrowned"
     - "&aDrowned &7have a &68.5% chance &7of dropping the &atrident when killed &7by a player"
+    - "&7Structure: &aTrial Chambers"
+    - "&7Trial Chambers - Loot Chance:"
+    - "&eVault &7- &c2.1%"
   TUBE_CORAL:
     - "&b&lTube Coral &7| &6Item Information"
     - "&7"
