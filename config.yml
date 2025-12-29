@@ -1025,7 +1025,7 @@ descriptions:
     - "&b&lDark Oak Sapling &7| &6Item Information"
     - "&7"
     - "&a58 dark oak saplings &7generate naturally in a &asapling farm room &7in &awoodland mansions"
-    - "&aWandering traders &7may sell the &adark oak sapling &7for &a5 Emeralds"
+    - "&aThe Wandering Trader &7may sell &adark oak saplings"
   MANGROVE_PROPAGULE:
     - "&b&lMangrove Propagule &7| &6Item Information"
     - "&7"
