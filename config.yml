@@ -719,10 +719,11 @@ descriptions:
     - "&7Structure - Chest Loot Table:"
     - "&eSnowy Plains Village &7- &a66.3%"
     - "&eMineshaft &7- &a27.3%"
-    - "&eEnd City &7- &a21.2%"
+    - "&eEnd City &7- &a20.4%"
     - "&eMonster Spawner &7- &a18.5%"
-    - "&eWoodland Mansion &7- &a18.5%"
+    - "&eWoodland Mansion &7- &a13.5%"
     - "&eTrail Ruins &7- &c2.2%"
+    - "&aThe Wandering trader &7may sell &abeetroot seeds"
   BEETROOT_SOUP:
     - "&b&lBeetroot Soup &7| &6Item Information"
     - "&7"
