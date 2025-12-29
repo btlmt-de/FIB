@@ -1751,7 +1751,7 @@ descriptions:
     - "&7Biomes: &aPale Garden"
     - "&aThe Pale Garden &7typically generates inside of the &adark forest &7(meaning the dark forest typically surrounds this biome)"
     - "&7Pale moss blocks can be found on pale moss patches inside of pale gardens"
-    - "&aWandering traders &7may sell &a2 &apale moss blocks &7for &a1 Emerald"
+    - "&aThe Wandering Trader &7may sell &apale moss blocks"
   OPEN_EYEBLOSSOM:
     - "&b&lOpen Eyeblossom &7| &6Item Information"
     - "&7"
