@@ -17,50 +17,40 @@ const COLORS = {
 function CommandItem({ command, description, example }) {
     return (
         <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            padding: '14px 16px',
+            padding: '12px 14px',
             background: COLORS.bg,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '6px'
         }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '12px',
-                flexWrap: 'wrap'
+            <code style={{
+                display: 'inline-block',
+                background: COLORS.bgLighter,
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '13px',
+                fontFamily: "'Consolas', 'Monaco', monospace",
+                color: COLORS.aqua,
+                marginBottom: '6px'
             }}>
-                <code style={{
-                    background: COLORS.bgLighter,
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    fontFamily: "'Consolas', 'Monaco', monospace",
-                    color: COLORS.aqua,
-                    whiteSpace: 'nowrap'
-                }}>
-                    {command}
-                </code>
-                <span style={{
-                    color: COLORS.textMuted,
-                    fontSize: '14px',
-                    lineHeight: '1.6',
-                    flex: 1,
-                    minWidth: '200px'
-                }}>
-                    {description}
-                </span>
+                {command}
+            </code>
+            <div style={{
+                color: COLORS.textMuted,
+                fontSize: '13px',
+                lineHeight: '1.5'
+            }}>
+                {description}
             </div>
             {example && (
                 <div style={{
-                    fontSize: '12px',
+                    fontSize: '11px',
                     color: COLORS.textMuted,
-                    marginTop: '4px'
+                    marginTop: '6px',
+                    opacity: 0.8
                 }}>
                     Example: <code style={{
                     background: COLORS.bgLighter,
-                    padding: '2px 6px',
+                    padding: '1px 5px',
                     borderRadius: '3px',
                     color: COLORS.text
                 }}>{example}</code>
@@ -70,59 +60,50 @@ function CommandItem({ command, description, example }) {
     );
 }
 
-function CommandSection({ title, description, children, variant }) {
-    const borderColor = variant === 'gamemaster' ? COLORS.gold : COLORS.border;
-    const labelColor = variant === 'gamemaster' ? COLORS.gold : COLORS.green;
-    const labelText = variant === 'gamemaster' ? 'OP Required' : 'All Players';
-
+function CommandSection({ title, badge, badgeColor, borderColor, children }) {
     return (
         <div style={{
             background: COLORS.bgLight,
             border: `1px solid ${borderColor}`,
             borderRadius: '8px',
-            padding: '28px',
-            position: 'relative'
+            padding: '24px',
+            flex: 1,
+            minWidth: '300px'
         }}>
-            <span style={{
-                position: 'absolute',
-                top: '-10px',
-                right: '20px',
-                background: labelColor,
-                color: '#000',
-                padding: '4px 12px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '16px',
+                flexWrap: 'wrap',
+                gap: '8px'
             }}>
-                {labelText}
-            </span>
-
-            <h2 style={{
-                margin: '0 0 8px 0',
-                fontSize: '22px',
-                fontWeight: '600',
-                color: COLORS.text
-            }}>
-                {title}
-            </h2>
-
-            {description && (
-                <p style={{
-                    color: COLORS.textMuted,
-                    fontSize: '14px',
-                    margin: '0 0 20px 0',
-                    lineHeight: '1.6'
+                <h2 style={{
+                    margin: 0,
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: COLORS.text
                 }}>
-                    {description}
-                </p>
-            )}
+                    {title}
+                </h2>
+                <span style={{
+                    background: badgeColor,
+                    color: '#000',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                }}>
+                    {badge}
+                </span>
+            </div>
 
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px'
+                gap: '8px'
             }}>
                 {children}
             </div>
@@ -166,21 +147,23 @@ export default function Commands() {
                 </p>
             </div>
 
-            {/* Content */}
+            {/* Content - Side by Side */}
             <div style={{
-                maxWidth: '800px',
+                maxWidth: '1200px',
+                width: '100%',
                 margin: '0 auto',
                 padding: '48px 20px',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '32px',
-                flex: 1
+                gap: '24px',
+                flex: 1,
+                flexWrap: 'wrap'
             }}>
                 {/* Player Commands */}
                 <CommandSection
                     title="Player Commands"
-                    description="Commands available to all players during a game."
-                    variant="player"
+                    badge="All Players"
+                    badgeColor={COLORS.green}
+                    borderColor={COLORS.border}
                 >
                     <CommandItem
                         command="/bed"
@@ -208,8 +191,8 @@ export default function Commands() {
                         description="Sends a global message to all players (team chat is default)."
                     />
                     <CommandItem
-                        command="/pos <name>"
-                        description="Save position with a name to your current location (if position system is enabled)."
+                        command="/pos <n>"
+                        description="Save position with a name to your current location."
                     />
                     <CommandItem
                         command="/pos"
@@ -236,8 +219,9 @@ export default function Commands() {
                 {/* Gamemaster Commands */}
                 <CommandSection
                     title="Gamemaster Commands"
-                    description="Administrative commands for server operators to manage games."
-                    variant="gamemaster"
+                    badge="OP Required"
+                    badgeColor={COLORS.gold}
+                    borderColor={COLORS.gold}
                 >
                     <CommandItem
                         command="/start <time> <jokers>"
@@ -262,7 +246,7 @@ export default function Commands() {
                         description="Instantly end the game."
                     />
                     <CommandItem
-                        command="/forceteam <team> <player1> <player2>"
+                        command="/forceteam <team> <p1> <p2>"
                         description="Force players into a team before round start."
                         example="/forceteam blue Steve Alex"
                     />
