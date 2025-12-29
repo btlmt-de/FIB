@@ -668,7 +668,7 @@ descriptions:
     - "&7Tool: &aWater Bucket"
     - "&7Biomes: &aLukewarm Ocean&7, &aDeep Lukewarm Ocean&7, &aWarm Ocean"
     - "&7A bucket of pufferfish can be obtained by using a water bucket on a pufferfish"
-    - "&aWandering traders &7have 1⁄6 chance to sell &a1 bucket of pufferfish &7for &a5 emeralds"
+    - "&aThe Wandering Trader &7may sell &abucket of pufferfish"
   TADPOLE_BUCKET:
     - "&b&lBucket of Tapdole &7| &6Item Information"
     - "&7"
