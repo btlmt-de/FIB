@@ -137,7 +137,7 @@ descriptions:
     - "&7Structures: &aSnowy Plains Village&7, &aAncient City"
     - "&7Tool: &aany (Silk Touch required)"
     - "&7Can be mined with a &asilk touch enchanted tool &7or found as &achest loot &7in the mentioned structures"
-    - "&aWandering traders &7have &a1⁄6 &7chance to sell &ablue ice for 6 emeralds"
+    - "&aThe wandering trader &7may sell &ablue ice"
   BRAIN_CORAL_FAN:
     - "&b&lBrain Coral Fan &7| &6Item Information"
     - "&7"
