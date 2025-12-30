@@ -50,7 +50,7 @@ const LOOT_TABLES = {
     legendary: {
         name: 'Storage',
         color: COLORS.purple,
-        description: 'The ultimate treasure trove with rare templates',
+        description: 'The ultimate storage room with rare templates',
         pools: [
             {
                 rolls: '5-10 rolls',
@@ -99,7 +99,7 @@ const LOOT_TABLES = {
     treasure: {
         name: 'Treasure Room',
         color: COLORS.green,
-        description: 'A bounty of resources and rare saplings',
+        description: 'A bounty of resources',
         pools: [
             {
                 rolls: '5-10 rolls',
