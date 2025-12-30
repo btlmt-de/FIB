@@ -5,10 +5,12 @@ import GitHistory from './GitHistory';
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-const CACHE_KEY = 'forceitem_pools_cache_v3';
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const BRANCHES_URL = 'https://api.github.com/repos/btlmt-de/FIB/branches';
+const CACHE_KEY = 'forceitem_pools_cache_v4';
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour (reduced from 24 hours)
 const LAST_EDIT_KEY = 'forceitem_last_edit';
 const BRANCH_KEY = 'fib_github_branch';
+const VIEW_BRANCH_KEY = 'fib_view_branch';
 const DEFAULT_BRANCH = 'main';
 
 // Get the stored branch or default to main
@@ -17,6 +19,24 @@ function getStoredBranch() {
         return localStorage.getItem(BRANCH_KEY) || DEFAULT_BRANCH;
     } catch {
         return DEFAULT_BRANCH;
+    }
+}
+
+// Get the stored view branch or default to main
+function getStoredViewBranch() {
+    try {
+        return localStorage.getItem(VIEW_BRANCH_KEY) || DEFAULT_BRANCH;
+    } catch {
+        return DEFAULT_BRANCH;
+    }
+}
+
+// Set the view branch
+function setStoredViewBranch(branch) {
+    try {
+        localStorage.setItem(VIEW_BRANCH_KEY, branch);
+    } catch {
+        // Ignore storage errors
     }
 }
 
@@ -186,8 +206,8 @@ function parseConfigYaml(content) {
             continue;
         }
 
-        // Check for item name (e.g., "  ANGLER_POTTERY_SHERD:")
-        const itemMatch = line.match(/^\s{2}([A-Z_]+):\s*$/);
+        // Check for item name (e.g., "  ANGLER_POTTERY_SHERD:" or "  MUSIC_DISC_13:")
+        const itemMatch = line.match(/^\s{2}([A-Z0-9_]+):\s*$/);
         if (itemMatch) {
             // Save previous item
             if (currentItem && currentLines.length > 0) {
@@ -330,7 +350,8 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
                     alt={item.displayName}
                     style={{ width: '32px', height: '32px', imageRendering: 'pixelated' }}
                     onError={(e) => {
-                        e.target.style.display = 'none';
+                        e.target.onerror = null;
+                        e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
                     }}
                 />
                 <span style={{
@@ -453,7 +474,8 @@ function Modal({ item, onClose }) {
                             background: COLORS.bgLighter
                         }}
                         onError={(e) => {
-                            e.target.style.display = 'none';
+                            e.target.onerror = null;
+                            e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
                         }}
                     />
                     <div>
@@ -570,6 +592,8 @@ export default function ForceItemPools() {
     const [editMode, setEditMode] = useState(false);
     const [editItem, setEditItem] = useState(null);
     const [currentBranch, setCurrentBranch] = useState(getStoredBranch());
+    const [viewBranch, setViewBranch] = useState(getStoredViewBranch());
+    const [availableBranches, setAvailableBranches] = useState([DEFAULT_BRANCH]);
     const [showHistory, setShowHistory] = useState(false);
 
     // Handle description save from editor
@@ -587,10 +611,6 @@ export default function ForceItemPools() {
 
     // Manual refresh function
     const handleRefresh = async () => {
-        // Get the latest branch setting
-        const branch = getStoredBranch();
-        setCurrentBranch(branch);
-
         invalidateCache();
         setLoading(true);
         setError(null);
@@ -598,7 +618,7 @@ export default function ForceItemPools() {
         try {
             const [javaResponse, configResponse] = await Promise.all([
                 fetch(GITHUB_RAW_URL),
-                fetch(getConfigUrl(branch))
+                fetch(getConfigUrl(viewBranch) + '?t=' + Date.now()) // Cache bust
             ]);
 
             if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
@@ -618,7 +638,59 @@ export default function ForceItemPools() {
             }
 
             const cacheData = { items: parsedItems, timestamp: Date.now() };
-            setCache(cacheData, branch);
+            setCache(cacheData, viewBranch);
+            setItems(parsedItems);
+            setLastUpdated(new Date());
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle view branch change
+    const handleViewBranchChange = async (newBranch) => {
+        setViewBranch(newBranch);
+        setStoredViewBranch(newBranch);
+        invalidateCache();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const configUrl = getConfigUrl(newBranch) + '?t=' + Date.now();
+
+            const [javaResponse, configResponse] = await Promise.all([
+                fetch(GITHUB_RAW_URL),
+                fetch(configUrl)
+            ]);
+
+            if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
+
+            const javaContent = await javaResponse.text();
+            const parsedItems = parseJavaFile(javaContent);
+
+            // Reset all descriptions first
+            parsedItems.forEach(item => {
+                item.description = null;
+            });
+
+            if (configResponse.ok) {
+                const configContent = await configResponse.text();
+                const descriptions = parseConfigYaml(configContent);
+
+                parsedItems.forEach(item => {
+                    if (descriptions[item.material]) {
+                        item.description = descriptions[item.material];
+                    }
+                });
+            }
+
+            // Don't cache when viewing non-main branches to always get fresh data
+            if (newBranch === DEFAULT_BRANCH) {
+                const cacheData = { items: parsedItems, timestamp: Date.now() };
+                setCache(cacheData, newBranch);
+            }
+
             setItems(parsedItems);
             setLastUpdated(new Date());
         } catch (e) {
@@ -630,8 +702,19 @@ export default function ForceItemPools() {
 
     useEffect(() => {
         async function fetchData() {
-            const branch = getStoredBranch();
-            setCurrentBranch(branch);
+            const branch = viewBranch;
+
+            // Fetch available branches
+            try {
+                const branchesResponse = await fetch(BRANCHES_URL);
+                if (branchesResponse.ok) {
+                    const branchesData = await branchesResponse.json();
+                    const branchNames = branchesData.map(b => b.name);
+                    setAvailableBranches(branchNames.length > 0 ? branchNames : [DEFAULT_BRANCH]);
+                }
+            } catch (e) {
+                console.log('Could not fetch branches:', e);
+            }
 
             // Check cache first
             const cached = getCache(branch);
@@ -646,7 +729,7 @@ export default function ForceItemPools() {
                 // Fetch both files in parallel
                 const [javaResponse, configResponse] = await Promise.all([
                     fetch(GITHUB_RAW_URL),
-                    fetch(getConfigUrl(branch))
+                    fetch(getConfigUrl(branch) + '?t=' + Date.now())
                 ]);
 
                 if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
@@ -954,7 +1037,7 @@ export default function ForceItemPools() {
                         <button
                             onClick={handleRefresh}
                             disabled={loading}
-                            title={`Refresh data from ${currentBranch} branch`}
+                            title={`Refresh data from ${viewBranch} branch`}
                             style={{
                                 padding: '8px 16px',
                                 background: 'transparent',
@@ -998,22 +1081,44 @@ export default function ForceItemPools() {
                             <span>📜</span>
                             History
                         </button>
-                        {currentBranch !== DEFAULT_BRANCH && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}>
                             <span style={{
-                                padding: '6px 10px',
-                                background: '#FFAA0022',
-                                border: '1px solid #FFAA0044',
-                                borderRadius: '4px',
-                                color: '#FFAA00',
+                                color: COLORS.textMuted,
                                 fontSize: '11px',
-                                fontWeight: '600',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
                             }}>
-                                🌿 {currentBranch}
+                                Branch:
                             </span>
-                        )}
+                            <select
+                                value={viewBranch}
+                                onChange={(e) => handleViewBranchChange(e.target.value)}
+                                disabled={loading}
+                                style={{
+                                    padding: '6px 10px',
+                                    background: viewBranch !== DEFAULT_BRANCH ? '#FFAA0022' : COLORS.bgLighter,
+                                    border: `1px solid ${viewBranch !== DEFAULT_BRANCH ? '#FFAA0066' : COLORS.border}`,
+                                    borderRadius: '4px',
+                                    color: viewBranch !== DEFAULT_BRANCH ? '#FFAA00' : COLORS.text,
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    cursor: loading ? 'not-allowed' : 'pointer',
+                                    outline: 'none',
+                                    minWidth: '100px'
+                                }}
+                            >
+                                {availableBranches.map(branch => (
+                                    <option key={branch} value={branch}>
+                                        {branch === DEFAULT_BRANCH ? 'main' : branch}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                     </div>
                 </div>
 
@@ -1048,12 +1153,67 @@ export default function ForceItemPools() {
                 <div style={{
                     textAlign: 'center',
                     marginTop: '48px',
-                    padding: '24px',
+                    padding: '32px 20px',
                     borderTop: `1px solid ${COLORS.border}`,
                     color: COLORS.textMuted,
-                    fontSize: '12px'
+                    fontSize: '13px'
                 }}>
-                    Data fetched from GitHub
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        gap: '24px',
+                        marginBottom: '20px'
+                    }}>
+                        <a
+                            href="https://github.com/McPlayHDnet/ForceItemBattle"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                color: COLORS.textMuted,
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                transition: 'color 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                            onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                        >
+                            GitHub
+                        </a>
+                        <a
+                            href="https://mcplayhd.net"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                color: COLORS.textMuted,
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                transition: 'color 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                            onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                        >
+                            McPlayHD.net
+                        </a>
+                        <a
+                            href="/#imprint"
+                            style={{
+                                color: COLORS.textMuted,
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                transition: 'color 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
+                            onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                        >
+                            Imprint
+                        </a>
+                    </div>
+                    <p style={{ margin: 0 }}>
+                        Made with ❤️
+                    </p>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
+                        Not affiliated with Mojang Studios
+                    </p>
                 </div>
             </div>
 

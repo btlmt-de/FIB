@@ -4,8 +4,15 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   min-height: 100vh;
+  overflow-x: hidden;
+  background: #1a1a2e;
+}
+
+#root {
+  min-height: 100vh;
+  background: #1a1a2e;
 }
 
 @keyframes spin {
