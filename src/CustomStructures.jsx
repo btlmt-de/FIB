@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const COLORS = {
     bg: '#1a1a2e',
@@ -17,6 +17,7 @@ const COLORS = {
 };
 
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+const WHEEL_TEXTURE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
 
 // Loot table data with item texture names
 const LOOT_TABLES = {
@@ -50,7 +51,7 @@ const LOOT_TABLES = {
     legendary: {
         name: 'Storage',
         color: COLORS.purple,
-        description: 'The ultimate storage room with rare templates',
+        description: 'The ultimate treasure trove with rare templates',
         pools: [
             {
                 rolls: '5-10 rolls',
@@ -99,7 +100,7 @@ const LOOT_TABLES = {
     treasure: {
         name: 'Treasure Room',
         color: COLORS.green,
-        description: 'A bounty of resources',
+        description: 'A bounty of resources and rare saplings',
         pools: [
             {
                 rolls: '5-10 rolls',
@@ -464,9 +465,219 @@ function LootItem({ item }) {
     );
 }
 
+function simulateLoot(table) {
+    const results = [];
+
+    for (const pool of table.pools) {
+        // Parse roll range (e.g., "3-7 rolls" or "1 roll")
+        const rollMatch = pool.rolls.match(/(\d+)(?:-(\d+))?/);
+        if (!rollMatch) continue;
+
+        const minRolls = parseInt(rollMatch[1]);
+        const maxRolls = rollMatch[2] ? parseInt(rollMatch[2]) : minRolls;
+        const numRolls = Math.floor(Math.random() * (maxRolls - minRolls + 1)) + minRolls;
+
+        // Calculate total weight from percentages
+        const items = pool.items.map(item => ({
+            ...item,
+            weight: parseFloat(item.chance)
+        }));
+        const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+
+        // Roll for items
+        for (let i = 0; i < numRolls; i++) {
+            const roll = Math.random() * totalWeight;
+            let cumulative = 0;
+
+            for (const item of items) {
+                cumulative += item.weight;
+                if (roll < cumulative) {
+                    // Skip "Nothing" entries
+                    if (item.name.toLowerCase() !== 'nothing') {
+                        results.push(item);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    return results;
+}
+
+function LootSimulationResult({ items, onReroll, roomColor }) {
+    // Group items by name and count
+    const grouped = items.reduce((acc, item) => {
+        const key = item.name;
+        if (!acc[key]) {
+            acc[key] = { ...item, count: 0 };
+        }
+        acc[key].count++;
+        return acc;
+    }, {});
+
+    const groupedItems = Object.values(grouped).sort((a, b) => b.count - a.count);
+
+    return (
+        <div style={{
+            marginTop: '20px',
+            padding: '20px',
+            background: COLORS.bg,
+            borderRadius: '8px',
+            border: `1px solid ${roomColor}44`
+        }}>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px'
+            }}>
+                <span style={{
+                    color: COLORS.text,
+                    fontSize: '14px',
+                    fontWeight: '500'
+                }}>
+                    Loot Result ({items.length} item{items.length !== 1 ? 's' : ''})
+                </span>
+                <button
+                    onClick={onReroll}
+                    style={{
+                        padding: '6px 12px',
+                        background: 'transparent',
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '4px',
+                        color: COLORS.textMuted,
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = roomColor;
+                        e.currentTarget.style.color = COLORS.text;
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = COLORS.border;
+                        e.currentTarget.style.color = COLORS.textMuted;
+                    }}
+                >
+                    ↻ Open Again
+                </button>
+            </div>
+
+            {groupedItems.length === 0 ? (
+                <div style={{
+                    textAlign: 'center',
+                    padding: '20px',
+                    color: COLORS.textMuted,
+                    fontSize: '13px'
+                }}>
+                    The chest was empty... Try again!
+                </div>
+            ) : (
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                }}>
+                    {groupedItems.map((item, idx) => {
+                        const chanceNum = parseFloat(item.chance);
+                        const isLegendary = item.legendary || chanceNum < 1;
+                        const isRare = !isLegendary && chanceNum < 5;
+
+                        return (
+                            <div
+                                key={idx}
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}
+                            >
+                                <div style={{
+                                    position: 'relative',
+                                    width: '48px',
+                                    height: '48px',
+                                    background: COLORS.bgLight,
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: `2px solid ${isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.border}`,
+                                    boxShadow: isLegendary ? `0 0 12px ${COLORS.purple}44` : isRare ? `0 0 10px ${COLORS.gold}33` : 'none'
+                                }}>
+                                    <img
+                                        src={`${IMAGE_BASE_URL}/${item.texture}.png`}
+                                        alt={item.name}
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            imageRendering: 'pixelated'
+                                        }}
+                                        onError={(e) => { e.target.style.opacity = '0.3'; }}
+                                    />
+                                    {item.count > 1 && (
+                                        <span style={{
+                                            position: 'absolute',
+                                            bottom: '-2px',
+                                            right: '-2px',
+                                            background: COLORS.bgLighter,
+                                            color: COLORS.text,
+                                            fontSize: '11px',
+                                            fontWeight: '600',
+                                            padding: '1px 5px',
+                                            borderRadius: '4px',
+                                            border: `1px solid ${COLORS.border}`
+                                        }}>
+                                            ×{item.count}
+                                        </span>
+                                    )}
+                                </div>
+                                <span style={{
+                                    fontSize: '10px',
+                                    color: isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.textMuted,
+                                    maxWidth: '60px',
+                                    textAlign: 'center',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {item.name.split('(')[0].trim()}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function LootTableDisplay({ tables }) {
     const [activeRoom, setActiveRoom] = useState('honey');
+    const [simulationResult, setSimulationResult] = useState(null);
+    const [isAnimating, setIsAnimating] = useState(false);
     const table = tables[activeRoom];
+
+    const handleOpenChest = () => {
+        setIsAnimating(true);
+        setSimulationResult(null);
+
+        // Small delay for animation effect
+        setTimeout(() => {
+            const loot = simulateLoot(table);
+            setSimulationResult(loot);
+            setIsAnimating(false);
+        }, 300);
+    };
+
+    const handleRoomChange = (key) => {
+        setActiveRoom(key);
+        setSimulationResult(null);
+    };
 
     return (
         <div>
@@ -475,12 +686,13 @@ function LootTableDisplay({ tables }) {
                 display: 'flex',
                 gap: '8px',
                 marginBottom: '24px',
-                flexWrap: 'wrap'
+                flexWrap: 'wrap',
+                alignItems: 'center'
             }}>
                 {Object.entries(tables).map(([key, t]) => (
                     <button
                         key={key}
-                        onClick={() => setActiveRoom(key)}
+                        onClick={() => handleRoomChange(key)}
                         style={{
                             padding: '12px 20px',
                             background: activeRoom === key ? `${t.color}22` : 'transparent',
@@ -488,7 +700,7 @@ function LootTableDisplay({ tables }) {
                             borderRadius: '8px',
                             color: activeRoom === key ? t.color : COLORS.textMuted,
                             fontSize: '14px',
-                            fontWeight: activeRoom === key ? '600' : '400',
+                            fontWeight: '500',
                             cursor: 'pointer',
                             transition: 'all 0.2s'
                         }}
@@ -506,6 +718,52 @@ function LootTableDisplay({ tables }) {
                         {t.name}
                     </button>
                 ))}
+
+                {/* Chest button */}
+                <button
+                    onClick={handleOpenChest}
+                    disabled={isAnimating}
+                    style={{
+                        marginLeft: 'auto',
+                        padding: '10px 16px',
+                        background: isAnimating ? COLORS.bgLighter : `${table.color}22`,
+                        border: `2px solid ${table.color}`,
+                        borderRadius: '8px',
+                        color: table.color,
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        cursor: isAnimating ? 'wait' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s',
+                        transform: isAnimating ? 'scale(0.95)' : 'scale(1)'
+                    }}
+                    onMouseEnter={e => {
+                        if (!isAnimating) {
+                            e.currentTarget.style.background = `${table.color}33`;
+                        }
+                    }}
+                    onMouseLeave={e => {
+                        if (!isAnimating) {
+                            e.currentTarget.style.background = `${table.color}22`;
+                        }
+                    }}
+                >
+                    <img
+                        src={`${IMAGE_BASE_URL}/chest.png`}
+                        alt="Open Chest"
+                        style={{
+                            width: '24px',
+                            height: '24px',
+                            imageRendering: 'pixelated',
+                            transform: isAnimating ? 'rotate(-10deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.15s'
+                        }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    {isAnimating ? 'Opening...' : 'Open Chest'}
+                </button>
             </div>
 
             {/* Room content */}
@@ -587,6 +845,550 @@ function LootTableDisplay({ tables }) {
                     </div>
                 ))}
             </div>
+
+            {/* Simulation Result */}
+            {simulationResult !== null && (
+                <LootSimulationResult
+                    items={simulationResult}
+                    onReroll={handleOpenChest}
+                    roomColor={table.color}
+                />
+            )}
+        </div>
+    );
+}
+
+// Fetch all FIB items from the Java source file
+const ITEMS_GITHUB_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
+
+function parseItemsFromJava(content) {
+    const items = [];
+    const regex = /Material\.([A-Z_0-9]+)/g;
+    let match;
+    const seen = new Set();
+
+    while ((match = regex.exec(content)) !== null) {
+        const material = match[1];
+        if (!seen.has(material)) {
+            seen.add(material);
+            items.push({
+                name: material.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' '),
+                texture: material.toLowerCase()
+            });
+        }
+    }
+
+    return items;
+}
+
+function WheelOfFortune() {
+    const [state, setState] = useState('idle'); // 'idle', 'spinning', 'result'
+    const [strip, setStrip] = useState([]);
+    const [offset, setOffset] = useState(0);
+    const [result, setResult] = useState(null);
+    const [allItems, setAllItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const animationRef = useRef(null);
+
+    const ITEM_WIDTH = 80;
+    const SPIN_DURATION = 7000;
+    const STRIP_LENGTH = 80;
+    const FINAL_INDEX = STRIP_LENGTH - 8;
+
+    // Fetch items on mount
+    useEffect(() => {
+        async function fetchItems() {
+            try {
+                const response = await fetch(ITEMS_GITHUB_URL);
+                if (response.ok) {
+                    const content = await response.text();
+                    const items = parseItemsFromJava(content);
+                    setAllItems(items);
+                }
+            } catch (e) {
+                console.error('Failed to fetch items:', e);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchItems();
+    }, []);
+
+    const spin = () => {
+        if (state === 'spinning' || allItems.length === 0) return;
+
+        const finalItem = allItems[Math.floor(Math.random() * allItems.length)];
+
+        const newStrip = [];
+        for (let i = 0; i < STRIP_LENGTH; i++) {
+            if (i === FINAL_INDEX) {
+                newStrip.push(finalItem);
+            } else {
+                newStrip.push(allItems[Math.floor(Math.random() * allItems.length)]);
+            }
+        }
+
+        setStrip(newStrip);
+        setResult(finalItem);
+        setOffset(0);
+        setState('spinning');
+
+        const targetOffset = FINAL_INDEX * ITEM_WIDTH;
+        const randomOffset = (Math.random() - 0.5) * 30;
+        const finalOffset = targetOffset + randomOffset;
+
+        let startTime = null;
+
+        const animate = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / SPIN_DURATION, 1);
+            const eased = 1 - Math.pow(1 - progress, 4);
+
+            setOffset(eased * finalOffset);
+
+            if (progress < 1) {
+                animationRef.current = requestAnimationFrame(animate);
+            } else {
+                setState('result');
+            }
+        };
+
+        animationRef.current = requestAnimationFrame(animate);
+    };
+
+    const reset = () => {
+        setState('idle');
+        setResult(null);
+        setOffset(0);
+        setStrip([]);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+            }
+        };
+    }, []);
+
+    // Idle state - show clickable wheel card
+    if (state === 'idle') {
+        return (
+            <div style={{
+                marginTop: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px'
+            }}>
+                <button
+                    onClick={spin}
+                    disabled={loading || allItems.length === 0}
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: loading ? 'wait' : 'pointer',
+                        transition: 'transform 0.3s, filter 0.3s',
+                        filter: 'drop-shadow(0 8px 24px rgba(255, 170, 0, 0.3))',
+                        opacity: loading ? 0.5 : 1
+                    }}
+                    onMouseEnter={e => {
+                        if (!loading) {
+                            e.currentTarget.style.transform = 'scale(1.05) translateY(-4px)';
+                            e.currentTarget.style.filter = 'drop-shadow(0 12px 32px rgba(255, 170, 0, 0.5))';
+                        }
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'scale(1) translateY(0)';
+                        e.currentTarget.style.filter = 'drop-shadow(0 8px 24px rgba(255, 170, 0, 0.3))';
+                    }}
+                >
+                    <img
+                        src={WHEEL_TEXTURE_URL}
+                        alt="Wheel of Fortune"
+                        style={{
+                            width: '140px',
+                            height: 'auto',
+                            imageRendering: 'pixelated'
+                        }}
+                    />
+                </button>
+
+                <div style={{
+                    textAlign: 'center'
+                }}>
+                    <div style={{
+                        color: COLORS.gold,
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        marginBottom: '4px'
+                    }}>
+                        {loading ? 'Loading items...' : 'Click to spin!'}
+                    </div>
+                    <div style={{
+                        color: COLORS.textMuted,
+                        fontSize: '12px'
+                    }}>
+                        {loading ? 'Fetching item pool...' : `Win any item from ${allItems.length} possibilities`}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Spinning or Result state
+    return (
+        <div style={{
+            background: COLORS.bgLight,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: '12px',
+            padding: '24px',
+            marginTop: '20px'
+        }}>
+            {/* Header */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '20px'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <img
+                        src={WHEEL_TEXTURE_URL}
+                        alt="Wheel of Fortune"
+                        style={{
+                            width: '32px',
+                            height: 'auto',
+                            imageRendering: 'pixelated',
+                            animation: state === 'spinning' ? 'wheelSpin 0.5s linear infinite' : 'none'
+                        }}
+                    />
+                    <span style={{
+                        color: COLORS.gold,
+                        fontSize: '18px',
+                        fontWeight: '600'
+                    }}>
+                        {state === 'spinning' ? 'Spinning...' : 'Gamba!'}
+                    </span>
+                </div>
+
+                {state === 'result' && (
+                    <button
+                        onClick={reset}
+                        style={{
+                            padding: '8px 16px',
+                            background: 'transparent',
+                            border: `1px solid ${COLORS.border}`,
+                            borderRadius: '6px',
+                            color: COLORS.textMuted,
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = COLORS.gold;
+                            e.currentTarget.style.color = COLORS.text;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = COLORS.border;
+                            e.currentTarget.style.color = COLORS.textMuted;
+                        }}
+                    >
+                        ↻ Try Again
+                    </button>
+                )}
+            </div>
+
+            {/* Spinner Container */}
+            <div style={{
+                position: 'relative',
+                height: '100px',
+                overflow: 'hidden',
+                borderRadius: '8px',
+                background: COLORS.bg,
+                border: `1px solid ${COLORS.border}`
+            }}>
+                {/* Center Indicator */}
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    bottom: 0,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '3px',
+                    background: COLORS.gold,
+                    zIndex: 10,
+                    boxShadow: `0 0 16px ${COLORS.gold}88`
+                }} />
+
+                {/* Top pointer */}
+                <div style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: `12px solid ${COLORS.gold}`,
+                    zIndex: 11,
+                    filter: `drop-shadow(0 2px 4px ${COLORS.gold}66)`
+                }} />
+
+                {/* Edge fade gradients */}
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '100%',
+                    background: `linear-gradient(90deg, ${COLORS.bg} 0%, transparent 15%, transparent 85%, ${COLORS.bg} 100%)`,
+                    zIndex: 5,
+                    pointerEvents: 'none'
+                }} />
+
+                {/* Item Strip */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '100%',
+                    transform: `translateX(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
+                }}>
+                    {strip.map((item, idx) => (
+                        <div
+                            key={idx}
+                            style={{
+                                width: `${ITEM_WIDTH}px`,
+                                height: '80px',
+                                flexShrink: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRight: `1px solid ${COLORS.border}33`
+                            }}
+                        >
+                            <div style={{
+                                width: '52px',
+                                height: '52px',
+                                background: COLORS.bgLight,
+                                borderRadius: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: `2px solid ${idx === FINAL_INDEX && state === 'result' ? COLORS.gold : COLORS.border}`,
+                                boxShadow: idx === FINAL_INDEX && state === 'result' ? `0 0 20px ${COLORS.gold}66` : 'none',
+                                transition: 'all 0.3s'
+                            }}>
+                                <img
+                                    src={`${IMAGE_BASE_URL}/${item.texture}.png`}
+                                    alt={item.name}
+                                    style={{
+                                        width: '40px',
+                                        height: '40px',
+                                        imageRendering: 'pixelated'
+                                    }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Result Display */}
+            {state === 'result' && result && (
+                <div style={{
+                    marginTop: '24px',
+                    padding: '32px 24px',
+                    background: `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
+                    borderRadius: '12px',
+                    border: `1px solid ${COLORS.gold}44`,
+                    textAlign: 'center',
+                    position: 'relative',
+                    overflow: 'hidden'
+                }}>
+                    {/* Floating particles */}
+                    {[...Array(12)].map((_, i) => (
+                        <div
+                            key={i}
+                            style={{
+                                position: 'absolute',
+                                width: '6px',
+                                height: '6px',
+                                background: COLORS.gold,
+                                borderRadius: '50%',
+                                left: `${20 + Math.random() * 60}%`,
+                                top: '80%',
+                                opacity: 0,
+                                animation: `floatParticle 2s ease-out ${i * 0.15}s infinite`,
+                                boxShadow: `0 0 6px ${COLORS.gold}`
+                            }}
+                        />
+                    ))}
+
+                    <div style={{
+                        color: COLORS.textMuted,
+                        fontSize: '11px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '3px',
+                        marginBottom: '20px',
+                        position: 'relative',
+                        zIndex: 1,
+                        animation: 'fadeSlideDown 0.5s ease-out'
+                    }}>
+                        You received
+                    </div>
+
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '24px',
+                        position: 'relative',
+                        zIndex: 1
+                    }}>
+                        {/* Item container with glow */}
+                        <div style={{
+                            position: 'relative',
+                            animation: 'itemReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                        }}>
+                            {/* Pulsing glow ring */}
+                            <div style={{
+                                position: 'absolute',
+                                top: '-10px',
+                                left: '-10px',
+                                right: '-10px',
+                                bottom: '-10px',
+                                borderRadius: '16px',
+                                background: `radial-gradient(circle, ${COLORS.gold}33 0%, transparent 70%)`,
+                                animation: 'pulseGlow 1.5s ease-in-out infinite'
+                            }} />
+
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                background: COLORS.bgLight,
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: `3px solid ${COLORS.gold}`,
+                                boxShadow: `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
+                                position: 'relative'
+                            }}>
+                                <img
+                                    src={`${IMAGE_BASE_URL}/${result.texture}.png`}
+                                    alt={result.name}
+                                    style={{
+                                        width: '56px',
+                                        height: '56px',
+                                        imageRendering: 'pixelated',
+                                        animation: 'itemBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                        filter: 'drop-shadow(0 0 8px rgba(255, 170, 0, 0.5))'
+                                    }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
+                                    }}
+                                />
+                            </div>
+
+                            {/* Sparkle effects */}
+                            {[...Array(4)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        position: 'absolute',
+                                        width: '8px',
+                                        height: '8px',
+                                        top: ['0%', '10%', '80%', '70%'][i],
+                                        left: ['10%', '85%', '5%', '90%'][i],
+                                        animation: `sparkle 1s ease-in-out ${i * 0.2}s infinite`
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '100%',
+                                        height: '2px',
+                                        background: COLORS.gold,
+                                        position: 'absolute',
+                                        top: '50%',
+                                        left: '0',
+                                        transform: 'translateY(-50%)',
+                                        borderRadius: '1px',
+                                        boxShadow: `0 0 4px ${COLORS.gold}`
+                                    }} />
+                                    <div style={{
+                                        width: '2px',
+                                        height: '100%',
+                                        background: COLORS.gold,
+                                        position: 'absolute',
+                                        top: '0',
+                                        left: '50%',
+                                        transform: 'translateX(-50%)',
+                                        borderRadius: '1px',
+                                        boxShadow: `0 0 4px ${COLORS.gold}`
+                                    }} />
+                                </div>
+                            ))}
+                        </div>
+
+                        <span style={{
+                            color: COLORS.gold,
+                            fontSize: '24px',
+                            fontWeight: '600',
+                            textShadow: `0 0 20px ${COLORS.gold}44`,
+                            animation: 'textReveal 0.6s ease-out 0.2s both'
+                        }}>
+                            {result.name}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes wheelSpin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes itemReveal {
+                    0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+                    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+                }
+                @keyframes itemBounce {
+                    0% { transform: scale(0); }
+                    50% { transform: scale(1.2); }
+                    75% { transform: scale(0.9); }
+                    100% { transform: scale(1); }
+                }
+                @keyframes pulseGlow {
+                    0%, 100% { opacity: 0.5; transform: scale(1); }
+                    50% { opacity: 0.8; transform: scale(1.1); }
+                }
+                @keyframes sparkle {
+                    0%, 100% { opacity: 0; transform: scale(0.5); }
+                    50% { opacity: 1; transform: scale(1); }
+                }
+                @keyframes floatParticle {
+                    0% { transform: translateY(0) scale(1); opacity: 0; }
+                    10% { opacity: 1; }
+                    100% { transform: translateY(-100px) scale(0); opacity: 0; }
+                }
+                @keyframes fadeSlideDown {
+                    0% { opacity: 0; transform: translateY(-10px); }
+                    100% { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes textReveal {
+                    0% { opacity: 0; transform: translateX(-20px); }
+                    100% { opacity: 1; transform: translateX(0); }
+                }
+            `}</style>
         </div>
     );
 }
@@ -844,6 +1646,8 @@ export default function CustomStructures() {
                         Additionally, the trader sells a <Highlight color={COLORS.gold}>Wheel of Fortune</Highlight> for
                         1 Emerald (limited to one per player per trader).
                     </Paragraph>
+
+                    <WheelOfFortune />
                 </Section>
             </div>
 
