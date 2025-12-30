@@ -218,6 +218,26 @@ export default function Commands() {
                         command="/spectate"
                         description="Toggle gamemode spectator after round has ended."
                     />
+                    <CommandItem
+                        command="/fixskips"
+                        description="Get all your remaining jokers back when you lost them."
+                    />
+                    <CommandItem
+                        command="/bp"
+                        description="Opens your backpack."
+                    />
+                    <CommandItem
+                        command="/ping"
+                        description="Shows your current ping."
+                    />
+                    <CommandItem
+                        command="/voteskip"
+                        description="Start a skip vote (only works when RUN mode is activated)."
+                    />
+                    <CommandItem
+                        command="/vote"
+                        description="Vote yes/no when a vote is active."
+                    />
                 </CommandSection>
 
                 {/* Gamemaster Commands */}
@@ -253,6 +273,19 @@ export default function Commands() {
                         command="/forceteam <team> <p1> <p2>"
                         description="Force players into a team before round start."
                         example="/forceteam blue Steve Alex"
+                    />
+                    <CommandItem
+                        command="/skip <player>"
+                        description="Force skip the current item for a player."
+                        example="/skip Steve"
+                    />
+                    <CommandItem
+                        command="/result"
+                        description="Start the result view at the end of the game."
+                    />
+                    <CommandItem
+                        command="/items"
+                        description="View all item pools."
                     />
                 </CommandSection>
             </div>
