@@ -862,13 +862,18 @@ function LootTableDisplay({ tables }) {
 const ITEMS_GITHUB_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const COLLECTION_STORAGE_KEY = 'fib_wheel_collection';
 
-// Special team members with ultra-rare drop chances
+// Special team members with ultra-rare drop chances (Legendary: ≤0.05%)
 const TEAM_MEMBERS = [
     { name: 'eltobito', username: 'eltobito', chance: 0.00001 },
     { name: 'apppaa', username: 'apppaa', chance: 0.0001 },
     { name: 'threeseconds', username: 'threeseconds', chance: 0.0003 },
+    { name: 'CH0RD', username: 'CH0RD', chance: 0.0004 },
     { name: 'stupxd', username: 'stupxd', chance: 0.0005 },
-    { name: 'CH0RD', username: 'CH0RD', chance: 0.0007 },
+];
+
+// Rare tier members (0.06% - 0.07%)
+const RARE_MEMBERS = [
+    { name: 'shabana02', username: 'shabana02', chance: 0.00065 },
 ];
 
 // Mythic tier - the rarest item
@@ -881,6 +886,7 @@ const MYTHIC_ITEM = {
 };
 
 const TOTAL_SPECIAL_CHANCE = TEAM_MEMBERS.reduce((sum, m) => sum + m.chance, 0);
+const TOTAL_RARE_CHANCE = RARE_MEMBERS.reduce((sum, m) => sum + m.chance, 0);
 const TOTAL_MYTHIC_CHANCE = MYTHIC_ITEM.chance;
 
 // Format percentage without trailing zeros
@@ -902,6 +908,10 @@ function isMythicItem(item) {
     return item && item.isMythic;
 }
 
+function isRareItem(item) {
+    return item && item.isRare;
+}
+
 function pickRandomItem(allItems) {
     const roll = Math.random();
 
@@ -910,9 +920,8 @@ function pickRandomItem(allItems) {
         return { ...MYTHIC_ITEM };
     }
 
-    // Check if we hit a special item
+    // Check if we hit a legendary item
     if (roll < TOTAL_MYTHIC_CHANCE + TOTAL_SPECIAL_CHANCE) {
-        // Pick which special item based on relative chances
         let cumulative = TOTAL_MYTHIC_CHANCE;
         for (const member of TEAM_MEMBERS) {
             cumulative += member.chance;
@@ -921,6 +930,23 @@ function pickRandomItem(allItems) {
                     name: member.name,
                     texture: `special_${member.username}`,
                     isSpecial: true,
+                    username: member.username,
+                    chance: member.chance
+                };
+            }
+        }
+    }
+
+    // Check if we hit a rare item
+    if (roll < TOTAL_MYTHIC_CHANCE + TOTAL_SPECIAL_CHANCE + TOTAL_RARE_CHANCE) {
+        let cumulative = TOTAL_MYTHIC_CHANCE + TOTAL_SPECIAL_CHANCE;
+        for (const member of RARE_MEMBERS) {
+            cumulative += member.chance;
+            if (roll < cumulative) {
+                return {
+                    name: member.name,
+                    texture: `rare_${member.username}`,
+                    isRare: true,
                     username: member.username,
                     chance: member.chance
                 };
@@ -970,7 +996,7 @@ function saveCollection(collection) {
 }
 
 function CollectionBook({ allItems, collection, onClose }) {
-    const [filter, setFilter] = useState('all'); // 'all', 'collected', 'missing', 'mythic', 'special'
+    const [filter, setFilter] = useState('all'); // 'all', 'collected', 'missing', 'mythic', 'special', 'rare'
     const [search, setSearch] = useState('');
 
     // Mythic item
@@ -982,7 +1008,7 @@ function CollectionBook({ allItems, collection, onClose }) {
         imageUrl: MYTHIC_ITEM.imageUrl
     }];
 
-    // Combine regular items with special team members
+    // Legendary team members
     const specialItems = TEAM_MEMBERS.map(m => ({
         name: m.name,
         texture: `special_${m.username}`,
@@ -991,37 +1017,54 @@ function CollectionBook({ allItems, collection, onClose }) {
         chance: m.chance
     }));
 
-    const allItemsWithSpecial = [...mythicItems, ...specialItems, ...allItems];
+    // Rare members
+    const rareItems = RARE_MEMBERS.map(m => ({
+        name: m.name,
+        texture: `rare_${m.username}`,
+        isRare: true,
+        username: m.username,
+        chance: m.chance
+    }));
+
+    const allItemsWithSpecial = [...mythicItems, ...specialItems, ...rareItems, ...allItems];
 
     const collectedCount = Object.keys(collection).length;
     const collectedMythicCount = mythicItems.filter(item => collection[item.texture] > 0).length;
     const collectedSpecialCount = specialItems.filter(item => collection[item.texture] > 0).length;
+    const collectedRareCount = rareItems.filter(item => collection[item.texture] > 0).length;
     const totalCount = allItemsWithSpecial.length;
     const percentage = totalCount > 0 ? ((collectedCount / totalCount) * 100).toFixed(1) : 0;
+    const totalSpins = Object.values(collection).reduce((sum, count) => sum + count, 0);
 
     const filteredItems = allItemsWithSpecial.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
         const isCollected = collection[item.texture] > 0;
         const isSpecial = item.isSpecial;
         const isMythic = item.isMythic;
+        const isRare = item.isRare;
 
         if (!matchesSearch) return false;
         if (filter === 'mythic') return isMythic;
         if (filter === 'special') return isSpecial;
+        if (filter === 'rare') return isRare;
         if (filter === 'collected') return isCollected;
         if (filter === 'missing') return !isCollected;
         return true;
     });
 
-    // Sort: mythic first, then special items, then by count, then alphabetically
+    // Sort: mythic first, then legendary, then rare, then by count, then alphabetically
     const sortedItems = [...filteredItems].sort((a, b) => {
         // Mythic always first
         if (a.isMythic && !b.isMythic) return -1;
         if (!a.isMythic && b.isMythic) return 1;
 
-        // Special items second
+        // Legendary second
         if (a.isSpecial && !b.isSpecial) return -1;
         if (!a.isSpecial && b.isSpecial) return 1;
+
+        // Rare third
+        if (a.isRare && !b.isRare) return -1;
+        if (!a.isRare && b.isRare) return 1;
 
         const aCount = collection[a.texture] || 0;
         const bCount = collection[b.texture] || 0;
@@ -1209,7 +1252,8 @@ function CollectionBook({ allItems, collection, onClose }) {
                         height: '6px',
                         background: COLORS.bg,
                         borderRadius: '3px',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        marginBottom: '12px'
                     }}>
                         <div style={{
                             height: '100%',
@@ -1218,6 +1262,59 @@ function CollectionBook({ allItems, collection, onClose }) {
                             borderRadius: '3px',
                             transition: 'width 0.5s ease-out'
                         }} />
+                    </div>
+
+                    {/* Rare Progress */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <span style={{
+                            color: COLORS.red,
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}>
+                            <span>◆</span> Rare
+                        </span>
+                        <span style={{ color: COLORS.red, fontSize: '12px', fontWeight: '600' }}>
+                            {collectedRareCount} / {rareItems.length}
+                        </span>
+                    </div>
+                    <div style={{
+                        height: '6px',
+                        background: COLORS.bg,
+                        borderRadius: '3px',
+                        overflow: 'hidden',
+                        marginBottom: '16px'
+                    }}>
+                        <div style={{
+                            height: '100%',
+                            width: `${(collectedRareCount / rareItems.length) * 100}%`,
+                            background: `linear-gradient(90deg, ${COLORS.red}, ${COLORS.orange})`,
+                            borderRadius: '3px',
+                            transition: 'width 0.5s ease-out'
+                        }} />
+                    </div>
+
+                    {/* Total Spins */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        paddingTop: '12px',
+                        borderTop: `1px solid ${COLORS.border}`
+                    }}>
+                        <span style={{ color: COLORS.textMuted, fontSize: '12px', fontWeight: '500' }}>
+                            Total Spins
+                        </span>
+                        <span style={{ color: COLORS.text, fontSize: '14px', fontWeight: '600' }}>
+                            {totalSpins.toLocaleString()}
+                        </span>
                     </div>
                 </div>
 
@@ -1242,6 +1339,7 @@ function CollectionBook({ allItems, collection, onClose }) {
                             { key: 'all', label: 'All' },
                             { key: 'mythic', label: '✦ Mythic', color: COLORS.aqua },
                             { key: 'special', label: '★ Legendary', color: COLORS.purple },
+                            { key: 'rare', label: '◆ Rare', color: COLORS.red },
                             { key: 'collected', label: 'Collected' },
                             { key: 'missing', label: 'Missing' }
                         ].map(f => (
@@ -1309,11 +1407,12 @@ function CollectionBook({ allItems, collection, onClose }) {
                             const isCollected = count > 0;
                             const isSpecial = item.isSpecial;
                             const isMythic = item.isMythic;
+                            const isRare = item.isRare;
 
                             return (
                                 <div
                                     key={item.texture}
-                                    title={`${item.name}${(isSpecial || isMythic) ? ` (${formatChance(item.chance)}%)` : ''}${count > 0 ? ` (×${count})` : ' (Not collected)'}`}
+                                    title={`${item.name}${(isSpecial || isMythic || isRare) ? ` (${formatChance(item.chance)}%)` : ''}${count > 0 ? ` (×${count})` : ' (Not collected)'}`}
                                     style={{
                                         position: 'relative',
                                         aspectRatio: '1',
@@ -1321,13 +1420,17 @@ function CollectionBook({ allItems, collection, onClose }) {
                                             ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}22, ${COLORS.gold}22)` : COLORS.bg)
                                             : isSpecial
                                                 ? (isCollected ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}22)` : COLORS.bg)
-                                                : (isCollected ? COLORS.bgLight : COLORS.bg),
+                                                : isRare
+                                                    ? (isCollected ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}22)` : COLORS.bg)
+                                                    : (isCollected ? COLORS.bgLight : COLORS.bg),
                                         border: `2px solid ${
                                             isMythic
                                                 ? (isCollected ? COLORS.aqua : COLORS.aqua + '44')
                                                 : isSpecial
                                                     ? (isCollected ? COLORS.purple : COLORS.purple + '44')
-                                                    : (isCollected ? COLORS.gold + '66' : COLORS.border)
+                                                    : isRare
+                                                        ? (isCollected ? COLORS.red : COLORS.red + '44')
+                                                        : (isCollected ? COLORS.gold + '66' : COLORS.border)
                                         }`,
                                         borderRadius: '8px',
                                         display: 'flex',
@@ -1339,12 +1442,14 @@ function CollectionBook({ allItems, collection, onClose }) {
                                             ? `0 0 20px ${COLORS.aqua}44, 0 0 30px ${COLORS.purple}22`
                                             : isSpecial && isCollected
                                                 ? `0 0 15px ${COLORS.purple}44`
-                                                : 'none',
+                                                : isRare && isCollected
+                                                    ? `0 0 12px ${COLORS.red}44`
+                                                    : 'none',
                                         animation: isMythic && isCollected ? 'mythicGlowSoft 2s ease-in-out infinite' : 'none'
                                     }}
                                 >
-                                    {/* Mythic/Special badge */}
-                                    {(isMythic || isSpecial) && (
+                                    {/* Mythic/Special/Rare badge */}
+                                    {(isMythic || isSpecial || isRare) && (
                                         <div style={{
                                             position: 'absolute',
                                             top: '-4px',
@@ -1353,9 +1458,13 @@ function CollectionBook({ allItems, collection, onClose }) {
                                                 ? (isCollected
                                                     ? `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`
                                                     : COLORS.bgLighter)
-                                                : (isCollected
-                                                    ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`
-                                                    : COLORS.bgLighter),
+                                                : isSpecial
+                                                    ? (isCollected
+                                                        ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`
+                                                        : COLORS.bgLighter)
+                                                    : (isCollected
+                                                        ? COLORS.red
+                                                        : COLORS.bgLighter),
                                             color: isCollected ? '#fff' : COLORS.textMuted,
                                             fontSize: '8px',
                                             width: '14px',
@@ -1364,17 +1473,17 @@ function CollectionBook({ allItems, collection, onClose }) {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            border: `1px solid ${isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : (isCollected ? COLORS.purple : COLORS.border)}`,
+                                            border: `1px solid ${isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : isSpecial ? (isCollected ? COLORS.purple : COLORS.border) : (isCollected ? COLORS.red : COLORS.border)}`,
                                             zIndex: 2
                                         }}>
-                                            {isMythic ? '✦' : '★'}
+                                            {isMythic ? '✦' : isSpecial ? '★' : '◆'}
                                         </div>
                                     )}
 
                                     <img
                                         src={isMythic
                                             ? item.imageUrl
-                                            : isSpecial
+                                            : (isSpecial || isRare)
                                                 ? getMinecraftHeadUrl(item.username)
                                                 : `${IMAGE_BASE_URL}/${item.texture}.png`
                                         }
@@ -1382,8 +1491,8 @@ function CollectionBook({ allItems, collection, onClose }) {
                                         style={{
                                             width: '70%',
                                             height: '70%',
-                                            imageRendering: isSpecial ? 'auto' : 'pixelated',
-                                            borderRadius: isSpecial ? '4px' : '0',
+                                            imageRendering: (isSpecial || isRare) ? 'auto' : 'pixelated',
+                                            borderRadius: (isSpecial || isRare) ? '4px' : '0',
                                             opacity: isCollected ? 1 : 0.2,
                                             filter: isCollected ? 'none' : 'grayscale(100%)',
                                             transition: 'all 0.15s'
@@ -1399,7 +1508,7 @@ function CollectionBook({ allItems, collection, onClose }) {
                                             position: 'absolute',
                                             bottom: '2px',
                                             right: '2px',
-                                            background: isMythic ? COLORS.aqua : isSpecial ? COLORS.purple : COLORS.gold,
+                                            background: isMythic ? COLORS.aqua : isSpecial ? COLORS.purple : isRare ? COLORS.red : COLORS.gold,
                                             color: '#fff',
                                             fontSize: '10px',
                                             fontWeight: '700',
@@ -1412,7 +1521,7 @@ function CollectionBook({ allItems, collection, onClose }) {
                                         </div>
                                     )}
 
-                                    {isCollected && count === 1 && !isSpecial && !isMythic && (
+                                    {isCollected && count === 1 && !isSpecial && !isMythic && !isRare && (
                                         <div style={{
                                             position: 'absolute',
                                             bottom: '2px',
@@ -1588,7 +1697,7 @@ function WheelOfFortune() {
     // Idle state - show clickable wheel card
     if (state === 'idle') {
         const collectedCount = Object.keys(collection).length;
-        const totalItemCount = allItems.length + TEAM_MEMBERS.length + 1; // +1 for mythic
+        const totalItemCount = allItems.length + TEAM_MEMBERS.length + RARE_MEMBERS.length + 1; // +1 for mythic
 
         return (
             <div style={{
@@ -1887,6 +1996,7 @@ function WheelOfFortune() {
                     {strip.map((item, idx) => {
                         const isSpecial = isSpecialItem(item);
                         const isMythic = isMythicItem(item);
+                        const isRare = isRareItem(item);
                         const isWinningItem = idx === FINAL_INDEX && state === 'result';
 
                         return (
@@ -1913,7 +2023,9 @@ function WheelOfFortune() {
                                         ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
                                         : isSpecial
                                             ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
-                                            : COLORS.bgLight,
+                                            : isRare
+                                                ? `linear-gradient(135deg, ${COLORS.red}44, ${COLORS.orange}44)`
+                                                : COLORS.bgLight,
                                     borderRadius: '6px',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1922,26 +2034,29 @@ function WheelOfFortune() {
                                         isWinningItem ? COLORS.gold
                                             : isMythic ? COLORS.aqua
                                                 : isSpecial ? COLORS.purple
-                                                    : COLORS.border
+                                                    : isRare ? COLORS.red
+                                                        : COLORS.border
                                     }`,
                                     boxShadow: isMythic
                                         ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
                                         : isSpecial
                                             ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
-                                            : isWinningItem
-                                                ? `0 0 20px ${COLORS.gold}66`
-                                                : 'none',
+                                            : isRare
+                                                ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
+                                                : isWinningItem
+                                                    ? `0 0 20px ${COLORS.gold}66`
+                                                    : 'none',
                                     transition: 'all 0.3s',
-                                    animation: isMythic ? 'mythicGlow 1s ease-in-out infinite' : isSpecial ? 'specialGlow 1.5s ease-in-out infinite' : 'none'
+                                    animation: isMythic ? 'mythicGlow 1s ease-in-out infinite' : isSpecial ? 'specialGlow 1.5s ease-in-out infinite' : isRare ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
                                 }}>
                                     <img
-                                        src={isMythic ? item.imageUrl : isSpecial ? getMinecraftHeadUrl(item.username) : `${IMAGE_BASE_URL}/${item.texture}.png`}
+                                        src={isMythic ? item.imageUrl : (isSpecial || isRare) ? getMinecraftHeadUrl(item.username) : `${IMAGE_BASE_URL}/${item.texture}.png`}
                                         alt={item.name}
                                         style={{
                                             width: '40px',
                                             height: '40px',
-                                            imageRendering: isSpecial ? 'auto' : 'pixelated',
-                                            borderRadius: isSpecial ? '4px' : '0'
+                                            imageRendering: (isSpecial || isRare) ? 'auto' : 'pixelated',
+                                            borderRadius: (isSpecial || isRare) ? '4px' : '0'
                                         }}
                                         onError={(e) => {
                                             e.target.onerror = null;
@@ -1964,9 +2079,11 @@ function WheelOfFortune() {
                         ? `radial-gradient(ellipse at center, ${COLORS.aqua}15 0%, ${COLORS.purple}10 50%, ${COLORS.bg} 70%)`
                         : isSpecialItem(result)
                             ? `radial-gradient(ellipse at center, ${COLORS.purple}22 0%, ${COLORS.bg} 70%)`
-                            : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
+                            : isRareItem(result)
+                                ? `radial-gradient(ellipse at center, ${COLORS.red}18 0%, ${COLORS.bg} 70%)`
+                                : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
                     borderRadius: '12px',
-                    border: `1px solid ${isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : COLORS.gold + '44'}`,
+                    border: `1px solid ${isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : isRareItem(result) ? COLORS.red + '66' : COLORS.gold + '44'}`,
                     textAlign: 'center',
                     position: 'relative',
                     overflow: 'hidden'
@@ -1981,13 +2098,15 @@ function WheelOfFortune() {
                                 height: isMythicItem(result) ? '8px' : '6px',
                                 background: isMythicItem(result)
                                     ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                    : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
+                                    : isSpecialItem(result) ? COLORS.purple
+                                        : isRareItem(result) ? COLORS.red
+                                            : COLORS.gold,
                                 borderRadius: '50%',
                                 left: `${10 + Math.random() * 80}%`,
                                 top: '80%',
                                 opacity: 0,
                                 animation: `floatParticle ${isMythicItem(result) ? '1.5s' : '2s'} ease-out ${i * 0.1}s infinite`,
-                                boxShadow: `0 0 6px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`
+                                boxShadow: `0 0 6px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
                             }}
                         />
                     ))}
@@ -2031,6 +2150,18 @@ function WheelOfFortune() {
                             }}>
                                 ★ LEGENDARY
                             </span>
+                        ) : isRareItem(result) ? (
+                            <span style={{
+                                background: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
+                                color: '#fff',
+                                fontSize: '9px',
+                                fontWeight: '700',
+                                padding: '3px 10px',
+                                borderRadius: '4px',
+                                animation: 'newBadgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
+                            }}>
+                                ◆ RARE
+                            </span>
                         ) : isNewItem && (
                             <span style={{
                                 background: COLORS.green,
@@ -2071,7 +2202,7 @@ function WheelOfFortune() {
                                 borderRadius: '16px',
                                 background: isMythicItem(result)
                                     ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
-                                    : `radial-gradient(circle, ${isSpecialItem(result) ? COLORS.purple : COLORS.gold}33 0%, transparent 70%)`,
+                                    : `radial-gradient(circle, ${isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}33 0%, transparent 70%)`,
                                 animation: 'pulseGlow 1.5s ease-in-out infinite'
                             }} />
 
@@ -2082,30 +2213,34 @@ function WheelOfFortune() {
                                     ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
                                     : isSpecialItem(result)
                                         ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                        : COLORS.bgLight,
+                                        : isRareItem(result)
+                                            ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33)`
+                                            : COLORS.bgLight,
                                 borderRadius: '12px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                border: `3px solid ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`,
+                                border: `3px solid ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`,
                                 boxShadow: isMythicItem(result)
                                     ? `0 0 30px ${COLORS.aqua}66, 0 0 60px ${COLORS.purple}44, 0 0 90px ${COLORS.gold}22`
                                     : isSpecialItem(result)
                                         ? `0 0 30px ${COLORS.purple}66, 0 0 60px ${COLORS.purple}33, 0 0 90px ${COLORS.gold}22`
-                                        : `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
+                                        : isRareItem(result)
+                                            ? `0 0 30px ${COLORS.red}66, 0 0 60px ${COLORS.red}33, 0 0 90px ${COLORS.orange}22`
+                                            : `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
                                 position: 'relative',
-                                animation: isMythicItem(result) ? 'mythicGlow 1s ease-in-out infinite' : isSpecialItem(result) ? 'specialGlow 1.5s ease-in-out infinite' : 'none'
+                                animation: isMythicItem(result) ? 'mythicGlow 1s ease-in-out infinite' : isSpecialItem(result) ? 'specialGlow 1.5s ease-in-out infinite' : isRareItem(result) ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
                             }}>
                                 <img
-                                    src={isMythicItem(result) ? result.imageUrl : isSpecialItem(result) ? getMinecraftHeadUrl(result.username) : `${IMAGE_BASE_URL}/${result.texture}.png`}
+                                    src={isMythicItem(result) ? result.imageUrl : (isSpecialItem(result) || isRareItem(result)) ? getMinecraftHeadUrl(result.username) : `${IMAGE_BASE_URL}/${result.texture}.png`}
                                     alt={result.name}
                                     style={{
                                         width: '56px',
                                         height: '56px',
-                                        imageRendering: isSpecialItem(result) ? 'auto' : 'pixelated',
-                                        borderRadius: isSpecialItem(result) ? '6px' : '0',
+                                        imageRendering: (isSpecialItem(result) || isRareItem(result)) ? 'auto' : 'pixelated',
+                                        borderRadius: (isSpecialItem(result) || isRareItem(result)) ? '6px' : '0',
                                         animation: 'itemBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                        filter: `drop-shadow(0 0 8px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : 'rgba(255, 170, 0, 0.5)'})`
+                                        filter: `drop-shadow(0 0 8px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : 'rgba(255, 170, 0, 0.5)'})`
                                     }}
                                     onError={(e) => {
                                         e.target.onerror = null;
@@ -2132,26 +2267,30 @@ function WheelOfFortune() {
                                         height: '2px',
                                         background: isMythicItem(result)
                                             ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                            : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
+                                            : isSpecialItem(result) ? COLORS.purple
+                                                : isRareItem(result) ? COLORS.red
+                                                    : COLORS.gold,
                                         position: 'absolute',
                                         top: '50%',
                                         left: '0',
                                         transform: 'translateY(-50%)',
                                         borderRadius: '1px',
-                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`
+                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
                                     }} />
                                     <div style={{
                                         width: '2px',
                                         height: '100%',
                                         background: isMythicItem(result)
                                             ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                            : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
+                                            : isSpecialItem(result) ? COLORS.purple
+                                                : isRareItem(result) ? COLORS.red
+                                                    : COLORS.gold,
                                         position: 'absolute',
                                         top: '0',
                                         left: '50%',
                                         transform: 'translateX(-50%)',
                                         borderRadius: '1px',
-                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`
+                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
                                     }} />
                                 </div>
                             ))}
@@ -2166,20 +2305,20 @@ function WheelOfFortune() {
                             textAlign: isMobile ? 'center' : 'left'
                         }}>
                             <span style={{
-                                color: isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
+                                color: isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
                                 fontSize: '24px',
                                 fontWeight: '600',
-                                textShadow: `0 0 20px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}44`
+                                textShadow: `0 0 20px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}44`
                             }}>
                                 {result.name}
                             </span>
 
-                            {(isMythicItem(result) || isSpecialItem(result)) ? (
+                            {(isMythicItem(result) || isSpecialItem(result) || isRareItem(result)) ? (
                                 <span style={{
                                     fontSize: '11px',
-                                    color: isMythicItem(result) ? COLORS.aqua : COLORS.purple,
+                                    color: isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red,
                                     fontWeight: '600',
-                                    background: `${isMythicItem(result) ? COLORS.aqua : COLORS.purple}22`,
+                                    background: `${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}22`,
                                     padding: '2px 8px',
                                     borderRadius: '4px',
                                     marginTop: '4px'
@@ -2248,6 +2387,16 @@ function WheelOfFortune() {
                     50% { 
                         box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
                         border-color: ${COLORS.gold};
+                    }
+                }
+                @keyframes rareGlow {
+                    0%, 100% { 
+                        box-shadow: 0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44;
+                        border-color: ${COLORS.red};
+                    }
+                    50% { 
+                        box-shadow: 0 0 20px ${COLORS.red}aa, 0 0 40px ${COLORS.orange}44;
+                        border-color: ${COLORS.orange};
                     }
                 }
                 @keyframes mythicGlow {
