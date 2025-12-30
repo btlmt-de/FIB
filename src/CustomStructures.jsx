@@ -862,6 +862,76 @@ function LootTableDisplay({ tables }) {
 const ITEMS_GITHUB_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const COLLECTION_STORAGE_KEY = 'fib_wheel_collection';
 
+// Special team members with ultra-rare drop chances
+const TEAM_MEMBERS = [
+    { name: 'eltobito', username: 'eltobito', chance: 0.00001 },
+    { name: 'apppaa', username: 'apppaa', chance: 0.0001 },
+    { name: 'threeseconds', username: 'threeseconds', chance: 0.0003 },
+    { name: 'stupxd', username: 'stupxd', chance: 0.0005 },
+    { name: 'CH0RD', username: 'CH0RD', chance: 0.0007 },
+];
+
+// Mythic tier - the rarest item
+const MYTHIC_ITEM = {
+    name: 'Cavendish',
+    texture: 'mythic_cavendish',
+    chance: 0.000001, // 0.0001%
+    isMythic: true,
+    imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png'
+};
+
+const TOTAL_SPECIAL_CHANCE = TEAM_MEMBERS.reduce((sum, m) => sum + m.chance, 0);
+const TOTAL_MYTHIC_CHANCE = MYTHIC_ITEM.chance;
+
+// Format percentage without trailing zeros
+function formatChance(chance) {
+    const percent = chance * 100;
+    // Use enough precision to show the significant digits, then remove trailing zeros
+    return parseFloat(percent.toFixed(6)).toString();
+}
+
+function getMinecraftHeadUrl(username) {
+    return `https://minotar.net/helm/${username}/64`;
+}
+
+function isSpecialItem(item) {
+    return item && item.isSpecial;
+}
+
+function isMythicItem(item) {
+    return item && item.isMythic;
+}
+
+function pickRandomItem(allItems) {
+    const roll = Math.random();
+
+    // Check if we hit the mythic item first (rarest)
+    if (roll < TOTAL_MYTHIC_CHANCE) {
+        return { ...MYTHIC_ITEM };
+    }
+
+    // Check if we hit a special item
+    if (roll < TOTAL_MYTHIC_CHANCE + TOTAL_SPECIAL_CHANCE) {
+        // Pick which special item based on relative chances
+        let cumulative = TOTAL_MYTHIC_CHANCE;
+        for (const member of TEAM_MEMBERS) {
+            cumulative += member.chance;
+            if (roll < cumulative) {
+                return {
+                    name: member.name,
+                    texture: `special_${member.username}`,
+                    isSpecial: true,
+                    username: member.username,
+                    chance: member.chance
+                };
+            }
+        }
+    }
+
+    // Regular item
+    return allItems[Math.floor(Math.random() * allItems.length)];
+}
+
 function parseItemsFromJava(content) {
     const items = [];
     const regex = /Material\.([A-Z_0-9]+)/g;
@@ -900,25 +970,59 @@ function saveCollection(collection) {
 }
 
 function CollectionBook({ allItems, collection, onClose }) {
-    const [filter, setFilter] = useState('all'); // 'all', 'collected', 'missing'
+    const [filter, setFilter] = useState('all'); // 'all', 'collected', 'missing', 'mythic', 'special'
     const [search, setSearch] = useState('');
 
+    // Mythic item
+    const mythicItems = [{
+        name: MYTHIC_ITEM.name,
+        texture: MYTHIC_ITEM.texture,
+        isMythic: true,
+        chance: MYTHIC_ITEM.chance,
+        imageUrl: MYTHIC_ITEM.imageUrl
+    }];
+
+    // Combine regular items with special team members
+    const specialItems = TEAM_MEMBERS.map(m => ({
+        name: m.name,
+        texture: `special_${m.username}`,
+        isSpecial: true,
+        username: m.username,
+        chance: m.chance
+    }));
+
+    const allItemsWithSpecial = [...mythicItems, ...specialItems, ...allItems];
+
     const collectedCount = Object.keys(collection).length;
-    const totalCount = allItems.length;
+    const collectedMythicCount = mythicItems.filter(item => collection[item.texture] > 0).length;
+    const collectedSpecialCount = specialItems.filter(item => collection[item.texture] > 0).length;
+    const totalCount = allItemsWithSpecial.length;
     const percentage = totalCount > 0 ? ((collectedCount / totalCount) * 100).toFixed(1) : 0;
 
-    const filteredItems = allItems.filter(item => {
+    const filteredItems = allItemsWithSpecial.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
         const isCollected = collection[item.texture] > 0;
+        const isSpecial = item.isSpecial;
+        const isMythic = item.isMythic;
 
         if (!matchesSearch) return false;
+        if (filter === 'mythic') return isMythic;
+        if (filter === 'special') return isSpecial;
         if (filter === 'collected') return isCollected;
         if (filter === 'missing') return !isCollected;
         return true;
     });
 
-    // Sort: collected first, then by count, then alphabetically
+    // Sort: mythic first, then special items, then by count, then alphabetically
     const sortedItems = [...filteredItems].sort((a, b) => {
+        // Mythic always first
+        if (a.isMythic && !b.isMythic) return -1;
+        if (!a.isMythic && b.isMythic) return 1;
+
+        // Special items second
+        if (a.isSpecial && !b.isSpecial) return -1;
+        if (!a.isSpecial && b.isSpecial) return 1;
+
         const aCount = collection[a.texture] || 0;
         const bCount = collection[b.texture] || 0;
         if (aCount !== bCount) return bCount - aCount;
@@ -1021,7 +1125,7 @@ function CollectionBook({ allItems, collection, onClose }) {
                         marginBottom: '8px'
                     }}>
                         <span style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                            Progress
+                            Total Progress
                         </span>
                         <span style={{ color: COLORS.gold, fontSize: '14px', fontWeight: '600' }}>
                             {collectedCount} / {totalCount} ({percentage}%)
@@ -1031,13 +1135,87 @@ function CollectionBook({ allItems, collection, onClose }) {
                         height: '8px',
                         background: COLORS.bg,
                         borderRadius: '4px',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        marginBottom: '16px'
                     }}>
                         <div style={{
                             height: '100%',
                             width: `${percentage}%`,
                             background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
                             borderRadius: '4px',
+                            transition: 'width 0.5s ease-out'
+                        }} />
+                    </div>
+
+                    {/* Mythic Progress */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <span style={{
+                            color: COLORS.aqua,
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}>
+                            <span>✦</span> Mythic
+                        </span>
+                        <span style={{ color: COLORS.aqua, fontSize: '12px', fontWeight: '600' }}>
+                            {collectedMythicCount} / {mythicItems.length}
+                        </span>
+                    </div>
+                    <div style={{
+                        height: '6px',
+                        background: COLORS.bg,
+                        borderRadius: '3px',
+                        overflow: 'hidden',
+                        marginBottom: '12px'
+                    }}>
+                        <div style={{
+                            height: '100%',
+                            width: `${(collectedMythicCount / mythicItems.length) * 100}%`,
+                            background: `linear-gradient(90deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,
+                            borderRadius: '3px',
+                            transition: 'width 0.5s ease-out'
+                        }} />
+                    </div>
+
+                    {/* Special Progress */}
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '6px'
+                    }}>
+                        <span style={{
+                            color: COLORS.purple,
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}>
+                            <span>★</span> Legendary Team
+                        </span>
+                        <span style={{ color: COLORS.purple, fontSize: '12px', fontWeight: '600' }}>
+                            {collectedSpecialCount} / {specialItems.length}
+                        </span>
+                    </div>
+                    <div style={{
+                        height: '6px',
+                        background: COLORS.bg,
+                        borderRadius: '3px',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            height: '100%',
+                            width: `${(collectedSpecialCount / specialItems.length) * 100}%`,
+                            background: `linear-gradient(90deg, ${COLORS.purple}, ${COLORS.gold})`,
+                            borderRadius: '3px',
                             transition: 'width 0.5s ease-out'
                         }} />
                     </div>
@@ -1057,10 +1235,13 @@ function CollectionBook({ allItems, collection, onClose }) {
                         background: COLORS.bgLight,
                         borderRadius: '8px',
                         padding: '4px',
-                        gap: '4px'
+                        gap: '4px',
+                        flexWrap: 'wrap'
                     }}>
                         {[
                             { key: 'all', label: 'All' },
+                            { key: 'mythic', label: '✦ Mythic', color: COLORS.aqua },
+                            { key: 'special', label: '★ Legendary', color: COLORS.purple },
                             { key: 'collected', label: 'Collected' },
                             { key: 'missing', label: 'Missing' }
                         ].map(f => (
@@ -1068,15 +1249,17 @@ function CollectionBook({ allItems, collection, onClose }) {
                                 key={f.key}
                                 onClick={() => setFilter(f.key)}
                                 style={{
-                                    padding: '6px 14px',
+                                    padding: '6px 12px',
                                     border: 'none',
                                     borderRadius: '6px',
-                                    fontSize: '13px',
+                                    fontSize: '11px',
                                     fontWeight: '500',
                                     cursor: 'pointer',
                                     transition: 'all 0.15s',
-                                    background: filter === f.key ? COLORS.gold : 'transparent',
-                                    color: filter === f.key ? COLORS.bg : COLORS.textMuted
+                                    background: filter === f.key
+                                        ? (f.color || COLORS.gold)
+                                        : 'transparent',
+                                    color: filter === f.key ? (f.key === 'mythic' ? COLORS.bg : '#fff') : COLORS.textMuted
                                 }}
                             >
                                 {f.label}
@@ -1124,31 +1307,83 @@ function CollectionBook({ allItems, collection, onClose }) {
                         {sortedItems.map(item => {
                             const count = collection[item.texture] || 0;
                             const isCollected = count > 0;
+                            const isSpecial = item.isSpecial;
+                            const isMythic = item.isMythic;
 
                             return (
                                 <div
                                     key={item.texture}
-                                    title={`${item.name}${count > 0 ? ` (×${count})` : ' (Not collected)'}`}
+                                    title={`${item.name}${(isSpecial || isMythic) ? ` (${formatChance(item.chance)}%)` : ''}${count > 0 ? ` (×${count})` : ' (Not collected)'}`}
                                     style={{
                                         position: 'relative',
                                         aspectRatio: '1',
-                                        background: isCollected ? COLORS.bgLight : COLORS.bg,
-                                        border: `2px solid ${isCollected ? COLORS.gold + '66' : COLORS.border}`,
+                                        background: isMythic
+                                            ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}22, ${COLORS.gold}22)` : COLORS.bg)
+                                            : isSpecial
+                                                ? (isCollected ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}22)` : COLORS.bg)
+                                                : (isCollected ? COLORS.bgLight : COLORS.bg),
+                                        border: `2px solid ${
+                                            isMythic
+                                                ? (isCollected ? COLORS.aqua : COLORS.aqua + '44')
+                                                : isSpecial
+                                                    ? (isCollected ? COLORS.purple : COLORS.purple + '44')
+                                                    : (isCollected ? COLORS.gold + '66' : COLORS.border)
+                                        }`,
                                         borderRadius: '8px',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         transition: 'all 0.15s',
-                                        cursor: 'default'
+                                        cursor: 'default',
+                                        boxShadow: isMythic && isCollected
+                                            ? `0 0 20px ${COLORS.aqua}44, 0 0 30px ${COLORS.purple}22`
+                                            : isSpecial && isCollected
+                                                ? `0 0 15px ${COLORS.purple}44`
+                                                : 'none',
+                                        animation: isMythic && isCollected ? 'mythicGlowSoft 2s ease-in-out infinite' : 'none'
                                     }}
                                 >
+                                    {/* Mythic/Special badge */}
+                                    {(isMythic || isSpecial) && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: '-4px',
+                                            right: '-4px',
+                                            background: isMythic
+                                                ? (isCollected
+                                                    ? `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`
+                                                    : COLORS.bgLighter)
+                                                : (isCollected
+                                                    ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`
+                                                    : COLORS.bgLighter),
+                                            color: isCollected ? '#fff' : COLORS.textMuted,
+                                            fontSize: '8px',
+                                            width: '14px',
+                                            height: '14px',
+                                            borderRadius: '50%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            border: `1px solid ${isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : (isCollected ? COLORS.purple : COLORS.border)}`,
+                                            zIndex: 2
+                                        }}>
+                                            {isMythic ? '✦' : '★'}
+                                        </div>
+                                    )}
+
                                     <img
-                                        src={`${IMAGE_BASE_URL}/${item.texture}.png`}
+                                        src={isMythic
+                                            ? item.imageUrl
+                                            : isSpecial
+                                                ? getMinecraftHeadUrl(item.username)
+                                                : `${IMAGE_BASE_URL}/${item.texture}.png`
+                                        }
                                         alt={item.name}
                                         style={{
                                             width: '70%',
                                             height: '70%',
-                                            imageRendering: 'pixelated',
+                                            imageRendering: isSpecial ? 'auto' : 'pixelated',
+                                            borderRadius: isSpecial ? '4px' : '0',
                                             opacity: isCollected ? 1 : 0.2,
                                             filter: isCollected ? 'none' : 'grayscale(100%)',
                                             transition: 'all 0.15s'
@@ -1164,8 +1399,8 @@ function CollectionBook({ allItems, collection, onClose }) {
                                             position: 'absolute',
                                             bottom: '2px',
                                             right: '2px',
-                                            background: COLORS.gold,
-                                            color: COLORS.bg,
+                                            background: isMythic ? COLORS.aqua : isSpecial ? COLORS.purple : COLORS.gold,
+                                            color: '#fff',
                                             fontSize: '10px',
                                             fontWeight: '700',
                                             padding: '1px 5px',
@@ -1177,7 +1412,7 @@ function CollectionBook({ allItems, collection, onClose }) {
                                         </div>
                                     )}
 
-                                    {isCollected && count === 1 && (
+                                    {isCollected && count === 1 && !isSpecial && !isMythic && (
                                         <div style={{
                                             position: 'absolute',
                                             bottom: '2px',
@@ -1215,6 +1450,17 @@ function CollectionBook({ allItems, collection, onClose }) {
                     from { opacity: 0; transform: translateY(20px) scale(0.98); }
                     to { opacity: 1; transform: translateY(0) scale(1); }
                 }
+                @keyframes mythicGlowSoft {
+                    0%, 100% { 
+                        box-shadow: 0 0 15px ${COLORS.aqua}44, 0 0 25px ${COLORS.purple}22;
+                    }
+                    33% { 
+                        box-shadow: 0 0 15px ${COLORS.purple}44, 0 0 25px ${COLORS.gold}22;
+                    }
+                    66% { 
+                        box-shadow: 0 0 15px ${COLORS.gold}44, 0 0 25px ${COLORS.aqua}22;
+                    }
+                }
             `}</style>
         </div>
     );
@@ -1230,7 +1476,16 @@ function WheelOfFortune() {
     const [collection, setCollection] = useState(loadCollection);
     const [showCollection, setShowCollection] = useState(false);
     const [isNewItem, setIsNewItem] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const animationRef = useRef(null);
+
+    // Check for mobile on mount and resize
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 600);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const ITEM_WIDTH = 80;
     const SPIN_DURATION = 7000;
@@ -1259,14 +1514,21 @@ function WheelOfFortune() {
     const spin = () => {
         if (state === 'spinning' || allItems.length === 0) return;
 
-        const finalItem = allItems[Math.floor(Math.random() * allItems.length)];
+        // Reset state for new spin
+        setIsNewItem(false);
+
+        const finalItem = pickRandomItem(allItems);
 
         const newStrip = [];
         for (let i = 0; i < STRIP_LENGTH; i++) {
             if (i === FINAL_INDEX) {
                 newStrip.push(finalItem);
             } else {
-                newStrip.push(allItems[Math.floor(Math.random() * allItems.length)]);
+                // For strip items, very rarely show special items (just for visual flair)
+                const stripItem = Math.random() < 0.02
+                    ? { ...TEAM_MEMBERS[Math.floor(Math.random() * TEAM_MEMBERS.length)], isSpecial: true, texture: 'special' }
+                    : allItems[Math.floor(Math.random() * allItems.length)];
+                newStrip.push(stripItem);
             }
         }
 
@@ -1326,6 +1588,7 @@ function WheelOfFortune() {
     // Idle state - show clickable wheel card
     if (state === 'idle') {
         const collectedCount = Object.keys(collection).length;
+        const totalItemCount = allItems.length + TEAM_MEMBERS.length + 1; // +1 for mythic
 
         return (
             <div style={{
@@ -1384,7 +1647,7 @@ function WheelOfFortune() {
                         color: COLORS.textMuted,
                         fontSize: '12px'
                     }}>
-                        {loading ? 'Fetching item pool...' : `Win any item from ${allItems.length} possibilities`}
+                        {loading ? 'Fetching item pool...' : `Win any item from ${totalItemCount} possibilities`}
                     </div>
                 </div>
 
@@ -1426,7 +1689,7 @@ function WheelOfFortune() {
                             fontSize: '11px',
                             fontWeight: '600'
                         }}>
-                            {collectedCount}/{allItems.length}
+                            {collectedCount}/{totalItemCount}
                         </span>
                     </button>
                 )}
@@ -1508,7 +1771,7 @@ function WheelOfFortune() {
                             📖
                         </button>
                         <button
-                            onClick={reset}
+                            onClick={spin}
                             style={{
                                 padding: '8px 16px',
                                 background: 'transparent',
@@ -1537,36 +1800,57 @@ function WheelOfFortune() {
             {/* Spinner Container */}
             <div style={{
                 position: 'relative',
-                height: '100px',
+                height: isMobile ? '280px' : '100px',
+                width: isMobile ? '100px' : '100%',
                 overflow: 'hidden',
                 borderRadius: '8px',
                 background: COLORS.bg,
-                border: `1px solid ${COLORS.border}`
+                border: `1px solid ${COLORS.border}`,
+                margin: isMobile ? '0 auto' : '0'
             }}>
                 {/* Center Indicator */}
                 <div style={{
                     position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '3px',
+                    ...(isMobile ? {
+                        left: 0,
+                        right: 0,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        height: '3px',
+                    } : {
+                        top: 0,
+                        bottom: 0,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '3px',
+                    }),
                     background: COLORS.gold,
                     zIndex: 10,
                     boxShadow: `0 0 16px ${COLORS.gold}88`
                 }} />
 
-                {/* Top pointer */}
+                {/* Pointer */}
                 <div style={{
                     position: 'absolute',
-                    top: '-2px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 0,
-                    height: 0,
-                    borderLeft: '8px solid transparent',
-                    borderRight: '8px solid transparent',
-                    borderTop: `12px solid ${COLORS.gold}`,
+                    ...(isMobile ? {
+                        left: '-2px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderTop: '8px solid transparent',
+                        borderBottom: '8px solid transparent',
+                        borderLeft: `12px solid ${COLORS.gold}`,
+                    } : {
+                        top: '-2px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '8px solid transparent',
+                        borderRight: '8px solid transparent',
+                        borderTop: `12px solid ${COLORS.gold}`,
+                    }),
                     zIndex: 11,
                     filter: `drop-shadow(0 2px 4px ${COLORS.gold}66)`
                 }} />
@@ -1577,8 +1861,10 @@ function WheelOfFortune() {
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: '100%',
-                    background: `linear-gradient(90deg, ${COLORS.bg} 0%, transparent 15%, transparent 85%, ${COLORS.bg} 100%)`,
+                    bottom: 0,
+                    background: isMobile
+                        ? `linear-gradient(180deg, ${COLORS.bg} 0%, transparent 20%, transparent 80%, ${COLORS.bg} 100%)`
+                        : `linear-gradient(90deg, ${COLORS.bg} 0%, transparent 15%, transparent 85%, ${COLORS.bg} 100%)`,
                     zIndex: 5,
                     pointerEvents: 'none'
                 }} />
@@ -1586,52 +1872,84 @@ function WheelOfFortune() {
                 {/* Item Strip */}
                 <div style={{
                     display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
                     alignItems: 'center',
-                    height: '100%',
-                    transform: `translateX(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
+                    ...(isMobile ? {
+                        width: '100%',
+                        transform: `translateY(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
+                    } : {
+                        height: '100%',
+                        transform: `translateX(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
+                    })
                 }}>
-                    {strip.map((item, idx) => (
-                        <div
-                            key={idx}
-                            style={{
-                                width: `${ITEM_WIDTH}px`,
-                                height: '80px',
-                                flexShrink: 0,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRight: `1px solid ${COLORS.border}33`
-                            }}
-                        >
-                            <div style={{
-                                width: '52px',
-                                height: '52px',
-                                background: COLORS.bgLight,
-                                borderRadius: '6px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: `2px solid ${idx === FINAL_INDEX && state === 'result' ? COLORS.gold : COLORS.border}`,
-                                boxShadow: idx === FINAL_INDEX && state === 'result' ? `0 0 20px ${COLORS.gold}66` : 'none',
-                                transition: 'all 0.3s'
-                            }}>
-                                <img
-                                    src={`${IMAGE_BASE_URL}/${item.texture}.png`}
-                                    alt={item.name}
-                                    style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        imageRendering: 'pixelated'
-                                    }}
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
-                                    }}
-                                />
+                    {strip.map((item, idx) => {
+                        const isSpecial = isSpecialItem(item);
+                        const isMythic = isMythicItem(item);
+                        const isWinningItem = idx === FINAL_INDEX && state === 'result';
+
+                        return (
+                            <div
+                                key={idx}
+                                style={{
+                                    width: isMobile ? '80px' : `${ITEM_WIDTH}px`,
+                                    height: isMobile ? `${ITEM_WIDTH}px` : '80px',
+                                    flexShrink: 0,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    ...(isMobile
+                                            ? { borderBottom: `1px solid ${COLORS.border}33` }
+                                            : { borderRight: `1px solid ${COLORS.border}33` }
+                                    )
+                                }}
+                            >
+                                <div style={{
+                                    width: '52px',
+                                    height: '52px',
+                                    background: isMythic
+                                        ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
+                                        : isSpecial
+                                            ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
+                                            : COLORS.bgLight,
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: `2px solid ${
+                                        isWinningItem ? COLORS.gold
+                                            : isMythic ? COLORS.aqua
+                                                : isSpecial ? COLORS.purple
+                                                    : COLORS.border
+                                    }`,
+                                    boxShadow: isMythic
+                                        ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
+                                        : isSpecial
+                                            ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
+                                            : isWinningItem
+                                                ? `0 0 20px ${COLORS.gold}66`
+                                                : 'none',
+                                    transition: 'all 0.3s',
+                                    animation: isMythic ? 'mythicGlow 1s ease-in-out infinite' : isSpecial ? 'specialGlow 1.5s ease-in-out infinite' : 'none'
+                                }}>
+                                    <img
+                                        src={isMythic ? item.imageUrl : isSpecial ? getMinecraftHeadUrl(item.username) : `${IMAGE_BASE_URL}/${item.texture}.png`}
+                                        alt={item.name}
+                                        style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            imageRendering: isSpecial ? 'auto' : 'pixelated',
+                                            borderRadius: isSpecial ? '4px' : '0'
+                                        }}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
+                                        }}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 
@@ -1640,28 +1958,34 @@ function WheelOfFortune() {
                 <div style={{
                     marginTop: '24px',
                     padding: '32px 24px',
-                    background: `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
+                    background: isMythicItem(result)
+                        ? `radial-gradient(ellipse at center, ${COLORS.aqua}15 0%, ${COLORS.purple}10 50%, ${COLORS.bg} 70%)`
+                        : isSpecialItem(result)
+                            ? `radial-gradient(ellipse at center, ${COLORS.purple}22 0%, ${COLORS.bg} 70%)`
+                            : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
                     borderRadius: '12px',
-                    border: `1px solid ${COLORS.gold}44`,
+                    border: `1px solid ${isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : COLORS.gold + '44'}`,
                     textAlign: 'center',
                     position: 'relative',
                     overflow: 'hidden'
                 }}>
                     {/* Floating particles */}
-                    {[...Array(12)].map((_, i) => (
+                    {[...Array(isMythicItem(result) ? 20 : 12)].map((_, i) => (
                         <div
                             key={i}
                             style={{
                                 position: 'absolute',
-                                width: '6px',
-                                height: '6px',
-                                background: COLORS.gold,
+                                width: isMythicItem(result) ? '8px' : '6px',
+                                height: isMythicItem(result) ? '8px' : '6px',
+                                background: isMythicItem(result)
+                                    ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                    : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
                                 borderRadius: '50%',
-                                left: `${20 + Math.random() * 60}%`,
+                                left: `${10 + Math.random() * 80}%`,
                                 top: '80%',
                                 opacity: 0,
-                                animation: `floatParticle 2s ease-out ${i * 0.15}s infinite`,
-                                boxShadow: `0 0 6px ${COLORS.gold}`
+                                animation: `floatParticle ${isMythicItem(result) ? '1.5s' : '2s'} ease-out ${i * 0.1}s infinite`,
+                                boxShadow: `0 0 6px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`
                             }}
                         />
                     ))}
@@ -1680,7 +2004,32 @@ function WheelOfFortune() {
                         justifyContent: 'center',
                         gap: '10px'
                     }}>
-                        {isNewItem && (
+                        {isMythicItem(result) ? (
+                            <span style={{
+                                background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,
+                                color: '#fff',
+                                fontSize: '9px',
+                                fontWeight: '700',
+                                padding: '4px 12px',
+                                borderRadius: '4px',
+                                animation: 'mythicBadge 2s ease-in-out infinite',
+                                textShadow: '0 0 10px rgba(0,0,0,0.5)'
+                            }}>
+                                ✦ MYTHIC ✦
+                            </span>
+                        ) : isSpecialItem(result) ? (
+                            <span style={{
+                                background: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`,
+                                color: '#fff',
+                                fontSize: '9px',
+                                fontWeight: '700',
+                                padding: '3px 10px',
+                                borderRadius: '4px',
+                                animation: 'newBadgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
+                            }}>
+                                ★ LEGENDARY
+                            </span>
+                        ) : isNewItem && (
                             <span style={{
                                 background: COLORS.green,
                                 color: COLORS.bg,
@@ -1698,9 +2047,10 @@ function WheelOfFortune() {
 
                     <div style={{
                         display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '24px',
+                        gap: isMobile ? '16px' : '24px',
                         position: 'relative',
                         zIndex: 1
                     }}>
@@ -1717,31 +2067,43 @@ function WheelOfFortune() {
                                 right: '-10px',
                                 bottom: '-10px',
                                 borderRadius: '16px',
-                                background: `radial-gradient(circle, ${COLORS.gold}33 0%, transparent 70%)`,
+                                background: isMythicItem(result)
+                                    ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
+                                    : `radial-gradient(circle, ${isSpecialItem(result) ? COLORS.purple : COLORS.gold}33 0%, transparent 70%)`,
                                 animation: 'pulseGlow 1.5s ease-in-out infinite'
                             }} />
 
                             <div style={{
                                 width: '80px',
                                 height: '80px',
-                                background: COLORS.bgLight,
+                                background: isMythicItem(result)
+                                    ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
+                                    : isSpecialItem(result)
+                                        ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
+                                        : COLORS.bgLight,
                                 borderRadius: '12px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                border: `3px solid ${COLORS.gold}`,
-                                boxShadow: `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
-                                position: 'relative'
+                                border: `3px solid ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`,
+                                boxShadow: isMythicItem(result)
+                                    ? `0 0 30px ${COLORS.aqua}66, 0 0 60px ${COLORS.purple}44, 0 0 90px ${COLORS.gold}22`
+                                    : isSpecialItem(result)
+                                        ? `0 0 30px ${COLORS.purple}66, 0 0 60px ${COLORS.purple}33, 0 0 90px ${COLORS.gold}22`
+                                        : `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
+                                position: 'relative',
+                                animation: isMythicItem(result) ? 'mythicGlow 1s ease-in-out infinite' : isSpecialItem(result) ? 'specialGlow 1.5s ease-in-out infinite' : 'none'
                             }}>
                                 <img
-                                    src={`${IMAGE_BASE_URL}/${result.texture}.png`}
+                                    src={isMythicItem(result) ? result.imageUrl : isSpecialItem(result) ? getMinecraftHeadUrl(result.username) : `${IMAGE_BASE_URL}/${result.texture}.png`}
                                     alt={result.name}
                                     style={{
                                         width: '56px',
                                         height: '56px',
-                                        imageRendering: 'pixelated',
+                                        imageRendering: isSpecialItem(result) ? 'auto' : 'pixelated',
+                                        borderRadius: isSpecialItem(result) ? '6px' : '0',
                                         animation: 'itemBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                        filter: 'drop-shadow(0 0 8px rgba(255, 170, 0, 0.5))'
+                                        filter: `drop-shadow(0 0 8px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : 'rgba(255, 170, 0, 0.5)'})`
                                     }}
                                     onError={(e) => {
                                         e.target.onerror = null;
@@ -1751,57 +2113,78 @@ function WheelOfFortune() {
                             </div>
 
                             {/* Sparkle effects */}
-                            {[...Array(4)].map((_, i) => (
+                            {[...Array(isMythicItem(result) ? 8 : 4)].map((_, i) => (
                                 <div
                                     key={i}
                                     style={{
                                         position: 'absolute',
                                         width: '8px',
                                         height: '8px',
-                                        top: ['0%', '10%', '80%', '70%'][i],
-                                        left: ['10%', '85%', '5%', '90%'][i],
-                                        animation: `sparkle 1s ease-in-out ${i * 0.2}s infinite`
+                                        top: ['0%', '10%', '80%', '70%', '20%', '60%', '40%', '90%'][i],
+                                        left: ['10%', '85%', '5%', '90%', '0%', '95%', '100%', '50%'][i],
+                                        animation: `sparkle 1s ease-in-out ${i * 0.15}s infinite`
                                     }}
                                 >
                                     <div style={{
                                         width: '100%',
                                         height: '2px',
-                                        background: COLORS.gold,
+                                        background: isMythicItem(result)
+                                            ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                            : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
                                         position: 'absolute',
                                         top: '50%',
                                         left: '0',
                                         transform: 'translateY(-50%)',
                                         borderRadius: '1px',
-                                        boxShadow: `0 0 4px ${COLORS.gold}`
+                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`
                                     }} />
                                     <div style={{
                                         width: '2px',
                                         height: '100%',
-                                        background: COLORS.gold,
+                                        background: isMythicItem(result)
+                                            ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                            : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
                                         position: 'absolute',
                                         top: '0',
                                         left: '50%',
                                         transform: 'translateX(-50%)',
                                         borderRadius: '1px',
-                                        boxShadow: `0 0 4px ${COLORS.gold}`
+                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}`
                                     }} />
                                 </div>
                             ))}
                         </div>
 
-                        <span style={{
-                            color: COLORS.gold,
-                            fontSize: '24px',
-                            fontWeight: '600',
-                            textShadow: `0 0 20px ${COLORS.gold}44`,
-                            animation: 'textReveal 0.6s ease-out 0.2s both',
+                        <div style={{
                             display: 'flex',
                             flexDirection: 'column',
-                            alignItems: 'flex-start',
-                            gap: '4px'
+                            alignItems: isMobile ? 'center' : 'flex-start',
+                            gap: '4px',
+                            animation: 'textReveal 0.6s ease-out 0.2s both',
+                            textAlign: isMobile ? 'center' : 'left'
                         }}>
-                            {result.name}
-                            {!isNewItem && collection[result.texture] > 1 && (
+                            <span style={{
+                                color: isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold,
+                                fontSize: '24px',
+                                fontWeight: '600',
+                                textShadow: `0 0 20px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.gold}44`
+                            }}>
+                                {result.name}
+                            </span>
+
+                            {(isMythicItem(result) || isSpecialItem(result)) ? (
+                                <span style={{
+                                    fontSize: '11px',
+                                    color: isMythicItem(result) ? COLORS.aqua : COLORS.purple,
+                                    fontWeight: '600',
+                                    background: `${isMythicItem(result) ? COLORS.aqua : COLORS.purple}22`,
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    marginTop: '4px'
+                                }}>
+                                    {formatChance(result.chance)}% drop rate
+                                </span>
+                            ) : !isNewItem && collection[result.texture] > 1 && (
                                 <span style={{
                                     fontSize: '12px',
                                     color: COLORS.textMuted,
@@ -1810,7 +2193,7 @@ function WheelOfFortune() {
                                     ×{collection[result.texture]} in collection
                                 </span>
                             )}
-                        </span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1854,6 +2237,41 @@ function WheelOfFortune() {
                 @keyframes newBadgePop {
                     0% { opacity: 0; transform: scale(0); }
                     100% { opacity: 1; transform: scale(1); }
+                }
+                @keyframes specialGlow {
+                    0%, 100% { 
+                        box-shadow: 0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44;
+                        border-color: ${COLORS.purple};
+                    }
+                    50% { 
+                        box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
+                        border-color: ${COLORS.gold};
+                    }
+                }
+                @keyframes mythicGlow {
+                    0%, 100% { 
+                        box-shadow: 0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44;
+                        border-color: ${COLORS.aqua};
+                    }
+                    33% { 
+                        box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
+                        border-color: ${COLORS.purple};
+                    }
+                    66% { 
+                        box-shadow: 0 0 25px ${COLORS.gold}aa, 0 0 50px ${COLORS.aqua}44;
+                        border-color: ${COLORS.gold};
+                    }
+                }
+                @keyframes mythicBadge {
+                    0%, 100% { 
+                        background: linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold});
+                    }
+                    33% { 
+                        background: linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold}, ${COLORS.aqua});
+                    }
+                    66% { 
+                        background: linear-gradient(135deg, ${COLORS.gold}, ${COLORS.aqua}, ${COLORS.purple});
+                    }
                 }
             `}</style>
 
