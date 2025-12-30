@@ -874,6 +874,9 @@ const TEAM_MEMBERS = [
 // Rare tier members (0.06% - 0.07%)
 const RARE_MEMBERS = [
     { name: 'shabana02', username: 'shabana02', chance: 0.00065 },
+    { name: 'McPlayHD', username: 'McPlayHD', chance: 0.00067 },
+    { name: 'Owen1212055', username: 'Owen1212055', chance: 0.0006 },
+    { name: '170yt', username: '170yt', chance: 0.00069 },
 ];
 
 // Mythic tier - the rarest item
