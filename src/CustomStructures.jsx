@@ -2000,7 +2000,7 @@ function WheelOfFortune() {
                         marginBottom: '20px',
                         position: 'relative',
                         zIndex: 1,
-                        animation: 'fadeSlideDown 0.5s ease-out',
+                        animation: 'fadeSlideDown 0.3s ease-out',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -2059,7 +2059,7 @@ function WheelOfFortune() {
                         {/* Item container with glow */}
                         <div style={{
                             position: 'relative',
-                            animation: 'itemReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                            animation: 'itemReveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
                         }}>
                             {/* Pulsing glow ring */}
                             <div style={{
@@ -2104,7 +2104,7 @@ function WheelOfFortune() {
                                         height: '56px',
                                         imageRendering: isSpecialItem(result) ? 'auto' : 'pixelated',
                                         borderRadius: isSpecialItem(result) ? '6px' : '0',
-                                        animation: 'itemBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                        animation: 'itemBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
                                         filter: `drop-shadow(0 0 8px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : 'rgba(255, 170, 0, 0.5)'})`
                                     }}
                                     onError={(e) => {
@@ -2162,7 +2162,7 @@ function WheelOfFortune() {
                             flexDirection: 'column',
                             alignItems: isMobile ? 'center' : 'flex-start',
                             gap: '4px',
-                            animation: 'textReveal 0.6s ease-out 0.2s both',
+                            animation: 'textReveal 0.4s ease-out 0.1s both',
                             textAlign: isMobile ? 'center' : 'left'
                         }}>
                             <span style={{
@@ -2354,12 +2354,27 @@ const QUICK_LINKS = [
     { id: 'loot-tables', label: 'Loot Tables', color: COLORS.green },
     { id: 'end-generation', label: 'End Generation', color: COLORS.purple },
     { id: 'teleporter', label: 'Teleporter', color: COLORS.red },
-    { id: 'wandering-trader', label: 'Wandering Trader', color: COLORS.aqua }
+    { id: 'wandering-trader', label: 'Wandering Trader', color: COLORS.aqua },
+    { id: 'wheel', label: '🎰 Wheel of Fortune', color: COLORS.gold }
 ];
 
 export default function CustomStructures() {
     const [antimatterHard, setAntimatterHard] = useState(false);
     const [trialHard, setTrialHard] = useState(false);
+
+    // Scroll to section if ?to=wheel (or other section) is in URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const scrollTo = params.get('to');
+        if (scrollTo) {
+            const element = document.getElementById(scrollTo);
+            if (element) {
+                setTimeout(() => {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 300);
+            }
+        }
+    }, []);
 
     return (
         <div style={{
@@ -2543,7 +2558,9 @@ export default function CustomStructures() {
                         1 Emerald (limited to one per player per trader).
                     </Paragraph>
 
-                    <WheelOfFortune />
+                    <div id="wheel">
+                        <WheelOfFortune />
+                    </div>
                 </Section>
             </div>
 
