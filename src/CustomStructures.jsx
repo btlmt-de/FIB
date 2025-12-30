@@ -1871,12 +1871,14 @@ function WheelOfFortune() {
 
                 {/* Item Strip */}
                 <div style={{
+                    position: isMobile ? 'absolute' : 'relative',
                     display: 'flex',
                     flexDirection: isMobile ? 'column' : 'row',
                     alignItems: 'center',
                     ...(isMobile ? {
-                        width: '100%',
-                        transform: `translateY(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
+                        left: '50%',
+                        marginLeft: `-${ITEM_WIDTH / 2}px`,
+                        top: `${(280 / 2) - (ITEM_WIDTH / 2) - offset}px`
                     } : {
                         height: '100%',
                         transform: `translateX(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
@@ -1891,8 +1893,8 @@ function WheelOfFortune() {
                             <div
                                 key={idx}
                                 style={{
-                                    width: isMobile ? '80px' : `${ITEM_WIDTH}px`,
-                                    height: isMobile ? `${ITEM_WIDTH}px` : '80px',
+                                    width: `${ITEM_WIDTH}px`,
+                                    height: `${ITEM_WIDTH}px`,
                                     flexShrink: 0,
                                     display: 'flex',
                                     flexDirection: 'column',
