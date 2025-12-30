@@ -860,6 +860,7 @@ function LootTableDisplay({ tables }) {
 
 // Fetch all FIB items from the Java source file
 const ITEMS_GITHUB_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
+const COLLECTION_STORAGE_KEY = 'fib_wheel_collection';
 
 function parseItemsFromJava(content) {
     const items = [];
@@ -881,6 +882,344 @@ function parseItemsFromJava(content) {
     return items;
 }
 
+function loadCollection() {
+    try {
+        const saved = localStorage.getItem(COLLECTION_STORAGE_KEY);
+        return saved ? JSON.parse(saved) : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveCollection(collection) {
+    try {
+        localStorage.setItem(COLLECTION_STORAGE_KEY, JSON.stringify(collection));
+    } catch (e) {
+        console.error('Failed to save collection:', e);
+    }
+}
+
+function CollectionBook({ allItems, collection, onClose }) {
+    const [filter, setFilter] = useState('all'); // 'all', 'collected', 'missing'
+    const [search, setSearch] = useState('');
+
+    const collectedCount = Object.keys(collection).length;
+    const totalCount = allItems.length;
+    const percentage = totalCount > 0 ? ((collectedCount / totalCount) * 100).toFixed(1) : 0;
+
+    const filteredItems = allItems.filter(item => {
+        const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
+        const isCollected = collection[item.texture] > 0;
+
+        if (!matchesSearch) return false;
+        if (filter === 'collected') return isCollected;
+        if (filter === 'missing') return !isCollected;
+        return true;
+    });
+
+    // Sort: collected first, then by count, then alphabetically
+    const sortedItems = [...filteredItems].sort((a, b) => {
+        const aCount = collection[a.texture] || 0;
+        const bCount = collection[b.texture] || 0;
+        if (aCount !== bCount) return bCount - aCount;
+        return a.name.localeCompare(b.name);
+    });
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.2s ease-out'
+        }}>
+            <div style={{
+                background: COLORS.bg,
+                borderRadius: '16px',
+                border: `1px solid ${COLORS.border}`,
+                width: '100%',
+                maxWidth: '900px',
+                maxHeight: '85vh',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                animation: 'slideUp 0.3s ease-out'
+            }}>
+                {/* Header */}
+                <div style={{
+                    padding: '20px 24px',
+                    borderBottom: `1px solid ${COLORS.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '16px'
+                }}>
+                    <div>
+                        <h2 style={{
+                            margin: 0,
+                            fontSize: '20px',
+                            fontWeight: '600',
+                            color: COLORS.text,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px'
+                        }}>
+                            <span style={{ fontSize: '24px' }}>📖</span>
+                            Collection Book
+                        </h2>
+                        <p style={{
+                            margin: '4px 0 0 0',
+                            fontSize: '13px',
+                            color: COLORS.textMuted
+                        }}>
+                            Track your Wheel of Fortune discoveries
+                        </p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: COLORS.textMuted,
+                            fontSize: '24px',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = COLORS.bgLight;
+                            e.currentTarget.style.color = COLORS.text;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = COLORS.textMuted;
+                        }}
+                    >
+                        ×
+                    </button>
+                </div>
+
+                {/* Progress Bar */}
+                <div style={{
+                    padding: '16px 24px',
+                    borderBottom: `1px solid ${COLORS.border}`,
+                    background: COLORS.bgLight
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '8px'
+                    }}>
+                        <span style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
+                            Progress
+                        </span>
+                        <span style={{ color: COLORS.gold, fontSize: '14px', fontWeight: '600' }}>
+                            {collectedCount} / {totalCount} ({percentage}%)
+                        </span>
+                    </div>
+                    <div style={{
+                        height: '8px',
+                        background: COLORS.bg,
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            height: '100%',
+                            width: `${percentage}%`,
+                            background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
+                            borderRadius: '4px',
+                            transition: 'width 0.5s ease-out'
+                        }} />
+                    </div>
+                </div>
+
+                {/* Filters & Search */}
+                <div style={{
+                    padding: '16px 24px',
+                    borderBottom: `1px solid ${COLORS.border}`,
+                    display: 'flex',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    alignItems: 'center'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        background: COLORS.bgLight,
+                        borderRadius: '8px',
+                        padding: '4px',
+                        gap: '4px'
+                    }}>
+                        {[
+                            { key: 'all', label: 'All' },
+                            { key: 'collected', label: 'Collected' },
+                            { key: 'missing', label: 'Missing' }
+                        ].map(f => (
+                            <button
+                                key={f.key}
+                                onClick={() => setFilter(f.key)}
+                                style={{
+                                    padding: '6px 14px',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    fontWeight: '500',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s',
+                                    background: filter === f.key ? COLORS.gold : 'transparent',
+                                    color: filter === f.key ? COLORS.bg : COLORS.textMuted
+                                }}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <input
+                        type="text"
+                        placeholder="Search items..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        style={{
+                            flex: 1,
+                            minWidth: '150px',
+                            padding: '8px 14px',
+                            background: COLORS.bgLight,
+                            border: `1px solid ${COLORS.border}`,
+                            borderRadius: '8px',
+                            color: COLORS.text,
+                            fontSize: '13px',
+                            outline: 'none'
+                        }}
+                    />
+
+                    <span style={{
+                        color: COLORS.textMuted,
+                        fontSize: '12px'
+                    }}>
+                        Showing {sortedItems.length} items
+                    </span>
+                </div>
+
+                {/* Items Grid */}
+                <div style={{
+                    flex: 1,
+                    overflow: 'auto',
+                    padding: '20px 24px'
+                }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                        gap: '8px'
+                    }}>
+                        {sortedItems.map(item => {
+                            const count = collection[item.texture] || 0;
+                            const isCollected = count > 0;
+
+                            return (
+                                <div
+                                    key={item.texture}
+                                    title={`${item.name}${count > 0 ? ` (×${count})` : ' (Not collected)'}`}
+                                    style={{
+                                        position: 'relative',
+                                        aspectRatio: '1',
+                                        background: isCollected ? COLORS.bgLight : COLORS.bg,
+                                        border: `2px solid ${isCollected ? COLORS.gold + '66' : COLORS.border}`,
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.15s',
+                                        cursor: 'default'
+                                    }}
+                                >
+                                    <img
+                                        src={`${IMAGE_BASE_URL}/${item.texture}.png`}
+                                        alt={item.name}
+                                        style={{
+                                            width: '70%',
+                                            height: '70%',
+                                            imageRendering: 'pixelated',
+                                            opacity: isCollected ? 1 : 0.2,
+                                            filter: isCollected ? 'none' : 'grayscale(100%)',
+                                            transition: 'all 0.15s'
+                                        }}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
+                                        }}
+                                    />
+
+                                    {count > 1 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '2px',
+                                            right: '2px',
+                                            background: COLORS.gold,
+                                            color: COLORS.bg,
+                                            fontSize: '10px',
+                                            fontWeight: '700',
+                                            padding: '1px 5px',
+                                            borderRadius: '4px',
+                                            minWidth: '18px',
+                                            textAlign: 'center'
+                                        }}>
+                                            {count}
+                                        </div>
+                                    )}
+
+                                    {isCollected && count === 1 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            bottom: '2px',
+                                            right: '2px',
+                                            color: COLORS.green,
+                                            fontSize: '12px'
+                                        }}>
+                                            ✓
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {sortedItems.length === 0 && (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '48px 20px',
+                            color: COLORS.textMuted
+                        }}>
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
+                            <div>No items found</div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <style>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(20px) scale(0.98); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+            `}</style>
+        </div>
+    );
+}
+
 function WheelOfFortune() {
     const [state, setState] = useState('idle'); // 'idle', 'spinning', 'result'
     const [strip, setStrip] = useState([]);
@@ -888,6 +1227,9 @@ function WheelOfFortune() {
     const [result, setResult] = useState(null);
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [collection, setCollection] = useState(loadCollection);
+    const [showCollection, setShowCollection] = useState(false);
+    const [isNewItem, setIsNewItem] = useState(false);
     const animationRef = useRef(null);
 
     const ITEM_WIDTH = 80;
@@ -951,6 +1293,14 @@ function WheelOfFortune() {
                 animationRef.current = requestAnimationFrame(animate);
             } else {
                 setState('result');
+                // Check if new and add to collection
+                setCollection(prev => {
+                    const wasNew = !prev[finalItem.texture];
+                    setIsNewItem(wasNew);
+                    const updated = { ...prev, [finalItem.texture]: (prev[finalItem.texture] || 0) + 1 };
+                    saveCollection(updated);
+                    return updated;
+                });
             }
         };
 
@@ -962,6 +1312,7 @@ function WheelOfFortune() {
         setResult(null);
         setOffset(0);
         setStrip([]);
+        setIsNewItem(false);
     };
 
     useEffect(() => {
@@ -974,6 +1325,8 @@ function WheelOfFortune() {
 
     // Idle state - show clickable wheel card
     if (state === 'idle') {
+        const collectedCount = Object.keys(collection).length;
+
         return (
             <div style={{
                 marginTop: '24px',
@@ -1034,6 +1387,58 @@ function WheelOfFortune() {
                         {loading ? 'Fetching item pool...' : `Win any item from ${allItems.length} possibilities`}
                     </div>
                 </div>
+
+                {/* Collection Book Button */}
+                {!loading && (
+                    <button
+                        onClick={() => setShowCollection(true)}
+                        style={{
+                            marginTop: '8px',
+                            padding: '10px 20px',
+                            background: COLORS.bgLight,
+                            border: `1px solid ${COLORS.border}`,
+                            borderRadius: '8px',
+                            color: COLORS.text,
+                            fontSize: '13px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = COLORS.gold;
+                            e.currentTarget.style.background = COLORS.bgLighter;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = COLORS.border;
+                            e.currentTarget.style.background = COLORS.bgLight;
+                        }}
+                    >
+                        <span>📖</span>
+                        Collection
+                        <span style={{
+                            background: collectedCount > 0 ? COLORS.gold : COLORS.bgLighter,
+                            color: collectedCount > 0 ? COLORS.bg : COLORS.textMuted,
+                            padding: '2px 8px',
+                            borderRadius: '10px',
+                            fontSize: '11px',
+                            fontWeight: '600'
+                        }}>
+                            {collectedCount}/{allItems.length}
+                        </span>
+                    </button>
+                )}
+
+                {/* Collection Book Modal */}
+                {showCollection && (
+                    <CollectionBook
+                        allItems={allItems}
+                        collection={collection}
+                        onClose={() => setShowCollection(false)}
+                    />
+                )}
             </div>
         );
     }
@@ -1075,29 +1480,57 @@ function WheelOfFortune() {
                 </div>
 
                 {state === 'result' && (
-                    <button
-                        onClick={reset}
-                        style={{
-                            padding: '8px 16px',
-                            background: 'transparent',
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: '6px',
-                            color: COLORS.textMuted,
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.borderColor = COLORS.gold;
-                            e.currentTarget.style.color = COLORS.text;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = COLORS.border;
-                            e.currentTarget.style.color = COLORS.textMuted;
-                        }}
-                    >
-                        ↻ Try Again
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => setShowCollection(true)}
+                            style={{
+                                padding: '8px 12px',
+                                background: 'transparent',
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '6px',
+                                color: COLORS.textMuted,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = COLORS.gold;
+                                e.currentTarget.style.color = COLORS.text;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = COLORS.border;
+                                e.currentTarget.style.color = COLORS.textMuted;
+                            }}
+                        >
+                            📖
+                        </button>
+                        <button
+                            onClick={reset}
+                            style={{
+                                padding: '8px 16px',
+                                background: 'transparent',
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '6px',
+                                color: COLORS.textMuted,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = COLORS.gold;
+                                e.currentTarget.style.color = COLORS.text;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = COLORS.border;
+                                e.currentTarget.style.color = COLORS.textMuted;
+                            }}
+                        >
+                            ↻ Try Again
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -1241,8 +1674,25 @@ function WheelOfFortune() {
                         marginBottom: '20px',
                         position: 'relative',
                         zIndex: 1,
-                        animation: 'fadeSlideDown 0.5s ease-out'
+                        animation: 'fadeSlideDown 0.5s ease-out',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px'
                     }}>
+                        {isNewItem && (
+                            <span style={{
+                                background: COLORS.green,
+                                color: COLORS.bg,
+                                fontSize: '9px',
+                                fontWeight: '700',
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                animation: 'newBadgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
+                            }}>
+                                NEW
+                            </span>
+                        )}
                         You received
                     </div>
 
@@ -1344,9 +1794,22 @@ function WheelOfFortune() {
                             fontSize: '24px',
                             fontWeight: '600',
                             textShadow: `0 0 20px ${COLORS.gold}44`,
-                            animation: 'textReveal 0.6s ease-out 0.2s both'
+                            animation: 'textReveal 0.6s ease-out 0.2s both',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
+                            gap: '4px'
                         }}>
                             {result.name}
+                            {!isNewItem && collection[result.texture] > 1 && (
+                                <span style={{
+                                    fontSize: '12px',
+                                    color: COLORS.textMuted,
+                                    fontWeight: '500'
+                                }}>
+                                    ×{collection[result.texture]} in collection
+                                </span>
+                            )}
                         </span>
                     </div>
                 </div>
@@ -1388,7 +1851,20 @@ function WheelOfFortune() {
                     0% { opacity: 0; transform: translateX(-20px); }
                     100% { opacity: 1; transform: translateX(0); }
                 }
+                @keyframes newBadgePop {
+                    0% { opacity: 0; transform: scale(0); }
+                    100% { opacity: 1; transform: scale(1); }
+                }
             `}</style>
+
+            {/* Collection Book Modal */}
+            {showCollection && (
+                <CollectionBook
+                    allItems={allItems}
+                    collection={collection}
+                    onClose={() => setShowCollection(false)}
+                />
+            )}
         </div>
     );
 }
