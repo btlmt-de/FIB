@@ -47,7 +47,7 @@ export default function Imprint() {
                         margin: '0 0 32px 0'
                     }}>
                         This project is operated by McPlayHD.net.<br />
-                        For the legal imprint and contact information, see:
+                        For the imprint and contact information, see:
                     </p>
 
                     <a
