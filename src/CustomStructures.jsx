@@ -877,6 +877,7 @@ const RARE_MEMBERS = [
     { name: 'McPlayHD', username: 'McPlayHD', chance: 0.00067 },
     { name: 'Owen1212055', username: 'Owen1212055', chance: 0.0006 },
     { name: '170yt', username: '170yt', chance: 0.00069 },
+    { name: 'BastiGHG', username: 'BastiGHG', chance: 0.00061 },
 ];
 
 // Mythic tier - the rarest item
