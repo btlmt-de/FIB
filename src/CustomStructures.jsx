@@ -1199,7 +1199,7 @@ function CollectionBook({ allItems, collection, onClose }) {
                             alignItems: 'center',
                             gap: '6px'
                         }}>
-                            <span>★</span> Legendary Team
+                            <span>★</span> Legendary
                         </span>
                         <span style={{ color: COLORS.purple, fontSize: '12px', fontWeight: '600' }}>
                             {collectedSpecialCount} / {specialItems.length}
