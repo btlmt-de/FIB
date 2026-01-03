@@ -4,8 +4,8 @@ import ForceItemPools from './ForceItemPools';
 import HowToPlay from './HowToPlay';
 import Changelog from './Changelog';
 import Imprint from './Imprint';
-import Commands from './Commands';
 import CustomStructures from './CustomStructures';
+import WheelOfFortune from './WheelOfFortune';
 
 const COLORS = {
     bg: '#1a1a2e',
@@ -13,41 +13,28 @@ const COLORS = {
     text: '#e0e0e0',
     textMuted: '#888',
     border: '#3d3d5c',
-    accent: '#5865F2'
+    accent: '#5865F2',
+    gold: '#FFAA00'
 };
 
 function Navigation({ currentPage, onNavigate }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
-            if (window.innerWidth >= 768) {
-                setMobileMenuOpen(false);
-            }
-        };
-
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
-
-    const handleNavigate = (page) => {
-        onNavigate(page);
-        setMobileMenuOpen(false);
-    };
 
     const navItems = [
         { id: 'home', label: 'Home' },
         { id: 'how-to-play', label: 'How to Play' },
         { id: 'pools', label: 'Item Pools' },
+        { id: 'structures', label: 'Custom Content' },
         { id: 'changelog', label: 'Changelog' },
-        { id: 'commands', label: 'Commands' },
-        { id: 'structures', label: 'Custom Content' }
+        { id: 'wheel', label: '🎰 Wheel', special: true }
     ];
-
-    const disabledItems = ['Settings'];
 
     return (
         <nav style={{
@@ -63,146 +50,89 @@ function Navigation({ currentPage, onNavigate }) {
                 margin: '0 auto',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                justifyContent: 'space-between',
                 height: '56px'
             }}>
-                {/* Logo / Brand */}
-                <button
-                    onClick={() => handleNavigate('home')}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        color: COLORS.text,
-                        fontSize: '16px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 12px',
-                        borderRadius: '4px',
-                        transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = COLORS.bgLight}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                    <span>FIB</span>
-                </button>
-
-                {!isMobile && (
-                    <div style={{
-                        width: '1px',
-                        height: '24px',
-                        background: COLORS.border,
-                        margin: '0 8px'
-                    }} />
-                )}
-
-                {/* Desktop Navigation */}
-                {!isMobile && (<>
-                        {navItems.map(item => (
-                            <button
-                                key={item.id}
-                                onClick={() => handleNavigate(item.id)}
-                                style={{
-                                    background: currentPage === item.id ? COLORS.bgLight : 'transparent',
-                                    border: 'none',
-                                    color: currentPage === item.id ? COLORS.text : COLORS.textMuted,
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    cursor: 'pointer',
-                                    padding: '8px 14px',
-                                    borderRadius: '4px',
-                                    transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => {
-                                    if (currentPage !== item.id) e.currentTarget.style.background = COLORS.bgLight;
-                                }}
-                                onMouseLeave={e => {
-                                    if (currentPage !== item.id) e.currentTarget.style.background = 'transparent';
-                                }}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-
-                        {disabledItems.map(item => (
-                            <button
-                                key={item}
-                                disabled
-                                style={{
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: COLORS.textMuted,
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    padding: '8px 14px',
-                                    borderRadius: '4px',
-                                    opacity: 0.4,
-                                    cursor: 'not-allowed'
-                                }}
-                            >
-                                {item}
-                            </button>
-                        ))}
-                    </>
-                )}
-
-                {/* Spacer to push hamburger to the right on mobile */}
-                {isMobile && <div style={{ flex: 1 }} />}
-
-                {/* Mobile Hamburger Button */}
-                {isMobile && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        onClick={() => onNavigate('home')}
                         style={{
                             background: 'none',
                             border: 'none',
                             color: COLORS.text,
-                            padding: '8px',
+                            fontSize: '16px',
+                            fontWeight: '700',
                             cursor: 'pointer',
                             display: 'flex',
-                            flexDirection: 'column',
-                            gap: '5px',
-                            justifyContent: 'center',
                             alignItems: 'center',
-                            width: '40px',
-                            height: '40px'
+                            gap: '8px',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            transition: 'background 0.15s'
                         }}
-                        aria-label="Toggle menu"
+                        onMouseEnter={e => e.currentTarget.style.background = COLORS.bgLight}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                        <span style={{
-                            display: 'block',
-                            width: '22px',
-                            height: '2px',
-                            background: COLORS.text,
-                            borderRadius: '1px',
-                            transition: 'all 0.3s',
-                            transform: mobileMenuOpen ? 'rotate(45deg) translateY(7px)' : 'none'
-                        }} />
-                        <span style={{
-                            display: 'block',
-                            width: '22px',
-                            height: '2px',
-                            background: COLORS.text,
-                            borderRadius: '1px',
-                            transition: 'all 0.3s',
-                            opacity: mobileMenuOpen ? 0 : 1
-                        }} />
-                        <span style={{
-                            display: 'block',
-                            width: '22px',
-                            height: '2px',
-                            background: COLORS.text,
-                            borderRadius: '1px',
-                            transition: 'all 0.3s',
-                            transform: mobileMenuOpen ? 'rotate(-45deg) translateY(-7px)' : 'none'
-                        }} />
+                        <span>FIB</span>
+                    </button>
+
+                    {!isMobile && (
+                        <>
+                            <div style={{
+                                width: '1px',
+                                height: '24px',
+                                background: COLORS.border,
+                                margin: '0 8px'
+                            }} />
+
+                            {navItems.map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => onNavigate(item.id)}
+                                    style={{
+                                        background: currentPage === item.id ? COLORS.bgLight : 'transparent',
+                                        border: item.special ? `1px solid ${COLORS.gold}44` : 'none',
+                                        color: item.special ? COLORS.gold : (currentPage === item.id ? COLORS.text : COLORS.textMuted),
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        padding: '8px 14px',
+                                        borderRadius: '4px',
+                                        transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (currentPage !== item.id) e.currentTarget.style.background = COLORS.bgLight;
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (currentPage !== item.id) e.currentTarget.style.background = 'transparent';
+                                    }}
+                                >
+                                    {item.label}
+                                </button>
+                            ))}
+                        </>
+                    )}
+                </div>
+
+                {/* Mobile menu button */}
+                {isMobile && (
+                    <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: COLORS.text,
+                            fontSize: '24px',
+                            cursor: 'pointer',
+                            padding: '8px'
+                        }}
+                    >
+                        {mobileMenuOpen ? '✕' : '☰'}
                     </button>
                 )}
             </div>
 
-            {/* Mobile Menu Dropdown */}
+            {/* Mobile menu dropdown */}
             {isMobile && mobileMenuOpen && (
                 <div style={{
                     position: 'absolute',
@@ -211,56 +141,31 @@ function Navigation({ currentPage, onNavigate }) {
                     right: 0,
                     background: COLORS.bg,
                     borderBottom: `1px solid ${COLORS.border}`,
-                    padding: '8px 0',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                    padding: '8px 20px 16px'
                 }}>
                     {navItems.map(item => (
                         <button
                             key={item.id}
-                            onClick={() => handleNavigate(item.id)}
+                            onClick={() => {
+                                onNavigate(item.id);
+                                setMobileMenuOpen(false);
+                            }}
                             style={{
                                 display: 'block',
                                 width: '100%',
+                                textAlign: 'left',
                                 background: currentPage === item.id ? COLORS.bgLight : 'transparent',
                                 border: 'none',
-                                color: currentPage === item.id ? COLORS.text : COLORS.textMuted,
+                                color: item.special ? COLORS.gold : (currentPage === item.id ? COLORS.text : COLORS.textMuted),
                                 fontSize: '14px',
                                 fontWeight: '500',
                                 cursor: 'pointer',
-                                padding: '14px 24px',
-                                textAlign: 'left',
-                                transition: 'all 0.15s'
+                                padding: '12px 14px',
+                                borderRadius: '4px',
+                                marginTop: '4px'
                             }}
                         >
                             {item.label}
-                        </button>
-                    ))}
-
-                    <div style={{
-                        height: '1px',
-                        background: COLORS.border,
-                        margin: '8px 20px'
-                    }} />
-
-                    {disabledItems.map(item => (
-                        <button
-                            key={item}
-                            disabled
-                            style={{
-                                display: 'block',
-                                width: '100%',
-                                background: 'transparent',
-                                border: 'none',
-                                color: COLORS.textMuted,
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                padding: '14px 24px',
-                                textAlign: 'left',
-                                opacity: 0.4,
-                                cursor: 'not-allowed'
-                            }}
-                        >
-                            {item}
                         </button>
                     ))}
                 </div>
@@ -272,13 +177,13 @@ function Navigation({ currentPage, onNavigate }) {
 export default function App() {
     // Simple routing based on hash
     const getPageFromHash = () => {
-        const hash = window.location.hash.slice(1);
+        const hash = window.location.hash.slice(1).split('?')[0]; // Remove query params
         if (hash === 'pools') return 'pools';
         if (hash === 'how-to-play') return 'how-to-play';
         if (hash === 'changelog') return 'changelog';
         if (hash === 'imprint') return 'imprint';
-        if (hash === 'commands') return 'commands';
         if (hash === 'structures') return 'structures';
+        if (hash === 'wheel') return 'wheel';
         return 'home';
     };
 
@@ -297,6 +202,11 @@ export default function App() {
         setCurrentPage(page);
         window.scrollTo(0, 0);
     };
+
+    // Wheel page is standalone (no nav bar)
+    if (currentPage === 'wheel') {
+        return <WheelOfFortune onBack={() => navigate('home')} />;
+    }
 
     return (
         <div style={{
@@ -323,10 +233,6 @@ export default function App() {
 
             {currentPage === 'pools' && (
                 <ForceItemPools />
-            )}
-
-            {currentPage === 'commands' && (
-                <Commands />
             )}
 
             {currentPage === 'structures' && (
