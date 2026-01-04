@@ -108,7 +108,7 @@ function RepoLink({ href, title, description, extra }) {
                 justifyContent: 'space-between'
             }}>
                 {title}
-                <span style={{ color: COLORS.textMuted }}>→</span>
+                <span style={{ color: COLORS.textMuted }}>â†’</span>
             </div>
             <div style={{
                 color: COLORS.textMuted,
@@ -240,7 +240,7 @@ export default function HowToPlay() {
                             description="Item descriptions for the /info command"
                             extra={
                                 <a
-                                    href="/public#pools"
+                                    href="/#pools"
                                     style={{
                                         color: COLORS.accent,
                                         textDecoration: 'none',
@@ -249,7 +249,7 @@ export default function HowToPlay() {
                                     }}
                                     onClick={e => e.stopPropagation()}
                                 >
-                                    Browse descriptions →
+                                    Browse descriptions â†’
                                 </a>
                             }
                         />
@@ -268,7 +268,7 @@ export default function HowToPlay() {
                         color: COLORS.text,
                         lineHeight: '1.6'
                     }}>
-                        For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soon™</span>
+                        For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soonâ„¢</span>
                     </div>
 
                     <p style={{
@@ -445,7 +445,7 @@ export default function HowToPlay() {
                         McPlayHD.net
                     </a>
                     <a
-                        href="/public#imprint"
+                        href="/#imprint"
                         style={{
                             color: COLORS.textMuted,
                             textDecoration: 'none',
