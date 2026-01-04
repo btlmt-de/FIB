@@ -182,41 +182,48 @@ function QuickLinks({ links }) {
         <div style={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '8px',
+            gap: '10px',
             justifyContent: 'center',
-            marginTop: '28px'
+            marginTop: '36px'
         }}>
             {links.map(link => (
                 <button
                     key={link.id}
                     onClick={() => scrollTo(link.id)}
                     style={{
-                        background: 'transparent',
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: '20px',
-                        padding: '6px 14px',
-                        color: COLORS.textMuted,
-                        fontSize: '12px',
+                        background: `${link.color}11`,
+                        border: `1.5px solid ${link.color}44`,
+                        borderRadius: '22px',
+                        padding: '8px 16px',
+                        color: COLORS.text,
+                        fontSize: '13px',
+                        fontWeight: '500',
                         cursor: 'pointer',
-                        transition: 'all 0.15s',
+                        transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '8px',
+                        letterSpacing: '0.3px'
                     }}
                     onMouseEnter={e => {
                         e.currentTarget.style.borderColor = link.color;
-                        e.currentTarget.style.color = COLORS.text;
+                        e.currentTarget.style.background = `${link.color}22`;
+                        e.currentTarget.style.boxShadow = `0 4px 16px ${link.color}33, inset 0 1px 0 ${link.color}22`;
+                        e.currentTarget.style.transform = 'translateY(-2px)';
                     }}
                     onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = COLORS.border;
-                        e.currentTarget.style.color = COLORS.textMuted;
+                        e.currentTarget.style.borderColor = `${link.color}44`;
+                        e.currentTarget.style.background = `${link.color}11`;
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.transform = 'translateY(0)';
                     }}
                 >
                     <span style={{
-                        width: '6px',
-                        height: '6px',
+                        width: '7px',
+                        height: '7px',
                         borderRadius: '50%',
-                        background: link.color
+                        background: link.color,
+                        boxShadow: `0 0 8px ${link.color}`
                     }} />
                     {link.label}
                 </button>
@@ -230,45 +237,62 @@ function RecipeToggle({ isHard, onToggle }) {
         <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            marginBottom: '20px'
+            gap: '16px',
+            marginBottom: '28px',
+            padding: '14px 18px',
+            background: COLORS.bgLighter,
+            borderRadius: '10px',
+            border: `1px solid ${COLORS.border}44`,
+            width: 'fit-content',
+            transition: 'all 0.3s ease'
         }}>
             <span style={{
                 fontSize: '13px',
                 color: !isHard ? COLORS.text : COLORS.textMuted,
-                fontWeight: !isHard ? '600' : '400'
+                fontWeight: !isHard ? '600' : '400',
+                transition: 'all 0.3s ease',
+                letterSpacing: '0.2px'
             }}>
                 Standard
             </span>
             <button
                 onClick={onToggle}
                 style={{
-                    width: '48px',
-                    height: '26px',
-                    borderRadius: '13px',
+                    width: '54px',
+                    height: '28px',
+                    borderRadius: '14px',
                     border: 'none',
                     background: isHard ? COLORS.orange : COLORS.border,
                     cursor: 'pointer',
                     position: 'relative',
-                    transition: 'background 0.2s'
+                    transition: 'all 0.3s ease',
+                    boxShadow: `0 2px 8px ${isHard ? COLORS.orange : COLORS.border}44`
+                }}
+                onMouseEnter={e => {
+                    e.currentTarget.style.boxShadow = `0 4px 16px ${isHard ? COLORS.orange : COLORS.border}66`;
+                }}
+                onMouseLeave={e => {
+                    e.currentTarget.style.boxShadow = `0 2px 8px ${isHard ? COLORS.orange : COLORS.border}44`;
                 }}
             >
                 <div style={{
-                    width: '20px',
-                    height: '20px',
+                    width: '22px',
+                    height: '22px',
                     borderRadius: '50%',
                     background: COLORS.text,
                     position: 'absolute',
                     top: '3px',
-                    left: isHard ? '25px' : '3px',
-                    transition: 'left 0.2s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    left: isHard ? '29px' : '3px',
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    boxShadow: `0 2px 6px ${isHard ? COLORS.orange : COLORS.text}44`
                 }} />
             </button>
             <span style={{
                 fontSize: '13px',
                 color: isHard ? COLORS.orange : COLORS.textMuted,
-                fontWeight: isHard ? '600' : '400'
+                fontWeight: isHard ? '600' : '400',
+                transition: 'all 0.3s ease',
+                letterSpacing: '0.2px'
             }}>
                 Hard Mode
             </span>
@@ -281,42 +305,49 @@ function CraftingGrid({ recipe, result, resultName, glowColor = COLORS.gold }) {
         <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '24px',
+            gap: '32px',
             flexWrap: 'wrap'
         }}>
             {/* Crafting grid */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 52px)',
-                gap: '4px',
-                padding: '12px',
-                background: COLORS.bgLighter,
-                borderRadius: '8px',
-                border: `1px solid ${COLORS.border}`
+                gridTemplateColumns: 'repeat(3, 58px)',
+                gap: '6px',
+                padding: '14px',
+                background: `linear-gradient(135deg, ${COLORS.bgLighter} 0%, ${COLORS.bgLight} 100%)`,
+                borderRadius: '10px',
+                border: `1px solid ${COLORS.border}44`,
+                boxShadow: `0 4px 16px ${glowColor}22, inset 0 1px 0 ${glowColor}11`
             }}>
                 {recipe.flat().map((item, idx) => (
                     <div
                         key={idx}
                         style={{
-                            width: '52px',
-                            height: '52px',
+                            width: '58px',
+                            height: '58px',
                             background: COLORS.bgLight,
-                            borderRadius: '4px',
+                            borderRadius: '6px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'transform 0.15s, background 0.15s',
-                            cursor: item ? 'pointer' : 'default'
+                            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                            cursor: item ? 'pointer' : 'default',
+                            border: `1px solid ${item ? glowColor + '33' : COLORS.border}44`,
+                            position: 'relative'
                         }}
                         onMouseEnter={e => {
                             if (item) {
-                                e.currentTarget.style.transform = 'scale(1.08)';
+                                e.currentTarget.style.transform = 'scale(1.12)';
                                 e.currentTarget.style.background = COLORS.bgLighter;
+                                e.currentTarget.style.boxShadow = `0 0 16px ${glowColor}44`;
+                                e.currentTarget.style.borderColor = glowColor;
                             }
                         }}
                         onMouseLeave={e => {
                             e.currentTarget.style.transform = 'scale(1)';
                             e.currentTarget.style.background = COLORS.bgLight;
+                            e.currentTarget.style.boxShadow = 'none';
+                            e.currentTarget.style.borderColor = `${item ? glowColor + '33' : COLORS.border}44`;
                         }}
                     >
                         {item && (
@@ -325,8 +356,8 @@ function CraftingGrid({ recipe, result, resultName, glowColor = COLORS.gold }) {
                                 alt={item}
                                 title={item.replace(/_/g, ' ')}
                                 style={{
-                                    width: '36px',
-                                    height: '36px',
+                                    width: '40px',
+                                    height: '40px',
                                     imageRendering: 'pixelated'
                                 }}
                                 onError={(e) => { e.target.style.display = 'none'; }}
@@ -336,37 +367,57 @@ function CraftingGrid({ recipe, result, resultName, glowColor = COLORS.gold }) {
                 ))}
             </div>
 
-            {/* Arrow and result - inline on desktop, stacked on mobile */}
+            {/* Arrow and result */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '14px'
+                gap: '18px'
             }}>
-                <div style={{ color: COLORS.textMuted, fontSize: '28px' }}>→</div>
+                <div style={{
+                    color: glowColor,
+                    fontSize: '32px',
+                    transition: 'all 0.3s ease',
+                    textShadow: `0 0 10px ${glowColor}44`
+                }}>→</div>
 
                 <div style={{
-                    width: '60px',
-                    height: '60px',
-                    background: COLORS.bgLighter,
-                    borderRadius: '8px',
-                    border: `1px solid ${COLORS.border}`,
+                    width: '70px',
+                    height: '70px',
+                    background: `linear-gradient(135deg, ${COLORS.bgLighter} 0%, ${COLORS.bgLight} 100%)`,
+                    borderRadius: '10px',
+                    border: `2px solid ${glowColor}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: `0 0 20px ${glowColor}33, 0 0 40px ${glowColor}15`
-                }}>
+                    boxShadow: `0 0 24px ${glowColor}55, 0 0 48px ${glowColor}22, inset 0 1px 0 ${glowColor}22`,
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                }}
+                     onMouseEnter={e => {
+                         e.currentTarget.style.transform = 'scale(1.08)';
+                         e.currentTarget.style.boxShadow = `0 0 32px ${glowColor}77, 0 0 64px ${glowColor}33, inset 0 1px 0 ${glowColor}22`;
+                     }}
+                     onMouseLeave={e => {
+                         e.currentTarget.style.transform = 'scale(1)';
+                         e.currentTarget.style.boxShadow = `0 0 24px ${glowColor}55, 0 0 48px ${glowColor}22, inset 0 1px 0 ${glowColor}22`;
+                     }}>
                     <img
                         src={`${IMAGE_BASE_URL}/${result}.png`}
                         alt={resultName}
                         style={{
-                            width: '42px',
-                            height: '42px',
+                            width: '48px',
+                            height: '48px',
                             imageRendering: 'pixelated'
                         }}
                         onError={(e) => { e.target.style.display = 'none'; }}
                     />
                 </div>
-                <span style={{ color: COLORS.text, fontSize: '15px', fontWeight: '500' }}>
+                <span style={{
+                    color: COLORS.text,
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    letterSpacing: '0.3px'
+                }}>
                     {resultName}
                 </span>
             </div>
@@ -519,47 +570,55 @@ function LootSimulationResult({ items, onReroll, roomColor }) {
 
     return (
         <div style={{
-            marginTop: '20px',
-            padding: '20px',
-            background: COLORS.bg,
-            borderRadius: '8px',
-            border: `1px solid ${roomColor}44`
+            marginTop: '28px',
+            padding: '24px',
+            background: `linear-gradient(135deg, ${COLORS.bg}99 0%, ${COLORS.bgLight}44 100%)`,
+            borderRadius: '12px',
+            border: `1px solid ${roomColor}44`,
+            boxShadow: `0 8px 24px ${roomColor}11, inset 0 1px 0 ${roomColor}22`
         }}>
             <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: '16px'
+                marginBottom: '20px'
             }}>
                 <span style={{
                     color: COLORS.text,
-                    fontSize: '14px',
-                    fontWeight: '500'
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    letterSpacing: '0.2px'
                 }}>
                     Loot Result ({items.length} item{items.length !== 1 ? 's' : ''})
                 </span>
                 <button
                     onClick={onReroll}
                     style={{
-                        padding: '6px 12px',
-                        background: 'transparent',
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: '4px',
-                        color: COLORS.textMuted,
+                        padding: '8px 14px',
+                        background: `${roomColor}11`,
+                        border: `1px solid ${roomColor}44`,
+                        borderRadius: '6px',
+                        color: COLORS.text,
                         fontSize: '12px',
+                        fontWeight: '600',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px',
-                        transition: 'all 0.15s'
+                        transition: 'all 0.3s ease',
+                        letterSpacing: '0.1px'
                     }}
                     onMouseEnter={e => {
                         e.currentTarget.style.borderColor = roomColor;
-                        e.currentTarget.style.color = COLORS.text;
+                        e.currentTarget.style.background = `${roomColor}22`;
+                        e.currentTarget.style.boxShadow = `0 4px 12px ${roomColor}33`;
+                        e.currentTarget.style.transform = 'translateY(-2px)';
                     }}
                     onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = COLORS.border;
-                        e.currentTarget.style.color = COLORS.textMuted;
+                        e.currentTarget.style.borderColor = `${roomColor}44`;
+                        e.currentTarget.style.background = `${roomColor}11`;
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.transform = 'translateY(0)';
                     }}
                 >
                     ↻ Open Again
@@ -683,8 +742,8 @@ function LootTableDisplay({ tables }) {
             {/* Room selector tabs */}
             <div style={{
                 display: 'flex',
-                gap: '8px',
-                marginBottom: '24px',
+                gap: '10px',
+                marginBottom: '28px',
                 flexWrap: 'wrap',
                 alignItems: 'center'
             }}>
@@ -693,24 +752,28 @@ function LootTableDisplay({ tables }) {
                         key={key}
                         onClick={() => handleRoomChange(key)}
                         style={{
-                            padding: '12px 20px',
+                            padding: '12px 22px',
                             background: activeRoom === key ? `${t.color}22` : 'transparent',
-                            border: `2px solid ${activeRoom === key ? t.color : COLORS.border}`,
-                            borderRadius: '8px',
+                            border: `2px solid ${activeRoom === key ? t.color : COLORS.border}44`,
+                            borderRadius: '10px',
                             color: activeRoom === key ? t.color : COLORS.textMuted,
                             fontSize: '14px',
-                            fontWeight: '500',
+                            fontWeight: activeRoom === key ? '600' : '500',
                             cursor: 'pointer',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                            letterSpacing: '0.2px',
+                            boxShadow: activeRoom === key ? `0 0 16px ${t.color}22, inset 0 1px 0 ${t.color}22` : 'none'
                         }}
                         onMouseEnter={e => {
                             if (activeRoom !== key) {
-                                e.currentTarget.style.borderColor = t.color + '66';
+                                e.currentTarget.style.borderColor = t.color;
+                                e.currentTarget.style.boxShadow = `0 4px 12px ${t.color}33`;
                             }
                         }}
                         onMouseLeave={e => {
                             if (activeRoom !== key) {
-                                e.currentTarget.style.borderColor = COLORS.border;
+                                e.currentTarget.style.borderColor = COLORS.border + '44';
+                                e.currentTarget.style.boxShadow = 'none';
                             }
                         }}
                     >
@@ -724,28 +787,32 @@ function LootTableDisplay({ tables }) {
                     disabled={isAnimating}
                     style={{
                         marginLeft: 'auto',
-                        padding: '10px 16px',
+                        padding: '12px 18px',
                         background: isAnimating ? COLORS.bgLighter : `${table.color}22`,
                         border: `2px solid ${table.color}`,
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         color: table.color,
                         fontSize: '13px',
-                        fontWeight: '500',
+                        fontWeight: '600',
                         cursor: isAnimating ? 'wait' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s',
-                        transform: isAnimating ? 'scale(0.95)' : 'scale(1)'
+                        gap: '10px',
+                        transition: 'all 0.3s ease',
+                        transform: isAnimating ? 'scale(0.95)' : 'scale(1)',
+                        boxShadow: `0 0 16px ${table.color}22, inset 0 1px 0 ${table.color}11`,
+                        letterSpacing: '0.2px'
                     }}
                     onMouseEnter={e => {
                         if (!isAnimating) {
                             e.currentTarget.style.background = `${table.color}33`;
+                            e.currentTarget.style.boxShadow = `0 6px 20px ${table.color}44, inset 0 1px 0 ${table.color}22`;
                         }
                     }}
                     onMouseLeave={e => {
                         if (!isAnimating) {
                             e.currentTarget.style.background = `${table.color}22`;
+                            e.currentTarget.style.boxShadow = `0 0 16px ${table.color}22, inset 0 1px 0 ${table.color}11`;
                         }
                     }}
                 >
@@ -767,34 +834,37 @@ function LootTableDisplay({ tables }) {
 
             {/* Room content */}
             <div style={{
-                background: COLORS.bgLight,
+                background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter}88 100%)`,
                 border: `2px solid ${table.color}44`,
-                borderRadius: '12px',
-                padding: '24px',
-                position: 'relative'
+                borderRadius: '14px',
+                padding: '28px',
+                position: 'relative',
+                boxShadow: `0 8px 32px ${table.color}11, inset 0 1px 0 ${table.color}22`
             }}>
                 {/* Room header */}
                 <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
-                    marginBottom: '20px',
+                    marginBottom: '24px',
                     flexWrap: 'wrap',
                     gap: '12px'
                 }}>
                     <div>
                         <h3 style={{
                             margin: 0,
-                            fontSize: '20px',
-                            fontWeight: '600',
-                            color: table.color
+                            fontSize: '22px',
+                            fontWeight: '700',
+                            color: table.color,
+                            letterSpacing: '0.3px'
                         }}>
                             {table.name}
                         </h3>
                         <p style={{
-                            margin: '4px 0 0',
+                            margin: '6px 0 0',
                             fontSize: '13px',
-                            color: COLORS.textMuted
+                            color: COLORS.textMuted,
+                            letterSpacing: '0.2px'
                         }}>
                             {table.description}
                         </p>
@@ -803,20 +873,23 @@ function LootTableDisplay({ tables }) {
 
                 {/* Pools */}
                 {table.pools.map((pool, poolIdx) => (
-                    <div key={poolIdx} style={{ marginBottom: poolIdx < table.pools.length - 1 ? '24px' : 0 }}>
+                    <div key={poolIdx} style={{ marginBottom: poolIdx < table.pools.length - 1 ? '32px' : 0 }}>
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '12px',
-                            marginBottom: '16px'
+                            marginBottom: '18px'
                         }}>
                             <span style={{
-                                background: table.color + '33',
+                                background: `linear-gradient(135deg, ${table.color}44 0%, ${table.color}22 100%)`,
                                 color: table.color,
-                                padding: '4px 10px',
-                                borderRadius: '4px',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
                                 fontSize: '12px',
-                                fontWeight: '600'
+                                fontWeight: '700',
+                                border: `1px solid ${table.color}55`,
+                                letterSpacing: '0.2px',
+                                textShadow: `0 0 4px ${table.color}33`
                             }}>
                                 {pool.rolls}
                             </span>
@@ -824,7 +897,8 @@ function LootTableDisplay({ tables }) {
                                 <span style={{
                                     color: COLORS.textMuted,
                                     fontSize: '12px',
-                                    fontStyle: 'italic'
+                                    fontStyle: 'italic',
+                                    letterSpacing: '0.1px'
                                 }}>
                                     {pool.note}
                                 </span>
@@ -835,7 +909,7 @@ function LootTableDisplay({ tables }) {
                         <div style={{
                             display: 'flex',
                             flexWrap: 'wrap',
-                            gap: '12px'
+                            gap: '14px'
                         }}>
                             {pool.items.map((item, idx) => (
                                 <LootItem key={idx} item={item} />
@@ -860,23 +934,25 @@ function LootTableDisplay({ tables }) {
 
 function Section({ id, title, color, children }) {
     return (
-        <section id={id} style={{ marginBottom: '64px', scrollMarginTop: '80px' }}>
+        <section id={id} style={{ marginBottom: '72px', scrollMarginTop: '80px' }}>
             <h2 style={{
-                fontSize: '22px',
-                fontWeight: '500',
+                fontSize: '24px',
+                fontWeight: '600',
                 color: COLORS.text,
-                margin: '0 0 24px 0',
-                paddingBottom: '12px',
-                borderBottom: `1px solid ${COLORS.border}`,
+                margin: '0 0 28px 0',
+                paddingBottom: '16px',
+                borderBottom: `1px solid ${color}44`,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '12px',
+                letterSpacing: '0.3px'
             }}>
                 <span style={{
-                    width: '4px',
-                    height: '24px',
-                    background: color,
-                    borderRadius: '2px'
+                    width: '5px',
+                    height: '28px',
+                    background: `linear-gradient(180deg, ${color}, ${color}66)`,
+                    borderRadius: '2px',
+                    boxShadow: `0 0 12px ${color}66`
                 }} />
                 {title}
             </h2>
@@ -890,8 +966,9 @@ function Paragraph({ children }) {
         <p style={{
             color: COLORS.textMuted,
             fontSize: '15px',
-            lineHeight: '1.8',
-            margin: '0 0 16px 0'
+            lineHeight: '1.9',
+            margin: '0 0 18px 0',
+            letterSpacing: '0.2px'
         }}>
             {children}
         </p>
@@ -951,248 +1028,309 @@ export default function CustomStructures() {
             color: COLORS.text,
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            position: 'relative'
         }}>
-            {/* Header */}
+            {/* Decorative background elements */}
             <div style={{
-                padding: '60px 20px 48px',
-                textAlign: 'center',
-                borderBottom: `1px solid ${COLORS.border}`
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                pointerEvents: 'none',
+                zIndex: 0
             }}>
-                <h1 style={{
-                    fontSize: '36px',
-                    fontWeight: '300',
-                    margin: '0 0 16px 0',
-                    letterSpacing: '-0.5px'
-                }}>
-                    Custom Content
-                </h1>
-                <p style={{
-                    fontSize: '16px',
-                    color: COLORS.textMuted,
-                    margin: 0,
-                    maxWidth: '500px',
-                    marginLeft: 'auto',
-                    marginRight: 'auto'
-                }}>
-                    Custom items and world generation designed for faster-paced gameplay
-                </p>
-
-                <QuickLinks links={QUICK_LINKS} />
-            </div>
-
-            {/* Content */}
-            <div style={{
-                maxWidth: '800px',
-                margin: '0 auto',
-                padding: '56px 20px',
-                flex: 1
-            }}>
-                {/* Introduction */}
-                <Paragraph>
-                    Our ForceItemBattle originally designed for <Highlight color={COLORS.gold}>short rounds</Highlight> -
-                    not everyone has time for longer sessions. This meant excluding harder items
-                    like those from the End dimension.
-                </Paragraph>
-                <Paragraph>
-                    Rather than leave out a significant part of Minecraft, we added custom structures
-                    and items that make the world more accessible within shorter timeframes.
-                </Paragraph>
-
                 <div style={{
-                    width: '60px',
-                    height: '1px',
-                    background: COLORS.border,
-                    margin: '48px auto'
+                    position: 'absolute',
+                    top: '15%',
+                    left: '10%',
+                    width: '350px',
+                    height: '350px',
+                    background: `radial-gradient(circle, ${COLORS.purple}06 0%, transparent 70%)`,
+                    borderRadius: '50%'
                 }} />
-
-                {/* Antimatter Depths */}
-                <Section id="antimatter-depths" title="Antimatter Depths" color={COLORS.purple}>
-                    <Paragraph>
-                        The Antimatter Depths replaces the vanilla Stronghold as the gateway to the End.
-                        It spawns at <Highlight>Y-level −10</Highlight> and provides a much faster route
-                        to the End dimension.
-                    </Paragraph>
-                    <Paragraph>
-                        To find it, craft an <Highlight color={COLORS.aqua}>Antimatter Locator</Highlight>:
-                    </Paragraph>
-
-                    <RecipeToggle isHard={antimatterHard} onToggle={() => setAntimatterHard(!antimatterHard)} />
-
-                    <CraftingGrid
-                        recipe={antimatterHard ? RECIPES.antimatter.hard.recipe : RECIPES.antimatter.normal.recipe}
-                        result={RECIPES.antimatter.normal.result}
-                        resultName={RECIPES.antimatter.normal.name}
-                        glowColor={COLORS.purple}
-                    />
-
-                    <div style={{ marginTop: '24px' }}>
-                        <Paragraph>
-                            Right-click the locator to receive coordinates and a visual trail. Dig straight
-                            down at the location to find multiple loot rooms and an activated End Portal.
-                        </Paragraph>
-                        <Paragraph>
-                            <Highlight color={COLORS.textMuted}>View in-game:</Highlight> <Command>/info antimatter_locator</Command>
-                        </Paragraph>
-                    </div>
-                </Section>
-
-                {/* Trial Chambers */}
-                <Section id="trial-locator" title="Trial Chambers Locator" color={COLORS.gold}>
-                    <Paragraph>
-                        Trial Chambers (vanilla structure) also have a custom locator for easier discovery:
-                    </Paragraph>
-
-                    <RecipeToggle isHard={trialHard} onToggle={() => setTrialHard(!trialHard)} />
-
-                    <CraftingGrid
-                        recipe={trialHard ? RECIPES.trial.hard.recipe : RECIPES.trial.normal.recipe}
-                        result={RECIPES.trial.normal.result}
-                        resultName={RECIPES.trial.normal.name}
-                        glowColor={COLORS.gold}
-                    />
-
-                    <div style={{ marginTop: '24px' }}>
-                        <Paragraph>
-                            Works identically to the Antimatter Locator: right-click for coordinates and a trail.
-                        </Paragraph>
-                        <Paragraph>
-                            <Highlight color={COLORS.textMuted}>View in-game:</Highlight> <Command>/info trial_locator</Command>
-                        </Paragraph>
-                    </div>
-                </Section>
-
-                {/* Locator Mechanics */}
-                <Section id="locator-mechanics" title="Locator Mechanics" color={COLORS.accent}>
-                    <Paragraph>
-                        Both locators share the same mechanics:
-                    </Paragraph>
-                    <Paragraph>
-                        If another player already marked the same structure, <Highlight color={COLORS.green}>your locator won't be consumed</Highlight> -
-                        you can keep searching until you find an unclaimed one. You can still enter
-                        claimed structures; this just helps you find unlooted ones.
-                    </Paragraph>
-                    <Paragraph>
-                        <Highlight color={COLORS.orange}>Hard Mode recipes</Highlight> (toggle above) are used in the 2 Hour Version,
-                        requiring more complex ingredients for a greater challenge.
-                    </Paragraph>
-                </Section>
-
-                {/* Loot Tables */}
-                <Section id="loot-tables" title="Antimatter Depths Loot" color={COLORS.green}>
-                    <Paragraph>
-                        The Antimatter Depths contains four distinct loot rooms. Hover over items to see drop chances:
-                    </Paragraph>
-
-                    <LootTableDisplay tables={LOOT_TABLES} />
-                </Section>
-
-                {/* Custom End */}
-                <Section id="end-generation" title="Custom End Generation" color={COLORS.purple}>
-                    <Paragraph>
-                        The End dimension is redesigned for better pacing. The surface is completely solid
-                        with <Highlight>no void gaps</Highlight>, and End City spawn rates have been
-                        increased for faster access to end-game loot.
-                    </Paragraph>
-                </Section>
-
-                {/* Teleporter */}
-                <Section id="teleporter" title="Antimatter Teleporter" color={COLORS.red}>
-                    <Paragraph>
-                        A custom structure that generates randomly in the Overworld. Unlike other custom structures,
-                        it <Highlight>cannot be located</Highlight> - you'll have to stumble upon it.
-                    </Paragraph>
-                    <Paragraph>
-                        Entering the teleporter transports you <Highlight>5,000 - 10,000 blocks</Highlight> away
-                        in a random direction. Useful if you're hunting for a specific biome and your
-                        current area isn't cooperating.
-                    </Paragraph>
-                    <Paragraph>
-                        Below the portal is a hidden room with a chest. There's a <Highlight color={COLORS.gold}>50% chance</Highlight> it
-                        contains a <a href="#wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> - a special item
-                        that grants one random item when used. Try your luck on the <a href="#wheel" style={{ color: COLORS.gold }}>Wheel page</a>!
-                    </Paragraph>
-                </Section>
-
-                {/* Wandering Trader */}
-                <Section id="wandering-trader" title="Custom Wandering Trader" color={COLORS.aqua}>
-                    <Paragraph>
-                        The Wandering Trader spawns every <Highlight>7-10 minutes</Highlight> near the spawn area.
-                        When it appears, coordinates are displayed in chat and the tab list.
-                    </Paragraph>
-                    <Paragraph>
-                        All trades are vanilla items but cost only <Highlight color={COLORS.green}>1 Emerald</Highlight> each.
-                        Additionally, the trader sells a <a href="#wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> for
-                        1 Emerald (limited to one per player per trader).
-                    </Paragraph>
-
-                </Section>
+                <div style={{
+                    position: 'absolute',
+                    bottom: '25%',
+                    right: '8%',
+                    width: '400px',
+                    height: '400px',
+                    background: `radial-gradient(circle, ${COLORS.accent}05 0%, transparent 70%)`,
+                    borderRadius: '50%'
+                }} />
             </div>
 
-            {/* Footer */}
-            <div style={{
-                textAlign: 'center',
-                padding: '32px 20px',
-                borderTop: `1px solid ${COLORS.border}`,
-                color: COLORS.textMuted,
-                fontSize: '13px'
-            }}>
+            {/* Content wrapper */}
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
+                {/* Header */}
                 <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '24px',
-                    marginBottom: '20px'
+                    padding: '80px 20px 56px',
+                    textAlign: 'center',
+                    borderBottom: `1px solid ${COLORS.border}44`
                 }}>
-                    <a
-                        href="https://github.com/McPlayHDnet/ForceItemBattle"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                            color: COLORS.textMuted,
-                            textDecoration: 'none',
-                            fontSize: '13px',
-                            transition: 'color 0.15s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
-                    >
-                        GitHub
-                    </a>
-                    <a
-                        href="https://mcplayhd.net"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                            color: COLORS.textMuted,
-                            textDecoration: 'none',
-                            fontSize: '13px',
-                            transition: 'color 0.15s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
-                    >
-                        McPlayHD.net
-                    </a>
-                    <a
-                        href="/#imprint"
-                        style={{
-                            color: COLORS.textMuted,
-                            textDecoration: 'none',
-                            fontSize: '13px',
-                            transition: 'color 0.15s'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
-                    >
-                        Imprint
-                    </a>
+                    <h1 style={{
+                        fontSize: '40px',
+                        fontWeight: '300',
+                        margin: '0 0 20px 0',
+                        letterSpacing: '-0.5px',
+                        lineHeight: '1.2'
+                    }}>
+                        Custom Content
+                    </h1>
+                    <p style={{
+                        fontSize: '17px',
+                        color: COLORS.textMuted,
+                        margin: 0,
+                        maxWidth: '600px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                        letterSpacing: '0.2px',
+                        lineHeight: '1.6'
+                    }}>
+                        Custom items and world generation designed for faster-paced gameplay
+                    </p>
+
+                    <QuickLinks links={QUICK_LINKS} />
                 </div>
-                <p style={{ margin: 0 }}>
-                    Made with ❤️
-                </p>
-                <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
-                    Not affiliated with Mojang Studios
-                </p>
+
+                {/* Content */}
+                <div style={{
+                    maxWidth: '800px',
+                    margin: '0 auto',
+                    padding: '64px 20px',
+                    flex: 1
+                }}>
+                    {/* Introduction */}
+                    <Paragraph>
+                        Our ForceItemBattle originally designed for <Highlight color={COLORS.gold}>short rounds</Highlight> -
+                        not everyone has time for longer sessions. This meant excluding harder items
+                        like those from the End dimension.
+                    </Paragraph>
+                    <Paragraph>
+                        Rather than leave out a significant part of Minecraft, we added custom structures
+                        and items that make the world more accessible within shorter timeframes.
+                    </Paragraph>
+
+                    <div style={{
+                        width: '60px',
+                        height: '1px',
+                        background: COLORS.border,
+                        margin: '48px auto'
+                    }} />
+
+                    {/* Antimatter Depths */}
+                    <Section id="antimatter-depths" title="Antimatter Depths" color={COLORS.purple}>
+                        <Paragraph>
+                            The Antimatter Depths replaces the vanilla Stronghold as the gateway to the End.
+                            It spawns at <Highlight>Y-level −10</Highlight> and provides a much faster route
+                            to the End dimension.
+                        </Paragraph>
+                        <Paragraph>
+                            To find it, craft an <Highlight color={COLORS.aqua}>Antimatter Locator</Highlight>:
+                        </Paragraph>
+
+                        <RecipeToggle isHard={antimatterHard} onToggle={() => setAntimatterHard(!antimatterHard)} />
+
+                        <CraftingGrid
+                            recipe={antimatterHard ? RECIPES.antimatter.hard.recipe : RECIPES.antimatter.normal.recipe}
+                            result={RECIPES.antimatter.normal.result}
+                            resultName={RECIPES.antimatter.normal.name}
+                            glowColor={COLORS.purple}
+                        />
+
+                        <div style={{ marginTop: '24px' }}>
+                            <Paragraph>
+                                Right-click the locator to receive coordinates and a visual trail. Dig straight
+                                down at the location to find multiple loot rooms and an activated End Portal.
+                            </Paragraph>
+                            <Paragraph>
+                                <Highlight color={COLORS.textMuted}>View in-game:</Highlight> <Command>/info antimatter_locator</Command>
+                            </Paragraph>
+                        </div>
+                    </Section>
+
+                    {/* Trial Chambers */}
+                    <Section id="trial-locator" title="Trial Chambers Locator" color={COLORS.gold}>
+                        <Paragraph>
+                            Trial Chambers (vanilla structure) also have a custom locator for easier discovery:
+                        </Paragraph>
+
+                        <RecipeToggle isHard={trialHard} onToggle={() => setTrialHard(!trialHard)} />
+
+                        <CraftingGrid
+                            recipe={trialHard ? RECIPES.trial.hard.recipe : RECIPES.trial.normal.recipe}
+                            result={RECIPES.trial.normal.result}
+                            resultName={RECIPES.trial.normal.name}
+                            glowColor={COLORS.gold}
+                        />
+
+                        <div style={{ marginTop: '24px' }}>
+                            <Paragraph>
+                                Works identically to the Antimatter Locator: right-click for coordinates and a trail.
+                            </Paragraph>
+                            <Paragraph>
+                                <Highlight color={COLORS.textMuted}>View in-game:</Highlight> <Command>/info trial_locator</Command>
+                            </Paragraph>
+                        </div>
+                    </Section>
+
+                    {/* Locator Mechanics */}
+                    <Section id="locator-mechanics" title="Locator Mechanics" color={COLORS.accent}>
+                        <Paragraph>
+                            Both locators share the same mechanics:
+                        </Paragraph>
+                        <Paragraph>
+                            If another player already marked the same structure, <Highlight color={COLORS.green}>your locator won't be consumed</Highlight> -
+                            you can keep searching until you find an unclaimed one. You can still enter
+                            claimed structures; this just helps you find unlooted ones.
+                        </Paragraph>
+                        <Paragraph>
+                            <Highlight color={COLORS.orange}>Hard Mode recipes</Highlight> (toggle above) are used in the 2 Hour Version,
+                            requiring more complex ingredients for a greater challenge.
+                        </Paragraph>
+                    </Section>
+
+                    {/* Loot Tables */}
+                    <Section id="loot-tables" title="Antimatter Depths Loot" color={COLORS.green}>
+                        <Paragraph>
+                            The Antimatter Depths contains four distinct loot rooms. Hover over items to see drop chances:
+                        </Paragraph>
+
+                        <LootTableDisplay tables={LOOT_TABLES} />
+                    </Section>
+
+                    {/* Custom End */}
+                    <Section id="end-generation" title="Custom End Generation" color={COLORS.purple}>
+                        <Paragraph>
+                            The End dimension is redesigned for better pacing. The surface is completely solid
+                            with <Highlight>no void gaps</Highlight>, and End City spawn rates have been
+                            increased for faster access to end-game loot.
+                        </Paragraph>
+                    </Section>
+
+                    {/* Teleporter */}
+                    <Section id="teleporter" title="Antimatter Teleporter" color={COLORS.red}>
+                        <Paragraph>
+                            A custom structure that generates randomly in the Overworld. Unlike other custom structures,
+                            it <Highlight>cannot be located</Highlight> - you'll have to stumble upon it.
+                        </Paragraph>
+                        <Paragraph>
+                            Entering the teleporter transports you <Highlight>5,000 - 10,000 blocks</Highlight> away
+                            in a random direction. Useful if you're hunting for a specific biome and your
+                            current area isn't cooperating.
+                        </Paragraph>
+                        <Paragraph>
+                            Below the portal is a hidden room with a chest. There's a <Highlight color={COLORS.gold}>50% chance</Highlight> it
+                            contains a <a href="#wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> - a special item
+                            that grants one random item when used. Try your luck on the <a href="#wheel" style={{ color: COLORS.gold }}>Wheel page</a>!
+                        </Paragraph>
+                    </Section>
+
+                    {/* Wandering Trader */}
+                    <Section id="wandering-trader" title="Custom Wandering Trader" color={COLORS.aqua}>
+                        <Paragraph>
+                            The Wandering Trader spawns every <Highlight>7-10 minutes</Highlight> near the spawn area.
+                            When it appears, coordinates are displayed in chat and the tab list.
+                        </Paragraph>
+                        <Paragraph>
+                            All trades are vanilla items but cost only <Highlight color={COLORS.green}>1 Emerald</Highlight> each.
+                            Additionally, the trader sells a <a href="#wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> for
+                            1 Emerald (limited to one per player per trader).
+                        </Paragraph>
+
+                    </Section>
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    textAlign: 'center',
+                    padding: '48px 20px 40px',
+                    borderTop: `1px solid ${COLORS.border}44`,
+                    color: COLORS.textMuted,
+                    fontSize: '13px'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        gap: '24px',
+                        marginBottom: '20px'
+                    }}>
+                        <a
+                            href="https://github.com/McPlayHDnet/ForceItemBattle"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                color: COLORS.textMuted,
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                transition: 'all 0.3s ease',
+                                padding: '8px 14px',
+                                borderRadius: '6px'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.color = COLORS.text;
+                                e.currentTarget.style.background = `${COLORS.border}44`;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.color = COLORS.textMuted;
+                                e.currentTarget.style.background = 'transparent';
+                            }}
+                        >
+                            GitHub
+                        </a>
+                        <a
+                            href="https://mcplayhd.net"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                color: COLORS.textMuted,
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                transition: 'all 0.3s ease',
+                                padding: '8px 14px',
+                                borderRadius: '6px'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.color = COLORS.text;
+                                e.currentTarget.style.background = `${COLORS.border}44`;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.color = COLORS.textMuted;
+                                e.currentTarget.style.background = 'transparent';
+                            }}
+                        >
+                            McPlayHD.net
+                        </a>
+                        <a
+                            href="/public#imprint"
+                            style={{
+                                color: COLORS.textMuted,
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                transition: 'all 0.3s ease',
+                                padding: '8px 14px',
+                                borderRadius: '6px'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.color = COLORS.text;
+                                e.currentTarget.style.background = `${COLORS.border}44`;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.color = COLORS.textMuted;
+                                e.currentTarget.style.background = 'transparent';
+                            }}
+                        >
+                            Imprint
+                        </a>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
+                        Made with ❤️
+                    </p>
+                    <p style={{ margin: '12px 0 0 0', fontSize: '11px', color: `${COLORS.textMuted}99` }}>
+                        Not affiliated with Mojang Studios
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -335,7 +335,7 @@ export default function Commands() {
                         McPlayHD.net
                     </a>
                     <a
-                        href="/#imprint"
+                        href="/public#imprint"
                         style={{
                             color: COLORS.textMuted,
                             textDecoration: 'none',

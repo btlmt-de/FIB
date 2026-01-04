@@ -240,7 +240,7 @@ export default function HowToPlay() {
                             description="Item descriptions for the /info command"
                             extra={
                                 <a
-                                    href="/#pools"
+                                    href="/public#pools"
                                     style={{
                                         color: COLORS.accent,
                                         textDecoration: 'none',
@@ -429,7 +429,7 @@ export default function HowToPlay() {
                         McPlayHD.net
                     </a>
                     <a
-                        href="/#imprint"
+                        href="/public#imprint"
                         style={{
                             color: COLORS.textMuted,
                             textDecoration: 'none',

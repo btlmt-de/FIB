@@ -3,7 +3,7 @@ const isDev = typeof window !== 'undefined' &&
 
 export const API_BASE_URL = isDev
     ? 'http://localhost:3001'
-    : 'https://forceitembattle.net/api';
+    : '';
 
 // Consistent color scheme matching the FIB website
 export const COLORS = {
@@ -45,23 +45,40 @@ export const RARE_MEMBERS = [
     { name: 'McPlayHD', username: 'McPlayHD', chance: 0.00067, rarity: 'rare' },
     { name: 'Owen1212055', username: 'Owen1212055', chance: 0.0006, rarity: 'rare' },
     { name: '170yt', username: '170yt', chance: 0.00069, rarity: 'rare' },
-    { name: 'BastiGHG', username: 'BastiGHG', chance: 0.00061, rarity: 'rare' },
+    { name: 'BastiGHG', username: 'BastiGHG', chance: 0.0006, rarity: 'rare' },
+    { name: 'LennraZ', username: 'LennraZ', chance: 0.00072, rarity: 'rare' },
+    { name: 'NubPanda', username: 'NubPanda', chance: 0.0007, rarity: 'rare' },
+    { name: 'Johnlongears', username: 'Johnlongears', chance: 0.00068, rarity: 'rare' },
+    { name: 'steez', username: 'steez', chance: 0.00062, rarity: 'rare' },
 ];
 
-export const MYTHIC_ITEM = {
-    name: 'Cavendish',
-    texture: 'mythic_cavendish',
-    chance: 0.000001,
-    type: 'mythic',
-    imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png'
-};
+// Mythic items - extremely rare
+export const MYTHIC_ITEMS = [
+    {
+        name: 'Cavendish',
+        texture: 'mythic_cavendish',
+        chance: 0.000001, // 0.0001%
+        type: 'mythic',
+        imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png'
+    },
+    {
+        name: 'Jimbo',
+        texture: 'mythic_jimbo',
+        chance: 0.000005, // 0.0005%
+        type: 'mythic',
+        imageUrl: '/jimbo.png'
+    }
+];
+
+// Legacy single mythic export for backwards compatibility
+export const MYTHIC_ITEM = MYTHIC_ITEMS[0];
 
 export const EVENT_ITEM = {
     name: 'BONUS EVENT',
     texture: 'event_bonus',
     chance: 0.9,
     type: 'event',
-    imageUrl: WHEEL_TEXTURE_URL
+    imageUrl: '/event.png' // From public folder
 };
 
 // Available bonus events

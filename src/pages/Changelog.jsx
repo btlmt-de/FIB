@@ -802,7 +802,7 @@ export default function Changelog() {
                         McPlayHD.net
                     </a>
                     <a
-                        href="/#imprint"
+                        href="/public#imprint"
                         style={{
                             color: COLORS.textMuted,
                             textDecoration: 'none',

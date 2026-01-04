@@ -1,30 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
     COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
     ITEM_WIDTH, SPIN_DURATION, STRIP_LENGTH, FINAL_INDEX,
-    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS
-} from './constants';
+    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS
+} from '../../config/constants.js';
 import {
     formatChance, getMinecraftHeadUrl,
     isSpecialItem, isRareItem, isMythicItem, isEventItem
-} from './helpers';
+} from '../../utils/helpers.js';
 
 
-export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynamicItems }) {
+function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems }) {
     const [state, setState] = useState('idle');
     const [strip, setStrip] = useState([]);
-    const [offset, setOffset] = useState(0);
     const [result, setResult] = useState(null);
     const [isNewItem, setIsNewItem] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
     const animationRef = useRef(null);
 
+    // Use refs for animation offsets to avoid re-renders during animation
+    const stripRef = useRef(null);
+    const offsetRef = useRef(0);
+
     // Triple spin state
     const [tripleStrips, setTripleStrips] = useState([[], [], []]);
-    const [tripleOffsets, setTripleOffsets] = useState([0, 0, 0]);
     const [tripleResults, setTripleResults] = useState([null, null, null]);
     const [tripleNewItems, setTripleNewItems] = useState([false, false, false]);
     const tripleAnimationRefs = useRef([null, null, null]);
+    const tripleStripRefs = useRef([null, null, null]);
+    const tripleOffsetRefs = useRef([0, 0, 0]);
 
     // Bonus wheel state - using horizontal strip like main wheel
     const [bonusStrip, setBonusStrip] = useState([]);
@@ -67,7 +71,12 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
         if (!item) return `${IMAGE_BASE_URL}/barrier.png`;
         if (item.imageUrl) return item.imageUrl;
         if (isEventItem(item)) return EVENT_ITEM.imageUrl;
-        if (isMythicItem(item) && !item.username) return MYTHIC_ITEM.imageUrl;
+        if (isMythicItem(item) && !item.username) {
+            // Find matching mythic item by texture
+            const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
+            if (mythic) return mythic.imageUrl;
+            return MYTHIC_ITEM.imageUrl; // Fallback to first mythic
+        }
         if (item.username) return getMinecraftHeadUrl(item.username);
         return `${IMAGE_BASE_URL}/${item.texture}.png`;
     }
@@ -114,9 +123,12 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
         try {
             setState('spinning');
             const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
-            if (!res.ok) throw new Error((await res.json()).error || 'Spin failed');
-
             const spinResult = await res.json();
+
+            if (!res.ok || !spinResult.result) {
+                throw new Error(spinResult.error || 'Spin failed');
+            }
+
             const finalItem = {
                 ...spinResult.result,
                 isSpecial: spinResult.result.type === 'legendary',
@@ -129,7 +141,7 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
             setStrip(newStrip);
             setResult(finalItem);
             setIsNewItem(spinResult.isNew);
-            setOffset(0);
+            offsetRef.current = 0;
 
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
             const finalOffset = targetOffset + (Math.random() - 0.5) * 30;
@@ -140,7 +152,16 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / SPIN_DURATION, 1);
                 const eased = 1 - Math.pow(1 - progress, 4);
-                setOffset(eased * finalOffset);
+                offsetRef.current = eased * finalOffset;
+
+                // Direct DOM manipulation - no React re-render
+                if (stripRef.current) {
+                    if (isMobile) {
+                        stripRef.current.style.top = `${(280 / 2) - (ITEM_WIDTH / 2) - offsetRef.current}px`;
+                    } else {
+                        stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
+                    }
+                }
 
                 if (progress < 1) {
                     animationRef.current = requestAnimationFrame(animate);
@@ -244,6 +265,13 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
             });
             const spinResult = await res.json();
 
+            // Check for rate limiting or other errors
+            if (!res.ok || !spinResult.result) {
+                setError(spinResult.error || 'Spin failed. Please wait a moment and try again.');
+                setState('idle');
+                return;
+            }
+
             const finalItem = {
                 ...spinResult.result,
                 isSpecial: spinResult.result.type === 'legendary',
@@ -257,7 +285,7 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
             setStrip(newStrip);
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
-            setOffset(0);
+            offsetRef.current = 0;
 
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
             const finalOffset = targetOffset + (Math.random() - 0.5) * 30;
@@ -268,7 +296,16 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / SPIN_DURATION, 1);
                 const eased = 1 - Math.pow(1 - progress, 4);
-                setOffset(eased * finalOffset);
+                offsetRef.current = eased * finalOffset;
+
+                // Direct DOM manipulation for smooth animation
+                if (stripRef.current) {
+                    if (isMobile) {
+                        stripRef.current.style.top = `${(280 / 2) - (ITEM_WIDTH / 2) - offsetRef.current}px`;
+                    } else {
+                        stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
+                    }
+                }
 
                 if (progress < 1) {
                     animationRef.current = requestAnimationFrame(animate);
@@ -294,6 +331,12 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                 while (attempts < 5) {
                     const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
                     const result = await res.json();
+
+                    // Check for rate limiting or other errors
+                    if (!res.ok || !result.result) {
+                        throw new Error(result.error || 'Spin failed');
+                    }
+
                     if (!result.isEvent) {
                         return result;
                     }
@@ -331,13 +374,14 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
             setTripleStrips(newStrips);
             setTripleResults(newResults);
             setTripleNewItems(newItems);
-            setTripleOffsets([0, 0, 0]);
+            tripleOffsetRefs.current = [0, 0, 0];
 
             // Staggered animation start
             const delays = [0, 300, 600];
             const completedCount = { current: 0 };
             // Use responsive item width for animation - must match the display
             const tripleItemWidth = isMobile ? 70 : ITEM_WIDTH;
+            const STRIP_HEIGHT_MOBILE = 200;
 
             delays.forEach((delay, rowIndex) => {
                 setTimeout(() => {
@@ -351,11 +395,19 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                         const progress = Math.min(elapsed / SPIN_DURATION, 1);
                         const eased = 1 - Math.pow(1 - progress, 4);
 
-                        setTripleOffsets(prev => {
-                            const newOffsets = [...prev];
-                            newOffsets[rowIndex] = eased * finalOffset;
-                            return newOffsets;
-                        });
+                        tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
+
+                        // Direct DOM manipulation - no React re-render
+                        if (tripleStripRefs.current[rowIndex]) {
+                            if (isMobile) {
+                                // Mobile uses top positioning with transform for smooth animation
+                                tripleStripRefs.current[rowIndex].style.transform =
+                                    `translateY(-${tripleOffsetRefs.current[rowIndex]}px)`;
+                            } else {
+                                tripleStripRefs.current[rowIndex].style.transform =
+                                    `translateX(calc(50% - ${tripleOffsetRefs.current[rowIndex]}px - ${tripleItemWidth / 2}px))`;
+                            }
+                        }
 
                         if (progress < 1) {
                             tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
@@ -379,11 +431,11 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
     const reset = () => {
         setState('idle');
         setResult(null);
-        setOffset(0);
+        offsetRef.current = 0;
         setStrip([]);
         setIsNewItem(false);
         setTripleStrips([[], [], []]);
-        setTripleOffsets([0, 0, 0]);
+        tripleOffsetRefs.current = [0, 0, 0];
         setTripleResults([null, null, null]);
         setTripleNewItems([false, false, false]);
         setSelectedEvent(null);
@@ -401,12 +453,15 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
         : allItems.length + TEAM_MEMBERS.length + RARE_MEMBERS.length + 1; // +1 for mythic
 
     // Render item box with proper styling matching old_wheel.jsx
-    const renderItemBox = (item, idx, isWinning, size = 52) => {
+    const renderItemBox = (item, idx, isWinning, size = 52, disableAnimation = false) => {
         if (!item) return null;
         const isSpecial = isSpecialItem(item);
         const isMythic = isMythicItem(item);
         const isRare = isRareItem(item);
         const isEvent = isEventItem(item);
+
+        // Disable glow animations during spinning to improve performance
+        const shouldAnimate = !disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult');
 
         return (
             <div style={{
@@ -430,30 +485,35 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                     : isRare ? COLORS.red
                                         : COLORS.border
                 }`,
-                boxShadow: isEvent
-                    ? `0 0 15px ${COLORS.gold}88, 0 0 30px ${COLORS.purple}44`
-                    : isMythic
-                        ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
-                        : isSpecial
-                            ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
-                            : isRare
-                                ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
-                                : isWinning
-                                    ? `0 0 20px ${COLORS.gold}66`
-                                    : 'none',
-                transition: 'all 0.3s',
-                animation: isEvent ? 'eventGlow 1.5s ease-in-out infinite'
-                    : isMythic ? 'mythicGlow 1s ease-in-out infinite'
-                        : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
-                            : isRare ? 'rareGlow 1.5s ease-in-out infinite'
-                                : 'none'
+                boxShadow: shouldAnimate ? (
+                    isEvent
+                        ? `0 0 15px ${COLORS.gold}88, 0 0 30px ${COLORS.purple}44`
+                        : isMythic
+                            ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
+                            : isSpecial
+                                ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
+                                : isRare
+                                    ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
+                                    : isWinning
+                                        ? `0 0 20px ${COLORS.gold}66`
+                                        : 'none'
+                ) : 'none',
+                animation: shouldAnimate ? (
+                    isEvent ? 'eventGlow 1.5s ease-in-out infinite'
+                        : isMythic ? 'mythicGlow 1s ease-in-out infinite'
+                            : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
+                                : isRare ? 'rareGlow 1.5s ease-in-out infinite'
+                                    : 'none'
+                ) : 'none'
             }}>
                 <img
                     src={getItemImageUrl(item)}
                     alt={item.name}
+                    loading="lazy"
                     style={{
-                        width: `${size * 0.77}px`, height: `${size * 0.77}px`,
-                        imageRendering: (isSpecial || isRare || item.username) ? 'auto' : 'pixelated',
+                        width: isEvent ? `${size * 1.1}px` : `${size * 0.77}px`,
+                        height: isEvent ? `${size * 1.1}px` : `${size * 0.77}px`,
+                        imageRendering: (isSpecial || isRare || item.username || isEvent) ? 'auto' : 'pixelated',
                         borderRadius: (isSpecial || isRare || item.username) ? '4px' : '0'
                     }}
                     onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
@@ -492,7 +552,7 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                     <img
                         src={WHEEL_TEXTURE_URL}
                         alt="Spin the wheel"
-                        style={{ width: '140px', height: 'auto', imageRendering: 'pixelated' }}
+                        style={{ width: '180px', height: 'auto', imageRendering: 'pixelated' }}
                     />
                 </button>
 
@@ -514,7 +574,7 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                             fontSize: '13px',
                             fontWeight: '500'
                         }}>
-                            ⚠️ {error}
+                            Warning: {error}
                         </div>
                     )}
                 </div>
@@ -538,13 +598,13 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                     />
                     <span style={{ color: state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : state === 'luckySpinning' || state === 'luckyResult' ? COLORS.green : COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
                         {state === 'spinning' ? 'Spinning...' :
-                            state === 'event' ? '🎰 BONUS EVENT!' :
-                                state === 'bonusWheel' ? '🎰 Spinning Bonus Wheel...' :
-                                    state === 'bonusResult' ? '🎰 Event Selected!' :
-                                        state === 'tripleSpinning' ? '🎰 Triple Spinning...' :
-                                            state === 'tripleResult' ? '🎉 Triple Win!' :
-                                                state === 'luckySpinning' ? '🍀 Lucky Spinning...' :
-                                                    state === 'luckyResult' ? '🍀 Lucky Win!' :
+                            state === 'event' ? 'BONUS EVENT!' :
+                                state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
+                                    state === 'bonusResult' ? 'Event Selected!' :
+                                        state === 'tripleSpinning' ? 'Triple Spinning...' :
+                                            state === 'tripleResult' ? 'Triple Win!' :
+                                                state === 'luckySpinning' ? 'Lucky Spinning...' :
+                                                    state === 'luckyResult' ? 'Lucky Win!' :
                                                         'Gamba!'}
                     </span>
                 </div>
@@ -558,13 +618,13 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                     }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.gold; e.currentTarget.style.color = COLORS.text; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textMuted; }}
-                    >↻ Try Again</button>
+                    >Try Again</button>
                 )}
             </div>
 
             {/* Spinner Container - RESTORED with all visual effects */}
-            {/* Hidden during bonus wheel and lucky spin (they have their own displays) */}
-            {state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && (
+            {/* Hidden during bonus wheel, lucky spin, and triple spin (they have their own displays) */}
+            {state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && state !== 'tripleSpinning' && state !== 'tripleResult' && (
                 <div style={{
                     position: 'relative',
                     height: isMobile ? '280px' : '100px',
@@ -616,21 +676,26 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                     }} />
 
                     {/* Item Strip */}
-                    <div style={{
-                        position: isMobile ? 'absolute' : 'relative',
-                        display: 'flex',
-                        flexDirection: isMobile ? 'column' : 'row',
-                        alignItems: 'center',
-                        ...(isMobile ? {
-                            left: '50%', marginLeft: `-${ITEM_WIDTH / 2}px`,
-                            top: `${(280 / 2) - (ITEM_WIDTH / 2) - offset}px`
-                        } : {
-                            height: '100%',
-                            transform: `translateX(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
-                        })
-                    }}>
+                    <div
+                        ref={stripRef}
+                        style={{
+                            position: isMobile ? 'absolute' : 'relative',
+                            display: 'flex',
+                            flexDirection: isMobile ? 'column' : 'row',
+                            alignItems: 'center',
+                            willChange: 'transform, top',
+                            ...(isMobile ? {
+                                left: '50%', marginLeft: `-${ITEM_WIDTH / 2}px`,
+                                top: `${(280 / 2) - (ITEM_WIDTH / 2)}px`
+                            } : {
+                                height: '100%',
+                                transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
+                            })
+                        }}
+                    >
                         {strip.map((item, idx) => {
                             const isWinningItem = idx === FINAL_INDEX && (state === 'result' || state === 'event');
+                            const isSpinning = state === 'spinning';
                             return (
                                 <div key={idx} style={{
                                     width: `${ITEM_WIDTH}px`, height: `${ITEM_WIDTH}px`, flexShrink: 0,
@@ -639,7 +704,7 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                         ? { borderBottom: `1px solid ${COLORS.border}33` }
                                         : { borderRight: `1px solid ${COLORS.border}33` })
                                 }}>
-                                    {renderItemBox(item, idx, isWinningItem, 52)}
+                                    {renderItemBox(item, idx, isWinningItem, 52, isSpinning)}
                                 </div>
                             );
                         })}
@@ -699,19 +764,19 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                 color: '#fff', fontSize: '9px', fontWeight: '700', padding: '4px 12px',
                                 borderRadius: '4px', animation: 'mythicBadge 2s ease-in-out infinite',
                                 textShadow: '0 0 10px rgba(0,0,0,0.5)'
-                            }}>✦ MYTHIC ✦</span>
+                            }}>MYTHIC</span>
                         ) : isSpecialItem(result) ? (
                             <span style={{
                                 background: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`,
                                 color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                 borderRadius: '4px', animation: 'newBadgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
-                            }}>★ LEGENDARY</span>
+                            }}>LEGENDARY</span>
                         ) : isRareItem(result) ? (
                             <span style={{
                                 background: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
                                 color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                 borderRadius: '4px', animation: 'newBadgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
-                            }}>◆ RARE</span>
+                            }}>RARE</span>
                         ) : isNewItem && (
                             <span style={{
                                 background: COLORS.green, color: COLORS.bg, fontSize: '9px', fontWeight: '700',
@@ -833,7 +898,7 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                 </span>
                             ) : !isNewItem && collection[result.texture] > 1 && (
                                 <span style={{ fontSize: '12px', color: COLORS.textMuted, fontWeight: '500' }}>
-                                    ×{collection[result.texture]} in collection
+                                    x{collection[result.texture]} in collection
                                 </span>
                             )}
                         </div>
@@ -841,111 +906,120 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                 </div>
             )}
 
-            {/* EVENT Display - clean notification before bonus wheel */}
+            {/* EVENT Display - Clean bonus event announcement */}
             {state === 'event' && (
                 <div style={{
                     marginTop: isMobile ? '16px' : '24px',
-                    padding: isMobile ? '18px 20px' : '24px 28px',
-                    background: `radial-gradient(ellipse at center top, ${COLORS.gold}12 0%, ${COLORS.bgLight} 60%, ${COLORS.bgLight} 100%)`,
+                    padding: isMobile ? '24px' : '32px',
+                    background: COLORS.bgLight,
                     borderRadius: '12px',
-                    border: `1px solid ${COLORS.gold}55`,
+                    border: `2px solid ${COLORS.gold}`,
                     textAlign: 'center',
-                    animation: 'fadeIn 0.3s ease-out',
                     position: 'relative',
-                    overflow: 'hidden',
-                    boxShadow: `inset 0 1px 0 ${COLORS.gold}22, inset 0 -1px 0 rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.4), 0 0 30px ${COLORS.gold}15`
+                    overflow: 'hidden'
                 }}>
-                    {/* Animated shimmer overlay */}
+                    {/* Subtle gradient overlay */}
                     <div style={{
                         position: 'absolute',
-                        top: 0, left: '-100%', right: 0, bottom: 0,
-                        background: `linear-gradient(90deg, transparent 0%, ${COLORS.gold}08 50%, transparent 100%)`,
-                        animation: 'shimmerSweep 2.5s ease-in-out infinite',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: `linear-gradient(135deg, ${COLORS.gold}08 0%, transparent 50%, ${COLORS.orange}08 100%)`,
                         pointerEvents: 'none'
                     }} />
-                    {/* Corner glow accents */}
-                    <div style={{
-                        position: 'absolute',
-                        top: '-20px', left: '-20px',
-                        width: isMobile ? '40px' : '60px', height: isMobile ? '40px' : '60px',
-                        background: `radial-gradient(circle, ${COLORS.gold}18 0%, transparent 70%)`,
-                        pointerEvents: 'none'
-                    }} />
-                    <div style={{
-                        position: 'absolute',
-                        top: '-20px', right: '-20px',
-                        width: isMobile ? '40px' : '60px', height: isMobile ? '40px' : '60px',
-                        background: `radial-gradient(circle, ${COLORS.gold}18 0%, transparent 70%)`,
-                        pointerEvents: 'none'
-                    }} />
-                    {/* Headline with focal glow */}
-                    <div style={{
-                        position: 'relative',
-                        fontSize: isMobile ? '13px' : '15px',
-                        fontWeight: '700',
-                        color: COLORS.gold,
-                        letterSpacing: isMobile ? '1.5px' : '2.5px',
-                        textTransform: 'uppercase',
-                        marginBottom: isMobile ? '8px' : '10px',
-                        textShadow: `0 0 20px ${COLORS.gold}66, 0 0 40px ${COLORS.gold}33`,
-                        animation: 'subtlePulse 2s ease-in-out infinite'
-                    }}>Bonus Event Triggered</div>
-                    {/* Subtext - secondary and system-like */}
-                    <div style={{
-                        position: 'relative',
-                        color: COLORS.textMuted,
-                        fontSize: isMobile ? '11px' : '12px',
-                        fontWeight: '400',
-                        letterSpacing: '0.5px',
-                        opacity: 0.8
-                    }}>Determining your reward...</div>
+
+                    {/* Content */}
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        {/* Headline */}
+                        <div style={{
+                            fontSize: isMobile ? '22px' : '28px',
+                            fontWeight: '700',
+                            color: COLORS.gold,
+                            marginBottom: '8px',
+                            letterSpacing: '1px'
+                        }}>
+                            BONUS EVENT!
+                        </div>
+
+                        {/* Subtext */}
+                        <div style={{
+                            color: COLORS.textMuted,
+                            fontSize: isMobile ? '13px' : '14px'
+                        }}>
+                            Spinning to determine your reward...
+                        </div>
+                    </div>
                 </div>
             )}
 
             {/* Bonus Wheel - horizontal strip spinner to select event */}
             {(state === 'bonusWheel' || state === 'bonusResult') && (
                 <div style={{
-                    marginTop: isMobile ? '16px' : '20px',
-                    textAlign: 'center'
+                    marginTop: isMobile ? '20px' : '28px',
+                    textAlign: 'center',
+                    animation: 'fadeIn 0.4s ease-out'
                 }}>
+                    {/* Spinner header */}
+                    {state === 'bonusWheel' && (
+                        <div style={{
+                            marginBottom: isMobile ? '12px' : '16px',
+                            animation: 'fadeSlideDown 0.4s ease-out'
+                        }}>
+                            <div style={{
+                                color: COLORS.gold,
+                                fontSize: isMobile ? '13px' : '14px',
+                                fontWeight: '600',
+                                letterSpacing: '1px',
+                                textTransform: 'uppercase',
+                                textShadow: `0 0 10px ${COLORS.gold}66`
+                            }}>Selecting Your Bonus...</div>
+                        </div>
+                    )}
+
                     {/* Horizontal Strip Spinner */}
                     <div style={{
                         position: 'relative',
-                        height: isMobile ? '64px' : '76px',
+                        height: isMobile ? '72px' : '88px',
                         width: '100%',
-                        maxWidth: isMobile ? '100%' : '400px',
+                        maxWidth: isMobile ? '100%' : '450px',
                         margin: '0 auto',
                         overflow: 'hidden',
-                        borderRadius: isMobile ? '10px' : '12px',
-                        background: `linear-gradient(180deg, ${COLORS.bg} 0%, ${COLORS.bgLight}88 50%, ${COLORS.bg} 100%)`,
-                        border: `1px solid ${COLORS.gold}66`,
-                        boxShadow: `0 0 ${isMobile ? '20px' : '30px'} ${COLORS.gold}33, inset 0 1px 0 ${COLORS.gold}22, inset 0 -2px 4px rgba(0,0,0,0.4)`
+                        borderRadius: isMobile ? '12px' : '14px',
+                        background: `linear-gradient(180deg, ${COLORS.bgLight} 0%, ${COLORS.bg}aa 50%, ${COLORS.bgLight} 100%)`,
+                        border: `2px solid ${COLORS.gold}77`,
+                        boxShadow: `0 0 ${isMobile ? '24px' : '40px'} ${COLORS.gold}44, inset 0 1px 0 ${COLORS.gold}33, inset 0 -3px 8px rgba(0,0,0,0.5)`,
+                        animation: 'spinnerAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                     }}>
-                        {/* Center Indicator - energy seam style */}
+                        {/* Center Indicator - glowing energy beam */}
                         <div style={{
                             position: 'absolute',
-                            top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '2px',
-                            background: `linear-gradient(180deg, ${COLORS.gold}00 0%, ${COLORS.gold} 20%, ${COLORS.gold} 80%, ${COLORS.gold}00 100%)`,
+                            top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '3px',
+                            background: `linear-gradient(180deg, ${COLORS.gold}00 0%, ${COLORS.gold}77 15%, ${COLORS.gold}aa 50%, ${COLORS.gold}77 85%, ${COLORS.gold}00 100%)`,
                             zIndex: 10,
-                            boxShadow: `0 0 8px ${COLORS.gold}aa, 0 0 16px ${COLORS.gold}66, 0 0 24px ${COLORS.gold}33`
+                            boxShadow: `0 0 12px ${COLORS.gold}cc, 0 0 24px ${COLORS.gold}88, 0 0 40px ${COLORS.gold}44, inset 0 0 8px ${COLORS.gold}77`,
+                            animation: 'centerGlow 1.5s ease-in-out infinite'
                         }} />
+                        {/* Top pointer - enhanced */}
                         <div style={{
                             position: 'absolute',
-                            top: '-2px', left: '50%', transform: 'translateX(-50%)',
+                            top: `-${isMobile ? '4px' : '6px'}`, left: '50%', transform: 'translateX(-50%)',
                             width: 0, height: 0,
-                            borderLeft: `${isMobile ? '6' : '8'}px solid transparent`,
-                            borderRight: `${isMobile ? '6' : '8'}px solid transparent`,
-                            borderTop: `${isMobile ? '10' : '12'}px solid ${COLORS.gold}`,
-                            zIndex: 11, filter: `drop-shadow(0 0 8px ${COLORS.gold})`
+                            borderLeft: `${isMobile ? '8' : '10'}px solid transparent`,
+                            borderRight: `${isMobile ? '8' : '10'}px solid transparent`,
+                            borderTop: `${isMobile ? '12' : '14'}px solid ${COLORS.gold}`,
+                            zIndex: 11,
+                            filter: `drop-shadow(0 -2px 6px ${COLORS.gold}cc) drop-shadow(0 0 12px ${COLORS.gold}88)`,
+                            animation: 'pointerGlow 1s ease-in-out infinite'
                         }} />
+                        {/* Bottom pointer - enhanced */}
                         <div style={{
                             position: 'absolute',
-                            bottom: '-2px', left: '50%', transform: 'translateX(-50%)',
+                            bottom: `-${isMobile ? '4px' : '6px'}`, left: '50%', transform: 'translateX(-50%)',
                             width: 0, height: 0,
-                            borderLeft: `${isMobile ? '6' : '8'}px solid transparent`,
-                            borderRight: `${isMobile ? '6' : '8'}px solid transparent`,
-                            borderBottom: `${isMobile ? '10' : '12'}px solid ${COLORS.gold}`,
-                            zIndex: 11, filter: `drop-shadow(0 0 8px ${COLORS.gold})`
+                            borderLeft: `${isMobile ? '8' : '10'}px solid transparent`,
+                            borderRight: `${isMobile ? '8' : '10'}px solid transparent`,
+                            borderBottom: `${isMobile ? '12' : '14'}px solid ${COLORS.gold}`,
+                            zIndex: 11,
+                            filter: `drop-shadow(0 2px 6px ${COLORS.gold}cc) drop-shadow(0 0 12px ${COLORS.gold}88)`,
+                            animation: 'pointerGlow 1s ease-in-out infinite'
                         }} />
 
                         {/* Gradient overlay - enhanced */}
@@ -985,33 +1059,47 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                             boxShadow: `0 0 4px ${COLORS.gold}33`
                                         }} />
 
-                                        {/* Event badge with hierarchy - responsive sizing */}
+                                        {/* Event badge with enhanced hierarchy */}
                                         <div style={{
                                             padding: isMobile
-                                                ? (isLucky ? '6px 12px' : '5px 10px')
-                                                : (isLucky ? '8px 16px' : '7px 14px'),
+                                                ? (isLucky ? '8px 14px' : '7px 12px')
+                                                : (isLucky ? '10px 18px' : '9px 16px'),
                                             background: isLucky
-                                                ? `linear-gradient(135deg, ${COLORS.green} 0%, ${COLORS.aqua}cc 100%)`
-                                                : `linear-gradient(135deg, ${COLORS.orange} 0%, ${COLORS.red}cc 100%)`,
-                                            borderRadius: isLucky ? (isMobile ? '6px' : '8px') : '6px',
+                                                ? `linear-gradient(135deg, ${COLORS.green}dd 0%, ${COLORS.aqua}aa 100%)`
+                                                : `linear-gradient(135deg, ${COLORS.orange}dd 0%, ${COLORS.red}aa 100%)`,
+                                            borderRadius: isLucky ? (isMobile ? '8px' : '10px') : (isMobile ? '8px' : '10px'),
                                             boxShadow: isLucky
-                                                ? `0 2px 8px ${COLORS.green}66, 0 0 16px ${COLORS.green}44, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 2px rgba(0,0,0,0.2)`
-                                                : `0 2px 6px ${COLORS.orange}55, 0 0 12px ${COLORS.orange}33, inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 2px rgba(0,0,0,0.25)`,
+                                                ? `0 4px 12px ${COLORS.green}77, 0 0 24px ${COLORS.green}55, inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.3)`
+                                                : `0 4px 12px ${COLORS.orange}66, 0 0 24px ${COLORS.orange}44, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.3)`,
                                             border: isLucky
-                                                ? `1px solid ${COLORS.aqua}66`
-                                                : `1px solid ${COLORS.red}55`,
-                                            transform: isLucky ? 'scale(1.02)' : 'scale(1)'
+                                                ? `1.5px solid ${COLORS.aqua}99`
+                                                : `1.5px solid ${COLORS.red}77`,
+                                            transform: 'scale(1)',
+                                            transition: 'all 0.3s ease',
+                                            position: 'relative'
                                         }}>
+                                            {/* Badge glow effect */}
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '-8px', left: '-8px', right: '-8px', bottom: '-8px',
+                                                background: isLucky
+                                                    ? `radial-gradient(circle, ${COLORS.green}44 0%, transparent 70%)`
+                                                    : `radial-gradient(circle, ${COLORS.orange}33 0%, transparent 70%)`,
+                                                borderRadius: isLucky ? (isMobile ? '10px' : '12px') : (isMobile ? '10px' : '12px'),
+                                                zIndex: -1,
+                                                animation: 'subtlePulse 2s ease-in-out infinite'
+                                            }} />
                                             <span style={{
                                                 color: '#fff',
-                                                fontSize: isMobile
-                                                    ? (isLucky ? '11px' : '10px')
-                                                    : (isLucky ? '13px' : '12px'),
+                                                fontSize: isMobile ? '11px' : '13px',
                                                 fontWeight: '700',
-                                                textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+                                                textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                                                 whiteSpace: 'nowrap',
-                                                letterSpacing: isLucky ? '0.5px' : '0'
-                                            }}>{isLucky ? '✦ ' : ''}{event.name}{isTriple ? ' ⚡' : ''}</span>
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase'
+                                            }}>
+                                                {isLucky ? 'LUCKY SPIN' : 'TRIPLE SPIN'}
+                                            </span>
                                         </div>
                                     </div>
                                 );
@@ -1034,24 +1122,41 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                 </div>
             )}
 
-            {/* Lucky Spin Display */}
+            {/*Lucky Spin Display */}
             {state === 'luckySpinning' && (
-                <div style={{ marginTop: '24px' }}>
-                    {/* Lucky badge */}
+                <div style={{ marginTop: isMobile ? '20px' : '28px', animation: 'fadeIn 0.4s ease-out' }}>
+                    {/* Lucky badge - enhanced */}
                     <div style={{
                         textAlign: 'center',
-                        marginBottom: '16px',
-                        padding: '8px 16px',
-                        background: `linear-gradient(135deg, ${COLORS.green}22, ${COLORS.aqua}22)`,
-                        borderRadius: '8px',
-                        border: `1px solid ${COLORS.green}44`
+                        marginBottom: isMobile ? '14px' : '18px',
+                        padding: isMobile ? '10px 18px' : '12px 24px',
+                        background: `linear-gradient(135deg, ${COLORS.green}33 0%, ${COLORS.aqua}22 100%)`,
+                        borderRadius: isMobile ? '10px' : '12px',
+                        border: `1.5px solid ${COLORS.green}66`,
+                        boxShadow: `0 0 20px ${COLORS.green}44, inset 0 1px 0 ${COLORS.green}33`,
+                        animation: 'bonusEventReveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                     }}>
                         <span style={{
                             color: COLORS.green,
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            letterSpacing: '2px'
-                        }}>🍀 LUCKY SPIN - Equal chance for all items!</span>
+                            fontSize: isMobile ? '13px' : '14px',
+                            fontWeight: '800',
+                            letterSpacing: '1.5px',
+                            textTransform: 'uppercase',
+                            textShadow: `0 0 12px ${COLORS.green}66`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                        }}>
+                           Lucky Spin
+                        </span>
+                        <div style={{
+                            marginTop: '6px',
+                            color: COLORS.textMuted,
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            letterSpacing: '0.5px'
+                        }}>Equal chance for all items</div>
                     </div>
 
                     {/* Reuse main spinner strip */}
@@ -1102,19 +1207,22 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                         }} />
 
                         {/* Item Strip */}
-                        <div style={{
-                            position: isMobile ? 'absolute' : 'relative',
-                            display: 'flex',
-                            flexDirection: isMobile ? 'column' : 'row',
-                            alignItems: 'center',
-                            ...(isMobile ? {
-                                left: '50%', marginLeft: `-${ITEM_WIDTH / 2}px`,
-                                top: `${(280 / 2) - (ITEM_WIDTH / 2) - offset}px`
-                            } : {
-                                height: '100%',
-                                transform: `translateX(calc(50% - ${offset}px - ${ITEM_WIDTH / 2}px))`
-                            })
-                        }}>
+                        <div
+                            ref={stripRef}
+                            style={{
+                                position: isMobile ? 'absolute' : 'relative',
+                                display: 'flex',
+                                flexDirection: isMobile ? 'column' : 'row',
+                                alignItems: 'center',
+                                willChange: 'transform',
+                                ...(isMobile ? {
+                                    left: '50%', marginLeft: `-${ITEM_WIDTH / 2}px`,
+                                    top: `${(280 / 2) - (ITEM_WIDTH / 2)}px`
+                                } : {
+                                    height: '100%',
+                                    transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
+                                })
+                            }}>
                             {strip.map((item, idx) => (
                                 <div key={idx} style={{
                                     width: `${ITEM_WIDTH}px`, height: `${ITEM_WIDTH}px`, flexShrink: 0,
@@ -1131,68 +1239,96 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                 </div>
             )}
 
-            {/* Lucky Spin Result */}
+            {/*Lucky Spin Result */}
             {state === 'luckyResult' && luckyResult && (
                 <div style={{
-                    marginTop: '24px',
-                    padding: '32px 24px',
-                    background: `radial-gradient(ellipse at center, ${COLORS.green}20 0%, ${COLORS.bg} 70%)`,
-                    borderRadius: '12px',
-                    border: `1px solid ${COLORS.green}66`,
+                    marginTop: isMobile ? '20px' : '28px',
+                    padding: isMobile ? '24px 20px' : '32px 28px',
+                    background: `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.green}25 0%, ${COLORS.aqua}08 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
+                    borderRadius: '16px',
+                    border: `2px solid ${COLORS.green}77`,
                     textAlign: 'center',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    boxShadow: `0 0 40px ${COLORS.green}55, 0 0 80px ${COLORS.green}22, inset 0 1px 0 ${COLORS.green}44`
                 }}>
-                    {/* Floating particles */}
-                    {[...Array(12)].map((_, i) => (
+                    {/* Floating particles - enhanced */}
+                    {[...Array(16)].map((_, i) => (
                         <div key={i} style={{
                             position: 'absolute',
-                            width: '6px', height: '6px',
-                            background: i % 2 === 0 ? COLORS.green : COLORS.aqua,
+                            width: isMobile ? '5px' : '6px', height: isMobile ? '5px' : '6px',
+                            background: i % 3 === 0 ? COLORS.green : i % 3 === 1 ? COLORS.aqua : COLORS.gold,
                             borderRadius: '50%',
-                            left: `${10 + Math.random() * 80}%`,
-                            top: '80%',
+                            left: `${5 + Math.random() * 90}%`,
+                            top: '85%',
                             opacity: 0,
-                            animation: `floatParticle 2s ease-out ${i * 0.1}s infinite`,
-                            boxShadow: `0 0 6px ${i % 2 === 0 ? COLORS.green : COLORS.aqua}`
+                            animation: `floatParticle 2.5s ease-out ${i * 0.12}s infinite`,
+                            boxShadow: `0 0 8px ${i % 3 === 0 ? COLORS.green : i % 3 === 1 ? COLORS.aqua : COLORS.gold}`
                         }} />
                     ))}
 
-                    {/* Lucky badge */}
+                    {/* Lucky badge - enhanced */}
                     <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                        marginBottom: '20px', animation: 'fadeSlideDown 0.3s ease-out'
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? '8px' : '12px',
+                        marginBottom: isMobile ? '16px' : '20px', animation: 'fadeSlideDown 0.4s ease-out',
+                        flexWrap: 'wrap'
                     }}>
                         <span style={{
-                            background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.aqua})`,
-                            color: '#fff', fontSize: '9px', fontWeight: '700', padding: '4px 12px',
-                            borderRadius: '4px'
-                        }}>🍀 LUCKY SPIN</span>
+                            background: `linear-gradient(135deg, ${COLORS.green}dd 0%, ${COLORS.aqua}aa 100%)`,
+                            color: '#fff', fontSize: isMobile ? '10px' : '11px', fontWeight: '800',
+                            padding: isMobile ? '5px 12px' : '6px 14px',
+                            borderRadius: isMobile ? '6px' : '8px',
+                            boxShadow: `0 4px 12px ${COLORS.green}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                            letterSpacing: '0.5px',
+                            textTransform: 'uppercase'
+                        }}>Lucky Spin</span>
                         {isMythicItem(luckyResult) ? (
                             <span style={{
-                                background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,
-                                color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
-                                borderRadius: '4px', animation: 'mythicBadge 2s ease-in-out infinite'
-                            }}>✦ MYTHIC ✦</span>
+                                background: `linear-gradient(135deg, ${COLORS.aqua}dd, ${COLORS.purple}aa, ${COLORS.gold}88)`,
+                                color: '#fff', fontSize: isMobile ? '10px' : '11px', fontWeight: '800',
+                                padding: isMobile ? '5px 12px' : '6px 14px',
+                                borderRadius: isMobile ? '6px' : '8px',
+                                boxShadow: `0 4px 12px ${COLORS.aqua}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                                animation: 'mythicBadge 2s ease-in-out infinite',
+                                letterSpacing: '0.5px',
+                                textTransform: 'uppercase'
+                            }}>Mythic</span>
                         ) : isSpecialItem(luckyResult) ? (
                             <span style={{
-                                background: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`,
-                                color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
-                                borderRadius: '4px'
-                            }}>★ LEGENDARY</span>
+                                background: `linear-gradient(135deg, ${COLORS.purple}dd, ${COLORS.gold}aa)`,
+                                color: '#fff', fontSize: isMobile ? '10px' : '11px', fontWeight: '800',
+                                padding: isMobile ? '5px 12px' : '6px 14px',
+                                borderRadius: isMobile ? '6px' : '8px',
+                                boxShadow: `0 4px 12px ${COLORS.purple}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                                letterSpacing: '0.5px',
+                                textTransform: 'uppercase'
+                            }}>Legendary</span>
                         ) : isRareItem(luckyResult) ? (
                             <span style={{
-                                background: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                                color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
-                                borderRadius: '4px'
-                            }}>◆ RARE</span>
+                                background: `linear-gradient(135deg, ${COLORS.red}dd, ${COLORS.orange}aa)`,
+                                color: '#fff', fontSize: isMobile ? '10px' : '11px', fontWeight: '800',
+                                padding: isMobile ? '5px 12px' : '6px 14px',
+                                borderRadius: isMobile ? '6px' : '8px',
+                                boxShadow: `0 4px 12px ${COLORS.red}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                                letterSpacing: '0.5px',
+                                textTransform: 'uppercase'
+                            }}>Rare</span>
                         ) : isLuckyNew && (
                             <span style={{
-                                background: COLORS.green, color: COLORS.bg, fontSize: '9px', fontWeight: '700',
-                                padding: '3px 8px', borderRadius: '4px'
+                                background: `linear-gradient(135deg, ${COLORS.green}dd, ${COLORS.aqua}aa)`,
+                                color: COLORS.bg, fontSize: isMobile ? '10px' : '11px', fontWeight: '800',
+                                padding: isMobile ? '5px 12px' : '6px 14px', borderRadius: isMobile ? '6px' : '8px',
+                                boxShadow: `0 4px 12px ${COLORS.green}55, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                                letterSpacing: '0.5px',
+                                textTransform: 'uppercase'
                             }}>NEW</span>
                         )}
-                        You received
+                        <span style={{
+                            color: COLORS.textMuted,
+                            fontSize: isMobile ? '12px' : '13px',
+                            fontWeight: '500',
+                            letterSpacing: '0.3px'
+                        }}>You received</span>
                     </div>
 
                     {/* Item Display */}
@@ -1270,8 +1406,8 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
             {/* Triple Spin Display */}
             {(state === 'tripleSpinning' || state === 'tripleResult') && (
                 <div style={{ marginTop: isMobile ? '16px' : '24px' }}>
-                    {/* Spinning rows - on mobile: 3 side-by-side vertical strips */}
-                    {state === 'tripleSpinning' && (
+                    {/* Spinning rows - show during both spinning and result to prevent reset flash */}
+                    {(state === 'tripleSpinning' || state === 'tripleResult') && (
                         isMobile ? (
                             /* Mobile: 3 vertical strips side by side */
                             <div style={{
@@ -1324,15 +1460,19 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                                 zIndex: 5, pointerEvents: 'none'
                                             }} />
                                             {/* Item Strip - vertical */}
-                                            <div style={{
-                                                position: 'absolute',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                alignItems: 'center',
-                                                left: '50%',
-                                                marginLeft: `-${TRIPLE_ITEM_WIDTH_MOBILE / 2}px`,
-                                                top: `${(STRIP_HEIGHT_MOBILE / 2) - (TRIPLE_ITEM_WIDTH_MOBILE / 2) - tripleOffsets[rowIndex]}px`
-                                            }}>
+                                            <div
+                                                ref={el => tripleStripRefs.current[rowIndex] = el}
+                                                style={{
+                                                    position: 'absolute',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    left: '50%',
+                                                    marginLeft: `-${TRIPLE_ITEM_WIDTH_MOBILE / 2}px`,
+                                                    top: `${(STRIP_HEIGHT_MOBILE / 2) - (TRIPLE_ITEM_WIDTH_MOBILE / 2)}px`,
+                                                    willChange: 'transform'
+                                                }}
+                                            >
                                                 {tripleStrips[rowIndex].map((item, idx) => (
                                                     <div key={idx} style={{
                                                         width: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
@@ -1383,14 +1523,18 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                                                 background: `linear-gradient(90deg, ${COLORS.bg} 0%, transparent 15%, transparent 85%, ${COLORS.bg} 100%)`,
                                                 zIndex: 5, pointerEvents: 'none'
                                             }} />
-                                            <div style={{
-                                                position: 'relative',
-                                                display: 'flex',
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                height: '100%',
-                                                transform: `translateX(calc(50% - ${tripleOffsets[rowIndex]}px - ${TRIPLE_ITEM_WIDTH / 2}px))`
-                                            }}>
+                                            <div
+                                                ref={el => tripleStripRefs.current[rowIndex] = el}
+                                                style={{
+                                                    position: 'relative',
+                                                    display: 'flex',
+                                                    flexDirection: 'row',
+                                                    alignItems: 'center',
+                                                    height: '100%',
+                                                    transform: `translateX(calc(50% - ${TRIPLE_ITEM_WIDTH / 2}px))`,
+                                                    willChange: 'transform'
+                                                }}
+                                            >
                                                 {tripleStrips[rowIndex].map((item, idx) => (
                                                     <div key={idx} style={{
                                                         width: `${TRIPLE_ITEM_WIDTH}px`, height: `${TRIPLE_ITEM_WIDTH}px`, flexShrink: 0,
@@ -1411,38 +1555,65 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
                     {/* Results display - 3 items */}
                     {state === 'tripleResult' && (
                         <div style={{
-                            padding: isMobile ? '24px 16px' : '32px 24px',
-                            background: `radial-gradient(ellipse at center, ${COLORS.gold}15 0%, ${COLORS.bg} 70%)`,
-                            borderRadius: '12px',
-                            border: `1px solid ${COLORS.gold}44`,
+                            padding: isMobile ? '24px 16px' : '32px 28px',
+                            background: `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.gold}28 0%, ${COLORS.orange}12 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
+                            borderRadius: '16px',
+                            border: `2px solid ${COLORS.gold}77`,
                             textAlign: 'center',
                             position: 'relative',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            boxShadow: `0 0 40px ${COLORS.gold}55, 0 0 80px ${COLORS.orange}22, inset 0 1px 0 ${COLORS.gold}44`
                         }}>
-                            {/* Floating particles */}
-                            {[...Array(isMobile ? 10 : 15)].map((_, i) => (
+                            {/* Floating particles - enhanced */}
+                            {[...Array(isMobile ? 12 : 18)].map((_, i) => (
                                 <div key={i} style={{
                                     position: 'absolute',
-                                    width: isMobile ? '5px' : '6px',
-                                    height: isMobile ? '5px' : '6px',
+                                    width: isMobile ? '5px' : '7px',
+                                    height: isMobile ? '5px' : '7px',
                                     background: i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple,
                                     borderRadius: '50%',
-                                    left: `${5 + Math.random() * 90}%`,
-                                    top: '85%',
+                                    left: `${3 + Math.random() * 94}%`,
+                                    top: '88%',
                                     opacity: 0,
-                                    animation: `floatParticle 2s ease-out ${i * 0.12}s infinite`,
-                                    boxShadow: `0 0 6px ${i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple}`
+                                    animation: `floatParticle 2.5s ease-out ${i * 0.1}s infinite`,
+                                    boxShadow: `0 0 10px ${i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple}`
                                 }} />
                             ))}
 
-                            {/* Header */}
-                            <div style={{ marginBottom: isMobile ? '16px' : '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', position: 'relative', zIndex: 1 }}>
+                            {/* Header - enhanced */}
+                            <div style={{
+                                marginBottom: isMobile ? '18px' : '28px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: isMobile ? '10px' : '14px',
+                                position: 'relative',
+                                zIndex: 1,
+                                animation: 'fadeSlideDown 0.4s ease-out',
+                                flexWrap: 'wrap'
+                            }}>
                                 <span style={{
-                                    background: `linear-gradient(135deg, ${COLORS.gold}, ${COLORS.orange})`,
-                                    color: COLORS.bg, fontSize: isMobile ? '9px' : '10px', fontWeight: '700', padding: isMobile ? '3px 10px' : '4px 12px',
-                                    borderRadius: '4px'
-                                }}>TRIPLE WIN</span>
-                                <span style={{ color: COLORS.textMuted, fontSize: isMobile ? '12px' : '14px' }}>You received</span>
+                                    background: `linear-gradient(135deg, ${COLORS.gold}dd 0%, ${COLORS.orange}aa 100%)`,
+                                    color: COLORS.bg, fontSize: isMobile ? '11px' : '12px', fontWeight: '800',
+                                    padding: isMobile ? '6px 14px' : '8px 16px',
+                                    borderRadius: isMobile ? '8px' : '10px',
+                                    boxShadow: `0 4px 16px ${COLORS.gold}66, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                                    letterSpacing: '1px',
+                                    textTransform: 'uppercase',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+
+                                    Triple Win
+
+                                </span>
+                                <span style={{
+                                    color: COLORS.textMuted,
+                                    fontSize: isMobile ? '12px' : '14px',
+                                    fontWeight: '500',
+                                    letterSpacing: '0.3px'
+                                }}>You received</span>
                             </div>
 
                             {/* 3 Items - horizontal row on both mobile and desktop */}
@@ -1567,3 +1738,17 @@ export function WheelSpinner({ allItems, collection, onSpinComplete, user, dynam
         </div>
     );
 }
+
+// Memoize to prevent unnecessary re-renders
+// Animation uses direct DOM manipulation so collection changes won't cause stutter
+export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) => {
+    // Return true if props are equal (skip re-render)
+    // Return false if props are different (re-render)
+    return (
+        prevProps.user?.id === nextProps.user?.id &&
+        prevProps.allItems === nextProps.allItems &&
+        prevProps.dynamicItems === nextProps.dynamicItems &&
+        prevProps.onSpinComplete === nextProps.onSpinComplete &&
+        prevProps.collection === nextProps.collection
+    );
+});

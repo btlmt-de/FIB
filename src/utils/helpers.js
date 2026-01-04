@@ -1,4 +1,4 @@
-import { IMAGE_BASE_URL } from './constants';
+import { IMAGE_BASE_URL } from '../config/constants';
 
 export function formatChance(chance) {
     if (!chance) return '0';
@@ -11,12 +11,28 @@ export function getMinecraftHeadUrl(username) {
 }
 
 export function formatTimeAgo(dateString) {
-    const seconds = Math.floor((new Date() - new Date(dateString)) / 1000);
-    if (seconds < 60) return 'Just now';
+    if (!dateString) return 'Unknown';
+
+    // Parse the date - SQLite returns UTC timestamps without 'Z' suffix
+    // Add 'Z' if not present to ensure proper UTC parsing
+    let dateStr = dateString;
+    if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
+        dateStr = dateStr + 'Z';
+    }
+
+    const date = new Date(dateStr);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    // Handle negative values (future dates due to clock skew)
+    if (seconds < 0) return 'Just now';
+
+    if (seconds < 10) return 'Just now';
+    if (seconds < 60) return `${seconds}s ago`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return new Date(dateString).toLocaleDateString();
+    return date.toLocaleDateString();
 }
 
 // Item type detection helpers
@@ -52,7 +68,7 @@ export function getItemImageUrl(item) {
 
     // Event items use wheel texture
     if (isEventItem(item)) {
-        return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
+        return '/event.png';
     }
 
     // Regular items

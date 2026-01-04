@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from './constants';
+import { COLORS } from '../../config/constants.js';
 
 export const AnimationStyles = () => (
     <style>{`
@@ -160,6 +160,66 @@ export const AnimationStyles = () => (
         @keyframes subtlePulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.85; }
+        }
+        @keyframes bonusEventReveal {
+            0% {
+                opacity: 0;
+                transform: scale(0.85) translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        @keyframes explosiveBurst {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0);
+            }
+        }
+        @keyframes dramaticScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.15);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        @keyframes spinnerAppear {
+            0% {
+                opacity: 0;
+                transform: scaleY(0.8);
+            }
+            100% {
+                opacity: 1;
+                transform: scaleY(1);
+            }
+        }
+        @keyframes centerGlow {
+            0%, 100% {
+                box-shadow: 0 0 12px ${COLORS.gold}cc, 0 0 24px ${COLORS.gold}88, 0 0 40px ${COLORS.gold}44, inset 0 0 8px ${COLORS.gold}77;
+            }
+            50% {
+                box-shadow: 0 0 20px ${COLORS.gold}dd, 0 0 40px ${COLORS.gold}aa, 0 0 60px ${COLORS.gold}66, inset 0 0 12px ${COLORS.gold}88;
+            }
+        }
+        @keyframes pointerGlow {
+            0%, 100% {
+                filter: drop-shadow(0 0px 6px ${COLORS.gold}cc) drop-shadow(0 0 12px ${COLORS.gold}88);
+            }
+            50% {
+                filter: drop-shadow(0 0px 8px ${COLORS.gold}dd) drop-shadow(0 0 16px ${COLORS.gold}aa);
+            }
         }
     `}</style>
 );

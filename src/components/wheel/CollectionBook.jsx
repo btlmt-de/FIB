@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { COLORS, IMAGE_BASE_URL, MYTHIC_ITEM, TEAM_MEMBERS, RARE_MEMBERS } from './constants';
-import { formatChance, getMinecraftHeadUrl } from './helpers';
+import React, { useState, useEffect, useMemo } from 'react';
+import { COLORS, IMAGE_BASE_URL, MYTHIC_ITEMS, MYTHIC_ITEM, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants.js';
+import { formatChance, getMinecraftHeadUrl } from '../../utils/helpers.js';
+import { X, Sparkles, Star, Diamond, Check, Zap, BookOpen, Search } from 'lucide-react';
 
 // Item Detail Modal Component
 function ItemDetailModal({ item, details, onClose }) {
@@ -11,11 +12,15 @@ function ItemDetailModal({ item, details, onClose }) {
     const isSpecialType = isMythic || isLegendary || isRare;
 
     const rarityColor = isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
-    const rarityLabel = isMythic ? '✦ MYTHIC' : isLegendary ? '★ LEGENDARY' : isRare ? '◆ RARE' : 'COMMON';
+    const rarityLabel = isMythic ? 'MYTHIC' : isLegendary ? 'LEGENDARY' : isRare ? 'RARE' : 'COMMON';
 
     function getItemImageUrl() {
         if (item.imageUrl) return item.imageUrl;
-        if (item.type === 'mythic' && !item.username) return MYTHIC_ITEM.imageUrl;
+        if (item.type === 'mythic' && !item.username) {
+            const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
+            if (mythic) return mythic.imageUrl;
+            return MYTHIC_ITEM.imageUrl;
+        }
         if (item.username) return getMinecraftHeadUrl(item.username);
         return `${IMAGE_BASE_URL}/${item.texture}.png`;
     }
@@ -68,7 +73,7 @@ function ItemDetailModal({ item, details, onClose }) {
                             background: 'transparent', border: 'none',
                             color: COLORS.textMuted, fontSize: '20px', cursor: 'pointer'
                         }}
-                    >×</button>
+                    >x</button>
 
                     {/* Rarity badge */}
                     {isSpecialType && (
@@ -165,7 +170,7 @@ function ItemDetailModal({ item, details, onClose }) {
                                 fontSize: '20px',
                                 fontWeight: '700'
                             }}>
-                                {item.chance ? `${formatChance(item.chance)}%` : '—'}
+                                {item.chance ? `${formatChance(item.chance)}%` : '- '}
                             </div>
                         </div>
                     </div>
@@ -201,63 +206,83 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
     const [search, setSearch] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
 
-    // Build special items list from API data (dynamicItems)
-    const hasApiData = dynamicItems && dynamicItems.length > 0;
+    // Memoize special items list - only recalculate when dynamicItems changes
+    const { mythicItems, legendaryItems, rareItems, allItemsWithSpecial } = useMemo(() => {
+        const hasApiData = dynamicItems && dynamicItems.length > 0;
+        let mythic, legendary, rare;
 
-    let mythicItems, legendaryItems, rareItems;
+        if (hasApiData) {
+            mythic = dynamicItems.filter(i => i.rarity === 'mythic').map(i => ({
+                name: i.name, texture: i.texture, type: 'mythic', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
+            }));
+            legendary = dynamicItems.filter(i => i.rarity === 'legendary').map(i => ({
+                name: i.name, texture: i.texture, type: 'legendary', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
+            }));
+            rare = dynamicItems.filter(i => i.rarity === 'rare').map(i => ({
+                name: i.name, texture: i.texture, type: 'rare', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
+            }));
+        } else {
+            mythic = MYTHIC_ITEMS.map(m => ({ ...m, texture: m.texture }));
+            legendary = TEAM_MEMBERS.map(m => ({ name: m.name, texture: `special_${m.username}`, type: 'legendary', username: m.username, chance: m.chance }));
+            rare = RARE_MEMBERS.map(m => ({ name: m.name, texture: `rare_${m.username}`, type: 'rare', username: m.username, chance: m.chance }));
+        }
 
-    if (hasApiData) {
-        mythicItems = dynamicItems.filter(i => i.rarity === 'mythic').map(i => ({
-            name: i.name, texture: i.texture, type: 'mythic', chance: i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-        }));
-        legendaryItems = dynamicItems.filter(i => i.rarity === 'legendary').map(i => ({
-            name: i.name, texture: i.texture, type: 'legendary', chance: i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-        }));
-        rareItems = dynamicItems.filter(i => i.rarity === 'rare').map(i => ({
-            name: i.name, texture: i.texture, type: 'rare', chance: i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-        }));
-    } else {
-        mythicItems = [{ ...MYTHIC_ITEM, texture: 'mythic_cavendish' }];
-        legendaryItems = TEAM_MEMBERS.map(m => ({ name: m.name, texture: `special_${m.username}`, type: 'legendary', username: m.username, chance: m.chance }));
-        rareItems = RARE_MEMBERS.map(m => ({ name: m.name, texture: `rare_${m.username}`, type: 'rare', username: m.username, chance: m.chance }));
-    }
+        return {
+            mythicItems: mythic,
+            legendaryItems: legendary,
+            rareItems: rare,
+            allItemsWithSpecial: [...mythic, ...legendary, ...rare, ...allItems]
+        };
+    }, [dynamicItems, allItems]);
 
-    const allItemsWithSpecial = [...mythicItems, ...legendaryItems, ...rareItems, ...allItems];
+    // Memoize collection stats - only recalculate when collection or items change
+    const { collectedCount, totalCount, percentage, collectedMythicCount, collectedLegendaryCount, collectedRareCount } = useMemo(() => {
+        const collected = Object.keys(collection).filter(k => collection[k] > 0).length;
+        const total = allItemsWithSpecial.length;
+        return {
+            collectedCount: collected,
+            totalCount: total,
+            percentage: total > 0 ? ((collected / total) * 100).toFixed(1) : 0,
+            collectedMythicCount: mythicItems.filter(item => collection[item.texture] > 0).length,
+            collectedLegendaryCount: legendaryItems.filter(item => collection[item.texture] > 0).length,
+            collectedRareCount: rareItems.filter(item => collection[item.texture] > 0).length
+        };
+    }, [collection, allItemsWithSpecial, mythicItems, legendaryItems, rareItems]);
 
-    const collectedCount = Object.keys(collection).filter(k => collection[k] > 0).length;
-    const totalCount = allItemsWithSpecial.length;
-    const percentage = totalCount > 0 ? ((collectedCount / totalCount) * 100).toFixed(1) : 0;
+    // Memoize filtered and sorted items - recalculate when filter, search, or collection changes
+    const sortedItems = useMemo(() => {
+        const searchLower = search.toLowerCase();
+        const filtered = allItemsWithSpecial.filter(item => {
+            const matchesSearch = item.name.toLowerCase().includes(searchLower);
+            const isCollected = collection[item.texture] > 0;
+            if (!matchesSearch) return false;
+            if (filter === 'mythic') return item.type === 'mythic';
+            if (filter === 'legendary') return item.type === 'legendary';
+            if (filter === 'rare') return item.type === 'rare';
+            if (filter === 'collected') return isCollected;
+            if (filter === 'missing') return !isCollected;
+            return true;
+        });
 
-    const collectedMythicCount = mythicItems.filter(item => collection[item.texture] > 0).length;
-    const collectedLegendaryCount = legendaryItems.filter(item => collection[item.texture] > 0).length;
-    const collectedRareCount = rareItems.filter(item => collection[item.texture] > 0).length;
-
-    const filteredItems = allItemsWithSpecial.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
-        const isCollected = collection[item.texture] > 0;
-        if (!matchesSearch) return false;
-        if (filter === 'mythic') return item.type === 'mythic';
-        if (filter === 'legendary') return item.type === 'legendary';
-        if (filter === 'rare') return item.type === 'rare';
-        if (filter === 'collected') return isCollected;
-        if (filter === 'missing') return !isCollected;
-        return true;
-    });
-
-    const sortedItems = [...filteredItems].sort((a, b) => {
-        const typeOrder = { mythic: 0, legendary: 1, rare: 2 };
-        const aOrder = typeOrder[a.type] ?? 3;
-        const bOrder = typeOrder[b.type] ?? 3;
-        if (aOrder !== bOrder) return aOrder - bOrder;
-        const aCount = collection[a.texture] || 0;
-        const bCount = collection[b.texture] || 0;
-        if (aCount !== bCount) return bCount - aCount;
-        return a.name.localeCompare(b.name);
-    });
+        return filtered.sort((a, b) => {
+            const typeOrder = { mythic: 0, legendary: 1, rare: 2 };
+            const aOrder = typeOrder[a.type] ?? 3;
+            const bOrder = typeOrder[b.type] ?? 3;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            const aCount = collection[a.texture] || 0;
+            const bCount = collection[b.texture] || 0;
+            if (aCount !== bCount) return bCount - aCount;
+            return a.name.localeCompare(b.name);
+        });
+    }, [allItemsWithSpecial, collection, filter, search]);
 
     function getItemImageUrl(item) {
         if (item.imageUrl) return item.imageUrl;
-        if (item.type === 'mythic' && !item.username) return MYTHIC_ITEM.imageUrl;
+        if (item.type === 'mythic' && !item.username) {
+            const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
+            if (mythic) return mythic.imageUrl;
+            return MYTHIC_ITEM.imageUrl;
+        }
         if (item.username) return getMinecraftHeadUrl(item.username);
         return `${IMAGE_BASE_URL}/${item.texture}.png`;
     }
@@ -266,9 +291,9 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
         { id: 'all', label: 'All' },
         { id: 'collected', label: 'Collected' },
         { id: 'missing', label: 'Missing' },
-        { id: 'mythic', label: '✦ Mythic', color: COLORS.aqua },
-        { id: 'legendary', label: '★ Legendary', color: COLORS.purple },
-        { id: 'rare', label: '◆ Rare', color: COLORS.red },
+        { id: 'mythic', label: 'Mythic', color: COLORS.aqua },
+        { id: 'legendary', label: 'Legendary', color: COLORS.purple },
+        { id: 'rare', label: 'Rare', color: COLORS.red },
     ];
 
     return (
@@ -278,14 +303,37 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                 <div style={{ padding: '20px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: COLORS.text, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '24px' }}>📖</span>
+                            <BookOpen size={24} />
                             Collection Book
                         </h2>
                         <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: COLORS.textMuted }}>
                             Track your Wheel of Fortune discoveries
                         </p>
                     </div>
-                    <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: COLORS.textMuted, fontSize: '24px', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px' }}>×</button>
+                    <button onClick={onClose} style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: COLORS.textMuted,
+                        fontSize: '24px',
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        transition: 'all 0.2s',
+                        width: '32px',
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.background = COLORS.bgLighter;
+                                e.currentTarget.style.color = COLORS.accent;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = COLORS.textMuted;
+                            }}
+                    >x</button>
                 </div>
 
                 {/* Progress Bars */}
@@ -300,17 +348,17 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
 
                     {/* Stats Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px' }}>
-                        <div><span style={{ color: COLORS.aqua, fontSize: '12px' }}>✦ Mythic</span><div style={{ color: COLORS.aqua, fontWeight: '600' }}>{collectedMythicCount}/{mythicItems.length}</div></div>
-                        <div><span style={{ color: COLORS.purple, fontSize: '12px' }}>★ Legendary</span><div style={{ color: COLORS.purple, fontWeight: '600' }}>{collectedLegendaryCount}/{legendaryItems.length}</div></div>
-                        <div><span style={{ color: COLORS.red, fontSize: '12px' }}>◆ Rare</span><div style={{ color: COLORS.red, fontWeight: '600' }}>{collectedRareCount}/{rareItems.length}</div></div>
-                        <div><span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Total Spins</span><div style={{ color: COLORS.text, fontWeight: '600' }}>{stats.totalSpins.toLocaleString()}</div></div>
-                        <div><span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Duplicates</span><div style={{ color: COLORS.text, fontWeight: '600' }}>{stats.totalDuplicates?.toLocaleString() || 0}</div></div>
+                        <div><span style={{ color: COLORS.aqua, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Sparkles size={12} /> Mythic</span><div style={{ color: COLORS.aqua, fontWeight: '600' }}>{collectedMythicCount}/{mythicItems.length}</div></div>
+                        <div><span style={{ color: COLORS.purple, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Star size={12} /> Legendary</span><div style={{ color: COLORS.purple, fontWeight: '600' }}>{collectedLegendaryCount}/{legendaryItems.length}</div></div>
+                        <div><span style={{ color: COLORS.red, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Diamond size={12} /> Rare</span><div style={{ color: COLORS.red, fontWeight: '600' }}>{collectedRareCount}/{rareItems.length}</div></div>
+                        <div><span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Total Spins</span><div style={{ color: COLORS.text, fontWeight: '600' }}>{stats?.totalSpins?.toLocaleString() || 0}</div></div>
+                        <div><span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Duplicates</span><div style={{ color: COLORS.text, fontWeight: '600' }}>{stats?.totalDuplicates?.toLocaleString() || 0}</div></div>
                         <div title="Average spins between special (Rare+) drops">
-                            <span style={{ color: COLORS.orange, fontSize: '12px' }}>⚡ Avg/Special</span>
+                            <span style={{ color: COLORS.orange, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Zap size={12} /> Avg/Special</span>
                             <div style={{ color: COLORS.orange, fontWeight: '600' }}>
                                 {(() => {
-                                    const totalSpecials = (stats.mythicCount || 0) + (stats.legendaryCount || 0) + (stats.rareCount || 0);
-                                    if (totalSpecials === 0) return '—';
+                                    const totalSpecials = (stats?.mythicCount || 0) + (stats?.legendaryCount || 0) + (stats?.rareCount || 0);
+                                    if (totalSpecials === 0) return '-';
                                     return (stats.totalSpins / totalSpecials).toFixed(1);
                                 })()}
                             </div>
@@ -336,6 +384,22 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
 
                 {/* Items Grid */}
                 <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
+                    <style>{`
+                        @keyframes itemGlow {
+                            0%, 100% { transform: scale(1); }
+                            50% { transform: scale(1.02); }
+                        }
+                        @keyframes mythicPulse {
+                            0%, 100% { filter: drop-shadow(0 0 8px ${COLORS.aqua}88); }
+                            50% { filter: drop-shadow(0 0 16px ${COLORS.aqua}cc); }
+                        }
+                        .collection-item {
+                            transition: all 0.2s ease;
+                        }
+                        .collection-item:hover {
+                            transform: translateY(-4px);
+                        }
+                    `}</style>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '8px' }}>
                         {sortedItems.map((item, idx) => {
                             const count = collection[item.texture] || 0;
@@ -348,9 +412,11 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                             return (
                                 <div
                                     key={idx}
+                                    className="collection-item"
                                     onClick={() => setSelectedItem(item)}
                                     style={{
-                                        position: 'relative', aspectRatio: '1',
+                                        position: 'relative',
+                                        aspectRatio: '1',
                                         background: isMythic
                                             ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}22, ${COLORS.gold}22)` : COLORS.bg)
                                             : isLegendary
@@ -364,13 +430,32 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                                     : isRare ? (isCollected ? COLORS.red : COLORS.red + '44')
                                                         : (isCollected ? COLORS.gold + '66' : COLORS.border)
                                         }`,
-                                        borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'all 0.15s', cursor: 'pointer',
-                                        boxShadow: isMythic && isCollected ? `0 0 15px ${COLORS.aqua}44, 0 0 25px ${COLORS.purple}22`
-                                            : isLegendary && isCollected ? `0 0 12px ${COLORS.purple}44`
-                                                : isRare && isCollected ? `0 0 10px ${COLORS.red}44` : 'none',
-                                        animation: isMythic && isCollected ? 'mythicGlowSoft 2s ease-in-out infinite' : 'none'
-                                    }}>
+                                        borderRadius: '10px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s ease',
+                                        cursor: 'pointer',
+                                        boxShadow: isMythic && isCollected
+                                            ? `0 0 20px ${COLORS.aqua}66, 0 0 40px ${COLORS.aqua}33, inset 0 0 12px ${COLORS.aqua}22`
+                                            : isLegendary && isCollected
+                                                ? `0 0 16px ${COLORS.purple}55, inset 0 0 10px ${COLORS.purple}22`
+                                                : isRare && isCollected
+                                                    ? `0 0 14px ${COLORS.red}55, inset 0 0 8px ${COLORS.red}22`
+                                                    : isCollected
+                                                        ? `0 0 8px ${COLORS.gold}33`
+                                                        : 'none',
+                                        animation: isMythic && isCollected ? 'mythicPulse 3s ease-in-out infinite' : 'none'
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (isCollected) {
+                                            e.currentTarget.style.transform = 'translateY(-4px)';
+                                        }
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                    }}
+                                >
                                     {/* Special badge */}
                                     {isSpecialType && (
                                         <div style={{
@@ -386,11 +471,12 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                             border: `1px solid ${isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : isLegendary ? (isCollected ? COLORS.purple : COLORS.border) : (isCollected ? COLORS.red : COLORS.border)}`,
                                             zIndex: 2
                                         }}>
-                                            {isMythic ? '✦' : isLegendary ? '★' : '◆'}
+                                            {isMythic ? <Sparkles size={8} /> : isLegendary ? <Star size={8} /> : <Diamond size={8} />}
                                         </div>
                                     )}
 
                                     <img src={getItemImageUrl(item)} alt={item.name}
+                                         loading="lazy"
                                          style={{
                                              width: '70%', height: '70%',
                                              imageRendering: (item.username) ? 'auto' : 'pixelated',
@@ -408,17 +494,17 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                             background: isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold,
                                             color: '#fff', fontSize: '10px', fontWeight: '700',
                                             padding: '1px 5px', borderRadius: '4px', minWidth: '18px', textAlign: 'center'
-                                        }}>×{count}</div>
+                                        }}>x{count}</div>
                                     )}
 
                                     {isCollected && count === 1 && !isSpecialType && (
-                                        <div style={{ position: 'absolute', bottom: '2px', right: '2px', color: COLORS.green, fontSize: '12px' }}>✓</div>
+                                        <div style={{ position: 'absolute', bottom: '2px', right: '2px', color: COLORS.green, fontSize: '12px' }}><Check size={12} /></div>
                                     )}
                                 </div>
                             );
                         })}
                     </div>
-                    {sortedItems.length === 0 && <div style={{ textAlign: 'center', padding: '48px', color: COLORS.textMuted }}><div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div><div>No items found</div></div>}
+                    {sortedItems.length === 0 && <div style={{ textAlign: 'center', padding: '48px', color: COLORS.textMuted }}><div style={{ marginBottom: '12px' }}><Search size={48} /></div><div>No items found</div></div>}
                 </div>
             </div>
 

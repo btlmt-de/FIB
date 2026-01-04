@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import DescriptionEditor from './DescriptionEditor';
-import GitHistory from './GitHistory';
+import DescriptionEditor from './DescriptionEditor.jsx';
+import GitHistory from './GitHistory.jsx';
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
@@ -1195,7 +1195,7 @@ export default function ForceItemPools() {
                             McPlayHD.net
                         </a>
                         <a
-                            href="/#imprint"
+                            href="/public#imprint"
                             style={{
                                 color: COLORS.textMuted,
                                 textDecoration: 'none',

@@ -3,7 +3,7 @@
 // ============================================
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { API_BASE_URL } from './constants';
+import { API_BASE_URL } from '../config/constants';
 
 const AuthContext = createContext(null);
 
