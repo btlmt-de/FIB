@@ -344,7 +344,7 @@ export function Achievements({ onClose }) {
                                         </div>
 
                                         {/* Progress bar (if not unlocked, not hidden, and has progress) */}
-                                        {prog && !prog.special && !isUnlocked && !isHidden && (
+                                        {prog && !prog.special && !isUnlocked && !isHidden && prog.current != null && prog.target != null && (
                                             <div>
                                                 <div style={{
                                                     height: '4px',
@@ -365,7 +365,7 @@ export function Achievements({ onClose }) {
                                                     fontSize: '10px',
                                                     textAlign: 'right'
                                                 }}>
-                                                    {prog.current.toLocaleString()} / {prog.target.toLocaleString()}
+                                                    {(prog.current ?? 0).toLocaleString()} / {(prog.target ?? 0).toLocaleString()}
                                                 </div>
                                             </div>
                                         )}

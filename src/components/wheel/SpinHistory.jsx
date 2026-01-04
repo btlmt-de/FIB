@@ -1,28 +1,16 @@
 import React from 'react';
 import { COLORS } from '../../config/constants.js';
 import { formatTimeAgo, getItemImageUrl } from '../../utils/helpers.js';
-import { X, Sparkles, Star, Diamond, Circle, ScrollText } from 'lucide-react';
+import { getRarityColor, getRarityBadge } from '../../utils/rarityHelpers.js';
+import { X, ScrollText } from 'lucide-react';
 
 export function SpinHistory({ history, onClose }) {
     function getItemColor(type) {
-        if (type === 'mythic') return COLORS.aqua;
-        if (type === 'legendary') return COLORS.purple;
-        if (type === 'rare') return COLORS.red;
+        // For spin history, non-special items should be text color, not gold
+        if (type === 'mythic' || type === 'legendary' || type === 'rare' || type === 'event') {
+            return getRarityColor(type);
+        }
         return COLORS.text;
-    }
-
-    function getRarityIcon(type) {
-        if (type === 'mythic') return <Sparkles size={10} />;
-        if (type === 'legendary') return <Star size={10} />;
-        if (type === 'rare') return <Diamond size={10} />;
-        return <Circle size={10} />;
-    }
-
-    function getRarityBadge(type) {
-        if (type === 'mythic') return { label: 'Mythic', color: COLORS.aqua, icon: <Sparkles size={10} /> };
-        if (type === 'legendary') return { label: 'Legendary', color: COLORS.purple, icon: <Star size={10} /> };
-        if (type === 'rare') return { label: 'Rare', color: COLORS.red, icon: <Diamond size={10} /> };
-        return { label: 'Common', color: COLORS.gold, icon: <Circle size={10} /> };
     }
 
     return (

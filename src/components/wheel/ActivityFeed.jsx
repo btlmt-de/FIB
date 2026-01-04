@@ -1,23 +1,37 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
-import { X, Activity, Sparkles, Star, Diamond, RefreshCw } from 'lucide-react';
+import { X, Activity, RefreshCw } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
+import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.js';
 
 export function ActivityFeed({ onClose }) {
     const [feed, setFeed] = useState([]);
     const [loading, setLoading] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(true);
     const intervalRef = useRef(null);
+    const abortControllerRef = useRef(null);
 
     const loadFeed = useCallback(async () => {
+        // Abort any pending request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        // Create new abort controller for this request
+        abortControllerRef.current = new AbortController();
+
         try {
-            const res = await fetch(`${API_BASE_URL}/api/activity?limit=50`);
+            const res = await fetch(`${API_BASE_URL}/api/activity?limit=50`, {
+                signal: abortControllerRef.current.signal
+            });
             if (!res.ok) {
                 throw new Error(`Failed to fetch activity: ${res.status}`);
             }
             const data = await res.json();
             setFeed(data.feed || []);
         } catch (e) {
+            // Ignore abort errors
+            if (e.name === 'AbortError') return;
             console.error('Failed to load activity feed:', e);
         } finally {
             setLoading(false);
@@ -33,25 +47,15 @@ export function ActivityFeed({ onClose }) {
         }
 
         return () => {
+            // Cleanup: clear interval and abort any pending fetch
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
         };
     }, [autoRefresh, loadFeed]);
-
-    function getRarityIcon(rarity) {
-        if (rarity === 'mythic') return <Sparkles size={14} color={COLORS.aqua} />;
-        if (rarity === 'legendary') return <Star size={14} color={COLORS.purple} />;
-        if (rarity === 'rare') return <Diamond size={14} color={COLORS.red} />;
-        return null;
-    }
-
-    function getRarityColor(rarity) {
-        if (rarity === 'mythic') return COLORS.aqua;
-        if (rarity === 'legendary') return COLORS.purple;
-        if (rarity === 'rare') return COLORS.red;
-        return COLORS.gold;
-    }
 
     return (
         <div style={{

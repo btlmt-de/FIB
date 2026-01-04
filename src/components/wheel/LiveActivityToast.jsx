@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
-import { Sparkles, Star, Diamond } from 'lucide-react';
 import { getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
+import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.js';
 
 export function LiveActivityToast({ onOpenFeed }) {
     const [toasts, setToasts] = useState([]);
@@ -9,6 +9,8 @@ export function LiveActivityToast({ onOpenFeed }) {
     const intervalRef = useRef(null);
     const initializedRef = useRef(false);
     const isVisibleRef = useRef(true);
+    const pendingTimeoutsRef = useRef([]);
+    const isMountedRef = useRef(true);
 
     const fetchLatest = useCallback(async () => {
         // Skip fetch if tab is not visible
@@ -32,9 +34,14 @@ export function LiveActivityToast({ onOpenFeed }) {
                     // Add toasts for new items (max 3 at a time)
                     // Delay to sync with spin result animation (~8s spin duration)
                     newItems.slice(0, 3).reverse().forEach((item, idx) => {
-                        setTimeout(() => {
-                            addToast(item);
+                        const timeoutId = setTimeout(() => {
+                            if (isMountedRef.current) {
+                                addToast(item);
+                            }
+                            // Remove this timeout from tracking
+                            pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== timeoutId);
                         }, 8000 + (idx * 300));
+                        pendingTimeoutsRef.current.push(timeoutId);
                     });
 
                     lastIdRef.current = newestId;
@@ -46,6 +53,8 @@ export function LiveActivityToast({ onOpenFeed }) {
     }, []);
 
     useEffect(() => {
+        isMountedRef.current = true;
+
         // Handle visibility change to pause/resume polling
         const handleVisibilityChange = () => {
             isVisibleRef.current = !document.hidden;
@@ -60,10 +69,14 @@ export function LiveActivityToast({ onOpenFeed }) {
         intervalRef.current = setInterval(fetchLatest, 5000);
 
         return () => {
+            isMountedRef.current = false;
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
             }
+            // Clear all pending timeouts
+            pendingTimeoutsRef.current.forEach(id => clearTimeout(id));
+            pendingTimeoutsRef.current = [];
         };
     }, [fetchLatest]);
 
@@ -73,27 +86,18 @@ export function LiveActivityToast({ onOpenFeed }) {
         setToasts(prev => [...prev, { ...item, toastId }]);
 
         // Auto-remove after 5 seconds
-        setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.toastId !== toastId));
+        const timeoutId = setTimeout(() => {
+            if (isMountedRef.current) {
+                setToasts(prev => prev.filter(t => t.toastId !== toastId));
+            }
+            // Remove this timeout from tracking
+            pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== timeoutId);
         }, 5000);
+        pendingTimeoutsRef.current.push(timeoutId);
     }
 
     function removeToast(toastId) {
         setToasts(prev => prev.filter(t => t.toastId !== toastId));
-    }
-
-    function getRarityIcon(rarity) {
-        if (rarity === 'mythic') return <Sparkles size={14} />;
-        if (rarity === 'legendary') return <Star size={14} />;
-        if (rarity === 'rare') return <Diamond size={14} />;
-        return null;
-    }
-
-    function getRarityColor(rarity) {
-        if (rarity === 'mythic') return COLORS.aqua;
-        if (rarity === 'legendary') return COLORS.purple;
-        if (rarity === 'rare') return COLORS.red;
-        return COLORS.gold;
     }
 
     if (toasts.length === 0) return null;
