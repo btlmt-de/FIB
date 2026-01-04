@@ -460,8 +460,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         const isRare = isRareItem(item);
         const isEvent = isEventItem(item);
 
-        // Disable glow animations during spinning to improve performance
-        const shouldAnimate = !disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult');
+        // Enable glow animations for special items even during spinning (looks better)
+        // disableAnimation only affects regular items for performance
+        const isSpecialType = isMythic || isSpecial || isRare || isEvent;
+        const shouldAnimate = isSpecialType || (!disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult'));
 
         return (
             <div style={{
