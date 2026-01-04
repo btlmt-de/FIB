@@ -13,9 +13,12 @@ const NAV_ITEMS = [
 
 export default function Navigation({ currentPage, onNavigate }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
+        // Set initial value on client-side
+        setIsMobile(window.innerWidth < 768);
+
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
@@ -112,7 +115,7 @@ export default function Navigation({ currentPage, onNavigate }) {
                             padding: '8px'
                         }}
                     >
-                        {mobileMenuOpen ? '✕' : '☰'}
+                        {mobileMenuOpen ? 'âœ•' : 'â˜°'}
                     </button>
                 )}
             </div>

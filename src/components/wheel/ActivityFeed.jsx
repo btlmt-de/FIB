@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
+import { COLORS, API_BASE_URL } from '../../config/constants.js';
 import { X, Activity, Sparkles, Star, Diamond, RefreshCw } from 'lucide-react';
-import { formatTimeAgo, getMinecraftHeadUrl } from '../../utils/helpers.js';
+import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 
 export function ActivityFeed({ onClose }) {
     const [feed, setFeed] = useState([]);
@@ -12,6 +12,9 @@ export function ActivityFeed({ onClose }) {
     const loadFeed = useCallback(async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/activity?limit=50`);
+            if (!res.ok) {
+                throw new Error(`Failed to fetch activity: ${res.status}`);
+            }
             const data = await res.json();
             setFeed(data.feed || []);
         } catch (e) {
@@ -48,39 +51,6 @@ export function ActivityFeed({ onClose }) {
         if (rarity === 'legendary') return COLORS.purple;
         if (rarity === 'rare') return COLORS.red;
         return COLORS.gold;
-    }
-
-    function getItemImageUrl(item) {
-        // Mythic items with specific images
-        if (item.item_texture?.startsWith('mythic_')) {
-            if (item.item_texture === 'mythic_cavendish') {
-                return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
-            }
-            if (item.item_texture === 'mythic_jimbo') {
-                return '/jimbo.png';
-            }
-            // Other mythic playerheads
-            const username = item.item_texture.replace('mythic_', '');
-            return getMinecraftHeadUrl(username);
-        }
-        if (item.item_texture?.startsWith('special_') || item.item_texture?.startsWith('rare_')) {
-            const username = item.item_texture.split('_').slice(1).join('_');
-            return getMinecraftHeadUrl(username);
-        }
-        return `${IMAGE_BASE_URL}/${item.item_texture}.png`;
-    }
-
-    function getDiscordAvatarUrl(discordId, discordAvatar) {
-        if (discordAvatar) {
-            return `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.png?size=64`;
-        }
-        if (!discordId) return 'https://cdn.discordapp.com/embed/avatars/0.png';
-        try {
-            const defaultIndex = Number(BigInt(discordId) >> 22n) % 6;
-            return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
-        } catch {
-            return 'https://cdn.discordapp.com/embed/avatars/0.png';
-        }
     }
 
     return (

@@ -13,8 +13,15 @@ function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
         const format = avatarHash.startsWith('a_') ? 'gif' : 'png';
         return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${format}?size=${size}`;
     }
-    const defaultIndex = (BigInt(discordId) >> 22n) % 6n;
-    return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
+    try {
+        if (!discordId || !/^\d+$/.test(String(discordId))) {
+            return `https://cdn.discordapp.com/embed/avatars/0.png`;
+        }
+        const defaultIndex = (BigInt(discordId) >> 22n) % 6n;
+        return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
+    } catch {
+        return `https://cdn.discordapp.com/embed/avatars/0.png`;
+    }
 }
 
 // Tab Button Component
@@ -95,13 +102,15 @@ export function Leaderboard({ onClose }) {
     };
 
     const getValueForTab = (entry) => {
+        let value;
         switch (activeTab) {
-            case 'collection': return entry.unique_items;
-            case 'spins': return entry.total_spins;
-            case 'duplicates': return entry.total_duplicates;
-            case 'events': return entry.event_triggers;
-            default: return entry.unique_items;
+            case 'collection': value = entry.unique_items; break;
+            case 'spins': value = entry.total_spins; break;
+            case 'duplicates': value = entry.total_duplicates; break;
+            case 'events': value = entry.event_triggers; break;
+            default: value = entry.unique_items;
         }
+        return Number(value) || 0;
     };
 
     const getColorForTab = () => {

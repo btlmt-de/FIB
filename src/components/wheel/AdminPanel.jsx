@@ -225,8 +225,8 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
 
     if (!poolStats) return null;
 
-    const regularPercentage = (regularItemsWeight / poolStats.totalWeight) * 100;
-    const specialPercentage = 100 - regularPercentage;
+    const regularPercentage = poolStats.totalWeight > 0 ? (regularItemsWeight / poolStats.totalWeight) * 100 : 0;
+    const specialPercentage = Math.max(0, 100 - regularPercentage);
 
     return (
         <div style={{
@@ -868,19 +868,39 @@ export function AdminPanel({ onClose, allItems }) {
     }
 
     async function approve(userId) {
-        await fetch(`${API_BASE_URL}/admin/approve/${userId}`, { method: 'POST', credentials: 'include' });
-        setPending(prev => prev.filter(p => p.id !== userId));
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/approve/${userId}`, { method: 'POST', credentials: 'include' });
+            if (!res.ok) {
+                const errorText = await res.text().catch(() => 'Unknown error');
+                alert(`Failed to approve user: ${res.status} - ${errorText}`);
+                return;
+            }
+            setPending(prev => prev.filter(p => p.id !== userId));
+        } catch (e) {
+            console.error('Approve error:', e);
+            alert('Network error while approving user');
+        }
     }
 
     async function reject(userId) {
         const reason = prompt('Rejection reason:');
         if (reason === null) return;
-        await fetch(`${API_BASE_URL}/admin/reject/${userId}`, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
-        });
-        setPending(prev => prev.filter(p => p.id !== userId));
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/reject/${userId}`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason })
+            });
+            if (!res.ok) {
+                const errorText = await res.text().catch(() => 'Unknown error');
+                alert(`Failed to reject user: ${res.status} - ${errorText}`);
+                return;
+            }
+            setPending(prev => prev.filter(p => p.id !== userId));
+        } catch (e) {
+            console.error('Reject error:', e);
+            alert('Network error while rejecting user');
+        }
     }
 
     async function addItemToUser(userId, texture, name, type, count = 1) {

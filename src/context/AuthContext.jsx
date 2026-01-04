@@ -63,8 +63,19 @@ export function AuthProvider({ children }) {
             credentials: 'include',
             body: JSON.stringify({ username })
         });
+
+        if (!res.ok) {
+            let errorMessage;
+            try {
+                const data = await res.json();
+                errorMessage = data.error || `Request failed: ${res.status}`;
+            } catch {
+                errorMessage = await res.text().catch(() => `Request failed: ${res.status}`);
+            }
+            throw new Error(errorMessage);
+        }
+
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
         await checkAuth();
         return data;
     }

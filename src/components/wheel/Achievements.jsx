@@ -49,6 +49,15 @@ export function Achievements({ onClose }) {
                 fetch(`${API_BASE_URL}/api/achievements/me`, { credentials: 'include' })
             ]);
 
+            if (!allRes.ok) {
+                const errorText = await allRes.text().catch(() => 'Unknown error');
+                throw new Error(`Failed to fetch achievements: ${allRes.status} ${allRes.statusText} - ${errorText}`);
+            }
+            if (!userRes.ok) {
+                const errorText = await userRes.text().catch(() => 'Unknown error');
+                throw new Error(`Failed to fetch user achievements: ${userRes.status} ${userRes.statusText} - ${errorText}`);
+            }
+
             const allData = await allRes.json();
             const userData = await userRes.json();
 
@@ -187,7 +196,7 @@ export function Achievements({ onClose }) {
                     }}>
                         <div style={{
                             height: '100%',
-                            width: `${(unlockedCount / totalVisible) * 100}%`,
+                            width: `${Math.max(0, Math.min(100, totalVisible > 0 ? (unlockedCount / totalVisible) * 100 : 0))}%`,
                             background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
                             borderRadius: '4px',
                             transition: 'width 0.5s ease'
@@ -366,9 +375,12 @@ export function Achievements({ onClose }) {
                                                 fontSize: '10px',
                                                 marginTop: '8px'
                                             }}>
-                                                Unlocked {new Date(
-                                                userAchievements.unlocked.find(a => a.id === achievement.id)?.unlocked_at
-                                            ).toLocaleDateString()}
+                                                Unlocked {(() => {
+                                                const unlockedAt = userAchievements.unlocked?.find(a => a.id === achievement.id)?.unlocked_at;
+                                                if (!unlockedAt) return 'Unknown date';
+                                                const date = new Date(unlockedAt);
+                                                return isNaN(date.getTime()) ? 'Unknown date' : date.toLocaleDateString();
+                                            })()}
                                             </div>
                                         )}
                                     </div>

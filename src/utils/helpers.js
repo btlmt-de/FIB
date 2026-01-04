@@ -1,4 +1,4 @@
-import { IMAGE_BASE_URL } from '../config/constants';
+import { IMAGE_BASE_URL, MYTHIC_ITEMS } from '../config/constants';
 
 export function formatChance(chance) {
     if (!chance) return '0';
@@ -21,6 +21,10 @@ export function formatTimeAgo(dateString) {
     }
 
     const date = new Date(dateStr);
+
+    // Validate date
+    if (isNaN(date.getTime())) return 'Unknown';
+
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
 
@@ -32,7 +36,29 @@ export function formatTimeAgo(dateString) {
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return date.toLocaleDateString();
+
+    try {
+        return date.toLocaleDateString();
+    } catch {
+        return 'Unknown';
+    }
+}
+
+// Helper to get Discord avatar URL
+export function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
+    if (avatarHash) {
+        const format = avatarHash.startsWith('a_') ? 'gif' : 'png';
+        return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${format}?size=${size}`;
+    }
+    try {
+        if (!discordId || !/^\d+$/.test(String(discordId))) {
+            return `https://cdn.discordapp.com/embed/avatars/0.png`;
+        }
+        const defaultIndex = (BigInt(discordId) >> 22n) % 6n;
+        return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
+    } catch {
+        return `https://cdn.discordapp.com/embed/avatars/0.png`;
+    }
 }
 
 // Item type detection helpers
@@ -52,27 +78,50 @@ export function isEventItem(item) {
     return item?.isEvent || item?.type === 'event' || item?.texture?.startsWith('event_');
 }
 
-// Get image URL for an item
+// Get image URL for an item (works with both full item objects and history entries)
 export function getItemImageUrl(item) {
     if (!item) return `${IMAGE_BASE_URL}/barrier.png`;
 
+    // Handle history entry format (item_texture, item_type)
+    const texture = item.texture || item.item_texture;
+    const type = item.type || item.item_type;
+    const username = item.username || (texture?.includes('_') ? texture.split('_').slice(1).join('_') : null);
+
     // Mythic items have custom image URLs
-    if (isMythicItem(item) && item.imageUrl) {
-        return item.imageUrl;
+    if (type === 'mythic' || texture?.startsWith('mythic_')) {
+        if (item.imageUrl) return item.imageUrl;
+        // Try to find matching mythic item
+        const mythic = MYTHIC_ITEMS?.find(m => m.texture === texture);
+        if (mythic?.imageUrl) return mythic.imageUrl;
+        // Fallback for known mythics
+        if (texture === 'mythic_cavendish') {
+            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
+        }
+        if (texture === 'mythic_jimbo') return '/jimbo.png';
     }
 
-    // Player heads (legendaries and rares)
+    // Player heads (legendaries and rares with usernames)
     if (item.username) {
         return getMinecraftHeadUrl(item.username);
     }
 
-    // Event items use wheel texture
-    if (isEventItem(item)) {
+    // Try to extract username from texture for special/rare items
+    if ((type === 'legendary' || type === 'rare' || texture?.startsWith('special_') || texture?.startsWith('rare_')) && texture?.includes('_')) {
+        const extractedUsername = texture.split('_').slice(1).join('_');
+        if (extractedUsername) return getMinecraftHeadUrl(extractedUsername);
+    }
+
+    // Event items use event texture
+    if (type === 'event' || texture?.startsWith('event_')) {
         return '/event.png';
     }
 
     // Regular items
-    return `${IMAGE_BASE_URL}/${item.texture}.png`;
+    if (texture) {
+        return `${IMAGE_BASE_URL}/${texture}.png`;
+    }
+
+    return `${IMAGE_BASE_URL}/barrier.png`;
 }
 
 // Get color for item based on rarity

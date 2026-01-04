@@ -1,6 +1,6 @@
 import React from 'react';
-import { COLORS, IMAGE_BASE_URL, MYTHIC_ITEM } from '../../config/constants.js';
-import { formatTimeAgo, getMinecraftHeadUrl } from '../../utils/helpers.js';
+import { COLORS } from '../../config/constants.js';
+import { formatTimeAgo, getItemImageUrl } from '../../utils/helpers.js';
 import { X, Sparkles, Star, Diamond, Circle, ScrollText } from 'lucide-react';
 
 export function SpinHistory({ history, onClose }) {
@@ -11,15 +11,6 @@ export function SpinHistory({ history, onClose }) {
         return COLORS.text;
     }
 
-    function getItemImageUrl(item) {
-        if (item.item_type === 'mythic' && !item.item_texture?.includes('_')) return MYTHIC_ITEM.imageUrl;
-        if (item.item_texture?.startsWith('special_') || item.item_texture?.startsWith('rare_')) {
-            const username = item.item_texture.split('_').slice(1).join('_');
-            return getMinecraftHeadUrl(username);
-        }
-        return `${IMAGE_BASE_URL}/${item.item_texture}.png`;
-    }
-
     function getRarityIcon(type) {
         if (type === 'mythic') return <Sparkles size={10} />;
         if (type === 'legendary') return <Star size={10} />;
@@ -28,10 +19,10 @@ export function SpinHistory({ history, onClose }) {
     }
 
     function getRarityBadge(type) {
-        if (type === 'mythic') return { label: 'Mythic', color: COLORS.aqua };
-        if (type === 'legendary') return { label: 'Legendary', color: COLORS.purple };
-        if (type === 'rare') return { label: 'Rare', color: COLORS.red };
-        return { label: 'Common', color: COLORS.gold };
+        if (type === 'mythic') return { label: 'Mythic', color: COLORS.aqua, icon: <Sparkles size={10} /> };
+        if (type === 'legendary') return { label: 'Legendary', color: COLORS.purple, icon: <Star size={10} /> };
+        if (type === 'rare') return { label: 'Rare', color: COLORS.red, icon: <Diamond size={10} /> };
+        return { label: 'Common', color: COLORS.gold, icon: <Circle size={10} /> };
     }
 
     return (
