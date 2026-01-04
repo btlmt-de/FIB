@@ -108,7 +108,7 @@ function RepoLink({ href, title, description, extra }) {
                 justifyContent: 'space-between'
             }}>
                 {title}
-                <span style={{ color: COLORS.textMuted }}>→</span>
+                <span style={{ color: COLORS.textMuted }}>â†’</span>
             </div>
             <div style={{
                 color: COLORS.textMuted,
@@ -249,7 +249,7 @@ export default function HowToPlay() {
                                     }}
                                     onClick={e => e.stopPropagation()}
                                 >
-                                    Browse descriptions →
+                                    Browse descriptions â†’
                                 </a>
                             }
                         />
@@ -387,8 +387,8 @@ export default function HowToPlay() {
             {/* Footer */}
             <div style={{
                 textAlign: 'center',
-                padding: '32px 20px',
-                borderTop: `1px solid ${COLORS.border}`,
+                padding: '48px 20px 40px',
+                borderTop: `1px solid ${COLORS.border}44`,
                 color: COLORS.textMuted,
                 fontSize: '13px'
             }}>
@@ -406,10 +406,18 @@ export default function HowToPlay() {
                             color: COLORS.textMuted,
                             textDecoration: 'none',
                             fontSize: '13px',
-                            transition: 'color 0.15s'
+                            transition: 'all 0.3s ease',
+                            padding: '8px 14px',
+                            borderRadius: '6px'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.color = COLORS.text;
+                            e.currentTarget.style.background = `${COLORS.border}44`;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.color = COLORS.textMuted;
+                            e.currentTarget.style.background = 'transparent';
+                        }}
                     >
                         GitHub
                     </a>
@@ -421,10 +429,18 @@ export default function HowToPlay() {
                             color: COLORS.textMuted,
                             textDecoration: 'none',
                             fontSize: '13px',
-                            transition: 'color 0.15s'
+                            transition: 'all 0.3s ease',
+                            padding: '8px 14px',
+                            borderRadius: '6px'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.color = COLORS.text;
+                            e.currentTarget.style.background = `${COLORS.border}44`;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.color = COLORS.textMuted;
+                            e.currentTarget.style.background = 'transparent';
+                        }}
                     >
                         McPlayHD.net
                     </a>
@@ -434,18 +450,26 @@ export default function HowToPlay() {
                             color: COLORS.textMuted,
                             textDecoration: 'none',
                             fontSize: '13px',
-                            transition: 'color 0.15s'
+                            transition: 'all 0.3s ease',
+                            padding: '8px 14px',
+                            borderRadius: '6px'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                        onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.color = COLORS.text;
+                            e.currentTarget.style.background = `${COLORS.border}44`;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.color = COLORS.textMuted;
+                            e.currentTarget.style.background = 'transparent';
+                        }}
                     >
                         Imprint
                     </a>
                 </div>
-                <p style={{ margin: 0 }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
                     Made with ❤️
                 </p>
-                <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
+                <p style={{ margin: '12px 0 0 0', fontSize: '11px', color: `${COLORS.textMuted}99` }}>
                     Not affiliated with Mojang Studios
                 </p>
             </div>

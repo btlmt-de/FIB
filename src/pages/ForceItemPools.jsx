@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import DescriptionEditor from './DescriptionEditor';
-import GitHistory from './GitHistory';
+import DescriptionEditor from './DescriptionEditor.jsx';
+import GitHistory from './GitHistory.jsx';
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
@@ -337,7 +337,7 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
                     fontSize: '10px',
                     fontWeight: '600'
                 }}>
-                    ✎
+                    âœŽ
                 </div>
             )}
             <div style={{
@@ -369,7 +369,7 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
                         fontSize: '14px',
                         opacity: 0.7
                     }}>
-            ℹ
+            â„¹
           </span>
                 )}
             </div>
@@ -881,7 +881,7 @@ export default function ForceItemPools() {
                         ForceItemBattle Item Pools
                     </h1>
                     <p style={{ color: COLORS.textMuted, fontSize: '14px' }}>
-                        Browse all {stats.total} items •
+                        Browse all {stats.total} items â€¢
                         {lastUpdated && ` Last updated: ${lastUpdated.toLocaleDateString()}`}
                     </p>
                     <a
@@ -890,7 +890,7 @@ export default function ForceItemPools() {
                         rel="noopener noreferrer"
                         style={{ color: COLORS.accent, fontSize: '13px', textDecoration: 'none' }}
                     >
-                        View on GitHub →
+                        View on GitHub â†’
                     </a>
                 </div>
 
@@ -1004,12 +1004,12 @@ export default function ForceItemPools() {
                         Showing {filteredItems.length} of {stats.total} items
                         {stats.description > 0 && !editMode && (
                             <span style={{ color: COLORS.description, marginLeft: '8px' }}>
-                              • Click items with ℹ for details
+                              â€¢ Click items with â„¹ for details
                             </span>
                         )}
                         {editMode && (
                             <span style={{ color: COLORS.accent, marginLeft: '8px' }}>
-                              • Click any item to edit its description
+                              â€¢ Click any item to edit its description
                             </span>
                         )}
                     </div>
@@ -1031,7 +1031,7 @@ export default function ForceItemPools() {
                                 gap: '6px'
                             }}
                         >
-                            <span>✎</span>
+                            <span>âœŽ</span>
                             {editMode ? 'Exit Edit Mode' : 'Edit Descriptions'}
                         </button>
                         <button
@@ -1057,7 +1057,7 @@ export default function ForceItemPools() {
                             <span style={{
                                 display: 'inline-block',
                                 animation: loading ? 'spin 1s linear infinite' : 'none'
-                            }}>↻</span>
+                            }}>â†»</span>
                             Refresh
                         </button>
                         <button
@@ -1078,7 +1078,7 @@ export default function ForceItemPools() {
                                 gap: '6px'
                             }}
                         >
-                            <span>📜</span>
+                            <span>ðŸ“œ</span>
                             History
                         </button>
                         <div style={{
@@ -1209,7 +1209,7 @@ export default function ForceItemPools() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with ❤️
+                        Made with â¤ï¸
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios
