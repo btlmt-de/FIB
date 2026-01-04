@@ -548,7 +548,7 @@ export default function HomePage({ onNavigate }) {
                         </a>
                     </div>
                     <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
-                        Made with â¤ï¸
+                        Made with ❤️
                     </p>
                     <p style={{ margin: '12px 0 0 0', fontSize: '11px', color: `${COLORS.textMuted}99` }}>
                         Not affiliated with Mojang Studios
