@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
-import { X, Activity, RefreshCw } from 'lucide-react';
+import { X, Activity, RefreshCw, Sparkles, Star, Diamond } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 
