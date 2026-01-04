@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
 import { getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
-import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.js';
+import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 
 export function LiveActivityToast({ onOpenFeed }) {
     const [toasts, setToasts] = useState([]);
