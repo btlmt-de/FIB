@@ -15,7 +15,8 @@ import { LiveActivityToast } from './LiveActivityToast';
 import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
-    Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper
+    Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
+    ArrowLeft, Home
 } from 'lucide-react';
 
 // Username prompt modal - shown after first spin
@@ -189,6 +190,36 @@ function WheelOfFortunePage({ onBack }) {
         else { setCollection({}); setHistory([]); setStats({ totalSpins: 0, mythicCount: 0, legendaryCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 }); }
     }, [user]);
 
+    // Preload item images to prevent pop-in during spin
+    function preloadImages(items, specialItems) {
+        const IMAGE_BASE = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+
+        // Preload regular items (sample ~100 random ones to avoid loading 400+)
+        const sampleSize = Math.min(100, items.length);
+        const sampledItems = items.sort(() => Math.random() - 0.5).slice(0, sampleSize);
+
+        sampledItems.forEach(item => {
+            const img = new Image();
+            img.src = `${IMAGE_BASE}/${item.texture}.png`;
+        });
+
+        // Preload all special item images
+        specialItems.forEach(item => {
+            const img = new Image();
+            if (item.image_url) {
+                img.src = item.image_url;
+            } else if (item.username) {
+                img.src = `https://minotar.net/helm/${item.username}/64`;
+            }
+        });
+
+        // Preload static assets
+        ['/event.png', '/jimbo.png'].forEach(src => {
+            const img = new Image();
+            img.src = src;
+        });
+    }
+
     async function fetchItems() {
         try {
             const itemsRes = await fetch(`${API_BASE_URL}/api/items`);
@@ -198,6 +229,9 @@ function WheelOfFortunePage({ onBack }) {
             const specialRes = await fetch(`${API_BASE_URL}/api/special-items`);
             const specialData = await specialRes.json();
             setDynamicItems(specialData.items || []);
+
+            // Preload images after fetching
+            preloadImages(itemsData.items || [], specialData.items || []);
         } catch (error) { console.error('Failed to fetch items:', error); }
         finally { setLoading(false); }
     }
@@ -309,6 +343,37 @@ function WheelOfFortunePage({ onBack }) {
         }}>
             <AnimationStyles />
             <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', position: 'relative', zIndex: 1 }}>
+                {/* Back Button */}
+                <a
+                    href="/"
+                    style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        color: COLORS.textMuted,
+                        textDecoration: 'none',
+                        fontSize: '14px',
+                        padding: '8px 14px',
+                        borderRadius: '8px',
+                        transition: 'all 0.2s',
+                        zIndex: 10
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.color = COLORS.text;
+                        e.currentTarget.style.background = `${COLORS.border}44`;
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.color = COLORS.textMuted;
+                        e.currentTarget.style.background = 'transparent';
+                    }}
+                >
+                    <ArrowLeft size={18} />
+                    <span>Back</span>
+                </a>
+
                 {/* Header */}
                 <div style={{
                     textAlign: 'center',

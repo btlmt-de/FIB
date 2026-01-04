@@ -221,7 +221,7 @@ function SpecialThanksCard({ username, description, color, type, link }) {
                     transition: 'all 0.3s ease',
                     display: 'flex',
                     alignItems: 'center'
-                }}>â†’</span>
+                }}>→</span>
             )}
         </div>
     );
