@@ -705,6 +705,10 @@ function TimelineEntry({ entry, isLast }) {
     );
 }
 
+/**
+ * Render the changelog page with a header, a centered timeline of entries, and a footer with external links.
+ * @returns {JSX.Element} The rendered changelog page element.
+ */
 export default function Changelog() {
     return (
         <div style={{

@@ -580,6 +580,15 @@ function FilterButton({ active, onClick, children, color }) {
     );
 }
 
+/**
+ * Display and manage ForceItemBattle item pools with fetching, caching, filtering, and editing UIs.
+ *
+ * Renders a searchable, filterable grid of items sourced from GitHub, merges optional descriptions from a YAML config,
+ * supports branch selection and caching for the main branch, provides an edit mode and description editor modal,
+ * and exposes a commit history modal. Handles loading and error states and keeps branch/view preferences in local storage.
+ *
+ * @returns {JSX.Element} The ForceItemPools React component UI.
+ */
 export default function ForceItemPools() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);

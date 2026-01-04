@@ -173,6 +173,11 @@ const RECIPES = {
     }
 };
 
+/**
+ * Render a responsive row of colored navigation buttons that scroll the page to the specified section when clicked.
+ * @param {Array<{id: string, label: string, color: string}>} links - Array of link descriptors where `id` is the target element id to scroll to, `label` is the button text, and `color` is a CSS color used for the button styling.
+ * @returns {JSX.Element} A container element with styled buttons for each link that perform smooth in-page scrolling.
+ */
 function QuickLinks({ links }) {
     const scrollTo = (id) => {
         document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -232,6 +237,14 @@ function QuickLinks({ links }) {
     );
 }
 
+/**
+ * Render a two-option toggle control for switching between Standard and Hard Mode.
+ *
+ * @param {Object} props
+ * @param {boolean} props.isHard - Whether Hard Mode is currently active.
+ * @param {() => void} props.onToggle - Callback invoked when the toggle is clicked.
+ * @returns {JSX.Element} A React element representing the recipe difficulty toggle.
+ */
 function RecipeToggle({ isHard, onToggle }) {
     return (
         <div style={{
@@ -300,6 +313,18 @@ function RecipeToggle({ isHard, onToggle }) {
     );
 }
 
+/**
+ * Renders a 3×3 crafting grid alongside an arrow and a highlighted result slot.
+ *
+ * Renders the provided recipe grid as nine slots (left-to-right, top-to-bottom), showing item textures where present, then an arrow and a result tile with a label. Visual emphasis (glow/hover effects) is driven by the supplied glow color.
+ *
+ * @param {{recipe: (string|null)[][], result: string, resultName: string, glowColor?: string}} props
+ * @param {(string|null)[][]} props.recipe - A 3×3 array of item texture keys (e.g., "diamond_sword") or falsy values for empty slots.
+ * @param {string} props.result - Texture key for the resulting item.
+ * @param {string} props.resultName - Display name for the result tile.
+ * @param {string} [props.glowColor=COLORS.gold] - Hex color used for the result and slot glow accents.
+ * @returns {JSX.Element} The crafting grid and result UI element.
+ */
 function CraftingGrid({ recipe, result, resultName, glowColor = COLORS.gold }) {
     return (
         <div style={{
@@ -555,6 +580,17 @@ function simulateLoot(table) {
     return results;
 }
 
+/**
+ * Render a summary view of simulated loot, grouping identical items, showing counts, rarity cues, and a reroll control.
+ *
+ * Displays grouped loot items with a small icon, a count badge when an item appears multiple times, and visual styling that highlights rare and legendary items. If no items are present, shows an empty-chest message. Includes a button that invokes the provided reroll callback.
+ *
+ * @param {Object} props
+ * @param {Array<{name: string, texture: string, chance: string|number, legendary?: boolean}>} props.items - Array of loot items produced by a simulation; items with the same `name` are aggregated and counted.
+ * @param {() => void} props.onReroll - Callback invoked when the user requests another loot roll.
+ * @param {string} props.roomColor - Hex or CSS color used to tint borders, shadows, and the reroll button for the current room.
+ * @returns {JSX.Element} The rendered loot result component.
+ */
 function LootSimulationResult({ items, onReroll, roomColor }) {
     // Group items by name and count
     const grouped = items.reduce((acc, item) => {
@@ -714,6 +750,14 @@ function LootSimulationResult({ items, onReroll, roomColor }) {
     );
 }
 
+/**
+ * Render an interactive loot-table UI that lets the user switch rooms, open a chest, and view simulated loot results.
+ *
+ * Renders room selector tabs, a chest button that triggers a brief opening animation, the selected room's pools and items, and a grouped simulation result when a chest is opened. Opening the chest clears previous results, waits ~300ms for the animation, then calls `simulateLoot` for the active table and displays the returned items. Changing rooms clears any current simulation.
+ *
+ * @param {Object.<string, {name: string, color: string, description: string, pools: Array}>} tables - Mapping of room keys to loot table definitions. Each table is expected to include `name`, `color`, `description`, and `pools` (each pool contains `rolls`, optional `note`, and `items`).
+ * @returns {JSX.Element} The LootTableDisplay component UI.
+ */
 function LootTableDisplay({ tables }) {
     const [activeRoom, setActiveRoom] = useState('honey');
     const [simulationResult, setSimulationResult] = useState(null);
@@ -932,6 +976,16 @@ function LootTableDisplay({ tables }) {
 }
 
 
+/**
+ * Render a page section with a colored accent header and provided content.
+ *
+ * @param {Object} props - Component props.
+ * @param {string} props.id - The HTML id used for in-page navigation and linking.
+ * @param {string} props.title - The heading text displayed in the section header.
+ * @param {string} props.color - CSS color string used for the header accent and border.
+ * @param {import('react').ReactNode} props.children - Content to render inside the section.
+ * @returns {import('react').ReactElement} A section element containing a styled header and the supplied children.
+ */
 function Section({ id, title, color, children }) {
     return (
         <section id={id} style={{ marginBottom: '72px', scrollMarginTop: '80px' }}>
@@ -961,6 +1015,11 @@ function Section({ id, title, color, children }) {
     );
 }
 
+/**
+ * Render a styled paragraph for body text with muted color, increased line height, and spacing.
+ *
+ * @returns {JSX.Element} A `<p>` element containing the provided `children`, styled as muted body text with a 15px font size, 1.9 line-height, and 18px bottom margin.
+ */
 function Paragraph({ children }) {
     return (
         <p style={{
@@ -1003,6 +1062,13 @@ const QUICK_LINKS = [
     { id: 'wandering-trader', label: 'Wandering Trader', color: COLORS.aqua },
 ];
 
+/**
+ * Render the "Custom Content" page that showcases custom structures, crafting recipes, loot tables, and interactive controls.
+ *
+ * The component manages local UI state for "hard mode" toggles, reads an optional `?to=` URL parameter to auto-scroll to a section on mount, and composes the page from themed sections (Antimatter Depths, Trial Chambers Locator, Locator Mechanics, Loot Tables, Custom End Generation, Antimatter Teleporter, Custom Wandering Trader), plus header, footer, decorative background, and interactive subcomponents (QuickLinks, RecipeToggle, CraftingGrid, LootTableDisplay).
+ *
+ * @returns {import('react').ReactElement} The themed page layout as a React element.
+ */
 export default function CustomStructures() {
     const [antimatterHard, setAntimatterHard] = useState(false);
     const [trialHard, setTrialHard] = useState(false);

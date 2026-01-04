@@ -7,6 +7,15 @@ import { API_BASE_URL } from '../config/constants';
 
 const AuthContext = createContext(null);
 
+/**
+ * Provide authentication context to descendant components.
+ *
+ * Manages the current user and loading state, performs an initial auth check, cleans temporary auth indicators from the URL, and exposes authentication actions: `login`, `logout`, `setUsername`, and `refreshUser`.
+ *
+ * @param {{children: React.ReactNode}} props
+ * @param {React.ReactNode} props.children - Elements rendered inside the provider.
+ * @returns {JSX.Element} The AuthContext provider wrapping `children`.
+ */
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -76,6 +85,17 @@ export function AuthProvider({ children }) {
     );
 }
 
+/**
+ * Access the current authentication context for the calling component.
+ *
+ * @returns {{user: Object|null, loading: boolean, login: function, logout: function, setUsername: function, refreshUser: function}} Authentication context value:
+ * - `user`: the authenticated user object or `null` if not authenticated.
+ * - `loading`: `true` while the authentication status is being determined.
+ * - `login`: function that initiates the login flow.
+ * - `logout`: function that ends the current session.
+ * - `setUsername`: function to update the user's username.
+ * - `refreshUser`: function to re-check and refresh the current user data.
+ */
 export function useAuth() {
     return useContext(AuthContext);
 }

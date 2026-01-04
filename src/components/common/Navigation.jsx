@@ -11,6 +11,12 @@ const NAV_ITEMS = [
     { id: 'wheel', label: '🎰 Wheel', special: true }
 ];
 
+/**
+ * Render a responsive top navigation bar that shows horizontal items on desktop and a toggleable dropdown on mobile.
+ * @param {string} currentPage - The id of the currently active page used to apply active styling to the corresponding item.
+ * @param {(pageId: string) => void} onNavigate - Callback invoked with the target page id when a navigation item or brand is selected.
+ * @returns {JSX.Element} The navigation bar element.
+ */
 export default function Navigation({ currentPage, onNavigate }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);

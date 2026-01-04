@@ -2,7 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants.js';
 import { getMinecraftHeadUrl } from '../../utils/helpers.js';
 
-// User Collection Editor Sub-component
+/**
+ * Editor modal UI for viewing and modifying a single user's item collection.
+ *
+ * Renders controls to add regular or special items to the user's collection, or to remove existing items;
+ * fetches the user's current collection on mount and shows counts for removal. Uses callbacks to perform add/remove actions.
+ *
+ * @param {Object} props
+ * @param {Object} props.user - Target user (must include `id`, and may include `custom_username` or `discord_username` for display).
+ * @param {Array<Object>} props.allItems - List of all regular items available for selection (each item should include at least `texture` and `name`).
+ * @param {Function} props.onClose - Called when the editor should be closed.
+ * @param {Function} props.onAddItem - Callback invoked to add items: (userId, texture, name, type, count).
+ * @param {Function} props.onRemoveItem - Callback invoked to remove items: (userId, texture, count).
+ * @returns {JSX.Element} The UserCollectionEditor component UI.
+ */
 function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem }) {
     const [mode, setMode] = useState('add');
     const [itemType, setItemType] = useState('regular');
@@ -18,6 +31,13 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
     ];
 
     useEffect(() => {
+        /**
+         * Load the current user's item collection from the admin API and store it in component state.
+         *
+         * Fetches the collection for `user.id`, maps each item's `item_texture` to its `count` and calls
+         * `setUserCollection` with that mapping. Ensures `setLoadingCollection(false)` is called after the
+         * operation and logs an error to the console if the request fails.
+         */
         async function fetchUserCollection() {
             try {
                 const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/collection`, { credentials: 'include' });
@@ -48,6 +68,11 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
         })
         .sort((a, b) => a.name.localeCompare(b.name));
 
+    /**
+     * Add the currently selected item to the specified user's collection.
+     *
+     * Finds the selected item in `allItems` when `itemType` is `'regular'` or in `specialItems` when `itemType` is `'special'`, and if found calls `onAddItem` with the user's id, the item's texture, name, type, and the requested count. Does nothing when no item is selected or no matching item is found.
+     */
     function handleAdd() {
         if (itemType === 'regular' && selectedItem) {
             const item = allItems.find(i => i.texture === selectedItem);
@@ -58,6 +83,13 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
         }
     }
 
+    /**
+     * Remove the currently selected item from the user's collection.
+     *
+     * If a selection exists and an `onRemoveItem` callback is provided, invokes
+     * `onRemoveItem` with the user's id, the selected item's texture, and the
+     * requested count.
+     */
     function handleRemove() {
         if (selectedItem && onRemoveItem) {
             onRemoveItem(user.id, selectedItem, count);
@@ -182,7 +214,11 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
     );
 }
 
-// Helper functions
+/**
+ * Returns a single-character symbol representing an item's rarity.
+ * @param {string} rarity - One of 'mythic', 'legendary', 'event', or 'rare'.
+ * @returns {string} The symbol for the rarity (`'◆'`, `'★'`, `'⚡'`, `'●'`) or an empty string if the rarity is unrecognized.
+ */
 function getRarityIcon(rarity) {
     if (rarity === 'mythic') return '◆';
     if (rarity === 'legendary') return '★';
@@ -191,6 +227,11 @@ function getRarityIcon(rarity) {
     return '';
 }
 
+/**
+ * Map an item's rarity key to its display color.
+ * @param {string} rarity - Rarity identifier such as `'mythic'`, `'legendary'`, `'event'`, or `'rare'`.
+ * @returns {string} The color value from `COLORS` corresponding to the given rarity; returns `COLORS.gold` if the rarity is unrecognized.
+ */
 function getRarityColor(rarity) {
     if (rarity === 'mythic') return COLORS.aqua;
     if (rarity === 'legendary') return COLORS.purple;
@@ -199,12 +240,27 @@ function getRarityColor(rarity) {
     return COLORS.gold;
 }
 
+/**
+ * Format a numeric weight into a compact, human-readable string.
+ *
+ * Scales values >= 1,000,000 to millions with an 'M' suffix and one decimal,
+ * values >= 1,000 to thousands with a 'K' suffix and one decimal, and returns
+ * smaller values as a plain string.
+ *
+ * @param {number} weight - The numeric weight to format.
+ * @returns {string} The formatted weight string (e.g., "1.2M", "3.4K", or "123").
+ */
 function formatWeight(weight) {
     if (weight >= 1000000) return (weight / 1000000).toFixed(1) + 'M';
     if (weight >= 1000) return (weight / 1000).toFixed(1) + 'K';
     return weight.toString();
 }
 
+/**
+ * Format a numeric percentage into a compact string using variable decimal precision and trimmed trailing zeros.
+ * @param {number} percentage - Percentage value (e.g., 12.345) to format.
+ * @returns {string} Formatted percentage string with a '%' suffix, using between 0 and 6 decimal places as needed.
+ */
 function formatPercentage(percentage) {
     if (percentage >= 1) return percentage.toFixed(1).replace(/\.?0+$/, '') + '%';
     if (percentage >= 0.1) return percentage.toFixed(2).replace(/\.?0+$/, '') + '%';
@@ -214,7 +270,17 @@ function formatPercentage(percentage) {
     return percentage.toFixed(6).replace(/\.?0+$/, '') + '%';
 }
 
-// Pool Statistics Component
+/**
+ * Renders a visual summary of the wheel pool and an editor for the regular-items weight.
+ *
+ * Displays a two-segment weight bar (regular vs special), total weight and special item count,
+ * and an inline editor to change the regular items' weight. If `poolStats` is falsy, renders nothing.
+ *
+ * @param {{ totalWeight: number, specialItemsCount?: number }} poolStats - Pool statistics; must include `totalWeight`.
+ * @param {number} regularItemsWeight - Current weight allocated to regular items.
+ * @param {(newWeight: number) => void} onEditRegularWeight - Callback invoked with the new regular-items weight when saved.
+ * @returns {JSX.Element|null} A JSX element showing pool statistics and the regular weight editor, or `null` when `poolStats` is not provided.
+ */
 function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) {
     const [editing, setEditing] = useState(false);
     const [newWeight, setNewWeight] = useState(regularItemsWeight.toString());
@@ -378,7 +444,20 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
     );
 }
 
-// Special Item Card Component
+/**
+ * Render a card for a special pool item showing image, rarity, weight, and chance with inline editing controls.
+ *
+ * Displays the item's image (with fallbacks), rarity styling, current weight and calculated or custom display chance.
+ * When editing, allows changing weight and an optional displayed percentage; saving calls `onEditWeight`.
+ *
+ * @param {Object} props
+ * @param {Object} props.item - The special item record; expected fields: `id`, `name`, `weight`, `display_chance` (decimal), `image_url`, `username`, `texture`, and `rarity`.
+ * @param {Object} props.poolStats - Pool statistics object containing `totalWeight` used to compute percentage share.
+ * @param {(itemId: number|string, newWeight: number, displayChance: number|null) => void} props.onEditWeight - Called when edits are saved; `displayChance` is a decimal (e.g., 0.01) or `null` if unset.
+ * @param {(itemId: number|string) => void} props.onDelete - Called to delete the item; disabled when `isStatic` is true.
+ * @param {boolean} props.isStatic - When true, marks the item as core/static and disables deletion.
+ * @returns {JSX.Element} The special item card element.
+ */
 function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) {
     const [editing, setEditing] = useState(false);
     const [newWeight, setNewWeight] = useState(item.weight?.toString() || '0');
@@ -592,7 +671,19 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
     );
 }
 
-// Add New Item Form Component
+/**
+ * Render a form for creating and previewing a new special item to add into the wheel pool.
+ *
+ * The form collects type (player head or custom item), display name, source data (Minecraft username or texture/image URL),
+ * rarity, weight, and an optional display percentage. It shows a calculated preview of the item's chance based on the
+ * current pool statistics and calls `onAdd` with the assembled item data when submitted. The form resets after a successful submit.
+ *
+ * @param {Object} props
+ * @param {(itemData: {type: 'playerhead'|'item', name: string, username: string, texture: string, imageUrl: string, weight: string|number, rarity: string, displayChance: string|number|null}) => void} props.onAdd - Callback invoked with the item payload when the form is submitted.
+ * @param {{ totalWeight: number }} props.poolStats - Current pool statistics used to calculate the preview chance; only `totalWeight` is read.
+ * @param {boolean} props.adding - When true, disables the submit button and shows an adding state.
+ * @returns {JSX.Element} The AddItemForm component UI.
+ */
 function AddItemForm({ onAdd, poolStats, adding }) {
     const [itemData, setItemData] = useState({
         type: 'playerhead',
@@ -805,7 +896,17 @@ function AddItemForm({ onAdd, poolStats, adding }) {
     );
 }
 
-// Main Admin Panel Component
+/**
+ * Render the administrative panel for managing pending approvals, users, and the special item pool.
+ *
+ * Displays three tabs—Pending, Users, and Item Pool—and coordinates fetching data, performing
+ * admin actions (approve/reject users, edit user collections, add/remove special items, and update weights),
+ * and presenting global messages and modals for editing user collections.
+ *
+ * @param {Function} onClose - Callback invoked when the panel should be closed.
+ * @param {Array<object>} allItems - Array of available regular items used when editing a user's collection.
+ * @returns {JSX.Element} The Admin Panel React element.
+ */
 export function AdminPanel({ onClose, allItems }) {
     const [tab, setTab] = useState('pending');
     const [pending, setPending] = useState([]);
@@ -828,6 +929,12 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }, [tab]);
 
+    /**
+     * Fetches the list of pending user approvals from the admin endpoint and updates component state.
+     *
+     * While the request is in progress the component loading state is set to true; on success the pending list
+     * state is replaced with the fetched items. On failure the error is logged and the existing pending state is preserved.
+     */
     async function fetchPending() {
         setLoading(true);
         try {
@@ -838,6 +945,12 @@ export function AdminPanel({ onClose, allItems }) {
         finally { setLoading(false); }
     }
 
+    /**
+     * Fetches the admin users list from the server and updates component state.
+     *
+     * Sets the loading flag while the request is in progress, updates the users state
+     * with `data.users` (or an empty array if missing), and logs an error to the console on failure.
+     */
     async function fetchUsers() {
         setLoading(true);
         try {
@@ -848,6 +961,12 @@ export function AdminPanel({ onClose, allItems }) {
         finally { setLoading(false); }
     }
 
+    /**
+     * Fetches the list of special pool items from the admin API and updates local state.
+     *
+     * Calls the admin/special-items endpoint, sets the component loading flag while the request is in progress,
+     * updates dynamic items state with the fetched `items` array (or an empty array if absent), and logs errors to the console if the request fails.
+     */
     async function fetchSpecialItems() {
         setLoading(true);
         try {
@@ -858,6 +977,13 @@ export function AdminPanel({ onClose, allItems }) {
         finally { setLoading(false); }
     }
 
+    /**
+     * Retrieve pool statistics from the admin API and update local pool state.
+     *
+     * On success, updates component state by calling `setPoolStats` with the response
+     * and `setRegularItemsWeight` with `data.regularItemsWeight` or a fallback of 10000000.
+     * Errors are logged to the console.
+     */
     async function fetchPoolStats() {
         try {
             const res = await fetch(`${API_BASE_URL}/admin/pool-stats`, { credentials: 'include' });
@@ -867,11 +993,25 @@ export function AdminPanel({ onClose, allItems }) {
         } catch (error) { console.error('Failed to fetch pool stats:', error); }
     }
 
+    /**
+     * Approves a pending user and removes them from the local pending list.
+     *
+     * Sends an approval request for the specified user to the admin API and, when successful,
+     * removes that user from the component's pending state.
+     *
+     * @param {string|number} userId - The ID of the user to approve.
+     */
     async function approve(userId) {
         await fetch(`${API_BASE_URL}/admin/approve/${userId}`, { method: 'POST', credentials: 'include' });
         setPending(prev => prev.filter(p => p.id !== userId));
     }
 
+    /**
+     * Prompt for a rejection reason, send it to the admin reject endpoint for the specified user, and remove that user from the local pending list on success.
+     *
+     * Prompts the administrator for a rejection reason; if provided, POSTs `{ reason }` to `${API_BASE_URL}/admin/reject/:userId` (with credentials) and updates the pending state to remove the rejected user.
+     * @param {string|number} userId - The identifier of the user to reject; used in the API path and to remove the user from the pending list.
+     */
     async function reject(userId) {
         const reason = prompt('Rejection reason:');
         if (reason === null) return;
@@ -883,6 +1023,18 @@ export function AdminPanel({ onClose, allItems }) {
         setPending(prev => prev.filter(p => p.id !== userId));
     }
 
+    /**
+     * Add an item to a user's collection via the admin API.
+     *
+     * Sends a POST to the admin users collection endpoint and updates UI state based on the response:
+     * on success shows a success message and clears the selected user; on failure shows an error message.
+     *
+     * @param {string|number} userId - ID of the target user.
+     * @param {string} texture - Texture identifier for the item (texture ID or resource string).
+     * @param {string} name - Display name of the item.
+     * @param {'regular'|'special'} type - Item type, e.g., 'regular' or 'special'.
+     * @param {number} [count=1] - Quantity of the item to add.
+     */
     async function addItemToUser(userId, texture, name, type, count = 1) {
         try {
             const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/collection`, {
@@ -902,6 +1054,16 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }
 
+    /**
+     * Remove a quantity of an item texture from a user's collection via the admin API.
+     *
+     * Calls the server to delete `count` instances of the specified `texture` from the user identified by `userId`.
+     * On success, clears the currently selected user and displays a success message; on failure, displays an error message.
+     *
+     * @param {string|number} userId - ID of the user whose collection will be modified.
+     * @param {string} texture - Texture identifier of the item to remove.
+     * @param {number} [count=1] - Quantity to remove; defaults to 1.
+     */
     async function removeItemFromUser(userId, texture, count = 1) {
         try {
             const res = await fetch(`${API_BASE_URL}/admin/users/${userId}/collection`, {
@@ -921,6 +1083,23 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }
 
+    /**
+     * Add a new special item to the server-side pool and refresh local pool data.
+     *
+     * Sends a POST to the admin special-items endpoint with `itemData` (converting `weight` to an integer
+     * and `displayChance` from a percentage string to a decimal or `null`), updates UI state flags and
+     * messages, and triggers a refresh of special items and pool statistics on success.
+     *
+     * @param {Object} itemData - Payload describing the special item to add.
+     * @param {string|number} itemData.weight - Item weight (string or number); will be parsed to an integer.
+     * @param {string} [itemData.displayChance] - Display chance as a percentage string (e.g., "12.5"); empty or missing means no custom display chance.
+     * @param {string} itemData.name - Display name for the item.
+     * @param {('playerhead'|'item')} [itemData.type] - Item type; e.g., 'playerhead' for Minecraft heads or 'item' for custom items.
+     * @param {string} [itemData.username] - Minecraft username (for player heads).
+     * @param {string} [itemData.texture] - Texture ID (for custom items).
+     * @param {string} [itemData.imageUrl] - URL to a custom image.
+     * @param {('rare'|'legendary'|'mythic'|'event')} [itemData.rarity] - Rarity classification for the item.
+     */
     async function addSpecialItemToPool(itemData) {
         setAddingItem(true);
         setMessage({ text: '', type: '' });
@@ -954,6 +1133,13 @@ export function AdminPanel({ onClose, allItems }) {
         finally { setAddingItem(false); }
     }
 
+    /**
+     * Prompt for confirmation and remove a special item from the server-side pool.
+     *
+     * If the user confirms, sends a DELETE request for the given item ID, refreshes the special items list and pool statistics, and sets a success or error message for the UI.
+     *
+     * @param {string|number} itemId - Identifier of the special item to delete.
+     */
     async function deleteSpecialItem(itemId) {
         if (!confirm('Are you sure you want to remove this item from the pool?')) return;
         try {
@@ -969,6 +1155,12 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }
 
+    /**
+     * Update a special pool item's weight and optional display chance on the server and refresh local pool data.
+     * @param {string|number} itemId - The ID of the special item to update.
+     * @param {number} newWeight - The new integer weight for the item.
+     * @param {number|null|undefined} displayChance - Optional display chance as a decimal (e.g., 0.25). Pass `null` to clear the stored display chance; omit/`undefined` to leave it unchanged.
+     */
     async function updateItemWeight(itemId, newWeight, displayChance) {
         try {
             const body = { weight: newWeight };
@@ -998,6 +1190,13 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }
 
+    /**
+     * Update the configured weight for regular (non-special) items on the server and refresh local pool statistics.
+     *
+     * Attempts to persist `newWeight` to the backend settings. On success, updates local regular-items weight state, displays a success message, and refreshes pool statistics. On failure, sets an error message.
+     *
+     * @param {number} newWeight - The new weight value to apply for regular items.
+     */
     async function updateRegularItemsWeight(newWeight) {
         try {
             const res = await fetch(`${API_BASE_URL}/admin/settings`, {

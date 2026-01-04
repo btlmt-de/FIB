@@ -3,6 +3,17 @@ import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js'
 import { Sparkles, Star, Diamond } from 'lucide-react';
 import { getMinecraftHeadUrl } from '../../utils/helpers.js';
 
+/**
+ * Render a bottom-right stack of transient toasts announcing newly detected activity items.
+ *
+ * Polls the activity feed periodically (pauses while the document is hidden), tracks the last seen item ID,
+ * and displays toasts for items with newer IDs. Toasts are staggered to align with an external animation,
+ * auto-dismiss after five seconds, and can be dismissed by clicking — which optionally triggers `onOpenFeed`.
+ *
+ * @param {Object} props
+ * @param {() => void} [props.onOpenFeed] - Optional callback invoked when a toast is clicked (e.g., to open the activity feed).
+ * @returns {JSX.Element|null} The toast container element when there are active toasts, or `null` when none are present.
+ */
 export function LiveActivityToast({ onOpenFeed }) {
     const [toasts, setToasts] = useState([]);
     const lastIdRef = useRef(null);

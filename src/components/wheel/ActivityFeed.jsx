@@ -3,6 +3,12 @@ import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js'
 import { X, Activity, Sparkles, Star, Diamond, RefreshCw } from 'lucide-react';
 import { formatTimeAgo, getMinecraftHeadUrl } from '../../utils/helpers.js';
 
+/**
+ * Displays a full-screen activity feed modal showing recent special item drops with an auto-refresh toggle.
+ * @param {Object} props
+ * @param {function} props.onClose - Callback invoked when the feed is closed.
+ * @returns {JSX.Element} The rendered ActivityFeed modal element.
+ */
 export function ActivityFeed({ onClose }) {
     const [feed, setFeed] = useState([]);
     const [loading, setLoading] = useState(true);

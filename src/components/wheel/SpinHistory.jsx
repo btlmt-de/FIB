@@ -3,6 +3,16 @@ import { COLORS, IMAGE_BASE_URL, MYTHIC_ITEM } from '../../config/constants.js';
 import { formatTimeAgo, getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { X, Sparkles, Star, Diamond, Circle, ScrollText } from 'lucide-react';
 
+/**
+ * Render a full-screen modal showing a chronological list of spin results.
+ *
+ * Renders each spin with a thumbnail, colored rarity label and icon, and relative time; shows a placeholder when there are no spins.
+ *
+ * @param {Object} props
+ * @param {Array.<Object>} props.history - Array of spin records; each record should include at least `item_name`, `item_type`, `item_texture`, and `spun_at`.
+ * @param {function} props.onClose - Callback invoked when the modal close control is activated.
+ * @returns {JSX.Element} A React element representing the spin history modal. 
+ */
 export function SpinHistory({ history, onClose }) {
     function getItemColor(type) {
         if (type === 'mythic') return COLORS.aqua;

@@ -3,7 +3,15 @@ import { COLORS, API_BASE_URL } from '../../config/constants.js';
 import * as LucideIcons from 'lucide-react';
 import { X, Trophy, Lock, Check, Star, Sparkles, Zap, Target, Award } from 'lucide-react';
 
-// Helper to render Lucide icons by name
+/**
+ * Render a Lucide icon component by name, falling back to the `Award` icon if the requested icon is not available.
+ * @param {{name: string, size?: number, color?: string, style?: Object}} props - Component props.
+ * @param {string} props.name - The Lucide icon name to render (key in the `LucideIcons` map).
+ * @param {number} [props.size=16] - Icon size in pixels.
+ * @param {string} [props.color] - Icon color (CSS color string).
+ * @param {Object} [props.style={}] - Inline style object applied to the icon.
+ * @returns {JSX.Element} The rendered icon element for the given name, or the `Award` icon if the name is not found.
+ */
 function AchievementIcon({ name, size = 16, color, style = {} }) {
     const IconComponent = LucideIcons[name];
     if (!IconComponent) {
@@ -32,6 +40,13 @@ const CATEGORY_COLORS = {
     special: COLORS.aqua
 };
 
+/**
+ * Render a fullscreen modal that displays user achievements with filtering, progress indicators, and unlock state.
+ *
+ * @param {{ onClose: function }} props - Component props.
+ * @param {function} props.onClose - Callback invoked when the modal should be closed (e.g., close button click).
+ * @returns {JSX.Element} The achievements modal element.
+ */
 export function Achievements({ onClose }) {
     const [achievements, setAchievements] = useState({});
     const [userAchievements, setUserAchievements] = useState({ unlocked: [], progress: {} });

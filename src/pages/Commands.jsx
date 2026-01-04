@@ -111,6 +111,13 @@ function CommandSection({ title, badge, badgeColor, borderColor, children }) {
     );
 }
 
+/**
+ * Renders the Commands page showing player and gamemaster command lists with header and footer.
+ *
+ * Displays a centered header with title and subtitle, two side-by-side command sections ("Player Commands" and "Gamemaster Commands") containing CommandItem entries, and a footer with external links and small notes.
+ *
+ * @returns {JSX.Element} The rendered Commands page component.
+ */
 export default function Commands() {
     return (
         <div style={{

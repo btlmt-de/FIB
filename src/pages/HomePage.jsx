@@ -75,6 +75,15 @@ const FUTURE_PAGES = [
     { name: 'Stats', description: 'Player statistics' }
 ];
 
+/**
+ * Render a stylized creator profile card showing a Minecraft head avatar, username, and role.
+ *
+ * @param {{username: string, role: string, color: string}} props
+ * @param {string} props.username - Minecraft username used to fetch the avatar image.
+ * @param {string} props.role - Short role or description displayed under the username.
+ * @param {string} props.color - Accent color (CSS color string) used for border, text, and glow.
+ * @returns {JSX.Element} The rendered creator card element.
+ */
 function CreatorCard({ username, role, color }) {
     return (
         <div style={{
@@ -145,6 +154,20 @@ function CreatorCard({ username, role, color }) {
     );
 }
 
+/**
+ * Render a special-thanks entry card with avatar, name, description, and an optional external link.
+ *
+ * Renders a horizontal card showing an avatar (GitHub avatar when `type` is "github", otherwise a Minecraft head),
+ * the contributor's username and a short description. When `link` is provided the card is wrapped in an anchor that opens the URL in a new tab.
+ *
+ * @param {Object} props
+ * @param {string} props.username - Display name or username to show and use for avatar lookup.
+ * @param {string} props.description - Short description or attribution text shown below the username.
+ * @param {string} props.color - Hex or CSS color used for the card's border, text accent, and glow.
+ * @param {'github'|'minecraft'} props.type - Avatar source type; `'github'` uses the user's GitHub avatar, `'minecraft'` uses a Minecraft head.
+ * @param {string} [props.link] - Optional external URL; when present the card becomes a clickable link that opens in a new tab.
+ * @returns {JSX.Element} A React element for the special-thanks card (possibly wrapped in an anchor when `link` is provided).
+ */
 function SpecialThanksCard({ username, description, color, type, link }) {
     const avatarUrl = type === 'github'
         ? `https://github.com/${username}.png?size=100`
@@ -242,6 +265,13 @@ function SpecialThanksCard({ username, description, color, type, link }) {
     return content;
 }
 
+/**
+ * Render a compact "Coming Soon" card displaying a title, a brief description, and a gold "Coming Soon" badge.
+ * @param {Object} props
+ * @param {string} props.name - The title or name of the upcoming item.
+ * @param {string} props.description - A short descriptive line about the upcoming item.
+ * @returns {JSX.Element} A styled card element for use in lists or grids. 
+ */
 function ComingSoonCard({ name, description }) {
     return (
         <div style={{
@@ -299,6 +329,13 @@ function ComingSoonCard({ name, description }) {
     );
 }
 
+/**
+ * Render the ForceItemBattle themed homepage with hero, content grid (Coming Soon, Creators, Special Thanks), and footer.
+ *
+ * @param {{ onNavigate?: function }} props - Component props.
+ * @param {function} [props.onNavigate] - Optional navigation callback (not used by this component).
+ * @returns {JSX.Element} The rendered homepage element.
+ */
 export default function HomePage({ onNavigate }) {
     return (
         <div style={{

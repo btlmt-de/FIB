@@ -16,6 +16,15 @@ import WheelOfFortune from './components/wheel/WheelOfFortune';
 // Config
 import { COLORS } from './config/constants';
 
+/**
+ * Top-level application component that handles hash-based routing and renders the appropriate page.
+ *
+ * The component derives the current page from window.location.hash, updates state when the hash changes,
+ * and provides a navigate callback that updates the hash and scrolls to the top. The "wheel" route is
+ * rendered as a standalone view without the shared navigation bar.
+ *
+ * @returns {JSX.Element} The rendered app UI for the current route.
+ */
 export default function App() {
     // Simple routing based on hash
     const getPageFromHash = () => {

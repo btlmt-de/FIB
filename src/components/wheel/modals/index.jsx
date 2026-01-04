@@ -5,13 +5,25 @@ import { Package, Sparkles, Star, Diamond, Upload, Check, X, AlertCircle } from 
 
 // ============================================
 // Username Modal
-// ============================================
+/**
+ * Render a modal that lets the user choose and submit a custom username.
+ *
+ * Displays the current username state (pending approval or rejection reasons), enforces client-side length and character guidance, and submits the chosen username to the authentication layer. On successful submission the modal will close; submission errors are shown inline.
+ *
+ * @param {Object} props
+ * @param {Function} props.onClose - Callback invoked to close the modal.
+ * @returns {JSX.Element} The username selection modal UI.
+ */
 export function UsernameModal({ onClose }) {
     const { user, setUsername } = useAuth();
     const [input, setInput] = useState(user?.customUsername || '');
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    /**
+     * Handle the username form submission by attempting to set the username, closing the modal on success, and updating submission and error state.
+     * @param {Event} e - The form submit event.
+     */
     async function handleSubmit(e) {
         e.preventDefault();
         setError('');
@@ -93,7 +105,20 @@ export function UsernameModal({ onClose }) {
 
 // ============================================
 // Import Prompt Modal
-// ============================================
+/**
+ * Prompt the user to import a previously discovered local collection into their account.
+ *
+ * Renders a centered modal showing a summary of found items and spins, highlights any mythic/legendary/rare counts,
+ * and provides actions to either import the collection or start fresh.
+ *
+ * @param {Object} props
+ * @param {() => void} props.onImport - Callback invoked when the user chooses to import the local collection.
+ * @param {() => void} props.onSkip - Callback invoked when the user chooses to start fresh (skip import).
+ * @param {Object} props.localDataInfo - Summary of the local collection (may be null/undefined). Expected shape includes
+ *   `{ totalItems?: number, totalSpins?: number, mythicCount?: number, legendaryCount?: number, rareCount?: number }`.
+ *   This prop is aliased internally as `localData`.
+ * @returns {JSX.Element} A modal React element presenting the import prompt and actions.
+ */
 export function ImportPromptModal({ onImport, onSkip, localDataInfo }) {
     // Support both localData and localDataInfo prop names
     const localData = localDataInfo;
@@ -187,7 +212,18 @@ export function ImportPromptModal({ onImport, onSkip, localDataInfo }) {
 
 // ============================================
 // Migration Modal
-// ============================================
+/**
+ * Display a modal that detects a local collection and lets the user import it into their account.
+ *
+ * The modal checks migration availability via the migration status API, reads a local collection
+ * from localStorage (key: "fib_wheel_collection"), summarizes found data, and can submit the
+ * collection to the migration API. On successful import the local storage item is removed.
+ *
+ * @param {Object} props
+ * @param {() => void} props.onClose - Callback invoked to close the modal.
+ * @param {() => void} [props.onSuccess] - Optional callback invoked after a successful migration.
+ * @returns {JSX.Element} A modal UI that manages migration states (checking, available, unavailable, migrating, success, error) and user actions.
+ */
 export function MigrationModal({ onClose, onSuccess }) {
     const [status, setStatus] = useState('checking');
     const [localData, setLocalData] = useState(null);
@@ -196,6 +232,17 @@ export function MigrationModal({ onClose, onSuccess }) {
 
     useEffect(() => { checkMigration(); }, []);
 
+    /**
+     * Checks whether a local collection can be migrated and updates migration-related state.
+     *
+     * Queries the migration status endpoint and inspects localStorage for a saved
+     * 'fib_wheel_collection'. Updates component state by calling setStatus, setLocalData,
+     * and setError to reflect one of these outcomes:
+     * - Available: local collection found and populated into localData with totals (`collection`, `totalItems`,
+     *   `totalSpins`, `mythicCount`, `legendaryCount`, `rareCount`) and `status` set to `'available'`.
+     * - Unavailable: migration not permitted, no local collection present, or an error occurred; `status`
+     *   set to `'unavailable'` and `error` set with a descriptive message.
+     */
     async function checkMigration() {
         try {
             const res = await fetch(`${API_BASE_URL}/api/migrate/status`, { credentials: 'include' });
@@ -234,6 +281,11 @@ export function MigrationModal({ onClose, onSuccess }) {
         }
     }
 
+    /**
+     * Upload the local collection to the migration API and update component state to reflect progress and outcome.
+     *
+     * If no local data is available the function does nothing. On success it stores the migration result, sets status to "success", removes the localStorage collection entry, and invokes `onSuccess` when provided. On failure it records the error message and sets status to "error".
+     */
     async function performMigration() {
         if (!localData) return;
         setStatus('migrating');

@@ -19,7 +19,17 @@ import {
     ArrowLeft, Home
 } from 'lucide-react';
 
-// Username prompt modal - shown after first spin
+/**
+ * Displays a fullscreen modal prompting the user to set a display username after their first spin.
+ *
+ * The modal highlights benefits (leaderboard and activity feed) and provides two actions:
+ * one to open the set-username flow and one to dismiss the prompt.
+ *
+ * @param {Object} props
+ * @param {() => void} props.onSetUsername - Called when the user chooses to set a username.
+ * @param {() => void} props.onDismiss - Called when the user dismisses the prompt (choose later).
+ * @returns {JSX.Element} The rendered username prompt modal.
+ */
 function UsernamePromptModal({ onSetUsername, onDismiss }) {
     return (
         <div style={{
@@ -128,6 +138,14 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
     );
 }
 
+/**
+ * Render the Wheel of Fortune page, managing item and user data, collection/history fetching,
+ * preloading assets, spin handling, import flow, and the set of related modals and UI controls.
+ *
+ * @param {{ onBack?: () => void }} props
+ * @param {() => void} [props.onBack] - Optional callback invoked when the page requests back navigation.
+ * @returns {JSX.Element} The Wheel of Fortune page React element.
+ */
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
     const [allItems, setAllItems] = useState([]);
@@ -749,7 +767,15 @@ function WheelOfFortunePage({ onBack }) {
     );
 }
 
-// Navigation button component
+/**
+ * Render a compact round navigation button that shows a tooltip with a label on hover.
+ *
+ * @param {Object} props - Component props.
+ * @param {function} props.onClick - Click handler invoked when the button is pressed.
+ * @param {React.ReactNode} props.icon - Icon or node rendered inside the button.
+ * @param {string} props.label - Tooltip text displayed when the button is hovered.
+ * @returns {JSX.Element} The navigation button element with hover tooltip.
+ */
 function NavButton({ onClick, icon, label }) {
     const [showTooltip, setShowTooltip] = React.useState(false);
 
@@ -807,7 +833,12 @@ function NavButton({ onClick, icon, label }) {
     );
 }
 
-// Global stat component
+/**
+ * Wraps WheelOfFortunePage with an authentication provider and renders the Wheel of Fortune screen.
+ * @param {Object} props
+ * @param {Function} [props.onBack] - Optional callback invoked when navigating back; if not provided, defaults to clearing the window location hash.
+ * @returns {JSX.Element} The Wheel of Fortune page wrapped with AuthProvider.
+ */
 
 export default function WheelOfFortune({ onBack }) {
     return (

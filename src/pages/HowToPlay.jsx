@@ -124,6 +124,13 @@ function RepoLink({ href, title, description, extra }) {
     );
 }
 
+/**
+ * Render the "How to Play" informational page that explains hosting options and joining the official server.
+ *
+ * Renders a full-page layout with two option cards (self-host and official server), repository/resource links, step-by-step joining instructions, and a footer with external links and a disclaimer.
+ *
+ * @returns {JSX.Element} The rendered HowToPlay React element.
+ */
 export default function HowToPlay() {
     return (
         <div style={{

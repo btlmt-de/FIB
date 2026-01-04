@@ -3,7 +3,14 @@ import { COLORS, IMAGE_BASE_URL, MYTHIC_ITEMS, MYTHIC_ITEM, TEAM_MEMBERS, RARE_M
 import { formatChance, getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { X, Sparkles, Star, Diamond, Check, Zap, BookOpen, Search } from 'lucide-react';
 
-// Item Detail Modal Component
+/**
+ * Render a modal showing detailed information for a single collection item.
+ *
+ * @param {object} item - Item data (e.g., `name`, `texture`, `type`, `imageUrl`, `username`, `chance`).
+ * @param {object} details - Collection-specific details for the item (e.g., `count`, `firstObtained`).
+ * @param {function} onClose - Callback invoked to close the modal; called when the backdrop or close button is clicked.
+ * @returns {JSX.Element} The modal element displaying the item's image, rarity badge, collection stats, and first-obtained date.
+ */
 function ItemDetailModal({ item, details, onClose }) {
     const isCollected = details && details.count > 0;
     const isMythic = item.type === 'mythic';
@@ -14,6 +21,12 @@ function ItemDetailModal({ item, details, onClose }) {
     const rarityColor = isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
     const rarityLabel = isMythic ? 'MYTHIC' : isLegendary ? 'LEGENDARY' : isRare ? 'RARE' : 'COMMON';
 
+    /**
+     * Determine the best image URL for the current item using available overrides and fallbacks.
+     *
+     * Resolves in this order: an explicit item.imageUrl; for mythic items without a username, a matching mythic override or the default mythic image; a Minecraft head URL when item.username is present; otherwise a texture-based image URL.
+     * @returns {string} The resolved image URL for the item.
+     */
     function getItemImageUrl() {
         if (item.imageUrl) return item.imageUrl;
         if (item.type === 'mythic' && !item.username) {
@@ -25,6 +38,11 @@ function ItemDetailModal({ item, details, onClose }) {
         return `${IMAGE_BASE_URL}/${item.texture}.png`;
     }
 
+    /**
+     * Format a date string into a compact en-US date and time or return a fallback when none is provided.
+     * @param {string|null|undefined} dateStr - Date input parseable by the JS Date constructor; falsy values produce the fallback.
+     * @returns {string} Formatted date and time (e.g., "Jan 1, 2020, 12:00 AM") when the input is valid, or `"No data available"` when the input is missing or not provided.
+     */
     function formatDate(dateStr) {
         if (!dateStr) return 'No data available';
         const date = new Date(dateStr);
@@ -201,6 +219,18 @@ function ItemDetailModal({ item, details, onClose }) {
     );
 }
 
+/**
+ * Render the Collection Book modal with filters, progress summary, and an interactive grid of items.
+ *
+ * @param {Object} props
+ * @param {Object.<string, number>} props.collection - Mapping of item texture -> owned count.
+ * @param {Object.<string, Object>} props.collectionDetails - Per-item metadata (e.g., first obtained date, count) keyed by texture.
+ * @param {Object} [props.stats] - Optional aggregated stats (e.g., totalSpins, totalDuplicates, mythicCount, legendaryCount, rareCount).
+ * @param {Array<Object>} props.allItems - Base list of collection items (each with at least `name` and `texture`).
+ * @param {Array<Object>} [props.dynamicItems] - Optional API-provided items to override or extend special items (may include `rarity`, `texture`, `name`, `chance`, `username`, `image_url`).
+ * @param {Function} props.onClose - Callback invoked to close the Collection Book modal.
+ * @returns {JSX.Element} The Collection Book modal element ready to be rendered.
+ */
 export function CollectionBook({ collection, collectionDetails, stats, allItems, dynamicItems, onClose }) {
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');

@@ -7,7 +7,13 @@ import {
     Medal, Crown, Award, Users, TrendingUp
 } from 'lucide-react';
 
-// Helper to get Discord avatar URL
+/**
+ * Constructs the URL for a Discord user's avatar image.
+ * @param {string} discordId - The user's Discord ID.
+ * @param {string|null|undefined} avatarHash - The user's avatar hash, or null/undefined if none.
+ * @param {number} [size=64] - Requested avatar size in pixels.
+ * @returns {string} The avatar image URL. If `avatarHash` is provided, returns the user's custom avatar (GIF when the hash starts with `a_`, otherwise PNG) with the requested size; if `avatarHash` is not provided, returns the default embed avatar URL computed from `discordId`.
+ */
 function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     if (avatarHash) {
         const format = avatarHash.startsWith('a_') ? 'gif' : 'png';
@@ -17,7 +23,15 @@ function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
 }
 
-// Tab Button Component
+/**
+ * Renders a styled tab-like button used in the leaderboard tab bar.
+ * @param {Object} props
+ * @param {boolean} props.active - If true, applies active styles to the button.
+ * @param {function} props.onClick - Click handler invoked when the button is pressed.
+ * @param {React.ReactNode} props.children - Label or content shown next to the icon.
+ * @param {React.ReactNode} [props.icon] - Optional icon displayed to the left of the label.
+ * @returns {React.ReactElement} The tab button element.
+ */
 function TabButton({ active, onClick, children, icon }) {
     return (
         <button
@@ -56,7 +70,16 @@ function TabButton({ active, onClick, children, icon }) {
     );
 }
 
-// Main Leaderboard Component
+/**
+ * Renders a full-screen, modal leaderboard with global statistics, sortable tabs, and per-player details.
+ *
+ * The component fetches global stats on mount and reloads leaderboard entries when the active tab changes.
+ * Users can click a row to open a profile modal; the current user's row is visually highlighted.
+ *
+ * @param {Object} props - Component props.
+ * @param {() => void} props.onClose - Callback invoked when the leaderboard close button is clicked.
+ * @returns {JSX.Element} The rendered Leaderboard component.
+ */
 export function Leaderboard({ onClose }) {
     const [leaderboard, setLeaderboard] = useState([]);
     const [globalStats, setGlobalStats] = useState(null);
