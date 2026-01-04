@@ -21,6 +21,10 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
         async function fetchUserCollection() {
             try {
                 const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/collection`, { credentials: 'include' });
+                if (!res.ok) {
+                    console.error(`Failed to fetch user collection: ${res.status} ${res.statusText}`);
+                    return;
+                }
                 const data = await res.json();
                 const collectionObj = {};
                 if (Array.isArray(data.collection)) {
@@ -399,9 +403,15 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
     const rarityIcon = getRarityIcon(item.rarity);
 
     const handleSave = () => {
-        const displayChanceValue = newDisplayChance.trim() === ''
-            ? null
-            : parseFloat(newDisplayChance) / 100; // Convert % to decimal
+        let displayChanceValue = null;
+        if (newDisplayChance.trim() !== '') {
+            const parsed = parseFloat(newDisplayChance);
+            if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+                alert('Display chance must be a number between 0 and 100');
+                return;
+            }
+            displayChanceValue = parsed / 100; // Convert % to decimal
+        }
         onEditWeight(item.id, parseInt(newWeight), displayChanceValue);
         setEditing(false);
     };
@@ -610,8 +620,9 @@ function AddItemForm({ onAdd, poolStats, adding }) {
         : 0;
 
     // Show display chance if set, otherwise show calculated
-    const shownPercentage = itemData.displayChance
-        ? parseFloat(itemData.displayChance)
+    const parsedDisplayChance = parseFloat(itemData.displayChance);
+    const shownPercentage = itemData.displayChance && Number.isFinite(parsedDisplayChance)
+        ? parsedDisplayChance
         : previewPercentage;
 
     const handleSubmit = () => {
@@ -832,6 +843,10 @@ export function AdminPanel({ onClose, allItems }) {
         setLoading(true);
         try {
             const res = await fetch(`${API_BASE_URL}/admin/pending`, { credentials: 'include' });
+            if (!res.ok) {
+                console.error(`Failed to fetch pending: ${res.status} ${res.statusText}`);
+                return;
+            }
             const data = await res.json();
             setPending(data.pending || []);
         } catch (error) { console.error('Failed to fetch pending:', error); }
@@ -842,6 +857,10 @@ export function AdminPanel({ onClose, allItems }) {
         setLoading(true);
         try {
             const res = await fetch(`${API_BASE_URL}/admin/users`, { credentials: 'include' });
+            if (!res.ok) {
+                console.error(`Failed to fetch users: ${res.status} ${res.statusText}`);
+                return;
+            }
             const data = await res.json();
             setUsers(data.users || []);
         } catch (error) { console.error('Failed to fetch users:', error); }
@@ -852,6 +871,10 @@ export function AdminPanel({ onClose, allItems }) {
         setLoading(true);
         try {
             const res = await fetch(`${API_BASE_URL}/admin/special-items`, { credentials: 'include' });
+            if (!res.ok) {
+                console.error(`Failed to fetch special items: ${res.status} ${res.statusText}`);
+                return;
+            }
             const data = await res.json();
             setDynamicItems(data.items || []);
         } catch (error) { console.error('Failed to fetch special items:', error); }
@@ -861,6 +884,10 @@ export function AdminPanel({ onClose, allItems }) {
     async function fetchPoolStats() {
         try {
             const res = await fetch(`${API_BASE_URL}/admin/pool-stats`, { credentials: 'include' });
+            if (!res.ok) {
+                console.error(`Failed to fetch pool stats: ${res.status} ${res.statusText}`);
+                return;
+            }
             const data = await res.json();
             setPoolStats(data);
             setRegularItemsWeight(data.regularItemsWeight || 10000000);
@@ -946,13 +973,23 @@ export function AdminPanel({ onClose, allItems }) {
         setMessage({ text: '', type: '' });
         try {
             const weightValue = parseInt(itemData.weight, 10);
+
+            // Validate and convert displayChance
+            let displayChanceValue = null;
+            if (itemData.displayChance && itemData.displayChance.trim() !== '') {
+                const parsed = parseFloat(itemData.displayChance);
+                if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+                    setMessage({ text: 'Display chance must be a number between 0 and 100', type: 'error' });
+                    setAddingItem(false);
+                    return;
+                }
+                displayChanceValue = parsed / 100; // Convert to decimal
+            }
+
             const payload = {
                 ...itemData,
                 weight: weightValue,
-                // Convert displayChance from percentage string to decimal, or null if empty
-                displayChance: itemData.displayChance && itemData.displayChance.trim() !== ''
-                    ? parseFloat(itemData.displayChance) / 100
-                    : null
+                displayChance: displayChanceValue
             };
 
             const res = await fetch(`${API_BASE_URL}/admin/special-items`, {

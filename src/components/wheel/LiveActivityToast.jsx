@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLORS, API_BASE_URL } from '../../config/constants.js';
+import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
 import { Sparkles, Star, Diamond } from 'lucide-react';
 import { getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 

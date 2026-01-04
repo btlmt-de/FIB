@@ -260,7 +260,9 @@ export function Achievements({ onClose }) {
                                 const isUnlocked = unlockedIds.has(achievement.id);
                                 const isHidden = achievement.hidden && !isUnlocked;
                                 const prog = progress[achievement.id];
-                                const progressPercent = prog ? Math.min((prog.current / prog.target) * 100, 100) : 0;
+                                const progressPercent = prog && Number.isFinite(prog.target) && prog.target > 0
+                                    ? Math.min((prog.current / prog.target) * 100, 100)
+                                    : 0;
                                 const categoryColor = CATEGORY_COLORS[achievement.category] || COLORS.gold;
 
                                 return (
