@@ -81,13 +81,15 @@ export function LeaderboardSidebar({ onOpenFull }) {
         if (rank === 1) {
             return (
                 <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '5px',
-                    background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #FFE55C, #FFA500)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    border: '1.5px solid #FFD700',
+                    boxShadow: '0 0 12px #FFAA0040, inset 0 1px 2px rgba(255,255,255,0.3)'
                 }}>
                     <Crown size={13} color="#1a1a1a" />
                 </div>
@@ -96,28 +98,32 @@ export function LeaderboardSidebar({ onOpenFull }) {
         if (rank === 2) {
             return (
                 <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '5px',
-                    background: 'linear-gradient(135deg, #C0C0C0, #A8A8A8)',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #E8E8E8, #C0C0C0)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    border: '1.5px solid #D0D0D0',
+                    boxShadow: '0 0 12px #C0C0C040, inset 0 1px 2px rgba(255,255,255,0.4)'
                 }}>
-                    <Medal size={13} color="#fff" />
+                    <Medal size={13} color="#1a1a1a" />
                 </div>
             );
         }
         if (rank === 3) {
             return (
                 <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '5px',
-                    background: 'linear-gradient(135deg, #CD7F32, #B8860B)',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #E8956F, #CD7F32)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    border: '1.5px solid #D2691E',
+                    boxShadow: '0 0 12px #CD7F3240, inset 0 1px 2px rgba(255,255,255,0.2)'
                 }}>
                     <Award size={13} color="#fff" />
                 </div>
@@ -125,16 +131,18 @@ export function LeaderboardSidebar({ onOpenFull }) {
         }
         return (
             <div style={{
-                width: '22px',
-                height: '22px',
-                borderRadius: '5px',
-                background: COLORS.bgLighter,
+                width: '24px',
+                height: '24px',
+                borderRadius: '6px',
+                background: `linear-gradient(135deg, ${COLORS.bgLighter}, ${COLORS.bg})`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '11px',
-                fontWeight: '600',
-                color: COLORS.textMuted
+                fontSize: '10px',
+                fontWeight: '700',
+                color: COLORS.textMuted,
+                border: `1px solid ${COLORS.border}`,
+                boxShadow: `0 0 8px ${COLORS.border}40`
             }}>
                 {rank}
             </div>
@@ -152,14 +160,15 @@ export function LeaderboardSidebar({ onOpenFull }) {
                 display: 'flex',
                 flexDirection: 'column',
                 backdropFilter: 'blur(8px)',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.2)'
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
             }}>
                 {/* Header */}
                 <div style={{
                     padding: '16px 18px',
                     borderBottom: `1px solid ${COLORS.border}`,
-                    background: `${COLORS.bgLight}88`,
-                    borderRadius: '14px 14px 0 0'
+                    background: `linear-gradient(135deg, ${COLORS.bgLight}aa 0%, ${COLORS.bg}aa 100%)`,
+                    borderRadius: '14px 14px 0 0',
+                    boxShadow: `inset 0 1px 0 ${COLORS.border}`
                 }}>
                     <div style={{
                         display: 'flex',
@@ -248,8 +257,8 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                 style={{
                                     flex: 1,
                                     padding: '6px 6px',
-                                    background: activeTab === key ? COLORS.accent : 'transparent',
-                                    border: 'none',
+                                    background: activeTab === key ? `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accent}dd)` : 'transparent',
+                                    border: activeTab === key ? `1px solid ${COLORS.accent}` : '1px solid transparent',
                                     borderRadius: '5px',
                                     color: activeTab === key ? '#fff' : COLORS.textMuted,
                                     cursor: 'pointer',
@@ -259,7 +268,20 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '4px',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.3s',
+                                    boxShadow: activeTab === key ? `0 0 8px ${COLORS.accent}30` : 'none'
+                                }}
+                                onMouseEnter={e => {
+                                    if (activeTab !== key) {
+                                        e.currentTarget.style.background = `${COLORS.bgLighter}`;
+                                        e.currentTarget.style.color = COLORS.text;
+                                    }
+                                }}
+                                onMouseLeave={e => {
+                                    if (activeTab !== key) {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = COLORS.textMuted;
+                                    }
                                 }}
                             >
                                 {icon}
@@ -270,11 +292,26 @@ export function LeaderboardSidebar({ onOpenFull }) {
                 </div>
 
                 <style>{`
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-4px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
                 .sidebar-leaderboard-row {
-                    transition: background 0.2s ease;
+                    transition: all 0.3s ease;
+                    animation: slideIn 0.4s ease-out;
+                    border-radius: 6px;
+                    margin: 0 6px;
                 }
                 .sidebar-leaderboard-row:hover {
                     background: ${COLORS.bgLighter} !important;
+                    transform: translateX(3px);
+                    box-shadow: inset 0 0 10px rgba(88, 101, 242, 0.08);
                 }
                 .leaderboard-scroll::-webkit-scrollbar {
                     width: 6px;
@@ -321,8 +358,8 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '10px',
-                                        padding: '8px 14px',
-                                        background: isCurrentUser ? `${COLORS.accent}15` : 'transparent',
+                                        padding: '10px 12px',
+                                        background: isCurrentUser ? `linear-gradient(90deg, ${COLORS.accent}15 0%, transparent 100%)` : 'transparent',
                                         cursor: 'pointer'
                                     }}
                                 >
@@ -336,7 +373,9 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                             width: '26px',
                                             height: '26px',
                                             borderRadius: '5px',
-                                            flexShrink: 0
+                                            flexShrink: 0,
+                                            border: `1.5px solid ${COLORS.border}`,
+                                            boxShadow: `0 0 8px ${COLORS.accent}15`
                                         }}
                                         onError={(e) => {
                                             e.target.onerror = null;
@@ -360,10 +399,13 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                             <span style={{
                                                 marginLeft: '6px',
                                                 fontSize: '9px',
-                                                color: COLORS.accent,
-                                                background: `${COLORS.accent}22`,
-                                                padding: '2px 5px',
-                                                borderRadius: '3px'
+                                                color: '#fff',
+                                                background: `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accent}dd)`,
+                                                padding: '3px 6px',
+                                                borderRadius: '4px',
+                                                fontWeight: '600',
+                                                border: `1px solid ${COLORS.accent}`,
+                                                boxShadow: `0 0 8px ${COLORS.accent}40`
                                             }}>
                                             You
                                         </span>
@@ -389,13 +431,35 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                         justifyContent: 'flex-end'
                                     }}>
                                         {entry.mythic_count > 0 && (
-                                            <span style={{ color: COLORS.aqua, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <Sparkles size={11} />{entry.mythic_count}
+                                            <span style={{
+                                                color: COLORS.aqua,
+                                                fontSize: '11px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '2px',
+                                                background: `${COLORS.aqua}15`,
+                                                padding: '2px 4px',
+                                                borderRadius: '3px',
+                                                border: `1px solid ${COLORS.aqua}30`,
+                                                fontWeight: '600'
+                                            }}>
+                                            <Sparkles size={10} />{entry.mythic_count}
                                         </span>
                                         )}
                                         {entry.legendary_count > 0 && (
-                                            <span style={{ color: COLORS.purple, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                            <Star size={11} />{entry.legendary_count}
+                                            <span style={{
+                                                color: COLORS.purple,
+                                                fontSize: '11px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '2px',
+                                                background: `${COLORS.purple}15`,
+                                                padding: '2px 4px',
+                                                borderRadius: '3px',
+                                                border: `1px solid ${COLORS.purple}30`,
+                                                fontWeight: '600'
+                                            }}>
+                                            <Star size={10} />{entry.legendary_count}
                                         </span>
                                         )}
                                     </div>
@@ -407,13 +471,15 @@ export function LeaderboardSidebar({ onOpenFull }) {
 
                 {/* Footer */}
                 <div style={{
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     borderTop: `1px solid ${COLORS.border}`,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     fontSize: '10px',
-                    color: COLORS.textMuted
+                    color: COLORS.textMuted,
+                    background: `linear-gradient(135deg, ${COLORS.bg}aa 0%, ${COLORS.bgLight}aa 100%)`,
+                    boxShadow: `inset 0 -1px 0 ${COLORS.border}`
                 }}>
                     <span>Top 12 players</span>
                     {lastUpdated && (

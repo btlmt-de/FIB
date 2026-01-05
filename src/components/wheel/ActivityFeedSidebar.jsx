@@ -38,7 +38,7 @@ export function ActivityFeedSidebar() {
             background: `${COLORS.bg}ee`,
             borderRadius: '14px',
             border: `1px solid ${COLORS.border}`,
-            boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -49,11 +49,26 @@ export function ActivityFeedSidebar() {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.4; }
                 }
+                @keyframes slideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
                 .sidebar-feed-item {
-                    transition: background 0.2s ease;
+                    transition: all 0.3s ease;
+                    animation: slideIn 0.4s ease-out;
+                    border-radius: 8px;
+                    margin: 0 8px;
                 }
                 .sidebar-feed-item:hover {
                     background: ${COLORS.bgLighter} !important;
+                    transform: translateX(4px);
+                    box-shadow: inset 0 0 12px rgba(88, 101, 242, 0.1);
                 }
                 .activity-feed-scroll::-webkit-scrollbar {
                     width: 6px;
@@ -78,8 +93,9 @@ export function ActivityFeedSidebar() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: `${COLORS.bgLight}88`,
-                borderRadius: '14px 14px 0 0'
+                background: `linear-gradient(135deg, ${COLORS.bgLight}aa 0%, ${COLORS.bg}aa 100%)`,
+                borderRadius: '14px 14px 0 0',
+                boxShadow: `inset 0 1px 0 ${COLORS.border}`
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <Activity size={18} color={COLORS.green} />
@@ -130,9 +146,10 @@ export function ActivityFeedSidebar() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '10px',
-                                    padding: '10px 14px',
+                                    padding: '10px 12px',
                                     borderLeft: `3px solid ${rarityColor}`,
-                                    marginLeft: '3px'
+                                    background: `linear-gradient(90deg, ${rarityColor}08 0%, transparent 100%)`,
+                                    boxShadow: `inset 0 0 8px ${rarityColor}06`
                                 }}
                             >
                                 {/* User avatar */}
@@ -143,7 +160,9 @@ export function ActivityFeedSidebar() {
                                         width: '28px',
                                         height: '28px',
                                         borderRadius: '50%',
-                                        flexShrink: 0
+                                        flexShrink: 0,
+                                        border: `1.5px solid ${COLORS.border}`,
+                                        boxShadow: `0 0 8px ${rarityColor}20`
                                     }}
                                     onError={(e) => {
                                         e.target.onerror = null;
@@ -218,12 +237,14 @@ export function ActivityFeedSidebar() {
                                 <div style={{
                                     width: '28px',
                                     height: '28px',
-                                    background: rarityColor + '22',
+                                    background: `linear-gradient(135deg, ${rarityColor}30, ${rarityColor}15)`,
                                     borderRadius: '6px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    flexShrink: 0
+                                    flexShrink: 0,
+                                    border: `1px solid ${rarityColor}20`,
+                                    boxShadow: `0 0 10px ${rarityColor}15`
                                 }}>
                                     <img
                                         src={getItemImageUrl(item)}
@@ -248,14 +269,16 @@ export function ActivityFeedSidebar() {
 
             {/* Footer */}
             <div style={{
-                padding: '10px 14px',
+                padding: '12px 14px',
                 borderTop: `1px solid ${COLORS.border}`,
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
                 gap: '12px',
                 fontSize: '10px',
-                color: COLORS.textMuted
+                color: COLORS.textMuted,
+                background: `linear-gradient(135deg, ${COLORS.bg}aa 0%, ${COLORS.bgLight}aa 100%)`,
+                boxShadow: `inset 0 -1px 0 ${COLORS.border}`
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {getRarityIcon('mythic', 12)}
