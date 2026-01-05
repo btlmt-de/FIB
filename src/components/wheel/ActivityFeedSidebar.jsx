@@ -8,11 +8,10 @@ import { useActivity } from '../../context/ActivityContext';
 export function ActivityFeedSidebar() {
     const { feed: rawFeed, serverTime, initialized } = useActivity();
 
-    // Filter feed to show only item drops that are 8+ seconds old
     const feed = useMemo(() => {
         if (!rawFeed || !serverTime) return [];
 
-        const DELAY_AFTER_CREATION = 8000;
+        const DELAY_AFTER_CREATION = 5000;
 
         return rawFeed.filter(item => {
             // Filter out achievement unlocks
