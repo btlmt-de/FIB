@@ -46,6 +46,23 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Error state for server unavailability
     const [error, setError] = useState(null);
 
+    // Client-side cooldown tracking (mirrors server's 5s cooldown)
+    const lastSpinTimeRef = useRef(0);
+    const SPIN_COOLDOWN = 5000; // 5 seconds - must match server
+
+    function canSpin() {
+        const now = Date.now();
+        if (now - lastSpinTimeRef.current < SPIN_COOLDOWN) {
+            setError("Don't spin too fast!");
+            return false;
+        }
+        return true;
+    }
+
+    function markSpinTime() {
+        lastSpinTimeRef.current = Date.now();
+    }
+
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 600);
         window.addEventListener('resize', handleResize);
@@ -120,10 +137,22 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     async function performSpin() {
         if (!user || allItems.length === 0) return;
 
+        // Client-side cooldown check (prevents animation flash)
+        if (!canSpin()) return;
+
         try {
             setState('spinning');
+            markSpinTime(); // Mark spin time immediately
+
             const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
             const spinResult = await res.json();
+
+            // Handle rate limit / cooldown - show error message
+            if (res.status === 429 || spinResult.cooldown) {
+                setError("Don't spin too fast!");
+                setState('idle');
+                return;
+            }
 
             if (!res.ok || !spinResult.result) {
                 throw new Error(spinResult.error || 'Spin failed');
@@ -254,7 +283,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         }
     }
 
-    // Lucky spin - equal probability for all items
+    // Lucky spin - equal probability for all items (bonus event reward - no cooldown)
     async function triggerLuckySpin() {
         setState('luckySpinning');
 
@@ -265,7 +294,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             });
             const spinResult = await res.json();
 
-            // Check for rate limiting or other errors
+            // Check for errors (no cooldown check - this is a bonus reward)
             if (!res.ok || !spinResult.result) {
                 setError(spinResult.error || 'Spin failed. Please wait a moment and try again.');
                 setState('idle');
@@ -329,10 +358,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             async function getValidSpin() {
                 let attempts = 0;
                 while (attempts < 5) {
-                    const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
+                    const res = await fetch(`${API_BASE_URL}/api/spin`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bonus: true })
+                    });
                     const result = await res.json();
 
-                    // Check for rate limiting or other errors
+                    // Handle rate limit / cooldown - throw to abort triple spin
+                    if (res.status === 429 || result.cooldown) {
+                        throw new Error('COOLDOWN');
+                    }
+
+                    // Check for other errors
                     if (!res.ok || !result.result) {
                         throw new Error(result.error || 'Spin failed');
                     }
@@ -423,7 +462,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 }, delay);
             });
         } catch (error) {
-            console.error('Triple spin failed:', error);
+            // Show error message on cooldown, log other failures
+            if (error.message === 'COOLDOWN') {
+                setError("Don't spin too fast!");
+            } else {
+                console.error('Triple spin failed:', error);
+            }
             setState('idle');
         }
     }

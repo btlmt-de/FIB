@@ -82,9 +82,9 @@ export function isEventItem(item) {
 export function getItemImageUrl(item) {
     if (!item) return `${IMAGE_BASE_URL}/barrier.png`;
 
-    // Handle history entry format (item_texture, item_type)
+    // Handle different data formats (history, collection, activity feed)
     const texture = item.texture || item.item_texture;
-    const type = item.type || item.item_type;
+    const type = item.type || item.item_type || item.item_rarity;
     const username = item.username || (texture?.includes('_') ? texture.split('_').slice(1).join('_') : null);
 
     // Mythic items have custom image URLs

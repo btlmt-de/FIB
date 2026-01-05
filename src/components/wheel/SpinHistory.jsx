@@ -185,9 +185,24 @@ export function SpinHistory({ history, onClose }) {
                                                 color: rarity.color,
                                                 fontWeight: '600',
                                                 fontSize: '14px',
-                                                marginBottom: '2px'
+                                                marginBottom: '2px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
                                             }}>
                                                 {spin.item_name}
+                                                {spin.is_lucky === 1 && (
+                                                    <span title="Lucky Spin" style={{
+                                                        fontSize: '10px',
+                                                        background: `${COLORS.gold}33`,
+                                                        color: COLORS.gold,
+                                                        padding: '1px 5px',
+                                                        borderRadius: '4px',
+                                                        fontWeight: '600'
+                                                    }}>
+                                                        🍀
+                                                    </span>
+                                                )}
                                             </div>
                                             <div style={{
                                                 color: COLORS.textMuted,
