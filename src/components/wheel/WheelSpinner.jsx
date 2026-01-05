@@ -110,11 +110,21 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 newStrip.push(finalItem);
             } else {
                 const roll = Math.random();
-                // Match old_wheel.jsx behavior exactly - 2% chance for special item visual flair
-                if (roll < 0.02 && TEAM_MEMBERS.length > 0) {
+                // Visual flair - show special items in the strip animation
+                if (roll < 0.001 && MYTHIC_ITEMS.length > 0) {
+                    // 0.1% chance for mythic
+                    const mythic = MYTHIC_ITEMS[Math.floor(Math.random() * MYTHIC_ITEMS.length)];
+                    newStrip.push({ ...mythic, isMythic: true });
+                } else if (roll < 0.033 && RARE_MEMBERS.length > 0) {
+                    // 3% chance for rare
+                    const rare = RARE_MEMBERS[Math.floor(Math.random() * RARE_MEMBERS.length)];
+                    newStrip.push({ ...rare, isRare: true, texture: `rare_${rare.username}` });
+                } else if (roll < 0.053 && TEAM_MEMBERS.length > 0) {
+                    // 2% chance for legendary
                     const member = TEAM_MEMBERS[Math.floor(Math.random() * TEAM_MEMBERS.length)];
                     newStrip.push({ ...member, isSpecial: true, texture: `special_${member.username}` });
                 } else if (allItems.length > 0) {
+                    // Regular items
                     newStrip.push(allItems[Math.floor(Math.random() * allItems.length)]);
                 }
             }
