@@ -188,18 +188,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setIsNewItem(spinResult.isNew);
             offsetRef.current = 0;
 
-            // Check for "So Close" achievement - mythic adjacent to final position
-            const leftItem = newStrip[FINAL_INDEX - 1];
-            const rightItem = newStrip[FINAL_INDEX + 1];
-            const adjacentToMythic = (leftItem?.isMythic || rightItem?.isMythic) && !finalItem.isMythic;
-            if (adjacentToMythic) {
-                // Report near-miss to server for achievement
-                fetch(`${API_BASE_URL}/api/achievement/so-close`, {
-                    method: 'POST',
-                    credentials: 'include'
-                }).catch(() => {}); // Fire and forget
-            }
-
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
             // Add "edge" tension - sometimes land very close to adjacent items
             let offsetVariance;
