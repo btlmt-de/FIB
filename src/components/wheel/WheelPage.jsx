@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { COLORS, API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
+import { ActivityProvider } from '../../context/ActivityContext';
 import { AnimationStyles } from './AnimationStyles';
 import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal, ImportPromptModal, MigrationModal } from './modals';
@@ -9,9 +10,10 @@ import { CollectionBook } from './CollectionBook';
 import { SpinHistory } from './SpinHistory';
 import { AdminPanel } from './AdminPanel';
 import { Achievements } from './Achievements';
-import { ActivityFeed } from './ActivityFeed';
 import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
+import { ActivityFeedSidebar } from './ActivityFeedSidebar';
+import { LeaderboardSidebar } from './LeaderboardSidebar';
 import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -147,7 +149,6 @@ function WheelOfFortunePage({ onBack }) {
     const [showAdmin, setShowAdmin] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     const [showAchievements, setShowAchievements] = useState(false);
-    const [showActivityFeed, setShowActivityFeed] = useState(false);
     const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
     const [hasLocalData, setHasLocalData] = useState(false);
     const [localDataInfo, setLocalDataInfo] = useState(null);
@@ -261,9 +262,50 @@ function WheelOfFortunePage({ onBack }) {
         } catch (error) { console.error('Failed to fetch history:', error); }
     }
 
-    const handleSpinComplete = useCallback(async (result, isNew) => {
-        await fetchCollection();
-        await fetchHistory();
+    const handleSpinComplete = useCallback(async (spinData) => {
+        // Use the data from the spin response for local state updates
+        // This avoids fetching the entire collection and history after each spin
+
+        if (spinData && spinData.result && !spinData.isEvent && typeof spinData.itemCount === 'number') {
+            const { result, isNew, itemCount, updatedStats } = spinData;
+
+            // Update collection locally
+            setCollection(prev => ({
+                ...prev,
+                [result.texture]: itemCount
+            }));
+
+            // Update collection details locally
+            setCollectionDetails(prev => ({
+                ...prev,
+                [result.texture]: {
+                    count: itemCount,
+                    name: result.name,
+                    type: result.type,
+                    firstObtained: isNew ? new Date().toISOString() : prev[result.texture]?.firstObtained
+                }
+            }));
+
+            // Update stats if provided
+            if (updatedStats) {
+                setStats({
+                    totalSpins: updatedStats.totalSpins,
+                    mythicCount: updatedStats.mythicCount,
+                    legendaryCount: updatedStats.legendaryCount,
+                    rareCount: updatedStats.rareCount,
+                    eventTriggers: updatedStats.eventTriggers,
+                    totalDuplicates: updatedStats.totalDuplicates
+                });
+            }
+
+            // Prepend to history locally (avoid fetching entire history)
+            setHistory(prev => [{
+                item_texture: result.texture,
+                item_name: result.name,
+                item_type: result.type,
+                spun_at: new Date().toISOString()
+            }, ...prev.slice(0, 99)]); // Keep max 100 items
+        }
 
         // Prompt user to set a username if they haven't (check on every spin)
         if (user && !user.customUsername) {
@@ -342,228 +384,197 @@ function WheelOfFortunePage({ onBack }) {
             overflow: 'hidden'
         }}>
             <AnimationStyles />
-            <div style={{ maxWidth: '900px', margin: '0 auto', padding: '20px', position: 'relative', zIndex: 1 }}>
-                {/* Back Button */}
-                <a
-                    href="/"
-                    style={{
-                        position: 'absolute',
-                        top: '20px',
-                        left: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        color: COLORS.textMuted,
-                        textDecoration: 'none',
-                        fontSize: '14px',
-                        padding: '8px 14px',
-                        borderRadius: '8px',
-                        transition: 'all 0.2s',
-                        zIndex: 10
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.color = COLORS.text;
-                        e.currentTarget.style.background = `${COLORS.border}44`;
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.color = COLORS.textMuted;
-                        e.currentTarget.style.background = 'transparent';
-                    }}
-                >
-                    <ArrowLeft size={18} />
-                    <span>Back</span>
-                </a>
 
-                {/* Header */}
+            {/* Main layout with sidebars */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '40px',
+                padding: '20px',
+                minHeight: '100vh'
+            }}>
+                {/* Left Sidebar - Activity Feed */}
                 <div style={{
-                    textAlign: 'center',
-                    marginBottom: '24px',
-                    paddingTop: '32px'
-                }}>
-                    <h1 style={{
-                        margin: '0 0 8px 0',
-                        fontSize: '42px',
-                        fontWeight: '800',
-                        background: `linear-gradient(135deg, ${COLORS.gold}, ${COLORS.orange})`,
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        letterSpacing: '-1px'
-                    }}>
-                        Wheel of Fortune
-                    </h1>
-                    <p style={{
-                        margin: 0,
-                        color: COLORS.textMuted,
-                        fontSize: '14px'
-                    }}>
-                        Spin the wheel to collect rare and legendary items
-                    </p>
+                    display: 'none',  // Hidden on small screens
+                    flexShrink: 0,
+                    alignSelf: 'center'
+                }}
+                     className="sidebar-left"
+                >
+                    {user && <ActivityFeedSidebar />}
                 </div>
 
-                {/* User Bar */}
-                {!user ? (
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '16px',
-                        marginBottom: '20px',
-                        flexWrap: 'wrap'
-                    }}>
-                        <button onClick={login} style={{
-                            padding: '10px 24px',
-                            background: 'linear-gradient(135deg, #5865F2, #4752C4)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: '#fff',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
+                {/* Center Content */}
+                <div style={{ maxWidth: '900px', width: '100%', position: 'relative', zIndex: 1 }}>
+                    {/* Back Button */}
+                    <a
+                        href="/"
+                        style={{
+                            position: 'absolute',
+                            top: '0',
+                            left: '0',
+                            display: 'flex',
                             alignItems: 'center',
                             gap: '8px',
-                            transition: 'all 0.2s ease',
-                            boxShadow: '0 4px 12px rgba(88, 101, 242, 0.25)'
+                            color: COLORS.textMuted,
+                            textDecoration: 'none',
+                            fontSize: '14px',
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            transition: 'all 0.2s',
+                            zIndex: 10
                         }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(88, 101, 242, 0.35)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(88, 101, 242, 0.25)';
-                                }}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 71 55" fill="currentColor">
-                                <path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1-5 .9-9.9 2.4-14.4 4.5 0 0 0 0-.1.1C1.6 18.7-.9 32.1.3 45.4c0 .1 0 .1.1.2 6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .3-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.8-3.8-1.7-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.8-.6 1.1-.9.1-.1.2-.1.2 0 11.6 5.3 24.2 5.3 35.7 0 .1 0 .2 0 .2.1.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 1.9-5.6 2.7-.1 0-.2.2-.1.3 1.1 2.1 2.3 4 3.6 5.9.1.1.2.1.3.1 5.8-1.8 11.7-4.5 17.8-9 0 0 .1-.1.1-.2 1.5-15.3-2.5-28.6-10.5-40.4 0 0 0-.1-.1-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.4 3.2 6.4 7.2s-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.5 3.2 6.4 7.2s-2.8 7.2-6.4 7.2z"/>
-                            </svg>
-                            Login with Discord
-                        </button>
-                        {hasLocalData && (
-                            <span style={{ color: COLORS.gold, fontSize: '12px', fontWeight: '500' }}>
-                                Local data ready to import
-                            </span>
-                        )}
-                    </div>
-                ) : (
+                        onMouseEnter={e => {
+                            e.currentTarget.style.color = COLORS.text;
+                            e.currentTarget.style.background = `${COLORS.border}44`;
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.color = COLORS.textMuted;
+                            e.currentTarget.style.background = 'transparent';
+                        }}
+                    >
+                        <ArrowLeft size={18} />
+                        <span>Back</span>
+                    </a>
+
+                    {/* Header */}
                     <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '20px'
+                        textAlign: 'center',
+                        marginBottom: '24px',
+                        paddingTop: '32px'
                     }}>
-                        {/* Extended user pill with all controls */}
+                        <h1 style={{
+                            margin: '0 0 8px 0',
+                            fontSize: '42px',
+                            fontWeight: '800',
+                            background: `linear-gradient(135deg, ${COLORS.gold}, ${COLORS.orange})`,
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                            letterSpacing: '-1px'
+                        }}>
+                            Wheel of Fortune
+                        </h1>
+                        <p style={{
+                            margin: 0,
+                            color: COLORS.textMuted,
+                            fontSize: '14px'
+                        }}>
+                            Spin the wheel to collect rare and legendary items
+                        </p>
+                    </div>
+
+                    {/* User Bar */}
+                    {!user ? (
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '2px',
-                            padding: '4px',
-                            background: COLORS.bgLight,
-                            borderRadius: '28px',
-                            border: `1px solid ${COLORS.border}`
+                            justifyContent: 'center',
+                            gap: '16px',
+                            marginBottom: '20px',
+                            flexWrap: 'wrap'
                         }}>
-                            {/* Clickable avatar + name section */}
-                            <button
-                                onClick={() => setShowProfile(true)}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '6px 14px 6px 6px',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    borderRadius: '24px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                }}
-                                onMouseEnter={e => e.currentTarget.style.background = COLORS.bgLighter}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                            >
-                                <img
-                                    src={getDiscordAvatarUrl()}
-                                    alt="Avatar"
-                                    style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '50%',
-                                        background: COLORS.bgLighter
+                            <button onClick={login} style={{
+                                padding: '10px 24px',
+                                background: 'linear-gradient(135deg, #5865F2, #4752C4)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                color: '#fff',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 4px 12px rgba(88, 101, 242, 0.25)'
+                            }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(88, 101, 242, 0.35)';
                                     }}
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(88, 101, 242, 0.25)';
                                     }}
-                                />
-                                <span style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                                    {user.customUsername || 'Player'}
-                                </span>
-                                {user.usernameApproved && (
-                                    <Check size={14} color={COLORS.green} />
-                                )}
-                                {user.customUsername && !user.usernameApproved && (
-                                    <Clock size={14} color={COLORS.gold} />
-                                )}
-                            </button>
-
-                            {/* Divider */}
-                            <div style={{ width: '1px', height: '24px', background: COLORS.border }} />
-
-                            {/* Edit button */}
-                            <button
-                                onClick={() => setShowUsernameModal(true)}
-                                style={{
-                                    padding: '8px',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    borderRadius: '50%',
-                                    color: COLORS.textMuted,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = COLORS.bgLighter;
-                                    e.currentTarget.style.color = COLORS.accent;
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = COLORS.textMuted;
-                                }}
-                                title="Edit Name"
                             >
-                                <Edit3 size={16} />
+                                <svg width="18" height="18" viewBox="0 0 71 55" fill="currentColor">
+                                    <path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1-5 .9-9.9 2.4-14.4 4.5 0 0 0 0-.1.1C1.6 18.7-.9 32.1.3 45.4c0 .1 0 .1.1.2 6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .3-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.8-3.8-1.7-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.8-.6 1.1-.9.1-.1.2-.1.2 0 11.6 5.3 24.2 5.3 35.7 0 .1 0 .2 0 .2.1.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 1.9-5.6 2.7-.1 0-.2.2-.1.3 1.1 2.1 2.3 4 3.6 5.9.1.1.2.1.3.1 5.8-1.8 11.7-4.5 17.8-9 0 0 .1-.1.1-.2 1.5-15.3-2.5-28.6-10.5-40.4 0 0 0-.1-.1-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.4 3.2 6.4 7.2s-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.5 3.2 6.4 7.2s-2.8 7.2-6.4 7.2z"/>
+                                </svg>
+                                Login with Discord
                             </button>
-
-                            {/* Import button (if has local data) */}
                             {hasLocalData && (
+                                <span style={{ color: COLORS.gold, fontSize: '12px', fontWeight: '500' }}>
+                                Local data ready to import
+                            </span>
+                            )}
+                        </div>
+                    ) : (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '20px'
+                        }}>
+                            {/* Extended user pill with all controls */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                padding: '4px',
+                                background: COLORS.bgLight,
+                                borderRadius: '28px',
+                                border: `1px solid ${COLORS.border}`
+                            }}>
+                                {/* Clickable avatar + name section */}
                                 <button
-                                    onClick={() => setShowMigration(true)}
+                                    onClick={() => setShowProfile(true)}
                                     style={{
-                                        padding: '8px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        color: COLORS.gold,
-                                        cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
+                                        gap: '10px',
+                                        padding: '6px 14px 6px 6px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '24px',
+                                        cursor: 'pointer',
+                                        transition: 'background 0.2s'
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = `${COLORS.gold}22`}
+                                    onMouseEnter={e => e.currentTarget.style.background = COLORS.bgLighter}
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                    title="Import Local Data"
                                 >
-                                    <Upload size={16} />
+                                    <img
+                                        src={getDiscordAvatarUrl()}
+                                        alt="Avatar"
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '50%',
+                                            background: COLORS.bgLighter
+                                        }}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                        }}
+                                    />
+                                    <span style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
+                                    {user.customUsername || 'Player'}
+                                </span>
+                                    {user.usernameApproved && (
+                                        <Check size={14} color={COLORS.green} />
+                                    )}
+                                    {user.customUsername && !user.usernameApproved && (
+                                        <Clock size={14} color={COLORS.gold} />
+                                    )}
                                 </button>
-                            )}
 
-                            {/* Admin button */}
-                            {user.isAdmin && (
+                                {/* Divider */}
+                                <div style={{ width: '1px', height: '24px', background: COLORS.border }} />
+
+                                {/* Edit button */}
                                 <button
-                                    onClick={() => setShowAdmin(true)}
+                                    onClick={() => setShowUsernameModal(true)}
                                     style={{
                                         padding: '8px',
                                         background: 'transparent',
@@ -584,76 +595,151 @@ function WheelOfFortunePage({ onBack }) {
                                         e.currentTarget.style.background = 'transparent';
                                         e.currentTarget.style.color = COLORS.textMuted;
                                     }}
-                                    title="Admin Panel"
+                                    title="Edit Name"
                                 >
-                                    <Settings size={16} />
+                                    <Edit3 size={16} />
                                 </button>
-                            )}
 
-                            {/* Logout button */}
-                            <button
-                                onClick={logout}
-                                style={{
-                                    padding: '8px',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    borderRadius: '50%',
-                                    color: COLORS.textMuted,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s'
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = `${COLORS.red}22`;
-                                    e.currentTarget.style.color = COLORS.red;
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'transparent';
-                                    e.currentTarget.style.color = COLORS.textMuted;
-                                }}
-                                title="Logout"
-                            >
-                                <LogOut size={16} />
-                            </button>
+                                {/* Import button (if has local data) */}
+                                {hasLocalData && (
+                                    <button
+                                        onClick={() => setShowMigration(true)}
+                                        style={{
+                                            padding: '8px',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            borderRadius: '50%',
+                                            color: COLORS.gold,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = `${COLORS.gold}22`}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        title="Import Local Data"
+                                    >
+                                        <Upload size={16} />
+                                    </button>
+                                )}
+
+                                {/* Admin button */}
+                                {user.isAdmin && (
+                                    <button
+                                        onClick={() => setShowAdmin(true)}
+                                        style={{
+                                            padding: '8px',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            borderRadius: '50%',
+                                            color: COLORS.textMuted,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={e => {
+                                            e.currentTarget.style.background = COLORS.bgLighter;
+                                            e.currentTarget.style.color = COLORS.accent;
+                                        }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.color = COLORS.textMuted;
+                                        }}
+                                        title="Admin Panel"
+                                    >
+                                        <Settings size={16} />
+                                    </button>
+                                )}
+
+                                {/* Logout button */}
+                                <button
+                                    onClick={logout}
+                                    style={{
+                                        padding: '8px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        color: COLORS.textMuted,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.background = `${COLORS.red}22`;
+                                        e.currentTarget.style.color = COLORS.red;
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = COLORS.textMuted;
+                                    }}
+                                    title="Logout"
+                                >
+                                    <LogOut size={16} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Wheel - now bigger */}
-                <div style={{ marginBottom: '20px' }}>
-                    <WheelSpinner
-                        allItems={allItems}
-                        collection={collection}
-                        onSpinComplete={handleSpinComplete}
-                        user={user}
-                        dynamicItems={dynamicItems}
-                        wheelSize={180}
-                    />
+                    {/* Wheel - now bigger */}
+                    <div style={{ marginBottom: '20px' }}>
+                        <WheelSpinner
+                            allItems={allItems}
+                            collection={collection}
+                            onSpinComplete={handleSpinComplete}
+                            user={user}
+                            dynamicItems={dynamicItems}
+                            wheelSize={180}
+                        />
+                    </div>
+
+                    {/* Navigation buttons */}
+                    {user && (
+                        <div style={{
+                            display: 'flex',
+                            gap: '4px',
+                            justifyContent: 'center',
+                            marginBottom: '20px',
+                            padding: '6px 10px',
+                            background: `${COLORS.bgLight}66`,
+                            borderRadius: '12px',
+                            width: 'fit-content',
+                            margin: '0 auto 20px'
+                        }}>
+                            <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={18} />} label="Collection" />
+                            <NavButton onClick={() => setShowHistory(true)} icon={<ScrollText size={18} />} label="History" />
+                            <NavButton onClick={() => setShowLeaderboard(true)} icon={<Trophy size={18} />} label="Leaderboard" />
+                            <NavButton onClick={() => setShowAchievements(true)} icon={<Award size={18} />} label="Achievements" />
+                        </div>
+                    )}
                 </div>
+                {/* End Center Content */}
 
-                {/* Navigation buttons */}
-                {user && (
-                    <div style={{
-                        display: 'flex',
-                        gap: '4px',
-                        justifyContent: 'center',
-                        marginBottom: '20px',
-                        padding: '6px 10px',
-                        background: `${COLORS.bgLight}66`,
-                        borderRadius: '12px',
-                        width: 'fit-content',
-                        margin: '0 auto 20px'
-                    }}>
-                        <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={18} />} label="Collection" />
-                        <NavButton onClick={() => setShowHistory(true)} icon={<ScrollText size={18} />} label="History" />
-                        <NavButton onClick={() => setShowLeaderboard(true)} icon={<Trophy size={18} />} label="Leaderboard" />
-                        <NavButton onClick={() => setShowAchievements(true)} icon={<Award size={18} />} label="Achievements" />
-                        <NavButton onClick={() => setShowActivityFeed(true)} icon={<Activity size={18} />} label="Activity" />
-                    </div>
-                )}
+                {/* Right Sidebar - Leaderboard */}
+                <div style={{
+                    display: 'none',  // Hidden on small screens
+                    flexShrink: 0,
+                    alignSelf: 'center'
+                }}
+                     className="sidebar-right"
+                >
+                    {user && <LeaderboardSidebar onOpenFull={() => setShowLeaderboard(true)} />}
+                </div>
             </div>
+            {/* End Main Layout */}
+
+            {/* CSS for responsive sidebars */}
+            <style>{`
+                @media (min-width: 1400px) {
+                    .sidebar-left, .sidebar-right {
+                        display: block !important;
+                    }
+                }
+            `}</style>
 
             {/* Modals */}
             {showUsernameModal && (
@@ -726,10 +812,6 @@ function WheelOfFortunePage({ onBack }) {
                 <Achievements onClose={() => setShowAchievements(false)} />
             )}
 
-            {showActivityFeed && (
-                <ActivityFeed onClose={() => setShowActivityFeed(false)} />
-            )}
-
             {showUsernamePrompt && (
                 <UsernamePromptModal
                     onSetUsername={() => {
@@ -744,7 +826,7 @@ function WheelOfFortunePage({ onBack }) {
             )}
 
             {/* Live Activity Toast - shows popup when someone gets a special item */}
-            <LiveActivityToast onOpenFeed={() => setShowActivityFeed(true)} />
+            <LiveActivityToast />
         </div>
     );
 }
@@ -812,7 +894,9 @@ function NavButton({ onClick, icon, label }) {
 export default function WheelOfFortune({ onBack }) {
     return (
         <AuthProvider>
-            <WheelOfFortunePage onBack={onBack || (() => window.location.hash = '')} />
+            <ActivityProvider>
+                <WheelOfFortunePage onBack={onBack || (() => window.location.hash = '')} />
+            </ActivityProvider>
         </AuthProvider>
     );
 }

@@ -1,195 +1,357 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
+import { COLORS, IMAGE_BASE_URL } from '../../config/constants.js';
 import { getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
+import { useActivity } from '../../context/ActivityContext';
+import * as LucideIcons from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
-export function LiveActivityToast({ onOpenFeed }) {
+// Achievement category colors (matching Achievements.jsx)
+const ACHIEVEMENT_CATEGORY_COLORS = {
+    beginner: COLORS.green,
+    collection: COLORS.purple,
+    spins: COLORS.orange,
+    events: COLORS.gold,
+    duplicates: COLORS.red,
+    special: COLORS.aqua
+};
+
+// Helper to render Lucide icons by name
+function AchievementIcon({ name, size = 16, color, style = {} }) {
+    const IconComponent = LucideIcons[name];
+    if (!IconComponent) {
+        return <Trophy size={size} color={color} style={style} />;
+    }
+    return <IconComponent size={size} color={color} style={style} />;
+}
+
+export function LiveActivityToast() {
     const [toasts, setToasts] = useState([]);
-    const lastIdRef = useRef(null);
-    const intervalRef = useRef(null);
-    const initializedRef = useRef(false);
-    const isVisibleRef = useRef(true);
+    const { newItems, serverTime, clearNewItems } = useActivity();
     const pendingTimeoutsRef = useRef([]);
+    const processedIdsRef = useRef(new Set());
     const isMountedRef = useRef(true);
 
-    const fetchLatest = useCallback(async () => {
-        // Skip fetch if tab is not visible
-        if (!isVisibleRef.current) return;
+    // Process new items from context
+    useEffect(() => {
+        if (!newItems || newItems.length === 0) return;
 
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/activity?limit=5`);
-            const data = await res.json();
+        const DELAY_AFTER_CREATION = 8000;
+        const currentServerTime = serverTime || Date.now();
 
-            if (data.feed && data.feed.length > 0) {
-                const newestId = data.feed[0].id;
+        // Filter out already processed items
+        const unprocessedItems = newItems.filter(item => !processedIdsRef.current.has(item.id));
 
-                if (!initializedRef.current) {
-                    // First fetch - just store the ID, don't show toasts
-                    lastIdRef.current = newestId;
-                    initializedRef.current = true;
-                } else if (lastIdRef.current !== null && newestId > lastIdRef.current) {
-                    // New items found
-                    const newItems = data.feed.filter(item => item.id > lastIdRef.current);
+        if (unprocessedItems.length === 0) return;
 
-                    // Add toasts for new items (max 3 at a time)
-                    // Delay to sync with spin result animation (~8s spin duration)
-                    newItems.slice(0, 3).reverse().forEach((item, idx) => {
-                        const timeoutId = setTimeout(() => {
-                            if (isMountedRef.current) {
-                                addToast(item);
-                            }
-                            // Remove this timeout from tracking
-                            pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== timeoutId);
-                        }, 8000 + (idx * 300));
-                        pendingTimeoutsRef.current.push(timeoutId);
-                    });
+        // Schedule toasts for new items (max 3 at a time)
+        unprocessedItems.slice(0, 3).reverse().forEach((item, idx) => {
+            // Mark as processed
+            processedIdsRef.current.add(item.id);
 
-                    lastIdRef.current = newestId;
-                }
+            // Parse created_at - append 'Z' if no timezone to treat as UTC
+            let createdAtStr = item.created_at;
+            if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
+                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
             }
-        } catch (e) {
-            console.error('Failed to fetch activity:', e);
-        }
-    }, []);
+            const itemCreatedAt = new Date(createdAtStr).getTime();
+            const itemAge = currentServerTime - itemCreatedAt;
+            const remainingDelay = Math.max(500, DELAY_AFTER_CREATION - itemAge) + (idx * 300);
 
+            const timeoutId = setTimeout(() => {
+                if (isMountedRef.current) {
+                    addToast(item);
+                }
+                pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== timeoutId);
+            }, remainingDelay);
+            pendingTimeoutsRef.current.push(timeoutId);
+        });
+
+        // Clear new items after processing
+        clearNewItems();
+
+        // Clean up old processed IDs (keep last 100)
+        if (processedIdsRef.current.size > 100) {
+            const idsArray = Array.from(processedIdsRef.current);
+            processedIdsRef.current = new Set(idsArray.slice(-50));
+        }
+    }, [newItems, serverTime, clearNewItems]);
+
+    // Cleanup on unmount
     useEffect(() => {
         isMountedRef.current = true;
 
-        // Handle visibility change to pause/resume polling
-        const handleVisibilityChange = () => {
-            isVisibleRef.current = !document.hidden;
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Initial fetch
-        fetchLatest();
-
-        // Poll every 5 seconds
-        intervalRef.current = setInterval(fetchLatest, 5000);
-
         return () => {
             isMountedRef.current = false;
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
             // Clear all pending timeouts
             pendingTimeoutsRef.current.forEach(id => clearTimeout(id));
             pendingTimeoutsRef.current = [];
         };
-    }, [fetchLatest]);
+    }, []);
 
-    function addToast(item) {
+    const addToast = useCallback((item) => {
         const toastId = `${item.id}-${Date.now()}`;
 
-        setToasts(prev => [...prev, { ...item, toastId }]);
+        setToasts(prev => {
+            // Limit to 5 toasts max
+            const newToasts = [...prev, { ...item, toastId }];
+            if (newToasts.length > 5) {
+                return newToasts.slice(-5);
+            }
+            return newToasts;
+        });
 
-        // Auto-remove after 5 seconds
-        const timeoutId = setTimeout(() => {
+        // Auto-remove after 6 seconds
+        setTimeout(() => {
             if (isMountedRef.current) {
                 setToasts(prev => prev.filter(t => t.toastId !== toastId));
             }
-            // Remove this timeout from tracking
-            pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== timeoutId);
-        }, 5000);
-        pendingTimeoutsRef.current.push(timeoutId);
-    }
+        }, 6000);
+    }, []);
 
-    function removeToast(toastId) {
+    const removeToast = useCallback((toastId) => {
         setToasts(prev => prev.filter(t => t.toastId !== toastId));
-    }
+    }, []);
 
     if (toasts.length === 0) return null;
 
     return (
         <div style={{
             position: 'fixed',
-            bottom: '20px',
-            right: '20px',
+            bottom: '24px',
+            right: '24px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
-            zIndex: 900,
+            gap: '12px',
+            zIndex: 1000,
             pointerEvents: 'none'
         }}>
             <style>{`
-                @keyframes slideInRight {
-                    from { 
-                        opacity: 0; 
-                        transform: translateX(100px);
+                @keyframes toastSlideIn {
+                    from {
+                        transform: translateX(120%);
+                        opacity: 0;
                     }
-                    to { 
-                        opacity: 1; 
+                    to {
                         transform: translateX(0);
+                        opacity: 1;
                     }
                 }
-                @keyframes fadeOut {
-                    from { opacity: 1; }
-                    to { opacity: 0; }
+                @keyframes toastPulse {
+                    0%, 100% { box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+                    50% { box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
                 }
-                .activity-toast {
-                    animation: slideInRight 0.3s ease-out;
-                    pointer-events: auto;
-                    cursor: pointer;
-                    transition: transform 0.2s ease;
-                }
-                .activity-toast:hover {
-                    transform: scale(1.02);
+                @keyframes achievementShine {
+                    0% { background-position: -200% center; }
+                    100% { background-position: 200% center; }
                 }
             `}</style>
 
-            {toasts.map((item) => {
-                const rarityColor = getRarityColor(item.item_rarity);
+            {toasts.map((toast) => {
+                const isAchievement = toast.event_type === 'achievement_unlock';
+
+                if (isAchievement) {
+                    // Achievement toast
+                    // For achievements: item_texture=icon, item_name=name, item_rarity=category, is_hidden
+                    const categoryColor = ACHIEVEMENT_CATEGORY_COLORS[toast.item_rarity] || COLORS.gold;
+                    const isHidden = toast.is_hidden === 1;
+
+                    return (
+                        <div
+                            key={toast.toastId}
+                            onClick={() => removeToast(toast.toastId)}
+                            style={{
+                                background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bg} 100%)`,
+                                border: `2px solid ${categoryColor}`,
+                                borderRadius: '12px',
+                                padding: '14px 18px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '14px',
+                                minWidth: '320px',
+                                maxWidth: '400px',
+                                animation: 'toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                cursor: 'pointer',
+                                pointerEvents: 'auto',
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            {/* Shine effect */}
+                            <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: `linear-gradient(90deg, transparent, ${categoryColor}22, transparent)`,
+                                backgroundSize: '200% 100%',
+                                animation: 'achievementShine 2s ease-in-out infinite',
+                                pointerEvents: 'none'
+                            }} />
+
+                            {/* Achievement icon */}
+                            <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                background: `${categoryColor}33`,
+                                border: `2px solid ${categoryColor}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                            }}>
+                                {isHidden ? (
+                                    <AchievementIcon
+                                        name="HelpCircle"
+                                        size={24}
+                                        color={categoryColor}
+                                    />
+                                ) : (
+                                    <AchievementIcon
+                                        name={toast.item_texture}
+                                        size={24}
+                                        color={categoryColor}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Content */}
+                            <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+                                <div style={{
+                                    fontSize: '11px',
+                                    color: categoryColor,
+                                    fontWeight: '600',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                    marginBottom: '2px'
+                                }}>
+                                    {isHidden ? 'Hidden Achievement!' : 'Achievement Unlocked!'}
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    <img
+                                        src={getDiscordAvatarUrl(toast.discord_id, toast.discord_avatar)}
+                                        alt=""
+                                        style={{
+                                            width: '18px',
+                                            height: '18px',
+                                            borderRadius: '50%'
+                                        }}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                        }}
+                                    />
+                                    <span style={{
+                                        fontSize: '13px',
+                                        color: COLORS.text,
+                                        fontWeight: '500'
+                                    }}>
+                                        {toast.custom_username || 'Someone'}
+                                    </span>
+                                </div>
+                                <div style={{
+                                    fontSize: '14px',
+                                    color: COLORS.text,
+                                    fontWeight: '600',
+                                    marginTop: '4px'
+                                }}>
+                                    {isHidden ? 'Discovered a hidden achievement!' : toast.item_name}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                // Item drop toast
+                const rarityColor = getRarityColor(toast.item_rarity);
 
                 return (
                     <div
-                        key={item.toastId}
-                        className="activity-toast"
-                        onClick={() => {
-                            removeToast(item.toastId);
-                            onOpenFeed?.();
-                        }}
+                        key={toast.toastId}
+                        onClick={() => removeToast(toast.toastId)}
                         style={{
-                            background: `linear-gradient(135deg, ${COLORS.bg} 0%, ${rarityColor}22 100%)`,
-                            border: `1px solid ${rarityColor}66`,
+                            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bg} 100%)`,
+                            border: `2px solid ${rarityColor}`,
                             borderRadius: '12px',
-                            padding: '12px 16px',
+                            padding: '14px 18px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '12px',
-                            boxShadow: `0 4px 20px ${rarityColor}33, 0 0 40px ${rarityColor}22`,
-                            minWidth: '280px',
-                            maxWidth: '350px'
+                            gap: '14px',
+                            minWidth: '320px',
+                            maxWidth: '400px',
+                            animation: 'toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), toastPulse 2s ease-in-out infinite',
+                            cursor: 'pointer',
+                            pointerEvents: 'auto'
                         }}
                     >
-                        {/* User avatar */}
-                        <img
-                            src={getDiscordAvatarUrl(item.discord_id, item.discord_avatar)}
-                            alt=""
-                            style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                border: `2px solid ${rarityColor}`
-                            }}
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                            }}
-                        />
+                        {/* Item image */}
+                        <div style={{
+                            width: '52px',
+                            height: '52px',
+                            background: `${rarityColor}22`,
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: `1px solid ${rarityColor}44`,
+                            flexShrink: 0
+                        }}>
+                            <img
+                                src={getItemImageUrl(toast)}
+                                alt={toast.item_name}
+                                style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    objectFit: 'contain',
+                                    imageRendering: 'pixelated'
+                                }}
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                }}
+                            />
+                        </div>
 
                         {/* Content */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{
-                                fontSize: '12px',
-                                color: COLORS.textMuted,
-                                marginBottom: '2px'
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                marginBottom: '4px'
                             }}>
-                                <span style={{ color: COLORS.text, fontWeight: '600' }}>
-                                    {item.custom_username || item.discord_username || 'Someone'}
+                                <img
+                                    src={getDiscordAvatarUrl(toast.discord_id, toast.discord_avatar)}
+                                    alt=""
+                                    style={{
+                                        width: '20px',
+                                        height: '20px',
+                                        borderRadius: '50%'
+                                    }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                    }}
+                                />
+                                <span style={{
+                                    fontSize: '13px',
+                                    color: COLORS.text,
+                                    fontWeight: '500'
+                                }}>
+                                    {toast.custom_username || 'Someone'}
                                 </span>
-                                {' '}found
+                                <span style={{
+                                    fontSize: '12px',
+                                    color: COLORS.textMuted
+                                }}>
+                                    found
+                                </span>
                             </div>
                             <div style={{
                                 display: 'flex',
@@ -199,42 +361,28 @@ export function LiveActivityToast({ onOpenFeed }) {
                                 fontWeight: '600',
                                 fontSize: '14px'
                             }}>
-                                {getRarityIcon(item.item_rarity)}
+                                {getRarityIcon(toast.item_rarity, 16)}
                                 <span style={{
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    {item.item_name}
+                                    {toast.item_name}
                                 </span>
+                                {toast.is_lucky === 1 && (
+                                    <span title="Lucky Spin" style={{
+                                        fontSize: '12px',
+                                        background: `${COLORS.gold}33`,
+                                        color: COLORS.gold,
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        fontWeight: '600',
+                                        flexShrink: 0
+                                    }}>
+                                        🍀
+                                    </span>
+                                )}
                             </div>
-                        </div>
-
-                        {/* Item image */}
-                        <div style={{
-                            width: '32px',
-                            height: '32px',
-                            background: rarityColor + '33',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: `1px solid ${rarityColor}44`,
-                            flexShrink: 0
-                        }}>
-                            <img
-                                src={getItemImageUrl(item)}
-                                alt={item.item_name}
-                                style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    imageRendering: 'pixelated'
-                                }}
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
-                                }}
-                            />
                         </div>
                     </div>
                 );

@@ -9,3 +9,5 @@ export { CollectionBook } from './CollectionBook';
 export { SpinHistory } from './SpinHistory';
 export { AdminPanel } from './AdminPanel';
 export { AnimationStyles } from './AnimationStyles';
+export { ActivityFeedSidebar } from './ActivityFeedSidebar';
+export { LeaderboardSidebar } from './LeaderboardSidebar';

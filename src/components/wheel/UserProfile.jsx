@@ -272,10 +272,10 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     }
 
     function getRankBadge(rank) {
-        if (rank === 1) return { icon: '👑', color: '#FFD700', glow: '#FFD70066' };
-        if (rank === 2) return { icon: '🥈', color: '#C0C0C0', glow: '#C0C0C066' };
-        if (rank === 3) return { icon: '🥉', color: '#CD7F32', glow: '#CD7F3266' };
-        if (rank <= 10) return { icon: '⭐', color: COLORS.gold, glow: `${COLORS.gold}66` };
+        if (rank === 1) return { icon: 'Crown', color: '#FFD700', glow: '#FFD70066' };
+        if (rank === 2) return { icon: 'Medal', color: '#C0C0C0', glow: '#C0C0C066' };
+        if (rank === 3) return { icon: 'Award', color: '#CD7F32', glow: '#CD7F3266' };
+        if (rank <= 10) return { icon: 'Star', color: COLORS.gold, glow: `${COLORS.gold}66` };
         return null;
     }
 
@@ -389,7 +389,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
 
     const rankBadge = getRankBadge(profile.rank);
     const completionPercent = ((profile.unique_items / profile.total_possible) * 100);
-    const luckRating = extendedStats?.luckRating;
+    // Use luckRating from profile (works for all users) or fall back to extendedStats (own profile)
+    const luckRating = profile.luckRating || extendedStats?.luckRating;
     const luckInfo = getLuckInfo(luckRating?.rating, luckRating?.percentile);
     const luckiestDay = extendedStats?.luckiestDay;
     const chartData = getChartData();
@@ -450,7 +451,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                 }
                 @keyframes completionPulse {
                     0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.02); }
+                    50% { transform: scale(1.01); }
                 }
                 .completion-banner {
                     animation: completionPulse 2s ease-in-out infinite;
@@ -544,9 +545,12 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     padding: '3px 6px',
                                     border: `2px solid ${rankBadge.color}`,
                                     fontSize: '12px',
-                                    boxShadow: `0 2px 8px ${rankBadge.glow}`
+                                    boxShadow: `0 2px 8px ${rankBadge.glow}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
                                 }}>
-                                    {rankBadge.icon}
+                                    <AchievementIcon name={rankBadge.icon} size={14} color={rankBadge.color} />
                                 </div>
                             )}
                         </div>
@@ -958,10 +962,10 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     (specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare)
                 ) && (
                     <div style={{
-                        padding: '0 24px 16px',
+                        padding: '20px 24px',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '8px'
+                        gap: '10px'
                     }}>
                         {specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic && (
                             <div
@@ -1265,8 +1269,27 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                         How Luck Works
                                                     </div>
                                                     <div style={{ color: COLORS.textMuted, lineHeight: 1.5 }}>
-                                                        Compares your rare pulls per spin to the average player.
+                                                        Compares your actual special pulls to the expected amount based on drop rates.
                                                     </div>
+                                                    {luckRating?.stats && (
+                                                        <div style={{
+                                                            marginTop: '10px',
+                                                            padding: '8px',
+                                                            background: COLORS.bgLight,
+                                                            borderRadius: '6px',
+                                                            fontSize: '10px'
+                                                        }}>
+                                                            <div style={{ marginBottom: '6px', color: COLORS.text, fontWeight: '500' }}>Your pulls:</div>
+                                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                                                {luckRating.stats.mythic > 0 && <span style={{ color: COLORS.aqua }}>{luckRating.stats.mythic} Mythic</span>}
+                                                                {luckRating.stats.legendary > 0 && <span style={{ color: COLORS.purple }}>{luckRating.stats.legendary} Leg</span>}
+                                                                {luckRating.stats.rare > 0 && <span style={{ color: COLORS.red }}>{luckRating.stats.rare} Rare</span>}
+                                                            </div>
+                                                            <div style={{ color: COLORS.textMuted }}>
+                                                                Expected: ~{luckRating.stats.expectedSpecial ?? 0} special
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div style={{
                                                         marginTop: '10px',
                                                         padding: '8px',
@@ -1276,7 +1299,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                                             <span style={{ color: COLORS.gold }}>100</span>
-                                                            <span style={{ color: COLORS.textMuted }}>= Average</span>
+                                                            <span style={{ color: COLORS.textMuted }}>= Expected</span>
                                                         </div>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                                                             <span style={{ color: COLORS.green }}>&gt;100</span>
@@ -1292,7 +1315,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         </div>
                                     </div>
                                     <div style={{ color: luckInfo.color, fontSize: '24px', fontWeight: '700' }}>
-                                        {luckRating?.rating || '—'}
+                                        {luckRating?.rating || '-'}
                                     </div>
                                     <div style={{
                                         color: luckInfo.color,

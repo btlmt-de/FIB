@@ -187,13 +187,27 @@ function ItemDetailModal({ item, details, onClose }) {
                         <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>
                             First Obtained
                         </span>
-                        <span style={{
-                            color: isCollected ? COLORS.text : COLORS.textMuted,
-                            fontSize: '12px',
-                            fontWeight: '500'
-                        }}>
-                            {isCollected ? formatDate(details?.firstObtained) : 'Not collected'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {(details?.is_lucky === 1 || details?.isLucky === true) && (
+                                <span title="Obtained via Lucky Spin" style={{
+                                    fontSize: '11px',
+                                    background: `${COLORS.gold}33`,
+                                    color: COLORS.gold,
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontWeight: '600'
+                                }}>
+                                    🍀 Lucky
+                                </span>
+                            )}
+                            <span style={{
+                                color: isCollected ? COLORS.text : COLORS.textMuted,
+                                fontSize: '12px',
+                                fontWeight: '500'
+                            }}>
+                                {isCollected ? formatDate(details?.firstObtained) : 'Not collected'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
