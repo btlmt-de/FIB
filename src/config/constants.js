@@ -5,6 +5,7 @@ export const API_BASE_URL = isDev
     ? 'http://localhost:3001'
     : '';
 
+// Consistent color scheme matching the FIB website
 export const COLORS = {
     bg: '#1a1a2e',
     bgLight: '#252542',
@@ -68,6 +69,7 @@ export const MYTHIC_ITEMS = [
     }
 ];
 
+// Legacy single mythic export for backwards compatibility
 export const MYTHIC_ITEM = MYTHIC_ITEMS[0];
 
 export const EVENT_ITEM = {
