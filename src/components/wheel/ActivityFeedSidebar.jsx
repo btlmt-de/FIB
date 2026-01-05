@@ -8,7 +8,6 @@ import { useActivity } from '../../context/ActivityContext';
 export function ActivityFeedSidebar() {
     const { feed: rawFeed, serverTime, initialized } = useActivity();
 
-    // Filter feed to show only item drops that are 8+ seconds old
     const feed = useMemo(() => {
         if (!rawFeed || !serverTime) return [];
 

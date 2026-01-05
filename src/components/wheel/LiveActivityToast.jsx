@@ -379,7 +379,7 @@ export function LiveActivityToast() {
                                         fontWeight: '600',
                                         flexShrink: 0
                                     }}>
-                                        ðŸ€
+                                        🍀
                                     </span>
                                 )}
                             </div>
