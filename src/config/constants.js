@@ -5,7 +5,6 @@ export const API_BASE_URL = isDev
     ? 'http://localhost:3001'
     : '';
 
-// Consistent color scheme matching the FIB website
 export const COLORS = {
     bg: '#1a1a2e',
     bgLight: '#252542',
@@ -24,14 +23,12 @@ export const COLORS = {
 
 export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 export const WHEEL_TEXTURE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
-
-// Wheel animation constants
 export const ITEM_WIDTH = 80;
-export const SPIN_DURATION = 7000;
+export const SPIN_DURATION = 4000;
 export const STRIP_LENGTH = 80;
 export const FINAL_INDEX = STRIP_LENGTH - 8;
 
-// Special Items Configuration (fallbacks, actual data comes from API)
+// Special Items Configuration (for display purposes)
 export const TEAM_MEMBERS = [
     { name: 'eltobito', username: 'eltobito', chance: 0.00001, rarity: 'legendary' },
     { name: 'apppaa', username: 'apppaa', chance: 0.0001, rarity: 'legendary' },
@@ -50,6 +47,7 @@ export const RARE_MEMBERS = [
     { name: 'NubPanda', username: 'NubPanda', chance: 0.0007, rarity: 'rare' },
     { name: 'Johnlongears', username: 'Johnlongears', chance: 0.00068, rarity: 'rare' },
     { name: 'steez', username: 'steez', chance: 0.00062, rarity: 'rare' },
+    { name: 'lacios', username: 'lacios', chance: 0.00065, rarity: 'rare' },
 ];
 
 // Mythic items - extremely rare
@@ -70,7 +68,6 @@ export const MYTHIC_ITEMS = [
     }
 ];
 
-// Legacy single mythic export for backwards compatibility
 export const MYTHIC_ITEM = MYTHIC_ITEMS[0];
 
 export const EVENT_ITEM = {
@@ -78,7 +75,7 @@ export const EVENT_ITEM = {
     texture: 'event_bonus',
     chance: 0.9,
     type: 'event',
-    imageUrl: '/event.png' // From public folder
+    imageUrl: '/event.png'
 };
 
 // Available bonus events

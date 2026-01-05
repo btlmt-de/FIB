@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import {
     COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
-    ITEM_WIDTH, SPIN_DURATION, STRIP_LENGTH, FINAL_INDEX,
+    ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
     TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS
 } from '../../config/constants.js';
 import {
     formatChance, getMinecraftHeadUrl,
     isSpecialItem, isRareItem, isMythicItem, isEventItem
 } from '../../utils/helpers.js';
+import { useWheelConfig } from '../../hooks/useWheelConfig';
 
 
 function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems }) {
+    // Get spin duration from server config
+    const { spinDuration } = useWheelConfig();
+
     const [state, setState] = useState('idle');
     const [strip, setStrip] = useState([]);
     const [result, setResult] = useState(null);
@@ -46,9 +50,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Error state for server unavailability
     const [error, setError] = useState(null);
 
-    // Client-side cooldown tracking (mirrors server's 5s cooldown)
+    // Client-side cooldown tracking (mirrors server's 3s cooldown)
     const lastSpinTimeRef = useRef(0);
-    const SPIN_COOLDOWN = 5000; // 5 seconds - must match server
+    const SPIN_COOLDOWN = 3000; // 3 seconds - must match server
 
     function canSpin() {
         const now = Date.now();
@@ -181,7 +185,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const animate = (timestamp) => {
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
-                const progress = Math.min(elapsed / SPIN_DURATION, 1);
+                const progress = Math.min(elapsed / spinDuration, 1);
                 const eased = 1 - Math.pow(1 - progress, 4);
                 offsetRef.current = eased * finalOffset;
 
@@ -325,7 +329,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const animate = (timestamp) => {
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
-                const progress = Math.min(elapsed / SPIN_DURATION, 1);
+                const progress = Math.min(elapsed / spinDuration, 1);
                 const eased = 1 - Math.pow(1 - progress, 4);
                 offsetRef.current = eased * finalOffset;
 
@@ -433,7 +437,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     const animate = (timestamp) => {
                         if (!startTime) startTime = timestamp;
                         const elapsed = timestamp - startTime;
-                        const progress = Math.min(elapsed / SPIN_DURATION, 1);
+                        const progress = Math.min(elapsed / spinDuration, 1);
                         const eased = 1 - Math.pow(1 - progress, 4);
 
                         tripleOffsetRefs.current[rowIndex] = eased * finalOffset;

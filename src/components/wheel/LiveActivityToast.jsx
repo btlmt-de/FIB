@@ -36,7 +36,7 @@ export function LiveActivityToast() {
     useEffect(() => {
         if (!newItems || newItems.length === 0) return;
 
-        const DELAY_AFTER_CREATION = 8000;
+        const DELAY_AFTER_CREATION = 5000; // Show toast 5s after spin (matches 4s spin duration)
         const currentServerTime = serverTime || Date.now();
 
         // Filter out already processed items
@@ -379,7 +379,7 @@ export function LiveActivityToast() {
                                         fontWeight: '600',
                                         flexShrink: 0
                                     }}>
-                                        🍀
+                                        ðŸ€
                                     </span>
                                 )}
                             </div>
