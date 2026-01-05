@@ -487,7 +487,7 @@ export function Leaderboard({ onClose }) {
                                                         </span>
                                                 )}
                                                 {!entry.mythic_count && !entry.legendary_count && !entry.rare_count && (
-                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>â€”</span>
+                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>—</span>
                                                 )}
                                             </div>
                                         </td>
