@@ -111,8 +111,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             } else {
                 const roll = Math.random();
                 // Visual flair - show special items in the strip animation
-                if (roll < 0.001 && MYTHIC_ITEMS.length > 0) {
-                    // 0.1% chance for mythic
+                if (roll < 0.003 && MYTHIC_ITEMS.length > 0) {
+                    // 0.3% chance for mythic
                     const mythic = MYTHIC_ITEMS[Math.floor(Math.random() * MYTHIC_ITEMS.length)];
                     newStrip.push({ ...mythic, isMythic: true });
                 } else if (roll < 0.033 && RARE_MEMBERS.length > 0) {
@@ -188,8 +188,33 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setIsNewItem(spinResult.isNew);
             offsetRef.current = 0;
 
+            // Check for "So Close" achievement - mythic adjacent to final position
+            const leftItem = newStrip[FINAL_INDEX - 1];
+            const rightItem = newStrip[FINAL_INDEX + 1];
+            const adjacentToMythic = (leftItem?.isMythic || rightItem?.isMythic) && !finalItem.isMythic;
+            if (adjacentToMythic) {
+                // Report near-miss to server for achievement
+                fetch(`${API_BASE_URL}/api/achievement/so-close`, {
+                    method: 'POST',
+                    credentials: 'include'
+                }).catch(() => {}); // Fire and forget
+            }
+
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
-            const finalOffset = targetOffset + (Math.random() - 0.5) * 30;
+            // Add "edge" tension - sometimes land very close to adjacent items
+            let offsetVariance;
+            const edgeRoll = Math.random();
+            if (edgeRoll < 0.15) {
+                // 15% chance: Edge left (almost showing previous item)
+                offsetVariance = -25 - Math.random() * 12; // -25 to -37
+            } else if (edgeRoll < 0.30) {
+                // 15% chance: Edge right (almost showing next item)
+                offsetVariance = 25 + Math.random() * 12; // +25 to +37
+            } else {
+                // 70% chance: Normal centered landing
+                offsetVariance = (Math.random() - 0.5) * 30; // -15 to +15
+            }
+            const finalOffset = targetOffset + offsetVariance;
             let startTime = null;
 
             const animate = (timestamp) => {
@@ -333,7 +358,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             offsetRef.current = 0;
 
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
-            const finalOffset = targetOffset + (Math.random() - 0.5) * 30;
+            // Add "edge" tension - sometimes land very close to adjacent items
+            let offsetVariance;
+            const edgeRoll = Math.random();
+            if (edgeRoll < 0.15) {
+                offsetVariance = -25 - Math.random() * 12;
+            } else if (edgeRoll < 0.30) {
+                offsetVariance = 25 + Math.random() * 12;
+            } else {
+                offsetVariance = (Math.random() - 0.5) * 30;
+            }
+            const finalOffset = targetOffset + offsetVariance;
             let startTime = null;
 
             const animate = (timestamp) => {
@@ -368,17 +403,25 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     async function triggerTripleSpin() {
         setState('tripleSpinning');
+        let tripleSpinTracked = false; // Track if we've reported this triple spin
 
         try {
             // Helper to get a valid (non-event) spin result
             async function getValidSpin() {
                 let attempts = 0;
                 while (attempts < 5) {
+                    const bodyData = { bonus: true };
+                    // On first successful spin, mark it as triple spin trigger
+                    if (!tripleSpinTracked) {
+                        bodyData.eventType = 'triple_spin';
+                        bodyData.isFirstSpin = true;
+                    }
+
                     const res = await fetch(`${API_BASE_URL}/api/spin`, {
                         method: 'POST',
                         credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ bonus: true })
+                        body: JSON.stringify(bodyData)
                     });
                     const result = await res.json();
 
@@ -393,6 +436,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     }
 
                     if (!result.isEvent) {
+                        tripleSpinTracked = true; // Mark as tracked after successful non-event spin
                         return result;
                     }
                     attempts++;
@@ -441,7 +485,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             delays.forEach((delay, rowIndex) => {
                 setTimeout(() => {
                     const targetOffset = FINAL_INDEX * tripleItemWidth;
-                    const finalOffset = targetOffset + (Math.random() - 0.5) * 30;
+                    // Add "edge" tension - sometimes land very close to adjacent items
+                    let offsetVariance;
+                    const edgeRoll = Math.random();
+                    if (edgeRoll < 0.15) {
+                        offsetVariance = -25 - Math.random() * 12;
+                    } else if (edgeRoll < 0.30) {
+                        offsetVariance = 25 + Math.random() * 12;
+                    } else {
+                        offsetVariance = (Math.random() - 0.5) * 30;
+                    }
+                    const finalOffset = targetOffset + offsetVariance;
                     let startTime = null;
 
                     const animate = (timestamp) => {
