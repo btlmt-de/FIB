@@ -58,8 +58,6 @@ export function LiveActivityToast() {
             const itemAge = currentServerTime - itemCreatedAt;
             const remainingDelay = Math.max(500, DELAY_AFTER_CREATION - itemAge) + (idx * 300);
 
-            console.log(`[Toast] Item "${item.item_name || item.achievement_name}" - Age: ${Math.round(itemAge/1000)}s, Will show in: ${Math.round(remainingDelay/1000)}s`);
-
             const timeoutId = setTimeout(() => {
                 if (isMountedRef.current) {
                     addToast(item);

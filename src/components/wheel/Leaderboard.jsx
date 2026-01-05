@@ -1,28 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
+import { getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { UserProfile } from './UserProfile.jsx';
 import {
     X, Trophy, BookOpen, Zap, Layers, Sparkles, Star, Diamond,
     Medal, Crown, Award, Users, TrendingUp
 } from 'lucide-react';
-
-// Helper to get Discord avatar URL
-function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
-    if (avatarHash) {
-        const format = avatarHash.startsWith('a_') ? 'gif' : 'png';
-        return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${format}?size=${size}`;
-    }
-    try {
-        if (!discordId || !/^\d+$/.test(String(discordId))) {
-            return `https://cdn.discordapp.com/embed/avatars/0.png`;
-        }
-        const defaultIndex = (BigInt(discordId) >> 22n) % 6n;
-        return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
-    } catch {
-        return `https://cdn.discordapp.com/embed/avatars/0.png`;
-    }
-}
 
 // Tab Button Component
 function TabButton({ active, onClick, children, icon }) {
@@ -503,7 +487,7 @@ export function Leaderboard({ onClose }) {
                                                         </span>
                                                 )}
                                                 {!entry.mythic_count && !entry.legendary_count && !entry.rare_count && (
-                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>—</span>
+                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>â€”</span>
                                                 )}
                                             </div>
                                         </td>

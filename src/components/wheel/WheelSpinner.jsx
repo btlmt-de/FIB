@@ -142,7 +142,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         try {
             setState('spinning');
-            markSpinTime(); // Mark spin time immediately
 
             const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
             const spinResult = await res.json();
@@ -157,6 +156,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             if (!res.ok || !spinResult.result) {
                 throw new Error(spinResult.error || 'Spin failed');
             }
+
+            // Mark spin time only after successful response
+            markSpinTime();
 
             const finalItem = {
                 ...spinResult.result,

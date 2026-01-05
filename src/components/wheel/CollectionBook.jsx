@@ -188,7 +188,7 @@ function ItemDetailModal({ item, details, onClose }) {
                             First Obtained
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {details?.isLucky && (
+                            {(details?.is_lucky === 1 || details?.isLucky === true) && (
                                 <span title="Obtained via Lucky Spin" style={{
                                     fontSize: '11px',
                                     background: `${COLORS.gold}33`,

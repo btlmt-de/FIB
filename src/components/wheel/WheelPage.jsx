@@ -266,7 +266,7 @@ function WheelOfFortunePage({ onBack }) {
         // Use the data from the spin response for local state updates
         // This avoids fetching the entire collection and history after each spin
 
-        if (spinData && spinData.result && !spinData.isEvent) {
+        if (spinData && spinData.result && !spinData.isEvent && typeof spinData.itemCount === 'number') {
             const { result, isNew, itemCount, updatedStats } = spinData;
 
             // Update collection locally

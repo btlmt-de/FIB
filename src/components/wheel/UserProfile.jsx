@@ -1286,7 +1286,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                                 {luckRating.stats.rare > 0 && <span style={{ color: COLORS.red }}>{luckRating.stats.rare} Rare</span>}
                                                             </div>
                                                             <div style={{ color: COLORS.textMuted }}>
-                                                                Expected: ~{luckRating.stats.expectedSpecial} special
+                                                                Expected: ~{luckRating.stats.expectedSpecial ?? 0} special
                                                             </div>
                                                         </div>
                                                     )}
