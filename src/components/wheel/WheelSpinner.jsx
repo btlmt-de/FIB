@@ -182,7 +182,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 isEvent: spinResult.result.type === 'event'
             };
 
-            const newStrip = buildStrip(finalItem);
+            // Use server-provided strip if available (ensures achievement checks match what user sees)
+            // Falls back to client-side buildStrip for backwards compatibility
+            const newStrip = spinResult.strip || buildStrip(finalItem);
             setStrip(newStrip);
             setResult(finalItem);
             setIsNewItem(spinResult.isNew);
@@ -338,8 +340,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 isLucky: true
             };
 
-            // Build strip and animate
-            const newStrip = buildStrip(finalItem);
+            // Use server-provided strip if available (ensures achievement checks match what user sees)
+            const newStrip = spinResult.strip || buildStrip(finalItem);
             setStrip(newStrip);
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
@@ -453,7 +455,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     isRare: spinResult.result.type === 'rare',
                     isMythic: spinResult.result.type === 'mythic'
                 };
-                newStrips.push(buildStrip(finalItem));
+                // Use server-provided strip if available (ensures achievement checks match what user sees)
+                newStrips.push(spinResult.strip || buildStrip(finalItem));
                 newResults.push(finalItem);
                 newItems.push(spinResult.isNew);
             }
