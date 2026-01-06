@@ -14,6 +14,7 @@ import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
+import { MythicCelebration } from './MythicCelebration';
 import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -827,6 +828,9 @@ function WheelOfFortunePage({ onBack }) {
 
             {/* Live Activity Toast - shows popup when someone gets a special item */}
             <LiveActivityToast />
+
+            {/* Global Mythic Celebration - page goes wild when anyone pulls a mythic */}
+            <MythicCelebration currentUserId={user?.id} />
         </div>
     );
 }
