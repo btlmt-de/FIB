@@ -182,23 +182,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 isEvent: spinResult.result.type === 'event'
             };
 
-            const newStrip = buildStrip(finalItem);
+            // Use server-provided strip if available (ensures achievement checks match what user sees)
+            // Falls back to client-side buildStrip for backwards compatibility
+            const newStrip = spinResult.strip || buildStrip(finalItem);
             setStrip(newStrip);
             setResult(finalItem);
             setIsNewItem(spinResult.isNew);
             offsetRef.current = 0;
-
-            // Check for "So Close" achievement - mythic adjacent to final position
-            const leftItem = newStrip[FINAL_INDEX - 1];
-            const rightItem = newStrip[FINAL_INDEX + 1];
-            const adjacentToMythic = (leftItem?.isMythic || rightItem?.isMythic) && !finalItem.isMythic;
-            if (adjacentToMythic) {
-                // Report near-miss to server for achievement
-                fetch(`${API_BASE_URL}/api/achievement/so-close`, {
-                    method: 'POST',
-                    credentials: 'include'
-                }).catch(() => {}); // Fire and forget
-            }
 
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
             // Add "edge" tension - sometimes land very close to adjacent items
@@ -350,8 +340,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 isLucky: true
             };
 
-            // Build strip and animate
-            const newStrip = buildStrip(finalItem);
+            // Use server-provided strip if available (ensures achievement checks match what user sees)
+            const newStrip = spinResult.strip || buildStrip(finalItem);
             setStrip(newStrip);
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
@@ -465,7 +455,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     isRare: spinResult.result.type === 'rare',
                     isMythic: spinResult.result.type === 'mythic'
                 };
-                newStrips.push(buildStrip(finalItem));
+                // Use server-provided strip if available (ensures achievement checks match what user sees)
+                newStrips.push(spinResult.strip || buildStrip(finalItem));
                 newResults.push(finalItem);
                 newItems.push(spinResult.isNew);
             }

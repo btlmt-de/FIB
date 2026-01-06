@@ -84,7 +84,7 @@ export function Achievements({ onClose }) {
     }, [achievements, userAchievements]);
 
     // Memoize filtered achievements
-    const { filteredAchievements, unlockedCount, totalVisible } = useMemo(() => {
+    const { filteredAchievements, unlockedCount, totalAchievements, hiddenCount } = useMemo(() => {
         const filtered = achievementList.filter(a => {
             if (filter === 'all') return !a.hidden || unlockedIds.has(a.id);
             if (filter === 'unlocked') return unlockedIds.has(a.id);
@@ -94,7 +94,8 @@ export function Achievements({ onClose }) {
         return {
             filteredAchievements: filtered,
             unlockedCount: unlockedIds.size,
-            totalVisible: achievementList.filter(a => !a.hidden).length
+            totalAchievements: achievementList.length,
+            hiddenCount: achievementList.filter(a => a.hidden).length
         };
     }, [achievementList, filter, unlockedIds]);
 
@@ -165,8 +166,8 @@ export function Achievements({ onClose }) {
                             Achievements
                         </h2>
                         <div style={{ color: COLORS.textMuted, fontSize: '13px', marginTop: '4px' }}>
-                            {unlockedCount} / {totalVisible} unlocked
-                            {unlockedIds.size > totalVisible && ` (+${unlockedIds.size - totalVisible} hidden)`}
+                            {unlockedCount} / {totalAchievements} unlocked
+                            {hiddenCount > 0 && ` (${hiddenCount} hidden)`}
                         </div>
                     </div>
                     <button onClick={onClose} style={{
@@ -196,7 +197,7 @@ export function Achievements({ onClose }) {
                     }}>
                         <div style={{
                             height: '100%',
-                            width: `${Math.max(0, Math.min(100, totalVisible > 0 ? (unlockedCount / totalVisible) * 100 : 0))}%`,
+                            width: `${Math.max(0, Math.min(100, totalAchievements > 0 ? (unlockedCount / totalAchievements) * 100 : 0))}%`,
                             background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
                             borderRadius: '4px',
                             transition: 'width 0.5s ease'
