@@ -23,7 +23,9 @@ export function ActivityProvider({ children }) {
         if (!isVisibleRef.current) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/activity?limit=20`);
+            // Fetch all activity including achievements (for toasts) with higher limit
+            // so sidebar has enough items after filtering out achievements
+            const res = await fetch(`${API_BASE_URL}/api/activity/all?limit=100`);
             const data = await res.json();
 
             if (data.feed) {
