@@ -201,7 +201,8 @@ export function LiveChat({ user, isAdmin = false }) {
         const beforeAt = textBeforeCursor.replace(/@\w*$/, '');
         const username = mentionUser.custom_username || mentionUser.discord_username;
 
-        const newValue = `${beforeAt}@${username} ${textAfterCursor}`;
+        const space = textAfterCursor.startsWith(' ') ? '' : ' ';
+        const newValue = `${beforeAt}@${username}${space}${textAfterCursor}`;
         setInputValue(newValue);
         setShowMentionList(false);
         setMentionSearch('');
