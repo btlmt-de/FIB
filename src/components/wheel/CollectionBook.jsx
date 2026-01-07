@@ -4,7 +4,6 @@ import { formatChance, getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { X, Sparkles, Star, Diamond, Check, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 
 // Insane color constant
-const INSANE_COLOR = '#FFD700';
 
 // Item Detail Modal Component
 function ItemDetailModal({ item, details, onClose }) {
@@ -15,7 +14,7 @@ function ItemDetailModal({ item, details, onClose }) {
     const isRare = item.type === 'rare';
     const isSpecialType = isInsane || isMythic || isLegendary || isRare;
 
-    const rarityColor = isInsane ? INSANE_COLOR : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
+    const rarityColor = isInsane ? COLORS.insane : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
     const rarityLabel = isInsane ? 'INSANE' : isMythic ? 'MYTHIC' : isLegendary ? 'LEGENDARY' : isRare ? 'RARE' : 'COMMON';
 
     function getItemImageUrl() {
@@ -88,7 +87,7 @@ function ItemDetailModal({ item, details, onClose }) {
                         <div style={{
                             display: 'inline-block',
                             background: isInsane
-                                ? `linear-gradient(135deg, ${INSANE_COLOR}, #FFF5B0, ${INSANE_COLOR})`
+                                ? `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0, ${COLORS.insane})`
                                 : isMythic
                                     ? `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`
                                     : isLegendary
@@ -207,7 +206,7 @@ function ItemDetailModal({ item, details, onClose }) {
                                     borderRadius: '4px',
                                     fontWeight: '600'
                                 }}>
-                                    ✨ Lucky
+                                    âœ¨ Lucky
                                 </span>
                             )}
                             <span style={{
@@ -344,7 +343,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
         { id: 'all', label: 'All' },
         { id: 'collected', label: 'Collected' },
         { id: 'missing', label: 'Missing' },
-        { id: 'insane', label: 'Insane', color: INSANE_COLOR },
+        { id: 'insane', label: 'Insane', color: COLORS.insane },
         { id: 'mythic', label: 'Mythic', color: COLORS.aqua },
         { id: 'legendary', label: 'Legendary', color: COLORS.purple },
         { id: 'rare', label: 'Rare', color: COLORS.red },
@@ -402,7 +401,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
 
                     {/* Stats Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '10px', marginBottom: '12px' }}>
-                        <div><span style={{ color: INSANE_COLOR, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Crown size={12} /> Insane</span><div style={{ color: INSANE_COLOR, fontWeight: '600' }}>{collectedInsaneCount}/{insaneItems.length}</div></div>
+                        <div><span style={{ color: COLORS.insane, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Crown size={12} /> Insane</span><div style={{ color: COLORS.insane, fontWeight: '600' }}>{collectedInsaneCount}/{insaneItems.length}</div></div>
                         <div><span style={{ color: COLORS.aqua, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Sparkles size={12} /> Mythic</span><div style={{ color: COLORS.aqua, fontWeight: '600' }}>{collectedMythicCount}/{mythicItems.length}</div></div>
                         <div><span style={{ color: COLORS.purple, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Star size={12} /> Legendary</span><div style={{ color: COLORS.purple, fontWeight: '600' }}>{collectedLegendaryCount}/{legendaryItems.length}</div></div>
                         <div><span style={{ color: COLORS.red, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Diamond size={12} /> Rare</span><div style={{ color: COLORS.red, fontWeight: '600' }}>{collectedRareCount}/{rareItems.length}</div></div>
@@ -541,7 +540,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                         position: 'relative',
                                         aspectRatio: '1',
                                         background: isInsane
-                                            ? (isCollected ? `linear-gradient(135deg, ${INSANE_COLOR}33, #FFF5B022, ${INSANE_COLOR}22)` : COLORS.bg)
+                                            ? (isCollected ? `linear-gradient(135deg, ${COLORS.insane}33, #FFF5B022, ${COLORS.insane}22)` : COLORS.bg)
                                             : isMythic
                                                 ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}22, ${COLORS.gold}22)` : COLORS.bg)
                                                 : isLegendary
@@ -550,7 +549,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                                         ? (isCollected ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}22)` : COLORS.bg)
                                                         : (isCollected ? COLORS.bgLight : COLORS.bg),
                                         border: `2px solid ${
-                                            isInsane ? (isCollected ? INSANE_COLOR : INSANE_COLOR + '44')
+                                            isInsane ? (isCollected ? COLORS.insane : COLORS.insane + '44')
                                                 : isMythic ? (isCollected ? COLORS.aqua : COLORS.aqua + '44')
                                                     : isLegendary ? (isCollected ? COLORS.purple : COLORS.purple + '44')
                                                         : isRare ? (isCollected ? COLORS.red : COLORS.red + '44')
@@ -563,7 +562,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                         transition: 'all 0.2s ease',
                                         cursor: 'pointer',
                                         boxShadow: isInsane && isCollected
-                                            ? `0 0 20px ${INSANE_COLOR}66, 0 0 40px ${INSANE_COLOR}33, inset 0 0 12px ${INSANE_COLOR}22`
+                                            ? `0 0 20px ${COLORS.insane}66, 0 0 40px ${COLORS.insane}33, inset 0 0 12px ${COLORS.insane}22`
                                             : isMythic && isCollected
                                                 ? `0 0 20px ${COLORS.aqua}66, 0 0 40px ${COLORS.aqua}33, inset 0 0 12px ${COLORS.aqua}22`
                                                 : isLegendary && isCollected
@@ -589,7 +588,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                         <div style={{
                                             position: 'absolute', top: '-4px', right: '-4px',
                                             background: isInsane
-                                                ? (isCollected ? `linear-gradient(135deg, ${INSANE_COLOR}, #FFF5B0, ${INSANE_COLOR})` : COLORS.bgLighter)
+                                                ? (isCollected ? `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0, ${COLORS.insane})` : COLORS.bgLighter)
                                                 : isMythic
                                                     ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})` : COLORS.bgLighter)
                                                     : isLegendary
@@ -598,7 +597,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                             color: isInsane && isCollected ? '#1a1a1a' : isCollected ? '#fff' : COLORS.textMuted,
                                             fontSize: '8px', width: '14px', height: '14px', borderRadius: '50%',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            border: `1px solid ${isInsane ? (isCollected ? INSANE_COLOR : COLORS.border) : isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : isLegendary ? (isCollected ? COLORS.purple : COLORS.border) : (isCollected ? COLORS.red : COLORS.border)}`,
+                                            border: `1px solid ${isInsane ? (isCollected ? COLORS.insane : COLORS.border) : isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : isLegendary ? (isCollected ? COLORS.purple : COLORS.border) : (isCollected ? COLORS.red : COLORS.border)}`,
                                             zIndex: 2
                                         }}>
                                             {isInsane ? <Crown size={8} /> : isMythic ? <Sparkles size={8} /> : isLegendary ? <Star size={8} /> : <Diamond size={8} />}
@@ -621,7 +620,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                                     {count > 1 && (
                                         <div style={{
                                             position: 'absolute', bottom: '2px', right: '2px',
-                                            background: isInsane ? INSANE_COLOR : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold,
+                                            background: isInsane ? COLORS.insane : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold,
                                             color: isInsane ? '#1a1a1a' : '#fff', fontSize: '10px', fontWeight: '700',
                                             padding: '1px 5px', borderRadius: '4px', minWidth: '18px', textAlign: 'center'
                                         }}>x{count}</div>

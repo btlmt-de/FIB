@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 
 // Insane color - bright gold
-const INSANE_COLOR = '#FFD700';
 
 // Helper to render Lucide icons by name
 function AchievementIcon({ name, size = 16, color, style = {} }) {
@@ -604,7 +603,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <Trophy size={12} />
                                     #{profile.rank}
                                 </span>
-                                <span style={{ color: COLORS.border }}>•</span>
+                                <span style={{ color: COLORS.border }}>â€¢</span>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <Calendar size={12} />
                                     {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
@@ -906,18 +905,18 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                         style={{
                             flex: 1,
                             background: (profile.insane_count || 0) > 0
-                                ? `linear-gradient(135deg, ${INSANE_COLOR}20, #FFF5B015)`
-                                : `linear-gradient(135deg, ${INSANE_COLOR}10, #FFF5B008)`,
+                                ? `linear-gradient(135deg, ${COLORS.insane}20, #FFF5B015)`
+                                : `linear-gradient(135deg, ${COLORS.insane}10, #FFF5B008)`,
                             borderRadius: '12px',
                             padding: '14px 10px',
-                            border: `1px solid ${(profile.insane_count || 0) > 0 ? INSANE_COLOR + '66' : INSANE_COLOR + '33'}`,
+                            border: `1px solid ${(profile.insane_count || 0) > 0 ? COLORS.insane + '66' : COLORS.insane + '33'}`,
                             textAlign: 'center',
                             position: 'relative',
                             overflow: 'hidden'
                         }}
                     >
                         <div style={{
-                            color: (profile.insane_count || 0) > 0 ? INSANE_COLOR : INSANE_COLOR + '88',
+                            color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
                             marginBottom: '6px',
                             display: 'flex',
                             justifyContent: 'center'
@@ -925,7 +924,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             <Crown size={20} />
                         </div>
                         <div style={{
-                            color: (profile.insane_count || 0) > 0 ? INSANE_COLOR : INSANE_COLOR + '88',
+                            color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
                             fontSize: '22px',
                             fontWeight: '700',
                             lineHeight: 1
@@ -933,7 +932,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             {profile.insane_count || 0}
                         </div>
                         <div style={{
-                            color: (profile.insane_count || 0) > 0 ? INSANE_COLOR : INSANE_COLOR + '88',
+                            color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
                             fontSize: '9px',
                             marginTop: '4px',
                             opacity: (profile.insane_count || 0) > 0 ? 1 : 0.7,
@@ -1024,8 +1023,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             <div
                                 className="completion-banner"
                                 style={{
-                                    background: `linear-gradient(135deg, ${INSANE_COLOR}33, #FFF5B022)`,
-                                    border: `1px solid ${INSANE_COLOR}66`,
+                                    background: `linear-gradient(135deg, ${COLORS.insane}33, #FFF5B022)`,
+                                    border: `1px solid ${COLORS.insane}66`,
                                     borderRadius: '10px',
                                     padding: '12px 16px',
                                     display: 'flex',
@@ -1038,20 +1037,20 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                 <div style={{
                                     width: '36px', height: '36px',
                                     borderRadius: '8px',
-                                    background: `linear-gradient(135deg, ${INSANE_COLOR}, #FFF5B0)`,
+                                    background: `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0)`,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    boxShadow: `0 0 15px ${INSANE_COLOR}66`
+                                    boxShadow: `0 0 15px ${COLORS.insane}66`
                                 }}>
                                     <Trophy size={18} color="#1a1a1a" />
                                 </div>
                                 <div>
                                     <div style={{
-                                        color: INSANE_COLOR,
+                                        color: COLORS.insane,
                                         fontSize: '13px',
                                         fontWeight: '700',
-                                        textShadow: `0 0 10px ${INSANE_COLOR}44`
+                                        textShadow: `0 0 10px ${COLORS.insane}44`
                                     }}>
                                         Insane Collection Complete!
                                     </div>
@@ -1059,7 +1058,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         All {specialItemTotals.insane} insane items collected
                                     </div>
                                 </div>
-                                <Crown size={16} color={INSANE_COLOR} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                                <Crown size={16} color={COLORS.insane} style={{ marginLeft: 'auto', opacity: 0.7 }} />
                             </div>
                         )}
 
@@ -1491,7 +1490,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         {profile.total_duplicates.toLocaleString()}
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        Duplicates • {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
+                                        Duplicates â€¢ {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
                                     </div>
                                 </div>
                             </div>
@@ -1658,10 +1657,10 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         <div style={{ display: 'flex', gap: '12px' }}>
                                             {(luckiestDay.insane_count || 0) > 0 && (
                                                 <div style={{ textAlign: 'center' }}>
-                                                    <div style={{ color: INSANE_COLOR, fontSize: '20px', fontWeight: '700' }}>
+                                                    <div style={{ color: COLORS.insane, fontSize: '20px', fontWeight: '700' }}>
                                                         {luckiestDay.insane_count}
                                                     </div>
-                                                    <div style={{ color: INSANE_COLOR, fontSize: '9px', textTransform: 'uppercase' }}>Insane</div>
+                                                    <div style={{ color: COLORS.insane, fontSize: '9px', textTransform: 'uppercase' }}>Insane</div>
                                                 </div>
                                             )}
                                             {luckiestDay.mythic_count > 0 && (

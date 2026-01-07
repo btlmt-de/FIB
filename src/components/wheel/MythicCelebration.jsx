@@ -14,7 +14,6 @@ import { Sparkles, Star, Crown } from 'lucide-react';
 const CELEBRATION_DELAY = 7000;
 const CELEBRATION_DURATION = 12000;
 const CONFETTI_COUNT = 300;
-const INSANE_COLOR = '#FFD700';
 
 function ConfettiParticle({ delay, color, left, size, duration }) {
     const rotation = Math.random() * 360;
@@ -103,10 +102,18 @@ export function MythicCelebration({ currentUserId }) {
     useEffect(() => {
         return () => {
             pendingCelebrationsRef.current.forEach(id => clearTimeout(id));
+            pendingCelebrationsRef.current = [];
         };
     }, []);
 
     const triggerCelebration = useCallback((insane) => {
+        // Helper to track timeouts for cleanup
+        const trackTimeout = (callback, delay) => {
+            const id = setTimeout(callback, delay);
+            pendingCelebrationsRef.current.push(id);
+            return id;
+        };
+
         setCelebration({
             username: insane.custom_username || 'Someone',
             itemName: insane.item_name,
@@ -118,21 +125,21 @@ export function MythicCelebration({ currentUserId }) {
 
         const flashSequence = [0, 200, 400, 700, 1000];
         flashSequence.forEach(d => {
-            setTimeout(() => {
+            trackTimeout(() => {
                 setShowFlash(true);
-                setTimeout(() => setShowFlash(false), 120);
+                trackTimeout(() => setShowFlash(false), 120);
             }, d);
         });
 
         setPulseBackground(true);
         setShakeScreen(true);
-        setTimeout(() => setShakeScreen(false), 1500);
-        setTimeout(() => {
+        trackTimeout(() => setShakeScreen(false), 1500);
+        trackTimeout(() => {
             setShakeScreen(true);
-            setTimeout(() => setShakeScreen(false), 800);
+            trackTimeout(() => setShakeScreen(false), 800);
         }, 3000);
 
-        const colors = [INSANE_COLOR, COLORS.gold, '#fff', '#FFF5B0', '#FFEC8B', '#FFE135', '#FFD700'];
+        const colors = [COLORS.insane, COLORS.gold, '#fff', '#FFF5B0', '#FFEC8B', '#FFE135', '#FFD700'];
 
         const createWave = (id) => {
             const wave = [];
@@ -150,11 +157,11 @@ export function MythicCelebration({ currentUserId }) {
         };
 
         setConfetti(createWave('w1'));
-        setTimeout(() => setConfetti(prev => [...prev, ...createWave('w2')]), 2000);
-        setTimeout(() => setConfetti(prev => [...prev, ...createWave('w3')]), 4000);
-        setTimeout(() => setConfetti(prev => [...prev, ...createWave('w4')]), 6000);
+        trackTimeout(() => setConfetti(prev => [...prev, ...createWave('w2')]), 2000);
+        trackTimeout(() => setConfetti(prev => [...prev, ...createWave('w3')]), 4000);
+        trackTimeout(() => setConfetti(prev => [...prev, ...createWave('w4')]), 6000);
 
-        setTimeout(() => {
+        trackTimeout(() => {
             setCelebration(null);
             setConfetti([]);
             setPulseBackground(false);
@@ -181,8 +188,8 @@ export function MythicCelebration({ currentUserId }) {
                     100% { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0deg); }
                 }
                 @keyframes celebrationPulseInsane {
-                    0%, 100% { box-shadow: 0 0 80px ${INSANE_COLOR}aa, 0 0 150px ${COLORS.gold}88, 0 0 220px #FFF5B066; transform: scale(1); }
-                    50% { box-shadow: 0 0 120px ${INSANE_COLOR}cc, 0 0 200px ${COLORS.gold}aa, 0 0 300px #FFF5B088; transform: scale(1.03); }
+                    0%, 100% { box-shadow: 0 0 80px ${COLORS.insane}aa, 0 0 150px ${COLORS.gold}88, 0 0 220px #FFF5B066; transform: scale(1); }
+                    50% { box-shadow: 0 0 120px ${COLORS.insane}cc, 0 0 200px ${COLORS.gold}aa, 0 0 300px #FFF5B088; transform: scale(1.03); }
                 }
                 @keyframes insaneItemFloat {
                     0%, 100% { transform: translateY(0) rotate(-10deg) scale(1); }
@@ -191,8 +198,8 @@ export function MythicCelebration({ currentUserId }) {
                     75% { transform: translateY(-25px) rotate(8deg) scale(1.12); }
                 }
                 @keyframes textGlowInsane {
-                    0%, 100% { text-shadow: 0 0 40px ${INSANE_COLOR}cc, 0 0 80px ${COLORS.gold}88, 0 0 120px #FFF5B066; transform: scale(1); }
-                    50% { text-shadow: 0 0 60px ${INSANE_COLOR}ff, 0 0 100px ${COLORS.gold}aa, 0 0 150px #FFF5B088; transform: scale(1.08); }
+                    0%, 100% { text-shadow: 0 0 40px ${COLORS.insane}cc, 0 0 80px ${COLORS.gold}88, 0 0 120px #FFF5B066; transform: scale(1); }
+                    50% { text-shadow: 0 0 60px ${COLORS.insane}ff, 0 0 100px ${COLORS.gold}aa, 0 0 150px #FFF5B088; transform: scale(1.08); }
                 }
                 @keyframes borderRotateInsane {
                     0% { background-position: 0% 50%; }
@@ -211,9 +218,9 @@ export function MythicCelebration({ currentUserId }) {
                     90% { transform: translate(calc(-50% + 2px), 1px) rotate(0.1deg); }
                 }
                 @keyframes backgroundPulseInsane {
-                    0%, 100% { background: radial-gradient(ellipse at center, ${INSANE_COLOR}22 0%, ${COLORS.gold}15 30%, transparent 70%); }
+                    0%, 100% { background: radial-gradient(ellipse at center, ${COLORS.insane}22 0%, ${COLORS.gold}15 30%, transparent 70%); }
                     33% { background: radial-gradient(ellipse at center, ${COLORS.gold}22 0%, #FFF5B015 30%, transparent 70%); }
-                    66% { background: radial-gradient(ellipse at center, #FFF5B022 0%, ${INSANE_COLOR}15 30%, transparent 70%); }
+                    66% { background: radial-gradient(ellipse at center, #FFF5B022 0%, ${COLORS.insane}15 30%, transparent 70%); }
                 }
                 @keyframes sparkle {
                     0%, 100% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
@@ -236,7 +243,7 @@ export function MythicCelebration({ currentUserId }) {
             )}
 
             {showFlash && (
-                <div style={{ position: 'fixed', inset: 0, background: `linear-gradient(135deg, ${INSANE_COLOR}aa, ${COLORS.gold}aa, #FFF5B0aa)`, animation: 'screenFlash 0.12s ease-out forwards', pointerEvents: 'none', zIndex: 9998 }} />
+                <div style={{ position: 'fixed', inset: 0, background: `linear-gradient(135deg, ${COLORS.insane}aa, ${COLORS.gold}aa, #FFF5B0aa)`, animation: 'screenFlash 0.12s ease-out forwards', pointerEvents: 'none', zIndex: 9998 }} />
             )}
 
             <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9997, overflow: 'hidden' }}>
@@ -249,36 +256,36 @@ export function MythicCelebration({ currentUserId }) {
                         <Crown size={50} color={COLORS.gold} fill={COLORS.gold} style={{ filter: `drop-shadow(0 0 15px ${COLORS.gold})` }} />
                     </div>
 
-                    <div style={{ padding: '5px', borderRadius: '28px', background: `linear-gradient(90deg, ${INSANE_COLOR}, ${COLORS.gold}, #FFF5B0, ${INSANE_COLOR}, ${COLORS.gold})`, backgroundSize: '400% 100%', animation: 'borderRotateInsane 1.5s linear infinite, celebrationPulseInsane 0.8s ease-in-out infinite' }}>
+                    <div style={{ padding: '5px', borderRadius: '28px', background: `linear-gradient(90deg, ${COLORS.insane}, ${COLORS.gold}, #FFF5B0, ${COLORS.insane}, ${COLORS.gold})`, backgroundSize: '400% 100%', animation: 'borderRotateInsane 1.5s linear infinite, celebrationPulseInsane 0.8s ease-in-out infinite' }}>
                         <div style={{ background: `linear-gradient(135deg, ${COLORS.bg} 0%, ${COLORS.bgLight} 50%, ${COLORS.bg} 100%)`, borderRadius: '24px', padding: '32px 48px', display: 'flex', alignItems: 'center', gap: '28px', minWidth: '550px', position: 'relative', overflow: 'hidden' }}>
                             {[...Array(12)].map((_, i) => (
                                 i % 2 === 0 ? (
-                                    <Star key={i} size={10 + Math.random() * 12} color={[INSANE_COLOR, '#FFF5B0', COLORS.gold][i % 3]} fill={[INSANE_COLOR, '#FFF5B0', COLORS.gold][i % 3]} style={{ position: 'absolute', left: `${5 + Math.random() * 90}%`, top: `${5 + Math.random() * 90}%`, opacity: 0.4, animation: `sparkle ${0.8 + Math.random() * 0.8}s ease-in-out infinite`, animationDelay: `${Math.random() * 2}s` }} />
+                                    <Star key={i} size={10 + Math.random() * 12} color={[COLORS.insane, '#FFF5B0', COLORS.gold][i % 3]} fill={[COLORS.insane, '#FFF5B0', COLORS.gold][i % 3]} style={{ position: 'absolute', left: `${5 + Math.random() * 90}%`, top: `${5 + Math.random() * 90}%`, opacity: 0.4, animation: `sparkle ${0.8 + Math.random() * 0.8}s ease-in-out infinite`, animationDelay: `${Math.random() * 2}s` }} />
                                 ) : (
-                                    <Crown key={i} size={10 + Math.random() * 12} color={[INSANE_COLOR, '#FFF5B0', COLORS.gold][i % 3]} style={{ position: 'absolute', left: `${5 + Math.random() * 90}%`, top: `${5 + Math.random() * 90}%`, opacity: 0.3, animation: `sparkle ${0.8 + Math.random() * 0.8}s ease-in-out infinite`, animationDelay: `${Math.random() * 2}s` }} />
+                                    <Crown key={i} size={10 + Math.random() * 12} color={[COLORS.insane, '#FFF5B0', COLORS.gold][i % 3]} style={{ position: 'absolute', left: `${5 + Math.random() * 90}%`, top: `${5 + Math.random() * 90}%`, opacity: 0.3, animation: `sparkle ${0.8 + Math.random() * 0.8}s ease-in-out infinite`, animationDelay: `${Math.random() * 2}s` }} />
                                 )
                             ))}
 
-                            <div style={{ position: 'relative', width: '110px', height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${INSANE_COLOR}55, #FFF5B055, ${INSANE_COLOR}55)`, borderRadius: '20px', border: `4px solid ${INSANE_COLOR}aa`, animation: 'insaneItemFloat 1.5s ease-in-out infinite', boxShadow: `0 0 40px ${INSANE_COLOR}88, 0 0 80px ${INSANE_COLOR}66, inset 0 0 30px #FFF5B033` }}>
+                            <div style={{ position: 'relative', width: '110px', height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${COLORS.insane}55, #FFF5B055, ${COLORS.insane}55)`, borderRadius: '20px', border: `4px solid ${COLORS.insane}aa`, animation: 'insaneItemFloat 1.5s ease-in-out infinite', boxShadow: `0 0 40px ${COLORS.insane}88, 0 0 80px ${COLORS.insane}66, inset 0 0 30px #FFF5B033` }}>
                                 <img src={getItemImageUrl({ texture: celebration.itemTexture, type: 'insane' })} alt={celebration.itemName} style={{ width: '80px', height: '80px', objectFit: 'contain', filter: 'drop-shadow(0 0 15px rgba(255,255,255,0.7))' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                                <Sparkles size={28} color={INSANE_COLOR} style={{ position: 'absolute', top: '-14px', right: '-14px', animation: 'bounceIn 0.6s ease-out, sparkle 0.8s ease-in-out infinite', filter: `drop-shadow(0 0 8px ${INSANE_COLOR})` }} />
-                                <Crown size={24} color={INSANE_COLOR} style={{ position: 'absolute', bottom: '-10px', left: '-10px', animation: 'bounceIn 0.6s ease-out 0.2s, sparkle 1s ease-in-out infinite', filter: `drop-shadow(0 0 8px ${INSANE_COLOR})` }} />
+                                <Sparkles size={28} color={COLORS.insane} style={{ position: 'absolute', top: '-14px', right: '-14px', animation: 'bounceIn 0.6s ease-out, sparkle 0.8s ease-in-out infinite', filter: `drop-shadow(0 0 8px ${COLORS.insane})` }} />
+                                <Crown size={24} color={COLORS.insane} style={{ position: 'absolute', bottom: '-10px', left: '-10px', animation: 'bounceIn 0.6s ease-out 0.2s, sparkle 1s ease-in-out infinite', filter: `drop-shadow(0 0 8px ${COLORS.insane})` }} />
                             </div>
 
                             <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
-                                <div style={{ fontSize: '18px', color: INSANE_COLOR, fontWeight: '900', textTransform: 'uppercase', letterSpacing: '4px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '12px', animation: 'textGlowInsane 0.8s ease-in-out infinite' }}>
+                                <div style={{ fontSize: '18px', color: COLORS.insane, fontWeight: '900', textTransform: 'uppercase', letterSpacing: '4px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '12px', animation: 'textGlowInsane 0.8s ease-in-out infinite' }}>
                                     <Crown size={20} />
                                     <span>INSANE PULL!</span>
                                     <Crown size={20} />
                                 </div>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
-                                    <img src={getDiscordAvatarUrl(celebration.discordId, celebration.discordAvatar)} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', border: `3px solid ${INSANE_COLOR}`, boxShadow: `0 0 20px ${INSANE_COLOR}88` }} onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }} />
+                                    <img src={getDiscordAvatarUrl(celebration.discordId, celebration.discordAvatar)} alt="" style={{ width: '40px', height: '40px', borderRadius: '50%', border: `3px solid ${COLORS.insane}`, boxShadow: `0 0 20px ${COLORS.insane}88` }} onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }} />
                                     <span style={{ fontSize: '24px', fontWeight: '700', color: COLORS.text }}>{celebration.username}</span>
                                     <span style={{ fontSize: '20px', color: COLORS.textMuted }}>found</span>
                                 </div>
 
-                                <div style={{ fontSize: '32px', fontWeight: '900', background: `linear-gradient(135deg, ${INSANE_COLOR}, ${COLORS.gold}, #FFF5B0, ${INSANE_COLOR})`, backgroundSize: '300% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'borderRotateInsane 2s linear infinite, textGlowInsane 0.8s ease-in-out infinite', letterSpacing: '2px' }}>
+                                <div style={{ fontSize: '32px', fontWeight: '900', background: `linear-gradient(135deg, ${COLORS.insane}, ${COLORS.gold}, #FFF5B0, ${COLORS.insane})`, backgroundSize: '300% 100%', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', animation: 'borderRotateInsane 2s linear infinite, textGlowInsane 0.8s ease-in-out infinite', letterSpacing: '2px' }}>
                                     {celebration.itemName}
                                 </div>
                             </div>

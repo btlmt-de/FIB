@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { COLORS } from '../../config/constants.js';
-import { Activity } from 'lucide-react';
+import { Activity, Sparkles } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../context/ActivityContext';
@@ -278,9 +278,11 @@ export function ActivityFeedSidebar() {
                                                 padding: '1px 4px',
                                                 borderRadius: '4px',
                                                 fontWeight: '600',
-                                                flexShrink: 0
+                                                flexShrink: 0,
+                                                display: 'flex',
+                                                alignItems: 'center'
                                             }}>
-                                                Ã°Å¸Ââ‚¬
+                                                <Sparkles size={10} />
                                             </span>
                                         )}
                                     </div>

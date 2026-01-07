@@ -5,7 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL } from '../../config/constants.js';
-import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle } from 'lucide-react';
+import { Bell, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { getNotificationTypeIcon, getNotificationTypeColor } from '../../utils/notificationHelpers.jsx';
 
 function NotificationManager() {
     const [notifications, setNotifications] = useState([]);
@@ -83,22 +84,6 @@ function NotificationManager() {
             console.error('Failed to delete notification:', error);
         }
     }
-
-    const getTypeIcon = (type) => {
-        switch (type) {
-            case 'announcement': return <Megaphone size={14} />;
-            case 'maintenance': return <Wrench size={14} />;
-            default: return <FileText size={14} />;
-        }
-    };
-
-    const getTypeColor = (type) => {
-        switch (type) {
-            case 'announcement': return COLORS.gold;
-            case 'maintenance': return COLORS.orange;
-            default: return COLORS.accent;
-        }
-    };
 
     const getPriorityBadge = (priority) => {
         const colors = {
@@ -253,9 +238,9 @@ function NotificationManager() {
                                     cursor: 'pointer'
                                 }}
                             >
-                                <option value="changelog">📝 Changelog</option>
-                                <option value="announcement">📢 Announcement</option>
-                                <option value="maintenance">🔧 Maintenance</option>
+                                <option value="changelog">ðŸ“ Changelog</option>
+                                <option value="announcement">ðŸ“¢ Announcement</option>
+                                <option value="maintenance">ðŸ”§ Maintenance</option>
                             </select>
                         </div>
 
@@ -340,7 +325,7 @@ function NotificationManager() {
                     </div>
                 ) : (
                     notifications.map(notification => {
-                        const typeColor = getTypeColor(notification.type);
+                        const typeColor = getNotificationTypeColor(notification.type);
 
                         return (
                             <div
@@ -365,7 +350,7 @@ function NotificationManager() {
                                     color: typeColor,
                                     flexShrink: 0
                                 }}>
-                                    {getTypeIcon(notification.type)}
+                                    {getNotificationTypeIcon(notification.type)}
                                 </div>
 
                                 {/* Content */}

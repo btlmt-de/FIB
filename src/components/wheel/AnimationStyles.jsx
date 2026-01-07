@@ -84,22 +84,22 @@ export const AnimationStyles = () => (
         }
         @keyframes insaneGlow {
             0%, 100% { 
-                box-shadow: 0 0 25px #FFD700cc, 0 0 50px #FFD70066, 0 0 75px #FFF5B044;
-                border-color: #FFD700;
+                box-shadow: 0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044;
+                border-color: ${COLORS.insane};
                 filter: brightness(1.1);
             }
             25% { 
-                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px #FFD70077, 0 0 90px #FFD70033;
+                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px ${COLORS.insane}33;
                 border-color: #FFF5B0;
                 filter: brightness(1.2);
             }
             50% { 
-                box-shadow: 0 0 35px #FFD700ee, 0 0 70px #FFF5B088, 0 0 105px #FFD70044;
-                border-color: #FFD700;
+                box-shadow: 0 0 35px ${COLORS.insane}ee, 0 0 70px #FFF5B088, 0 0 105px ${COLORS.insane}44;
+                border-color: ${COLORS.insane};
                 filter: brightness(1.3);
             }
             75% { 
-                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px #FFD70077, 0 0 90px #FFF5B033;
+                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px #FFF5B033;
                 border-color: #FFF5B0;
                 filter: brightness(1.2);
             }
@@ -107,11 +107,11 @@ export const AnimationStyles = () => (
         @keyframes insanePulse {
             0%, 100% { 
                 transform: scale(1);
-                box-shadow: 0 0 20px #FFD700aa, 0 0 40px #FFD70055;
+                box-shadow: 0 0 20px ${COLORS.insane}aa, 0 0 40px ${COLORS.insane}55;
             }
             50% { 
                 transform: scale(1.02);
-                box-shadow: 0 0 30px #FFD700cc, 0 0 60px #FFD70077;
+                box-shadow: 0 0 30px ${COLORS.insane}cc, 0 0 60px ${COLORS.insane}77;
             }
         }
         @keyframes insaneShimmer {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { COLORS, API_BASE_URL } from '../../config/constants';
-import { Bell, X, Check, CheckCheck, Megaphone, Wrench, FileText, ChevronDown } from 'lucide-react';
+import { Bell, X, Check, CheckCheck, ChevronDown } from 'lucide-react';
+import { getNotificationTypeIcon, getNotificationTypeColor } from '../../utils/notificationHelpers.jsx';
 
 // ============================================
 // Notification Bell (shows in header)
@@ -102,22 +103,6 @@ export function NotificationCenter({ isOpen, onClose }) {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: 1 })));
         } catch (error) {
             console.error('Failed to mark all as read:', error);
-        }
-    };
-
-    const getTypeIcon = (type) => {
-        switch (type) {
-            case 'announcement': return <Megaphone size={14} />;
-            case 'maintenance': return <Wrench size={14} />;
-            default: return <FileText size={14} />;
-        }
-    };
-
-    const getTypeColor = (type) => {
-        switch (type) {
-            case 'announcement': return COLORS.gold;
-            case 'maintenance': return COLORS.orange;
-            default: return COLORS.accent;
         }
     };
 
@@ -268,7 +253,7 @@ export function NotificationCenter({ isOpen, onClose }) {
                     ) : (
                         notifications.map(notification => {
                             const isExpanded = expandedId === notification.id;
-                            const typeColor = getTypeColor(notification.type);
+                            const typeColor = getNotificationTypeColor(notification.type);
 
                             return (
                                 <div
@@ -307,7 +292,7 @@ export function NotificationCenter({ isOpen, onClose }) {
                                             color: typeColor,
                                             flexShrink: 0
                                         }}>
-                                            {getTypeIcon(notification.type)}
+                                            {getNotificationTypeIcon(notification.type)}
                                         </div>
 
                                         {/* Content */}

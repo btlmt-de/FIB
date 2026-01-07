@@ -8,10 +8,6 @@ import {
     Medal, Crown, Award, Users, TrendingUp, Flame
 } from 'lucide-react';
 
-// Insane color constant
-// Insane color constant - bright gold, distinct from all other rarities
-const INSANE_COLOR = '#FFD700';
-
 // Tab Button Component
 function TabButton({ active, onClick, children, icon }) {
     return (
@@ -281,7 +277,7 @@ export function Leaderboard({ onClose }) {
                         </div>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{
-                                color: INSANE_COLOR,
+                                color: COLORS.insane,
                                 fontSize: '14px',
                                 fontWeight: '700',
                                 display: 'flex',
@@ -468,7 +464,7 @@ export function Leaderboard({ onClose }) {
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                                                 {(entry.insane_count || 0) > 0 && (
                                                     <span style={{
-                                                        color: INSANE_COLOR,
+                                                        color: COLORS.insane,
                                                         fontSize: '12px',
                                                         display: 'flex',
                                                         alignItems: 'center',
@@ -519,7 +515,7 @@ export function Leaderboard({ onClose }) {
                                                         </span>
                                                 )}
                                                 {!(entry.insane_count || 0) && !entry.mythic_count && !entry.legendary_count && !entry.rare_count && (
-                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>â€”</span>
+                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>—</span>
                                                 )}
                                             </div>
                                         </td>

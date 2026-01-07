@@ -7,9 +7,6 @@ import {
     Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap
 } from 'lucide-react';
 
-// Insane color - bright gold
-const INSANE_COLOR = '#FFD700';
-
 // Helper to get Discord avatar URL
 function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     if (avatarHash) {
@@ -436,15 +433,15 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                     }}>
                                         {(entry.insane_count || 0) > 0 && (
                                             <span style={{
-                                                color: INSANE_COLOR,
+                                                color: COLORS.insane,
                                                 fontSize: '10px',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '2px',
-                                                background: `${INSANE_COLOR}18`,
+                                                background: `${COLORS.insane}18`,
                                                 padding: '2px 4px',
                                                 borderRadius: '3px',
-                                                border: `1px solid ${INSANE_COLOR}30`,
+                                                border: `1px solid ${COLORS.insane}30`,
                                                 fontWeight: '600'
                                             }}>
                                             <Crown size={9} />{entry.insane_count}

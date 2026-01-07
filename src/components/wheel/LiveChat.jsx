@@ -47,12 +47,18 @@ export function LiveChat({ user, isAdmin = false }) {
         }
     };
 
+    // Escape special regex characters in a string
+    const escapeRegExp = (string) => {
+        return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    };
+
     // Check if current user is mentioned in a message
     const isUserMentioned = (message) => {
         if (!user) return false;
         const username = user.customUsername || user.discordUsername;
         if (!username) return false;
-        const mentionPattern = new RegExp(`@${username}\\b`, 'i');
+        const escapedUsername = escapeRegExp(username);
+        const mentionPattern = new RegExp(`@${escapedUsername}\\b`, 'i');
         return mentionPattern.test(message);
     };
 
@@ -114,9 +120,8 @@ export function LiveChat({ user, isAdmin = false }) {
         if (user) {
             fetchMessages();
             pollIntervalRef.current = setInterval(() => {
-                if (lastMessageIdRef.current > 0) {
-                    fetchMessages(lastMessageIdRef.current);
-                }
+                // Always poll - fetchMessages handles undefined/0 since parameter
+                fetchMessages(lastMessageIdRef.current || undefined);
             }, 3000);
 
             return () => {
@@ -490,7 +495,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages • Use @ to mention
+                                    {messages.length} messages â€¢ Use @ to mention
                                 </div>
                             </div>
                         </div>

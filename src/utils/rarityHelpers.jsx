@@ -6,9 +6,6 @@ import React from 'react';
 import { Sparkles, Star, Diamond, Circle, Zap, Crown } from 'lucide-react';
 import { COLORS } from '../config/constants';
 
-// Insane color - bright gold, very distinct from other rarities
-export const INSANE_COLOR = '#FFD700';
-
 /**
  * Get the color associated with a rarity level
  * @param {string} rarity - The rarity type (insane, mythic, legendary, rare, event, or default)
@@ -16,7 +13,7 @@ export const INSANE_COLOR = '#FFD700';
  */
 export function getRarityColor(rarity) {
     switch (rarity) {
-        case 'insane': return INSANE_COLOR;
+        case 'insane': return COLORS.insane;
         case 'mythic': return COLORS.aqua;
         case 'legendary': return COLORS.purple;
         case 'rare': return COLORS.red;

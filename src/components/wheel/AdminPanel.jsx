@@ -198,6 +198,7 @@ function getRarityIcon(rarity) {
 }
 
 function getRarityColor(rarity) {
+    if (rarity === 'insane') return COLORS.insane;
     if (rarity === 'mythic') return COLORS.aqua;
     if (rarity === 'legendary') return COLORS.purple;
     if (rarity === 'event') return COLORS.orange;
@@ -279,8 +280,8 @@ function PoolStatistics({ poolStats }) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px' }}>
-                    <span style={{ color: COLORS.gold }}>■ Regular Items</span>
-                    <span style={{ color: COLORS.purple }}>■ Special Items</span>
+                    <span style={{ color: COLORS.gold }}>â–  Regular Items</span>
+                    <span style={{ color: COLORS.purple }}>â–  Special Items</span>
                 </div>
             </div>
 
@@ -568,11 +569,11 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         onChange={e => setItemData({ ...itemData, rarity: e.target.value })}
                         style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}
                     >
-                        <option value="rare">💎 Rare</option>
-                        <option value="legendary">⭐ Legendary</option>
-                        <option value="mythic">✨ Mythic</option>
-                        <option value="insane">👑 Insane</option>
-                        <option value="event">⚡ Event</option>
+                        <option value="rare">ðŸ’Ž Rare</option>
+                        <option value="legendary">â­ Legendary</option>
+                        <option value="mythic">âœ¨ Mythic</option>
+                        <option value="insane">ðŸ‘‘ Insane</option>
+                        <option value="event">âš¡ Event</option>
                     </select>
                 </div>
 
@@ -662,7 +663,7 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         </div>
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '6px' }}>
-                        Weight 10 = 0.0001% • Weight 1000 = 0.01% • Weight 100000 = 1%
+                        Weight 10 = 0.0001% â€¢ Weight 1000 = 0.01% â€¢ Weight 100000 = 1%
                     </div>
                 </div>
             </div>
@@ -826,9 +827,14 @@ export function AdminPanel({ onClose, allItems }) {
 
             if (res.ok) {
                 setNotifications(prev => prev.filter(n => n.id !== id));
+            } else {
+                const errorData = await res.text().catch(() => 'Unknown error');
+                console.error(`Failed to delete notification: ${res.status}`, errorData);
+                alert(`Failed to delete notification: ${res.status} - ${errorData}`);
             }
         } catch (error) {
             console.error('Failed to delete notification:', error);
+            alert('Failed to delete notification: Network error');
         }
     }
 
@@ -1148,7 +1154,7 @@ export function AdminPanel({ onClose, allItems }) {
                                 background: COLORS.bgLight,
                                 borderRadius: '12px'
                             }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>✓</div>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>âœ“</div>
                                 <div style={{ fontSize: '16px', fontWeight: '500' }}>No pending approvals</div>
                             </div>
                         ) : (
@@ -1248,7 +1254,7 @@ export function AdminPanel({ onClose, allItems }) {
                                                 <div style={{ color: COLORS.text, fontWeight: '600', fontSize: '14px' }}>
                                                     {user.custom_username || user.discord_username}
                                                     {user.username_approved && (
-                                                        <span style={{ color: COLORS.green, marginLeft: '8px', fontSize: '12px' }}>✓</span>
+                                                        <span style={{ color: COLORS.green, marginLeft: '8px', fontSize: '12px' }}>âœ“</span>
                                                     )}
                                                 </div>
                                                 <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '2px' }}>
@@ -1505,9 +1511,9 @@ export function AdminPanel({ onClose, allItems }) {
                                                     cursor: 'pointer'
                                                 }}
                                             >
-                                                <option value="changelog">📝 Changelog</option>
-                                                <option value="announcement">📢 Announcement</option>
-                                                <option value="maintenance">🔧 Maintenance</option>
+                                                <option value="changelog">ðŸ“ Changelog</option>
+                                                <option value="announcement">ðŸ“¢ Announcement</option>
+                                                <option value="maintenance">ðŸ”§ Maintenance</option>
                                             </select>
                                         </div>
 

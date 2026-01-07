@@ -21,7 +21,7 @@ import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
-    ArrowLeft, Home, Bell
+    ArrowLeft, Home, Bell, X
 } from 'lucide-react';
 
 // Username prompt modal - shown after first spin
@@ -989,7 +989,6 @@ function WheelOfFortunePage({ onBack }) {
                                 background: COLORS.bgLight,
                                 border: `1px solid ${COLORS.border}`,
                                 color: COLORS.text,
-                                fontSize: '18px',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -997,7 +996,7 @@ function WheelOfFortunePage({ onBack }) {
                                 zIndex: 1
                             }}
                         >
-                            ×
+                            <X size={16} />
                         </button>
                         <ActivityFeedSidebar />
                     </div>
