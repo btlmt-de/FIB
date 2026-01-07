@@ -51,6 +51,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Pending spin flag for instant respin
     const pendingSpinRef = useRef(false);
 
+    // Animation cancellation flag to prevent stale updates
+    const animationCancelledRef = useRef(false);
+
+    // AbortController for cancelling in-flight API requests
+    const abortControllerRef = useRef(null);
+
     // Error state for server unavailability
     const [error, setError] = useState(null);
 
@@ -79,7 +85,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     useEffect(() => {
         return () => {
+            animationCancelledRef.current = true;
+            if (abortControllerRef.current) abortControllerRef.current.abort();
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
+            if (bonusWheelRef.current) cancelAnimationFrame(bonusWheelRef.current);
             tripleAnimationRefs.current.forEach(ref => { if (ref) cancelAnimationFrame(ref); });
         };
     }, []);
@@ -224,6 +233,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // Client-side cooldown check (prevents animation flash)
         if (!canSpin()) return;
 
+        // Reset cancellation flag for new spin
+        animationCancelledRef.current = false;
+
         try {
             setState('spinning');
 
@@ -249,49 +261,80 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
             // Start animation IMMEDIATELY (before API returns)
             let startTime = null;
-            let apiComplete = false;
             let spinResult = null;
             let finalItem = placeholderItem;
 
+            // Create abort controller for this request with timeout
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
             // Make API call in parallel with animation
             const apiCall = (async () => {
-                const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
-                spinResult = await res.json();
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/spin`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
 
-                // Handle rate limit / cooldown
-                if (res.status === 429 || spinResult.cooldown) {
-                    setError("Don't spin too fast!");
-                    if (animationRef.current) cancelAnimationFrame(animationRef.current);
-                    setState('idle');
-                    return null;
+                    // Check if cancelled during fetch
+                    if (animationCancelledRef.current) return null;
+
+                    spinResult = await res.json();
+
+                    // Handle rate limit / cooldown
+                    if (res.status === 429 || spinResult.cooldown) {
+                        setError("Don't spin too fast!");
+                        animationCancelledRef.current = true;
+                        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+                        setStrip([]);
+                        setResult(null);
+                        setIsNewItem(false);
+                        setState('idle');
+                        return null;
+                    }
+
+                    if (!res.ok || !spinResult.result) {
+                        throw new Error(spinResult.error || 'Spin failed');
+                    }
+
+                    // Mark spin time only after successful response
+                    markSpinTime();
+
+                    finalItem = {
+                        ...spinResult.result,
+                        isSpecial: spinResult.result.type === 'legendary',
+                        isRare: spinResult.result.type === 'rare',
+                        isMythic: spinResult.result.type === 'mythic',
+                        isEvent: spinResult.result.type === 'event'
+                    };
+
+                    // Check again before updating state
+                    if (animationCancelledRef.current) return null;
+
+                    // Update strip with real result - the animation continues smoothly
+                    const newStrip = buildStrip(finalItem);
+                    setStrip(newStrip);
+                    setResult(finalItem);
+                    setIsNewItem(spinResult.isNew);
+
+                    return spinResult;
+                } catch (err) {
+                    clearTimeout(timeoutId);
+                    // Re-throw unless aborted (which is intentional)
+                    if (err.name === 'AbortError') {
+                        return null; // Silently ignore abort
+                    }
+                    throw err;
                 }
-
-                if (!res.ok || !spinResult.result) {
-                    throw new Error(spinResult.error || 'Spin failed');
-                }
-
-                // Mark spin time only after successful response
-                markSpinTime();
-
-                finalItem = {
-                    ...spinResult.result,
-                    isSpecial: spinResult.result.type === 'legendary',
-                    isRare: spinResult.result.type === 'rare',
-                    isMythic: spinResult.result.type === 'mythic',
-                    isEvent: spinResult.result.type === 'event'
-                };
-
-                // Update strip with real result - the animation continues smoothly
-                const newStrip = buildStrip(finalItem);
-                setStrip(newStrip);
-                setResult(finalItem);
-                setIsNewItem(spinResult.isNew);
-
-                apiComplete = true;
-                return spinResult;
             })();
 
             const animate = (timestamp) => {
+                // Bail out if animation was cancelled (e.g., cooldown, unmount)
+                if (animationCancelledRef.current) return;
+
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / spinDuration, 1);
@@ -307,12 +350,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     }
                 }
 
-                if (progress < 1) {
+                if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
-                } else {
+                } else if (!animationCancelledRef.current) {
                     // Animation complete - wait for API if needed, then finish
                     apiCall.then((result) => {
-                        if (result === null) return; // Error was handled
+                        // Check for cancellation before updating state
+                        if (animationCancelledRef.current || result === null) return;
                         if (result.isEvent) {
                             setState('event');
                             setTimeout(() => spinBonusWheel(), 1500);
@@ -321,12 +365,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             if (onSpinComplete) onSpinComplete(result);
                         }
                     }).catch((err) => {
+                        // Check for cancellation before updating state
+                        if (animationCancelledRef.current) return;
+
                         console.error('Spin failed:', err);
                         if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
                             setError('Server unavailable. Please try again later.');
                         } else {
                             setError(err.message || 'Spin failed. Please try again.');
                         }
+                        // Clear stale spin state
+                        setStrip([]);
+                        setResult(null);
+                        setIsNewItem(false);
                         setState('idle');
                     });
                 }
@@ -339,6 +390,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             } else {
                 setError(err.message || 'Spin failed. Please try again.');
             }
+            // Clear stale spin state
+            setStrip([]);
+            setResult(null);
+            setIsNewItem(false);
             setState('idle');
         }
     }
@@ -425,6 +480,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Lucky spin - equal probability for all items (bonus event reward - no cooldown)
     async function triggerLuckySpin() {
         setState('luckySpinning');
+        animationCancelledRef.current = false;
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/spin/lucky`, {
@@ -470,6 +526,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             let startTime = null;
 
             const animate = (timestamp) => {
+                // Bail out if animation was cancelled
+                if (animationCancelledRef.current) return;
+
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / spinDuration, 1);
@@ -485,9 +544,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     }
                 }
 
-                if (progress < 1) {
+                if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
-                } else {
+                } else if (!animationCancelledRef.current) {
                     setState('luckyResult');
                     if (onSpinComplete) onSpinComplete(spinResult);
                 }

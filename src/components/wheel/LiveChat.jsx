@@ -55,16 +55,17 @@ export function LiveChat({ user, isAdmin = false }) {
         return FAST_POLL_INTERVAL;
     }, [isOpen, isMinimized]);
 
-    // Helper to find the message being replied to
-    const findRepliedMessage = useCallback((message) => {
+    // Helper to find the message being replied to (only searches messages BEFORE currentIndex)
+    const findRepliedMessage = useCallback((message, currentIndex) => {
         // Check if message starts with @username pattern
         const replyMatch = message.match(/^@(\S+)\s/);
         if (!replyMatch) return null;
 
         const mentionedUsername = replyMatch[1].toLowerCase();
 
-        // Find the most recent message from that user (before this message)
-        const repliedMsg = [...messages].reverse().find(m => {
+        // Only search messages before the current one, in reverse order (most recent first)
+        const previousMessages = messages.slice(0, currentIndex);
+        const repliedMsg = [...previousMessages].reverse().find(m => {
             const msgUsername = (m.custom_username || m.discord_username || '').toLowerCase();
             return msgUsername === mentionedUsername;
         });
@@ -283,6 +284,7 @@ export function LiveChat({ user, isAdmin = false }) {
     const sendMessage = async () => {
         if (!inputValue.trim() || sending) return;
 
+        trackActivity(); // Keep fast polling active when sending
         setSending(true);
         setError('');
         setShowMentionList(false);
@@ -457,7 +459,7 @@ export function LiveChat({ user, isAdmin = false }) {
             {/* Chat Button */}
             {!isOpen && (
                 <button
-                    onClick={() => setIsOpen(true)}
+                    onClick={() => { trackActivity(); setIsOpen(true); }}
                     style={{
                         position: 'fixed',
                         bottom: '20px',
@@ -568,7 +570,7 @@ export function LiveChat({ user, isAdmin = false }) {
                         </div>
                         <div style={{ display: 'flex', gap: '2px' }}>
                             <button
-                                onClick={() => setIsMinimized(!isMinimized)}
+                                onClick={() => { if (isMinimized) trackActivity(); setIsMinimized(!isMinimized); }}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -652,8 +654,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                             const showDate = shouldShowDateSeparator(msg, index);
                                             const isMentioned = !isOwnMessage && isUserMentioned(msg.message);
 
-                                            // Check if this is a reply to someone
-                                            const repliedMessage = findRepliedMessage(msg.message);
+                                            // Check if this is a reply to someone (only search messages before this one)
+                                            const repliedMessage = findRepliedMessage(msg.message, index);
                                             const isReply = repliedMessage !== null;
 
                                             return (
