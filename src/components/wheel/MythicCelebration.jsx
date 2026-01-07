@@ -11,7 +11,7 @@ import { useActivity } from '../../context/ActivityContext';
 import { Sparkles, Star, Crown, Diamond } from 'lucide-react';
 
 // Configuration
-const CELEBRATION_DELAY = 7000;
+const CELEBRATION_DELAY = 5000;
 const CELEBRATION_DURATION = 12000;
 const CONFETTI_COUNT = 300;
 
@@ -70,17 +70,6 @@ export function MythicCelebration({ currentUserId }) {
     useEffect(() => {
         if (!newItems || newItems.length === 0) return;
 
-        // Debug logging
-        console.log('[MythicCelebration] New items received:', newItems.length);
-        newItems.forEach(item => {
-            console.log('[MythicCelebration] Item:', {
-                id: item.id,
-                rarity: item.item_rarity,
-                type: item.event_type,
-                name: item.item_name
-            });
-        });
-
         // Find both insane AND mythic pulls
         const specialPulls = newItems.filter(item =>
             (item.item_rarity === 'insane' || item.item_rarity === 'mythic') &&
@@ -88,11 +77,9 @@ export function MythicCelebration({ currentUserId }) {
             !processedItemsRef.current.has(item.id)
         );
 
-        console.log('[MythicCelebration] Special pulls found:', specialPulls.length);
 
         if (specialPulls.length > 0) {
             const specialItem = specialPulls[0];
-            console.log('[MythicCelebration] Processing special item:', specialItem);
             processedItemsRef.current.add(specialItem.id);
 
             if (processedItemsRef.current.size > 50) {

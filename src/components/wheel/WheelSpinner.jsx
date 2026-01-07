@@ -854,7 +854,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Format large numbers
         const formatNumber = (n) => {
-            if (n === null) return 'â€”';
+            if (n === null) return '—';
             if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
             if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
             return n.toLocaleString();
@@ -983,7 +983,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             border: `1px solid ${COLORS.border}`
                         }}>
                             <code style={{ color: COLORS.aqua, fontSize: '13px' }}>
-                                Drop Rate = Weight Ã· 10,000,000
+                                Drop Rate = Weight ÷ 10,000,000
                             </code>
                             <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '8px' }}>
                                 Total weight is fixed at 10M. Regular items share the remaining weight equally.
@@ -1100,19 +1100,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             fontSize: '12px'
                         }}>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10 â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 10 → </span>
                                 <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.0001%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 100 â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 100 → </span>
                                 <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.001%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 1K â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 1K → </span>
                                 <span style={{ color: COLORS.purple, fontFamily: 'monospace' }}>0.01%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10K â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 10K → </span>
                                 <span style={{ color: COLORS.gold, fontFamily: 'monospace' }}>0.1%</span>
                             </div>
                         </div>
@@ -1171,7 +1171,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             Lucky Spin
                         </div>
                         <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                            Ignores all weights. Every item has equal chance: <code style={{ color: COLORS.green }}>1 Ã· {totalItemCount}</code>
+                            Ignores all weights. Every item has equal chance: <code style={{ color: COLORS.green }}>1 ÷ {totalItemCount}</code>
                         </div>
                     </div>
 
@@ -1214,7 +1214,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontSize: '11px',
                                 color: COLORS.textMuted
                             }}>
-                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : 'â€”'}%
+                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : '—'}%
                             </div>
                         </div>
                     </div>
@@ -1270,7 +1270,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                     {/* Footer */}
                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textAlign: 'center' }}>
-                        All spins processed server-side â€¢ Drop rates are exact calculations
+                        All spins processed server-side • Drop rates are exact calculations
                     </div>
                 </div>
             </div>
@@ -1594,8 +1594,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 color: '#1a1a1a', fontSize: '10px', fontWeight: '800', padding: '5px 14px',
                                 borderRadius: '4px', animation: 'mythicBadge 1.5s ease-in-out infinite',
                                 textShadow: '0 0 10px rgba(255,255,255,0.5)',
-                                boxShadow: `0 0 20px ${COLORS.insane}88`
-                            }}>ðŸ‘‘ INSANE ðŸ‘‘</span>
+                                boxShadow: `0 0 20px ${COLORS.insane}88`,
+                                display: 'inline-flex', alignItems: 'center', gap: '6px'
+                            }}><Crown size={12} /> INSANE <Crown size={12} /></span>
                         ) : isMythicItem(result) ? (
                             <span style={{
                                 background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,

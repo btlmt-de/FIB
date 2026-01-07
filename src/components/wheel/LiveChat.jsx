@@ -34,6 +34,56 @@ export function LiveChat({ user, isAdmin = false }) {
     const lastMessageIdRef = useRef(0);
     const pollIntervalRef = useRef(null);
     const inputRef = useRef(null);
+    const lastActivityRef = useRef(Date.now());
+
+    // Adaptive polling: fast when active, slower when idle
+    const FAST_POLL_INTERVAL = 500;   // 500ms when actively chatting
+    const SLOW_POLL_INTERVAL = 3000;  // 3s when idle/minimized
+    const ACTIVITY_TIMEOUT = 10000;   // Consider idle after 10s of no activity
+
+    // Track user activity
+    const trackActivity = useCallback(() => {
+        lastActivityRef.current = Date.now();
+    }, []);
+
+    // Get current poll interval based on state
+    const getPollInterval = useCallback(() => {
+        const isIdle = Date.now() - lastActivityRef.current > ACTIVITY_TIMEOUT;
+        if (!isOpen || isMinimized || isIdle) {
+            return SLOW_POLL_INTERVAL;
+        }
+        return FAST_POLL_INTERVAL;
+    }, [isOpen, isMinimized]);
+
+    // Helper to find the message being replied to
+    const findRepliedMessage = useCallback((message) => {
+        // Check if message starts with @username pattern
+        const replyMatch = message.match(/^@(\S+)\s/);
+        if (!replyMatch) return null;
+
+        const mentionedUsername = replyMatch[1].toLowerCase();
+
+        // Find the most recent message from that user (before this message)
+        const repliedMsg = [...messages].reverse().find(m => {
+            const msgUsername = (m.custom_username || m.discord_username || '').toLowerCase();
+            return msgUsername === mentionedUsername;
+        });
+
+        return repliedMsg || null;
+    }, [messages]);
+
+    // Scroll to a specific message
+    const scrollToMessage = useCallback((messageId) => {
+        const element = document.getElementById(`chat-msg-${messageId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight briefly
+            element.style.background = 'rgba(88, 101, 242, 0.2)';
+            setTimeout(() => {
+                element.style.background = '';
+            }, 1500);
+        }
+    }, []);
 
     const scrollToBottom = (smooth = true) => {
         messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
@@ -127,18 +177,24 @@ export function LiveChat({ user, isAdmin = false }) {
     useEffect(() => {
         if (user) {
             fetchMessages();
-            pollIntervalRef.current = setInterval(() => {
-                // Always poll - fetchMessages handles undefined/0 since parameter
+
+            // Adaptive polling - adjust interval based on activity
+            const poll = () => {
                 fetchMessages(lastMessageIdRef.current || undefined);
-            }, 300);
+                // Schedule next poll with current interval
+                pollIntervalRef.current = setTimeout(poll, getPollInterval());
+            };
+
+            // Start polling
+            pollIntervalRef.current = setTimeout(poll, getPollInterval());
 
             return () => {
                 if (pollIntervalRef.current) {
-                    clearInterval(pollIntervalRef.current);
+                    clearTimeout(pollIntervalRef.current);
                 }
             };
         }
-    }, [user, fetchMessages]);
+    }, [user, fetchMessages, getPollInterval]);
 
     useEffect(() => {
         if (isOpen && !isMinimized) {
@@ -164,6 +220,7 @@ export function LiveChat({ user, isAdmin = false }) {
     }, [mentionSearch, showMentionList]);
 
     const handleInputChange = (e) => {
+        trackActivity(); // Track user activity for adaptive polling
         const value = e.target.value;
         const curPos = e.target.selectionStart;
         setInputValue(value);
@@ -317,8 +374,9 @@ export function LiveChat({ user, isAdmin = false }) {
     };
 
     const handleReply = (msg) => {
+        trackActivity(); // Track user activity for adaptive polling
         const name = msg.custom_username || msg.discord_username || 'User';
-        setReplyingTo({ id: msg.id, name });
+        setReplyingTo({ id: msg.id, name, message: msg.message });
         inputRef.current?.focus();
     };
 
@@ -594,6 +652,10 @@ export function LiveChat({ user, isAdmin = false }) {
                                             const showDate = shouldShowDateSeparator(msg, index);
                                             const isMentioned = !isOwnMessage && isUserMentioned(msg.message);
 
+                                            // Check if this is a reply to someone
+                                            const repliedMessage = findRepliedMessage(msg.message);
+                                            const isReply = repliedMessage !== null;
+
                                             return (
                                                 <React.Fragment key={msg.id}>
                                                     {/* Date separator */}
@@ -619,7 +681,56 @@ export function LiveChat({ user, isAdmin = false }) {
                                                         </div>
                                                     )}
 
+                                                    {/* Reply preview - Discord style */}
+                                                    {isReply && (
+                                                        <div
+                                                            onClick={() => scrollToMessage(repliedMessage.id)}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px',
+                                                                padding: '4px 16px 4px 60px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '12px',
+                                                                color: 'rgba(255,255,255,0.4)'
+                                                            }}
+                                                        >
+                                                            <div style={{
+                                                                width: '2px',
+                                                                height: '12px',
+                                                                background: '#5865F2',
+                                                                borderRadius: '1px'
+                                                            }} />
+                                                            <Reply size={12} style={{ opacity: 0.6 }} />
+                                                            <img
+                                                                src={getAvatarUrl(repliedMessage.discord_id, repliedMessage.discord_avatar)}
+                                                                alt=""
+                                                                style={{
+                                                                    width: '14px',
+                                                                    height: '14px',
+                                                                    borderRadius: '50%'
+                                                                }}
+                                                                onError={(e) => {
+                                                                    e.target.onerror = null;
+                                                                    e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                                                }}
+                                                            />
+                                                            <span style={{ color: '#8B5CF6', fontWeight: '500' }}>
+                                                                {repliedMessage.custom_username || repliedMessage.discord_username}
+                                                            </span>
+                                                            <span style={{
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap',
+                                                                maxWidth: '200px'
+                                                            }}>
+                                                                {repliedMessage.message}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
                                                     <div
+                                                        id={`chat-msg-${msg.id}`}
                                                         className={`chat-msg-row ${isMentioned ? 'mentioned' : ''}`}
                                                         style={{
                                                             padding: showHeader ? '8px 16px 4px' : '2px 16px 2px 60px',
@@ -628,7 +739,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 : isOwnMessage
                                                                     ? '2px solid rgba(139, 92, 246, 0.4)'
                                                                     : '2px solid transparent',
-                                                            animation: index === messages.length - 1 ? 'msgSlideIn 0.2s ease-out' : 'none'
+                                                            animation: index === messages.length - 1 ? 'msgSlideIn 0.2s ease-out' : 'none',
+                                                            transition: 'background 0.3s ease'
                                                         }}
                                                     >
                                                         <div style={{
@@ -810,13 +922,26 @@ export function LiveChat({ user, isAdmin = false }) {
                                     borderTop: '1px solid rgba(88, 101, 242, 0.2)',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'space-between'
+                                    justifyContent: 'space-between',
+                                    gap: '12px'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Reply size={14} color="#5865F2" />
-                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                                        <Reply size={14} color="#5865F2" style={{ flexShrink: 0 }} />
+                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', flexShrink: 0 }}>
                                             Replying to <span style={{ color: '#8B5CF6', fontWeight: '500' }}>{replyingTo.name}</span>
                                         </span>
+                                        {replyingTo.message && (
+                                            <span style={{
+                                                color: 'rgba(255,255,255,0.4)',
+                                                fontSize: '11px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                maxWidth: '150px'
+                                            }}>
+                                                — {replyingTo.message}
+                                            </span>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => setReplyingTo(null)}
@@ -825,7 +950,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                             border: 'none',
                                             color: 'rgba(255,255,255,0.4)',
                                             cursor: 'pointer',
-                                            padding: '4px'
+                                            padding: '4px',
+                                            flexShrink: 0
                                         }}
                                     >
                                         <X size={14} />
