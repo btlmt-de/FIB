@@ -32,7 +32,6 @@ export const FINAL_INDEX = STRIP_LENGTH - 8;
 
 // Special Items Configuration (for display purposes)
 export const TEAM_MEMBERS = [
-    { name: 'eltobito', username: 'eltobito', chance: 0.00001, rarity: 'legendary' },
     { name: 'apppaa', username: 'apppaa', chance: 0.0001, rarity: 'legendary' },
     { name: 'threeseconds', username: 'threeseconds', chance: 0.0003, rarity: 'legendary' },
     { name: 'CH0RD', username: 'CH0RD', chance: 0.0004, rarity: 'legendary' },
@@ -75,6 +74,13 @@ export const MYTHIC_ITEMS = [
         chance: 0.00002, // 0.002% (1 in 50K)
         type: 'mythic',
         imageUrl: '/jimbo.png'
+    },
+    {
+        name: 'eltobito',
+        texture: 'mythic_eltobito',
+        chance: 0.00003, // 0.003% (weight 300)
+        type: 'mythic',
+        username: 'eltobito'
     },
     {
         name: 'Gros Michel',
