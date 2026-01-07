@@ -12,14 +12,16 @@ import { AdminPanel } from './AdminPanel';
 import { Achievements } from './Achievements';
 import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
+import { MythicCelebration } from './MythicCelebration';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
-import { MythicCelebration } from './MythicCelebration';
+import { NotificationBell, NotificationCenter } from './NotificationCenter';
+import { LiveChat } from './LiveChat';
 import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
-    ArrowLeft, Home
+    ArrowLeft, Home, Bell, X
 } from 'lucide-react';
 
 // Username prompt modal - shown after first spin
@@ -154,6 +156,22 @@ function WheelOfFortunePage({ onBack }) {
     const [hasLocalData, setHasLocalData] = useState(false);
     const [localDataInfo, setLocalDataInfo] = useState(null);
 
+    // Notification state
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
+    // Mobile activity feed modal state
+    const [showMobileActivity, setShowMobileActivity] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Check for mobile on mount and resize
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1400);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     // Check for local data on mount
     useEffect(() => {
         const stored = localStorage.getItem('fib_wheel_collection');
@@ -190,6 +208,31 @@ function WheelOfFortunePage({ onBack }) {
     useEffect(() => {
         if (user) { fetchCollection(); fetchHistory(); }
         else { setCollection({}); setHistory([]); setStats({ totalSpins: 0, mythicCount: 0, legendaryCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 }); }
+    }, [user]);
+
+    // Fetch notification count for logged-in users
+    useEffect(() => {
+        if (!user) {
+            setUnreadNotificationCount(0);
+            return;
+        }
+
+        async function fetchNotificationCount() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/notifications/unread-count`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setUnreadNotificationCount(data.count || 0);
+                }
+            } catch (error) {
+                console.error('Failed to fetch notification count:', error);
+            }
+        }
+
+        fetchNotificationCount();
+        // Poll every 60 seconds
+        const interval = setInterval(fetchNotificationCount, 60000);
+        return () => clearInterval(interval);
     }, [user]);
 
     // Preload item images to prevent pop-in during spin
@@ -655,6 +698,55 @@ function WheelOfFortunePage({ onBack }) {
                                     </button>
                                 )}
 
+                                {/* Notification bell */}
+                                <button
+                                    onClick={() => setShowNotifications(true)}
+                                    style={{
+                                        padding: '8px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        color: unreadNotificationCount > 0 ? COLORS.gold : COLORS.textMuted,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s',
+                                        position: 'relative'
+                                    }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.background = COLORS.bgLighter;
+                                        e.currentTarget.style.color = COLORS.accent;
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = unreadNotificationCount > 0 ? COLORS.gold : COLORS.textMuted;
+                                    }}
+                                    title="Notifications"
+                                >
+                                    <Bell size={16} />
+                                    {unreadNotificationCount > 0 && (
+                                        <span style={{
+                                            position: 'absolute',
+                                            top: '2px',
+                                            right: '2px',
+                                            background: COLORS.red,
+                                            color: '#fff',
+                                            fontSize: '9px',
+                                            fontWeight: '700',
+                                            borderRadius: '50%',
+                                            minWidth: '14px',
+                                            height: '14px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: '0 3px'
+                                        }}>
+                                            {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                                        </span>
+                                    )}
+                                </button>
+
                                 {/* Logout button */}
                                 <button
                                     onClick={logout}
@@ -709,12 +801,22 @@ function WheelOfFortunePage({ onBack }) {
                             background: `${COLORS.bgLight}66`,
                             borderRadius: '12px',
                             width: 'fit-content',
-                            margin: '0 auto 20px'
+                            margin: '0 auto 20px',
+                            flexWrap: 'wrap'
                         }}>
                             <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={18} />} label="Collection" />
                             <NavButton onClick={() => setShowHistory(true)} icon={<ScrollText size={18} />} label="History" />
                             <NavButton onClick={() => setShowLeaderboard(true)} icon={<Trophy size={18} />} label="Leaderboard" />
                             <NavButton onClick={() => setShowAchievements(true)} icon={<Award size={18} />} label="Achievements" />
+                            {/* Mobile-only activity button */}
+                            {isMobile && (
+                                <NavButton
+                                    onClick={() => setShowMobileActivity(true)}
+                                    icon={<Activity size={18} />}
+                                    label="Live"
+                                    highlight={true}
+                                />
+                            )}
                         </div>
                     )}
                 </div>
@@ -829,14 +931,86 @@ function WheelOfFortunePage({ onBack }) {
             {/* Live Activity Toast - shows popup when someone gets a special item */}
             <LiveActivityToast />
 
-            {/* Global Mythic Celebration - page goes wild when anyone pulls a mythic */}
+            {/* Insane Item Celebration - full screen celebration for insane pulls */}
             <MythicCelebration currentUserId={user?.id} />
+
+            {/* Notification Center */}
+            {showNotifications && (
+                <NotificationCenter
+                    isOpen={showNotifications}
+                    onClose={() => {
+                        setShowNotifications(false);
+                        // Refresh count after closing
+                        fetch(`${API_BASE_URL}/api/notifications/unread-count`, { credentials: 'include' })
+                            .then(res => res.json())
+                            .then(data => setUnreadNotificationCount(data.count || 0))
+                            .catch(() => {});
+                    }}
+                />
+            )}
+
+            {/* Mobile Activity Feed Modal */}
+            {showMobileActivity && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1100,
+                    padding: '20px',
+                    animation: 'fadeIn 0.3s ease-out'
+                }}
+                     onClick={(e) => {
+                         if (e.target === e.currentTarget) setShowMobileActivity(false);
+                     }}
+                >
+                    <div style={{
+                        position: 'relative',
+                        width: '100%',
+                        maxWidth: '380px',
+                        maxHeight: '90vh',
+                        animation: 'slideUp 0.3s ease-out'
+                    }}>
+                        {/* Close button */}
+                        <button
+                            onClick={() => setShowMobileActivity(false)}
+                            style={{
+                                position: 'absolute',
+                                top: '-12px',
+                                right: '-12px',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                background: COLORS.bgLight,
+                                border: `1px solid ${COLORS.border}`,
+                                color: COLORS.text,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 1
+                            }}
+                        >
+                            <X size={16} />
+                        </button>
+                        <ActivityFeedSidebar />
+                    </div>
+                </div>
+            )}
+
+            {/* Live Chat */}
+            {user && <LiveChat user={user} isAdmin={user.isAdmin} />}
         </div>
     );
 }
 
 // Navigation button component
-function NavButton({ onClick, icon, label }) {
+function NavButton({ onClick, icon, label, highlight = false }) {
     const [showTooltip, setShowTooltip] = React.useState(false);
 
     return (
@@ -845,21 +1019,21 @@ function NavButton({ onClick, icon, label }) {
                 onClick={onClick}
                 onMouseEnter={(e) => {
                     setShowTooltip(true);
-                    e.currentTarget.style.background = COLORS.bgLighter;
-                    e.currentTarget.style.color = COLORS.text;
+                    e.currentTarget.style.background = highlight ? `${COLORS.green}33` : COLORS.bgLighter;
+                    e.currentTarget.style.color = highlight ? COLORS.green : COLORS.text;
                 }}
                 onMouseLeave={(e) => {
                     setShowTooltip(false);
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = COLORS.textMuted;
+                    e.currentTarget.style.background = highlight ? `${COLORS.green}22` : 'transparent';
+                    e.currentTarget.style.color = highlight ? COLORS.green : COLORS.textMuted;
                 }}
                 style={{
                     width: '36px',
                     height: '36px',
-                    background: 'transparent',
-                    border: 'none',
+                    background: highlight ? `${COLORS.green}22` : 'transparent',
+                    border: highlight ? `1px solid ${COLORS.green}44` : 'none',
                     borderRadius: '8px',
-                    color: COLORS.textMuted,
+                    color: highlight ? COLORS.green : COLORS.textMuted,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',

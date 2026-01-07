@@ -1,15 +1,30 @@
-import { IMAGE_BASE_URL, MYTHIC_ITEMS } from '../config/constants';
+// ============================================
+// Client-side utility functions
+// ============================================
 
+import { IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, COLORS } from '../config/constants.js';
+
+// Format chance as a readable percentage (strips trailing zeros)
 export function formatChance(chance) {
-    if (!chance) return '0';
+    if (!chance || chance === 0) return '0';
+
     const percent = chance * 100;
-    return parseFloat(percent.toFixed(6)).toString();
+
+    let formatted;
+    if (percent >= 1) {
+        formatted = percent.toFixed(1);
+    } else if (percent >= 0.01) {
+        formatted = percent.toFixed(2);
+    } else {
+        // For very small percentages like 0.0001%, show up to 4 decimal places
+        formatted = percent.toFixed(4);
+    }
+
+    // Strip trailing zeros (0.0020 -> 0.002, 1.0 -> 1)
+    return formatted.replace(/\.?0+$/, '');
 }
 
-export function getMinecraftHeadUrl(username) {
-    return `https://minotar.net/helm/${username}/64`;
-}
-
+// Format time ago string
 export function formatTimeAgo(dateString) {
     if (!dateString) return 'Unknown';
 
@@ -44,12 +59,18 @@ export function formatTimeAgo(dateString) {
     }
 }
 
-// Helper to get Discord avatar URL
+// Get Minecraft head URL from username
+export function getMinecraftHeadUrl(username) {
+    return `https://mc-heads.net/avatar/${username}/64`;
+}
+
+// Get Discord avatar URL
 export function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     if (avatarHash) {
         const format = avatarHash.startsWith('a_') ? 'gif' : 'png';
         return `https://cdn.discordapp.com/avatars/${discordId}/${avatarHash}.${format}?size=${size}`;
     }
+    // Default avatar based on discriminator
     try {
         if (!discordId || !/^\d+$/.test(String(discordId))) {
             return `https://cdn.discordapp.com/embed/avatars/0.png`;
@@ -61,7 +82,31 @@ export function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     }
 }
 
-// Item type detection helpers
+// Sanitize strings for display
+export function sanitizeString(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/[<>]/g, '')
+        .trim()
+        .slice(0, 100);
+}
+
+// Validate ID format
+export function isValidId(id) {
+    return typeof id === 'number' && Number.isInteger(id) && id > 0;
+}
+
+// ============================================
+// Item Type Detection Functions
+// ============================================
+
+// Insane color constant - bright gold, distinct from all other rarities
+export const INSANE_COLOR = '#FFD700';
+
+export function isInsaneItem(item) {
+    return item?.isInsane || item?.type === 'insane' || item?.texture?.startsWith('insane_');
+}
+
 export function isSpecialItem(item) {
     return item?.isSpecial || item?.type === 'legendary' || item?.texture?.startsWith('special_');
 }
@@ -71,12 +116,16 @@ export function isRareItem(item) {
 }
 
 export function isMythicItem(item) {
-    return item?.isMythic || item?.type === 'mythic' || item?.texture === 'mythic_cavendish' || item?.texture?.startsWith('mythic_');
+    return item?.isMythic || item?.type === 'mythic' || item?.texture?.startsWith('mythic_');
 }
 
 export function isEventItem(item) {
     return item?.isEvent || item?.type === 'event' || item?.texture?.startsWith('event_');
 }
+
+// ============================================
+// Item Display Helpers
+// ============================================
 
 // Get image URL for an item (works with both full item objects and history entries)
 export function getItemImageUrl(item) {
@@ -87,6 +136,18 @@ export function getItemImageUrl(item) {
     const type = item.type || item.item_type || item.item_rarity;
     const username = item.username || (texture?.includes('_') ? texture.split('_').slice(1).join('_') : null);
 
+    // Insane items have custom image URLs
+    if (type === 'insane' || texture?.startsWith('insane_')) {
+        if (item.imageUrl) return item.imageUrl;
+        // Try to find matching insane item
+        const insane = INSANE_ITEMS?.find(i => i.texture === texture);
+        if (insane?.imageUrl) return insane.imageUrl;
+        // Fallback for known insane items
+        if (texture === 'insane_cavendish') {
+            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
+        }
+    }
+
     // Mythic items have custom image URLs
     if (type === 'mythic' || texture?.startsWith('mythic_')) {
         if (item.imageUrl) return item.imageUrl;
@@ -94,10 +155,10 @@ export function getItemImageUrl(item) {
         const mythic = MYTHIC_ITEMS?.find(m => m.texture === texture);
         if (mythic?.imageUrl) return mythic.imageUrl;
         // Fallback for known mythics
-        if (texture === 'mythic_cavendish') {
-            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
-        }
         if (texture === 'mythic_jimbo') return '/jimbo.png';
+        if (texture === 'mythic_gros_michel') {
+            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/gros_michel.png';
+        }
     }
 
     // Player heads (legendaries and rares with usernames)
@@ -105,10 +166,12 @@ export function getItemImageUrl(item) {
         return getMinecraftHeadUrl(item.username);
     }
 
-    // Try to extract username from texture for special/rare items
-    if ((type === 'legendary' || type === 'rare' || texture?.startsWith('special_') || texture?.startsWith('rare_')) && texture?.includes('_')) {
+    // Try to extract username from texture for special/rare/mythic items
+    if ((type === 'legendary' || type === 'rare' || type === 'mythic' || texture?.startsWith('special_') || texture?.startsWith('rare_') || texture?.startsWith('mythic_')) && texture?.includes('_')) {
         const extractedUsername = texture.split('_').slice(1).join('_');
-        if (extractedUsername) return getMinecraftHeadUrl(extractedUsername);
+        if (extractedUsername && !['cavendish', 'jimbo', 'gros_michel'].includes(extractedUsername.toLowerCase())) {
+            return getMinecraftHeadUrl(extractedUsername);
+        }
     }
 
     // Event items use event texture
@@ -125,7 +188,8 @@ export function getItemImageUrl(item) {
 }
 
 // Get color for item based on rarity
-export function getItemColor(item, COLORS) {
+export function getItemColor(item) {
+    if (isInsaneItem(item)) return INSANE_COLOR;
     if (isMythicItem(item)) return COLORS.aqua;
     if (isSpecialItem(item)) return COLORS.purple;
     if (isRareItem(item)) return COLORS.red;

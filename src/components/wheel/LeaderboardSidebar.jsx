@@ -425,15 +425,32 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                     {/* Special items indicators */}
                                     <div style={{
                                         display: 'flex',
-                                        gap: '6px',
+                                        gap: '4px',
                                         alignItems: 'center',
-                                        minWidth: '55px',
-                                        justifyContent: 'flex-end'
+                                        minWidth: '90px',
+                                        justifyContent: 'flex-end',
+                                        flexWrap: 'wrap'
                                     }}>
+                                        {(entry.insane_count || 0) > 0 && (
+                                            <span style={{
+                                                color: COLORS.insane,
+                                                fontSize: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '2px',
+                                                background: `${COLORS.insane}18`,
+                                                padding: '2px 4px',
+                                                borderRadius: '3px',
+                                                border: `1px solid ${COLORS.insane}30`,
+                                                fontWeight: '600'
+                                            }}>
+                                            <Crown size={9} />{entry.insane_count}
+                                        </span>
+                                        )}
                                         {entry.mythic_count > 0 && (
                                             <span style={{
                                                 color: COLORS.aqua,
-                                                fontSize: '11px',
+                                                fontSize: '10px',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '2px',
@@ -443,13 +460,13 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                                 border: `1px solid ${COLORS.aqua}30`,
                                                 fontWeight: '600'
                                             }}>
-                                            <Sparkles size={10} />{entry.mythic_count}
+                                            <Sparkles size={9} />{entry.mythic_count}
                                         </span>
                                         )}
                                         {entry.legendary_count > 0 && (
                                             <span style={{
                                                 color: COLORS.purple,
-                                                fontSize: '11px',
+                                                fontSize: '10px',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: '2px',
@@ -459,7 +476,23 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                                 border: `1px solid ${COLORS.purple}30`,
                                                 fontWeight: '600'
                                             }}>
-                                            <Star size={10} />{entry.legendary_count}
+                                            <Star size={9} />{entry.legendary_count}
+                                        </span>
+                                        )}
+                                        {entry.rare_count > 0 && (
+                                            <span style={{
+                                                color: COLORS.red,
+                                                fontSize: '10px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '2px',
+                                                background: `${COLORS.red}15`,
+                                                padding: '2px 4px',
+                                                borderRadius: '3px',
+                                                border: `1px solid ${COLORS.red}30`,
+                                                fontWeight: '600'
+                                            }}>
+                                            <Diamond size={9} />{entry.rare_count}
                                         </span>
                                         )}
                                     </div>

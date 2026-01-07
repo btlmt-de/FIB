@@ -19,7 +19,8 @@ export const COLORS = {
     green: '#55FF55',
     purple: '#AA00AA',
     red: '#FF5555',
-    orange: '#FF8800'
+    orange: '#FF8800',
+    insane: '#FFD700'  // Bright gold for insane rarity
 };
 
 export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
@@ -36,6 +37,7 @@ export const TEAM_MEMBERS = [
     { name: 'threeseconds', username: 'threeseconds', chance: 0.0003, rarity: 'legendary' },
     { name: 'CH0RD', username: 'CH0RD', chance: 0.0004, rarity: 'legendary' },
     { name: 'stupxd', username: 'stupxd', chance: 0.0005, rarity: 'legendary' },
+    { name: 'Wandering Trader', username: null, chance: 0.00005, rarity: 'legendary', imageUrl: '/wandering_trader.png' },
 ];
 
 export const RARE_MEMBERS = [
@@ -51,21 +53,35 @@ export const RARE_MEMBERS = [
     { name: 'lacios', username: 'lacios', chance: 0.00065, rarity: 'rare' },
 ];
 
+// Insane items - the rarest tier (1 in 1M)
+export const INSANE_ITEMS = [
+    {
+        name: 'Cavendish',
+        texture: 'insane_cavendish',
+        chance: 0.000001, // 0.0001% (1 in 1M)
+        type: 'insane',
+        imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png'
+    }
+];
+
+// Legacy single insane export for backwards compatibility
+export const INSANE_ITEM = INSANE_ITEMS[0];
+
 // Mythic items - extremely rare
 export const MYTHIC_ITEMS = [
     {
-        name: 'Cavendish',
-        texture: 'mythic_cavendish',
-        chance: 0.000001, // 0.0001%
-        type: 'mythic',
-        imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png'
-    },
-    {
         name: 'Jimbo',
         texture: 'mythic_jimbo',
-        chance: 0.000005, // 0.0005%
+        chance: 0.00002, // 0.002% (1 in 50K)
         type: 'mythic',
         imageUrl: '/jimbo.png'
+    },
+    {
+        name: 'Gros Michel',
+        texture: 'mythic_gros_michel',
+        chance: 0.00004, // 0.004% (1 in 25K)
+        type: 'mythic',
+        imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/gros_michel.png'
     }
 ];
 
@@ -81,7 +97,9 @@ export const EVENT_ITEM = {
 };
 
 // Available bonus events
+// Weights: 20% triple_lucky_spin, 40% triple_spin, 40% lucky_spin
 export const BONUS_EVENTS = [
-    { id: 'triple_spin', name: 'Triple Spin', description: '3 bonus spins!', color: COLORS.orange },
-    { id: 'lucky_spin', name: 'Lucky Spin', description: 'Equal chance for all items!', color: COLORS.green },
+    { id: 'triple_spin', name: 'Triple Spin', description: '3 bonus spins!', color: COLORS.orange, weight: 40 },
+    { id: 'lucky_spin', name: 'Lucky Spin', description: 'Equal chance for all items!', color: COLORS.green, weight: 40 },
+    { id: 'triple_lucky_spin', name: 'Triple Lucky Spin', description: '3 lucky spins!', color: COLORS.gold, weight: 20 },
 ];

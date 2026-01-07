@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants.js';
 import { getMinecraftHeadUrl } from '../../utils/helpers.js';
+import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Crown, Sparkles, Star, Diamond, Zap, Check } from 'lucide-react';
+
+// Module-level constant for total weight (10 million)
+const TOTAL_WEIGHT = 10000000;
+
+// Text-only rarity label for use in <option> tags (can't use React components)
+function getRarityText(rarity) {
+    switch (rarity) {
+        case 'insane': return 'Insane';
+        case 'mythic': return 'Mythic';
+        case 'legendary': return 'Legendary';
+        case 'rare': return 'Rare';
+        case 'event': return 'Event';
+        default: return 'Common';
+    }
+}
 
 // User Collection Editor Sub-component
 function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem }) {
@@ -122,7 +138,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
                             <select value={selectedItem} onChange={e => setSelectedItem(e.target.value)}
                                     style={{ width: '100%', padding: '10px 12px', background: COLORS.bgLight, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}>
                                 <option value="">Select a special item...</option>
-                                {specialItems.map(item => <option key={item.texture} value={item.texture}>{getRarityIcon(item.type)} {item.name}</option>)}
+                                {specialItems.map(item => <option key={item.texture} value={item.texture}>{getRarityEmoji(item.type)} {item.name}</option>)}
                             </select>
                         </div>
                     )}
@@ -156,7 +172,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
                                     <option value="">Select an item...</option>
                                     {collectedItems.map(item => (
                                         <option key={item.texture} value={item.texture}>
-                                            {getRarityIcon(item.type)} {item.name} (x{item.count})
+                                            {getRarityEmoji(item.type)} {item.name} (x{item.count})
                                         </option>
                                     ))}
                                 </select>
@@ -187,15 +203,26 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
 }
 
 // Helper functions
-function getRarityIcon(rarity) {
-    if (rarity === 'mythic') return '◆';
-    if (rarity === 'legendary') return '★';
+function getRarityEmoji(rarity) {
+    if (rarity === 'insane') return '👑';
+    if (rarity === 'mythic') return '✨';
+    if (rarity === 'legendary') return '⭐';
     if (rarity === 'event') return '⚡';
-    if (rarity === 'rare') return '●';
+    if (rarity === 'rare') return '💎';
     return '';
 }
 
+function getRarityIcon(rarity) {
+    if (rarity === 'insane') return <Crown size={12} style={{ color: COLORS.insane }} />;
+    if (rarity === 'mythic') return <Sparkles size={12} style={{ color: COLORS.aqua }} />;
+    if (rarity === 'legendary') return <Star size={12} style={{ color: COLORS.purple }} />;
+    if (rarity === 'event') return <Zap size={12} style={{ color: COLORS.orange }} />;
+    if (rarity === 'rare') return <Diamond size={12} style={{ color: COLORS.red }} />;
+    return null;
+}
+
 function getRarityColor(rarity) {
+    if (rarity === 'insane') return COLORS.insane;
     if (rarity === 'mythic') return COLORS.aqua;
     if (rarity === 'legendary') return COLORS.purple;
     if (rarity === 'event') return COLORS.orange;
@@ -219,17 +246,11 @@ function formatPercentage(percentage) {
 }
 
 // Pool Statistics Component
-function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) {
-    const [editing, setEditing] = useState(false);
-    const [newWeight, setNewWeight] = useState(regularItemsWeight.toString());
-
-    useEffect(() => {
-        setNewWeight(regularItemsWeight.toString());
-    }, [regularItemsWeight]);
-
+function PoolStatistics({ poolStats }) {
     if (!poolStats) return null;
 
-    const regularPercentage = poolStats.totalWeight > 0 ? (regularItemsWeight / poolStats.totalWeight) * 100 : 0;
+    const regularItemsWeight = poolStats.regularItemsWeight || 0;
+    const regularPercentage = (regularItemsWeight / TOTAL_WEIGHT) * 100;
     const specialPercentage = Math.max(0, 100 - regularPercentage);
 
     return (
@@ -281,8 +302,8 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                     </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px' }}>
-                    <span style={{ color: COLORS.gold }}>● Regular Items</span>
-                    <span style={{ color: COLORS.purple }}>● Special Items</span>
+                    <span style={{ color: COLORS.gold }}>■ Regular Items</span>
+                    <span style={{ color: COLORS.purple }}>■ Special Items</span>
                 </div>
             </div>
 
@@ -291,8 +312,9 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                 <div style={{ background: COLORS.bg, borderRadius: '8px', padding: '12px' }}>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Weight</div>
                     <div style={{ color: COLORS.text, fontSize: '20px', fontWeight: '700', marginTop: '4px' }}>
-                        {formatWeight(poolStats.totalWeight)}
+                        {formatWeight(TOTAL_WEIGHT)}
                     </div>
+                    <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Fixed</div>
                 </div>
                 <div style={{ background: COLORS.bg, borderRadius: '8px', padding: '12px' }}>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Special Items</div>
@@ -302,7 +324,7 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                 </div>
             </div>
 
-            {/* Regular items weight editor */}
+            {/* Regular items weight display (read-only) */}
             <div style={{
                 marginTop: '16px',
                 padding: '16px',
@@ -310,73 +332,22 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                 borderRadius: '8px',
                 border: `1px solid ${COLORS.gold}33`
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
                         <div style={{ color: COLORS.gold, fontSize: '13px', fontWeight: '600' }}>Regular Items Weight</div>
                         <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '2px' }}>
-                            Controls the probability of landing on regular items
+                            Auto-calculated: 10M - special items weight
                         </div>
+                    </div>
+                    <div style={{
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        color: COLORS.gold,
+                        fontFamily: 'monospace'
+                    }}>
+                        {regularItemsWeight.toLocaleString()}
                     </div>
                 </div>
-
-                {editing ? (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px' }}>
-                        <input
-                            type="number"
-                            value={newWeight}
-                            onChange={e => setNewWeight(e.target.value)}
-                            style={{
-                                flex: 1,
-                                padding: '10px 12px',
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.accent}`,
-                                borderRadius: '6px',
-                                color: COLORS.text,
-                                fontSize: '14px',
-                                fontFamily: 'monospace'
-                            }}
-                            autoFocus
-                        />
-                        <button
-                            onClick={() => { onEditRegularWeight(parseInt(newWeight)); setEditing(false); }}
-                            style={{ padding: '10px 16px', background: COLORS.green, border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}
-                        >
-                            Save
-                        </button>
-                        <button
-                            onClick={() => { setNewWeight(regularItemsWeight.toString()); setEditing(false); }}
-                            style={{ padding: '10px 16px', background: COLORS.bgLight, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.textMuted, cursor: 'pointer', fontSize: '13px' }}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                        <div style={{
-                            fontSize: '24px',
-                            fontWeight: '700',
-                            color: COLORS.gold,
-                            fontFamily: 'monospace'
-                        }}>
-                            {regularItemsWeight.toLocaleString()}
-                        </div>
-                        <button
-                            onClick={() => setEditing(true)}
-                            style={{
-                                padding: '8px 16px',
-                                background: `${COLORS.gold}22`,
-                                border: `1px solid ${COLORS.gold}44`,
-                                borderRadius: '6px',
-                                color: COLORS.gold,
-                                cursor: 'pointer',
-                                fontSize: '13px',
-                                fontWeight: '500'
-                            }}
-                        >
-                            Edit Weight
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -386,33 +357,14 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
 function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) {
     const [editing, setEditing] = useState(false);
     const [newWeight, setNewWeight] = useState(item.weight?.toString() || '0');
-    const [newDisplayChance, setNewDisplayChance] = useState(
-        item.display_chance ? (item.display_chance * 100).toString() : ''
-    );
 
-    const percentage = poolStats && poolStats.totalWeight > 0
-        ? (item.weight / poolStats.totalWeight) * 100
-        : 0;
-
-    // Use display_chance if set, otherwise use calculated percentage
-    const displayPercentage = item.display_chance
-        ? item.display_chance * 100
-        : percentage;
+    const percentage = (item.weight / TOTAL_WEIGHT) * 100;
 
     const rarityColor = getRarityColor(item.rarity);
     const rarityIcon = getRarityIcon(item.rarity);
 
     const handleSave = () => {
-        let displayChanceValue = null;
-        if (newDisplayChance.trim() !== '') {
-            const parsed = parseFloat(newDisplayChance);
-            if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
-                alert('Display chance must be a number between 0 and 100');
-                return;
-            }
-            displayChanceValue = parsed / 100; // Convert % to decimal
-        }
-        onEditWeight(item.id, parseInt(newWeight), displayChanceValue);
+        onEditWeight(item.id, parseInt(newWeight));
         setEditing(false);
     };
 
@@ -491,25 +443,6 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
                                         autoFocus
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '10px', marginBottom: '2px' }}>Display % (optional)</label>
-                                    <input
-                                        type="text"
-                                        value={newDisplayChance}
-                                        onChange={e => setNewDisplayChance(e.target.value)}
-                                        placeholder="e.g. 0.001"
-                                        style={{
-                                            width: '100px',
-                                            padding: '6px 10px',
-                                            background: COLORS.bg,
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.text,
-                                            fontSize: '13px',
-                                            fontFamily: 'monospace'
-                                        }}
-                                    />
-                                </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
@@ -521,7 +454,6 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
                                 <button
                                     onClick={() => {
                                         setNewWeight(item.weight?.toString() || '0');
-                                        setNewDisplayChance(item.display_chance ? (item.display_chance * 100).toString() : '');
                                         setEditing(false);
                                     }}
                                     style={{ padding: '6px 12px', background: COLORS.bgLighter, border: `1px solid ${COLORS.border}`, borderRadius: '4px', color: COLORS.textMuted, cursor: 'pointer', fontSize: '12px' }}
@@ -541,20 +473,8 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
                             <div>
                                 <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Chance: </span>
                                 <span style={{ color: COLORS.green, fontSize: '13px', fontWeight: '600' }}>
-                                    {formatPercentage(displayPercentage)}
+                                    {formatPercentage(percentage)}
                                 </span>
-                                {item.display_chance && (
-                                    <span style={{
-                                        marginLeft: '4px',
-                                        fontSize: '10px',
-                                        color: COLORS.textMuted,
-                                        background: COLORS.bgLighter,
-                                        padding: '1px 4px',
-                                        borderRadius: '3px'
-                                    }}>
-                                        custom
-                                    </span>
-                                )}
                             </div>
                         </div>
                     )}
@@ -611,19 +531,10 @@ function AddItemForm({ onAdd, poolStats, adding }) {
         texture: '',
         imageUrl: '',
         weight: '5000',
-        rarity: 'rare',
-        displayChance: ''
+        rarity: 'rare'
     });
 
-    const previewPercentage = poolStats && poolStats.totalWeight > 0
-        ? (parseInt(itemData.weight || 0) / (poolStats.totalWeight + parseInt(itemData.weight || 0))) * 100
-        : 0;
-
-    // Show display chance if set, otherwise show calculated
-    const parsedDisplayChance = parseFloat(itemData.displayChance);
-    const shownPercentage = itemData.displayChance && Number.isFinite(parsedDisplayChance)
-        ? parsedDisplayChance
-        : previewPercentage;
+    const previewPercentage = (parseInt(itemData.weight || 0) / TOTAL_WEIGHT) * 100;
 
     const handleSubmit = () => {
         onAdd(itemData);
@@ -634,8 +545,7 @@ function AddItemForm({ onAdd, poolStats, adding }) {
             texture: '',
             imageUrl: '',
             weight: '5000',
-            rarity: 'rare',
-            displayChance: ''
+            rarity: 'rare'
         });
     };
 
@@ -677,9 +587,10 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         onChange={e => setItemData({ ...itemData, rarity: e.target.value })}
                         style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}
                     >
-                        <option value="rare">● Rare</option>
-                        <option value="legendary">★ Legendary</option>
-                        <option value="mythic">◆ Mythic</option>
+                        <option value="rare">💎 Rare</option>
+                        <option value="legendary">⭐ Legendary</option>
+                        <option value="mythic">✨ Mythic</option>
+                        <option value="insane">👑 Insane</option>
                         <option value="event">⚡ Event</option>
                     </select>
                 </div>
@@ -751,19 +662,6 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                 </div>
 
                 {/* Display Chance */}
-                <div>
-                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
-                        Display % (optional)
-                    </label>
-                    <input
-                        type="text"
-                        value={itemData.displayChance}
-                        onChange={e => setItemData({ ...itemData, displayChance: e.target.value })}
-                        placeholder="e.g. 0.001"
-                        style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px', boxSizing: 'border-box', fontFamily: 'monospace' }}
-                    />
-                </div>
-
                 {/* Info row */}
                 <div style={{ gridColumn: '1 / -1' }}>
                     <div style={{
@@ -776,20 +674,14 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         border: `1px solid ${COLORS.border}`
                     }}>
                         <div>
-                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Calculated: </span>
-                            <span style={{ color: COLORS.textMuted, fontSize: '12px', fontFamily: 'monospace' }}>
+                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Drop rate: </span>
+                            <span style={{ color: COLORS.green, fontSize: '12px', fontWeight: '600', fontFamily: 'monospace' }}>
                                 {formatPercentage(previewPercentage)}
-                            </span>
-                        </div>
-                        <div>
-                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Shown to users: </span>
-                            <span style={{ color: COLORS.green, fontSize: '12px', fontWeight: '600' }}>
-                                {formatPercentage(shownPercentage)}
                             </span>
                         </div>
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '6px' }}>
-                        Higher weight = more common. Set "Display %" to show a custom chance to users.
+                        Weight 10 = 0.0001% · Weight 1000 = 0.01% · Weight 100000 = 1%
                     </div>
                 </div>
             </div>
@@ -826,9 +718,15 @@ export function AdminPanel({ onClose, allItems }) {
     const [searchUser, setSearchUser] = useState('');
     const [dynamicItems, setDynamicItems] = useState([]);
     const [poolStats, setPoolStats] = useState(null);
-    const [regularItemsWeight, setRegularItemsWeight] = useState(10000000);
     const [addingItem, setAddingItem] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
+
+    // Notification state
+    const [notifications, setNotifications] = useState([]);
+    const [showNotificationForm, setShowNotificationForm] = useState(false);
+    const [notificationForm, setNotificationForm] = useState({ title: '', content: '', type: 'changelog', priority: 'normal' });
+    const [submittingNotification, setSubmittingNotification] = useState(false);
+    const [notificationError, setNotificationError] = useState('');
 
     useEffect(() => {
         if (tab === 'pending') fetchPending();
@@ -837,6 +735,7 @@ export function AdminPanel({ onClose, allItems }) {
             fetchSpecialItems();
             fetchPoolStats();
         }
+        if (tab === 'notifications') fetchNotifications();
     }, [tab]);
 
     async function fetchPending() {
@@ -890,8 +789,91 @@ export function AdminPanel({ onClose, allItems }) {
             }
             const data = await res.json();
             setPoolStats(data);
-            setRegularItemsWeight(data.regularItemsWeight || 10000000);
         } catch (error) { console.error('Failed to fetch pool stats:', error); }
+    }
+
+    // Notification functions
+    async function fetchNotifications() {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/notifications`, { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                setNotifications(data.notifications || []);
+            }
+        } catch (error) { console.error('Failed to fetch notifications:', error); }
+        finally { setLoading(false); }
+    }
+
+    async function createNotification(e) {
+        e.preventDefault();
+        setSubmittingNotification(true);
+        setNotificationError('');
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/notifications`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(notificationForm)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setNotifications(prev => [data.notification, ...prev]);
+                setNotificationForm({ title: '', content: '', type: 'changelog', priority: 'normal' });
+                setShowNotificationForm(false);
+            } else {
+                setNotificationError(data.error || 'Failed to create notification');
+            }
+        } catch (error) {
+            setNotificationError('Failed to create notification');
+        } finally {
+            setSubmittingNotification(false);
+        }
+    }
+
+    async function deleteNotification(id) {
+        if (!confirm('Are you sure you want to delete this notification?')) return;
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/notifications/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (res.ok) {
+                setNotifications(prev => prev.filter(n => n.id !== id));
+            } else {
+                const errorData = await res.text().catch(() => 'Unknown error');
+                console.error(`Failed to delete notification: ${res.status}`, errorData);
+                alert(`Failed to delete notification: ${res.status} - ${errorData}`);
+            }
+        } catch (error) {
+            console.error('Failed to delete notification:', error);
+            alert('Failed to delete notification: Network error');
+        }
+    }
+
+    function getNotificationTypeIcon(type) {
+        switch (type) {
+            case 'announcement': return <Megaphone size={14} />;
+            case 'maintenance': return <Wrench size={14} />;
+            default: return <FileText size={14} />;
+        }
+    }
+
+    function getNotificationTypeColor(type) {
+        switch (type) {
+            case 'announcement': return COLORS.gold;
+            case 'maintenance': return COLORS.orange;
+            default: return COLORS.accent;
+        }
+    }
+
+    function formatNotificationDate(dateStr) {
+        return new Date(dateStr).toLocaleString();
     }
 
     async function approve(userId) {
@@ -974,22 +956,9 @@ export function AdminPanel({ onClose, allItems }) {
         try {
             const weightValue = parseInt(itemData.weight, 10);
 
-            // Validate and convert displayChance
-            let displayChanceValue = null;
-            if (itemData.displayChance && itemData.displayChance.trim() !== '') {
-                const parsed = parseFloat(itemData.displayChance);
-                if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
-                    setMessage({ text: 'Display chance must be a number between 0 and 100', type: 'error' });
-                    setAddingItem(false);
-                    return;
-                }
-                displayChanceValue = parsed / 100; // Convert to decimal
-            }
-
             const payload = {
                 ...itemData,
-                weight: weightValue,
-                displayChance: displayChanceValue
+                weight: weightValue
             };
 
             const res = await fetch(`${API_BASE_URL}/admin/special-items`, {
@@ -1026,25 +995,17 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }
 
-    async function updateItemWeight(itemId, newWeight, displayChance) {
+    async function updateItemWeight(itemId, newWeight) {
         try {
-            const body = { weight: newWeight };
-            if (displayChance !== undefined) {
-                body.displayChance = displayChance;
-            }
-
             const res = await fetch(`${API_BASE_URL}/admin/special-items/${itemId}`, {
                 method: 'PATCH',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify({ weight: newWeight })
             });
             const data = await res.json();
             if (res.ok) {
-                const msg = displayChance !== null && displayChance !== undefined
-                    ? `Updated weight to ${newWeight.toLocaleString()} with display ${(displayChance * 100)}%`
-                    : `Updated weight to ${newWeight.toLocaleString()}`;
-                setMessage({ text: msg, type: 'success' });
+                setMessage({ text: `Updated weight to ${newWeight.toLocaleString()}`, type: 'success' });
                 fetchSpecialItems();
                 fetchPoolStats();
             } else {
@@ -1052,27 +1013,6 @@ export function AdminPanel({ onClose, allItems }) {
             }
         } catch (error) {
             setMessage({ text: 'Failed to update weight', type: 'error' });
-        }
-    }
-
-    async function updateRegularItemsWeight(newWeight) {
-        try {
-            const res = await fetch(`${API_BASE_URL}/admin/settings`, {
-                method: 'PATCH',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ regular_items_weight: newWeight })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setMessage({ text: `Updated regular items weight to ${newWeight.toLocaleString()}`, type: 'success' });
-                setRegularItemsWeight(newWeight);
-                fetchPoolStats();
-            } else {
-                setMessage({ text: 'Failed: ' + data.error, type: 'error' });
-            }
-        } catch (error) {
-            setMessage({ text: 'Failed to update regular items weight', type: 'error' });
         }
     }
 
@@ -1084,7 +1024,8 @@ export function AdminPanel({ onClose, allItems }) {
     const tabs = [
         { id: 'pending', label: 'Pending', count: pending.length },
         { id: 'users', label: 'Users' },
-        { id: 'special', label: 'Item Pool' }
+        { id: 'special', label: 'Item Pool' },
+        { id: 'notifications', label: 'Notifications', icon: <Bell size={14} /> }
     ];
 
     // Separate items by type
@@ -1175,6 +1116,7 @@ export function AdminPanel({ onClose, allItems }) {
                                 transition: 'all 0.2s'
                             }}
                         >
+                            {t.icon && t.icon}
                             {t.label}
                             {t.count > 0 && (
                                 <span style={{
@@ -1230,7 +1172,7 @@ export function AdminPanel({ onClose, allItems }) {
                                 background: COLORS.bgLight,
                                 borderRadius: '12px'
                             }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>✓</div>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}><Check size={48} color={COLORS.green} /></div>
                                 <div style={{ fontSize: '16px', fontWeight: '500' }}>No pending approvals</div>
                             </div>
                         ) : (
@@ -1330,7 +1272,7 @@ export function AdminPanel({ onClose, allItems }) {
                                                 <div style={{ color: COLORS.text, fontWeight: '600', fontSize: '14px' }}>
                                                     {user.custom_username || user.discord_username}
                                                     {user.username_approved && (
-                                                        <span style={{ color: COLORS.green, marginLeft: '8px', fontSize: '12px' }}>✓</span>
+                                                        <span style={{ color: COLORS.green, marginLeft: '8px', display: 'inline-flex' }}><Check size={12} /></span>
                                                     )}
                                                 </div>
                                                 <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '2px' }}>
@@ -1363,11 +1305,7 @@ export function AdminPanel({ onClose, allItems }) {
                     {tab === 'special' && (
                         <>
                             {/* Pool Statistics */}
-                            <PoolStatistics
-                                poolStats={poolStats}
-                                regularItemsWeight={regularItemsWeight}
-                                onEditRegularWeight={updateRegularItemsWeight}
-                            />
+                            <PoolStatistics poolStats={poolStats} />
 
                             {/* Add New Item Form */}
                             <AddItemForm
@@ -1460,6 +1398,330 @@ export function AdminPanel({ onClose, allItems }) {
                                 </div>
                             )}
                         </>
+                    )}
+
+                    {/* Notifications Tab */}
+                    {tab === 'notifications' && (
+                        <div style={{
+                            background: COLORS.bgLight,
+                            borderRadius: '12px',
+                            border: `1px solid ${COLORS.border}`,
+                            overflow: 'hidden'
+                        }}>
+                            {/* Header */}
+                            <div style={{
+                                padding: '16px 20px',
+                                borderBottom: `1px solid ${COLORS.border}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Bell size={18} color={COLORS.accent} />
+                                    <span style={{ color: COLORS.text, fontWeight: '600' }}>Notification Center</span>
+                                    <span style={{
+                                        fontSize: '12px',
+                                        color: COLORS.textMuted,
+                                        background: COLORS.bg,
+                                        padding: '2px 8px',
+                                        borderRadius: '10px'
+                                    }}>
+                                        {notifications.length} total
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => setShowNotificationForm(!showNotificationForm)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '8px 14px',
+                                        background: showNotificationForm ? COLORS.bgLighter : COLORS.accent,
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        color: '#fff',
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    <Plus size={14} />
+                                    {showNotificationForm ? 'Cancel' : 'New Notification'}
+                                </button>
+                            </div>
+
+                            {/* Create Form */}
+                            {showNotificationForm && (
+                                <form onSubmit={createNotification} style={{
+                                    padding: '20px',
+                                    borderBottom: `1px solid ${COLORS.border}`,
+                                    background: COLORS.bg
+                                }}>
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                            Title *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={notificationForm.title}
+                                            onChange={e => setNotificationForm(prev => ({ ...prev, title: e.target.value }))}
+                                            placeholder="e.g., New Feature: Lucky Spins!"
+                                            maxLength={100}
+                                            required
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                background: COLORS.bgLight,
+                                                border: `1px solid ${COLORS.border}`,
+                                                borderRadius: '6px',
+                                                color: COLORS.text,
+                                                fontSize: '14px',
+                                                outline: 'none',
+                                                boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                            Content *
+                                        </label>
+                                        <textarea
+                                            value={notificationForm.content}
+                                            onChange={e => setNotificationForm(prev => ({ ...prev, content: e.target.value }))}
+                                            placeholder="Describe the update, changes, or announcement..."
+                                            maxLength={2000}
+                                            required
+                                            rows={4}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                background: COLORS.bgLight,
+                                                border: `1px solid ${COLORS.border}`,
+                                                borderRadius: '6px',
+                                                color: COLORS.text,
+                                                fontSize: '14px',
+                                                outline: 'none',
+                                                resize: 'vertical',
+                                                boxSizing: 'border-box',
+                                                fontFamily: 'inherit'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                                Type
+                                            </label>
+                                            <select
+                                                value={notificationForm.type}
+                                                onChange={e => setNotificationForm(prev => ({ ...prev, type: e.target.value }))}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '10px 12px',
+                                                    background: COLORS.bgLight,
+                                                    border: `1px solid ${COLORS.border}`,
+                                                    borderRadius: '6px',
+                                                    color: COLORS.text,
+                                                    fontSize: '14px',
+                                                    outline: 'none',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <option value="changelog">📝 Changelog</option>
+                                                <option value="announcement">📢 Announcement</option>
+                                                <option value="maintenance">🔧 Maintenance</option>
+                                            </select>
+                                        </div>
+
+                                        <div style={{ flex: 1 }}>
+                                            <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                                Priority
+                                            </label>
+                                            <select
+                                                value={notificationForm.priority}
+                                                onChange={e => setNotificationForm(prev => ({ ...prev, priority: e.target.value }))}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '10px 12px',
+                                                    background: COLORS.bgLight,
+                                                    border: `1px solid ${COLORS.border}`,
+                                                    borderRadius: '6px',
+                                                    color: COLORS.text,
+                                                    fontSize: '14px',
+                                                    outline: 'none',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <option value="low">Low</option>
+                                                <option value="normal">Normal</option>
+                                                <option value="high">High (shows badge)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {notificationError && (
+                                        <div style={{
+                                            padding: '10px 12px',
+                                            background: `${COLORS.red}20`,
+                                            border: `1px solid ${COLORS.red}`,
+                                            borderRadius: '6px',
+                                            color: COLORS.red,
+                                            fontSize: '13px',
+                                            marginBottom: '16px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}>
+                                            <AlertTriangle size={14} />
+                                            {notificationError}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        disabled={submittingNotification || !notificationForm.title || !notificationForm.content}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            background: COLORS.accent,
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            color: '#fff',
+                                            fontSize: '14px',
+                                            fontWeight: '600',
+                                            cursor: submittingNotification ? 'wait' : 'pointer',
+                                            opacity: submittingNotification || !notificationForm.title || !notificationForm.content ? 0.5 : 1
+                                        }}
+                                    >
+                                        {submittingNotification ? 'Publishing...' : 'Publish Notification'}
+                                    </button>
+                                </form>
+                            )}
+
+                            {/* Notifications List */}
+                            <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+                                {loading ? (
+                                    <div style={{ padding: '40px', textAlign: 'center', color: COLORS.textMuted }}>
+                                        Loading...
+                                    </div>
+                                ) : notifications.length === 0 ? (
+                                    <div style={{ padding: '40px', textAlign: 'center', color: COLORS.textMuted }}>
+                                        <Bell size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                                        <div>No notifications yet</div>
+                                        <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                                            Create one to notify all users
+                                        </div>
+                                    </div>
+                                ) : (
+                                    notifications.map(notification => {
+                                        const typeColor = getNotificationTypeColor(notification.type);
+                                        const priorityColors = { low: COLORS.textMuted, normal: COLORS.accent, high: COLORS.red };
+
+                                        return (
+                                            <div
+                                                key={notification.id}
+                                                style={{
+                                                    padding: '14px 20px',
+                                                    borderBottom: `1px solid ${COLORS.border}`,
+                                                    display: 'flex',
+                                                    gap: '12px',
+                                                    alignItems: 'flex-start'
+                                                }}
+                                            >
+                                                {/* Type Icon */}
+                                                <div style={{
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    borderRadius: '8px',
+                                                    background: `${typeColor}20`,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: typeColor,
+                                                    flexShrink: 0
+                                                }}>
+                                                    {getNotificationTypeIcon(notification.type)}
+                                                </div>
+
+                                                {/* Content */}
+                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        marginBottom: '4px'
+                                                    }}>
+                                                        <span style={{
+                                                            color: COLORS.text,
+                                                            fontWeight: '600',
+                                                            fontSize: '14px'
+                                                        }}>
+                                                            {notification.title}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: '10px',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '4px',
+                                                            background: `${priorityColors[notification.priority]}20`,
+                                                            color: priorityColors[notification.priority],
+                                                            fontWeight: '600',
+                                                            textTransform: 'uppercase'
+                                                        }}>
+                                                            {notification.priority}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{
+                                                        color: COLORS.textMuted,
+                                                        fontSize: '13px',
+                                                        lineHeight: '1.4',
+                                                        whiteSpace: 'pre-wrap',
+                                                        wordBreak: 'break-word'
+                                                    }}>
+                                                        {notification.content.length > 150
+                                                            ? notification.content.substring(0, 150) + '...'
+                                                            : notification.content
+                                                        }
+                                                    </div>
+                                                    <div style={{
+                                                        fontSize: '11px',
+                                                        color: COLORS.textMuted,
+                                                        marginTop: '6px'
+                                                    }}>
+                                                        {formatNotificationDate(notification.created_at)}
+                                                    </div>
+                                                </div>
+
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={() => deleteNotification(notification.id)}
+                                                    style={{
+                                                        background: 'transparent',
+                                                        border: 'none',
+                                                        color: COLORS.textMuted,
+                                                        cursor: 'pointer',
+                                                        padding: '6px',
+                                                        borderRadius: '4px',
+                                                        transition: 'color 0.2s, background 0.2s'
+                                                    }}
+                                                    onMouseEnter={e => {
+                                                        e.currentTarget.style.color = COLORS.red;
+                                                        e.currentTarget.style.background = `${COLORS.red}20`;
+                                                    }}
+                                                    onMouseLeave={e => {
+                                                        e.currentTarget.style.color = COLORS.textMuted;
+                                                        e.currentTarget.style.background = 'transparent';
+                                                    }}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

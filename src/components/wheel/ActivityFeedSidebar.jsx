@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { COLORS } from '../../config/constants.js';
-import { Activity } from 'lucide-react';
+import { Activity, Sparkles } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../context/ActivityContext';
@@ -57,6 +57,14 @@ export function ActivityFeedSidebar() {
                         opacity: 1;
                         transform: translateX(0);
                     }
+                }
+                @keyframes insaneShimmer {
+                    0% { background-position: -200% center; }
+                    100% { background-position: 200% center; }
+                }
+                @keyframes mythicShimmer {
+                    0% { background-position: -200% center; }
+                    100% { background-position: 200% center; }
                 }
                 .sidebar-feed-item {
                     transition: all 0.3s ease;
@@ -136,6 +144,9 @@ export function ActivityFeedSidebar() {
                 ) : (
                     feed.slice(0, 15).map((item, idx) => {
                         const rarityColor = getRarityColor(item.item_rarity);
+                        const isInsane = item.item_rarity === 'insane';
+                        const isMythic = item.item_rarity === 'mythic';
+                        const isSpecial = isInsane || isMythic;
 
                         return (
                             <div
@@ -145,23 +156,65 @@ export function ActivityFeedSidebar() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '10px',
-                                    padding: '10px 12px',
+                                    padding: isInsane ? '12px 12px' : isMythic ? '11px 12px' : '10px 12px',
                                     borderLeft: `3px solid ${rarityColor}`,
-                                    background: `linear-gradient(90deg, ${rarityColor}08 0%, transparent 100%)`,
-                                    boxShadow: `inset 0 0 8px ${rarityColor}06`
+                                    background: isInsane
+                                        ? `linear-gradient(90deg, ${rarityColor}18 0%, ${rarityColor}08 50%, transparent 100%)`
+                                        : isMythic
+                                            ? `linear-gradient(90deg, ${rarityColor}14 0%, ${rarityColor}06 50%, transparent 100%)`
+                                            : `linear-gradient(90deg, ${rarityColor}08 0%, transparent 100%)`,
+                                    boxShadow: isInsane
+                                        ? `inset 0 0 15px ${rarityColor}15, 0 0 10px ${rarityColor}10`
+                                        : isMythic
+                                            ? `inset 0 0 12px ${rarityColor}12, 0 0 8px ${rarityColor}08`
+                                            : `inset 0 0 8px ${rarityColor}06`,
+                                    position: 'relative',
+                                    overflow: 'hidden'
                                 }}
                             >
+                                {/* Shimmer effect for insane */}
+                                {isInsane && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: `linear-gradient(90deg, transparent 0%, ${rarityColor}10 50%, transparent 100%)`,
+                                        backgroundSize: '200% 100%',
+                                        animation: 'insaneShimmer 3s ease-in-out infinite',
+                                        pointerEvents: 'none'
+                                    }} />
+                                )}
+
+                                {/* Shimmer effect for mythic */}
+                                {isMythic && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: `linear-gradient(90deg, transparent 0%, ${rarityColor}08 50%, transparent 100%)`,
+                                        backgroundSize: '200% 100%',
+                                        animation: 'mythicShimmer 4s ease-in-out infinite',
+                                        pointerEvents: 'none'
+                                    }} />
+                                )}
+
                                 {/* User avatar */}
                                 <img
                                     src={getDiscordAvatarUrl(item.discord_id, item.discord_avatar)}
                                     alt=""
                                     style={{
-                                        width: '28px',
-                                        height: '28px',
+                                        width: isInsane ? '32px' : isMythic ? '30px' : '28px',
+                                        height: isInsane ? '32px' : isMythic ? '30px' : '28px',
                                         borderRadius: '50%',
                                         flexShrink: 0,
-                                        border: `1.5px solid ${COLORS.border}`,
-                                        boxShadow: `0 0 8px ${rarityColor}20`
+                                        border: isInsane ? `2px solid ${rarityColor}` : isMythic ? `1.5px solid ${rarityColor}` : `1.5px solid ${COLORS.border}`,
+                                        boxShadow: isInsane ? `0 0 12px ${rarityColor}40` : isMythic ? `0 0 10px ${rarityColor}30` : `0 0 8px ${rarityColor}20`,
+                                        position: 'relative',
+                                        zIndex: 1
                                     }}
                                     onError={(e) => {
                                         e.target.onerror = null;
@@ -170,7 +223,7 @@ export function ActivityFeedSidebar() {
                                 />
 
                                 {/* Content */}
-                                <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
                                     <div style={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -204,11 +257,12 @@ export function ActivityFeedSidebar() {
                                         alignItems: 'center',
                                         gap: '5px',
                                         color: rarityColor,
-                                        fontWeight: '600',
-                                        fontSize: '12px',
-                                        marginTop: '2px'
+                                        fontWeight: isInsane ? '700' : isMythic ? '650' : '600',
+                                        fontSize: isInsane ? '13px' : isMythic ? '12.5px' : '12px',
+                                        marginTop: '2px',
+                                        textShadow: isInsane ? `0 0 8px ${rarityColor}44` : isMythic ? `0 0 6px ${rarityColor}33` : 'none'
                                     }}>
-                                        {getRarityIcon(item.item_rarity, 12)}
+                                        {getRarityIcon(item.item_rarity, isInsane ? 14 : isMythic ? 13 : 12)}
                                         <span style={{
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
@@ -224,9 +278,11 @@ export function ActivityFeedSidebar() {
                                                 padding: '1px 4px',
                                                 borderRadius: '4px',
                                                 fontWeight: '600',
-                                                flexShrink: 0
+                                                flexShrink: 0,
+                                                display: 'flex',
+                                                alignItems: 'center'
                                             }}>
-                                                🍀
+                                                <Sparkles size={10} />
                                             </span>
                                         )}
                                     </div>
@@ -273,22 +329,26 @@ export function ActivityFeedSidebar() {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                gap: '12px',
+                gap: '10px',
                 fontSize: '10px',
                 color: COLORS.textMuted,
                 background: `linear-gradient(135deg, ${COLORS.bg}aa 0%, ${COLORS.bgLight}aa 100%)`,
                 boxShadow: `inset 0 -1px 0 ${COLORS.border}`
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('mythic', 12)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {getRarityIcon('insane', 11)}
+                    <span>Insane</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {getRarityIcon('mythic', 11)}
                     <span>Mythic</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('legendary', 12)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {getRarityIcon('legendary', 11)}
                     <span>Legendary</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('rare', 12)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    {getRarityIcon('rare', 11)}
                     <span>Rare</span>
                 </div>
             </div>

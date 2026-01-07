@@ -82,6 +82,42 @@ export const AnimationStyles = () => (
                 border-color: ${COLORS.gold};
             }
         }
+        @keyframes insaneGlow {
+            0%, 100% { 
+                box-shadow: 0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044;
+                border-color: ${COLORS.insane};
+                filter: brightness(1.1);
+            }
+            25% { 
+                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px ${COLORS.insane}33;
+                border-color: #FFF5B0;
+                filter: brightness(1.2);
+            }
+            50% { 
+                box-shadow: 0 0 35px ${COLORS.insane}ee, 0 0 70px #FFF5B088, 0 0 105px ${COLORS.insane}44;
+                border-color: ${COLORS.insane};
+                filter: brightness(1.3);
+            }
+            75% { 
+                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px #FFF5B033;
+                border-color: #FFF5B0;
+                filter: brightness(1.2);
+            }
+        }
+        @keyframes insanePulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 20px ${COLORS.insane}aa, 0 0 40px ${COLORS.insane}55;
+            }
+            50% { 
+                transform: scale(1.02);
+                box-shadow: 0 0 30px ${COLORS.insane}cc, 0 0 60px ${COLORS.insane}77;
+            }
+        }
+        @keyframes insaneShimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
         @keyframes eventGlow {
             0%, 100% { 
                 box-shadow: 0 0 20px ${COLORS.red}aa, 0 0 40px ${COLORS.red}44;
@@ -219,6 +255,16 @@ export const AnimationStyles = () => (
             }
             50% {
                 filter: drop-shadow(0 0px 8px ${COLORS.gold}dd) drop-shadow(0 0 16px ${COLORS.gold}aa);
+            }
+        }
+        @keyframes resultSlideIn {
+            0% {
+                opacity: 0;
+                transform: translateY(-15px) scale(0.98);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
             }
         }
     `}</style>
