@@ -25,31 +25,52 @@ export function ActivityProvider({ children }) {
         try {
             // Fetch all activity including achievements (for toasts) with higher limit
             // so sidebar has enough items after filtering out achievements
-            const res = await fetch(`${API_BASE_URL}/api/activity/all?limit=100`);
-            const data = await res.json();
+            const [allRes, rareRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/activity/all?limit=100`),
+                fetch(`${API_BASE_URL}/api/activity/rare?days=7&limit=50`)
+            ]);
 
-            if (data.feed) {
+            const allData = await allRes.json();
+            const rareData = await rareRes.json();
+
+            if (allData.feed) {
                 // Store server time for accurate age calculations
-                if (data.serverTime) {
-                    setServerTime(new Date(data.serverTime).getTime());
+                if (allData.serverTime) {
+                    setServerTime(new Date(allData.serverTime).getTime());
                 }
 
-                const newestId = data.feed[0]?.id;
+                // Merge rare drops (mythic/insane from past 7 days) with all activity
+                // This ensures older mythic/insane items stay visible even when pushed out of recent 100
+                let mergedFeed = allData.feed;
+                if (rareData.feed && rareData.feed.length > 0) {
+                    const existingIds = new Set(allData.feed.map(item => item.id));
+                    const additionalRare = rareData.feed.filter(item => !existingIds.has(item.id));
+                    if (additionalRare.length > 0) {
+                        // Merge and re-sort by created_at descending
+                        mergedFeed = [...allData.feed, ...additionalRare].sort((a, b) => {
+                            const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
+                            const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
+                            return dateB - dateA;
+                        });
+                    }
+                }
+
+                const newestId = mergedFeed[0]?.id;
 
                 if (!initialized) {
                     // First fetch - just store the ID, don't trigger new item notifications
                     setLastId(newestId);
                     setInitialized(true);
-                    setFeed(data.feed);
+                    setFeed(mergedFeed);
                 } else if (lastId !== null && newestId && newestId > lastId) {
                     // New items found
-                    const newlyDetected = data.feed.filter(item => item.id > lastId);
+                    const newlyDetected = mergedFeed.filter(item => item.id > lastId);
                     setNewItems(newlyDetected);
                     setLastId(newestId);
-                    setFeed(data.feed);
+                    setFeed(mergedFeed);
                 } else {
                     // No new items, just update feed (for age calculations)
-                    setFeed(data.feed);
+                    setFeed(mergedFeed);
                     setNewItems([]);
                 }
             }
