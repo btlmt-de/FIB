@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants.js';
 import { getMinecraftHeadUrl } from '../../utils/helpers.js';
-import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle } from 'lucide-react';
+import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Crown, Sparkles, Star, Diamond, Zap } from 'lucide-react';
 
 // User Collection Editor Sub-component
 function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem }) {
@@ -189,11 +189,12 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
 
 // Helper functions
 function getRarityIcon(rarity) {
-    if (rarity === 'mythic') return '◆';
-    if (rarity === 'legendary') return '★';
-    if (rarity === 'event') return '⚡';
-    if (rarity === 'rare') return '◇';
-    return '';
+    if (rarity === 'insane') return <Crown size={12} style={{ color: '#FFD700' }} />;
+    if (rarity === 'mythic') return <Sparkles size={12} style={{ color: COLORS.aqua }} />;
+    if (rarity === 'legendary') return <Star size={12} style={{ color: COLORS.purple }} />;
+    if (rarity === 'event') return <Zap size={12} style={{ color: COLORS.orange }} />;
+    if (rarity === 'rare') return <Diamond size={12} style={{ color: COLORS.red }} />;
+    return null;
 }
 
 function getRarityColor(rarity) {
@@ -220,17 +221,13 @@ function formatPercentage(percentage) {
 }
 
 // Pool Statistics Component
-function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) {
-    const [editing, setEditing] = useState(false);
-    const [newWeight, setNewWeight] = useState(regularItemsWeight.toString());
-
-    useEffect(() => {
-        setNewWeight(regularItemsWeight.toString());
-    }, [regularItemsWeight]);
-
+function PoolStatistics({ poolStats }) {
     if (!poolStats) return null;
 
-    const regularPercentage = poolStats.totalWeight > 0 ? (regularItemsWeight / poolStats.totalWeight) * 100 : 0;
+    // Total weight is always 10 million
+    const TOTAL_WEIGHT = 10000000;
+    const regularItemsWeight = poolStats.regularItemsWeight || 0;
+    const regularPercentage = (regularItemsWeight / TOTAL_WEIGHT) * 100;
     const specialPercentage = Math.max(0, 100 - regularPercentage);
 
     return (
@@ -292,8 +289,9 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                 <div style={{ background: COLORS.bg, borderRadius: '8px', padding: '12px' }}>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Weight</div>
                     <div style={{ color: COLORS.text, fontSize: '20px', fontWeight: '700', marginTop: '4px' }}>
-                        {formatWeight(poolStats.totalWeight)}
+                        {formatWeight(TOTAL_WEIGHT)}
                     </div>
+                    <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Fixed</div>
                 </div>
                 <div style={{ background: COLORS.bg, borderRadius: '8px', padding: '12px' }}>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Special Items</div>
@@ -303,7 +301,7 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                 </div>
             </div>
 
-            {/* Regular items weight editor */}
+            {/* Regular items weight display (read-only) */}
             <div style={{
                 marginTop: '16px',
                 padding: '16px',
@@ -311,73 +309,22 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
                 borderRadius: '8px',
                 border: `1px solid ${COLORS.gold}33`
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
                         <div style={{ color: COLORS.gold, fontSize: '13px', fontWeight: '600' }}>Regular Items Weight</div>
                         <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '2px' }}>
-                            Controls the probability of landing on regular items
+                            Auto-calculated: 10M - special items weight
                         </div>
+                    </div>
+                    <div style={{
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        color: COLORS.gold,
+                        fontFamily: 'monospace'
+                    }}>
+                        {regularItemsWeight.toLocaleString()}
                     </div>
                 </div>
-
-                {editing ? (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px' }}>
-                        <input
-                            type="number"
-                            value={newWeight}
-                            onChange={e => setNewWeight(e.target.value)}
-                            style={{
-                                flex: 1,
-                                padding: '10px 12px',
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.accent}`,
-                                borderRadius: '6px',
-                                color: COLORS.text,
-                                fontSize: '14px',
-                                fontFamily: 'monospace'
-                            }}
-                            autoFocus
-                        />
-                        <button
-                            onClick={() => { onEditRegularWeight(parseInt(newWeight)); setEditing(false); }}
-                            style={{ padding: '10px 16px', background: COLORS.green, border: 'none', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontWeight: '600', fontSize: '13px' }}
-                        >
-                            Save
-                        </button>
-                        <button
-                            onClick={() => { setNewWeight(regularItemsWeight.toString()); setEditing(false); }}
-                            style={{ padding: '10px 16px', background: COLORS.bgLight, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.textMuted, cursor: 'pointer', fontSize: '13px' }}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                        <div style={{
-                            fontSize: '24px',
-                            fontWeight: '700',
-                            color: COLORS.gold,
-                            fontFamily: 'monospace'
-                        }}>
-                            {regularItemsWeight.toLocaleString()}
-                        </div>
-                        <button
-                            onClick={() => setEditing(true)}
-                            style={{
-                                padding: '8px 16px',
-                                background: `${COLORS.gold}22`,
-                                border: `1px solid ${COLORS.gold}44`,
-                                borderRadius: '6px',
-                                color: COLORS.gold,
-                                cursor: 'pointer',
-                                fontSize: '13px',
-                                fontWeight: '500'
-                            }}
-                        >
-                            Edit Weight
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -387,33 +334,16 @@ function PoolStatistics({ poolStats, regularItemsWeight, onEditRegularWeight }) 
 function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) {
     const [editing, setEditing] = useState(false);
     const [newWeight, setNewWeight] = useState(item.weight?.toString() || '0');
-    const [newDisplayChance, setNewDisplayChance] = useState(
-        item.display_chance ? (item.display_chance * 100).toString() : ''
-    );
 
-    const percentage = poolStats && poolStats.totalWeight > 0
-        ? (item.weight / poolStats.totalWeight) * 100
-        : 0;
-
-    // Use display_chance if set, otherwise use calculated percentage
-    const displayPercentage = item.display_chance
-        ? item.display_chance * 100
-        : percentage;
+    // Fixed total weight of 10 million
+    const TOTAL_WEIGHT = 10000000;
+    const percentage = (item.weight / TOTAL_WEIGHT) * 100;
 
     const rarityColor = getRarityColor(item.rarity);
     const rarityIcon = getRarityIcon(item.rarity);
 
     const handleSave = () => {
-        let displayChanceValue = null;
-        if (newDisplayChance.trim() !== '') {
-            const parsed = parseFloat(newDisplayChance);
-            if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
-                alert('Display chance must be a number between 0 and 100');
-                return;
-            }
-            displayChanceValue = parsed / 100; // Convert % to decimal
-        }
-        onEditWeight(item.id, parseInt(newWeight), displayChanceValue);
+        onEditWeight(item.id, parseInt(newWeight));
         setEditing(false);
     };
 
@@ -492,25 +422,6 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
                                         autoFocus
                                     />
                                 </div>
-                                <div>
-                                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '10px', marginBottom: '2px' }}>Display % (optional)</label>
-                                    <input
-                                        type="text"
-                                        value={newDisplayChance}
-                                        onChange={e => setNewDisplayChance(e.target.value)}
-                                        placeholder="e.g. 0.001"
-                                        style={{
-                                            width: '100px',
-                                            padding: '6px 10px',
-                                            background: COLORS.bg,
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.text,
-                                            fontSize: '13px',
-                                            fontFamily: 'monospace'
-                                        }}
-                                    />
-                                </div>
                             </div>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
@@ -522,7 +433,6 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
                                 <button
                                     onClick={() => {
                                         setNewWeight(item.weight?.toString() || '0');
-                                        setNewDisplayChance(item.display_chance ? (item.display_chance * 100).toString() : '');
                                         setEditing(false);
                                     }}
                                     style={{ padding: '6px 12px', background: COLORS.bgLighter, border: `1px solid ${COLORS.border}`, borderRadius: '4px', color: COLORS.textMuted, cursor: 'pointer', fontSize: '12px' }}
@@ -542,20 +452,8 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
                             <div>
                                 <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Chance: </span>
                                 <span style={{ color: COLORS.green, fontSize: '13px', fontWeight: '600' }}>
-                                    {formatPercentage(displayPercentage)}
+                                    {formatPercentage(percentage)}
                                 </span>
-                                {item.display_chance && (
-                                    <span style={{
-                                        marginLeft: '4px',
-                                        fontSize: '10px',
-                                        color: COLORS.textMuted,
-                                        background: COLORS.bgLighter,
-                                        padding: '1px 4px',
-                                        borderRadius: '3px'
-                                    }}>
-                                        custom
-                                    </span>
-                                )}
                             </div>
                         </div>
                     )}
@@ -612,19 +510,12 @@ function AddItemForm({ onAdd, poolStats, adding }) {
         texture: '',
         imageUrl: '',
         weight: '5000',
-        rarity: 'rare',
-        displayChance: ''
+        rarity: 'rare'
     });
 
-    const previewPercentage = poolStats && poolStats.totalWeight > 0
-        ? (parseInt(itemData.weight || 0) / (poolStats.totalWeight + parseInt(itemData.weight || 0))) * 100
-        : 0;
-
-    // Show display chance if set, otherwise show calculated
-    const parsedDisplayChance = parseFloat(itemData.displayChance);
-    const shownPercentage = itemData.displayChance && Number.isFinite(parsedDisplayChance)
-        ? parsedDisplayChance
-        : previewPercentage;
+    // Fixed total weight of 10 million - weight directly maps to percentage
+    const TOTAL_WEIGHT = 10000000;
+    const previewPercentage = (parseInt(itemData.weight || 0) / TOTAL_WEIGHT) * 100;
 
     const handleSubmit = () => {
         onAdd(itemData);
@@ -635,8 +526,7 @@ function AddItemForm({ onAdd, poolStats, adding }) {
             texture: '',
             imageUrl: '',
             weight: '5000',
-            rarity: 'rare',
-            displayChance: ''
+            rarity: 'rare'
         });
     };
 
@@ -678,9 +568,10 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         onChange={e => setItemData({ ...itemData, rarity: e.target.value })}
                         style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}
                     >
-                        <option value="rare">◇ Rare</option>
-                        <option value="legendary">★ Legendary</option>
-                        <option value="mythic">◆ Mythic</option>
+                        <option value="rare">💎 Rare</option>
+                        <option value="legendary">⭐ Legendary</option>
+                        <option value="mythic">✨ Mythic</option>
+                        <option value="insane">👑 Insane</option>
                         <option value="event">⚡ Event</option>
                     </select>
                 </div>
@@ -752,19 +643,6 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                 </div>
 
                 {/* Display Chance */}
-                <div>
-                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
-                        Display % (optional)
-                    </label>
-                    <input
-                        type="text"
-                        value={itemData.displayChance}
-                        onChange={e => setItemData({ ...itemData, displayChance: e.target.value })}
-                        placeholder="e.g. 0.001"
-                        style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px', boxSizing: 'border-box', fontFamily: 'monospace' }}
-                    />
-                </div>
-
                 {/* Info row */}
                 <div style={{ gridColumn: '1 / -1' }}>
                     <div style={{
@@ -777,20 +655,14 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         border: `1px solid ${COLORS.border}`
                     }}>
                         <div>
-                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Calculated: </span>
-                            <span style={{ color: COLORS.textMuted, fontSize: '12px', fontFamily: 'monospace' }}>
+                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Drop rate: </span>
+                            <span style={{ color: COLORS.green, fontSize: '12px', fontWeight: '600', fontFamily: 'monospace' }}>
                                 {formatPercentage(previewPercentage)}
-                            </span>
-                        </div>
-                        <div>
-                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Shown to users: </span>
-                            <span style={{ color: COLORS.green, fontSize: '12px', fontWeight: '600' }}>
-                                {formatPercentage(shownPercentage)}
                             </span>
                         </div>
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '6px' }}>
-                        Higher weight = more common. Set "Display %" to show a custom chance to users.
+                        Weight 10 = 0.0001% • Weight 1000 = 0.01% • Weight 100000 = 1%
                     </div>
                 </div>
             </div>
@@ -827,7 +699,6 @@ export function AdminPanel({ onClose, allItems }) {
     const [searchUser, setSearchUser] = useState('');
     const [dynamicItems, setDynamicItems] = useState([]);
     const [poolStats, setPoolStats] = useState(null);
-    const [regularItemsWeight, setRegularItemsWeight] = useState(10000000);
     const [addingItem, setAddingItem] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
 
@@ -899,7 +770,6 @@ export function AdminPanel({ onClose, allItems }) {
             }
             const data = await res.json();
             setPoolStats(data);
-            setRegularItemsWeight(data.regularItemsWeight || 10000000);
         } catch (error) { console.error('Failed to fetch pool stats:', error); }
     }
 
@@ -1062,22 +932,9 @@ export function AdminPanel({ onClose, allItems }) {
         try {
             const weightValue = parseInt(itemData.weight, 10);
 
-            // Validate and convert displayChance
-            let displayChanceValue = null;
-            if (itemData.displayChance && itemData.displayChance.trim() !== '') {
-                const parsed = parseFloat(itemData.displayChance);
-                if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
-                    setMessage({ text: 'Display chance must be a number between 0 and 100', type: 'error' });
-                    setAddingItem(false);
-                    return;
-                }
-                displayChanceValue = parsed / 100; // Convert to decimal
-            }
-
             const payload = {
                 ...itemData,
-                weight: weightValue,
-                displayChance: displayChanceValue
+                weight: weightValue
             };
 
             const res = await fetch(`${API_BASE_URL}/admin/special-items`, {
@@ -1114,25 +971,17 @@ export function AdminPanel({ onClose, allItems }) {
         }
     }
 
-    async function updateItemWeight(itemId, newWeight, displayChance) {
+    async function updateItemWeight(itemId, newWeight) {
         try {
-            const body = { weight: newWeight };
-            if (displayChance !== undefined) {
-                body.displayChance = displayChance;
-            }
-
             const res = await fetch(`${API_BASE_URL}/admin/special-items/${itemId}`, {
                 method: 'PATCH',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify({ weight: newWeight })
             });
             const data = await res.json();
             if (res.ok) {
-                const msg = displayChance !== null && displayChance !== undefined
-                    ? `Updated weight to ${newWeight.toLocaleString()} with display ${(displayChance * 100)}%`
-                    : `Updated weight to ${newWeight.toLocaleString()}`;
-                setMessage({ text: msg, type: 'success' });
+                setMessage({ text: `Updated weight to ${newWeight.toLocaleString()}`, type: 'success' });
                 fetchSpecialItems();
                 fetchPoolStats();
             } else {
@@ -1140,27 +989,6 @@ export function AdminPanel({ onClose, allItems }) {
             }
         } catch (error) {
             setMessage({ text: 'Failed to update weight', type: 'error' });
-        }
-    }
-
-    async function updateRegularItemsWeight(newWeight) {
-        try {
-            const res = await fetch(`${API_BASE_URL}/admin/settings`, {
-                method: 'PATCH',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ regular_items_weight: newWeight })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setMessage({ text: `Updated regular items weight to ${newWeight.toLocaleString()}`, type: 'success' });
-                setRegularItemsWeight(newWeight);
-                fetchPoolStats();
-            } else {
-                setMessage({ text: 'Failed: ' + data.error, type: 'error' });
-            }
-        } catch (error) {
-            setMessage({ text: 'Failed to update regular items weight', type: 'error' });
         }
     }
 
@@ -1453,11 +1281,7 @@ export function AdminPanel({ onClose, allItems }) {
                     {tab === 'special' && (
                         <>
                             {/* Pool Statistics */}
-                            <PoolStatistics
-                                poolStats={poolStats}
-                                regularItemsWeight={regularItemsWeight}
-                                onEditRegularWeight={updateRegularItemsWeight}
-                            />
+                            <PoolStatistics poolStats={poolStats} />
 
                             {/* Add New Item Form */}
                             <AddItemForm
