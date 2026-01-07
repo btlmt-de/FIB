@@ -67,66 +67,7 @@ export function MythicCelebration({ currentUserId }) {
     const processedItemsRef = useRef(new Set());
     const pendingCelebrationsRef = useRef([]);
 
-    useEffect(() => {
-        if (!newItems || newItems.length === 0) return;
-
-        // Debug logging
-        console.log('[MythicCelebration] New items received:', newItems.length);
-        newItems.forEach(item => {
-            console.log('[MythicCelebration] Item:', {
-                id: item.id,
-                rarity: item.item_rarity,
-                type: item.event_type,
-                name: item.item_name
-            });
-        });
-
-        // Find both insane AND mythic pulls
-        const specialPulls = newItems.filter(item =>
-            (item.item_rarity === 'insane' || item.item_rarity === 'mythic') &&
-            item.event_type !== 'achievement_unlock' &&
-            !processedItemsRef.current.has(item.id)
-        );
-
-        console.log('[MythicCelebration] Special pulls found:', specialPulls.length);
-
-        if (specialPulls.length > 0) {
-            const specialItem = specialPulls[0];
-            console.log('[MythicCelebration] Processing special item:', specialItem);
-            processedItemsRef.current.add(specialItem.id);
-
-            if (processedItemsRef.current.size > 50) {
-                const arr = Array.from(processedItemsRef.current);
-                processedItemsRef.current = new Set(arr.slice(-25));
-            }
-
-            let delay = CELEBRATION_DELAY;
-
-            if (serverTime && specialItem.created_at) {
-                let createdAtStr = specialItem.created_at;
-                if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                    createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
-                }
-                const createdAt = new Date(createdAtStr).getTime();
-                const age = serverTime - createdAt;
-                delay = Math.max(2000, CELEBRATION_DELAY - age);
-            }
-
-            const timeoutId = setTimeout(() => {
-                triggerCelebration(specialItem);
-            }, delay);
-
-            pendingCelebrationsRef.current.push(timeoutId);
-        }
-    }, [newItems, serverTime, triggerCelebration]);
-
-    useEffect(() => {
-        return () => {
-            pendingCelebrationsRef.current.forEach(id => clearTimeout(id));
-            pendingCelebrationsRef.current = [];
-        };
-    }, []);
-
+    // Define triggerCelebration BEFORE the useEffect that uses it
     const triggerCelebration = useCallback((item) => {
         const rarity = item.item_rarity;
         const theme = RARITY_THEMES[rarity] || RARITY_THEMES.mythic;
@@ -183,6 +124,68 @@ export function MythicCelebration({ currentUserId }) {
 
         trackTimeout(() => setConfetti([]), CELEBRATION_DURATION + 3000);
     }, [currentUserId]);
+
+    // Cleanup pending timeouts on unmount
+    useEffect(() => {
+        return () => {
+            pendingCelebrationsRef.current.forEach(id => clearTimeout(id));
+            pendingCelebrationsRef.current = [];
+        };
+    }, []);
+
+    // Process new items for celebrations
+    useEffect(() => {
+        if (!newItems || newItems.length === 0) return;
+
+        // Debug logging
+        console.log('[MythicCelebration] New items received:', newItems.length);
+        newItems.forEach(item => {
+            console.log('[MythicCelebration] Item:', {
+                id: item.id,
+                rarity: item.item_rarity,
+                type: item.event_type,
+                name: item.item_name
+            });
+        });
+
+        // Find both insane AND mythic pulls
+        const specialPulls = newItems.filter(item =>
+            (item.item_rarity === 'insane' || item.item_rarity === 'mythic') &&
+            item.event_type !== 'achievement_unlock' &&
+            !processedItemsRef.current.has(item.id)
+        );
+
+        console.log('[MythicCelebration] Special pulls found:', specialPulls.length);
+
+        if (specialPulls.length > 0) {
+            const specialItem = specialPulls[0];
+            console.log('[MythicCelebration] Processing special item:', specialItem);
+            processedItemsRef.current.add(specialItem.id);
+
+            if (processedItemsRef.current.size > 50) {
+                const arr = Array.from(processedItemsRef.current);
+                processedItemsRef.current = new Set(arr.slice(-25));
+            }
+
+            let delay = CELEBRATION_DELAY;
+
+            if (serverTime && specialItem.created_at) {
+                let createdAtStr = specialItem.created_at;
+                if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
+                    createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
+                }
+                const createdAt = new Date(createdAtStr).getTime();
+                const age = serverTime - createdAt;
+                delay = Math.max(2000, CELEBRATION_DELAY - age);
+            }
+
+            const timeoutId = setTimeout(() => {
+                triggerCelebration(specialItem);
+            }, delay);
+
+            pendingCelebrationsRef.current.push(timeoutId);
+        }
+    }, [newItems, serverTime, triggerCelebration]);
 
     if (!celebration && confetti.length === 0 && !pulseBackground) return null;
 

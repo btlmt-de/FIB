@@ -36,6 +36,19 @@ export function LiveChat({ user, isAdmin = false }) {
     const inputRef = useRef(null);
     const lastActivityRef = useRef(Date.now());
 
+    // Refs to track visibility state for use in callbacks (avoids stale closures)
+    const isOpenRef = useRef(isOpen);
+    const isMinimizedRef = useRef(isMinimized);
+
+    // Keep refs in sync with state
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
+
+    useEffect(() => {
+        isMinimizedRef.current = isMinimized;
+    }, [isMinimized]);
+
     // Adaptive polling: fast when active, slower when idle
     const FAST_POLL_INTERVAL = 500;   // 500ms when actively chatting
     const SLOW_POLL_INTERVAL = 3000;  // 3s when idle/minimized
@@ -46,14 +59,14 @@ export function LiveChat({ user, isAdmin = false }) {
         lastActivityRef.current = Date.now();
     }, []);
 
-    // Get current poll interval based on state
+    // Get current poll interval based on state (uses refs for current values)
     const getPollInterval = useCallback(() => {
         const isIdle = Date.now() - lastActivityRef.current > ACTIVITY_TIMEOUT;
-        if (!isOpen || isMinimized || isIdle) {
+        if (!isOpenRef.current || isMinimizedRef.current || isIdle) {
             return SLOW_POLL_INTERVAL;
         }
         return FAST_POLL_INTERVAL;
-    }, [isOpen, isMinimized]);
+    }, []);
 
     // Helper to find the message being replied to (only searches messages BEFORE currentIndex)
     const findRepliedMessage = useCallback((message, currentIndex) => {
@@ -132,7 +145,8 @@ export function LiveChat({ user, isAdmin = false }) {
                         if (newMsgs.length === 0) return prev; // No change needed
 
                         // Handle unread count for truly new messages only
-                        if ((!isOpen || isMinimized) && newMsgs.length > 0) {
+                        // Use refs to get current visibility state (avoids stale closures)
+                        if ((!isOpenRef.current || isMinimizedRef.current) && newMsgs.length > 0) {
                             setUnreadCount(c => c + newMsgs.length);
                             setHasNewMessage(true);
                             // Check for pings in new messages
@@ -158,7 +172,7 @@ export function LiveChat({ user, isAdmin = false }) {
         } catch (error) {
             console.error('Failed to fetch messages:', error);
         }
-    }, [isOpen, isMinimized, user]);
+    }, [user]);
 
     // Fetch users for mention autocomplete
     const fetchMentionUsers = async (search) => {
@@ -336,17 +350,30 @@ export function LiveChat({ user, isAdmin = false }) {
         }
     };
 
+    // Parse server timestamp as UTC (SQLite stores UTC via CURRENT_TIMESTAMP)
+    const parseServerDate = (dateStr) => {
+        if (!dateStr) return new Date();
+        // If already has timezone info, parse directly
+        if (dateStr.includes('Z') || dateStr.includes('+') || dateStr.includes('T')) {
+            return new Date(dateStr);
+        }
+        // SQLite format "YYYY-MM-DD HH:MM:SS" - interpret as UTC
+        return new Date(dateStr.replace(' ', 'T') + 'Z');
+    };
+
     const formatTime = (dateStr) => {
-        const date = new Date(dateStr);
+        const date = parseServerDate(dateStr);
+        // toLocaleTimeString uses the user's local timezone automatically
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     const formatDate = (dateStr) => {
-        const date = new Date(dateStr);
+        const date = parseServerDate(dateStr);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
 
+        // Compare dates in local timezone
         if (date.toDateString() === today.toDateString()) return 'Today';
         if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -363,15 +390,15 @@ export function LiveChat({ user, isAdmin = false }) {
         if (index === 0) return true;
         const prevMsg = messages[index - 1];
         if (prevMsg.user_id !== msg.user_id) return true;
-        const timeDiff = new Date(msg.created_at) - new Date(prevMsg.created_at);
+        const timeDiff = parseServerDate(msg.created_at) - parseServerDate(prevMsg.created_at);
         return timeDiff > 5 * 60 * 1000;
     };
 
     const shouldShowDateSeparator = (msg, index) => {
         if (index === 0) return true;
         const prevMsg = messages[index - 1];
-        const prevDate = new Date(prevMsg.created_at).toDateString();
-        const currDate = new Date(msg.created_at).toDateString();
+        const prevDate = parseServerDate(prevMsg.created_at).toDateString();
+        const currDate = parseServerDate(msg.created_at).toDateString();
         return prevDate !== currDate;
     };
 
