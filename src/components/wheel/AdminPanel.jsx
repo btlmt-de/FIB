@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants.js';
 import { getMinecraftHeadUrl } from '../../utils/helpers.js';
-import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Crown, Sparkles, Star, Diamond, Zap } from 'lucide-react';
+import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Crown, Sparkles, Star, Diamond, Zap, Check } from 'lucide-react';
+
+// Module-level constant for total weight (10 million)
+const TOTAL_WEIGHT = 10000000;
+
+// Text-only rarity label for use in <option> tags (can't use React components)
+function getRarityText(rarity) {
+    switch (rarity) {
+        case 'insane': return 'Insane';
+        case 'mythic': return 'Mythic';
+        case 'legendary': return 'Legendary';
+        case 'rare': return 'Rare';
+        case 'event': return 'Event';
+        default: return 'Common';
+    }
+}
 
 // User Collection Editor Sub-component
 function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem }) {
@@ -123,7 +138,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
                             <select value={selectedItem} onChange={e => setSelectedItem(e.target.value)}
                                     style={{ width: '100%', padding: '10px 12px', background: COLORS.bgLight, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}>
                                 <option value="">Select a special item...</option>
-                                {specialItems.map(item => <option key={item.texture} value={item.texture}>{getRarityIcon(item.type)} {item.name}</option>)}
+                                {specialItems.map(item => <option key={item.texture} value={item.texture}>{getRarityEmoji(item.type)} {item.name}</option>)}
                             </select>
                         </div>
                     )}
@@ -157,7 +172,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
                                     <option value="">Select an item...</option>
                                     {collectedItems.map(item => (
                                         <option key={item.texture} value={item.texture}>
-                                            {getRarityIcon(item.type)} {item.name} (x{item.count})
+                                            {getRarityEmoji(item.type)} {item.name} (x{item.count})
                                         </option>
                                     ))}
                                 </select>
@@ -188,8 +203,17 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
 }
 
 // Helper functions
+function getRarityEmoji(rarity) {
+    if (rarity === 'insane') return '👑';
+    if (rarity === 'mythic') return '✨';
+    if (rarity === 'legendary') return '⭐';
+    if (rarity === 'event') return '⚡';
+    if (rarity === 'rare') return '💎';
+    return '';
+}
+
 function getRarityIcon(rarity) {
-    if (rarity === 'insane') return <Crown size={12} style={{ color: '#FFD700' }} />;
+    if (rarity === 'insane') return <Crown size={12} style={{ color: COLORS.insane }} />;
     if (rarity === 'mythic') return <Sparkles size={12} style={{ color: COLORS.aqua }} />;
     if (rarity === 'legendary') return <Star size={12} style={{ color: COLORS.purple }} />;
     if (rarity === 'event') return <Zap size={12} style={{ color: COLORS.orange }} />;
@@ -225,8 +249,6 @@ function formatPercentage(percentage) {
 function PoolStatistics({ poolStats }) {
     if (!poolStats) return null;
 
-    // Total weight is always 10 million
-    const TOTAL_WEIGHT = 10000000;
     const regularItemsWeight = poolStats.regularItemsWeight || 0;
     const regularPercentage = (regularItemsWeight / TOTAL_WEIGHT) * 100;
     const specialPercentage = Math.max(0, 100 - regularPercentage);
@@ -280,8 +302,8 @@ function PoolStatistics({ poolStats }) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px' }}>
-                    <span style={{ color: COLORS.gold }}>â–  Regular Items</span>
-                    <span style={{ color: COLORS.purple }}>â–  Special Items</span>
+                    <span style={{ color: COLORS.gold }}>■ Regular Items</span>
+                    <span style={{ color: COLORS.purple }}>■ Special Items</span>
                 </div>
             </div>
 
@@ -336,8 +358,6 @@ function SpecialItemCard({ item, poolStats, onEditWeight, onDelete, isStatic }) 
     const [editing, setEditing] = useState(false);
     const [newWeight, setNewWeight] = useState(item.weight?.toString() || '0');
 
-    // Fixed total weight of 10 million
-    const TOTAL_WEIGHT = 10000000;
     const percentage = (item.weight / TOTAL_WEIGHT) * 100;
 
     const rarityColor = getRarityColor(item.rarity);
@@ -514,8 +534,6 @@ function AddItemForm({ onAdd, poolStats, adding }) {
         rarity: 'rare'
     });
 
-    // Fixed total weight of 10 million - weight directly maps to percentage
-    const TOTAL_WEIGHT = 10000000;
     const previewPercentage = (parseInt(itemData.weight || 0) / TOTAL_WEIGHT) * 100;
 
     const handleSubmit = () => {
@@ -569,11 +587,11 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         onChange={e => setItemData({ ...itemData, rarity: e.target.value })}
                         style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}
                     >
-                        <option value="rare">ðŸ’Ž Rare</option>
-                        <option value="legendary">â­ Legendary</option>
-                        <option value="mythic">âœ¨ Mythic</option>
-                        <option value="insane">ðŸ‘‘ Insane</option>
-                        <option value="event">âš¡ Event</option>
+                        <option value="rare">💎 Rare</option>
+                        <option value="legendary">⭐ Legendary</option>
+                        <option value="mythic">✨ Mythic</option>
+                        <option value="insane">👑 Insane</option>
+                        <option value="event">⚡ Event</option>
                     </select>
                 </div>
 
@@ -663,7 +681,7 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         </div>
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '6px' }}>
-                        Weight 10 = 0.0001% â€¢ Weight 1000 = 0.01% â€¢ Weight 100000 = 1%
+                        Weight 10 = 0.0001% · Weight 1000 = 0.01% · Weight 100000 = 1%
                     </div>
                 </div>
             </div>
@@ -1154,7 +1172,7 @@ export function AdminPanel({ onClose, allItems }) {
                                 background: COLORS.bgLight,
                                 borderRadius: '12px'
                             }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>âœ“</div>
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}><Check size={48} color={COLORS.green} /></div>
                                 <div style={{ fontSize: '16px', fontWeight: '500' }}>No pending approvals</div>
                             </div>
                         ) : (
@@ -1254,7 +1272,7 @@ export function AdminPanel({ onClose, allItems }) {
                                                 <div style={{ color: COLORS.text, fontWeight: '600', fontSize: '14px' }}>
                                                     {user.custom_username || user.discord_username}
                                                     {user.username_approved && (
-                                                        <span style={{ color: COLORS.green, marginLeft: '8px', fontSize: '12px' }}>âœ“</span>
+                                                        <span style={{ color: COLORS.green, marginLeft: '8px', display: 'inline-flex' }}><Check size={12} /></span>
                                                     )}
                                                 </div>
                                                 <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '2px' }}>
@@ -1511,9 +1529,9 @@ export function AdminPanel({ onClose, allItems }) {
                                                     cursor: 'pointer'
                                                 }}
                                             >
-                                                <option value="changelog">ðŸ“ Changelog</option>
-                                                <option value="announcement">ðŸ“¢ Announcement</option>
-                                                <option value="maintenance">ðŸ”§ Maintenance</option>
+                                                <option value="changelog">📝 Changelog</option>
+                                                <option value="announcement">📢 Announcement</option>
+                                                <option value="maintenance">🔧 Maintenance</option>
                                             </select>
                                         </div>
 

@@ -204,9 +204,12 @@ function ItemDetailModal({ item, details, onClose }) {
                                     color: COLORS.gold,
                                     padding: '2px 6px',
                                     borderRadius: '4px',
-                                    fontWeight: '600'
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
                                 }}>
-                                    âœ¨ Lucky
+                                    <Sparkles size={12} /> Lucky
                                 </span>
                             )}
                             <span style={{

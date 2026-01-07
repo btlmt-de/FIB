@@ -827,7 +827,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Format large numbers
         const formatNumber = (n) => {
-            if (n === null) return 'â€”';
+            if (n === null) return '—';
             if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
             if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
             return n.toLocaleString();
@@ -1073,19 +1073,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             fontSize: '12px'
                         }}>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10 â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 10 → </span>
                                 <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.0001%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 100 â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 100 → </span>
                                 <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.001%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 1K â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 1K → </span>
                                 <span style={{ color: COLORS.purple, fontFamily: 'monospace' }}>0.01%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10K â†’ </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 10K → </span>
                                 <span style={{ color: COLORS.gold, fontFamily: 'monospace' }}>0.1%</span>
                             </div>
                         </div>
@@ -1187,7 +1187,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontSize: '11px',
                                 color: COLORS.textMuted
                             }}>
-                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : 'â€”'}%
+                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : '—'}%
                             </div>
                         </div>
                     </div>
@@ -1243,7 +1243,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                     {/* Footer */}
                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textAlign: 'center' }}>
-                        All spins processed server-side â€¢ Drop rates are exact calculations
+                        All spins processed server-side • Drop rates are exact calculations
                     </div>
                 </div>
             </div>

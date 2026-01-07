@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { UserProfile } from './UserProfile.jsx';
 import {
     X, Trophy, BookOpen, Zap, Layers, Sparkles, Star, Diamond,
-    Medal, Crown, Award, Users, TrendingUp, Flame
+    Medal, Crown, Award, Users, TrendingUp
 } from 'lucide-react';
 
 // Tab Button Component

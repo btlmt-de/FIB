@@ -495,7 +495,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages â€¢ Use @ to mention
+                                    {messages.length} messages · Use @ to mention
                                 </div>
                             </div>
                         </div>
