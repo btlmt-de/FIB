@@ -51,6 +51,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Pending spin flag for instant respin
     const pendingSpinRef = useRef(false);
 
+    // Animation cancellation flag to prevent stale updates
+    const animationCancelledRef = useRef(false);
+
+    // AbortController for cancelling in-flight API requests
+    const abortControllerRef = useRef(null);
+
     // Error state for server unavailability
     const [error, setError] = useState(null);
 
@@ -79,7 +85,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     useEffect(() => {
         return () => {
+            animationCancelledRef.current = true;
+            if (abortControllerRef.current) abortControllerRef.current.abort();
             if (animationRef.current) cancelAnimationFrame(animationRef.current);
+            if (bonusWheelRef.current) cancelAnimationFrame(bonusWheelRef.current);
             tripleAnimationRefs.current.forEach(ref => { if (ref) cancelAnimationFrame(ref); });
         };
     }, []);
@@ -115,38 +124,87 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         return `${IMAGE_BASE_URL}/${item.texture}.png`;
     }
 
+    // Fisher-Yates shuffle helper
+    function shuffleArray(array) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    // Get a random item that's visually different from the last one
+    function getRandomItem(items, lastItem) {
+        if (!items || items.length === 0) return null;
+        if (items.length === 1) return items[0];
+
+        // Try up to 5 times to get a visually different item
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const item = items[Math.floor(Math.random() * items.length)];
+            if (!lastItem) return item;
+
+            // Check if item looks different (different texture prefix)
+            const lastPrefix = (lastItem.texture || '').split('_')[0];
+            const newPrefix = (item.texture || '').split('_')[0];
+
+            if (lastPrefix !== newPrefix) return item;
+        }
+
+        // Fallback: just return any random item
+        return items[Math.floor(Math.random() * items.length)];
+    }
+
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
         const finalIndex = length - 8;
+
+        // Shuffle all item pools for better visual randomness
+        const shuffledItems = shuffleArray(allItems);
+        const shuffledInsane = shuffleArray(INSANE_ITEMS);
+        const shuffledMythic = shuffleArray(MYTHIC_ITEMS);
+        const shuffledRare = shuffleArray(RARE_MEMBERS);
+        const shuffledLegendary = shuffleArray(TEAM_MEMBERS);
+
+        let lastItem = null;
+
         for (let i = 0; i < length; i++) {
             if (i === finalIndex) {
                 newStrip.push(finalItem);
+                lastItem = finalItem;
             } else {
                 const roll = Math.random();
+                let newItem = null;
+
                 // Visual flair - show special items in the strip animation
-                if (roll < 0.001 && INSANE_ITEMS.length > 0) {
+                if (roll < 0.001 && shuffledInsane.length > 0) {
                     // 0.1% chance for insane
-                    const insane = INSANE_ITEMS[Math.floor(Math.random() * INSANE_ITEMS.length)];
-                    newStrip.push({ ...insane, isInsane: true });
-                } else if (roll < 0.003 && MYTHIC_ITEMS.length > 0) {
+                    const insane = getRandomItem(shuffledInsane, lastItem);
+                    newItem = { ...insane, isInsane: true };
+                } else if (roll < 0.003 && shuffledMythic.length > 0) {
                     // 0.2% chance for mythic (0.1% to 0.3%)
-                    const mythic = MYTHIC_ITEMS[Math.floor(Math.random() * MYTHIC_ITEMS.length)];
-                    newStrip.push({ ...mythic, isMythic: true });
-                } else if (roll < 0.033 && RARE_MEMBERS.length > 0) {
+                    const mythic = getRandomItem(shuffledMythic, lastItem);
+                    newItem = { ...mythic, isMythic: true };
+                } else if (roll < 0.033 && shuffledRare.length > 0) {
                     // 3% chance for rare
-                    const rare = RARE_MEMBERS[Math.floor(Math.random() * RARE_MEMBERS.length)];
-                    newStrip.push({ ...rare, isRare: true, texture: `rare_${rare.username}` });
-                } else if (roll < 0.053 && TEAM_MEMBERS.length > 0) {
+                    const rare = getRandomItem(shuffledRare, lastItem);
+                    newItem = { ...rare, isRare: true, texture: `rare_${rare.username}` };
+                } else if (roll < 0.053 && shuffledLegendary.length > 0) {
                     // 2% chance for legendary
-                    const member = TEAM_MEMBERS[Math.floor(Math.random() * TEAM_MEMBERS.length)];
-                    newStrip.push({
+                    const member = getRandomItem(shuffledLegendary, lastItem);
+                    newItem = {
                         ...member,
                         isSpecial: true,
                         texture: member.username ? `special_${member.username}` : member.name.toLowerCase().replace(/\s+/g, '_')
-                    });
-                } else if (allItems.length > 0) {
-                    // Regular items
-                    newStrip.push(allItems[Math.floor(Math.random() * allItems.length)]);
+                    };
+                } else if (shuffledItems.length > 0) {
+                    // Regular items - use shuffled pool and avoid similar consecutive items
+                    newItem = getRandomItem(shuffledItems, lastItem);
+                }
+
+                if (newItem) {
+                    newStrip.push(newItem);
+                    lastItem = newItem;
                 }
             }
         }
@@ -175,58 +233,108 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // Client-side cooldown check (prevents animation flash)
         if (!canSpin()) return;
 
+        // Reset cancellation flag for new spin
+        animationCancelledRef.current = false;
+
         try {
             setState('spinning');
 
-            const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
-            const spinResult = await res.json();
-
-            // Handle rate limit / cooldown - show error message
-            if (res.status === 429 || spinResult.cooldown) {
-                setError("Don't spin too fast!");
-                setState('idle');
-                return;
-            }
-
-            if (!res.ok || !spinResult.result) {
-                throw new Error(spinResult.error || 'Spin failed');
-            }
-
-            // Mark spin time only after successful response
-            markSpinTime();
-
-            const finalItem = {
-                ...spinResult.result,
-                isSpecial: spinResult.result.type === 'legendary',
-                isRare: spinResult.result.type === 'rare',
-                isMythic: spinResult.result.type === 'mythic',
-                isEvent: spinResult.result.type === 'event'
-            };
-
-            const newStrip = buildStrip(finalItem);
-            setStrip(newStrip);
-            setResult(finalItem);
-            setIsNewItem(spinResult.isNew);
+            // IMMEDIATELY build a placeholder strip and start animation
+            // This makes the wheel feel instant - no waiting for API
+            const placeholderItem = allItems[Math.floor(Math.random() * allItems.length)];
+            const placeholderStrip = buildStrip(placeholderItem);
+            setStrip(placeholderStrip);
             offsetRef.current = 0;
 
+            // Pre-calculate animation parameters
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
-            // Add "edge" tension - sometimes land very close to adjacent items
             let offsetVariance;
             const edgeRoll = Math.random();
             if (edgeRoll < 0.15) {
-                // 15% chance: Edge left (almost showing previous item)
-                offsetVariance = -25 - Math.random() * 12; // -25 to -37
+                offsetVariance = -25 - Math.random() * 12;
             } else if (edgeRoll < 0.30) {
-                // 15% chance: Edge right (almost showing next item)
-                offsetVariance = 25 + Math.random() * 12; // +25 to +37
+                offsetVariance = 25 + Math.random() * 12;
             } else {
-                // 70% chance: Normal centered landing
-                offsetVariance = (Math.random() - 0.5) * 30; // -15 to +15
+                offsetVariance = (Math.random() - 0.5) * 30;
             }
             const finalOffset = targetOffset + offsetVariance;
+
+            // Start animation IMMEDIATELY (before API returns)
             let startTime = null;
+            let spinResult = null;
+            let finalItem = placeholderItem;
+
+            // Create abort controller for this request with timeout
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+            // Make API call in parallel with animation
+            const apiCall = (async () => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/spin`, {
+                        method: 'POST',
+                        credentials: 'include',
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    // Check if cancelled during fetch
+                    if (animationCancelledRef.current) return null;
+
+                    spinResult = await res.json();
+
+                    // Handle rate limit / cooldown
+                    if (res.status === 429 || spinResult.cooldown) {
+                        setError("Don't spin too fast!");
+                        animationCancelledRef.current = true;
+                        if (animationRef.current) cancelAnimationFrame(animationRef.current);
+                        setStrip([]);
+                        setResult(null);
+                        setIsNewItem(false);
+                        setState('idle');
+                        return null;
+                    }
+
+                    if (!res.ok || !spinResult.result) {
+                        throw new Error(spinResult.error || 'Spin failed');
+                    }
+
+                    // Mark spin time only after successful response
+                    markSpinTime();
+
+                    finalItem = {
+                        ...spinResult.result,
+                        isSpecial: spinResult.result.type === 'legendary',
+                        isRare: spinResult.result.type === 'rare',
+                        isMythic: spinResult.result.type === 'mythic',
+                        isEvent: spinResult.result.type === 'event'
+                    };
+
+                    // Check again before updating state
+                    if (animationCancelledRef.current) return null;
+
+                    // Update strip with real result - the animation continues smoothly
+                    const newStrip = buildStrip(finalItem);
+                    setStrip(newStrip);
+                    setResult(finalItem);
+                    setIsNewItem(spinResult.isNew);
+
+                    return spinResult;
+                } catch (err) {
+                    clearTimeout(timeoutId);
+                    // Re-throw unless aborted (which is intentional)
+                    if (err.name === 'AbortError') {
+                        return null; // Silently ignore abort
+                    }
+                    throw err;
+                }
+            })();
 
             const animate = (timestamp) => {
+                // Bail out if animation was cancelled (e.g., cooldown, unmount)
+                if (animationCancelledRef.current) return;
+
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / spinDuration, 1);
@@ -242,27 +350,50 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     }
                 }
 
-                if (progress < 1) {
+                if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
-                } else {
-                    if (spinResult.isEvent) {
-                        setState('event');
-                        setTimeout(() => spinBonusWheel(), 1500);
-                    } else {
-                        setState('result');
-                        if (onSpinComplete) onSpinComplete(spinResult);
-                    }
+                } else if (!animationCancelledRef.current) {
+                    // Animation complete - wait for API if needed, then finish
+                    apiCall.then((result) => {
+                        // Check for cancellation before updating state
+                        if (animationCancelledRef.current || result === null) return;
+                        if (result.isEvent) {
+                            setState('event');
+                            setTimeout(() => spinBonusWheel(), 1500);
+                        } else {
+                            setState('result');
+                            if (onSpinComplete) onSpinComplete(result);
+                        }
+                    }).catch((err) => {
+                        // Check for cancellation before updating state
+                        if (animationCancelledRef.current) return;
+
+                        console.error('Spin failed:', err);
+                        if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+                            setError('Server unavailable. Please try again later.');
+                        } else {
+                            setError(err.message || 'Spin failed. Please try again.');
+                        }
+                        // Clear stale spin state
+                        setStrip([]);
+                        setResult(null);
+                        setIsNewItem(false);
+                        setState('idle');
+                    });
                 }
             };
             animationRef.current = requestAnimationFrame(animate);
         } catch (err) {
             console.error('Spin failed:', err);
-            // Check if it's a network error (server offline)
             if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
                 setError('Server unavailable. Please try again later.');
             } else {
                 setError(err.message || 'Spin failed. Please try again.');
             }
+            // Clear stale spin state
+            setStrip([]);
+            setResult(null);
+            setIsNewItem(false);
             setState('idle');
         }
     }
@@ -349,6 +480,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Lucky spin - equal probability for all items (bonus event reward - no cooldown)
     async function triggerLuckySpin() {
         setState('luckySpinning');
+        animationCancelledRef.current = false;
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/spin/lucky`, {
@@ -394,6 +526,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             let startTime = null;
 
             const animate = (timestamp) => {
+                // Bail out if animation was cancelled
+                if (animationCancelledRef.current) return;
+
                 if (!startTime) startTime = timestamp;
                 const elapsed = timestamp - startTime;
                 const progress = Math.min(elapsed / spinDuration, 1);
@@ -409,9 +544,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     }
                 }
 
-                if (progress < 1) {
+                if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
-                } else {
+                } else if (!animationCancelledRef.current) {
                     setState('luckyResult');
                     if (onSpinComplete) onSpinComplete(spinResult);
                 }
@@ -1567,8 +1702,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 color: '#1a1a1a', fontSize: '10px', fontWeight: '800', padding: '5px 14px',
                                 borderRadius: '4px', animation: 'mythicBadge 1.5s ease-in-out infinite',
                                 textShadow: '0 0 10px rgba(255,255,255,0.5)',
-                                boxShadow: `0 0 20px ${COLORS.insane}88`
-                            }}>👑 INSANE 👑</span>
+                                boxShadow: `0 0 20px ${COLORS.insane}88`,
+                                display: 'inline-flex', alignItems: 'center', gap: '6px'
+                            }}><Crown size={12} /> INSANE <Crown size={12} /></span>
                         ) : isMythicItem(result) ? (
                             <span style={{
                                 background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,

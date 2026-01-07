@@ -34,6 +34,70 @@ export function LiveChat({ user, isAdmin = false }) {
     const lastMessageIdRef = useRef(0);
     const pollIntervalRef = useRef(null);
     const inputRef = useRef(null);
+    const lastActivityRef = useRef(Date.now());
+
+    // Refs to track visibility state for use in callbacks (avoids stale closures)
+    const isOpenRef = useRef(isOpen);
+    const isMinimizedRef = useRef(isMinimized);
+
+    // Keep refs in sync with state
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
+
+    useEffect(() => {
+        isMinimizedRef.current = isMinimized;
+    }, [isMinimized]);
+
+    // Adaptive polling: fast when active, slower when idle
+    const FAST_POLL_INTERVAL = 500;   // 500ms when actively chatting
+    const SLOW_POLL_INTERVAL = 3000;  // 3s when idle/minimized
+    const ACTIVITY_TIMEOUT = 10000;   // Consider idle after 10s of no activity
+
+    // Track user activity
+    const trackActivity = useCallback(() => {
+        lastActivityRef.current = Date.now();
+    }, []);
+
+    // Get current poll interval based on state (uses refs for current values)
+    const getPollInterval = useCallback(() => {
+        const isIdle = Date.now() - lastActivityRef.current > ACTIVITY_TIMEOUT;
+        if (!isOpenRef.current || isMinimizedRef.current || isIdle) {
+            return SLOW_POLL_INTERVAL;
+        }
+        return FAST_POLL_INTERVAL;
+    }, []);
+
+    // Helper to find the message being replied to (only searches messages BEFORE currentIndex)
+    const findRepliedMessage = useCallback((message, currentIndex) => {
+        // Check if message starts with @username pattern
+        const replyMatch = message.match(/^@(\S+)\s/);
+        if (!replyMatch) return null;
+
+        const mentionedUsername = replyMatch[1].toLowerCase();
+
+        // Only search messages before the current one, in reverse order (most recent first)
+        const previousMessages = messages.slice(0, currentIndex);
+        const repliedMsg = [...previousMessages].reverse().find(m => {
+            const msgUsername = (m.custom_username || m.discord_username || '').toLowerCase();
+            return msgUsername === mentionedUsername;
+        });
+
+        return repliedMsg || null;
+    }, [messages]);
+
+    // Scroll to a specific message
+    const scrollToMessage = useCallback((messageId) => {
+        const element = document.getElementById(`chat-msg-${messageId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight briefly
+            element.style.background = 'rgba(88, 101, 242, 0.2)';
+            setTimeout(() => {
+                element.style.background = '';
+            }, 1500);
+        }
+    }, []);
 
     const scrollToBottom = (smooth = true) => {
         messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
@@ -73,20 +137,29 @@ export function LiveChat({ user, isAdmin = false }) {
                 const data = await res.json();
 
                 if (since && data.messages.length > 0) {
-                    setMessages(prev => [...prev, ...data.messages]);
+                    // Deduplicate: filter out messages that already exist locally
+                    // This prevents the double-message bug when sending + polling race
+                    setMessages(prev => {
+                        const existingIds = new Set(prev.map(m => m.id));
+                        const newMsgs = data.messages.filter(m => !existingIds.has(m.id));
+                        if (newMsgs.length === 0) return prev; // No change needed
 
-                    // Check for pings in new messages
-                    const hasMention = data.messages.some(msg =>
-                        msg.user_id !== user?.id && isUserMentioned(msg.message)
-                    );
-
-                    if (!isOpen || isMinimized) {
-                        setUnreadCount(prev => prev + data.messages.length);
-                        setHasNewMessage(true);
-                        if (hasMention) {
-                            setHasPing(true);
+                        // Handle unread count for truly new messages only
+                        // Use refs to get current visibility state (avoids stale closures)
+                        if ((!isOpenRef.current || isMinimizedRef.current) && newMsgs.length > 0) {
+                            setUnreadCount(c => c + newMsgs.length);
+                            setHasNewMessage(true);
+                            // Check for pings in new messages
+                            const hasMention = newMsgs.some(msg =>
+                                msg.user_id !== user?.id && isUserMentioned(msg.message)
+                            );
+                            if (hasMention) {
+                                setHasPing(true);
+                            }
                         }
-                    }
+
+                        return [...prev, ...newMsgs];
+                    });
                 } else if (!since) {
                     setMessages(data.messages || []);
                 }
@@ -99,7 +172,7 @@ export function LiveChat({ user, isAdmin = false }) {
         } catch (error) {
             console.error('Failed to fetch messages:', error);
         }
-    }, [isOpen, isMinimized, user]);
+    }, [user]);
 
     // Fetch users for mention autocomplete
     const fetchMentionUsers = async (search) => {
@@ -119,18 +192,24 @@ export function LiveChat({ user, isAdmin = false }) {
     useEffect(() => {
         if (user) {
             fetchMessages();
-            pollIntervalRef.current = setInterval(() => {
-                // Always poll - fetchMessages handles undefined/0 since parameter
+
+            // Adaptive polling - adjust interval based on activity
+            const poll = () => {
                 fetchMessages(lastMessageIdRef.current || undefined);
-            }, 3000);
+                // Schedule next poll with current interval
+                pollIntervalRef.current = setTimeout(poll, getPollInterval());
+            };
+
+            // Start polling
+            pollIntervalRef.current = setTimeout(poll, getPollInterval());
 
             return () => {
                 if (pollIntervalRef.current) {
-                    clearInterval(pollIntervalRef.current);
+                    clearTimeout(pollIntervalRef.current);
                 }
             };
         }
-    }, [user, fetchMessages]);
+    }, [user, fetchMessages, getPollInterval]);
 
     useEffect(() => {
         if (isOpen && !isMinimized) {
@@ -156,6 +235,7 @@ export function LiveChat({ user, isAdmin = false }) {
     }, [mentionSearch, showMentionList]);
 
     const handleInputChange = (e) => {
+        trackActivity(); // Track user activity for adaptive polling
         const value = e.target.value;
         const curPos = e.target.selectionStart;
         setInputValue(value);
@@ -218,6 +298,7 @@ export function LiveChat({ user, isAdmin = false }) {
     const sendMessage = async () => {
         if (!inputValue.trim() || sending) return;
 
+        trackActivity(); // Keep fast polling active when sending
         setSending(true);
         setError('');
         setShowMentionList(false);
@@ -269,17 +350,30 @@ export function LiveChat({ user, isAdmin = false }) {
         }
     };
 
+    // Parse server timestamp as UTC (SQLite stores UTC via CURRENT_TIMESTAMP)
+    const parseServerDate = (dateStr) => {
+        if (!dateStr) return new Date();
+        // If already has timezone info, parse directly
+        if (dateStr.includes('Z') || dateStr.includes('+') || dateStr.includes('T')) {
+            return new Date(dateStr);
+        }
+        // SQLite format "YYYY-MM-DD HH:MM:SS" - interpret as UTC
+        return new Date(dateStr.replace(' ', 'T') + 'Z');
+    };
+
     const formatTime = (dateStr) => {
-        const date = new Date(dateStr);
+        const date = parseServerDate(dateStr);
+        // toLocaleTimeString uses the user's local timezone automatically
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     const formatDate = (dateStr) => {
-        const date = new Date(dateStr);
+        const date = parseServerDate(dateStr);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
 
+        // Compare dates in local timezone
         if (date.toDateString() === today.toDateString()) return 'Today';
         if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
         return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -296,21 +390,22 @@ export function LiveChat({ user, isAdmin = false }) {
         if (index === 0) return true;
         const prevMsg = messages[index - 1];
         if (prevMsg.user_id !== msg.user_id) return true;
-        const timeDiff = new Date(msg.created_at) - new Date(prevMsg.created_at);
+        const timeDiff = parseServerDate(msg.created_at) - parseServerDate(prevMsg.created_at);
         return timeDiff > 5 * 60 * 1000;
     };
 
     const shouldShowDateSeparator = (msg, index) => {
         if (index === 0) return true;
         const prevMsg = messages[index - 1];
-        const prevDate = new Date(prevMsg.created_at).toDateString();
-        const currDate = new Date(msg.created_at).toDateString();
+        const prevDate = parseServerDate(prevMsg.created_at).toDateString();
+        const currDate = parseServerDate(msg.created_at).toDateString();
         return prevDate !== currDate;
     };
 
     const handleReply = (msg) => {
+        trackActivity(); // Track user activity for adaptive polling
         const name = msg.custom_username || msg.discord_username || 'User';
-        setReplyingTo({ id: msg.id, name });
+        setReplyingTo({ id: msg.id, name, message: msg.message });
         inputRef.current?.focus();
     };
 
@@ -391,7 +486,7 @@ export function LiveChat({ user, isAdmin = false }) {
             {/* Chat Button */}
             {!isOpen && (
                 <button
-                    onClick={() => setIsOpen(true)}
+                    onClick={() => { trackActivity(); setIsOpen(true); }}
                     style={{
                         position: 'fixed',
                         bottom: '20px',
@@ -496,13 +591,13 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages · Use @ to mention
+                                    {messages.length} messages • Use @ to mention
                                 </div>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '2px' }}>
                             <button
-                                onClick={() => setIsMinimized(!isMinimized)}
+                                onClick={() => { if (isMinimized) trackActivity(); setIsMinimized(!isMinimized); }}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -586,6 +681,10 @@ export function LiveChat({ user, isAdmin = false }) {
                                             const showDate = shouldShowDateSeparator(msg, index);
                                             const isMentioned = !isOwnMessage && isUserMentioned(msg.message);
 
+                                            // Check if this is a reply to someone (only search messages before this one)
+                                            const repliedMessage = findRepliedMessage(msg.message, index);
+                                            const isReply = repliedMessage !== null;
+
                                             return (
                                                 <React.Fragment key={msg.id}>
                                                     {/* Date separator */}
@@ -611,7 +710,56 @@ export function LiveChat({ user, isAdmin = false }) {
                                                         </div>
                                                     )}
 
+                                                    {/* Reply preview - Discord style */}
+                                                    {isReply && (
+                                                        <div
+                                                            onClick={() => scrollToMessage(repliedMessage.id)}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '8px',
+                                                                padding: '4px 16px 4px 60px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '12px',
+                                                                color: 'rgba(255,255,255,0.4)'
+                                                            }}
+                                                        >
+                                                            <div style={{
+                                                                width: '2px',
+                                                                height: '12px',
+                                                                background: '#5865F2',
+                                                                borderRadius: '1px'
+                                                            }} />
+                                                            <Reply size={12} style={{ opacity: 0.6 }} />
+                                                            <img
+                                                                src={getAvatarUrl(repliedMessage.discord_id, repliedMessage.discord_avatar)}
+                                                                alt=""
+                                                                style={{
+                                                                    width: '14px',
+                                                                    height: '14px',
+                                                                    borderRadius: '50%'
+                                                                }}
+                                                                onError={(e) => {
+                                                                    e.target.onerror = null;
+                                                                    e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                                                }}
+                                                            />
+                                                            <span style={{ color: '#8B5CF6', fontWeight: '500' }}>
+                                                                {repliedMessage.custom_username || repliedMessage.discord_username}
+                                                            </span>
+                                                            <span style={{
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap',
+                                                                maxWidth: '200px'
+                                                            }}>
+                                                                {repliedMessage.message}
+                                                            </span>
+                                                        </div>
+                                                    )}
+
                                                     <div
+                                                        id={`chat-msg-${msg.id}`}
                                                         className={`chat-msg-row ${isMentioned ? 'mentioned' : ''}`}
                                                         style={{
                                                             padding: showHeader ? '8px 16px 4px' : '2px 16px 2px 60px',
@@ -620,7 +768,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 : isOwnMessage
                                                                     ? '2px solid rgba(139, 92, 246, 0.4)'
                                                                     : '2px solid transparent',
-                                                            animation: index === messages.length - 1 ? 'msgSlideIn 0.2s ease-out' : 'none'
+                                                            animation: index === messages.length - 1 ? 'msgSlideIn 0.2s ease-out' : 'none',
+                                                            transition: 'background 0.3s ease'
                                                         }}
                                                     >
                                                         <div style={{
@@ -700,11 +849,11 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Actions */}
+                                                            {/* Actions - always visible */}
                                                             <div className="msg-actions" style={{
                                                                 display: 'flex',
                                                                 gap: '2px',
-                                                                opacity: 0,
+                                                                opacity: 0.5,
                                                                 transition: 'opacity 0.15s'
                                                             }}>
                                                                 {!isOwnMessage && (
@@ -802,13 +951,26 @@ export function LiveChat({ user, isAdmin = false }) {
                                     borderTop: '1px solid rgba(88, 101, 242, 0.2)',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'space-between'
+                                    justifyContent: 'space-between',
+                                    gap: '12px'
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Reply size={14} color="#5865F2" />
-                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                                        <Reply size={14} color="#5865F2" style={{ flexShrink: 0 }} />
+                                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', flexShrink: 0 }}>
                                             Replying to <span style={{ color: '#8B5CF6', fontWeight: '500' }}>{replyingTo.name}</span>
                                         </span>
+                                        {replyingTo.message && (
+                                            <span style={{
+                                                color: 'rgba(255,255,255,0.4)',
+                                                fontSize: '11px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                maxWidth: '150px'
+                                            }}>
+                                                — {replyingTo.message}
+                                            </span>
+                                        )}
                                     </div>
                                     <button
                                         onClick={() => setReplyingTo(null)}
@@ -817,7 +979,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                             border: 'none',
                                             color: 'rgba(255,255,255,0.4)',
                                             cursor: 'pointer',
-                                            padding: '4px'
+                                            padding: '4px',
+                                            flexShrink: 0
                                         }}
                                     >
                                         <X size={14} />

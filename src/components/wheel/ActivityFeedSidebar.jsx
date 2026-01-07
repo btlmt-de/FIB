@@ -1,12 +1,38 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { COLORS } from '../../config/constants.js';
-import { Activity, Sparkles } from 'lucide-react';
+import { Activity, Sparkles, Crown } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../context/ActivityContext';
 
+// Format exact timestamp for Mythic & Insane tab
+function formatExactTime(dateStr) {
+    let d = dateStr;
+    if (!d.includes('Z') && !d.includes('+')) {
+        d = d.replace(' ', 'T') + 'Z';
+    }
+    const date = new Date(d);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+        return `Today at ${time}`;
+    } else if (isYesterday) {
+        return `Yesterday at ${time}`;
+    } else {
+        const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return `${dateStr} at ${time}`;
+    }
+}
+
 export function ActivityFeedSidebar() {
     const { feed: rawFeed, serverTime, initialized } = useActivity();
+    const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
 
     const feed = useMemo(() => {
         if (!rawFeed || !serverTime) return [];
@@ -28,6 +54,14 @@ export function ActivityFeedSidebar() {
         });
     }, [rawFeed, serverTime]);
 
+    // Filter for mythic and insane only
+    const specialFeed = useMemo(() => {
+        return feed.filter(item =>
+            item.item_rarity === 'mythic' || item.item_rarity === 'insane'
+        );
+    }, [feed]);
+
+    const displayFeed = activeTab === 'all' ? feed : specialFeed;
     const loading = !initialized;
 
     return (
@@ -91,20 +125,41 @@ export function ActivityFeedSidebar() {
                 .activity-feed-scroll::-webkit-scrollbar-thumb:hover {
                     background: ${COLORS.textMuted};
                 }
+                .activity-tab {
+                    flex: 1;
+                    padding: 8px 12px;
+                    background: transparent;
+                    border: none;
+                    color: ${COLORS.textMuted};
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    border-radius: 6px;
+                }
+                .activity-tab:hover {
+                    color: ${COLORS.text};
+                    background: ${COLORS.bgLighter};
+                }
+                .activity-tab.active {
+                    color: ${COLORS.text};
+                    background: ${COLORS.bgLight};
+                }
             `}</style>
 
             {/* Header */}
             <div style={{
-                padding: '16px 18px',
+                padding: '16px 18px 12px',
                 borderBottom: `1px solid ${COLORS.border}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
                 background: `linear-gradient(135deg, ${COLORS.bgLight}aa 0%, ${COLORS.bg}aa 100%)`,
                 borderRadius: '14px 14px 0 0',
                 boxShadow: `inset 0 1px 0 ${COLORS.border}`
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                     <Activity size={18} color={COLORS.green} />
                     <span style={{
                         color: COLORS.text,
@@ -121,6 +176,31 @@ export function ActivityFeedSidebar() {
                         animation: 'pulse 2s infinite'
                     }} />
                 </div>
+
+                {/* Tabs */}
+                <div style={{
+                    display: 'flex',
+                    gap: '6px',
+                    background: COLORS.bg,
+                    padding: '4px',
+                    borderRadius: '8px'
+                }}>
+                    <button
+                        className={`activity-tab ${activeTab === 'all' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('all')}
+                    >
+                        <Activity size={13} />
+                        All Drops
+                    </button>
+                    <button
+                        className={`activity-tab ${activeTab === 'special' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('special')}
+                    >
+                        <Crown size={13} color={activeTab === 'special' ? COLORS.insane : undefined} />
+                        <Sparkles size={13} color={activeTab === 'special' ? COLORS.aqua : undefined} />
+                        Rare Pulls
+                    </button>
+                </div>
             </div>
 
             {/* Feed content */}
@@ -133,16 +213,31 @@ export function ActivityFeedSidebar() {
                     <div style={{ textAlign: 'center', padding: '30px', color: COLORS.textMuted, fontSize: '13px' }}>
                         Loading...
                     </div>
-                ) : feed.length === 0 ? (
+                ) : displayFeed.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-                        <Activity size={32} style={{ marginBottom: '12px', opacity: 0.3 }} />
-                        <div style={{ fontSize: '13px' }}>No recent drops</div>
-                        <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
-                            Special items will appear here
-                        </div>
+                        {activeTab === 'special' ? (
+                            <>
+                                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px', opacity: 0.4 }}>
+                                    <Crown size={28} color={COLORS.insane} />
+                                    <Sparkles size={28} color={COLORS.aqua} />
+                                </div>
+                                <div style={{ fontSize: '13px' }}>No mythic or insane drops yet</div>
+                                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                                    The rarest pulls will appear here
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <Activity size={32} style={{ marginBottom: '12px', opacity: 0.3 }} />
+                                <div style={{ fontSize: '13px' }}>No recent drops</div>
+                                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                                    Special items will appear here
+                                </div>
+                            </>
+                        )}
                     </div>
                 ) : (
-                    feed.slice(0, 15).map((item, idx) => {
+                    displayFeed.slice(0, activeTab === 'special' ? 50 : 15).map((item, idx) => {
                         const rarityColor = getRarityColor(item.item_rarity);
                         const isInsane = item.item_rarity === 'insane';
                         const isMythic = item.item_rarity === 'mythic';
@@ -249,7 +344,11 @@ export function ActivityFeedSidebar() {
                                             color: COLORS.textMuted,
                                             flexShrink: 0
                                         }}>
-                                            {formatTimeAgo(item.created_at)}
+                                            {/* Show exact time for special tab, relative for all */}
+                                            {activeTab === 'special' && isSpecial
+                                                ? formatExactTime(item.created_at)
+                                                : formatTimeAgo(item.created_at)
+                                            }
                                         </span>
                                     </div>
                                     <div style={{
