@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, Sparkles, Star, Diamond, ChevronDown, ChevronUp } from 'lucide-react';
+import { Crown, Sparkles, Star, Diamond, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import {
     COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
     ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
-    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS
+    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS
 } from '../../config/constants.js';
 import {
     formatChance, getMinecraftHeadUrl,
@@ -23,6 +23,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [expandedItemsList, setExpandedItemsList] = useState(false);
+    const [expandedRarities, setExpandedRarities] = useState({});
     const animationRef = useRef(null);
 
     // Use refs for animation offsets to avoid re-renders during animation
@@ -93,8 +94,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     function getItemImageUrl(item) {
         if (!item) return `${IMAGE_BASE_URL}/barrier.png`;
+        // Check both camelCase and snake_case since API returns snake_case
         if (item.imageUrl) return item.imageUrl;
+        if (item.image_url) return item.image_url;
         if (isEventItem(item)) return EVENT_ITEM.imageUrl;
+        if (isInsaneItem(item) && !item.username) {
+            const insane = INSANE_ITEMS.find(i => i.texture === item.texture);
+            if (insane) return insane.imageUrl;
+        }
         if (isMythicItem(item) && !item.username) {
             // Find matching mythic item by texture
             const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
@@ -114,8 +121,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             } else {
                 const roll = Math.random();
                 // Visual flair - show special items in the strip animation
-                if (roll < 0.003 && MYTHIC_ITEMS.length > 0) {
-                    // 0.3% chance for mythic
+                if (roll < 0.001 && INSANE_ITEMS.length > 0) {
+                    // 0.1% chance for insane
+                    const insane = INSANE_ITEMS[Math.floor(Math.random() * INSANE_ITEMS.length)];
+                    newStrip.push({ ...insane, isInsane: true });
+                } else if (roll < 0.003 && MYTHIC_ITEMS.length > 0) {
+                    // 0.2% chance for mythic (0.1% to 0.3%)
                     const mythic = MYTHIC_ITEMS[Math.floor(Math.random() * MYTHIC_ITEMS.length)];
                     newStrip.push({ ...mythic, isMythic: true });
                 } else if (roll < 0.033 && RARE_MEMBERS.length > 0) {
@@ -125,7 +136,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 } else if (roll < 0.053 && TEAM_MEMBERS.length > 0) {
                     // 2% chance for legendary
                     const member = TEAM_MEMBERS[Math.floor(Math.random() * TEAM_MEMBERS.length)];
-                    newStrip.push({ ...member, isSpecial: true, texture: `special_${member.username}` });
+                    newStrip.push({
+                        ...member,
+                        isSpecial: true,
+                        texture: member.username ? `special_${member.username}` : member.name.toLowerCase().replace(/\s+/g, '_')
+                    });
                 } else if (allItems.length > 0) {
                     // Regular items
                     newStrip.push(allItems[Math.floor(Math.random() * allItems.length)]);
@@ -844,6 +859,34 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             });
         };
 
+        // Handle rarity dropdown toggle
+        const toggleRarity = (rarity) => {
+            const scrollTop = modalContentRef.current?.scrollTop || 0;
+            setExpandedRarities(prev => ({ ...prev, [rarity]: !prev[rarity] }));
+            requestAnimationFrame(() => {
+                if (modalContentRef.current) {
+                    modalContentRef.current.scrollTop = scrollTop;
+                }
+            });
+        };
+
+        // Get items for a rarity tier
+        const getItemsForRarity = (rarity) => {
+            if (!dynamicItems) return [];
+            return dynamicItems
+                .filter(i => i.rarity === rarity)
+                .sort((a, b) => (a.weight || 0) - (b.weight || 0));
+        };
+
+        // Rarity config
+        const rarityConfig = {
+            insane: { icon: <Crown size={14} />, color: INSANE_COLOR, label: 'Insane' },
+            mythic: { icon: <Sparkles size={14} />, color: COLORS.aqua, label: 'Any Mythic' },
+            legendary: { icon: <Star size={14} />, color: COLORS.purple, label: 'Any Legendary' },
+            rare: { icon: <Diamond size={14} />, color: COLORS.red, label: 'Any Rare' },
+            event: { icon: <Zap size={14} />, color: COLORS.orange, label: 'Event' }
+        };
+
         return (
             <div
                 style={{
@@ -925,84 +968,89 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             border: `1px solid ${COLORS.border}`,
                             overflow: 'hidden'
                         }}>
-                            {/* Insane */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px',
-                                borderBottom: `1px solid ${COLORS.border}`
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Crown size={14} style={{ color: INSANE_COLOR }} />
-                                    <span style={{ color: COLORS.text, fontSize: '13px' }}>Insane</span>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <span style={{ color: INSANE_COLOR, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                        ~{formatNumber(expectedSpins.insane)}
-                                    </span>
-                                    <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '4px' }}>spins</span>
-                                </div>
-                            </div>
+                            {['insane', 'mythic', 'legendary', 'rare'].map((rarity, idx, arr) => {
+                                const config = rarityConfig[rarity];
+                                const items = getItemsForRarity(rarity);
+                                const isExpanded = expandedRarities[rarity];
+                                const isLast = idx === arr.length - 1 && !isExpanded;
 
-                            {/* Mythic */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px',
-                                borderBottom: `1px solid ${COLORS.border}`
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Sparkles size={14} style={{ color: COLORS.aqua }} />
-                                    <span style={{ color: COLORS.text, fontSize: '13px' }}>Any Mythic</span>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <span style={{ color: COLORS.aqua, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                        ~{formatNumber(expectedSpins.mythic)}
-                                    </span>
-                                    <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '4px' }}>spins</span>
-                                </div>
-                            </div>
+                                return (
+                                    <div key={rarity}>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleRarity(rarity)}
+                                            style={{
+                                                width: '100%',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '10px 14px',
+                                                background: 'transparent',
+                                                border: 'none',
+                                                borderBottom: isLast ? 'none' : `1px solid ${COLORS.border}`,
+                                                cursor: items.length > 0 ? 'pointer' : 'default',
+                                                opacity: items.length > 0 ? 1 : 0.6
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ color: config.color }}>{config.icon}</span>
+                                                <span style={{ color: COLORS.text, fontSize: '13px' }}>{config.label}</span>
+                                                {items.length > 0 && (
+                                                    <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>({items.length})</span>
+                                                )}
+                                                {items.length > 0 && (
+                                                    <ChevronDown
+                                                        size={12}
+                                                        style={{
+                                                            color: COLORS.textMuted,
+                                                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                                            transition: 'transform 0.2s'
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{ color: config.color, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                                    ~{formatNumber(expectedSpins[rarity])}
+                                                </span>
+                                                <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '4px' }}>spins</span>
+                                            </div>
+                                        </button>
 
-                            {/* Legendary */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px',
-                                borderBottom: `1px solid ${COLORS.border}`
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Star size={14} style={{ color: COLORS.purple }} />
-                                    <span style={{ color: COLORS.text, fontSize: '13px' }}>Any Legendary</span>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <span style={{ color: COLORS.purple, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                        ~{formatNumber(expectedSpins.legendary)}
-                                    </span>
-                                    <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '4px' }}>spins</span>
-                                </div>
-                            </div>
-
-                            {/* Rare */}
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Diamond size={14} style={{ color: COLORS.red }} />
-                                    <span style={{ color: COLORS.text, fontSize: '13px' }}>Any Rare</span>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <span style={{ color: COLORS.red, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                        ~{formatNumber(expectedSpins.rare)}
-                                    </span>
-                                    <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '4px' }}>spins</span>
-                                </div>
-                            </div>
+                                        {/* Expanded items list */}
+                                        {isExpanded && items.length > 0 && (
+                                            <div style={{
+                                                background: `${config.color}08`,
+                                                borderBottom: idx === arr.length - 1 ? 'none' : `1px solid ${COLORS.border}`
+                                            }}>
+                                                {items.map((item, itemIdx) => (
+                                                    <div
+                                                        key={item.id || itemIdx}
+                                                        style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            padding: '6px 14px 6px 36px',
+                                                            fontSize: '11px',
+                                                            borderBottom: itemIdx < items.length - 1 ? `1px solid ${COLORS.border}22` : 'none'
+                                                        }}
+                                                    >
+                                                        <span style={{ color: COLORS.textMuted }}>{item.name}</span>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span style={{ color: COLORS.textMuted, fontFamily: 'monospace', fontSize: '10px' }}>
+                                                                weight:{item.weight?.toLocaleString()}
+                                                            </span>
+                                                            <span style={{ color: config.color, fontFamily: 'monospace', minWidth: '70px', textAlign: 'right' }}>
+                                                                {formatPercent(item.weight)}%
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -1184,117 +1232,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 <span style={{ color: COLORS.gold, fontSize: '12px', fontFamily: 'monospace' }}>10,000,000</span>
                             </div>
                         </div>
-                    </div>
-
-                    {/* Special Items List - Collapsible */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <button
-                            type="button"
-                            onClick={handleToggle}
-                            style={{
-                                width: '100%',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px',
-                                background: COLORS.bg,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: expandedItemsList ? '8px 8px 0 0' : '8px',
-                                cursor: 'pointer',
-                                color: COLORS.text,
-                                fontSize: '12px',
-                                fontWeight: '500'
-                            }}
-                        >
-                            <span>All Special Items ({specialItemCount})</span>
-                            {expandedItemsList ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        </button>
-
-                        {expandedItemsList && dynamicItems && dynamicItems.length > 0 && (
-                            <div style={{
-                                background: COLORS.bg,
-                                border: `1px solid ${COLORS.border}`,
-                                borderTop: 'none',
-                                borderRadius: '0 0 8px 8px',
-                                maxHeight: '200px',
-                                overflow: 'auto'
-                            }}>
-                                {/* Group by rarity */}
-                                {['insane', 'mythic', 'legendary', 'rare', 'event'].map(rarity => {
-                                    const items = dynamicItems
-                                        .filter(i => i.rarity === rarity)
-                                        .sort((a, b) => (a.weight || 0) - (b.weight || 0)); // Sort by weight ascending (rarest first)
-                                    if (items.length === 0) return null;
-
-                                    const rarityColors = {
-                                        insane: INSANE_COLOR,
-                                        mythic: COLORS.aqua,
-                                        legendary: COLORS.purple,
-                                        rare: COLORS.red,
-                                        event: COLORS.orange
-                                    };
-
-                                    const rarityIcons = {
-                                        insane: <Crown size={10} />,
-                                        mythic: <Sparkles size={10} />,
-                                        legendary: <Star size={10} />,
-                                        rare: <Diamond size={10} />,
-                                        event: null
-                                    };
-
-                                    return (
-                                        <div key={rarity}>
-                                            {/* Rarity header */}
-                                            <div style={{
-                                                padding: '6px 14px',
-                                                background: `${rarityColors[rarity]}15`,
-                                                borderBottom: `1px solid ${COLORS.border}`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px'
-                                            }}>
-                                                <span style={{ color: rarityColors[rarity] }}>{rarityIcons[rarity]}</span>
-                                                <span style={{
-                                                    color: rarityColors[rarity],
-                                                    fontSize: '10px',
-                                                    fontWeight: '600',
-                                                    textTransform: 'uppercase'
-                                                }}>
-                                                    {rarity}
-                                                </span>
-                                            </div>
-                                            {/* Items */}
-                                            {items.map((item, idx) => {
-                                                const chanceStr = formatPercent(item.weight);
-                                                return (
-                                                    <div
-                                                        key={item.id || idx}
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            padding: '6px 14px',
-                                                            borderBottom: `1px solid ${COLORS.border}22`,
-                                                            fontSize: '11px'
-                                                        }}
-                                                    >
-                                                        <span style={{ color: COLORS.text }}>{item.name}</span>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                            <span style={{ color: COLORS.textMuted, fontFamily: 'monospace', fontSize: '10px' }}>
-                                                                w:{item.weight.toLocaleString()}
-                                                            </span>
-                                                            <span style={{ color: rarityColors[rarity], fontFamily: 'monospace', minWidth: '80px', textAlign: 'right' }}>
-                                                                {chanceStr}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
                     </div>
 
                     {/* Footer */}

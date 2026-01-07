@@ -37,7 +37,7 @@ export const TEAM_MEMBERS = [
     { name: 'threeseconds', username: 'threeseconds', chance: 0.0003, rarity: 'legendary' },
     { name: 'CH0RD', username: 'CH0RD', chance: 0.0004, rarity: 'legendary' },
     { name: 'stupxd', username: 'stupxd', chance: 0.0005, rarity: 'legendary' },
-    { name: 'Wandering Trader', username: null, chance: 0.00005, rarity: 'legendary', imageUrl: 'https://static.wikia.nocookie.net/minecraft_gamepedia/images/1/1a/Wandering_Trader.png' },
+    { name: 'Wandering Trader', username: null, chance: 0.00005, rarity: 'legendary', imageUrl: '/wandering_trader.png' },
 ];
 
 export const RARE_MEMBERS = [
