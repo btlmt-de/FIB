@@ -409,9 +409,18 @@ export function LiveChat({ user, isAdmin = false }) {
         inputRef.current?.focus();
     };
 
+    // Decode HTML entities (messages are stored encoded for security)
+    const decodeHtmlEntities = (text) => {
+        if (!text) return '';
+        const textarea = document.createElement('textarea');
+        textarea.innerHTML = text;
+        return textarea.value;
+    };
+
     // Render message with highlighted mentions
     const renderMessageText = (text, msgUserId) => {
-        const parts = text.split(/(@\w+)/g);
+        const decoded = decodeHtmlEntities(text);
+        const parts = decoded.split(/(@\w+)/g);
         return parts.map((part, i) => {
             if (part.startsWith('@')) {
                 const username = part.slice(1);
@@ -753,7 +762,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 whiteSpace: 'nowrap',
                                                                 maxWidth: '200px'
                                                             }}>
-                                                                {repliedMessage.message}
+                                                                {decodeHtmlEntities(repliedMessage.message)}
                                                             </span>
                                                         </div>
                                                     )}
@@ -968,7 +977,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '150px'
                                             }}>
-                                                — {replyingTo.message}
+                                                — {decodeHtmlEntities(replyingTo.message)}
                                             </span>
                                         )}
                                     </div>
