@@ -5,8 +5,12 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { UserProfile } from './UserProfile.jsx';
 import {
     X, Trophy, BookOpen, Zap, Layers, Sparkles, Star, Diamond,
-    Medal, Crown, Award, Users, TrendingUp
+    Medal, Crown, Award, Users, TrendingUp, Flame
 } from 'lucide-react';
+
+// Insane color constant
+// Insane color constant - bright gold, distinct from all other rarities
+const INSANE_COLOR = '#FFD700';
 
 // Tab Button Component
 function TabButton({ active, onClick, children, icon }) {
@@ -251,74 +255,89 @@ export function Leaderboard({ onClose }) {
                         borderBottom: `1px solid ${COLORS.border}`,
                         background: COLORS.bgLight,
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(5, 1fr)',
-                        gap: '12px'
+                        gridTemplateColumns: 'repeat(6, 1fr)',
+                        gap: '10px'
                     }}>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{
                                 color: COLORS.text,
-                                fontSize: '15px',
+                                fontSize: '14px',
                                 fontWeight: '700',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '4px'
                             }}>
-                                <Users size={12} color={COLORS.textMuted} />
+                                <Users size={11} color={COLORS.textMuted} />
                                 {globalStats.total_players?.toLocaleString() || 0}
                             </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Players</div>
+                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Players</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: COLORS.gold, fontSize: '15px', fontWeight: '700' }}>
+                            <div style={{ color: COLORS.gold, fontSize: '14px', fontWeight: '700' }}>
                                 {globalStats.total_spins?.toLocaleString() || 0}
                             </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Total Spins</div>
+                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Total Spins</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{
+                                color: INSANE_COLOR,
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px'
+                            }}>
+                                <Crown size={11} />
+                                {globalStats.total_insanes || 0}
+                            </div>
+                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Insane</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{
                                 color: COLORS.aqua,
-                                fontSize: '15px',
+                                fontSize: '14px',
                                 fontWeight: '700',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '4px'
                             }}>
-                                <Sparkles size={12} />
+                                <Sparkles size={11} />
                                 {globalStats.total_mythics || 0}
                             </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Mythics</div>
+                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Mythics</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{
                                 color: COLORS.purple,
-                                fontSize: '15px',
+                                fontSize: '14px',
                                 fontWeight: '700',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '4px'
                             }}>
-                                <Star size={12} />
+                                <Star size={11} />
                                 {globalStats.total_legendaries?.toLocaleString() || 0}
                             </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Legendaries</div>
+                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Legendaries</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{
                                 color: COLORS.red,
-                                fontSize: '15px',
+                                fontSize: '14px',
                                 fontWeight: '700',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '4px'
                             }}>
-                                <Diamond size={12} />
+                                <Diamond size={11} />
                                 {globalStats.total_rares?.toLocaleString() || 0}
                             </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Rares</div>
+                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Rares</div>
                         </div>
                     </div>
                 )}
@@ -446,7 +465,20 @@ export function Leaderboard({ onClose }) {
                                             {getValueForTab(entry).toLocaleString()}
                                         </td>
                                         <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                {(entry.insane_count || 0) > 0 && (
+                                                    <span style={{
+                                                        color: INSANE_COLOR,
+                                                        fontSize: '12px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '3px',
+                                                        fontWeight: '600'
+                                                    }}>
+                                                            <Crown size={12} />
+                                                        {entry.insane_count}
+                                                        </span>
+                                                )}
                                                 {entry.mythic_count > 0 && (
                                                     <span style={{
                                                         color: COLORS.aqua,
@@ -486,8 +518,8 @@ export function Leaderboard({ onClose }) {
                                                         {entry.rare_count}
                                                         </span>
                                                 )}
-                                                {!entry.mythic_count && !entry.legendary_count && !entry.rare_count && (
-                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>—</span>
+                                                {!(entry.insane_count || 0) && !entry.mythic_count && !entry.legendary_count && !entry.rare_count && (
+                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>â€”</span>
                                                 )}
                                             </div>
                                         </td>

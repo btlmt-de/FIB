@@ -10,6 +10,9 @@ import {
     Package, Settings, Image
 } from 'lucide-react';
 
+// Insane color - bright gold
+const INSANE_COLOR = '#FFD700';
+
 // Helper to render Lucide icons by name
 function AchievementIcon({ name, size = 16, color, style = {} }) {
     const IconComponent = LucideIcons[name];
@@ -26,8 +29,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [showLuckTooltip, setShowLuckTooltip] = useState(false);
     const [rankings, setRankings] = useState({ spins: null, events: null });
-    const [specialItemTotals, setSpecialItemTotals] = useState({ mythic: 0, legendary: 0, rare: 0 });
-    const [uniqueCollected, setUniqueCollected] = useState({ mythic: 0, legendary: 0, rare: 0 });
+    const [specialItemTotals, setSpecialItemTotals] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
+    const [uniqueCollected, setUniqueCollected] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
     const [showAchievements, setShowAchievements] = useState(false);
 
     // Showcase data
@@ -89,11 +92,13 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
             const specialData = await specialRes.json();
             const items = specialData.items || [];
 
+            const insaneItems = items.filter(i => i.rarity === 'insane');
             const mythicItems = items.filter(i => i.rarity === 'mythic');
             const legendaryItems = items.filter(i => i.rarity === 'legendary');
             const rareItems = items.filter(i => i.rarity === 'rare');
 
             setSpecialItemTotals({
+                insane: insaneItems.length,
                 mythic: mythicItems.length,
                 legendary: legendaryItems.length,
                 rare: rareItems.length
@@ -104,11 +109,13 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
             const userCollectionMap = collectionData.collection || {};
 
             // Count how many unique items of each rarity the user has
+            const collectedInsane = insaneItems.filter(item => userCollectionMap[item.texture] > 0).length;
             const collectedMythic = mythicItems.filter(item => userCollectionMap[item.texture] > 0).length;
             const collectedLegendary = legendaryItems.filter(item => userCollectionMap[item.texture] > 0).length;
             const collectedRare = rareItems.filter(item => userCollectionMap[item.texture] > 0).length;
 
             setUniqueCollected({
+                insane: collectedInsane,
                 mythic: collectedMythic,
                 legendary: collectedLegendary,
                 rare: collectedRare
@@ -888,11 +895,56 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                 {/* Special Items Showcase */}
                 <div style={{
                     display: 'flex',
-                    gap: '12px',
+                    gap: '10px',
                     padding: '16px 24px',
                     borderBottom: `1px solid ${COLORS.border}`,
                     background: COLORS.bg
                 }}>
+                    {/* Insane - Most prestigious */}
+                    <div
+                        className="rarity-card"
+                        style={{
+                            flex: 1,
+                            background: (profile.insane_count || 0) > 0
+                                ? `linear-gradient(135deg, ${INSANE_COLOR}20, #FFF5B015)`
+                                : `linear-gradient(135deg, ${INSANE_COLOR}10, #FFF5B008)`,
+                            borderRadius: '12px',
+                            padding: '14px 10px',
+                            border: `1px solid ${(profile.insane_count || 0) > 0 ? INSANE_COLOR + '66' : INSANE_COLOR + '33'}`,
+                            textAlign: 'center',
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        <div style={{
+                            color: (profile.insane_count || 0) > 0 ? INSANE_COLOR : INSANE_COLOR + '88',
+                            marginBottom: '6px',
+                            display: 'flex',
+                            justifyContent: 'center'
+                        }}>
+                            <Crown size={20} />
+                        </div>
+                        <div style={{
+                            color: (profile.insane_count || 0) > 0 ? INSANE_COLOR : INSANE_COLOR + '88',
+                            fontSize: '22px',
+                            fontWeight: '700',
+                            lineHeight: 1
+                        }}>
+                            {profile.insane_count || 0}
+                        </div>
+                        <div style={{
+                            color: (profile.insane_count || 0) > 0 ? INSANE_COLOR : INSANE_COLOR + '88',
+                            fontSize: '9px',
+                            marginTop: '4px',
+                            opacity: (profile.insane_count || 0) > 0 ? 1 : 0.7,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            fontWeight: '600'
+                        }}>
+                            Insane
+                        </div>
+                    </div>
+
                     {/* Mythic - Special but toned down treatment */}
                     <div
                         className="rarity-card"
@@ -902,7 +954,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                 ? `linear-gradient(135deg, ${COLORS.aqua}20, ${COLORS.purple}15)`
                                 : `linear-gradient(135deg, ${COLORS.aqua}10, ${COLORS.purple}08)`,
                             borderRadius: '12px',
-                            padding: '16px 12px',
+                            padding: '14px 10px',
                             border: `1px solid ${profile.mythic_count > 0 ? COLORS.aqua + '66' : COLORS.aqua + '33'}`,
                             textAlign: 'center',
                             position: 'relative',
@@ -919,7 +971,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                         </div>
                         <div style={{
                             color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
-                            fontSize: '24px',
+                            fontSize: '22px',
                             fontWeight: '700',
                             lineHeight: 1
                         }}>
@@ -927,7 +979,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                         </div>
                         <div style={{
                             color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
-                            fontSize: '10px',
+                            fontSize: '9px',
                             marginTop: '4px',
                             opacity: profile.mythic_count > 0 ? 1 : 0.7,
                             textTransform: 'uppercase',
@@ -940,7 +992,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
 
                     {/* Legendary */}
                     <RarityCard
-                        icon={<Star size={18} />}
+                        icon={<Star size={16} />}
                         label="Legendary"
                         value={profile.legendary_count}
                         color={COLORS.purple}
@@ -948,7 +1000,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
 
                     {/* Rare */}
                     <RarityCard
-                        icon={<Diamond size={18} />}
+                        icon={<Diamond size={16} />}
                         label="Rare"
                         value={profile.rare_count}
                         color={COLORS.red}
@@ -957,6 +1009,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
 
                 {/* Collection Completion Banners */}
                 {(
+                    (specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane) ||
                     (specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic) ||
                     (specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary) ||
                     (specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare)
@@ -967,6 +1020,49 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                         flexDirection: 'column',
                         gap: '10px'
                     }}>
+                        {specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane && (
+                            <div
+                                className="completion-banner"
+                                style={{
+                                    background: `linear-gradient(135deg, ${INSANE_COLOR}33, #FFF5B022)`,
+                                    border: `1px solid ${INSANE_COLOR}66`,
+                                    borderRadius: '10px',
+                                    padding: '12px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                <div style={{
+                                    width: '36px', height: '36px',
+                                    borderRadius: '8px',
+                                    background: `linear-gradient(135deg, ${INSANE_COLOR}, #FFF5B0)`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: `0 0 15px ${INSANE_COLOR}66`
+                                }}>
+                                    <Trophy size={18} color="#1a1a1a" />
+                                </div>
+                                <div>
+                                    <div style={{
+                                        color: INSANE_COLOR,
+                                        fontSize: '13px',
+                                        fontWeight: '700',
+                                        textShadow: `0 0 10px ${INSANE_COLOR}44`
+                                    }}>
+                                        Insane Collection Complete!
+                                    </div>
+                                    <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                                        All {specialItemTotals.insane} insane items collected
+                                    </div>
+                                </div>
+                                <Crown size={16} color={INSANE_COLOR} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                            </div>
+                        )}
+
                         {specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic && (
                             <div
                                 className="completion-banner"
@@ -1400,9 +1496,81 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                 </div>
                             </div>
 
+                            {/* Dry Streaks - Spins Since Last Special */}
+                            {isOwnProfile && extendedStats?.dryStreaks && (
+                                <div style={{
+                                    background: COLORS.bgLight,
+                                    borderRadius: '12px',
+                                    padding: '14px 16px',
+                                    border: `1px solid ${COLORS.border}`,
+                                    marginBottom: '12px'
+                                }}>
+                                    <div style={{
+                                        color: COLORS.textMuted,
+                                        fontSize: '10px',
+                                        fontWeight: '500',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        marginBottom: '10px'
+                                    }}>
+                                        Spins Since Last...
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div style={{
+                                            flex: 1,
+                                            padding: '10px 8px',
+                                            background: `${COLORS.aqua}12`,
+                                            borderRadius: '8px',
+                                            border: `1px solid ${COLORS.aqua}30`,
+                                            textAlign: 'center'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
+                                                <Sparkles size={12} color={COLORS.aqua} />
+                                                <span style={{ color: COLORS.aqua, fontSize: '10px', fontWeight: '500' }}>Mythic</span>
+                                            </div>
+                                            <div style={{ color: COLORS.aqua, fontSize: '18px', fontWeight: '700' }}>
+                                                {extendedStats.dryStreaks.mythic}
+                                            </div>
+                                        </div>
+                                        <div style={{
+                                            flex: 1,
+                                            padding: '10px 8px',
+                                            background: `${COLORS.purple}12`,
+                                            borderRadius: '8px',
+                                            border: `1px solid ${COLORS.purple}30`,
+                                            textAlign: 'center'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
+                                                <Star size={12} color={COLORS.purple} />
+                                                <span style={{ color: COLORS.purple, fontSize: '10px', fontWeight: '500' }}>Legendary</span>
+                                            </div>
+                                            <div style={{ color: COLORS.purple, fontSize: '18px', fontWeight: '700' }}>
+                                                {extendedStats.dryStreaks.legendary}
+                                            </div>
+                                        </div>
+                                        <div style={{
+                                            flex: 1,
+                                            padding: '10px 8px',
+                                            background: `${COLORS.red}12`,
+                                            borderRadius: '8px',
+                                            border: `1px solid ${COLORS.red}30`,
+                                            textAlign: 'center'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
+                                                <Diamond size={12} color={COLORS.red} />
+                                                <span style={{ color: COLORS.red, fontSize: '10px', fontWeight: '500' }}>Rare</span>
+                                            </div>
+                                            <div style={{ color: COLORS.red, fontSize: '18px', fontWeight: '700' }}>
+                                                {extendedStats.dryStreaks.rare}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Average Spins Between Special Finds */}
                             {(() => {
-                                const totalSpecialFinds = profile.mythic_count + profile.legendary_count + profile.rare_count;
+                                const totalSpecialFinds = (profile.insane_count || 0) + profile.mythic_count + profile.legendary_count + profile.rare_count;
                                 const avgSpinsBetween = totalSpecialFinds > 0
                                     ? Math.round(profile.total_spins / totalSpecialFinds)
                                     : null;
@@ -1444,7 +1612,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             })()}
 
                             {/* Best Day - Simplified */}
-                            {luckiestDay && luckiestDay.spins > 0 && (luckiestDay.mythic_count > 0 || luckiestDay.legendary_count > 0 || luckiestDay.rare_count > 0) && (
+                            {luckiestDay && luckiestDay.spins > 0 && ((luckiestDay.insane_count || 0) > 0 || luckiestDay.mythic_count > 0 || luckiestDay.legendary_count > 0 || luckiestDay.rare_count > 0) && (
                                 <div style={{
                                     background: COLORS.bgLight,
                                     borderRadius: '12px',
@@ -1487,7 +1655,15 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 {luckiestDay.spins} spins
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '16px' }}>
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            {(luckiestDay.insane_count || 0) > 0 && (
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ color: INSANE_COLOR, fontSize: '20px', fontWeight: '700' }}>
+                                                        {luckiestDay.insane_count}
+                                                    </div>
+                                                    <div style={{ color: INSANE_COLOR, fontSize: '9px', textTransform: 'uppercase' }}>Insane</div>
+                                                </div>
+                                            )}
                                             {luckiestDay.mythic_count > 0 && (
                                                 <div style={{ textAlign: 'center' }}>
                                                     <div style={{ color: COLORS.aqua, fontSize: '20px', fontWeight: '700' }}>

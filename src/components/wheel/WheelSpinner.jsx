@@ -6,7 +6,7 @@ import {
 } from '../../config/constants.js';
 import {
     formatChance, getMinecraftHeadUrl,
-    isSpecialItem, isRareItem, isMythicItem, isEventItem
+    isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, INSANE_COLOR
 } from '../../utils/helpers.js';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 
@@ -182,9 +182,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 isEvent: spinResult.result.type === 'event'
             };
 
-            // Use server-provided strip if available (ensures achievement checks match what user sees)
-            // Falls back to client-side buildStrip for backwards compatibility
-            const newStrip = spinResult.strip || buildStrip(finalItem);
+            const newStrip = buildStrip(finalItem);
             setStrip(newStrip);
             setResult(finalItem);
             setIsNewItem(spinResult.isNew);
@@ -255,13 +253,24 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         performSpin();
     }
 
+    // Helper function to select a weighted random event
+    function selectWeightedEvent() {
+        const totalWeight = BONUS_EVENTS.reduce((sum, e) => sum + (e.weight || 1), 0);
+        let roll = Math.random() * totalWeight;
+
+        for (const event of BONUS_EVENTS) {
+            roll -= (event.weight || 1);
+            if (roll <= 0) return event;
+        }
+        return BONUS_EVENTS[0]; // Fallback
+    }
+
     // Spin the bonus wheel to select which event - using horizontal strip
     function spinBonusWheel() {
         setState('bonusWheel');
 
-        // Pick random event
-        const randomIndex = Math.floor(Math.random() * BONUS_EVENTS.length);
-        const event = BONUS_EVENTS[randomIndex];
+        // Pick weighted random event
+        const event = selectWeightedEvent();
         setSelectedEvent(event);
 
         // Build a strip of events (repeat them to fill the strip)
@@ -273,8 +282,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             if (i === BONUS_FINAL_INDEX) {
                 newStrip.push(event);
             } else {
-                // Random event for filler
-                newStrip.push(BONUS_EVENTS[Math.floor(Math.random() * BONUS_EVENTS.length)]);
+                // Random event for filler (also weighted for visual consistency)
+                newStrip.push(selectWeightedEvent());
             }
         }
         setBonusStrip(newStrip);
@@ -311,6 +320,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             triggerTripleSpin();
         } else if (event.id === 'lucky_spin') {
             triggerLuckySpin();
+        } else if (event.id === 'triple_lucky_spin') {
+            triggerTripleLuckySpin();
         }
     }
 
@@ -340,8 +351,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 isLucky: true
             };
 
-            // Use server-provided strip if available (ensures achievement checks match what user sees)
-            const newStrip = spinResult.strip || buildStrip(finalItem);
+            // Build strip and animate
+            const newStrip = buildStrip(finalItem);
             setStrip(newStrip);
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
@@ -455,8 +466,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     isRare: spinResult.result.type === 'rare',
                     isMythic: spinResult.result.type === 'mythic'
                 };
-                // Use server-provided strip if available (ensures achievement checks match what user sees)
-                newStrips.push(spinResult.strip || buildStrip(finalItem));
+                newStrips.push(buildStrip(finalItem));
                 newResults.push(finalItem);
                 newItems.push(spinResult.isNew);
             }
@@ -533,6 +543,123 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         }
     }
 
+    // Triple Lucky Spin - 3 lucky spins with equal probability for all items
+    async function triggerTripleLuckySpin() {
+        setState('tripleLuckySpinning');
+        let tripleLuckySpinTracked = false; // Track if we've reported this triple lucky spin
+
+        try {
+            // Helper to get a lucky spin result
+            async function getLuckySpin() {
+                const bodyData = { bonus: true };
+                // On first successful spin, mark it as triple lucky spin trigger
+                if (!tripleLuckySpinTracked) {
+                    bodyData.eventType = 'triple_lucky_spin';
+                    bodyData.isFirstSpin = true;
+                }
+
+                const res = await fetch(`${API_BASE_URL}/api/spin/lucky`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(bodyData)
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Lucky spin failed');
+                }
+
+                // Mark as tracked after first successful spin
+                if (!tripleLuckySpinTracked) {
+                    tripleLuckySpinTracked = true;
+                }
+
+                return data;
+            }
+
+            // Get all 3 lucky spin results
+            const results = await Promise.all([getLuckySpin(), getLuckySpin(), getLuckySpin()]);
+
+            // Build strips for each result
+            const strips = results.map(r => {
+                const finalItem = {
+                    ...r.result,
+                    isSpecial: r.result.type === 'legendary',
+                    isRare: r.result.type === 'rare',
+                    isMythic: r.result.type === 'mythic',
+                    isLucky: true
+                };
+                return buildStrip(finalItem);
+            });
+
+            setTripleStrips(strips);
+            setTripleResults(results.map(r => ({
+                ...r.result,
+                isSpecial: r.result.type === 'legendary',
+                isRare: r.result.type === 'rare',
+                isMythic: r.result.type === 'mythic',
+                isLucky: true
+            })));
+            setTripleNewItems(results.map(r => r.isNew));
+            tripleOffsetRefs.current = [0, 0, 0];
+
+            // Animate all three strips with staggered starts
+            const completedCount = { current: 0 };
+            const delays = [0, 200, 400];
+
+            strips.forEach((_, rowIndex) => {
+                const delay = delays[rowIndex];
+
+                setTimeout(() => {
+                    const targetOffset = FINAL_INDEX * ITEM_WIDTH;
+                    const edgeRoll = Math.random();
+                    let offsetVariance;
+                    if (edgeRoll < 0.15) {
+                        offsetVariance = -25 - Math.random() * 12;
+                    } else if (edgeRoll < 0.30) {
+                        offsetVariance = 25 + Math.random() * 12;
+                    } else {
+                        offsetVariance = (Math.random() - 0.5) * 30;
+                    }
+                    const finalOffset = targetOffset + offsetVariance;
+                    let startTime = null;
+
+                    const animate = (timestamp) => {
+                        if (!startTime) startTime = timestamp;
+                        const elapsed = timestamp - startTime;
+                        const progress = Math.min(elapsed / spinDuration, 1);
+                        const eased = 1 - Math.pow(1 - progress, 4);
+                        tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
+
+                        const stripEl = tripleStripRefs.current[rowIndex];
+                        if (stripEl) {
+                            if (isMobile) {
+                                stripEl.style.top = `${(280 / 2) - (ITEM_WIDTH / 2) - tripleOffsetRefs.current[rowIndex]}px`;
+                            } else {
+                                stripEl.style.transform = `translateX(calc(50% - ${tripleOffsetRefs.current[rowIndex]}px - ${ITEM_WIDTH / 2}px))`;
+                            }
+                        }
+
+                        if (progress < 1) {
+                            tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
+                        } else {
+                            completedCount.current++;
+                            if (completedCount.current === 3) {
+                                setState('tripleLuckyResult');
+                                results.forEach(r => { if (onSpinComplete) onSpinComplete(r); });
+                            }
+                        }
+                    };
+                    tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
+                }, delay);
+            });
+        } catch (error) {
+            console.error('Triple lucky spin failed:', error);
+            setState('idle');
+        }
+    }
+
     const reset = () => {
         setState('idle');
         setResult(null);
@@ -560,6 +687,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Render item box with proper styling matching old_wheel.jsx
     const renderItemBox = (item, idx, isWinning, size = 52, disableAnimation = false) => {
         if (!item) return null;
+        const isInsane = isInsaneItem(item);
         const isSpecial = isSpecialItem(item);
         const isMythic = isMythicItem(item);
         const isRare = isRareItem(item);
@@ -567,50 +695,56 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Enable glow animations for special items even during spinning (looks better)
         // disableAnimation only affects regular items for performance
-        const isSpecialType = isMythic || isSpecial || isRare || isEvent;
-        const shouldAnimate = isSpecialType || (!disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult'));
+        const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent;
+        const shouldAnimate = isSpecialType || (!disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult'));
 
         return (
             <div style={{
                 width: `${size}px`, height: `${size}px`,
                 background: isEvent
                     ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33, ${COLORS.gold}33, ${COLORS.green}33, ${COLORS.aqua}33, ${COLORS.purple}33)`
-                    : isMythic
-                        ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
-                        : isSpecial
-                            ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
-                            : isRare
-                                ? `linear-gradient(135deg, ${COLORS.red}44, ${COLORS.orange}44)`
-                                : COLORS.bgLight,
+                    : isInsane
+                        ? `linear-gradient(135deg, ${INSANE_COLOR}55, #FFF5B0 44, ${INSANE_COLOR}55)`
+                        : isMythic
+                            ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
+                            : isSpecial
+                                ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
+                                : isRare
+                                    ? `linear-gradient(135deg, ${COLORS.red}44, ${COLORS.orange}44)`
+                                    : COLORS.bgLight,
                 borderRadius: '6px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 border: `2px solid ${
                     isEvent ? COLORS.gold
                         : isWinning ? COLORS.gold
-                            : isMythic ? COLORS.aqua
-                                : isSpecial ? COLORS.purple
-                                    : isRare ? COLORS.red
-                                        : COLORS.border
+                            : isInsane ? INSANE_COLOR
+                                : isMythic ? COLORS.aqua
+                                    : isSpecial ? COLORS.purple
+                                        : isRare ? COLORS.red
+                                            : COLORS.border
                 }`,
                 boxShadow: shouldAnimate ? (
                     isEvent
                         ? `0 0 15px ${COLORS.gold}88, 0 0 30px ${COLORS.purple}44`
-                        : isMythic
-                            ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
-                            : isSpecial
-                                ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
-                                : isRare
-                                    ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
-                                    : isWinning
-                                        ? `0 0 20px ${COLORS.gold}66`
-                                        : 'none'
+                        : isInsane
+                            ? `0 0 25px ${INSANE_COLOR}cc, 0 0 50px ${INSANE_COLOR}66, 0 0 75px #FFF5B044`
+                            : isMythic
+                                ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
+                                : isSpecial
+                                    ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
+                                    : isRare
+                                        ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
+                                        : isWinning
+                                            ? `0 0 20px ${COLORS.gold}66`
+                                            : 'none'
                 ) : 'none',
                 animation: shouldAnimate ? (
                     isEvent ? 'eventGlow 1.5s ease-in-out infinite'
-                        : isMythic ? 'mythicGlow 1s ease-in-out infinite'
-                            : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
-                                : isRare ? 'rareGlow 1.5s ease-in-out infinite'
-                                    : 'none'
+                        : isInsane ? 'insaneGlow 0.8s ease-in-out infinite'
+                            : isMythic ? 'mythicGlow 1s ease-in-out infinite'
+                                : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
+                                    : isRare ? 'rareGlow 1.5s ease-in-out infinite'
+                                        : 'none'
                 ) : 'none'
             }}>
                 <img
@@ -620,8 +754,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     style={{
                         width: isEvent ? `${size * 1.1}px` : `${size * 0.77}px`,
                         height: isEvent ? `${size * 1.1}px` : `${size * 0.77}px`,
-                        imageRendering: (isSpecial || isRare || item.username || isEvent) ? 'auto' : 'pixelated',
-                        borderRadius: (isSpecial || isRare || item.username) ? '4px' : '0'
+                        imageRendering: (isInsane || isSpecial || isRare || item.username || isEvent) ? 'auto' : 'pixelated',
+                        borderRadius: (isInsane || isSpecial || isRare || item.username) ? '4px' : '0'
                     }}
                     onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
                 />
@@ -700,10 +834,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         alt="Wheel"
                         style={{
                             width: '32px', height: 'auto', imageRendering: 'pixelated',
-                            animation: (state === 'spinning' || state === 'tripleSpinning') ? 'wheelSpin 0.5s linear infinite' : 'none'
+                            animation: (state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning') ? 'wheelSpin 0.5s linear infinite' : 'none'
                         }}
                     />
-                    <span style={{ color: state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : state === 'luckySpinning' || state === 'luckyResult' ? COLORS.green : COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
+                    <span style={{ color: state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.gold : COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
                         {state === 'spinning' ? 'Spinning...' :
                             state === 'event' ? 'BONUS EVENT!' :
                                 state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
@@ -712,11 +846,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             state === 'tripleResult' ? 'Triple Win!' :
                                                 state === 'luckySpinning' ? 'Lucky Spinning...' :
                                                     state === 'luckyResult' ? 'Lucky Win!' :
-                                                        'Gamba!'}
+                                                        state === 'tripleLuckySpinning' ? 'Triple Lucky Spinning...' :
+                                                            state === 'tripleLuckyResult' ? 'Triple Lucky Win!' :
+                                                                'Gamba!'}
                     </span>
                 </div>
 
-                {(state === 'result' || state === 'tripleResult' || state === 'luckyResult') && (
+                {(state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult') && (
                     <button onClick={respin} style={{
                         padding: '8px 16px', background: 'transparent',
                         border: `1px solid ${COLORS.border}`, borderRadius: '6px',
@@ -731,7 +867,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
             {/* Spinner Container - RESTORED with all visual effects */}
             {/* Hidden during bonus wheel, lucky spin, and triple spin (they have their own displays) */}
-            {state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && state !== 'tripleSpinning' && state !== 'tripleResult' && (
+            {state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && state !== 'tripleSpinning' && state !== 'tripleResult' && state !== 'tripleLuckySpinning' && state !== 'tripleLuckyResult' && (
                 <div style={{
                     position: 'relative',
                     height: isMobile ? '280px' : '100px',
@@ -824,38 +960,55 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 <div style={{
                     marginTop: '24px',
                     padding: '32px 24px',
-                    background: isMythicItem(result)
-                        ? `radial-gradient(ellipse at center, ${COLORS.aqua}15 0%, ${COLORS.purple}10 50%, ${COLORS.bg} 70%)`
-                        : isSpecialItem(result)
-                            ? `radial-gradient(ellipse at center, ${COLORS.purple}22 0%, ${COLORS.bg} 70%)`
-                            : isRareItem(result)
-                                ? `radial-gradient(ellipse at center, ${COLORS.red}18 0%, ${COLORS.bg} 70%)`
-                                : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
+                    background: isInsaneItem(result)
+                        ? `radial-gradient(ellipse at center, ${INSANE_COLOR}25 0%, #FFF5B015 30%, ${COLORS.bg} 70%)`
+                        : isMythicItem(result)
+                            ? `radial-gradient(ellipse at center, ${COLORS.aqua}15 0%, ${COLORS.purple}10 50%, ${COLORS.bg} 70%)`
+                            : isSpecialItem(result)
+                                ? `radial-gradient(ellipse at center, ${COLORS.purple}22 0%, ${COLORS.bg} 70%)`
+                                : isRareItem(result)
+                                    ? `radial-gradient(ellipse at center, ${COLORS.red}18 0%, ${COLORS.bg} 70%)`
+                                    : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
                     borderRadius: '12px',
-                    border: `1px solid ${isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : isRareItem(result) ? COLORS.red + '66' : COLORS.gold + '44'}`,
+                    border: `1px solid ${isInsaneItem(result) ? INSANE_COLOR + '88' : isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : isRareItem(result) ? COLORS.red + '66' : COLORS.gold + '44'}`,
                     textAlign: 'center',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    animation: isInsaneItem(result) ? 'insanePulse 1.5s ease-in-out infinite, resultSlideIn 0.4s ease-out' : 'resultSlideIn 0.4s ease-out'
                 }}>
-                    {/* Floating particles */}
-                    {[...Array(isMythicItem(result) ? 20 : 12)].map((_, i) => (
+                    {/* Floating particles - MORE for insane */}
+                    {[...Array(isInsaneItem(result) ? 30 : isMythicItem(result) ? 20 : 12)].map((_, i) => (
                         <div key={i} style={{
                             position: 'absolute',
-                            width: isMythicItem(result) ? '8px' : '6px',
-                            height: isMythicItem(result) ? '8px' : '6px',
-                            background: isMythicItem(result)
-                                ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                : isSpecialItem(result) ? COLORS.purple
-                                    : isRareItem(result) ? COLORS.red
-                                        : COLORS.gold,
+                            width: isInsaneItem(result) ? '10px' : isMythicItem(result) ? '8px' : '6px',
+                            height: isInsaneItem(result) ? '10px' : isMythicItem(result) ? '8px' : '6px',
+                            background: isInsaneItem(result)
+                                ? (i % 4 === 0 ? INSANE_COLOR : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
+                                : isMythicItem(result)
+                                    ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                    : isSpecialItem(result) ? COLORS.purple
+                                        : isRareItem(result) ? COLORS.red
+                                            : COLORS.gold,
                             borderRadius: '50%',
-                            left: `${10 + Math.random() * 80}%`,
-                            top: '80%',
+                            left: `${5 + Math.random() * 90}%`,
+                            top: '85%',
                             opacity: 0,
-                            animation: `floatParticle ${isMythicItem(result) ? '1.5s' : '2s'} ease-out ${i * 0.1}s infinite`,
-                            boxShadow: `0 0 6px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
+                            animation: `floatParticle ${isInsaneItem(result) ? '1.2s' : isMythicItem(result) ? '1.5s' : '2s'} ease-out ${i * 0.08}s infinite`,
+                            boxShadow: `0 0 ${isInsaneItem(result) ? '10px' : '6px'} ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
                         }} />
                     ))}
+
+                    {/* Extra shimmer overlay for insane */}
+                    {isInsaneItem(result) && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            background: `linear-gradient(90deg, transparent 0%, ${INSANE_COLOR}15 50%, transparent 100%)`,
+                            backgroundSize: '200% 100%',
+                            animation: 'insaneShimmer 2s ease-in-out infinite',
+                            pointerEvents: 'none'
+                        }} />
+                    )}
 
                     {/* Badge Header */}
                     <div style={{
@@ -864,7 +1017,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         animation: 'fadeSlideDown 0.3s ease-out',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
                     }}>
-                        {isMythicItem(result) ? (
+                        {isInsaneItem(result) ? (
+                            <span style={{
+                                background: `linear-gradient(135deg, ${INSANE_COLOR}, #FFF5B0, ${INSANE_COLOR})`,
+                                backgroundSize: '200% 200%',
+                                color: '#1a1a1a', fontSize: '10px', fontWeight: '800', padding: '5px 14px',
+                                borderRadius: '4px', animation: 'mythicBadge 1.5s ease-in-out infinite',
+                                textShadow: '0 0 10px rgba(255,255,255,0.5)',
+                                boxShadow: `0 0 20px ${INSANE_COLOR}88`
+                            }}>ðŸ‘‘ INSANE ðŸ‘‘</span>
+                        ) : isMythicItem(result) ? (
                             <span style={{
                                 background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,
                                 backgroundSize: '200% 200%',
@@ -906,73 +1068,83 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             <div style={{
                                 position: 'absolute', top: '-10px', left: '-10px', right: '-10px', bottom: '-10px',
                                 borderRadius: '16px',
-                                background: isMythicItem(result)
-                                    ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
-                                    : `radial-gradient(circle, ${isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}33 0%, transparent 70%)`,
-                                animation: 'pulseGlow 1.5s ease-in-out infinite'
+                                background: isInsaneItem(result)
+                                    ? `radial-gradient(circle, ${INSANE_COLOR}55 0%, #FFF5B033 50%, transparent 70%)`
+                                    : isMythicItem(result)
+                                        ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
+                                        : `radial-gradient(circle, ${isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}33 0%, transparent 70%)`,
+                                animation: isInsaneItem(result) ? 'insanePulse 1s ease-in-out infinite' : 'pulseGlow 1.5s ease-in-out infinite'
                             }} />
 
                             <div style={{
                                 width: '80px', height: '80px',
-                                background: isMythicItem(result)
-                                    ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                    : isSpecialItem(result)
-                                        ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                        : isRareItem(result)
-                                            ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33)`
-                                            : COLORS.bgLight,
+                                background: isInsaneItem(result)
+                                    ? `linear-gradient(135deg, ${INSANE_COLOR}44, #FFF5B044, ${INSANE_COLOR}44)`
+                                    : isMythicItem(result)
+                                        ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
+                                        : isSpecialItem(result)
+                                            ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
+                                            : isRareItem(result)
+                                                ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33)`
+                                                : COLORS.bgLight,
                                 borderRadius: '12px',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                border: `3px solid ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`,
-                                boxShadow: isMythicItem(result)
-                                    ? `0 0 30px ${COLORS.aqua}66, 0 0 60px ${COLORS.purple}44, 0 0 90px ${COLORS.gold}22`
-                                    : isSpecialItem(result)
-                                        ? `0 0 30px ${COLORS.purple}66, 0 0 60px ${COLORS.purple}33, 0 0 90px ${COLORS.gold}22`
-                                        : isRareItem(result)
-                                            ? `0 0 30px ${COLORS.red}66, 0 0 60px ${COLORS.red}33, 0 0 90px ${COLORS.orange}22`
-                                            : `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
+                                border: `3px solid ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`,
+                                boxShadow: isInsaneItem(result)
+                                    ? `0 0 40px ${INSANE_COLOR}88, 0 0 80px ${INSANE_COLOR}55, 0 0 120px #FFF5B033`
+                                    : isMythicItem(result)
+                                        ? `0 0 30px ${COLORS.aqua}66, 0 0 60px ${COLORS.purple}44, 0 0 90px ${COLORS.gold}22`
+                                        : isSpecialItem(result)
+                                            ? `0 0 30px ${COLORS.purple}66, 0 0 60px ${COLORS.purple}33, 0 0 90px ${COLORS.gold}22`
+                                            : isRareItem(result)
+                                                ? `0 0 30px ${COLORS.red}66, 0 0 60px ${COLORS.red}33, 0 0 90px ${COLORS.orange}22`
+                                                : `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
                                 position: 'relative',
-                                animation: isMythicItem(result) ? 'mythicGlow 1s ease-in-out infinite' : isSpecialItem(result) ? 'specialGlow 1.5s ease-in-out infinite' : isRareItem(result) ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
+                                animation: isInsaneItem(result) ? 'insaneGlow 0.8s ease-in-out infinite' : isMythicItem(result) ? 'mythicGlow 1s ease-in-out infinite' : isSpecialItem(result) ? 'specialGlow 1.5s ease-in-out infinite' : isRareItem(result) ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
                             }}>
                                 <img
                                     src={getItemImageUrl(result)}
                                     alt={result.name}
                                     style={{
                                         width: '56px', height: '56px',
-                                        imageRendering: (isSpecialItem(result) || isRareItem(result) || result.username) ? 'auto' : 'pixelated',
-                                        borderRadius: (isSpecialItem(result) || isRareItem(result) || result.username) ? '6px' : '0',
+                                        imageRendering: (isInsaneItem(result) || isSpecialItem(result) || isRareItem(result) || result.username) ? 'auto' : 'pixelated',
+                                        borderRadius: (isInsaneItem(result) || isSpecialItem(result) || isRareItem(result) || result.username) ? '6px' : '0',
                                         animation: 'itemBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                        filter: `drop-shadow(0 0 8px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : 'rgba(255, 170, 0, 0.5)'})`
+                                        filter: `drop-shadow(0 0 8px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : 'rgba(255, 170, 0, 0.5)'})`
                                     }}
                                     onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
                                 />
                             </div>
 
-                            {/* Sparkle effects */}
-                            {[...Array(isMythicItem(result) ? 8 : 4)].map((_, i) => (
+                            {/* Sparkle effects - MORE for insane */}
+                            {[...Array(isInsaneItem(result) ? 12 : isMythicItem(result) ? 8 : 4)].map((_, i) => (
                                 <div key={i} style={{
                                     position: 'absolute', width: '8px', height: '8px',
-                                    top: ['0%', '10%', '80%', '70%', '20%', '60%', '40%', '90%'][i],
-                                    left: ['10%', '85%', '5%', '90%', '0%', '95%', '100%', '50%'][i],
-                                    animation: `sparkle 1s ease-in-out ${i * 0.15}s infinite`
+                                    top: ['0%', '10%', '80%', '70%', '20%', '60%', '40%', '90%', '15%', '75%', '30%', '85%'][i],
+                                    left: ['10%', '85%', '5%', '90%', '0%', '95%', '100%', '50%', '92%', '8%', '98%', '2%'][i],
+                                    animation: `sparkle ${isInsaneItem(result) ? '0.8s' : '1s'} ease-in-out ${i * 0.1}s infinite`
                                 }}>
                                     <div style={{
                                         width: '100%', height: '2px',
-                                        background: isMythicItem(result)
-                                            ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                            : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
+                                        background: isInsaneItem(result)
+                                            ? (i % 4 === 0 ? INSANE_COLOR : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
+                                            : isMythicItem(result)
+                                                ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                                : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
                                         position: 'absolute', top: '50%', left: '0', transform: 'translateY(-50%)',
                                         borderRadius: '1px',
-                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
+                                        boxShadow: `0 0 4px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
                                     }} />
                                     <div style={{
                                         width: '2px', height: '100%',
-                                        background: isMythicItem(result)
-                                            ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                            : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
+                                        background: isInsaneItem(result)
+                                            ? (i % 4 === 0 ? INSANE_COLOR : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
+                                            : isMythicItem(result)
+                                                ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                                : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
                                         position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
                                         borderRadius: '1px',
-                                        boxShadow: `0 0 4px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
+                                        boxShadow: `0 0 4px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
                                     }} />
                                 </div>
                             ))}
@@ -986,20 +1158,25 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             textAlign: isMobile ? 'center' : 'left'
                         }}>
                             <span style={{
-                                color: isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
+                                color: isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
                                 fontSize: '24px', fontWeight: '600',
-                                textShadow: `0 0 20px ${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}44`
+                                textShadow: `0 0 20px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}44`
                             }}>
                                 {result.name}
                             </span>
 
-                            {(isMythicItem(result) || isSpecialItem(result) || isRareItem(result)) && result.chance ? (
+                            {(isInsaneItem(result) || isMythicItem(result) || isSpecialItem(result) || isRareItem(result)) && result.chance ? (
                                 <span style={{
-                                    fontSize: '11px',
-                                    color: isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red,
-                                    fontWeight: '600',
-                                    background: `${isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}22`,
-                                    padding: '2px 8px', borderRadius: '4px', marginTop: '4px'
+                                    fontSize: '14px',
+                                    color: isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red,
+                                    fontWeight: '700',
+                                    background: `${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}25`,
+                                    padding: '4px 12px',
+                                    borderRadius: '6px',
+                                    marginTop: '6px',
+                                    textShadow: `0 0 10px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}88`,
+                                    boxShadow: `0 0 15px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}33, inset 0 0 10px ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}15`,
+                                    border: `1px solid ${isInsaneItem(result) ? INSANE_COLOR : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}44`
                                 }}>
                                     {formatChance(result.chance)}% drop rate
                                 </span>
@@ -1147,15 +1324,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             {bonusStrip.map((event, idx) => {
                                 const isLucky = event.id === 'lucky_spin';
                                 const isTriple = event.id === 'triple_spin';
+                                const isTripleLucky = event.id === 'triple_lucky_spin';
+                                const isLuckyType = isLucky || isTripleLucky;
 
                                 return (
                                     <div key={idx} style={{
                                         width: '140px', height: '100%', flexShrink: 0,
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         position: 'relative',
-                                        background: isLucky
-                                            ? `linear-gradient(180deg, ${COLORS.green}15 0%, ${COLORS.aqua}08 50%, ${COLORS.green}12 100%)`
-                                            : `linear-gradient(180deg, ${COLORS.orange}18 0%, ${COLORS.red}08 50%, ${COLORS.orange}15 100%)`
+                                        background: isTripleLucky
+                                            ? `linear-gradient(180deg, ${COLORS.gold}20 0%, ${COLORS.green}12 50%, ${COLORS.gold}18 100%)`
+                                            : isLucky
+                                                ? `linear-gradient(180deg, ${COLORS.green}15 0%, ${COLORS.aqua}08 50%, ${COLORS.green}12 100%)`
+                                                : `linear-gradient(180deg, ${COLORS.orange}18 0%, ${COLORS.red}08 50%, ${COLORS.orange}15 100%)`
                                     }}>
                                         {/* Energy seam divider between items */}
                                         <div style={{
@@ -1169,18 +1350,24 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         {/* Event badge with enhanced hierarchy */}
                                         <div style={{
                                             padding: isMobile
-                                                ? (isLucky ? '8px 14px' : '7px 12px')
-                                                : (isLucky ? '10px 18px' : '9px 16px'),
-                                            background: isLucky
-                                                ? `linear-gradient(135deg, ${COLORS.green}dd 0%, ${COLORS.aqua}aa 100%)`
-                                                : `linear-gradient(135deg, ${COLORS.orange}dd 0%, ${COLORS.red}aa 100%)`,
-                                            borderRadius: isLucky ? (isMobile ? '8px' : '10px') : (isMobile ? '8px' : '10px'),
-                                            boxShadow: isLucky
-                                                ? `0 4px 12px ${COLORS.green}77, 0 0 24px ${COLORS.green}55, inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.3)`
-                                                : `0 4px 12px ${COLORS.orange}66, 0 0 24px ${COLORS.orange}44, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.3)`,
-                                            border: isLucky
-                                                ? `1.5px solid ${COLORS.aqua}99`
-                                                : `1.5px solid ${COLORS.red}77`,
+                                                ? (isLuckyType ? '8px 14px' : '7px 12px')
+                                                : (isLuckyType ? '10px 18px' : '9px 16px'),
+                                            background: isTripleLucky
+                                                ? `linear-gradient(135deg, ${COLORS.gold}ee 0%, ${COLORS.green}bb 100%)`
+                                                : isLucky
+                                                    ? `linear-gradient(135deg, ${COLORS.green}dd 0%, ${COLORS.aqua}aa 100%)`
+                                                    : `linear-gradient(135deg, ${COLORS.orange}dd 0%, ${COLORS.red}aa 100%)`,
+                                            borderRadius: isLuckyType ? (isMobile ? '8px' : '10px') : (isMobile ? '8px' : '10px'),
+                                            boxShadow: isTripleLucky
+                                                ? `0 4px 12px ${COLORS.gold}88, 0 0 24px ${COLORS.green}66, inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 4px rgba(0,0,0,0.3)`
+                                                : isLucky
+                                                    ? `0 4px 12px ${COLORS.green}77, 0 0 24px ${COLORS.green}55, inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 4px rgba(0,0,0,0.3)`
+                                                    : `0 4px 12px ${COLORS.orange}66, 0 0 24px ${COLORS.orange}44, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.3)`,
+                                            border: isTripleLucky
+                                                ? `1.5px solid ${COLORS.gold}aa`
+                                                : isLucky
+                                                    ? `1.5px solid ${COLORS.aqua}99`
+                                                    : `1.5px solid ${COLORS.red}77`,
                                             transform: 'scale(1)',
                                             transition: 'all 0.3s ease',
                                             position: 'relative'
@@ -1189,10 +1376,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             <div style={{
                                                 position: 'absolute',
                                                 top: '-8px', left: '-8px', right: '-8px', bottom: '-8px',
-                                                background: isLucky
-                                                    ? `radial-gradient(circle, ${COLORS.green}44 0%, transparent 70%)`
-                                                    : `radial-gradient(circle, ${COLORS.orange}33 0%, transparent 70%)`,
-                                                borderRadius: isLucky ? (isMobile ? '10px' : '12px') : (isMobile ? '10px' : '12px'),
+                                                background: isTripleLucky
+                                                    ? `radial-gradient(circle, ${COLORS.gold}55 0%, transparent 70%)`
+                                                    : isLucky
+                                                        ? `radial-gradient(circle, ${COLORS.green}44 0%, transparent 70%)`
+                                                        : `radial-gradient(circle, ${COLORS.orange}33 0%, transparent 70%)`,
+                                                borderRadius: isLuckyType ? (isMobile ? '10px' : '12px') : (isMobile ? '10px' : '12px'),
                                                 zIndex: -1,
                                                 animation: 'subtlePulse 2s ease-in-out infinite'
                                             }} />
@@ -1510,11 +1699,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 </div>
             )}
 
-            {/* Triple Spin Display */}
-            {(state === 'tripleSpinning' || state === 'tripleResult') && (
+            {/* Triple Spin Display (also used for Triple Lucky Spin) */}
+            {(state === 'tripleSpinning' || state === 'tripleResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (
                 <div style={{ marginTop: isMobile ? '16px' : '24px' }}>
                     {/* Spinning rows - show during both spinning and result to prevent reset flash */}
-                    {(state === 'tripleSpinning' || state === 'tripleResult') && (
+                    {(state === 'tripleSpinning' || state === 'tripleResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (
                         isMobile ? (
                             /* Mobile: 3 vertical strips side by side */
                             <div style={{
@@ -1660,16 +1849,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     )}
 
                     {/* Results display - 3 items */}
-                    {state === 'tripleResult' && (
+                    {(state === 'tripleResult' || state === 'tripleLuckyResult') && (
                         <div style={{
                             padding: isMobile ? '24px 16px' : '32px 28px',
-                            background: `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.gold}28 0%, ${COLORS.orange}12 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
+                            background: state === 'tripleLuckyResult'
+                                ? `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.gold}35 0%, ${COLORS.green}18 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`
+                                : `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.gold}28 0%, ${COLORS.orange}12 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
                             borderRadius: '16px',
-                            border: `2px solid ${COLORS.gold}77`,
+                            border: `2px solid ${state === 'tripleLuckyResult' ? COLORS.gold : COLORS.gold}77`,
                             textAlign: 'center',
                             position: 'relative',
                             overflow: 'hidden',
-                            boxShadow: `0 0 40px ${COLORS.gold}55, 0 0 80px ${COLORS.orange}22, inset 0 1px 0 ${COLORS.gold}44`
+                            boxShadow: state === 'tripleLuckyResult'
+                                ? `0 0 40px ${COLORS.gold}66, 0 0 80px ${COLORS.green}33, inset 0 1px 0 ${COLORS.gold}44`
+                                : `0 0 40px ${COLORS.gold}55, 0 0 80px ${COLORS.orange}22, inset 0 1px 0 ${COLORS.gold}44`
                         }}>
                             {/* Floating particles - enhanced */}
                             {[...Array(isMobile ? 12 : 18)].map((_, i) => (
@@ -1700,11 +1893,15 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 flexWrap: 'wrap'
                             }}>
                                 <span style={{
-                                    background: `linear-gradient(135deg, ${COLORS.gold}dd 0%, ${COLORS.orange}aa 100%)`,
+                                    background: state === 'tripleLuckyResult'
+                                        ? `linear-gradient(135deg, ${COLORS.gold}ee 0%, ${COLORS.green}cc 100%)`
+                                        : `linear-gradient(135deg, ${COLORS.gold}dd 0%, ${COLORS.orange}aa 100%)`,
                                     color: COLORS.bg, fontSize: isMobile ? '11px' : '12px', fontWeight: '800',
                                     padding: isMobile ? '6px 14px' : '8px 16px',
                                     borderRadius: isMobile ? '8px' : '10px',
-                                    boxShadow: `0 4px 16px ${COLORS.gold}66, inset 0 1px 0 rgba(255,255,255,0.3)`,
+                                    boxShadow: state === 'tripleLuckyResult'
+                                        ? `0 4px 16px ${COLORS.gold}77, inset 0 1px 0 rgba(255,255,255,0.3)`
+                                        : `0 4px 16px ${COLORS.gold}66, inset 0 1px 0 rgba(255,255,255,0.3)`,
                                     letterSpacing: '1px',
                                     textTransform: 'uppercase',
                                     display: 'flex',
@@ -1712,7 +1909,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     gap: '6px'
                                 }}>
 
-                                    Triple Win
+                                    {state === 'tripleLuckyResult' ? 'Triple Lucky Win' : 'Triple Win'}
 
                                 </span>
                                 <span style={{

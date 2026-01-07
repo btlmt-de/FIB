@@ -3,16 +3,20 @@
 // ============================================
 
 import React from 'react';
-import { Sparkles, Star, Diamond, Circle, Zap } from 'lucide-react';
+import { Sparkles, Star, Diamond, Circle, Zap, Crown } from 'lucide-react';
 import { COLORS } from '../config/constants';
+
+// Insane color - bright gold, very distinct from other rarities
+export const INSANE_COLOR = '#FFD700';
 
 /**
  * Get the color associated with a rarity level
- * @param {string} rarity - The rarity type (mythic, legendary, rare, event, or default)
+ * @param {string} rarity - The rarity type (insane, mythic, legendary, rare, event, or default)
  * @returns {string} The color code for the rarity
  */
 export function getRarityColor(rarity) {
     switch (rarity) {
+        case 'insane': return INSANE_COLOR;
         case 'mythic': return COLORS.aqua;
         case 'legendary': return COLORS.purple;
         case 'rare': return COLORS.red;
@@ -32,6 +36,7 @@ export function getRarityIcon(rarity, size = 14, colored = true) {
     const color = colored ? getRarityColor(rarity) : undefined;
 
     switch (rarity) {
+        case 'insane': return <Crown size={size} color={color} />;
         case 'mythic': return <Sparkles size={size} color={color} />;
         case 'legendary': return <Star size={size} color={color} />;
         case 'rare': return <Diamond size={size} color={color} />;
@@ -50,6 +55,8 @@ export function getRarityBadge(rarity, iconSize = 10) {
     const color = getRarityColor(rarity);
 
     switch (rarity) {
+        case 'insane':
+            return { label: 'Insane', color, icon: <Crown size={iconSize} /> };
         case 'mythic':
             return { label: 'Mythic', color, icon: <Sparkles size={iconSize} /> };
         case 'legendary':
@@ -70,6 +77,7 @@ export function getRarityBadge(rarity, iconSize = 10) {
  */
 export function getRarityEmoji(rarity) {
     switch (rarity) {
+        case 'insane': return '👑';
         case 'mythic': return '💎';
         case 'legendary': return '⭐';
         case 'rare': return '🔷';
@@ -88,4 +96,20 @@ export function getRarityGradient(rarity, opacity = 0.1) {
     const color = getRarityColor(rarity);
     const alphaHex = Math.round(opacity * 255).toString(16).padStart(2, '0');
     return `linear-gradient(135deg, ${color}${alphaHex} 0%, transparent 100%)`;
+}
+
+/**
+ * Get rarity order for sorting (lower = rarer)
+ * @param {string} rarity - The rarity type
+ * @returns {number} Sort order value
+ */
+export function getRarityOrder(rarity) {
+    switch (rarity) {
+        case 'insane': return 0;
+        case 'mythic': return 1;
+        case 'legendary': return 2;
+        case 'rare': return 3;
+        case 'event': return 4;
+        default: return 99;
+    }
 }
