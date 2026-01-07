@@ -178,53 +178,69 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         try {
             setState('spinning');
 
-            const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
-            const spinResult = await res.json();
-
-            // Handle rate limit / cooldown - show error message
-            if (res.status === 429 || spinResult.cooldown) {
-                setError("Don't spin too fast!");
-                setState('idle');
-                return;
-            }
-
-            if (!res.ok || !spinResult.result) {
-                throw new Error(spinResult.error || 'Spin failed');
-            }
-
-            // Mark spin time only after successful response
-            markSpinTime();
-
-            const finalItem = {
-                ...spinResult.result,
-                isSpecial: spinResult.result.type === 'legendary',
-                isRare: spinResult.result.type === 'rare',
-                isMythic: spinResult.result.type === 'mythic',
-                isEvent: spinResult.result.type === 'event'
-            };
-
-            const newStrip = buildStrip(finalItem);
-            setStrip(newStrip);
-            setResult(finalItem);
-            setIsNewItem(spinResult.isNew);
+            // IMMEDIATELY build a placeholder strip and start animation
+            // This makes the wheel feel instant - no waiting for API
+            const placeholderItem = allItems[Math.floor(Math.random() * allItems.length)];
+            const placeholderStrip = buildStrip(placeholderItem);
+            setStrip(placeholderStrip);
             offsetRef.current = 0;
 
+            // Pre-calculate animation parameters
             const targetOffset = FINAL_INDEX * ITEM_WIDTH;
-            // Add "edge" tension - sometimes land very close to adjacent items
             let offsetVariance;
             const edgeRoll = Math.random();
             if (edgeRoll < 0.15) {
-                // 15% chance: Edge left (almost showing previous item)
-                offsetVariance = -25 - Math.random() * 12; // -25 to -37
+                offsetVariance = -25 - Math.random() * 12;
             } else if (edgeRoll < 0.30) {
-                // 15% chance: Edge right (almost showing next item)
-                offsetVariance = 25 + Math.random() * 12; // +25 to +37
+                offsetVariance = 25 + Math.random() * 12;
             } else {
-                // 70% chance: Normal centered landing
-                offsetVariance = (Math.random() - 0.5) * 30; // -15 to +15
+                offsetVariance = (Math.random() - 0.5) * 30;
             }
             const finalOffset = targetOffset + offsetVariance;
+
+            // Start animation IMMEDIATELY (before API returns)
             let startTime = null;
+            let apiComplete = false;
+            let spinResult = null;
+            let finalItem = placeholderItem;
+
+            // Make API call in parallel with animation
+            const apiCall = (async () => {
+                const res = await fetch(`${API_BASE_URL}/api/spin`, { method: 'POST', credentials: 'include' });
+                spinResult = await res.json();
+
+                // Handle rate limit / cooldown
+                if (res.status === 429 || spinResult.cooldown) {
+                    setError("Don't spin too fast!");
+                    if (animationRef.current) cancelAnimationFrame(animationRef.current);
+                    setState('idle');
+                    return null;
+                }
+
+                if (!res.ok || !spinResult.result) {
+                    throw new Error(spinResult.error || 'Spin failed');
+                }
+
+                // Mark spin time only after successful response
+                markSpinTime();
+
+                finalItem = {
+                    ...spinResult.result,
+                    isSpecial: spinResult.result.type === 'legendary',
+                    isRare: spinResult.result.type === 'rare',
+                    isMythic: spinResult.result.type === 'mythic',
+                    isEvent: spinResult.result.type === 'event'
+                };
+
+                // Update strip with real result - the animation continues smoothly
+                const newStrip = buildStrip(finalItem);
+                setStrip(newStrip);
+                setResult(finalItem);
+                setIsNewItem(spinResult.isNew);
+
+                apiComplete = true;
+                return spinResult;
+            })();
 
             const animate = (timestamp) => {
                 if (!startTime) startTime = timestamp;
@@ -245,19 +261,30 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 if (progress < 1) {
                     animationRef.current = requestAnimationFrame(animate);
                 } else {
-                    if (spinResult.isEvent) {
-                        setState('event');
-                        setTimeout(() => spinBonusWheel(), 1500);
-                    } else {
-                        setState('result');
-                        if (onSpinComplete) onSpinComplete(spinResult);
-                    }
+                    // Animation complete - wait for API if needed, then finish
+                    apiCall.then((result) => {
+                        if (result === null) return; // Error was handled
+                        if (result.isEvent) {
+                            setState('event');
+                            setTimeout(() => spinBonusWheel(), 1500);
+                        } else {
+                            setState('result');
+                            if (onSpinComplete) onSpinComplete(result);
+                        }
+                    }).catch((err) => {
+                        console.error('Spin failed:', err);
+                        if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+                            setError('Server unavailable. Please try again later.');
+                        } else {
+                            setError(err.message || 'Spin failed. Please try again.');
+                        }
+                        setState('idle');
+                    });
                 }
             };
             animationRef.current = requestAnimationFrame(animate);
         } catch (err) {
             console.error('Spin failed:', err);
-            // Check if it's a network error (server offline)
             if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
                 setError('Server unavailable. Please try again later.');
             } else {
@@ -827,7 +854,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Format large numbers
         const formatNumber = (n) => {
-            if (n === null) return '—';
+            if (n === null) return 'â€”';
             if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
             if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
             return n.toLocaleString();
@@ -956,7 +983,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             border: `1px solid ${COLORS.border}`
                         }}>
                             <code style={{ color: COLORS.aqua, fontSize: '13px' }}>
-                                Drop Rate = Weight ÷ 10,000,000
+                                Drop Rate = Weight Ã· 10,000,000
                             </code>
                             <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '8px' }}>
                                 Total weight is fixed at 10M. Regular items share the remaining weight equally.
@@ -1073,19 +1100,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             fontSize: '12px'
                         }}>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10 → </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 10 â†’ </span>
                                 <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.0001%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 100 → </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 100 â†’ </span>
                                 <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.001%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 1K → </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 1K â†’ </span>
                                 <span style={{ color: COLORS.purple, fontFamily: 'monospace' }}>0.01%</span>
                             </div>
                             <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10K → </span>
+                                <span style={{ color: COLORS.textMuted }}>Weight 10K â†’ </span>
                                 <span style={{ color: COLORS.gold, fontFamily: 'monospace' }}>0.1%</span>
                             </div>
                         </div>
@@ -1144,7 +1171,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             Lucky Spin
                         </div>
                         <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                            Ignores all weights. Every item has equal chance: <code style={{ color: COLORS.green }}>1 ÷ {totalItemCount}</code>
+                            Ignores all weights. Every item has equal chance: <code style={{ color: COLORS.green }}>1 Ã· {totalItemCount}</code>
                         </div>
                     </div>
 
@@ -1187,7 +1214,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontSize: '11px',
                                 color: COLORS.textMuted
                             }}>
-                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : '—'}%
+                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : 'â€”'}%
                             </div>
                         </div>
                     </div>
@@ -1243,7 +1270,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                     {/* Footer */}
                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textAlign: 'center' }}>
-                        All spins processed server-side • Drop rates are exact calculations
+                        All spins processed server-side â€¢ Drop rates are exact calculations
                     </div>
                 </div>
             </div>
@@ -1568,7 +1595,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 borderRadius: '4px', animation: 'mythicBadge 1.5s ease-in-out infinite',
                                 textShadow: '0 0 10px rgba(255,255,255,0.5)',
                                 boxShadow: `0 0 20px ${COLORS.insane}88`
-                            }}>👑 INSANE 👑</span>
+                            }}>ðŸ‘‘ INSANE ðŸ‘‘</span>
                         ) : isMythicItem(result) ? (
                             <span style={{
                                 background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,

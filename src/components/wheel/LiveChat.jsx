@@ -73,20 +73,28 @@ export function LiveChat({ user, isAdmin = false }) {
                 const data = await res.json();
 
                 if (since && data.messages.length > 0) {
-                    setMessages(prev => [...prev, ...data.messages]);
+                    // Deduplicate: filter out messages that already exist locally
+                    // This prevents the double-message bug when sending + polling race
+                    setMessages(prev => {
+                        const existingIds = new Set(prev.map(m => m.id));
+                        const newMsgs = data.messages.filter(m => !existingIds.has(m.id));
+                        if (newMsgs.length === 0) return prev; // No change needed
 
-                    // Check for pings in new messages
-                    const hasMention = data.messages.some(msg =>
-                        msg.user_id !== user?.id && isUserMentioned(msg.message)
-                    );
-
-                    if (!isOpen || isMinimized) {
-                        setUnreadCount(prev => prev + data.messages.length);
-                        setHasNewMessage(true);
-                        if (hasMention) {
-                            setHasPing(true);
+                        // Handle unread count for truly new messages only
+                        if ((!isOpen || isMinimized) && newMsgs.length > 0) {
+                            setUnreadCount(c => c + newMsgs.length);
+                            setHasNewMessage(true);
+                            // Check for pings in new messages
+                            const hasMention = newMsgs.some(msg =>
+                                msg.user_id !== user?.id && isUserMentioned(msg.message)
+                            );
+                            if (hasMention) {
+                                setHasPing(true);
+                            }
                         }
-                    }
+
+                        return [...prev, ...newMsgs];
+                    });
                 } else if (!since) {
                     setMessages(data.messages || []);
                 }
@@ -122,7 +130,7 @@ export function LiveChat({ user, isAdmin = false }) {
             pollIntervalRef.current = setInterval(() => {
                 // Always poll - fetchMessages handles undefined/0 since parameter
                 fetchMessages(lastMessageIdRef.current || undefined);
-            }, 3000);
+            }, 300);
 
             return () => {
                 if (pollIntervalRef.current) {
@@ -496,7 +504,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages · Use @ to mention
+                                    {messages.length} messages • Use @ to mention
                                 </div>
                             </div>
                         </div>
@@ -700,11 +708,11 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 </div>
                                                             </div>
 
-                                                            {/* Actions */}
+                                                            {/* Actions - always visible */}
                                                             <div className="msg-actions" style={{
                                                                 display: 'flex',
                                                                 gap: '2px',
-                                                                opacity: 0,
+                                                                opacity: 0.5,
                                                                 transition: 'opacity 0.15s'
                                                             }}>
                                                                 {!isOwnMessage && (

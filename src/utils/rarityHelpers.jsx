@@ -68,18 +68,21 @@ export function getRarityBadge(rarity, iconSize = 10) {
 }
 
 /**
- * Get emoji representation of rarity (for text-only contexts like AdminPanel)
+ * Get Lucide icon component for rarity (for text-only contexts like AdminPanel)
+ * Returns the same icon as getRarityIcon but without color applied
  * @param {string} rarity - The rarity type
- * @returns {string} Emoji character
+ * @param {number} size - Icon size in pixels (default 14)
+ * @returns {React.ReactElement|null} The icon component
  */
-export function getRarityEmoji(rarity) {
+export function getRarityEmoji(rarity, size = 14) {
+    // Using Lucide icons instead of unicode emojis for consistency
     switch (rarity) {
-        case 'insane': return '👑';
-        case 'mythic': return '💎';
-        case 'legendary': return '⭐';
-        case 'rare': return '🔷';
-        case 'event': return '⚡';
-        default: return '⚪';
+        case 'insane': return <Crown size={size} />;
+        case 'mythic': return <Sparkles size={size} />;
+        case 'legendary': return <Star size={size} />;
+        case 'rare': return <Diamond size={size} />;
+        case 'event': return <Zap size={size} />;
+        default: return <Circle size={size} />;
     }
 }
 
