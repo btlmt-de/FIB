@@ -837,7 +837,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             animation: (state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning') ? 'wheelSpin 0.5s linear infinite' : 'none'
                         }}
                     />
-                    <span style={{ color: state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.gold : COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
+                    <span style={{ color: state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : (state === 'luckySpinning' || state === 'luckyResult') ? COLORS.green : (state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.gold : COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
                         {state === 'spinning' ? 'Spinning...' :
                             state === 'event' ? 'BONUS EVENT!' :
                                 state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
@@ -1394,7 +1394,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}>
-                                                {isLucky ? 'LUCKY SPIN' : 'TRIPLE SPIN'}
+                                                {isTripleLucky ? 'TRIPLE LUCKY' : isLucky ? 'LUCKY SPIN' : isTriple ? 'TRIPLE SPIN' : event.name}
                                             </span>
                                         </div>
                                     </div>
@@ -1702,6 +1702,41 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             {/* Triple Spin Display (also used for Triple Lucky Spin) */}
             {(state === 'tripleSpinning' || state === 'tripleResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (
                 <div style={{ marginTop: isMobile ? '16px' : '24px' }}>
+                    {/* Triple Lucky Spin Header Badge - show what it does */}
+                    {(state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (
+                        <div style={{
+                            textAlign: 'center',
+                            marginBottom: isMobile ? '14px' : '18px',
+                            padding: isMobile ? '10px 18px' : '12px 24px',
+                            background: `linear-gradient(135deg, ${COLORS.gold}33 0%, ${COLORS.green}22 100%)`,
+                            borderRadius: isMobile ? '10px' : '12px',
+                            border: `1.5px solid ${COLORS.gold}66`,
+                            boxShadow: `0 0 20px ${COLORS.gold}44, inset 0 1px 0 ${COLORS.gold}33`,
+                            animation: 'bonusEventReveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                        }}>
+                            <span style={{
+                                color: COLORS.gold,
+                                fontSize: isMobile ? '13px' : '14px',
+                                fontWeight: '800',
+                                letterSpacing: '1.5px',
+                                textTransform: 'uppercase',
+                                textShadow: `0 0 12px ${COLORS.gold}66`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
+                            }}>
+                               Triple Lucky Spin
+                            </span>
+                            <div style={{
+                                marginTop: '6px',
+                                color: COLORS.textMuted,
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                letterSpacing: '0.5px'
+                            }}>3x spins with equal chance for all items</div>
+                        </div>
+                    )}
                     {/* Spinning rows - show during both spinning and result to prevent reset flash */}
                     {(state === 'tripleSpinning' || state === 'tripleResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (
                         isMobile ? (
