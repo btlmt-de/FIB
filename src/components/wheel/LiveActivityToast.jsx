@@ -4,7 +4,7 @@ import { getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../context/ActivityContext';
 import * as LucideIcons from 'lucide-react';
-import { Trophy } from 'lucide-react';
+import { Trophy, Sparkles } from 'lucide-react';
 
 // Achievement category colors (matching Achievements.jsx)
 const ACHIEVEMENT_CATEGORY_COLORS = {
@@ -378,20 +378,33 @@ export function LiveActivityToast() {
                                 }}>
                                     {toast.item_name}
                                 </span>
-                                {toast.is_lucky === 1 && (
-                                    <span title="Lucky Spin" style={{
-                                        fontSize: '12px',
-                                        background: `${COLORS.gold}33`,
-                                        color: COLORS.gold,
-                                        padding: '2px 6px',
-                                        borderRadius: '4px',
-                                        fontWeight: '600',
-                                        flexShrink: 0
-                                    }}>
-                                        ðŸ€
-                                    </span>
-                                )}
                             </div>
+                            {/* Lucky Spin Banner */}
+                            {toast.is_lucky === 1 && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    marginTop: '6px',
+                                    padding: '4px 8px',
+                                    background: 'linear-gradient(135deg, #00440022, #00FF0015)',
+                                    border: '1px solid #00FF0044',
+                                    borderRadius: '6px',
+                                    width: 'fit-content'
+                                }}>
+                                    <Sparkles size={12} color="#00FF00" />
+                                    <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        color: '#00FF00',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        textShadow: '0 0 8px #00FF0044'
+                                    }}>
+                                        Lucky Spin
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );

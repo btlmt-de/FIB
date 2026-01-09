@@ -28,12 +28,13 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [extendedStats, setExtendedStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('collection');
-    const [showLuckTooltip, setShowLuckTooltip] = useState(false);
     const [showLuckInfoModal, setShowLuckInfoModal] = useState(false);
     const [rankings, setRankings] = useState({ spins: null, events: null });
     const [specialItemTotals, setSpecialItemTotals] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
     const [uniqueCollected, setUniqueCollected] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
     const [showAchievements, setShowAchievements] = useState(false);
+    const [showCollectionBook, setShowCollectionBook] = useState(false);
+    const [collectionBookData, setCollectionBookData] = useState(null);
 
     // Showcase data
     const [badges, setBadges] = useState([]);
@@ -46,10 +47,6 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [showShowcaseEditor, setShowShowcaseEditor] = useState(false);
     const [pendingBadges, setPendingBadges] = useState([]);
     const [pendingShowcase, setPendingShowcase] = useState([]);
-
-    // Collection Book modal
-    const [showCollectionBook, setShowCollectionBook] = useState(false);
-    const [collectionBookData, setCollectionBookData] = useState(null);
     const [allItems, setAllItems] = useState([]);
     const [loadingCollectionBook, setLoadingCollectionBook] = useState(false);
 
@@ -1453,142 +1450,112 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     }}>
                                         <TrendingUp size={12} color={luckInfo.color} />
                                         Luck
-                                        <div style={{ position: 'relative', display: 'inline-flex' }}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setShowLuckTooltip(!showLuckTooltip);
-                                                }}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    padding: '2px',
-                                                    cursor: 'pointer',
-                                                    color: COLORS.textMuted,
-                                                    display: 'flex',
-                                                    alignItems: 'center'
-                                                }}
-                                            >
-                                                <HelpCircle size={10} />
-                                            </button>
-
-                                            {/* Tooltip - positioned relative to the ? button */}
-                                            {showLuckTooltip && (
-                                                <div
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '20px',
-                                                        left: '50%',
-                                                        transform: 'translateX(-50%)',
-                                                        background: COLORS.bg,
-                                                        border: `1px solid ${COLORS.border}`,
-                                                        borderRadius: '10px',
-                                                        padding: '14px',
-                                                        width: '220px',
-                                                        fontSize: '11px',
-                                                        color: COLORS.text,
-                                                        textAlign: 'left',
-                                                        zIndex: 100,
-                                                        boxShadow: '0 8px 32px rgba(0,0,0,0.8)'
-                                                    }}
-                                                >
-                                                    {/* Arrow pointing up */}
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        top: '-6px',
-                                                        left: '50%',
-                                                        transform: 'translateX(-50%) rotate(45deg)',
-                                                        width: '10px',
-                                                        height: '10px',
-                                                        background: COLORS.bg,
-                                                        borderTop: `1px solid ${COLORS.border}`,
-                                                        borderLeft: `1px solid ${COLORS.border}`
-                                                    }} />
-                                                    <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '12px' }}>
-                                                        How Luck Works
-                                                    </div>
-                                                    <div style={{ color: COLORS.textMuted, lineHeight: 1.5, marginBottom: '10px' }}>
-                                                        Measures how statistically improbable your pulls are using z-scores (standard deviations from expected).
-                                                    </div>
-                                                    {luckRating?.stats && (
-                                                        <div style={{
-                                                            marginTop: '10px',
-                                                            padding: '8px',
-                                                            background: COLORS.bgLight,
-                                                            borderRadius: '6px',
-                                                            fontSize: '10px'
-                                                        }}>
-                                                            <div style={{ marginBottom: '6px', color: COLORS.text, fontWeight: '500' }}>Your pulls:</div>
-                                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                                                                {luckRating.stats.insane > 0 && <span style={{ color: COLORS.insane, fontWeight: '600' }}>{luckRating.stats.insane} Insane</span>}
-                                                                {luckRating.stats.mythic > 0 && <span style={{ color: COLORS.aqua }}>{luckRating.stats.mythic} Mythic</span>}
-                                                                {luckRating.stats.legendary > 0 && <span style={{ color: COLORS.purple }}>{luckRating.stats.legendary} Leg</span>}
-                                                                {luckRating.stats.rare > 0 && <span style={{ color: COLORS.red }}>{luckRating.stats.rare} Rare</span>}
-                                                            </div>
-                                                            <div style={{ color: COLORS.textMuted }}>
-                                                                Expected: ~{luckRating.stats.expectedSpecial ?? 0} special in {luckRating.stats.totalSpins?.toLocaleString()} spins
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {luckRating?.zScores && (
-                                                        <div style={{
-                                                            marginTop: '8px',
-                                                            padding: '8px',
-                                                            background: COLORS.bgLight,
-                                                            borderRadius: '6px',
-                                                            fontSize: '10px'
-                                                        }}>
-                                                            <div style={{ marginBottom: '6px', color: COLORS.text, fontWeight: '500' }}>Combined Z-Score:</div>
-                                                            <div style={{
-                                                                color: luckRating.zScores.combined > 0 ? COLORS.green : luckRating.zScores.combined < 0 ? COLORS.red : COLORS.text,
-                                                                fontSize: '14px',
-                                                                fontWeight: '600'
-                                                            }}>
-                                                                {luckRating.zScores.combined > 0 ? '+' : ''}{luckRating.zScores.combined}<span style={{ fontSize: '10px', marginLeft: '1px' }}>σ</span>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setShowLuckTooltip(false);
-                                                            setShowLuckInfoModal(true);
-                                                        }}
-                                                        style={{
-                                                            marginTop: '10px',
-                                                            width: '100%',
-                                                            padding: '8px 12px',
-                                                            background: `${COLORS.gold}22`,
-                                                            border: `1px solid ${COLORS.gold}44`,
-                                                            borderRadius: '6px',
-                                                            color: COLORS.gold,
-                                                            fontSize: '11px',
-                                                            fontWeight: '600',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '6px'
-                                                        }}
-                                                    >
-                                                        <HelpCircle size={12} />
-                                                        Learn more about luck calculation
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowLuckInfoModal(true);
+                                            }}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                padding: '2px',
+                                                cursor: 'pointer',
+                                                color: COLORS.textMuted,
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                            title="Learn about luck rating"
+                                        >
+                                            <HelpCircle size={10} />
+                                        </button>
                                     </div>
-                                    <div style={{ color: luckInfo.color, fontSize: '24px', fontWeight: '700' }}>
-                                        {luckRating?.rating || '-'}
-                                    </div>
+                                    {/* Weighted Glory Rating with breakdown */}
                                     <div style={{
-                                        color: luckInfo.color,
-                                        fontSize: '10px',
-                                        marginTop: '4px',
-                                        fontWeight: '500'
+                                        display: 'flex',
+                                        gap: '8px',
+                                        justifyContent: 'center',
+                                        alignItems: 'flex-start'
                                     }}>
-                                        {luckInfo.label}
+                                        {/* Lifetime Rating (30%) */}
+                                        <div style={{ textAlign: 'center', flex: 1 }}>
+                                            <div style={{
+                                                color: COLORS.textMuted,
+                                                fontSize: '8px',
+                                                marginBottom: '2px',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.5px'
+                                            }}>
+                                                Lifetime
+                                            </div>
+                                            <div style={{
+                                                color: COLORS.text,
+                                                fontSize: '16px',
+                                                fontWeight: '600',
+                                                opacity: 0.7
+                                            }}>
+                                                {luckRating?.lifetimeRating || '-'}
+                                            </div>
+                                            <div style={{
+                                                color: COLORS.textMuted,
+                                                fontSize: '8px'
+                                            }}>
+                                                30%
+                                            </div>
+                                        </div>
+
+                                        {/* Main Combined Rating */}
+                                        <div style={{ textAlign: 'center', flex: 1.5 }}>
+                                            <div style={{
+                                                color: COLORS.textMuted,
+                                                fontSize: '8px',
+                                                marginBottom: '2px',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.5px'
+                                            }}>
+                                                Rating
+                                            </div>
+                                            <div style={{ color: luckInfo.color, fontSize: '26px', fontWeight: '700' }}>
+                                                {luckRating?.rating || '-'}
+                                            </div>
+                                            <div style={{
+                                                color: luckInfo.color,
+                                                fontSize: '9px',
+                                                fontWeight: '500'
+                                            }}>
+                                                {luckInfo.label}
+                                            </div>
+                                        </div>
+
+                                        {/* Peak Window Rating (70%) */}
+                                        <div style={{ textAlign: 'center', flex: 1 }}>
+                                            <div style={{
+                                                color: COLORS.gold,
+                                                fontSize: '8px',
+                                                marginBottom: '2px',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.5px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '2px'
+                                            }}>
+                                                <span style={{ fontSize: '7px' }}>⭐</span>
+                                                Peak
+                                            </div>
+                                            <div style={{
+                                                color: COLORS.gold,
+                                                fontSize: '16px',
+                                                fontWeight: '600'
+                                            }}>
+                                                {luckRating?.peakWindowRating || '-'}
+                                            </div>
+                                            <div style={{
+                                                color: COLORS.textMuted,
+                                                fontSize: '8px'
+                                            }}>
+                                                70%
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

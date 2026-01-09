@@ -39,6 +39,7 @@ export const TEAM_MEMBERS = [
     { name: 'CH0RD', username: 'CH0RD', chance: 0.0004, rarity: 'legendary' },
     { name: 'stupxd', username: 'stupxd', chance: 0.0005, rarity: 'legendary' },
     { name: 'Wandering Trader', username: null, chance: 0.00005, rarity: 'legendary', imageUrl: '/wandering_trader.png' },
+    { name: 'ChromaRGBDirt', username: null, chance: 0.0002, rarity: 'legendary', imageUrl: '/rgbdirt.gif' },
 ];
 
 export const RARE_MEMBERS = [

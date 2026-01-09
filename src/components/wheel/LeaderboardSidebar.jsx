@@ -152,7 +152,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
     return (
         <>
             <div style={{
-                width: '340px',
+                width: '380px',
                 height: '520px',
                 background: `${COLORS.bg}ee`,
                 borderRadius: '14px',
@@ -422,79 +422,135 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                         {(getValueForTab(entry) || 0).toLocaleString()}
                                     </div>
 
-                                    {/* Special items indicators */}
+                                    {/* Special items indicators OR Event stats on events tab */}
                                     <div style={{
                                         display: 'flex',
                                         gap: '4px',
                                         alignItems: 'center',
-                                        minWidth: '90px',
+                                        minWidth: '110px',
                                         justifyContent: 'flex-end',
                                         flexWrap: 'wrap'
                                     }}>
-                                        {(entry.insane_count || 0) > 0 && (
-                                            <span style={{
-                                                color: COLORS.insane,
-                                                fontSize: '10px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '2px',
-                                                background: `${COLORS.insane}18`,
-                                                padding: '2px 4px',
-                                                borderRadius: '3px',
-                                                border: `1px solid ${COLORS.insane}30`,
-                                                fontWeight: '600'
-                                            }}>
-                                            <Crown size={9} />{entry.insane_count}
-                                        </span>
-                                        )}
-                                        {entry.mythic_count > 0 && (
-                                            <span style={{
-                                                color: COLORS.aqua,
-                                                fontSize: '10px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '2px',
-                                                background: `${COLORS.aqua}15`,
-                                                padding: '2px 4px',
-                                                borderRadius: '3px',
-                                                border: `1px solid ${COLORS.aqua}30`,
-                                                fontWeight: '600'
-                                            }}>
-                                            <Sparkles size={9} />{entry.mythic_count}
-                                        </span>
-                                        )}
-                                        {entry.legendary_count > 0 && (
-                                            <span style={{
-                                                color: COLORS.purple,
-                                                fontSize: '10px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '2px',
-                                                background: `${COLORS.purple}15`,
-                                                padding: '2px 4px',
-                                                borderRadius: '3px',
-                                                border: `1px solid ${COLORS.purple}30`,
-                                                fontWeight: '600'
-                                            }}>
-                                            <Star size={9} />{entry.legendary_count}
-                                        </span>
-                                        )}
-                                        {entry.rare_count > 0 && (
-                                            <span style={{
-                                                color: COLORS.red,
-                                                fontSize: '10px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '2px',
-                                                background: `${COLORS.red}15`,
-                                                padding: '2px 4px',
-                                                borderRadius: '3px',
-                                                border: `1px solid ${COLORS.red}30`,
-                                                fontWeight: '600'
-                                            }}>
-                                            <Diamond size={9} />{entry.rare_count}
-                                        </span>
-                                        )}
+                                        {(() => {
+                                            // Events tab: show recursion count + event trigger rate
+                                            if (activeTab === 'events') {
+                                                const recursion = entry.recursion_triggers || 0;
+                                                const eventRate = entry.total_spins > 0
+                                                    ? ((entry.event_triggers / entry.total_spins) * 100).toFixed(1)
+                                                    : 0;
+
+                                                return (
+                                                    <>
+                                                        {recursion > 0 && (
+                                                            <span title="Recursion Events Triggered" style={{
+                                                                color: '#00FF00',
+                                                                fontSize: '10px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '2px',
+                                                                background: '#00FF0015',
+                                                                padding: '2px 4px',
+                                                                borderRadius: '3px',
+                                                                border: '1px solid #00FF0030',
+                                                                fontWeight: '600'
+                                                            }}>
+                                                                <RefreshCw size={9} />{recursion}
+                                                            </span>
+                                                        )}
+                                                        <span title="Event trigger rate" style={{
+                                                            color: COLORS.textMuted,
+                                                            fontSize: '10px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '2px',
+                                                            background: `${COLORS.text}10`,
+                                                            padding: '2px 5px',
+                                                            borderRadius: '3px',
+                                                            border: `1px solid ${COLORS.border}`,
+                                                            fontWeight: '500'
+                                                        }}>
+                                                            {eventRate}%
+                                                        </span>
+                                                    </>
+                                                );
+                                            }
+
+                                            // Show totals on duplicates tab, unique counts otherwise
+                                            const showTotals = activeTab === 'duplicates';
+                                            const insane = showTotals ? (entry.total_insane || 0) : (entry.insane_count || 0);
+                                            const mythic = showTotals ? (entry.total_mythic || 0) : (entry.mythic_count || 0);
+                                            const legendary = showTotals ? (entry.total_legendary || 0) : (entry.legendary_count || 0);
+                                            const rare = showTotals ? (entry.total_rare || 0) : (entry.rare_count || 0);
+
+                                            return (
+                                                <>
+                                                    {insane > 0 && (
+                                                        <span style={{
+                                                            color: COLORS.insane,
+                                                            fontSize: '10px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '2px',
+                                                            background: `${COLORS.insane}18`,
+                                                            padding: '2px 4px',
+                                                            borderRadius: '3px',
+                                                            border: `1px solid ${COLORS.insane}30`,
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            <Crown size={9} />{insane}
+                                                        </span>
+                                                    )}
+                                                    {mythic > 0 && (
+                                                        <span style={{
+                                                            color: COLORS.aqua,
+                                                            fontSize: '10px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '2px',
+                                                            background: `${COLORS.aqua}15`,
+                                                            padding: '2px 4px',
+                                                            borderRadius: '3px',
+                                                            border: `1px solid ${COLORS.aqua}30`,
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            <Sparkles size={9} />{mythic}
+                                                        </span>
+                                                    )}
+                                                    {legendary > 0 && (
+                                                        <span style={{
+                                                            color: COLORS.purple,
+                                                            fontSize: '10px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '2px',
+                                                            background: `${COLORS.purple}15`,
+                                                            padding: '2px 4px',
+                                                            borderRadius: '3px',
+                                                            border: `1px solid ${COLORS.purple}30`,
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            <Star size={9} />{legendary}
+                                                        </span>
+                                                    )}
+                                                    {rare > 0 && (
+                                                        <span style={{
+                                                            color: COLORS.red,
+                                                            fontSize: '10px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '2px',
+                                                            background: `${COLORS.red}15`,
+                                                            padding: '2px 4px',
+                                                            borderRadius: '3px',
+                                                            border: `1px solid ${COLORS.red}30`,
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            <Diamond size={9} />{rare}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             );

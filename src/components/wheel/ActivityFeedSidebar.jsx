@@ -402,18 +402,23 @@ export function ActivityFeedSidebar() {
                                             {item.item_name}
                                         </span>
                                         {item.is_lucky === 1 && (
-                                            <span title="Lucky Spin" style={{
-                                                fontSize: '10px',
-                                                background: `${COLORS.gold}33`,
-                                                color: COLORS.gold,
-                                                padding: '1px 4px',
+                                            <span style={{
+                                                fontSize: '9px',
+                                                background: 'linear-gradient(135deg, #00440033, #00FF0022)',
+                                                color: '#00FF00',
+                                                padding: '2px 5px',
                                                 borderRadius: '4px',
-                                                fontWeight: '600',
+                                                fontWeight: '700',
                                                 flexShrink: 0,
                                                 display: 'flex',
-                                                alignItems: 'center'
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                border: '1px solid #00FF0033',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.3px',
+                                                textShadow: '0 0 6px #00FF0044'
                                             }}>
-                                                <Sparkles size={10} />
+                                                Lucky Spin
                                             </span>
                                         )}
                                     </div>
