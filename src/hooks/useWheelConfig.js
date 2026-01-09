@@ -14,7 +14,7 @@ const FALLBACK_CONFIG = {
         wheelTexture: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png'
     },
     bonusEvents: [
-        { id: 'triple_spin', name: 'Triple Spin', description: '3 bonus spins!' },
+        { id: 'triple_spin', name: '5x Spin', description: '5 bonus spins!' },
         { id: 'lucky_spin', name: 'Lucky Spin', description: 'Equal chance for all items!' }
     ]
 };

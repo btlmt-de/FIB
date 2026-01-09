@@ -161,8 +161,26 @@ export function ActivityProvider({ children }) {
                                 }));
                                 break;
 
+                            case 'chat_typing':
+                                window.dispatchEvent(new CustomEvent('sse-chat-typing', {
+                                    detail: { userId: data.userId, username: data.username, isTyping: data.isTyping }
+                                }));
+                                break;
+
+                            case 'online_count':
+                                window.dispatchEvent(new CustomEvent('sse-online-count', {
+                                    detail: { count: data.count, userIds: data.userIds }
+                                }));
+                                break;
+
                             case 'connected':
                                 console.log('[SSE] Connected');
+                                // If we got online count with connection, dispatch it
+                                if (data.onlineCount !== undefined) {
+                                    window.dispatchEvent(new CustomEvent('sse-online-count', {
+                                        detail: { count: data.onlineCount, userIds: data.onlineUserIds }
+                                    }));
+                                }
                                 break;
                         }
                     } catch (e) {

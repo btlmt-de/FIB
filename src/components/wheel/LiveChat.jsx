@@ -29,6 +29,15 @@ export function LiveChat({ user, isAdmin = false }) {
     // Ping notification state
     const [hasPing, setHasPing] = useState(false);
 
+    // Online users state
+    const [onlineUsers, setOnlineUsers] = useState([]);
+    const [showOnlineList, setShowOnlineList] = useState(false);
+
+    // Typing indicator state
+    const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, username}
+    const typingTimeoutRef = useRef(null);
+    const lastTypingRef = useRef(0);
+
     // Position and size state for draggable/resizable
     const [position, setPosition] = useState(() => {
         const saved = localStorage.getItem('chat-position');
@@ -249,6 +258,34 @@ export function LiveChat({ user, isAdmin = false }) {
         return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     };
 
+    // Image URL pattern - matches common image hosts and direct image links
+    const imageUrlPattern = /https?:\/\/[^\s<>"']+?\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s<>"']*)?/gi;
+    const imageHostPattern = /https?:\/\/(?:i\.imgur\.com|imgur\.com\/[a-zA-Z0-9]+|cdn\.discordapp\.com|media\.discordapp\.net|pbs\.twimg\.com|tenor\.com\/view|media\.tenor\.com|i\.redd\.it|preview\.redd\.it)[^\s<>"']*/gi;
+
+    // Extract image URLs from message
+    const extractImageUrls = (message) => {
+        const urls = new Set();
+
+        // Match direct image links
+        const directMatches = message.match(imageUrlPattern) || [];
+        directMatches.forEach(url => urls.add(url));
+
+        // Match image host URLs
+        const hostMatches = message.match(imageHostPattern) || [];
+        hostMatches.forEach(url => urls.add(url));
+
+        return Array.from(urls);
+    };
+
+    // Remove image URLs from message text for cleaner display
+    const removeImageUrls = (message) => {
+        let cleaned = message
+            .replace(imageUrlPattern, '')
+            .replace(imageHostPattern, '')
+            .trim();
+        return cleaned;
+    };
+
     // Check if current user is mentioned in a message
     const isUserMentioned = (message) => {
         if (!user) return false;
@@ -327,6 +364,37 @@ export function LiveChat({ user, isAdmin = false }) {
             // Initial fetch
             fetchMessages();
 
+            // Fetch online users
+            const fetchOnlineUsers = async () => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/online`, { credentials: 'include' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setOnlineUsers(data.users || []);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch online users:', e);
+                }
+            };
+            fetchOnlineUsers();
+
+            // Send heartbeat to keep user marked as online
+            const sendHeartbeat = async () => {
+                try {
+                    await fetch(`${API_BASE_URL}/api/heartbeat`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+                } catch (e) {
+                    // Ignore heartbeat errors
+                }
+            };
+            sendHeartbeat();
+
+            // Periodic heartbeat (every 60 seconds) and online refresh (every 30 seconds)
+            const heartbeatInterval = setInterval(sendHeartbeat, 60000);
+            const onlineRefreshInterval = setInterval(fetchOnlineUsers, 30000);
+
             // Listen for SSE chat messages (real-time)
             const handleSSEMessage = (event) => {
                 const newMessage = event.detail;
@@ -362,7 +430,43 @@ export function LiveChat({ user, isAdmin = false }) {
                 }
             };
 
+            // Listen for online count updates
+            const handleOnlineCount = (event) => {
+                const data = event.detail;
+                if (data && data.userIds) {
+                    // Refetch user details when count changes
+                    fetchOnlineUsers();
+                }
+            };
+
+            // Listen for typing indicators
+            const handleTyping = (event) => {
+                const { userId, username, isTyping } = event.detail;
+                // Don't show own typing
+                if (userId === user.id) return;
+
+                setTypingUsers(prev => {
+                    if (isTyping) {
+                        // Add user if not already in list
+                        if (!prev.some(u => u.userId === userId)) {
+                            return [...prev, { userId, username }];
+                        }
+                        return prev;
+                    } else {
+                        // Remove user from list
+                        return prev.filter(u => u.userId !== userId);
+                    }
+                });
+
+                // Auto-remove after 3 seconds of no updates
+                setTimeout(() => {
+                    setTypingUsers(prev => prev.filter(u => u.userId !== userId));
+                }, 3000);
+            };
+
             window.addEventListener('sse-chat-message', handleSSEMessage);
+            window.addEventListener('sse-online-count', handleOnlineCount);
+            window.addEventListener('sse-chat-typing', handleTyping);
 
             // Sync when tab becomes visible (in case SSE missed messages while hidden)
             const handleVisibilityChange = () => {
@@ -374,7 +478,11 @@ export function LiveChat({ user, isAdmin = false }) {
 
             return () => {
                 window.removeEventListener('sse-chat-message', handleSSEMessage);
+                window.removeEventListener('sse-online-count', handleOnlineCount);
+                window.removeEventListener('sse-chat-typing', handleTyping);
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
+                clearInterval(heartbeatInterval);
+                clearInterval(onlineRefreshInterval);
             };
         }
     }, [user, fetchMessages]);
@@ -402,12 +510,34 @@ export function LiveChat({ user, isAdmin = false }) {
         }
     }, [mentionSearch, showMentionList]);
 
+    // Send typing indicator (debounced)
+    const sendTypingIndicator = useCallback(async () => {
+        const now = Date.now();
+        // Only send every 2 seconds max
+        if (now - lastTypingRef.current < 2000) return;
+        lastTypingRef.current = now;
+
+        try {
+            await fetch(`${API_BASE_URL}/api/chat/typing`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+        } catch (e) {
+            // Ignore errors for typing indicator
+        }
+    }, []);
+
     const handleInputChange = (e) => {
         trackActivity(); // Track user activity for adaptive polling
         const value = e.target.value;
         const curPos = e.target.selectionStart;
         setInputValue(value);
         setCursorPosition(curPos);
+
+        // Send typing indicator if there's content
+        if (value.trim().length > 0) {
+            sendTypingIndicator();
+        }
 
         // Check for @ mention trigger
         const textBeforeCursor = value.slice(0, curPos);
@@ -463,17 +593,95 @@ export function LiveChat({ user, isAdmin = false }) {
         }, 0);
     };
 
+    // Slash command handlers
+    const slashCommands = {
+        shrug: () => '¯\\_(ツ)_/¯',
+        tableflip: () => '(╯°□°)╯︵ ┻━┻',
+        unflip: () => '┬─┬ノ( º _ ºノ)',
+        lenny: () => '( ͡° ͜ʖ ͡°)',
+        disapprove: () => 'ಠ_ಠ',
+        sparkles: () => '✨',
+        help: () => null, // Special handling below
+    };
+
+    const handleSlashCommand = (input) => {
+        const trimmed = input.trim();
+        if (!trimmed.startsWith('/')) return null;
+
+        const parts = trimmed.slice(1).split(/\s+/);
+        const command = parts[0].toLowerCase();
+        const args = parts.slice(1).join(' ');
+
+        // Text replacement commands
+        if (slashCommands[command] && command !== 'help') {
+            const replacement = slashCommands[command]();
+            return { type: 'replace', text: replacement };
+        }
+
+        // Help command - show available commands
+        if (command === 'help') {
+            return {
+                type: 'local',
+                content: (
+                    <div style={{ padding: '12px', background: 'rgba(88, 101, 242, 0.1)', borderRadius: '8px', fontSize: '12px' }}>
+                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📝 Available Commands</div>
+                        <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\_(ツ)_/¯</div>
+                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> — (╯°□°)╯︵ ┻━┻</div>
+                            <div><code style={{ color: '#5865F2' }}>/unflip</code> — ┬─┬ノ( º _ ºノ)</div>
+                            <div><code style={{ color: '#5865F2' }}>/lenny</code> — ( ͡° ͜ʖ ͡°)</div>
+                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> — ಠ_ಠ</div>
+                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> — ✨</div>
+                            <div style={{ marginTop: '8px', color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
+                                Tip: Share images by pasting imgur/discord CDN links!
+                            </div>
+                        </div>
+                    </div>
+                )
+            };
+        }
+
+        return null;
+    };
+
     const sendMessage = async () => {
         if (!inputValue.trim() || sending) return;
+
+        // Check for slash commands first
+        const commandResult = handleSlashCommand(inputValue);
+        if (commandResult) {
+            if (commandResult.type === 'replace') {
+                // Replace command with text and send normally
+                setInputValue(commandResult.text);
+                // Continue to send below, but with the replaced text
+            } else if (commandResult.type === 'local') {
+                // Show local message (only visible to this user)
+                setMessages(prev => [...prev, {
+                    id: `local-${Date.now()}`,
+                    user_id: 'system',
+                    message: '',
+                    custom_username: 'System',
+                    discord_username: 'System',
+                    created_at: new Date().toISOString(),
+                    _localContent: commandResult.content
+                }]);
+                setInputValue('');
+                scrollToBottom();
+                return;
+            }
+        }
 
         trackActivity(); // Keep fast polling active when sending
         setSending(true);
         setError('');
         setShowMentionList(false);
 
+        // Use replaced text if command was executed
+        const finalInput = commandResult?.type === 'replace' ? commandResult.text : inputValue.trim();
+
         const messageText = replyingTo
-            ? `@${replyingTo.name} ${inputValue.trim()}`
-            : inputValue.trim();
+            ? `@${replyingTo.name} ${finalInput}`
+            : finalInput;
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/chat/messages`, {
@@ -589,11 +797,18 @@ export function LiveChat({ user, isAdmin = false }) {
         return textarea.value;
     };
 
-    // Render message with highlighted mentions
+    // Render message with highlighted mentions and embedded images
     const renderMessageText = (text, msgUserId) => {
         const decoded = decodeHtmlEntities(text);
-        const parts = decoded.split(/(@\w+)/g);
-        return parts.map((part, i) => {
+
+        // Extract image URLs
+        const imageUrls = extractImageUrls(decoded);
+        // Remove image URLs from text for cleaner display
+        const cleanedText = imageUrls.length > 0 ? removeImageUrls(decoded) : decoded;
+
+        // Render text with highlighted mentions
+        const parts = cleanedText.split(/(@\w+)/g);
+        const textContent = parts.map((part, i) => {
             if (part.startsWith('@')) {
                 const username = part.slice(1);
                 const isCurrentUser = user && (
@@ -617,6 +832,43 @@ export function LiveChat({ user, isAdmin = false }) {
             }
             return part;
         });
+
+        // If there are images, render text + images
+        if (imageUrls.length > 0) {
+            return (
+                <>
+                    {cleanedText.trim() && <div>{textContent}</div>}
+                    <div style={{ marginTop: cleanedText.trim() ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {imageUrls.map((url, i) => (
+                            <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: 'block' }}
+                            >
+                                <img
+                                    src={url}
+                                    alt="Shared image"
+                                    style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '200px',
+                                        borderRadius: '8px',
+                                        cursor: 'pointer',
+                                        background: 'rgba(0,0,0,0.2)'
+                                    }}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                    }}
+                                />
+                            </a>
+                        ))}
+                    </div>
+                </>
+            );
+        }
+
+        return textContent;
     };
 
     if (!user) return null;
@@ -650,6 +902,10 @@ export function LiveChat({ user, isAdmin = false }) {
                 @keyframes pingPulse {
                     0%, 100% { transform: scale(1); }
                     50% { transform: scale(1.1); }
+                }
+                @keyframes typingBounce {
+                    0%, 60%, 100% { transform: translateY(0); }
+                    30% { transform: translateY(-4px); }
                 }
                 .chat-msg-row { transition: background 0.15s; }
                 .chat-msg-row:hover { background: rgba(255,255,255,0.02); }
@@ -813,7 +1069,31 @@ export function LiveChat({ user, isAdmin = false }) {
                                 </div>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '2px' }}>
+                        <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                            {/* Online users button */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowOnlineList(!showOnlineList); }}
+                                title={`${onlineUsers.length} online`}
+                                style={{
+                                    background: showOnlineList ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
+                                    border: 'none',
+                                    color: showOnlineList ? '#22c55e' : 'rgba(255,255,255,0.5)',
+                                    cursor: 'pointer',
+                                    padding: '6px 10px',
+                                    borderRadius: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    fontSize: '12px',
+                                    fontWeight: '500',
+                                    marginRight: '4px'
+                                }}
+                                onMouseEnter={e => { if (!showOnlineList) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#22c55e'; }}}
+                                onMouseLeave={e => { if (!showOnlineList) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}}
+                            >
+                                <Users size={14} />
+                                <span>{onlineUsers.length}</span>
+                            </button>
                             {/* Reset position button - only show if moved */}
                             {(position.x !== 20 || position.y !== null || size.width !== 380 || size.height !== 520) && (
                                 <button
@@ -871,177 +1151,276 @@ export function LiveChat({ user, isAdmin = false }) {
 
                     {!isMinimized && (
                         <>
-                            {/* Messages */}
-                            <div
-                                ref={messagesContainerRef}
-                                onScroll={handleScroll}
-                                className="chat-scrollbar"
-                                style={{
-                                    flex: 1,
-                                    overflow: 'auto',
-                                    background: '#0e0e15',
-                                    position: 'relative'
-                                }}
-                            >
-                                {messages.length === 0 ? (
+                            {/* Online Users List */}
+                            {showOnlineList ? (
+                                <div
+                                    className="chat-scrollbar"
+                                    style={{
+                                        flex: 1,
+                                        overflow: 'auto',
+                                        background: '#0e0e15',
+                                        padding: '12px'
+                                    }}
+                                >
                                     <div style={{
-                                        height: '100%',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'rgba(255,255,255,0.3)',
-                                        gap: '12px',
-                                        padding: '40px'
+                                        color: 'rgba(255,255,255,0.5)',
+                                        fontSize: '11px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        marginBottom: '12px',
+                                        fontWeight: '600'
                                     }}>
-                                        <div style={{
-                                            width: '60px',
-                                            height: '60px',
-                                            borderRadius: '50%',
-                                            background: 'rgba(88, 101, 242, 0.1)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            <MessageCircle size={28} color="#5865F2" />
-                                        </div>
-                                        <div style={{ textAlign: 'center' }}>
-                                            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>No messages yet</div>
-                                            <div style={{ fontSize: '12px' }}>Be the first to say hello!</div>
-                                        </div>
+                                        {onlineUsers.length} Online
                                     </div>
-                                ) : (
-                                    <div style={{ padding: '8px 0' }}>
-                                        {messages.map((msg, index) => {
-                                            const isOwnMessage = msg.user_id === user.id;
-                                            const displayName = msg.custom_username || msg.discord_username || 'User';
-                                            const showHeader = shouldShowHeader(msg, index);
-                                            const showDate = shouldShowDateSeparator(msg, index);
-                                            const isMentioned = !isOwnMessage && isUserMentioned(msg.message);
-
-                                            // Check if this is an explicit reply (has reply_to_id)
-                                            const repliedMessage = findRepliedMessage(msg);
-                                            const isReply = repliedMessage !== null;
-
-                                            return (
-                                                <React.Fragment key={msg.id}>
-                                                    {/* Date separator */}
-                                                    {showDate && (
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            padding: '16px 0 8px',
-                                                            gap: '12px'
-                                                        }}>
-                                                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-                                                            <span style={{
-                                                                color: 'rgba(255,255,255,0.3)',
-                                                                fontSize: '11px',
-                                                                fontWeight: '500',
-                                                                textTransform: 'uppercase',
-                                                                letterSpacing: '0.5px'
-                                                            }}>
-                                                                {formatDate(msg.created_at)}
-                                                            </span>
-                                                            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
-                                                        </div>
-                                                    )}
-
-                                                    {/* Reply preview - Discord style */}
-                                                    {isReply && (
-                                                        <div
-                                                            onClick={() => scrollToMessage(repliedMessage.id)}
+                                    {onlineUsers.length === 0 ? (
+                                        <div style={{
+                                            textAlign: 'center',
+                                            color: 'rgba(255,255,255,0.3)',
+                                            padding: '40px 20px',
+                                            fontSize: '13px'
+                                        }}>
+                                            No users online
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            {onlineUsers.map(onlineUser => (
+                                                <div
+                                                    key={onlineUser.id}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '10px',
+                                                        padding: '8px 10px',
+                                                        borderRadius: '8px',
+                                                        background: 'rgba(255,255,255,0.03)',
+                                                        cursor: 'pointer',
+                                                        transition: 'background 0.15s'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                                                    onClick={() => {
+                                                        // Insert @mention into input
+                                                        const mention = `@${onlineUser.username} `;
+                                                        setInputValue(prev => prev + mention);
+                                                        setShowOnlineList(false);
+                                                        inputRef.current?.focus();
+                                                    }}
+                                                >
+                                                    <div style={{ position: 'relative' }}>
+                                                        <img
+                                                            src={onlineUser.avatar
+                                                                ? `https://cdn.discordapp.com/avatars/${onlineUser.discord_id}/${onlineUser.avatar}.png?size=32`
+                                                                : `https://cdn.discordapp.com/embed/avatars/${parseInt(onlineUser.discord_id || '0') % 5}.png`
+                                                            }
+                                                            alt=""
                                                             style={{
+                                                                width: '32px',
+                                                                height: '32px',
+                                                                borderRadius: '50%',
+                                                                background: '#1a1a2e'
+                                                            }}
+                                                        />
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            bottom: '-1px',
+                                                            right: '-1px',
+                                                            width: '10px',
+                                                            height: '10px',
+                                                            borderRadius: '50%',
+                                                            background: '#22c55e',
+                                                            border: '2px solid #0e0e15'
+                                                        }} />
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{
+                                                            color: '#fff',
+                                                            fontSize: '13px',
+                                                            fontWeight: '500',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap'
+                                                        }}>
+                                                            {onlineUser.username}
+                                                        </div>
+                                                    </div>
+                                                    <AtSign size={14} style={{ color: 'rgba(255,255,255,0.3)' }} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                /* Messages */
+                                <div
+                                    ref={messagesContainerRef}
+                                    onScroll={handleScroll}
+                                    className="chat-scrollbar"
+                                    style={{
+                                        flex: 1,
+                                        overflow: 'auto',
+                                        background: '#0e0e15',
+                                        position: 'relative'
+                                    }}
+                                >
+                                    {messages.length === 0 ? (
+                                        <div style={{
+                                            height: '100%',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'rgba(255,255,255,0.3)',
+                                            gap: '12px',
+                                            padding: '40px'
+                                        }}>
+                                            <div style={{
+                                                width: '60px',
+                                                height: '60px',
+                                                borderRadius: '50%',
+                                                background: 'rgba(88, 101, 242, 0.1)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <MessageCircle size={28} color="#5865F2" />
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>No messages yet</div>
+                                                <div style={{ fontSize: '12px' }}>Be the first to say hello!</div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ padding: '8px 0' }}>
+                                            {messages.map((msg, index) => {
+                                                const isOwnMessage = msg.user_id === user.id;
+                                                const displayName = msg.custom_username || msg.discord_username || 'User';
+                                                const showHeader = shouldShowHeader(msg, index);
+                                                const showDate = shouldShowDateSeparator(msg, index);
+                                                const isMentioned = !isOwnMessage && isUserMentioned(msg.message);
+
+                                                // Check if this is an explicit reply (has reply_to_id)
+                                                const repliedMessage = findRepliedMessage(msg);
+                                                const isReply = repliedMessage !== null;
+
+                                                return (
+                                                    <React.Fragment key={msg.id}>
+                                                        {/* Date separator */}
+                                                        {showDate && (
+                                                            <div style={{
                                                                 display: 'flex',
                                                                 alignItems: 'center',
-                                                                gap: '8px',
-                                                                padding: '4px 16px 4px 60px',
-                                                                cursor: 'pointer',
-                                                                fontSize: '12px',
-                                                                color: 'rgba(255,255,255,0.4)'
-                                                            }}
-                                                        >
-                                                            <div style={{
-                                                                width: '2px',
-                                                                height: '12px',
-                                                                background: '#5865F2',
-                                                                borderRadius: '1px'
-                                                            }} />
-                                                            <Reply size={12} style={{ opacity: 0.6 }} />
-                                                            <img
-                                                                src={getAvatarUrl(repliedMessage.discord_id, repliedMessage.discord_avatar)}
-                                                                alt=""
-                                                                style={{
-                                                                    width: '14px',
-                                                                    height: '14px',
-                                                                    borderRadius: '50%'
-                                                                }}
-                                                                onError={(e) => {
-                                                                    e.target.onerror = null;
-                                                                    e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                                                                }}
-                                                            />
-                                                            <span style={{ color: '#8B5CF6', fontWeight: '500' }}>
-                                                                {repliedMessage.custom_username || repliedMessage.discord_username}
-                                                            </span>
-                                                            <span style={{
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap',
-                                                                maxWidth: '200px'
+                                                                justifyContent: 'center',
+                                                                padding: '16px 0 8px',
+                                                                gap: '12px'
                                                             }}>
-                                                                {decodeHtmlEntities(repliedMessage.message)}
+                                                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+                                                                <span style={{
+                                                                    color: 'rgba(255,255,255,0.3)',
+                                                                    fontSize: '11px',
+                                                                    fontWeight: '500',
+                                                                    textTransform: 'uppercase',
+                                                                    letterSpacing: '0.5px'
+                                                                }}>
+                                                                {formatDate(msg.created_at)}
                                                             </span>
-                                                        </div>
-                                                    )}
+                                                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+                                                            </div>
+                                                        )}
 
-                                                    <div
-                                                        id={`chat-msg-${msg.id}`}
-                                                        className={`chat-msg-row ${isMentioned ? 'mentioned' : ''}`}
-                                                        style={{
-                                                            padding: showHeader ? '8px 16px 4px' : '2px 16px 2px 60px',
-                                                            borderLeft: isMentioned
-                                                                ? '2px solid #8B5CF6'
-                                                                : isOwnMessage
-                                                                    ? '2px solid rgba(139, 92, 246, 0.4)'
-                                                                    : '2px solid transparent',
-                                                            animation: index === messages.length - 1 ? 'msgSlideIn 0.2s ease-out' : 'none',
-                                                            transition: 'background 0.3s ease'
-                                                        }}
-                                                    >
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            alignItems: 'flex-start',
-                                                            gap: '12px'
-                                                        }}>
-                                                            {/* Avatar */}
-                                                            {showHeader ? (
+                                                        {/* Reply preview - Discord style */}
+                                                        {isReply && (
+                                                            <div
+                                                                onClick={() => scrollToMessage(repliedMessage.id)}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '8px',
+                                                                    padding: '4px 16px 4px 60px',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '12px',
+                                                                    color: 'rgba(255,255,255,0.4)'
+                                                                }}
+                                                            >
+                                                                <div style={{
+                                                                    width: '2px',
+                                                                    height: '12px',
+                                                                    background: '#5865F2',
+                                                                    borderRadius: '1px'
+                                                                }} />
+                                                                <Reply size={12} style={{ opacity: 0.6 }} />
                                                                 <img
-                                                                    src={getAvatarUrl(msg.discord_id, msg.discord_avatar)}
+                                                                    src={getAvatarUrl(repliedMessage.discord_id, repliedMessage.discord_avatar)}
                                                                     alt=""
                                                                     style={{
-                                                                        width: '32px',
-                                                                        height: '32px',
-                                                                        borderRadius: '50%',
-                                                                        flexShrink: 0
+                                                                        width: '14px',
+                                                                        height: '14px',
+                                                                        borderRadius: '50%'
                                                                     }}
                                                                     onError={(e) => {
                                                                         e.target.onerror = null;
                                                                         e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
                                                                     }}
                                                                 />
-                                                            ) : null}
+                                                                <span style={{ color: '#8B5CF6', fontWeight: '500' }}>
+                                                                {repliedMessage.custom_username || repliedMessage.discord_username}
+                                                            </span>
+                                                                <span style={{
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    whiteSpace: 'nowrap',
+                                                                    maxWidth: '200px'
+                                                                }}>
+                                                                {decodeHtmlEntities(repliedMessage.message)}
+                                                            </span>
+                                                            </div>
+                                                        )}
 
-                                                            {/* Content */}
-                                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                                {showHeader && (
-                                                                    <div style={{
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '8px',
-                                                                        marginBottom: '2px'
-                                                                    }}>
+                                                        <div
+                                                            id={`chat-msg-${msg.id}`}
+                                                            className={`chat-msg-row ${isMentioned ? 'mentioned' : ''}`}
+                                                            style={{
+                                                                padding: showHeader ? '8px 16px 4px' : '2px 16px 2px 60px',
+                                                                borderLeft: isMentioned
+                                                                    ? '2px solid #8B5CF6'
+                                                                    : isOwnMessage
+                                                                        ? '2px solid rgba(139, 92, 246, 0.4)'
+                                                                        : '2px solid transparent',
+                                                                animation: index === messages.length - 1 ? 'msgSlideIn 0.2s ease-out' : 'none',
+                                                                transition: 'background 0.3s ease'
+                                                            }}
+                                                        >
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                alignItems: 'flex-start',
+                                                                gap: '12px'
+                                                            }}>
+                                                                {/* Avatar */}
+                                                                {showHeader ? (
+                                                                    <img
+                                                                        src={getAvatarUrl(msg.discord_id, msg.discord_avatar)}
+                                                                        alt=""
+                                                                        style={{
+                                                                            width: '32px',
+                                                                            height: '32px',
+                                                                            borderRadius: '50%',
+                                                                            flexShrink: 0
+                                                                        }}
+                                                                        onError={(e) => {
+                                                                            e.target.onerror = null;
+                                                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                                                        }}
+                                                                    />
+                                                                ) : null}
+
+                                                                {/* Content */}
+                                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                                    {showHeader && (
+                                                                        <div style={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '8px',
+                                                                            marginBottom: '2px'
+                                                                        }}>
                                                                         <span style={{
                                                                             color: isOwnMessage ? '#8B5CF6' : '#fff',
                                                                             fontSize: '13px',
@@ -1049,124 +1428,125 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                         }}>
                                                                             {isOwnMessage ? 'You' : displayName}
                                                                         </span>
-                                                                        <span style={{
-                                                                            color: 'rgba(255,255,255,0.25)',
-                                                                            fontSize: '11px'
-                                                                        }}>
+                                                                            <span style={{
+                                                                                color: 'rgba(255,255,255,0.25)',
+                                                                                fontSize: '11px'
+                                                                            }}>
                                                                             {formatTime(msg.created_at)}
                                                                         </span>
-                                                                    </div>
-                                                                )}
+                                                                        </div>
+                                                                    )}
 
-                                                                <div style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'flex-start',
-                                                                    gap: '8px'
-                                                                }}>
                                                                     <div style={{
-                                                                        color: 'rgba(255,255,255,0.85)',
-                                                                        fontSize: '13px',
-                                                                        lineHeight: '1.45',
-                                                                        wordBreak: 'break-word',
-                                                                        flex: 1
+                                                                        display: 'flex',
+                                                                        alignItems: 'flex-start',
+                                                                        gap: '8px'
                                                                     }}>
-                                                                        {renderMessageText(msg.message, msg.user_id)}
-                                                                    </div>
-
-                                                                    {!showHeader && (
-                                                                        <span className="msg-time" style={{
-                                                                            color: 'rgba(255,255,255,0.2)',
-                                                                            fontSize: '10px',
-                                                                            opacity: 0,
-                                                                            transition: 'opacity 0.15s',
-                                                                            flexShrink: 0
+                                                                        <div style={{
+                                                                            color: 'rgba(255,255,255,0.85)',
+                                                                            fontSize: '13px',
+                                                                            lineHeight: '1.45',
+                                                                            wordBreak: 'break-word',
+                                                                            flex: 1
                                                                         }}>
+                                                                            {msg._localContent || renderMessageText(msg.message, msg.user_id)}
+                                                                        </div>
+
+                                                                        {!showHeader && (
+                                                                            <span className="msg-time" style={{
+                                                                                color: 'rgba(255,255,255,0.2)',
+                                                                                fontSize: '10px',
+                                                                                opacity: 0,
+                                                                                transition: 'opacity 0.15s',
+                                                                                flexShrink: 0
+                                                                            }}>
                                                                             {formatTime(msg.created_at)}
                                                                         </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Actions - always visible */}
+                                                                <div className="msg-actions" style={{
+                                                                    display: 'flex',
+                                                                    gap: '2px',
+                                                                    opacity: 0.5,
+                                                                    transition: 'opacity 0.15s'
+                                                                }}>
+                                                                    {!isOwnMessage && (
+                                                                        <button
+                                                                            onClick={() => handleReply(msg)}
+                                                                            style={{
+                                                                                background: 'transparent',
+                                                                                border: 'none',
+                                                                                color: 'rgba(255,255,255,0.3)',
+                                                                                cursor: 'pointer',
+                                                                                padding: '4px',
+                                                                                borderRadius: '4px'
+                                                                            }}
+                                                                            onMouseEnter={e => { e.currentTarget.style.color = '#5865F2'; e.currentTarget.style.background = 'rgba(88,101,242,0.1)'; }}
+                                                                            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.background = 'transparent'; }}
+                                                                            title="Reply"
+                                                                        >
+                                                                            <Reply size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                    {isAdmin && (
+                                                                        <button
+                                                                            onClick={() => deleteMessage(msg.id)}
+                                                                            style={{
+                                                                                background: 'transparent',
+                                                                                border: 'none',
+                                                                                color: 'rgba(255,255,255,0.3)',
+                                                                                cursor: 'pointer',
+                                                                                padding: '4px',
+                                                                                borderRadius: '4px'
+                                                                            }}
+                                                                            onMouseEnter={e => { e.currentTarget.style.color = '#ED4245'; e.currentTarget.style.background = 'rgba(237,66,69,0.1)'; }}
+                                                                            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.background = 'transparent'; }}
+                                                                            title="Delete"
+                                                                        >
+                                                                            <Trash2 size={14} />
+                                                                        </button>
                                                                     )}
                                                                 </div>
                                                             </div>
-
-                                                            {/* Actions - always visible */}
-                                                            <div className="msg-actions" style={{
-                                                                display: 'flex',
-                                                                gap: '2px',
-                                                                opacity: 0.5,
-                                                                transition: 'opacity 0.15s'
-                                                            }}>
-                                                                {!isOwnMessage && (
-                                                                    <button
-                                                                        onClick={() => handleReply(msg)}
-                                                                        style={{
-                                                                            background: 'transparent',
-                                                                            border: 'none',
-                                                                            color: 'rgba(255,255,255,0.3)',
-                                                                            cursor: 'pointer',
-                                                                            padding: '4px',
-                                                                            borderRadius: '4px'
-                                                                        }}
-                                                                        onMouseEnter={e => { e.currentTarget.style.color = '#5865F2'; e.currentTarget.style.background = 'rgba(88,101,242,0.1)'; }}
-                                                                        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.background = 'transparent'; }}
-                                                                        title="Reply"
-                                                                    >
-                                                                        <Reply size={14} />
-                                                                    </button>
-                                                                )}
-                                                                {isAdmin && (
-                                                                    <button
-                                                                        onClick={() => deleteMessage(msg.id)}
-                                                                        style={{
-                                                                            background: 'transparent',
-                                                                            border: 'none',
-                                                                            color: 'rgba(255,255,255,0.3)',
-                                                                            cursor: 'pointer',
-                                                                            padding: '4px',
-                                                                            borderRadius: '4px'
-                                                                        }}
-                                                                        onMouseEnter={e => { e.currentTarget.style.color = '#ED4245'; e.currentTarget.style.background = 'rgba(237,66,69,0.1)'; }}
-                                                                        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.background = 'transparent'; }}
-                                                                        title="Delete"
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </React.Fragment>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                                <div ref={messagesEndRef} />
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    <div ref={messagesEndRef} />
 
-                                {showScrollButton && (
-                                    <button
-                                        onClick={() => scrollToBottom()}
-                                        style={{
-                                            position: 'absolute',
-                                            bottom: '12px',
-                                            left: '50%',
-                                            transform: 'translateX(-50%)',
-                                            background: 'rgba(88, 101, 242, 0.9)',
-                                            border: 'none',
-                                            borderRadius: '20px',
-                                            padding: '6px 14px',
-                                            color: '#fff',
-                                            fontSize: '11px',
-                                            fontWeight: '500',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                                        }}
-                                    >
-                                        <ChevronDown size={14} />
-                                        New messages
-                                    </button>
-                                )}
-                            </div>
+                                    {showScrollButton && (
+                                        <button
+                                            onClick={() => scrollToBottom()}
+                                            style={{
+                                                position: 'absolute',
+                                                bottom: '12px',
+                                                left: '50%',
+                                                transform: 'translateX(-50%)',
+                                                background: 'rgba(88, 101, 242, 0.9)',
+                                                border: 'none',
+                                                borderRadius: '20px',
+                                                padding: '6px 14px',
+                                                color: '#fff',
+                                                fontSize: '11px',
+                                                fontWeight: '500',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                                            }}
+                                        >
+                                            <ChevronDown size={14} />
+                                            New messages
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Error */}
                             {error && (
@@ -1178,6 +1558,51 @@ export function LiveChat({ user, isAdmin = false }) {
                                     textAlign: 'center'
                                 }}>
                                     {error}
+                                </div>
+                            )}
+
+                            {/* Typing indicator */}
+                            {typingUsers.length > 0 && (
+                                <div style={{
+                                    padding: '6px 16px',
+                                    background: 'rgba(88, 101, 242, 0.05)',
+                                    borderTop: '1px solid rgba(255,255,255,0.03)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '3px',
+                                        alignItems: 'center'
+                                    }}>
+                                        <span className="typing-dot" style={{
+                                            width: '6px', height: '6px', borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.5)',
+                                            animation: 'typingBounce 1.4s infinite ease-in-out',
+                                            animationDelay: '0s'
+                                        }} />
+                                        <span className="typing-dot" style={{
+                                            width: '6px', height: '6px', borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.5)',
+                                            animation: 'typingBounce 1.4s infinite ease-in-out',
+                                            animationDelay: '0.2s'
+                                        }} />
+                                        <span className="typing-dot" style={{
+                                            width: '6px', height: '6px', borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.5)',
+                                            animation: 'typingBounce 1.4s infinite ease-in-out',
+                                            animationDelay: '0.4s'
+                                        }} />
+                                    </div>
+                                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>
+                                        {typingUsers.length === 1
+                                            ? `${typingUsers[0].username} is typing...`
+                                            : typingUsers.length === 2
+                                                ? `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`
+                                                : `${typingUsers[0].username} and ${typingUsers.length - 1} others are typing...`
+                                        }
+                                    </span>
                                 </div>
                             )}
 

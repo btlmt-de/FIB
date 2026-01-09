@@ -546,7 +546,7 @@ export function OddsInfoModal({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Repeat size={12} color={COLORS.gold} />
-                                        <span style={{ color: COLORS.text }}>Triple Spin</span>
+                                        <span style={{ color: COLORS.text }}>5x Spin</span>
                                     </div>
                                     <span style={{ color: COLORS.gold, fontFamily: 'monospace', fontWeight: '500' }}>40%</span>
                                 </div>
@@ -562,7 +562,7 @@ export function OddsInfoModal({
                     </div>
                 </div>
 
-                {/* Lucky & Triple Spin Info */}
+                {/* Lucky & 5x Spin Info */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
                     <div style={{
                         padding: '12px',
@@ -586,10 +586,10 @@ export function OddsInfoModal({
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                             <Repeat size={12} color={COLORS.gold} />
-                            <span style={{ color: COLORS.gold, fontSize: '12px', fontWeight: '600' }}>Triple Spin</span>
+                            <span style={{ color: COLORS.gold, fontSize: '12px', fontWeight: '600' }}>5x Spin</span>
                         </div>
                         <div style={{ color: COLORS.textMuted, fontSize: '11px', lineHeight: 1.4 }}>
-                            3 spins with normal odds
+                            5 spins with normal odds
                         </div>
                     </div>
                 </div>

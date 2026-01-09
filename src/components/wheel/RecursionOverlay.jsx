@@ -9,27 +9,56 @@ import React, { useState, useEffect, useRef } from 'react';
 import { COLORS, WHEEL_TEXTURE_URL } from '../../config/constants.js';
 import { getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { useActivity } from '../../context/ActivityContext.jsx';
+import { useSound } from '../../context/SoundContext.jsx';
 import { Zap, Sparkles, X } from 'lucide-react';
 
 export function RecursionOverlay({ currentUserId }) {
     const { recursionStatus, updateRecursionStatus } = useActivity();
+    const { playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+    const hasPlayedSoundRef = useRef(false);
+    const wasActiveRef = useRef(false);
 
     const timerIntervalRef = useRef(null);
+
+    // Handle resize for mobile detection
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 600);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Show banner for entire event duration
     useEffect(() => {
         if (!recursionStatus) return;
 
-        if (recursionStatus.active) {
+        const isActive = recursionStatus.active;
+
+        if (isActive && !wasActiveRef.current) {
+            // Recursion just started
             setRemainingTime(recursionStatus.remainingTime || 0);
             setIsVisible(true);
-        } else {
+
+            if (!hasPlayedSoundRef.current) {
+                playRecursionSound(); // Play the SFX
+                startRecursionSoundtrack(); // Start the looping soundtrack
+                hasPlayedSoundRef.current = true;
+            }
+            wasActiveRef.current = true;
+        } else if (isActive) {
+            // Recursion still active, just update time
+            setRemainingTime(recursionStatus.remainingTime || 0);
+        } else if (!isActive && wasActiveRef.current) {
+            // Recursion just ended
             setIsVisible(false);
+            hasPlayedSoundRef.current = false;
+            wasActiveRef.current = false;
+            stopRecursionSoundtrack();
         }
-    }, [recursionStatus]);
+    }, [recursionStatus?.active, recursionStatus?.remainingTime, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
 
     // Local countdown timer
     useEffect(() => {
@@ -239,7 +268,7 @@ export function RecursionOverlay({ currentUserId }) {
                 transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
                 transition: 'transform 0.4s ease-out, background 0.5s ease-out, border-color 0.5s ease-out',
                 background: `linear-gradient(180deg, ${activeDark} 0%, rgba(0,${hasSpins ? '20' : '10'},0,0.98) 50%, ${activeDark} 100%)`,
-                padding: '16px 32px 18px 32px',
+                padding: isMobile ? '10px 12px 12px 12px' : '16px 32px 18px 32px',
                 borderBottom: `2px solid ${activeColor}`,
                 overflow: 'hidden',
                 animation: hasSpins ? 'flicker 2s infinite, borderGlitch 3s infinite' : 'none',
@@ -251,7 +280,7 @@ export function RecursionOverlay({ currentUserId }) {
                         top: 0,
                         left: 0,
                         right: 0,
-                        height: '8px',
+                        height: isMobile ? '4px' : '8px',
                         background: `linear-gradient(180deg, transparent, ${COLORS.recursion}66, ${COLORS.recursion}22, transparent)`,
                         animation: 'scanline 1.5s linear infinite',
                         pointerEvents: 'none',
@@ -293,31 +322,34 @@ export function RecursionOverlay({ currentUserId }) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '20px',
+                    gap: isMobile ? '10px' : '20px',
                     animation: hasSpins ? 'bannerGlitch 5s infinite' : 'none',
+                    flexWrap: isMobile ? 'nowrap' : 'nowrap',
                 }}>
-                    {/* Spinning Wheel Icon */}
-                    <img
-                        src={WHEEL_TEXTURE_URL}
-                        alt="Wheel"
-                        style={{
-                            width: '40px',
-                            height: 'auto',
-                            imageRendering: 'pixelated',
-                            animation: hasSpins ? 'wheelSpin 2s linear infinite' : 'none',
-                            filter: `drop-shadow(0 0 12px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`,
-                            opacity: hasSpins ? 1 : 0.5,
-                            transition: 'filter 0.5s ease-out, opacity 0.5s ease-out',
-                        }}
-                    />
+                    {/* Spinning Wheel Icon - hide on mobile */}
+                    {!isMobile && (
+                        <img
+                            src={WHEEL_TEXTURE_URL}
+                            alt="Wheel"
+                            style={{
+                                width: '40px',
+                                height: 'auto',
+                                imageRendering: 'pixelated',
+                                animation: hasSpins ? 'wheelSpin 2s linear infinite' : 'none',
+                                filter: `drop-shadow(0 0 12px ${glowColor}) drop-shadow(0 0 20px ${glowColor})`,
+                                opacity: hasSpins ? 1 : 0.5,
+                                transition: 'filter 0.5s ease-out, opacity 0.5s ease-out',
+                            }}
+                        />
+                    )}
 
                     {/* RECURSION text with glitch effect */}
                     <span style={{
                         color: activeColor,
-                        fontSize: '26px',
+                        fontSize: isMobile ? '16px' : '26px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        letterSpacing: '4px',
+                        letterSpacing: isMobile ? '2px' : '4px',
                         animation: hasSpins ? 'textGlitch 2.5s infinite' : 'none',
                         textShadow: `0 0 15px ${glowColor}, 0 0 30px ${glowColor}88`,
                         transition: 'color 0.5s ease-out',
@@ -325,41 +357,45 @@ export function RecursionOverlay({ currentUserId }) {
                         RECURSION
                     </span>
 
-                    {/* Divider */}
-                    <div style={{
-                        width: '2px',
-                        height: '28px',
-                        background: activeColor,
-                        boxShadow: `0 0 8px ${glowColor}`,
-                        opacity: 0.8,
-                        transition: 'background 0.5s ease-out',
-                    }} />
+                    {/* Divider - hide on mobile */}
+                    {!isMobile && (
+                        <div style={{
+                            width: '2px',
+                            height: '28px',
+                            background: activeColor,
+                            boxShadow: `0 0 8px ${glowColor}`,
+                            opacity: 0.8,
+                            transition: 'background 0.5s ease-out',
+                        }} />
+                    )}
 
-                    {/* Triggered by user */}
+                    {/* Triggered by user - simplified on mobile */}
                     {triggeredBy && (
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '10px',
-                            padding: '6px 16px',
+                            gap: isMobile ? '6px' : '10px',
+                            padding: isMobile ? '4px 8px' : '6px 16px',
                             background: `${activeColor}22`,
                             borderRadius: '6px',
                             border: `1px solid ${activeColor}66`,
                             transition: 'background 0.5s ease-out, border-color 0.5s ease-out',
                         }}>
-                            <span style={{
-                                color: `${activeColor}aa`,
-                                fontSize: '14px',
-                                transition: 'color 0.5s ease-out',
-                            }}>
-                                Triggered by
-                            </span>
+                            {!isMobile && (
+                                <span style={{
+                                    color: `${activeColor}aa`,
+                                    fontSize: '14px',
+                                    transition: 'color 0.5s ease-out',
+                                }}>
+                                    Triggered by
+                                </span>
+                            )}
                             <img
                                 src={getDiscordAvatarUrl(triggeredBy.discordId, triggeredBy.discordAvatar)}
                                 alt=""
                                 style={{
-                                    width: '26px',
-                                    height: '26px',
+                                    width: isMobile ? '20px' : '26px',
+                                    height: isMobile ? '20px' : '26px',
                                     borderRadius: '50%',
                                     border: `2px solid ${activeColor}88`,
                                     filter: hasSpins ? 'none' : 'grayscale(100%)',
@@ -369,30 +405,36 @@ export function RecursionOverlay({ currentUserId }) {
                             <span style={{
                                 color: activeColor,
                                 fontWeight: '700',
-                                fontSize: '16px',
+                                fontSize: isMobile ? '12px' : '16px',
                                 transition: 'color 0.5s ease-out',
+                                maxWidth: isMobile ? '60px' : 'none',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                             }}>
                                 {triggeredBy.username}
                             </span>
                         </div>
                     )}
 
-                    {/* Divider */}
-                    <div style={{
-                        width: '2px',
-                        height: '28px',
-                        background: activeColor,
-                        boxShadow: `0 0 8px ${glowColor}`,
-                        opacity: 0.8,
-                        transition: 'background 0.5s ease-out',
-                    }} />
+                    {/* Divider - hide on mobile */}
+                    {!isMobile && (
+                        <div style={{
+                            width: '2px',
+                            height: '28px',
+                            background: activeColor,
+                            boxShadow: `0 0 8px ${glowColor}`,
+                            opacity: 0.8,
+                            transition: 'background 0.5s ease-out',
+                        }} />
+                    )}
 
                     {/* Lucky Spins remaining - CLEAR LABEL */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px',
-                        padding: '6px 16px',
+                        gap: isMobile ? '6px' : '10px',
+                        padding: isMobile ? '4px 8px' : '6px 16px',
                         background: hasSpins ? `${activeColor}33` : `${activeColor}22`,
                         borderRadius: '6px',
                         border: `2px solid ${activeColor}88`,
@@ -400,7 +442,7 @@ export function RecursionOverlay({ currentUserId }) {
                     }}>
                         {hasSpins ? (
                             <Sparkles
-                                size={20}
+                                size={isMobile ? 14 : 20}
                                 color={activeColor}
                                 style={{
                                     filter: `drop-shadow(0 0 6px ${glowColor})`,
@@ -408,11 +450,11 @@ export function RecursionOverlay({ currentUserId }) {
                                 }}
                             />
                         ) : (
-                            <X size={20} color={activeColor} />
+                            <X size={isMobile ? 14 : 20} color={activeColor} />
                         )}
                         <span style={{
                             color: activeColor,
-                            fontSize: '18px',
+                            fontSize: isMobile ? '14px' : '18px',
                             fontWeight: '800',
                             fontFamily: 'monospace',
                             transition: 'color 0.5s ease-out',
@@ -420,34 +462,38 @@ export function RecursionOverlay({ currentUserId }) {
                         }}>
                             {userSpinsRemaining}
                         </span>
-                        <span style={{
-                            color: activeColor,
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            textTransform: 'uppercase',
-                            letterSpacing: '1px',
-                            transition: 'color 0.5s ease-out',
-                        }}>
-                            Lucky {userSpinsRemaining === 1 ? 'Spin' : 'Spins'}
-                        </span>
+                        {!isMobile && (
+                            <span style={{
+                                color: activeColor,
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                transition: 'color 0.5s ease-out',
+                            }}>
+                                Lucky {userSpinsRemaining === 1 ? 'Spin' : 'Spins'}
+                            </span>
+                        )}
                     </div>
 
-                    {/* Divider */}
-                    <div style={{
-                        width: '2px',
-                        height: '28px',
-                        background: activeColor,
-                        boxShadow: `0 0 8px ${glowColor}`,
-                        opacity: 0.8,
-                        transition: 'background 0.5s ease-out',
-                    }} />
+                    {/* Divider - hide on mobile */}
+                    {!isMobile && (
+                        <div style={{
+                            width: '2px',
+                            height: '28px',
+                            background: activeColor,
+                            boxShadow: `0 0 8px ${glowColor}`,
+                            opacity: 0.8,
+                            transition: 'background 0.5s ease-out',
+                        }} />
+                    )}
 
                     {/* Event Timer */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
-                        padding: '6px 14px',
+                        gap: isMobile ? '4px' : '8px',
+                        padding: isMobile ? '4px 8px' : '6px 14px',
                         background: `${activeColor}22`,
                         borderRadius: '6px',
                         border: `1px solid ${activeColor}66`,
@@ -455,7 +501,7 @@ export function RecursionOverlay({ currentUserId }) {
                     }}>
                         <span style={{
                             color: activeColor,
-                            fontSize: '18px',
+                            fontSize: isMobile ? '12px' : '18px',
                             fontWeight: '800',
                             fontFamily: 'monospace',
                             transition: 'color 0.5s ease-out',
@@ -464,42 +510,44 @@ export function RecursionOverlay({ currentUserId }) {
                         </span>
                     </div>
 
-                    {/* Status message */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <Zap
-                            size={20}
-                            color={activeColor}
-                            style={{
-                                filter: hasSpins ? `drop-shadow(0 0 6px ${glowColor})` : 'none',
-                                transition: 'filter 0.5s ease-out',
-                                animation: hasSpins ? 'iconPulse 1.5s ease-in-out infinite' : 'none',
-                            }}
-                        />
-                        <span style={{
-                            color: activeColor,
-                            fontSize: '16px',
-                            fontWeight: '800',
-                            textTransform: 'uppercase',
-                            letterSpacing: '2px',
-                            textShadow: hasSpins ? `0 0 10px ${glowColor}88` : 'none',
-                            transition: 'color 0.5s ease-out, text-shadow 0.5s ease-out',
+                    {/* Status message - hide on mobile */}
+                    {!isMobile && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
                         }}>
+                            <Zap
+                                size={20}
+                                color={activeColor}
+                                style={{
+                                    filter: hasSpins ? `drop-shadow(0 0 6px ${glowColor})` : 'none',
+                                    transition: 'filter 0.5s ease-out',
+                                    animation: hasSpins ? 'iconPulse 1.5s ease-in-out infinite' : 'none',
+                                }}
+                            />
+                            <span style={{
+                                color: activeColor,
+                                fontSize: '16px',
+                                fontWeight: '800',
+                                textTransform: 'uppercase',
+                                letterSpacing: '2px',
+                                textShadow: hasSpins ? `0 0 10px ${glowColor}88` : 'none',
+                                transition: 'color 0.5s ease-out, text-shadow 0.5s ease-out',
+                            }}>
                             {hasSpins ? 'All Spins = Lucky' : 'Spins Depleted'}
                         </span>
-                        <Zap
-                            size={20}
-                            color={activeColor}
-                            style={{
-                                filter: hasSpins ? `drop-shadow(0 0 6px ${glowColor})` : 'none',
-                                transition: 'filter 0.5s ease-out',
-                                animation: hasSpins ? 'iconPulse 1.5s ease-in-out infinite' : 'none',
-                            }}
-                        />
-                    </div>
+                            <Zap
+                                size={20}
+                                color={activeColor}
+                                style={{
+                                    filter: hasSpins ? `drop-shadow(0 0 6px ${glowColor})` : 'none',
+                                    transition: 'filter 0.5s ease-out',
+                                    animation: hasSpins ? 'iconPulse 1.5s ease-in-out infinite' : 'none',
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </>

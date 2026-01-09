@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { COLORS, API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
 import { ActivityProvider } from '../../context/ActivityContext';
+import { SoundProvider } from '../../context/SoundContext.jsx';
 import { AnimationStyles } from './AnimationStyles';
 import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal, ImportPromptModal, MigrationModal } from './modals';
@@ -18,6 +19,7 @@ import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { LiveChat } from './LiveChat';
+import { SoundButton, SoundSettingsPanel } from './SoundSettings';
 import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -159,6 +161,7 @@ function WheelOfFortunePage({ onBack }) {
 
     // Notification state
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showSoundSettings, setShowSoundSettings] = useState(false);
     const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
     // Mobile activity feed modal state
@@ -699,6 +702,9 @@ function WheelOfFortunePage({ onBack }) {
                                     </button>
                                 )}
 
+                                {/* Sound settings button */}
+                                <SoundButton onClick={() => setShowSoundSettings(true)} />
+
                                 {/* Notification bell */}
                                 <button
                                     onClick={() => setShowNotifications(true)}
@@ -780,7 +786,7 @@ function WheelOfFortunePage({ onBack }) {
                     )}
 
                     {/* Wheel - now bigger */}
-                    <div style={{ marginBottom: '20px' }}>
+                    <div style={{ marginBottom: '20px', minHeight: '320px' }}>
                         <WheelSpinner
                             allItems={allItems}
                             collection={collection}
@@ -953,6 +959,11 @@ function WheelOfFortunePage({ onBack }) {
                 />
             )}
 
+            {/* Sound Settings Modal */}
+            {showSoundSettings && (
+                <SoundSettingsPanel onClose={() => setShowSoundSettings(false)} />
+            )}
+
             {/* Mobile Activity Feed Modal */}
             {showMobileActivity && (
                 <div style={{
@@ -1077,7 +1088,9 @@ export default function WheelOfFortune({ onBack }) {
     return (
         <AuthProvider>
             <ActivityProvider>
-                <WheelOfFortunePage onBack={onBack || (() => window.location.hash = '')} />
+                <SoundProvider>
+                    <WheelOfFortunePage onBack={onBack || (() => window.location.hash = '')} />
+                </SoundProvider>
             </ActivityProvider>
         </AuthProvider>
     );
