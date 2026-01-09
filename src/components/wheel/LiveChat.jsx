@@ -35,7 +35,7 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Typing indicator state
     const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, username}
-    const typingTimeoutRef = useRef(null);
+    const typingTimeoutsRef = useRef(new Map()); // Per-user timeout tracking
     const lastTypingRef = useRef(0);
 
     // Position and size state for draggable/resizable
@@ -135,10 +135,10 @@ export function LiveChat({ user, isAdmin = false }) {
         const deltaY = clientY - dragStartRef.current.y;
 
         const newX = Math.max(0, Math.min(window.innerWidth - size.width, dragStartRef.current.posX + deltaX));
-        const newY = Math.max(0, Math.min(window.innerHeight - 60, dragStartRef.current.posY + deltaY));
+        const newY = Math.max(0, Math.min(window.innerHeight - size.height, dragStartRef.current.posY + deltaY));
 
         setPosition({ x: newX, y: newY });
-    }, [isDragging, size.width]);
+    }, [isDragging, size.width, size.height]);
 
     const handleDragEnd = useCallback(() => {
         setIsDragging(false);
@@ -445,23 +445,32 @@ export function LiveChat({ user, isAdmin = false }) {
                 // Don't show own typing
                 if (userId === user.id) return;
 
-                setTypingUsers(prev => {
-                    if (isTyping) {
-                        // Add user if not already in list
+                // Clear any existing timeout for this user
+                const existingTimeout = typingTimeoutsRef.current.get(userId);
+                if (existingTimeout) {
+                    clearTimeout(existingTimeout);
+                    typingTimeoutsRef.current.delete(userId);
+                }
+
+                if (isTyping) {
+                    // Add user if not already in list
+                    setTypingUsers(prev => {
                         if (!prev.some(u => u.userId === userId)) {
                             return [...prev, { userId, username }];
                         }
                         return prev;
-                    } else {
-                        // Remove user from list
-                        return prev.filter(u => u.userId !== userId);
-                    }
-                });
+                    });
 
-                // Auto-remove after 3 seconds of no updates
-                setTimeout(() => {
+                    // Set auto-remove timeout after 3 seconds
+                    const timeoutId = setTimeout(() => {
+                        setTypingUsers(prev => prev.filter(u => u.userId !== userId));
+                        typingTimeoutsRef.current.delete(userId);
+                    }, 3000);
+                    typingTimeoutsRef.current.set(userId, timeoutId);
+                } else {
+                    // Remove user from list
                     setTypingUsers(prev => prev.filter(u => u.userId !== userId));
-                }, 3000);
+                }
             };
 
             window.addEventListener('sse-chat-message', handleSSEMessage);
@@ -483,6 +492,9 @@ export function LiveChat({ user, isAdmin = false }) {
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
                 clearInterval(heartbeatInterval);
                 clearInterval(onlineRefreshInterval);
+                // Clear all typing timeouts
+                typingTimeoutsRef.current.forEach(timeoutId => clearTimeout(timeoutId));
+                typingTimeoutsRef.current.clear();
             };
         }
     }, [user, fetchMessages]);
@@ -595,12 +607,12 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Slash command handlers
     const slashCommands = {
-        shrug: () => '¯\\_(ツ)_/¯',
-        tableflip: () => '(╯°□°)╯︵ ┻━┻',
-        unflip: () => '┬─┬ノ( º _ ºノ)',
-        lenny: () => '( ͡° ͜ʖ ͡°)',
-        disapprove: () => 'ಠ_ಠ',
-        sparkles: () => '✨',
+        shrug: () => 'Â¯\\_(ãƒ„)_/Â¯',
+        tableflip: () => '(â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»',
+        unflip: () => 'â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)',
+        lenny: () => '( Í¡Â° ÍœÊ– Í¡Â°)',
+        disapprove: () => 'à² _à² ',
+        sparkles: () => 'âœ¨',
         help: () => null, // Special handling below
     };
 
@@ -624,14 +636,14 @@ export function LiveChat({ user, isAdmin = false }) {
                 type: 'local',
                 content: (
                     <div style={{ padding: '12px', background: 'rgba(88, 101, 242, 0.1)', borderRadius: '8px', fontSize: '12px' }}>
-                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📝 Available Commands</div>
+                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>ðŸ“ Available Commands</div>
                         <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\_(ツ)_/¯</div>
-                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> — (╯°□°)╯︵ ┻━┻</div>
-                            <div><code style={{ color: '#5865F2' }}>/unflip</code> — ┬─┬ノ( º _ ºノ)</div>
-                            <div><code style={{ color: '#5865F2' }}>/lenny</code> — ( ͡° ͜ʖ ͡°)</div>
-                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> — ಠ_ಠ</div>
-                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> — ✨</div>
+                            <div><code style={{ color: '#5865F2' }}>/shrug</code> â€” Â¯\_(ãƒ„)_/Â¯</div>
+                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> â€” (â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»</div>
+                            <div><code style={{ color: '#5865F2' }}>/unflip</code> â€” â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)</div>
+                            <div><code style={{ color: '#5865F2' }}>/lenny</code> â€” ( Í¡Â° ÍœÊ– Í¡Â°)</div>
+                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> â€” à² _à² </div>
+                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> â€” âœ¨</div>
                             <div style={{ marginTop: '8px', color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
                                 Tip: Share images by pasting imgur/discord CDN links!
                             </div>
@@ -850,6 +862,9 @@ export function LiveChat({ user, isAdmin = false }) {
                                 <img
                                     src={url}
                                     alt="Shared image"
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerPolicy="no-referrer"
                                     style={{
                                         maxWidth: '100%',
                                         maxHeight: '200px',
@@ -1065,7 +1080,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages • Drag to move
+                                    {messages.length} messages â€¢ Drag to move
                                 </div>
                             </div>
                         </div>
@@ -1631,7 +1646,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '150px'
                                             }}>
-                                                â€” {decodeHtmlEntities(replyingTo.message)}
+                                                Ã¢â‚¬â€ {decodeHtmlEntities(replyingTo.message)}
                                             </span>
                                         )}
                                     </div>

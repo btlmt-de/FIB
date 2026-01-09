@@ -51,9 +51,10 @@ export function LiveActivityToast() {
             if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
                 createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
             }
-            const itemCreatedAt = new Date(createdAtStr).getTime();
             const now = Date.now();
-            const itemAge = now - itemCreatedAt;
+            const itemCreatedAt = new Date(createdAtStr).getTime();
+            const safeCreatedAt = Number.isFinite(itemCreatedAt) ? itemCreatedAt : now;
+            const itemAge = Math.max(0, now - safeCreatedAt);
 
             // If item is very fresh (< 2 seconds), it's from SSE - delay to respect spin animation
             // If item is older, it's from initial fetch during spin animation - calculate remaining delay

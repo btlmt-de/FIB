@@ -45,6 +45,9 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
 
     async function loadData() {
         try {
+            if (!isOwnProfile && !userId) {
+                throw new Error('Missing userId for non-owner achievements view');
+            }
             // Fetch all achievements definition
             const allRes = await fetch(`${API_BASE_URL}/api/achievements`);
 

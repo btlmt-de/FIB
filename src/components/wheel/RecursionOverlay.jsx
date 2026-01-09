@@ -58,6 +58,11 @@ export function RecursionOverlay({ currentUserId }) {
             wasActiveRef.current = false;
             stopRecursionSoundtrack();
         }
+
+        // Cleanup: stop soundtrack on unmount or route change
+        return () => {
+            stopRecursionSoundtrack();
+        };
     }, [recursionStatus?.active, recursionStatus?.remainingTime, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
 
     // Local countdown timer
@@ -69,7 +74,13 @@ export function RecursionOverlay({ currentUserId }) {
                     if (newTime === 0) {
                         setIsVisible(false);
                         // Update the global recursion status so WheelSpinner knows event ended
-                        updateRecursionStatus({ active: false, userSpinsRemaining: 0 });
+                        // Preserve existing fields while updating active and remainingTime
+                        updateRecursionStatus({
+                            ...recursionStatus,
+                            active: false,
+                            remainingTime: 0,
+                            userSpinsRemaining: 0
+                        });
                     }
                     return newTime;
                 });
@@ -78,7 +89,7 @@ export function RecursionOverlay({ currentUserId }) {
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [isVisible, recursionStatus?.active, updateRecursionStatus]);
+    }, [isVisible, recursionStatus, updateRecursionStatus]);
 
     // Hide completely when not visible (timer expired or event ended)
     if (!isVisible) return null;

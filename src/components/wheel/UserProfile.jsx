@@ -272,25 +272,30 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     }
 
     function toggleBadge(achievementId) {
-        if (pendingBadges.includes(achievementId)) {
-            setPendingBadges(pendingBadges.filter(id => id !== achievementId));
-        } else if (pendingBadges.length < 3) {
-            setPendingBadges([...pendingBadges, achievementId]);
-        }
+        setPendingBadges(prev => {
+            if (prev.includes(achievementId)) {
+                return prev.filter(id => id !== achievementId);
+            } else if (prev.length < 3) {
+                return [...prev, achievementId];
+            }
+            return prev;
+        });
     }
 
     function addShowcaseItem(texture, ownedCount = 1) {
-        const currentCount = pendingShowcase.filter(t => t === texture).length;
-
-        // Add if we have slots and own more
-        if (pendingShowcase.length < 3 && currentCount < ownedCount) {
-            setPendingShowcase([...pendingShowcase, texture]);
-        }
+        setPendingShowcase(prev => {
+            const currentCount = prev.filter(t => t === texture).length;
+            // Add if we have slots and own more
+            if (prev.length < 3 && currentCount < ownedCount) {
+                return [...prev, texture];
+            }
+            return prev;
+        });
     }
 
     function removeShowcaseItem(texture) {
         // Remove all instances of this item
-        setPendingShowcase(pendingShowcase.filter(t => t !== texture));
+        setPendingShowcase(prev => prev.filter(t => t !== texture));
     }
 
     function getDiscordAvatarUrl(discordId, avatarHash, size = 128) {
@@ -671,7 +676,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <Trophy size={12} />
                                     #{profile.rank}
                                 </span>
-                                <span style={{ color: COLORS.border }}>·</span>
+                                <span style={{ color: COLORS.border }}>Â·</span>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <Calendar size={12} />
                                     {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
@@ -1367,7 +1372,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <div>
                                         <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '4px' }}>Avg per Item</div>
                                         <div style={{ color: COLORS.text, fontSize: '18px', fontWeight: '700' }}>
-                                            {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0}×
+                                            {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0}Ã—
                                         </div>
                                     </div>
                                 </div>
@@ -1539,7 +1544,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 justifyContent: 'center',
                                                 gap: '2px'
                                             }}>
-                                                <span style={{ fontSize: '7px' }}>⭐</span>
+                                                <span style={{ fontSize: '7px' }}>â­</span>
                                                 Peak
                                             </div>
                                             <div style={{
@@ -1627,7 +1632,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         {profile.total_duplicates.toLocaleString()}
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        Duplicates <span style={{ margin: '0 4px', opacity: 0.5 }}>•</span> {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
+                                        Duplicates <span style={{ margin: '0 4px', opacity: 0.5 }}>â€¢</span> {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
                                     </div>
                                 </div>
                             </div>
@@ -2188,7 +2193,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                             padding: '1px 4px',
                                                             borderRadius: '4px'
                                                         }}>
-                                                            ×{ownedCount}
+                                                            Ã—{ownedCount}
                                                         </div>
                                                     )}
                                                 </button>
@@ -2220,7 +2225,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                             zIndex: 10
                                                         }}
                                                     >
-                                                        ×
+                                                        Ã—
                                                     </button>
                                                 )}
                                                 {/* Selected count badge */}

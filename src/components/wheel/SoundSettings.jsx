@@ -26,6 +26,7 @@ function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
                 value={percentage}
                 onChange={(e) => onChange(parseInt(e.target.value) / 100)}
                 disabled={disabled}
+                className="volume-slider"
                 style={{
                     width: '100%',
                     height: '6px',
@@ -39,7 +40,7 @@ function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
                 }}
             />
             <style>{`
-                input[type="range"]::-webkit-slider-thumb {
+                .volume-slider::-webkit-slider-thumb {
                     -webkit-appearance: none;
                     appearance: none;
                     width: 16px;
@@ -50,7 +51,7 @@ function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
                     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
                     border: none;
                 }
-                input[type="range"]::-moz-range-thumb {
+                .volume-slider::-moz-range-thumb {
                     width: 16px;
                     height: 16px;
                     border-radius: 50%;
@@ -59,7 +60,7 @@ function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
                     border: none;
                     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
                 }
-                input[type="range"]:disabled::-webkit-slider-thumb {
+                .volume-slider:disabled::-webkit-slider-thumb {
                     cursor: not-allowed;
                     opacity: 0.5;
                 }

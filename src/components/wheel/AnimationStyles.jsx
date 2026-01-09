@@ -269,13 +269,13 @@ export const AnimationStyles = () => (
         }
         @keyframes recursionGlow {
             0%, 100% { 
-                box-shadow: 0 0 20px #00FF00cc, 0 0 40px #00FF0066, 0 0 60px #00110044;
-                border-color: #00FF00;
+                box-shadow: 0 0 20px ${COLORS.recursion}cc, 0 0 40px ${COLORS.recursion}66, 0 0 60px ${COLORS.recursionDark}44;
+                border-color: ${COLORS.recursion};
                 filter: brightness(1.1);
             }
             50% { 
-                box-shadow: 0 0 30px #001100dd, 0 0 60px #00FF0077, 0 0 90px #00FF0033;
-                border-color: #001100;
+                box-shadow: 0 0 30px ${COLORS.recursionDark}dd, 0 0 60px ${COLORS.recursion}77, 0 0 90px ${COLORS.recursion}33;
+                border-color: ${COLORS.recursionDark};
                 filter: brightness(0.9);
             }
         }

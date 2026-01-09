@@ -245,7 +245,7 @@ function WheelOfFortunePage({ onBack }) {
 
         // Preload ~50 random items to warm up cache for first spin
         const sampleSize = Math.min(50, items.length);
-        const sampledItems = items.sort(() => Math.random() - 0.5).slice(0, sampleSize);
+        const sampledItems = [...items].sort(() => Math.random() - 0.5).slice(0, sampleSize);
 
         sampledItems.forEach(item => {
             const img = new Image();

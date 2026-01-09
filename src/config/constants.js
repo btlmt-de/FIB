@@ -115,7 +115,7 @@ export const RECURSION_ITEM = {
 };
 
 // Available bonus events
-// Weights: 20% triple_lucky_spin, 40% 5x_spin, 40% lucky_spin
+// Weights: 20% triple_lucky_spin, 40% triple_spin, 40% lucky_spin
 export const BONUS_EVENTS = [
     { id: 'triple_spin', name: '5x Spin', description: '5 bonus spins!', color: COLORS.orange, weight: 40 },
     { id: 'lucky_spin', name: 'Lucky Spin', description: 'Equal chance for all items!', color: COLORS.green, weight: 40 },

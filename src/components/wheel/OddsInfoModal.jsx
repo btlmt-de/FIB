@@ -102,7 +102,11 @@ export function OddsInfoModal({
 
     // Format percentage
     const formatPercent = (weight) => {
-        const chance = (weight / TOTAL_WEIGHT) * 100;
+        const w = Number(weight);
+        if (!Number.isFinite(w) || !Number.isFinite(TOTAL_WEIGHT) || TOTAL_WEIGHT === 0) {
+            return '0';
+        }
+        const chance = (w / TOTAL_WEIGHT) * 100;
         let str;
         if (chance >= 1) str = chance.toFixed(2);
         else if (chance >= 0.1) str = chance.toFixed(3);
@@ -353,7 +357,7 @@ export function OddsInfoModal({
                             </span>
                         </div>
                         <code style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                            Drop Rate = Weight ÷ 10,000,000
+                            Drop Rate = Weight Ã· 10,000,000
                         </code>
                     </div>
                 </div>
@@ -402,17 +406,17 @@ export function OddsInfoModal({
                         lineHeight: 1.7
                     }}>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Average</span> — Statistical mean.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Average</span> â€” Statistical mean.
                             <span style={{ color: COLORS.orange }}> Does NOT guarantee you'll get it in this many spins!</span>
                         </div>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>50% (Median)</span> — Half of players get the drop within this many spins.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>50% (Median)</span> â€” Half of players get the drop within this many spins.
                         </div>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>90%</span> — 9 out of 10 players get it within this many spins.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>90%</span> â€” 9 out of 10 players get it within this many spins.
                         </div>
                         <div>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>99%</span> — Only 1 in 100 players need more spins than this.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>99%</span> â€” Only 1 in 100 players need more spins than this.
                         </div>
                     </div>
                 </div>
@@ -432,7 +436,7 @@ export function OddsInfoModal({
                         </span>
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '12px', lineHeight: 1.5 }}>
-                        Every spin is independent. Past spins don't affect future ones. Being "due" for a drop is a myth — the odds reset every single spin.
+                        Every spin is independent. Past spins don't affect future ones. Being "due" for a drop is a myth â€” the odds reset every single spin.
                     </div>
                 </div>
 
@@ -451,27 +455,27 @@ export function OddsInfoModal({
                         <RefreshCw size={12} /> Recursion Event
                     </div>
                     <div style={{
-                        background: `linear-gradient(135deg, ${COLORS.recursionDark || '#001100'} 0%, ${COLORS.bg} 100%)`,
+                        background: `linear-gradient(135deg, ${COLORS.recursionDark} 0%, ${COLORS.bg} 100%)`,
                         borderRadius: '10px',
-                        border: `1px solid ${COLORS.recursion || '#00FF00'}44`,
+                        border: `1px solid ${COLORS.recursion}44`,
                         overflow: 'hidden'
                     }}>
                         <div style={{
                             padding: '14px',
-                            borderBottom: `1px solid ${COLORS.recursion || '#00FF00'}22`,
+                            borderBottom: `1px solid ${COLORS.recursion}22`,
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center'
                         }}>
-                            <span style={{ color: COLORS.recursion || '#00FF00', fontSize: '13px', fontWeight: '600' }}>
+                            <span style={{ color: COLORS.recursion, fontSize: '13px', fontWeight: '600' }}>
                                 The Wheel Within The Wheel
                             </span>
-                            <span style={{ color: COLORS.recursion || '#00FF00', fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>0.25%</span>
+                            <span style={{ color: COLORS.recursion, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>0.25%</span>
                         </div>
                         <div style={{ padding: '14px' }}>
                             <div style={{ color: COLORS.textMuted, fontSize: '12px', lineHeight: 1.6, marginBottom: '12px' }}>
                                 A rare global event that triggers for <span style={{ color: COLORS.text }}>everyone online</span>.
-                                When triggered, all active players receive <span style={{ color: COLORS.recursion || '#00FF00', fontWeight: '500' }}>3-8 Lucky Spins</span> to
+                                When triggered, all active players receive <span style={{ color: COLORS.recursion, fontWeight: '500' }}>3-8 Lucky Spins</span> to
                                 use within <span style={{ color: COLORS.text }}>60 seconds</span>.
                             </div>
                             <div style={{
@@ -479,25 +483,25 @@ export function OddsInfoModal({
                                 gridTemplateColumns: '1fr 1fr',
                                 gap: '8px',
                                 padding: '10px',
-                                background: `${COLORS.recursion || '#00FF00'}11`,
+                                background: `${COLORS.recursion}11`,
                                 borderRadius: '8px',
-                                border: `1px solid ${COLORS.recursion || '#00FF00'}22`
+                                border: `1px solid ${COLORS.recursion}22`
                             }}>
                                 <div style={{ textAlign: 'center' }}>
-                                    <div style={{ color: COLORS.recursion || '#00FF00', fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}>
+                                    <div style={{ color: COLORS.recursion, fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}>
                                         3-8
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase' }}>Lucky Spins</div>
                                 </div>
                                 <div style={{ textAlign: 'center' }}>
-                                    <div style={{ color: COLORS.recursion || '#00FF00', fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}>
+                                    <div style={{ color: COLORS.recursion, fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}>
                                         60s
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase' }}>Time Limit</div>
                                 </div>
                             </div>
                             <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '10px', fontStyle: 'italic' }}>
-                                Lucky spins have equal chance for ALL items — including Insane!
+                                Lucky spins have equal chance for ALL items â€” including Insane!
                             </div>
                         </div>
                     </div>
@@ -664,7 +668,7 @@ export function OddsInfoModal({
                     paddingTop: '8px',
                     borderTop: `1px solid ${COLORS.border}`
                 }}>
-                    <Server size={10} /> All spins processed server-side · Provably fair
+                    <Server size={10} /> All spins processed server-side Â· Provably fair
                 </div>
             </div>
         </div>

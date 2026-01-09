@@ -144,10 +144,10 @@ export function ActivityProvider({ children }) {
                                         return prev;
                                     });
 
-                                    // Add to newItems for toast notification
+                                    // Add to newItems for toast notification (capped at 50)
                                     setNewItems(prev => {
                                         if (prev.some(item => item.id === data.item.id)) return prev;
-                                        return [data.item, ...prev];
+                                        return [data.item, ...prev].slice(0, 50);
                                     });
 
                                     // Mark as initialized if not already

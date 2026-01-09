@@ -1,9 +1,8 @@
 // Service Worker for FIB Wheel of Fortune
-// Caches texture images as you play - no upfront download
 
 const CACHE_NAME = 'fib-textures-v1';
 const TEXTURE_URL_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/fib\/.+\.png$/;
-const MINOTAR_PATTERN = /minotar\.net/;
+const MINOTAR_PATTERN = /minotar\.net\/avatar\//;
 
 // Cache-first strategy for images
 async function cacheFirst(request) {

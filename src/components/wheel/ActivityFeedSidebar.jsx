@@ -35,6 +35,7 @@ export function ActivityFeedSidebar() {
     const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
     const [delayedFeed, setDelayedFeed] = useState([]);
     const processedIdsRef = useRef(new Set());
+    const timeoutsRef = useRef([]);
 
     // Delay new items by 4 seconds to respect spin animation
     useEffect(() => {
@@ -55,12 +56,13 @@ export function ActivityFeedSidebar() {
 
             if (itemAge < 2000) {
                 // Fresh SSE item - delay by 4 seconds
-                setTimeout(() => {
+                const timeoutId = setTimeout(() => {
                     setDelayedFeed(prev => {
                         if (prev.some(i => i.id === item.id)) return prev;
                         return [item, ...prev].slice(0, 150);
                     });
                 }, 4000);
+                timeoutsRef.current.push(timeoutId);
             } else {
                 // Older item from initial fetch - show immediately
                 setDelayedFeed(prev => {
@@ -75,6 +77,12 @@ export function ActivityFeedSidebar() {
             const ids = Array.from(processedIdsRef.current);
             processedIdsRef.current = new Set(ids.slice(-100));
         }
+
+        // Cleanup: clear all pending timeouts on unmount or when effect re-runs
+        return () => {
+            timeoutsRef.current.forEach(id => clearTimeout(id));
+            timeoutsRef.current = [];
+        };
     }, [rawFeed]);
 
     // Sort delayed feed by created_at
