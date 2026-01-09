@@ -8,7 +8,7 @@ import { COLORS } from '../../config/constants';
 // ============================================
 
 // Slider component
-function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
+function VolumeSlider({ value, onChange, disabled, color = COLORS.accent, ariaLabel = 'Volume' }) {
     const percentage = Math.round(value * 100);
 
     return (
@@ -27,6 +27,10 @@ function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
                 onChange={(e) => onChange(parseInt(e.target.value) / 100)}
                 disabled={disabled}
                 className="volume-slider"
+                aria-label={ariaLabel}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={percentage}
                 style={{
                     width: '100%',
                     height: '6px',
@@ -119,10 +123,12 @@ function ToggleSwitch({ checked, onChange, disabled, color = COLORS.accent, aria
 
 // Preview button component - toggles between play/stop
 function PreviewButton({ onClick, disabled, isActive }) {
+    const label = isActive ? "Stop preview" : "Preview sound";
     return (
         <button
             onClick={onClick}
             disabled={disabled}
+            aria-label={label}
             style={{
                 width: '32px',
                 height: '32px',
@@ -139,7 +145,7 @@ function PreviewButton({ onClick, disabled, isActive }) {
                 flexShrink: 0,
                 padding: 0,
             }}
-            title={isActive ? "Stop preview" : "Preview sound"}
+            title={label}
         >
             {isActive ? (
                 <Square size={12} fill={COLORS.accent} />
@@ -214,21 +220,35 @@ export function SoundSettingsPanel({ onClose }) {
         previewingSound,
     } = useSound();
 
+    // Handle Escape key to close modal
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            onClose();
+        }
+    };
+
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            padding: '20px',
-        }} onClick={onClose}>
+        <div
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10000,
+                padding: '20px',
+            }}
+            onClick={onClose}
+            onKeyDown={handleKeyDown}
+        >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="sound-settings-title"
                 style={{
                     background: COLORS.bgLight,
                     borderRadius: '16px',
@@ -263,12 +283,13 @@ export function SoundSettingsPanel({ onClose }) {
                         }}>
                             <Volume2 size={18} color="#fff" />
                         </div>
-                        <span style={{ color: COLORS.text, fontSize: '16px', fontWeight: '600' }}>
+                        <span id="sound-settings-title" style={{ color: COLORS.text, fontSize: '16px', fontWeight: '600' }}>
                             Sound Settings
                         </span>
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Close"
                         style={{
                             background: 'transparent',
                             border: 'none',
@@ -651,11 +672,13 @@ export function SoundSettingsPanel({ onClose }) {
 // Compact sound button for header/navigation
 export function SoundButton({ onClick }) {
     const { settings, isPlaying } = useSound();
+    const label = settings.enabled ? "Sound settings (enabled)" : "Sound settings (disabled)";
 
     return (
         <button
             onClick={onClick}
             title="Sound Settings"
+            aria-label={label}
             style={{
                 width: '36px',
                 height: '36px',

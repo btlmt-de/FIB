@@ -108,13 +108,21 @@ export function LiveChat({ user, isAdmin = false }) {
     // Save position and size to localStorage
     useEffect(() => {
         if (position.x !== 20 || position.y !== null) {
-            localStorage.setItem('chat-position', JSON.stringify(position));
+            try {
+                localStorage.setItem('chat-position', JSON.stringify(position));
+            } catch (e) {
+                // Ignore storage errors (quota exceeded, private mode, etc.)
+            }
         }
     }, [position]);
 
     useEffect(() => {
         if (size.width !== 380 || size.height !== 520) {
-            localStorage.setItem('chat-size', JSON.stringify(size));
+            try {
+                localStorage.setItem('chat-size', JSON.stringify(size));
+            } catch (e) {
+                // Ignore storage errors (quota exceeded, private mode, etc.)
+            }
         }
     }, [size]);
 

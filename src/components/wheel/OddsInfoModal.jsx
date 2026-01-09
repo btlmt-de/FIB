@@ -57,9 +57,21 @@ export function OddsInfoModal({
 
     // Calculate confidence intervals using geometric distribution
     const calculateConfidenceSpins = (weight, confidence) => {
-        if (!weight || weight <= 0) return null;
-        const p = weight / TOTAL_WEIGHT;
-        return Math.ceil(Math.log(1 - confidence) / Math.log(1 - p));
+        // Validate inputs
+        if (!Number.isFinite(weight) || weight <= 0) return null;
+        if (!Number.isFinite(TOTAL_WEIGHT) || TOTAL_WEIGHT <= 0) return null;
+
+        let p = weight / TOTAL_WEIGHT;
+
+        // Handle edge cases
+        if (p >= 1) return 1; // Guaranteed success
+        if (p <= 0) return null;
+
+        // Clamp p to valid range for logarithm calculation
+        p = Math.min(Math.max(p, Number.EPSILON), 1 - Number.EPSILON);
+
+        const result = Math.ceil(Math.log(1 - confidence) / Math.log(1 - p));
+        return Number.isFinite(result) ? result : null;
     };
 
     const confidenceSpins = {

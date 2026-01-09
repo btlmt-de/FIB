@@ -1544,7 +1544,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 justifyContent: 'center',
                                                 gap: '2px'
                                             }}>
-                                                <span style={{ fontSize: '7px' }}>â­</span>
+                                                <span style={{ fontSize: '7px' }}>⭐</span>
                                                 Peak
                                             </div>
                                             <div style={{
@@ -1632,7 +1632,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         {profile.total_duplicates.toLocaleString()}
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        Duplicates <span style={{ margin: '0 4px', opacity: 0.5 }}>â€¢</span> {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
+                                        Duplicates <span style={{ margin: '0 4px', opacity: 0.5 }}>•</span> {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
                                     </div>
                                 </div>
                             </div>

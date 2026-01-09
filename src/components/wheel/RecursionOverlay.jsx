@@ -21,8 +21,14 @@ export function RecursionOverlay({ currentUserId }) {
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
     const hasPlayedSoundRef = useRef(false);
     const wasActiveRef = useRef(false);
+    const recursionStatusRef = useRef(recursionStatus);
 
     const timerIntervalRef = useRef(null);
+
+    // Keep ref in sync with latest recursionStatus
+    useEffect(() => {
+        recursionStatusRef.current = recursionStatus;
+    }, [recursionStatus]);
 
     // Handle resize for mobile detection
     useEffect(() => {
@@ -78,9 +84,10 @@ export function RecursionOverlay({ currentUserId }) {
                     if (newTime === 0) {
                         setIsVisible(false);
                         // Update the global recursion status so WheelSpinner knows event ended
-                        // Preserve existing fields while updating active and remainingTime
+                        // Use ref to get latest status and avoid stale closure
+                        const currentStatus = recursionStatusRef.current;
                         updateRecursionStatus({
-                            ...recursionStatus,
+                            ...currentStatus,
                             active: false,
                             remainingTime: 0,
                             userSpinsRemaining: 0
@@ -93,7 +100,7 @@ export function RecursionOverlay({ currentUserId }) {
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [isVisible, recursionStatus, updateRecursionStatus]);
+    }, [isVisible, recursionStatus?.active, updateRecursionStatus]);
 
     // Hide completely when not visible (timer expired or event ended)
     if (!isVisible) return null;
