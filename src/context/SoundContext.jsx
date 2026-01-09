@@ -13,6 +13,7 @@ const SOUND_FILES = {
     recursionSoundtrack: '/sounds/recursion_soundtrack.wav',
     recursion: '/sounds/recursion.wav',
     insane: '/sounds/sfxinsane.wav',
+    mythic: '/sounds/sfxmythic.wav',
     legendary: '/sounds/sfxlegendary.wav',
     rare: '/sounds/sfxrare.wav',
 };
@@ -28,6 +29,7 @@ const DEFAULT_SETTINGS = {
     recursionSoundtrackEnabled: true,
     recursionEnabled: true,
     insaneEnabled: true,
+    mythicEnabled: true,
     legendaryEnabled: true,
     rareEnabled: true,
 };
@@ -68,6 +70,7 @@ export function SoundProvider({ children }) {
     const sfxRefs = useRef({
         recursion: null,
         insane: null,
+        mythic: null,
         legendary: null,
         rare: null,
     });
@@ -451,8 +454,10 @@ export function SoundProvider({ children }) {
             case 'insane':
                 playSfx('insane');
                 break;
-            case 'legendary':
             case 'mythic':
+                playSfx('mythic');
+                break;
+            case 'legendary':
                 playSfx('legendary');
                 break;
             case 'rare':

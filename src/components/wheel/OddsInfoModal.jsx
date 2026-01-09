@@ -369,7 +369,7 @@ export function OddsInfoModal({
                             </span>
                         </div>
                         <code style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                            Drop Rate = Weight Ã· 10,000,000
+                            Drop Rate = Weight ÷ 10,000,000
                         </code>
                     </div>
                 </div>
@@ -418,17 +418,17 @@ export function OddsInfoModal({
                         lineHeight: 1.7
                     }}>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Average</span> â€” Statistical mean.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Average</span> — Statistical mean.
                             <span style={{ color: COLORS.orange }}> Does NOT guarantee you'll get it in this many spins!</span>
                         </div>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>50% (Median)</span> â€” Half of players get the drop within this many spins.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>50% (Median)</span> — Half of players get the drop within this many spins.
                         </div>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>90%</span> â€” 9 out of 10 players get it within this many spins.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>90%</span> — 9 out of 10 players get it within this many spins.
                         </div>
                         <div>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>99%</span> â€” Only 1 in 100 players need more spins than this.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>99%</span> — Only 1 in 100 players need more spins than this.
                         </div>
                     </div>
                 </div>
@@ -448,7 +448,7 @@ export function OddsInfoModal({
                         </span>
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '12px', lineHeight: 1.5 }}>
-                        Every spin is independent. Past spins don't affect future ones. Being "due" for a drop is a myth â€” the odds reset every single spin.
+                        Every spin is independent. Past spins don't affect future ones. Being "due" for a drop is a myth — the odds reset every single spin.
                     </div>
                 </div>
 
@@ -513,7 +513,7 @@ export function OddsInfoModal({
                                 </div>
                             </div>
                             <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '10px', fontStyle: 'italic' }}>
-                                Lucky spins have equal chance for ALL items â€” including Insane!
+                                Lucky spins have equal chance for ALL items — including Insane!
                             </div>
                         </div>
                     </div>

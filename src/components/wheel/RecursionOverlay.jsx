@@ -12,7 +12,7 @@ import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { Zap, Sparkles, X } from 'lucide-react';
 
-export function RecursionOverlay({ currentUserId }) {
+export function RecursionOverlay() {
     const { recursionStatus, updateRecursionStatus } = useActivity();
     const { playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack } = useSound();
 
@@ -22,13 +22,18 @@ export function RecursionOverlay({ currentUserId }) {
     const hasPlayedSoundRef = useRef(false);
     const wasActiveRef = useRef(false);
     const recursionStatusRef = useRef(recursionStatus);
+    const stopRecursionSoundtrackRef = useRef(stopRecursionSoundtrack);
 
     const timerIntervalRef = useRef(null);
 
-    // Keep ref in sync with latest recursionStatus
+    // Keep refs in sync with latest values
     useEffect(() => {
         recursionStatusRef.current = recursionStatus;
     }, [recursionStatus]);
+
+    useEffect(() => {
+        stopRecursionSoundtrackRef.current = stopRecursionSoundtrack;
+    }, [stopRecursionSoundtrack]);
 
     // Handle resize for mobile detection
     useEffect(() => {
@@ -64,12 +69,12 @@ export function RecursionOverlay({ currentUserId }) {
         // No cleanup here - unmount cleanup handled by separate effect
     }, [recursionStatus?.active, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
 
-    // Cleanup soundtrack on unmount only
+    // Cleanup soundtrack on unmount only (use ref to avoid dep changes triggering cleanup)
     useEffect(() => {
         return () => {
-            stopRecursionSoundtrack();
+            stopRecursionSoundtrackRef.current?.();
         };
-    }, [stopRecursionSoundtrack]);
+    }, []); // Empty deps - only runs on unmount
 
     // Separate effect for remainingTime updates (lightweight, no cleanup side effects)
     useEffect(() => {

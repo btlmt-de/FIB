@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, X, RotateCcw, Play, Square } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Gem, X, RotateCcw, Play, Square } from 'lucide-react';
 import { useSound } from '../../context/SoundContext';
 import { COLORS } from '../../config/constants';
 
@@ -148,9 +148,9 @@ function PreviewButton({ onClick, disabled, isActive }) {
             title={label}
         >
             {isActive ? (
-                <Square size={12} fill={COLORS.accent} />
+                <Square size={12} color={COLORS.accent} />
             ) : (
-                <Play size={14} fill={disabled ? 'none' : COLORS.accent} />
+                <Play size={14} color={disabled ? COLORS.textMuted : COLORS.accent} />
             )}
         </button>
     );
@@ -516,7 +516,7 @@ export function SoundSettingsPanel({ onClose }) {
                                         marginTop: '4px',
                                     }}
                                 >
-                                    {isPlaying ? <Square size={12} /> : <Play size={12} fill={COLORS.green} />}
+                                    {isPlaying ? <Square size={12} /> : <Play size={12} color={COLORS.green} />}
                                     {isPlaying ? 'Stop Music' : 'Play Music'}
                                 </button>
                             )}
@@ -589,8 +589,18 @@ export function SoundSettingsPanel({ onClose }) {
                                 isActive={previewingSound === 'insane'}
                             />
                             <SoundRow
+                                icon={<Gem size={16} />}
+                                label="Mythic Item"
+                                color={COLORS.aqua}
+                                enabled={settings.mythicEnabled}
+                                onToggle={(v) => updateSetting('mythicEnabled', v)}
+                                onPreview={() => previewSound('mythic')}
+                                disabled={!settings.enabled}
+                                isActive={previewingSound === 'mythic'}
+                            />
+                            <SoundRow
                                 icon={<Crown size={16} />}
-                                label="Legendary / Mythic"
+                                label="Legendary Item"
                                 color={COLORS.purple}
                                 enabled={settings.legendaryEnabled}
                                 onToggle={(v) => updateSetting('legendaryEnabled', v)}
