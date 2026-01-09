@@ -40,12 +40,26 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Position and size state for draggable/resizable
     const [position, setPosition] = useState(() => {
-        const saved = localStorage.getItem('chat-position');
-        return saved ? JSON.parse(saved) : { x: 20, y: null }; // y: null means use bottom positioning
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return { x: 20, y: null };
+        }
+        try {
+            const saved = localStorage.getItem('chat-position');
+            return saved ? JSON.parse(saved) : { x: 20, y: null };
+        } catch {
+            return { x: 20, y: null }; // y: null means use bottom positioning
+        }
     });
     const [size, setSize] = useState(() => {
-        const saved = localStorage.getItem('chat-size');
-        return saved ? JSON.parse(saved) : { width: 380, height: 520 };
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return { width: 380, height: 520 };
+        }
+        try {
+            const saved = localStorage.getItem('chat-size');
+            return saved ? JSON.parse(saved) : { width: 380, height: 520 };
+        } catch {
+            return { width: 380, height: 520 };
+        }
     });
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
@@ -411,7 +425,8 @@ export function LiveChat({ user, isAdmin = false }) {
                         // Track if it was for us (ping) - check for @mention of current user
                         const currentUsername = user.custom_username || user.customUsername || user.discord_username;
                         if (currentUsername && newMessage.message) {
-                            const mentionPattern = new RegExp(`@${currentUsername}\\b`, 'i');
+                            const escapedUsername = currentUsername.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                            const mentionPattern = new RegExp(`@${escapedUsername}\\b`, 'i');
                             if (mentionPattern.test(newMessage.message) && newMessage.user_id !== user.id) {
                                 if (!isOpenRef.current || isMinimizedRef.current) {
                                     setHasPing(true);
@@ -607,12 +622,12 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Slash command handlers
     const slashCommands = {
-        shrug: () => 'Â¯\\_(ãƒ„)_/Â¯',
-        tableflip: () => '(â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»',
-        unflip: () => 'â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)',
-        lenny: () => '( Í¡Â° ÍœÊ– Í¡Â°)',
-        disapprove: () => 'à² _à² ',
-        sparkles: () => 'âœ¨',
+        shrug: () => '¯\\_(ツ)_/¯',
+        tableflip: () => '(╯°□°)╯︵ ┻━┻',
+        unflip: () => '┬─┬ノ( º _ ºノ)',
+        lenny: () => '( ͡° ͜ʖ ͡°)',
+        disapprove: () => 'ಠ_ಠ',
+        sparkles: () => '✨',
         help: () => null, // Special handling below
     };
 
@@ -636,14 +651,14 @@ export function LiveChat({ user, isAdmin = false }) {
                 type: 'local',
                 content: (
                     <div style={{ padding: '12px', background: 'rgba(88, 101, 242, 0.1)', borderRadius: '8px', fontSize: '12px' }}>
-                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>ðŸ“ Available Commands</div>
+                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📝 Available Commands</div>
                         <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            <div><code style={{ color: '#5865F2' }}>/shrug</code> â€” Â¯\_(ãƒ„)_/Â¯</div>
-                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> â€” (â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»</div>
-                            <div><code style={{ color: '#5865F2' }}>/unflip</code> â€” â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)</div>
-                            <div><code style={{ color: '#5865F2' }}>/lenny</code> â€” ( Í¡Â° ÍœÊ– Í¡Â°)</div>
-                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> â€” à² _à² </div>
-                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> â€” âœ¨</div>
+                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\_(ツ)_/¯</div>
+                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> — (╯°□°)╯︵ ┻━┻</div>
+                            <div><code style={{ color: '#5865F2' }}>/unflip</code> — ┬─┬ノ( º _ ºノ)</div>
+                            <div><code style={{ color: '#5865F2' }}>/lenny</code> — ( ͡° ͜ʖ ͡°)</div>
+                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> — ಠ_ಠ</div>
+                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> — ✨</div>
                             <div style={{ marginTop: '8px', color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
                                 Tip: Share images by pasting imgur/discord CDN links!
                             </div>
@@ -862,9 +877,6 @@ export function LiveChat({ user, isAdmin = false }) {
                                 <img
                                     src={url}
                                     alt="Shared image"
-                                    loading="lazy"
-                                    decoding="async"
-                                    referrerPolicy="no-referrer"
                                     style={{
                                         maxWidth: '100%',
                                         maxHeight: '200px',
@@ -1215,7 +1227,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                                                     onClick={() => {
                                                         // Insert @mention into input
-                                                        const mention = `@${onlineUser.username} `;
+                                                        const username = onlineUser.custom_username || onlineUser.discord_username || onlineUser.username || 'user';
+                                                        const mention = `@${username} `;
                                                         setInputValue(prev => prev + mention);
                                                         setShowOnlineList(false);
                                                         inputRef.current?.focus();
@@ -1255,7 +1268,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                             textOverflow: 'ellipsis',
                                                             whiteSpace: 'nowrap'
                                                         }}>
-                                                            {onlineUser.username}
+                                                            {onlineUser.custom_username || onlineUser.discord_username || onlineUser.username || 'Unknown'}
                                                         </div>
                                                     </div>
                                                     <AtSign size={14} style={{ color: 'rgba(255,255,255,0.3)' }} />
@@ -1646,7 +1659,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '150px'
                                             }}>
-                                                Ã¢â‚¬â€ {decodeHtmlEntities(replyingTo.message)}
+                                                — {decodeHtmlEntities(replyingTo.message)}
                                             </span>
                                         )}
                                     </div>

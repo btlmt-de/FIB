@@ -43,7 +43,7 @@ export function OddsInfoModal({
         });
     }
 
-    const regularWeight = TOTAL_WEIGHT - totalSpecialWeight;
+    const regularWeight = Math.max(0, TOTAL_WEIGHT - totalSpecialWeight);
     const regularItemCount = allItems ? allItems.length : 0;
     const totalItemCount = (dynamicItems?.length || 0) + regularItemCount;
 

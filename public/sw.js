@@ -1,7 +1,7 @@
 // Service Worker for FIB Wheel of Fortune
 
 const CACHE_NAME = 'fib-textures-v1';
-const TEXTURE_URL_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/fib\/.+\.png$/;
+const TEXTURE_URL_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/(fib|item)\/.+\.png$/;
 const MINOTAR_PATTERN = /minotar\.net\/avatar\//;
 
 // Cache-first strategy for images

@@ -65,7 +65,7 @@ export function ActivityProvider({ children }) {
                         if (!prev.active && allData.recursionStatus.active) {
                             return allData.recursionStatus;
                         }
-                        if (allData.recursionStatus.userSpinsRemaining !== undefined) {
+                        if (allData.recursionStatus.userSpinsRemaining !== undefined || allData.recursionStatus.remainingTime !== undefined) {
                             return { ...prev, ...allData.recursionStatus };
                         }
                         return prev;

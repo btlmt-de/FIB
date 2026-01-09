@@ -31,15 +31,27 @@ function formatExactTime(dateStr) {
 }
 
 export function ActivityFeedSidebar() {
-    const { feed: rawFeed, initialized } = useActivity();
+    const { feed: rawFeed, initialized, serverTime } = useActivity();
     const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
     const [delayedFeed, setDelayedFeed] = useState([]);
     const processedIdsRef = useRef(new Set());
     const timeoutsRef = useRef([]);
+    const isMountedRef = useRef(true);
+
+    // Track mounted state
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     // Delay new items by 4 seconds to respect spin animation
     useEffect(() => {
         if (!rawFeed) return;
+
+        // Use serverTime if available to avoid client clock skew
+        const now = serverTime || Date.now();
 
         rawFeed.forEach(item => {
             if (item.event_type === 'achievement_unlock') return;
@@ -52,11 +64,12 @@ export function ActivityFeedSidebar() {
             if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
                 createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
             }
-            const itemAge = Date.now() - new Date(createdAtStr).getTime();
+            const itemAge = now - new Date(createdAtStr).getTime();
 
             if (itemAge < 2000) {
                 // Fresh SSE item - delay by 4 seconds
                 const timeoutId = setTimeout(() => {
+                    if (!isMountedRef.current) return;
                     setDelayedFeed(prev => {
                         if (prev.some(i => i.id === item.id)) return prev;
                         return [item, ...prev].slice(0, 150);
@@ -65,10 +78,12 @@ export function ActivityFeedSidebar() {
                 timeoutsRef.current.push(timeoutId);
             } else {
                 // Older item from initial fetch - show immediately
-                setDelayedFeed(prev => {
-                    if (prev.some(i => i.id === item.id)) return prev;
-                    return [item, ...prev].slice(0, 150);
-                });
+                if (isMountedRef.current) {
+                    setDelayedFeed(prev => {
+                        if (prev.some(i => i.id === item.id)) return prev;
+                        return [item, ...prev].slice(0, 150);
+                    });
+                }
             }
         });
 
@@ -83,7 +98,7 @@ export function ActivityFeedSidebar() {
             timeoutsRef.current.forEach(id => clearTimeout(id));
             timeoutsRef.current = [];
         };
-    }, [rawFeed]);
+    }, [rawFeed, serverTime]);
 
     // Sort delayed feed by created_at
     const feed = useMemo(() => {

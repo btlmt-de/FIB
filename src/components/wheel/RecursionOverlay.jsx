@@ -18,7 +18,7 @@ export function RecursionOverlay({ currentUserId }) {
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
     const hasPlayedSoundRef = useRef(false);
     const wasActiveRef = useRef(false);
 
@@ -26,12 +26,13 @@ export function RecursionOverlay({ currentUserId }) {
 
     // Handle resize for mobile detection
     useEffect(() => {
+        if (typeof window === 'undefined') return;
         const handleResize = () => setIsMobile(window.innerWidth < 600);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Show banner for entire event duration
+    // Handle soundtrack start/stop based on active state only
     useEffect(() => {
         if (!recursionStatus) return;
 
@@ -39,7 +40,6 @@ export function RecursionOverlay({ currentUserId }) {
 
         if (isActive && !wasActiveRef.current) {
             // Recursion just started
-            setRemainingTime(recursionStatus.remainingTime || 0);
             setIsVisible(true);
 
             if (!hasPlayedSoundRef.current) {
@@ -48,9 +48,6 @@ export function RecursionOverlay({ currentUserId }) {
                 hasPlayedSoundRef.current = true;
             }
             wasActiveRef.current = true;
-        } else if (isActive) {
-            // Recursion still active, just update time
-            setRemainingTime(recursionStatus.remainingTime || 0);
         } else if (!isActive && wasActiveRef.current) {
             // Recursion just ended
             setIsVisible(false);
@@ -63,7 +60,14 @@ export function RecursionOverlay({ currentUserId }) {
         return () => {
             stopRecursionSoundtrack();
         };
-    }, [recursionStatus?.active, recursionStatus?.remainingTime, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
+    }, [recursionStatus?.active, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
+
+    // Separate effect for remainingTime updates (lightweight, no cleanup side effects)
+    useEffect(() => {
+        if (recursionStatus?.active && recursionStatus?.remainingTime !== undefined) {
+            setRemainingTime(recursionStatus.remainingTime);
+        }
+    }, [recursionStatus?.active, recursionStatus?.remainingTime]);
 
     // Local countdown timer
     useEffect(() => {

@@ -676,7 +676,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <Trophy size={12} />
                                     #{profile.rank}
                                 </span>
-                                <span style={{ color: COLORS.border }}>Â·</span>
+                                <span style={{ color: COLORS.border }}>·</span>
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <Calendar size={12} />
                                     {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
@@ -1372,7 +1372,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <div>
                                         <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '4px' }}>Avg per Item</div>
                                         <div style={{ color: COLORS.text, fontSize: '18px', fontWeight: '700' }}>
-                                            {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0}Ã—
+                                            {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0}×
                                         </div>
                                     </div>
                                 </div>
@@ -2193,7 +2193,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                             padding: '1px 4px',
                                                             borderRadius: '4px'
                                                         }}>
-                                                            Ã—{ownedCount}
+                                                            ×{ownedCount}
                                                         </div>
                                                     )}
                                                 </button>
@@ -2225,7 +2225,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                             zIndex: 10
                                                         }}
                                                     >
-                                                        Ã—
+                                                        ×
                                                     </button>
                                                 )}
                                                 {/* Selected count badge */}

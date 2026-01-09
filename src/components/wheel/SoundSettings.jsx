@@ -70,11 +70,24 @@ function VolumeSlider({ value, onChange, disabled, color = COLORS.accent }) {
 }
 
 // Toggle switch component
-function ToggleSwitch({ checked, onChange, disabled, color = COLORS.accent }) {
+function ToggleSwitch({ checked, onChange, disabled, color = COLORS.accent, ariaLabel }) {
+    const handleKeyDown = (e) => {
+        if (disabled) return;
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            onChange(!checked);
+        }
+    };
+
     return (
         <button
             onClick={() => !disabled && onChange(!checked)}
+            onKeyDown={handleKeyDown}
             disabled={disabled}
+            role="switch"
+            aria-checked={checked}
+            aria-disabled={disabled}
+            aria-label={ariaLabel}
             style={{
                 width: '40px',
                 height: '22px',
