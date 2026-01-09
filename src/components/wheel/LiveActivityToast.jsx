@@ -393,7 +393,6 @@ export function LiveActivityToast() {
                                     borderRadius: '6px',
                                     width: 'fit-content'
                                 }}>
-                                    <Sparkles size={12} color="#00FF00" />
                                     <span style={{
                                         fontSize: '11px',
                                         fontWeight: '700',

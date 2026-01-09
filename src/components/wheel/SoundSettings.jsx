@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Gem, X, RotateCcw, Play, Square } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square } from 'lucide-react';
 import { useSound } from '../../context/SoundContext';
 import { COLORS } from '../../config/constants';
 
@@ -579,7 +579,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 isActive={previewingSound === 'recursion'}
                             />
                             <SoundRow
-                                icon={<Sparkles size={16} />}
+                                icon={<Crown size={16} />}
                                 label="Insane Item"
                                 color={COLORS.insane}
                                 enabled={settings.insaneEnabled}
@@ -589,7 +589,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 isActive={previewingSound === 'insane'}
                             />
                             <SoundRow
-                                icon={<Gem size={16} />}
+                                icon={<Sparkles size={16} />}
                                 label="Mythic Item"
                                 color={COLORS.aqua}
                                 enabled={settings.mythicEnabled}
@@ -599,7 +599,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 isActive={previewingSound === 'mythic'}
                             />
                             <SoundRow
-                                icon={<Crown size={16} />}
+                                icon={<Star size={16} />}
                                 label="Legendary Item"
                                 color={COLORS.purple}
                                 enabled={settings.legendaryEnabled}
@@ -609,7 +609,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 isActive={previewingSound === 'legendary'}
                             />
                             <SoundRow
-                                icon={<Star size={16} />}
+                                icon={<Diamond size={16} />}
                                 label="Rare Item"
                                 color={COLORS.red}
                                 enabled={settings.rareEnabled}

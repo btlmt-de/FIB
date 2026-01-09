@@ -10,6 +10,27 @@ import {
     Gift, Shuffle, Repeat, Layers, Database, Server, TrendingUp, RefreshCw
 } from 'lucide-react';
 
+// ============================================
+// Event Configuration Constants
+// These should match server-side values
+// ============================================
+
+const RECURSION_EVENT = {
+    probability: 0.25,      // 0.25% chance per spin
+    minSpins: 3,
+    maxSpins: 8,
+    timeLimit: 60,          // seconds
+};
+
+const BONUS_EVENT = {
+    probability: 0.5,       // 0.5% chance per spin
+    distribution: {
+        luckySpin: 40,      // 40%
+        fiveXSpin: 40,      // 40%
+        tripleLuckySpin: 20 // 20%
+    }
+};
+
 export function OddsInfoModal({
                                   onClose,
                                   dynamicItems,
@@ -482,13 +503,13 @@ export function OddsInfoModal({
                             <span style={{ color: COLORS.recursion, fontSize: '13px', fontWeight: '600' }}>
                                 The Wheel Within The Wheel
                             </span>
-                            <span style={{ color: COLORS.recursion, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>0.25%</span>
+                            <span style={{ color: COLORS.recursion, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>{RECURSION_EVENT.probability}%</span>
                         </div>
                         <div style={{ padding: '14px' }}>
                             <div style={{ color: COLORS.textMuted, fontSize: '12px', lineHeight: 1.6, marginBottom: '12px' }}>
                                 A rare global event that triggers for <span style={{ color: COLORS.text }}>everyone online</span>.
-                                When triggered, all active players receive <span style={{ color: COLORS.recursion, fontWeight: '500' }}>3-8 Lucky Spins</span> to
-                                use within <span style={{ color: COLORS.text }}>60 seconds</span>.
+                                When triggered, all active players receive <span style={{ color: COLORS.recursion, fontWeight: '500' }}>{RECURSION_EVENT.minSpins}-{RECURSION_EVENT.maxSpins} Lucky Spins</span> to
+                                use within <span style={{ color: COLORS.text }}>{RECURSION_EVENT.timeLimit} seconds</span>.
                             </div>
                             <div style={{
                                 display: 'grid',
@@ -501,13 +522,13 @@ export function OddsInfoModal({
                             }}>
                                 <div style={{ textAlign: 'center' }}>
                                     <div style={{ color: COLORS.recursion, fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}>
-                                        3-8
+                                        {RECURSION_EVENT.minSpins}-{RECURSION_EVENT.maxSpins}
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase' }}>Lucky Spins</div>
                                 </div>
                                 <div style={{ textAlign: 'center' }}>
                                     <div style={{ color: COLORS.recursion, fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}>
-                                        60s
+                                        {RECURSION_EVENT.timeLimit}s
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase' }}>Time Limit</div>
                                 </div>
@@ -547,7 +568,7 @@ export function OddsInfoModal({
                             alignItems: 'center'
                         }}>
                             <span style={{ color: COLORS.text, fontSize: '13px' }}>Chance to trigger bonus wheel</span>
-                            <span style={{ color: COLORS.orange, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>0.5%</span>
+                            <span style={{ color: COLORS.orange, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>{BONUS_EVENT.probability}%</span>
                         </div>
                         <div style={{ padding: '12px 14px' }}>
                             <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '10px' }}>Bonus wheel distribution:</div>
@@ -557,21 +578,21 @@ export function OddsInfoModal({
                                         <Shuffle size={12} color={COLORS.green} />
                                         <span style={{ color: COLORS.text }}>Lucky Spin</span>
                                     </div>
-                                    <span style={{ color: COLORS.green, fontFamily: 'monospace', fontWeight: '500' }}>40%</span>
+                                    <span style={{ color: COLORS.green, fontFamily: 'monospace', fontWeight: '500' }}>{BONUS_EVENT.distribution.luckySpin}%</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Repeat size={12} color={COLORS.gold} />
                                         <span style={{ color: COLORS.text }}>5x Spin</span>
                                     </div>
-                                    <span style={{ color: COLORS.gold, fontFamily: 'monospace', fontWeight: '500' }}>40%</span>
+                                    <span style={{ color: COLORS.gold, fontFamily: 'monospace', fontWeight: '500' }}>{BONUS_EVENT.distribution.fiveXSpin}%</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Zap size={12} color={COLORS.green} />
                                         <span style={{ color: COLORS.text }}>Triple Lucky Spin</span>
                                     </div>
-                                    <span style={{ color: COLORS.green, fontFamily: 'monospace', fontWeight: '500' }}>20%</span>
+                                    <span style={{ color: COLORS.green, fontFamily: 'monospace', fontWeight: '500' }}>{BONUS_EVENT.distribution.tripleLuckySpin}%</span>
                                 </div>
                             </div>
                         </div>
@@ -680,7 +701,7 @@ export function OddsInfoModal({
                     paddingTop: '8px',
                     borderTop: `1px solid ${COLORS.border}`
                 }}>
-                    <Server size={10} /> All spins processed server-side Â· Provably fair
+                    <Server size={10} /> All spins processed server-side · Provably fair
                 </div>
             </div>
         </div>

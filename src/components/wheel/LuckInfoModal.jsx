@@ -115,7 +115,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                             </span>
                         </div>
                         <code style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                            Rating = (Lifetime Ã— 0.3) + (Peak Ã— 0.7)
+                            Rating = (Lifetime × 0.3) + (Peak × 0.7)
                         </code>
                     </div>
                 </div>
@@ -148,13 +148,13 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 <StatCell
                                     label="Lifetime"
                                     value={luckRating.lifetimeRating || '--'}
-                                    sublabel="Ã— 0.3"
+                                    sublabel="× 0.3"
                                     isFirst
                                 />
                                 <StatCell
                                     label="Peak"
                                     value={luckRating.peakWindowRating || '--'}
-                                    sublabel="Ã— 0.7"
+                                    sublabel="× 0.7"
                                     color={COLORS.gold}
                                 />
                                 <StatCell
@@ -197,7 +197,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 alignItems: 'center'
                             }}>
                                 <span style={{ color: COLORS.text, fontSize: '13px' }}>
-                                    Spins #{typeof luckRating.peakWindowRange.start === 'number' ? luckRating.peakWindowRange.start.toLocaleString() : '—'} â€“ #{typeof luckRating.peakWindowRange.end === 'number' ? luckRating.peakWindowRange.end.toLocaleString() : '—'}
+                                    Spins #{typeof luckRating.peakWindowRange.start === 'number' ? luckRating.peakWindowRange.start.toLocaleString() : '—'} – #{typeof luckRating.peakWindowRange.end === 'number' ? luckRating.peakWindowRange.end.toLocaleString() : '—'}
                                 </span>
                                 <span style={{ color: COLORS.gold, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
                                     {luckRating.peakWindowRating}
@@ -209,7 +209,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                             <Crown size={14} color={COLORS.insane} />
                                             <span style={{ color: COLORS.insane, fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.insane}Ã— Insane
+                                                {luckRating.peakWindowPulls.insane}× Insane
                                             </span>
                                         </div>
                                     )}
@@ -217,7 +217,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                             <Sparkles size={14} color={COLORS.aqua} />
                                             <span style={{ color: COLORS.aqua, fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.mythic}Ã— Mythic
+                                                {luckRating.peakWindowPulls.mythic}× Mythic
                                             </span>
                                         </div>
                                     )}
@@ -225,7 +225,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                             <Star size={14} color={COLORS.purple} />
                                             <span style={{ color: COLORS.purple, fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.legendary}Ã— Legendary
+                                                {luckRating.peakWindowPulls.legendary}× Legendary
                                             </span>
                                         </div>
                                     )}
@@ -233,7 +233,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                             <Diamond size={14} color={COLORS.red} />
                                             <span style={{ color: COLORS.red, fontSize: '13px' }}>
-                                                {luckRating.peakWindowPulls.rare}Ã— Rare
+                                                {luckRating.peakWindowPulls.rare}× Rare
                                             </span>
                                         </div>
                                     )}
@@ -267,13 +267,13 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                         lineHeight: 1.7
                     }}>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Lifetime (30%)</span> â€” Overall luck across all your spins using z-scores.
+                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Lifetime (30%)</span> – Overall luck across all your spins using z-scores.
                         </div>
                         <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.gold, fontWeight: '500' }}>Peak (70%)</span> â€” Your luckiest 5,000-spin stretch using Poisson probability.
+                            <span style={{ color: COLORS.gold, fontWeight: '500' }}>Peak (70%)</span> – Your luckiest 5,000-spin stretch using Poisson probability.
                         </div>
                         <div>
-                            <span style={{ color: COLORS.aqua, fontWeight: '500' }}>Clusters valued</span> â€” Getting 4 mythics beats 1 insane because it's mathematically rarer!
+                            <span style={{ color: COLORS.aqua, fontWeight: '500' }}>Clusters valued</span> – Getting 4 mythics beats 1 insane because it's mathematically rarer!
                         </div>
                     </div>
                 </div>
@@ -456,7 +456,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                         paddingTop: '8px',
                         borderTop: `1px solid ${COLORS.border}`
                     }}>
-                        {typeof luckRating.stats?.totalSpins === 'number' ? luckRating.stats.totalSpins.toLocaleString() : '—'} total spins Â· Both normal and lucky spins count
+                        {typeof luckRating.stats?.totalSpins === 'number' ? luckRating.stats.totalSpins.toLocaleString() : '—'} total spins ÷ Both normal and lucky spins count
                     </div>
                 )}
             </div>
