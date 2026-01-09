@@ -49,6 +49,15 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [pendingShowcase, setPendingShowcase] = useState([]);
     const [allItems, setAllItems] = useState([]);
     const [loadingCollectionBook, setLoadingCollectionBook] = useState(false);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+    // Handle window resize for isMobile
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         loadProfile();
@@ -2310,7 +2319,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                 <LuckInfoModal
                     onClose={() => setShowLuckInfoModal(false)}
                     luckRating={luckRating}
-                    isMobile={window.innerWidth < 768}
+                    isMobile={isMobile}
                 />
             )}
 

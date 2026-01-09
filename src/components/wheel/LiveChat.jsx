@@ -885,6 +885,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                 <img
                                     src={url}
                                     alt="Shared image"
+                                    referrerPolicy="no-referrer"
+                                    loading="lazy"
                                     style={{
                                         maxWidth: '100%',
                                         maxHeight: '200px',
@@ -1100,7 +1102,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages â€¢ Drag to move
+                                    {messages.length} messages • Drag to move
                                 </div>
                             </div>
                         </div>
@@ -1249,6 +1251,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 : `https://cdn.discordapp.com/embed/avatars/${parseInt(onlineUser.discord_id || '0') % 5}.png`
                                                             }
                                                             alt=""
+                                                            referrerPolicy="no-referrer"
+                                                            loading="lazy"
                                                             style={{
                                                                 width: '32px',
                                                                 height: '32px',
@@ -1387,6 +1391,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 <img
                                                                     src={getAvatarUrl(repliedMessage.discord_id, repliedMessage.discord_avatar)}
                                                                     alt=""
+                                                                    referrerPolicy="no-referrer"
                                                                     style={{
                                                                         width: '14px',
                                                                         height: '14px',
@@ -1435,6 +1440,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                     <img
                                                                         src={getAvatarUrl(msg.discord_id, msg.discord_avatar)}
                                                                         alt=""
+                                                                        referrerPolicy="no-referrer"
                                                                         style={{
                                                                             width: '32px',
                                                                             height: '32px',
@@ -1736,6 +1742,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                     <img
                                                         src={getAvatarUrl(u.discord_id, u.discord_avatar)}
                                                         alt=""
+                                                        referrerPolicy="no-referrer"
                                                         style={{
                                                             width: '24px',
                                                             height: '24px',

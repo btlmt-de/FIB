@@ -160,6 +160,48 @@ export function OddsInfoModal({
         rare: { icon: <Diamond size={16} />, color: COLORS.red, label: 'Rare' }
     };
 
+    // Stat Cell Component - must be defined before RarityCard which uses it
+    const StatCell = ({ label, value, sublabel, color, isFirst }) => (
+        <div style={{
+            background: COLORS.bgLighter,
+            padding: '12px 6px',
+            textAlign: 'center',
+            borderLeft: isFirst ? 'none' : `1px solid ${COLORS.border}44`
+        }}>
+            <div style={{
+                color: color || COLORS.text,
+                fontSize: '15px',
+                fontWeight: '700',
+                fontFamily: 'monospace',
+                marginBottom: '3px',
+                textShadow: color ? `0 0 12px ${color}66` : 'none'
+            }}>
+                {value}
+            </div>
+            <div style={{
+                color: COLORS.textMuted,
+                fontSize: '10px',
+                marginBottom: '4px'
+            }}>
+                spins
+            </div>
+            <div style={{
+                color: COLORS.text,
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                fontWeight: '600'
+            }}>
+                {label}
+            </div>
+            {sublabel && (
+                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
+                    {sublabel}
+                </div>
+            )}
+        </div>
+    );
+
     // Rarity Card Component
     const RarityCard = ({ rarity }) => {
         const config = rarityConfig[rarity];
@@ -256,48 +298,6 @@ export function OddsInfoModal({
             </div>
         );
     };
-
-    // Stat Cell Component
-    const StatCell = ({ label, value, sublabel, color, isFirst }) => (
-        <div style={{
-            background: COLORS.bgLighter,
-            padding: '12px 6px',
-            textAlign: 'center',
-            borderLeft: isFirst ? 'none' : `1px solid ${COLORS.border}44`
-        }}>
-            <div style={{
-                color: color || COLORS.text,
-                fontSize: '15px',
-                fontWeight: '700',
-                fontFamily: 'monospace',
-                marginBottom: '3px',
-                textShadow: color ? `0 0 12px ${color}66` : 'none'
-            }}>
-                {value}
-            </div>
-            <div style={{
-                color: COLORS.textMuted,
-                fontSize: '10px',
-                marginBottom: '4px'
-            }}>
-                spins
-            </div>
-            <div style={{
-                color: COLORS.text,
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontWeight: '600'
-            }}>
-                {label}
-            </div>
-            {sublabel && (
-                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
-                    {sublabel}
-                </div>
-            )}
-        </div>
-    );
 
     return (
         <div

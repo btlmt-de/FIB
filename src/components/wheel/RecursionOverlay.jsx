@@ -61,12 +61,15 @@ export function RecursionOverlay({ currentUserId }) {
             wasActiveRef.current = false;
             stopRecursionSoundtrack();
         }
+        // No cleanup here - unmount cleanup handled by separate effect
+    }, [recursionStatus?.active, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
 
-        // Cleanup: stop soundtrack on unmount or route change
+    // Cleanup soundtrack on unmount only
+    useEffect(() => {
         return () => {
             stopRecursionSoundtrack();
         };
-    }, [recursionStatus?.active, playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack]);
+    }, [stopRecursionSoundtrack]);
 
     // Separate effect for remainingTime updates (lightweight, no cleanup side effects)
     useEffect(() => {
@@ -261,6 +264,11 @@ export function RecursionOverlay({ currentUserId }) {
                 @keyframes iconPulse {
                     0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px ${glowColor}); }
                     50% { transform: scale(1.15); filter: drop-shadow(0 0 10px ${glowColor}) drop-shadow(0 0 20px ${glowColor}); }
+                }
+                
+                @keyframes wheelSpin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
                 }
             `}</style>
 

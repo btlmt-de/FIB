@@ -202,6 +202,7 @@ function SoundRow({ icon, label, color, enabled, onToggle, onPreview, disabled, 
                 onChange={onToggle}
                 disabled={disabled}
                 color={color}
+                ariaLabel={`Toggle ${label}`}
             />
         </div>
     );
@@ -339,6 +340,7 @@ export function SoundSettingsPanel({ onClose }) {
                             checked={settings.enabled}
                             onChange={toggleEnabled}
                             color={COLORS.green}
+                            ariaLabel="Enable all sounds"
                         />
                     </div>
 
@@ -429,6 +431,7 @@ export function SoundSettingsPanel({ onClose }) {
                                     onChange={(v) => updateSetting('soundtrackEnabled', v)}
                                     disabled={!settings.enabled}
                                     color={COLORS.accent}
+                                    ariaLabel="Toggle soundtrack"
                                 />
                             </div>
 
@@ -464,6 +467,7 @@ export function SoundSettingsPanel({ onClose }) {
                                     onChange={(v) => updateSetting('recursionSoundtrackEnabled', v)}
                                     disabled={!settings.enabled}
                                     color={COLORS.recursion}
+                                    ariaLabel="Toggle recursion music"
                                 />
                             </div>
 
@@ -477,8 +481,9 @@ export function SoundSettingsPanel({ onClose }) {
                                 <VolumeSlider
                                     value={settings.musicVolume}
                                     onChange={(v) => updateSetting('musicVolume', v)}
-                                    disabled={!settings.enabled || !settings.soundtrackEnabled}
+                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled)}
                                     color={COLORS.accent}
+                                    ariaLabel="Music volume"
                                 />
                                 <span style={{
                                     color: COLORS.textMuted,
@@ -493,6 +498,7 @@ export function SoundSettingsPanel({ onClose }) {
                             {/* Play/Stop button */}
                             {settings.enabled && settings.soundtrackEnabled && (
                                 <button
+                                    type="button"
                                     onClick={toggleSoundtrack}
                                     style={{
                                         padding: '8px 16px',
@@ -630,6 +636,7 @@ export function SoundSettingsPanel({ onClose }) {
                         alignItems: 'center',
                     }}>
                         <button
+                            type="button"
                             onClick={resetToDefaults}
                             style={{
                                 display: 'flex',
@@ -648,6 +655,7 @@ export function SoundSettingsPanel({ onClose }) {
                             Reset
                         </button>
                         <button
+                            type="button"
                             onClick={onClose}
                             style={{
                                 padding: '8px 24px',
@@ -676,6 +684,7 @@ export function SoundButton({ onClick }) {
 
     return (
         <button
+            type="button"
             onClick={onClick}
             title="Sound Settings"
             aria-label={label}
