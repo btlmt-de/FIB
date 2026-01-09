@@ -227,15 +227,17 @@ function ItemDetailModal({ item, details, onClose }) {
     );
 }
 
-export function CollectionBook({ collection, collectionDetails, stats, allItems, dynamicItems, onClose }) {
+export function CollectionBook({ collection, collectionDetails, stats, allItems, dynamicItems, onClose, viewingUser }) {
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
     const [showSpinStats, setShowSpinStats] = useState(false);
     const [dryStreaks, setDryStreaks] = useState({ mythic: 0, legendary: 0, rare: 0 });
 
-    // Fetch dry streaks data
+    // Fetch dry streaks data (only for own collection)
     useEffect(() => {
+        if (viewingUser) return; // Don't fetch for other users
+
         async function fetchDryStreaks() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/dry-streaks`, { credentials: 'include' });
@@ -248,7 +250,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
             }
         }
         fetchDryStreaks();
-    }, []);
+    }, [viewingUser]);
 
     // Memoize special items list - only recalculate when dynamicItems changes
     const { insaneItems, mythicItems, legendaryItems, rareItems, allItemsWithSpecial } = useMemo(() => {
@@ -360,10 +362,10 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                     <div>
                         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: COLORS.text, display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <BookOpen size={24} />
-                            Collection Book
+                            {viewingUser ? `${viewingUser}'s Collection` : 'Collection Book'}
                         </h2>
                         <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: COLORS.textMuted }}>
-                            Track your Wheel of Fortune discoveries
+                            {viewingUser ? `Viewing ${viewingUser}'s discoveries` : 'Track your Wheel of Fortune discoveries'}
                         </p>
                     </div>
                     <button onClick={onClose} style={{

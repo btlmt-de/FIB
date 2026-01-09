@@ -13,10 +13,13 @@ export function formatChance(chance) {
     let formatted;
     if (percent >= 1) {
         formatted = percent.toFixed(1);
-    } else if (percent >= 0.01) {
+    } else if (percent >= 0.1) {
         formatted = percent.toFixed(2);
+    } else if (percent >= 0.01) {
+        // Show 3 decimals for values like 0.072%
+        formatted = percent.toFixed(3);
     } else {
-        // For very small percentages like 0.0001%, show up to 4 decimal places
+        // For very small percentages like 0.001%, show up to 4 decimal places
         formatted = percent.toFixed(4);
     }
 

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../config/constants.js';
 import { getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { Achievements } from './Achievements.jsx';
+import { LuckInfoModal } from './LuckInfoModal.jsx';
+import { CollectionBook } from './CollectionBook.jsx';
 import * as LucideIcons from 'lucide-react';
 import {
     X, User, Trophy, Sparkles, Star, Diamond, Zap, Target,
     TrendingUp, Calendar, BarChart3, Crown, Flame, Clock,
     ChevronRight, Award, Edit3, Percent, HelpCircle, Plus, Check,
-    Package, Settings, Image
+    Package, Settings, Image, BookOpen
 } from 'lucide-react';
 
 // Insane color - bright gold
@@ -25,8 +27,9 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [profile, setProfile] = useState(null);
     const [extendedStats, setExtendedStats] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState('collection');
     const [showLuckTooltip, setShowLuckTooltip] = useState(false);
+    const [showLuckInfoModal, setShowLuckInfoModal] = useState(false);
     const [rankings, setRankings] = useState({ spins: null, events: null });
     const [specialItemTotals, setSpecialItemTotals] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
     const [uniqueCollected, setUniqueCollected] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
@@ -43,6 +46,12 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [showShowcaseEditor, setShowShowcaseEditor] = useState(false);
     const [pendingBadges, setPendingBadges] = useState([]);
     const [pendingShowcase, setPendingShowcase] = useState([]);
+
+    // Collection Book modal
+    const [showCollectionBook, setShowCollectionBook] = useState(false);
+    const [collectionBookData, setCollectionBookData] = useState(null);
+    const [allItems, setAllItems] = useState([]);
+    const [loadingCollectionBook, setLoadingCollectionBook] = useState(false);
 
     useEffect(() => {
         loadProfile();
@@ -168,13 +177,13 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     username: specialItemsMap[texture]?.username,
                     image_url: specialItemsMap[texture]?.image_url
                 }))
-                .filter(item => ['mythic', 'legendary', 'rare', 'event'].includes(item.item_type));
+                .filter(item => ['insane', 'mythic', 'legendary', 'rare', 'event'].includes(item.item_type));
 
-            // Sort by rarity: mythic > legendary > rare > event
-            const rarityOrder = { mythic: 0, legendary: 1, rare: 2, event: 3 };
+            // Sort by rarity: insane > mythic > legendary > rare > event
+            const rarityOrder = { insane: 0, mythic: 1, legendary: 2, rare: 3, event: 4 };
             const sorted = items.sort((a, b) => {
-                const orderA = rarityOrder[a.item_type] ?? 4;
-                const orderB = rarityOrder[b.item_type] ?? 4;
+                const orderA = rarityOrder[a.item_type] ?? 5;
+                const orderB = rarityOrder[b.item_type] ?? 5;
                 return orderA - orderB;
             });
 
@@ -221,6 +230,50 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
         }
     }
 
+    async function loadCollectionBook() {
+        try {
+            // Fetch collection for this user and all items
+            const [collectionRes, itemsRes, specialRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/user/${userId}/collection`),
+                fetch(`${API_BASE_URL}/api/items`),
+                fetch(`${API_BASE_URL}/api/special-items`)
+            ]);
+
+            const collectionData = await collectionRes.json();
+            const itemsData = await itemsRes.json();
+            const specialData = await specialRes.json();
+
+            // Build collection details from special items
+            const collectionDetails = {};
+            (specialData.items || []).forEach(item => {
+                if (collectionData.collection[item.texture]) {
+                    collectionDetails[item.texture] = {
+                        name: item.name,
+                        type: item.rarity,
+                        count: collectionData.collection[item.texture],
+                        username: item.username,
+                        image_url: item.image_url
+                    };
+                }
+            });
+
+            setCollectionBookData({
+                collection: collectionData.collection || {},
+                collectionDetails,
+                stats: {
+                    unique_items: profile?.unique_items || 0,
+                    total_possible: profile?.total_possible || 0,
+                    total_duplicates: profile?.total_duplicates || 0
+                },
+                allItems: itemsData.items || [],
+                dynamicItems: specialData.items || []
+            });
+            setShowCollectionBook(true);
+        } catch (e) {
+            console.error('Failed to load collection book:', e);
+        }
+    }
+
     function toggleBadge(achievementId) {
         if (pendingBadges.includes(achievementId)) {
             setPendingBadges(pendingBadges.filter(id => id !== achievementId));
@@ -229,12 +282,18 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
         }
     }
 
-    function toggleShowcaseItem(texture) {
-        if (pendingShowcase.includes(texture)) {
-            setPendingShowcase(pendingShowcase.filter(t => t !== texture));
-        } else if (pendingShowcase.length < 3) {
+    function addShowcaseItem(texture, ownedCount = 1) {
+        const currentCount = pendingShowcase.filter(t => t === texture).length;
+
+        // Add if we have slots and own more
+        if (pendingShowcase.length < 3 && currentCount < ownedCount) {
             setPendingShowcase([...pendingShowcase, texture]);
         }
+    }
+
+    function removeShowcaseItem(texture) {
+        // Remove all instances of this item
+        setPendingShowcase(pendingShowcase.filter(t => t !== texture));
     }
 
     function getDiscordAvatarUrl(discordId, avatarHash, size = 128) {
@@ -300,6 +359,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
 
     function getRarityColor(rarity) {
         switch (rarity) {
+            case 'insane': return COLORS.insane;
             case 'mythic': return COLORS.aqua;
             case 'legendary': return COLORS.purple;
             case 'rare': return COLORS.red;
@@ -443,6 +503,17 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                 }
                 .showcase-item:hover {
                     transform: translateY(-4px) scale(1.05);
+                }
+                .showcase-insane {
+                    box-shadow: 0 0 15px ${COLORS.insane}66, 0 0 25px ${COLORS.gold}44;
+                    animation: insaneGlow 2s ease-in-out infinite;
+                }
+                .showcase-insane:hover {
+                    box-shadow: 0 0 22px ${COLORS.insane}88, 0 0 35px ${COLORS.gold}55;
+                }
+                @keyframes insaneGlow {
+                    0%, 100% { filter: brightness(1); }
+                    50% { filter: brightness(1.2); }
                 }
                 .showcase-mythic {
                     box-shadow: 0 0 12px ${COLORS.aqua}55, 0 0 20px ${COLORS.purple}33;
@@ -699,6 +770,36 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <Trophy size={10} />
                                     Achievements
                                 </button>
+
+                                {/* View Collection Book Button */}
+                                <button
+                                    onClick={() => loadCollectionBook()}
+                                    style={{
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        background: 'transparent',
+                                        border: `1px solid ${COLORS.border}`,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        cursor: 'pointer',
+                                        color: COLORS.textMuted,
+                                        fontSize: '10px',
+                                        transition: 'all 0.15s'
+                                    }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.borderColor = COLORS.accent;
+                                        e.currentTarget.style.color = COLORS.accent;
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.borderColor = COLORS.border;
+                                        e.currentTarget.style.color = COLORS.textMuted;
+                                    }}
+                                    title="View collection book"
+                                >
+                                    <BookOpen size={10} />
+                                    Collection
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -758,11 +859,13 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                 {showcase.length > 0 ? (
                                     <>
                                         {showcase.map((item, idx) => {
+                                            const isInsane = item.item_type === 'insane';
                                             const isMythic = item.item_type === 'mythic';
+                                            const showcaseClass = isInsane ? 'showcase-insane' : isMythic ? 'showcase-mythic' : '';
                                             return (
                                                 <div
-                                                    key={item.item_texture || idx}
-                                                    className={`showcase-item ${isMythic ? 'showcase-mythic' : ''}`}
+                                                    key={`${item.item_texture}-${idx}`}
+                                                    className={`showcase-item ${showcaseClass}`}
                                                     title={`${item.item_name} (${item.item_type})`}
                                                     style={{
                                                         width: '52px',
@@ -773,7 +876,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
-                                                        boxShadow: isMythic ? undefined : `0 0 10px ${getRarityColor(item.item_type)}33`,
+                                                        boxShadow: (isInsane || isMythic) ? undefined : `0 0 10px ${getRarityColor(item.item_type)}33`,
                                                         cursor: 'pointer'
                                                     }}
                                                 >
@@ -891,349 +994,391 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     </div>
                 </div>
 
-                {/* Special Items Showcase */}
+                {/* Tabs - always show them */}
                 <div style={{
                     display: 'flex',
-                    gap: '10px',
-                    padding: '16px 24px',
+                    gap: '4px',
+                    padding: '12px 24px',
                     borderBottom: `1px solid ${COLORS.border}`,
                     background: COLORS.bg
                 }}>
-                    {/* Insane - Most prestigious */}
-                    <div
-                        className="rarity-card"
-                        style={{
-                            flex: 1,
-                            background: (profile.insane_count || 0) > 0
-                                ? `linear-gradient(135deg, ${COLORS.insane}20, #FFF5B015)`
-                                : `linear-gradient(135deg, ${COLORS.insane}10, #FFF5B008)`,
-                            borderRadius: '12px',
-                            padding: '14px 10px',
-                            border: `1px solid ${(profile.insane_count || 0) > 0 ? COLORS.insane + '66' : COLORS.insane + '33'}`,
-                            textAlign: 'center',
-                            position: 'relative',
-                            overflow: 'hidden'
-                        }}
-                    >
-                        <div style={{
-                            color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
-                            marginBottom: '6px',
-                            display: 'flex',
-                            justifyContent: 'center'
-                        }}>
-                            <Crown size={20} />
-                        </div>
-                        <div style={{
-                            color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
-                            fontSize: '22px',
-                            fontWeight: '700',
-                            lineHeight: 1
-                        }}>
-                            {profile.insane_count || 0}
-                        </div>
-                        <div style={{
-                            color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
-                            fontSize: '9px',
-                            marginTop: '4px',
-                            opacity: (profile.insane_count || 0) > 0 ? 1 : 0.7,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            fontWeight: '600'
-                        }}>
-                            Insane
-                        </div>
-                    </div>
-
-                    {/* Mythic - Special but toned down treatment */}
-                    <div
-                        className="rarity-card"
-                        style={{
-                            flex: 1,
-                            background: profile.mythic_count > 0
-                                ? `linear-gradient(135deg, ${COLORS.aqua}20, ${COLORS.purple}15)`
-                                : `linear-gradient(135deg, ${COLORS.aqua}10, ${COLORS.purple}08)`,
-                            borderRadius: '12px',
-                            padding: '14px 10px',
-                            border: `1px solid ${profile.mythic_count > 0 ? COLORS.aqua + '66' : COLORS.aqua + '33'}`,
-                            textAlign: 'center',
-                            position: 'relative',
-                            overflow: 'hidden'
-                        }}
-                    >
-                        <div style={{
-                            color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
-                            marginBottom: '6px',
-                            display: 'flex',
-                            justifyContent: 'center'
-                        }}>
-                            <Sparkles size={20} />
-                        </div>
-                        <div style={{
-                            color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
-                            fontSize: '22px',
-                            fontWeight: '700',
-                            lineHeight: 1
-                        }}>
-                            {profile.mythic_count}
-                        </div>
-                        <div style={{
-                            color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
-                            fontSize: '9px',
-                            marginTop: '4px',
-                            opacity: profile.mythic_count > 0 ? 1 : 0.7,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                            fontWeight: '600'
-                        }}>
-                            Mythic
-                        </div>
-                    </div>
-
-                    {/* Legendary */}
-                    <RarityCard
-                        icon={<Star size={16} />}
-                        label="Legendary"
-                        value={profile.legendary_count}
-                        color={COLORS.purple}
-                    />
-
-                    {/* Rare */}
-                    <RarityCard
-                        icon={<Diamond size={16} />}
-                        label="Rare"
-                        value={profile.rare_count}
-                        color={COLORS.red}
-                    />
+                    {[
+                        { id: 'collection', label: 'Collection', icon: <Package size={14} /> },
+                        { id: 'stats', label: 'Stats', icon: <TrendingUp size={14} /> }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            style={{
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                border: 'none',
+                                background: activeTab === tab.id ? COLORS.accent : 'transparent',
+                                color: activeTab === tab.id ? '#fff' : COLORS.textMuted,
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
-
-                {/* Collection Completion Banners */}
-                {(
-                    (specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane) ||
-                    (specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic) ||
-                    (specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary) ||
-                    (specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare)
-                ) && (
-                    <div style={{
-                        padding: '20px 24px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px'
-                    }}>
-                        {specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane && (
-                            <div
-                                className="completion-banner"
-                                style={{
-                                    background: `linear-gradient(135deg, ${COLORS.insane}33, #FFF5B022)`,
-                                    border: `1px solid ${COLORS.insane}66`,
-                                    borderRadius: '10px',
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                <div style={{
-                                    width: '36px', height: '36px',
-                                    borderRadius: '8px',
-                                    background: `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0)`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxShadow: `0 0 15px ${COLORS.insane}66`
-                                }}>
-                                    <Trophy size={18} color="#1a1a1a" />
-                                </div>
-                                <div>
-                                    <div style={{
-                                        color: COLORS.insane,
-                                        fontSize: '13px',
-                                        fontWeight: '700',
-                                        textShadow: `0 0 10px ${COLORS.insane}44`
-                                    }}>
-                                        Insane Collection Complete!
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        All {specialItemTotals.insane} insane items collected
-                                    </div>
-                                </div>
-                                <Crown size={16} color={COLORS.insane} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                            </div>
-                        )}
-
-                        {specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic && (
-                            <div
-                                className="completion-banner"
-                                style={{
-                                    background: `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}22)`,
-                                    border: `1px solid ${COLORS.aqua}66`,
-                                    borderRadius: '10px',
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                <div style={{
-                                    width: '36px', height: '36px',
-                                    borderRadius: '8px',
-                                    background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple})`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxShadow: `0 0 15px ${COLORS.aqua}66`
-                                }}>
-                                    <Trophy size={18} color="#fff" />
-                                </div>
-                                <div>
-                                    <div style={{
-                                        color: COLORS.aqua,
-                                        fontSize: '13px',
-                                        fontWeight: '700',
-                                        textShadow: `0 0 10px ${COLORS.aqua}44`
-                                    }}>
-                                        Mythic Collection Complete!
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        All {specialItemTotals.mythic} mythic items collected
-                                    </div>
-                                </div>
-                                <Sparkles size={16} color={COLORS.aqua} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                            </div>
-                        )}
-
-                        {specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary && (
-                            <div
-                                className="completion-banner"
-                                style={{
-                                    background: `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}22)`,
-                                    border: `1px solid ${COLORS.purple}66`,
-                                    borderRadius: '10px',
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                <div style={{
-                                    width: '36px', height: '36px',
-                                    borderRadius: '8px',
-                                    background: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxShadow: `0 0 15px ${COLORS.purple}66`
-                                }}>
-                                    <Trophy size={18} color="#fff" />
-                                </div>
-                                <div>
-                                    <div style={{
-                                        color: COLORS.purple,
-                                        fontSize: '13px',
-                                        fontWeight: '700',
-                                        textShadow: `0 0 10px ${COLORS.purple}44`
-                                    }}>
-                                        Legendary Collection Complete!
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        All {specialItemTotals.legendary} legendary items collected
-                                    </div>
-                                </div>
-                                <Star size={16} color={COLORS.purple} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                            </div>
-                        )}
-
-                        {specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare && (
-                            <div
-                                className="completion-banner"
-                                style={{
-                                    background: `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}22)`,
-                                    border: `1px solid ${COLORS.red}66`,
-                                    borderRadius: '10px',
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                }}
-                            >
-                                <div style={{
-                                    width: '36px', height: '36px',
-                                    borderRadius: '8px',
-                                    background: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxShadow: `0 0 15px ${COLORS.red}66`
-                                }}>
-                                    <Trophy size={18} color="#fff" />
-                                </div>
-                                <div>
-                                    <div style={{
-                                        color: COLORS.red,
-                                        fontSize: '13px',
-                                        fontWeight: '700',
-                                        textShadow: `0 0 10px ${COLORS.red}44`
-                                    }}>
-                                        Rare Collection Complete!
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        All {specialItemTotals.rare} rare items collected
-                                    </div>
-                                </div>
-                                <Diamond size={16} color={COLORS.red} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Tabs */}
-                {isOwnProfile && extendedStats && (
-                    <div style={{
-                        display: 'flex',
-                        gap: '4px',
-                        padding: '12px 24px',
-                        borderBottom: `1px solid ${COLORS.border}`,
-                        background: COLORS.bg
-                    }}>
-                        {[
-                            { id: 'overview', label: 'Overview', icon: <User size={14} /> },
-                            { id: 'activity', label: 'Activity', icon: <BarChart3 size={14} /> }
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                style={{
-                                    padding: '8px 14px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: activeTab === tab.id ? COLORS.accent : 'transparent',
-                                    color: activeTab === tab.id ? '#fff' : COLORS.textMuted,
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                {tab.icon}
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-                )}
 
                 {/* Content */}
                 <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
-                    {activeTab === 'overview' && (
+                    {activeTab === 'collection' && (
+                        <>
+                            {/* Rarity Distribution */}
+                            <div style={{
+                                display: 'flex',
+                                gap: '10px',
+                                marginBottom: '16px'
+                            }}>
+                                {/* Insane */}
+                                <div
+                                    className="rarity-card"
+                                    style={{
+                                        flex: 1,
+                                        background: (profile.insane_count || 0) > 0
+                                            ? `linear-gradient(135deg, ${COLORS.insane}20, #FFF5B015)`
+                                            : `linear-gradient(135deg, ${COLORS.insane}10, #FFF5B008)`,
+                                        borderRadius: '12px',
+                                        padding: '14px 10px',
+                                        border: `1px solid ${(profile.insane_count || 0) > 0 ? COLORS.insane + '66' : COLORS.insane + '33'}`,
+                                        textAlign: 'center',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                                    <div style={{
+                                        color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
+                                        marginBottom: '6px',
+                                        display: 'flex',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Crown size={20} />
+                                    </div>
+                                    <div style={{
+                                        color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
+                                        fontSize: '22px',
+                                        fontWeight: '700',
+                                        lineHeight: 1
+                                    }}>
+                                        {profile.insane_count || 0}
+                                    </div>
+                                    <div style={{
+                                        color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
+                                        fontSize: '9px',
+                                        marginTop: '4px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        fontWeight: '600'
+                                    }}>
+                                        Insane
+                                    </div>
+                                </div>
+
+                                {/* Mythic */}
+                                <div
+                                    className="rarity-card"
+                                    style={{
+                                        flex: 1,
+                                        background: profile.mythic_count > 0
+                                            ? `linear-gradient(135deg, ${COLORS.aqua}20, ${COLORS.purple}15)`
+                                            : `linear-gradient(135deg, ${COLORS.aqua}10, ${COLORS.purple}08)`,
+                                        borderRadius: '12px',
+                                        padding: '14px 10px',
+                                        border: `1px solid ${profile.mythic_count > 0 ? COLORS.aqua + '66' : COLORS.aqua + '33'}`,
+                                        textAlign: 'center',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}
+                                >
+                                    <div style={{
+                                        color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
+                                        marginBottom: '6px',
+                                        display: 'flex',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Sparkles size={20} />
+                                    </div>
+                                    <div style={{
+                                        color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
+                                        fontSize: '22px',
+                                        fontWeight: '700',
+                                        lineHeight: 1
+                                    }}>
+                                        {profile.mythic_count}
+                                    </div>
+                                    <div style={{
+                                        color: profile.mythic_count > 0 ? COLORS.aqua : COLORS.aqua + '88',
+                                        fontSize: '9px',
+                                        marginTop: '4px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        fontWeight: '600'
+                                    }}>
+                                        Mythic
+                                    </div>
+                                </div>
+
+                                {/* Legendary */}
+                                <RarityCard
+                                    icon={<Star size={16} />}
+                                    label="Legendary"
+                                    value={profile.legendary_count}
+                                    color={COLORS.purple}
+                                />
+
+                                {/* Rare */}
+                                <RarityCard
+                                    icon={<Diamond size={16} />}
+                                    label="Rare"
+                                    value={profile.rare_count}
+                                    color={COLORS.red}
+                                />
+                            </div>
+
+                            {/* Collection Completion Banners */}
+                            {(
+                                (specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane) ||
+                                (specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic) ||
+                                (specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary) ||
+                                (specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare)
+                            ) && (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '10px',
+                                    marginBottom: '16px'
+                                }}>
+                                    {specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane && (
+                                        <div
+                                            className="completion-banner"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${COLORS.insane}33, #FFF5B022)`,
+                                                border: `1px solid ${COLORS.insane}66`,
+                                                borderRadius: '10px',
+                                                padding: '12px 16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                position: 'relative',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '36px', height: '36px',
+                                                borderRadius: '8px',
+                                                background: `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0)`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: `0 0 15px ${COLORS.insane}66`
+                                            }}>
+                                                <Trophy size={18} color="#1a1a1a" />
+                                            </div>
+                                            <div>
+                                                <div style={{
+                                                    color: COLORS.insane,
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    textShadow: `0 0 10px ${COLORS.insane}44`
+                                                }}>
+                                                    Insane Collection Complete!
+                                                </div>
+                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                                                    All {specialItemTotals.insane} insane items collected
+                                                </div>
+                                            </div>
+                                            <Crown size={16} color={COLORS.insane} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                                        </div>
+                                    )}
+                                    {specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic && (
+                                        <div
+                                            className="completion-banner"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${COLORS.aqua}22, ${COLORS.purple}15)`,
+                                                border: `1px solid ${COLORS.aqua}55`,
+                                                borderRadius: '10px',
+                                                padding: '12px 16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                position: 'relative',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '36px', height: '36px',
+                                                borderRadius: '8px',
+                                                background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple})`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: `0 0 15px ${COLORS.aqua}66`
+                                            }}>
+                                                <Trophy size={18} color="#1a1a1a" />
+                                            </div>
+                                            <div>
+                                                <div style={{
+                                                    color: COLORS.aqua,
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    textShadow: `0 0 10px ${COLORS.aqua}44`
+                                                }}>
+                                                    Mythic Collection Complete!
+                                                </div>
+                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                                                    All {specialItemTotals.mythic} mythic items collected
+                                                </div>
+                                            </div>
+                                            <Sparkles size={16} color={COLORS.aqua} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                                        </div>
+                                    )}
+                                    {specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary && (
+                                        <div
+                                            className="completion-banner"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${COLORS.purple}22, ${COLORS.purple}11)`,
+                                                border: `1px solid ${COLORS.purple}55`,
+                                                borderRadius: '10px',
+                                                padding: '12px 16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                position: 'relative',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '36px', height: '36px',
+                                                borderRadius: '8px',
+                                                background: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.purple}bb)`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: `0 0 15px ${COLORS.purple}66`
+                                            }}>
+                                                <Trophy size={18} color="#fff" />
+                                            </div>
+                                            <div>
+                                                <div style={{
+                                                    color: COLORS.purple,
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    textShadow: `0 0 10px ${COLORS.purple}44`
+                                                }}>
+                                                    Legendary Collection Complete!
+                                                </div>
+                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                                                    All {specialItemTotals.legendary} legendary items collected
+                                                </div>
+                                            </div>
+                                            <Star size={16} color={COLORS.purple} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                                        </div>
+                                    )}
+                                    {specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare && (
+                                        <div
+                                            className="completion-banner"
+                                            style={{
+                                                background: `linear-gradient(135deg, ${COLORS.red}22, ${COLORS.red}11)`,
+                                                border: `1px solid ${COLORS.red}55`,
+                                                borderRadius: '10px',
+                                                padding: '12px 16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '12px',
+                                                position: 'relative',
+                                                overflow: 'hidden'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: '36px', height: '36px',
+                                                borderRadius: '8px',
+                                                background: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.red}bb)`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                boxShadow: `0 0 15px ${COLORS.red}66`
+                                            }}>
+                                                <Trophy size={18} color="#fff" />
+                                            </div>
+                                            <div>
+                                                <div style={{
+                                                    color: COLORS.red,
+                                                    fontSize: '13px',
+                                                    fontWeight: '700',
+                                                    textShadow: `0 0 10px ${COLORS.red}44`
+                                                }}>
+                                                    Rare Collection Complete!
+                                                </div>
+                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                                                    All {specialItemTotals.rare} rare items collected
+                                                </div>
+                                            </div>
+                                            <Diamond size={16} color={COLORS.red} style={{ marginLeft: 'auto', opacity: 0.7 }} />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Collection Stats Summary */}
+                            <div style={{
+                                background: COLORS.bgLight,
+                                borderRadius: '12px',
+                                padding: '16px',
+                                border: `1px solid ${COLORS.border}`
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    marginBottom: '12px',
+                                    color: COLORS.text,
+                                    fontSize: '13px',
+                                    fontWeight: '600'
+                                }}>
+                                    <Package size={16} />
+                                    Collection Summary
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                                    <div>
+                                        <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '4px' }}>Unique Items</div>
+                                        <div style={{ color: COLORS.text, fontSize: '18px', fontWeight: '700' }}>
+                                            {profile.unique_items} <span style={{ color: COLORS.textMuted, fontSize: '12px', fontWeight: '400' }}>/ {profile.total_possible}</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '4px' }}>Completion</div>
+                                        <div style={{ color: COLORS.accent, fontSize: '18px', fontWeight: '700' }}>
+                                            {((profile.unique_items / profile.total_possible) * 100).toFixed(1)}%
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '4px' }}>Total Duplicates</div>
+                                        <div style={{ color: COLORS.purple, fontSize: '18px', fontWeight: '700' }}>
+                                            {profile.total_duplicates.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '4px' }}>Avg per Item</div>
+                                        <div style={{ color: COLORS.text, fontSize: '18px', fontWeight: '700' }}>
+                                            {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0}×
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === 'stats' && (
                         <>
                             {/* Primary Stats Row */}
                             <div style={{
@@ -1363,8 +1508,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     <div style={{ fontWeight: '600', marginBottom: '8px', fontSize: '12px' }}>
                                                         How Luck Works
                                                     </div>
-                                                    <div style={{ color: COLORS.textMuted, lineHeight: 1.5 }}>
-                                                        Compares your actual special pulls to the expected amount based on drop rates.
+                                                    <div style={{ color: COLORS.textMuted, lineHeight: 1.5, marginBottom: '10px' }}>
+                                                        Measures how statistically improbable your pulls are using z-scores (standard deviations from expected).
                                                     </div>
                                                     {luckRating?.stats && (
                                                         <div style={{
@@ -1376,35 +1521,60 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                         }}>
                                                             <div style={{ marginBottom: '6px', color: COLORS.text, fontWeight: '500' }}>Your pulls:</div>
                                                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                                                {luckRating.stats.insane > 0 && <span style={{ color: COLORS.insane, fontWeight: '600' }}>{luckRating.stats.insane} Insane</span>}
                                                                 {luckRating.stats.mythic > 0 && <span style={{ color: COLORS.aqua }}>{luckRating.stats.mythic} Mythic</span>}
                                                                 {luckRating.stats.legendary > 0 && <span style={{ color: COLORS.purple }}>{luckRating.stats.legendary} Leg</span>}
                                                                 {luckRating.stats.rare > 0 && <span style={{ color: COLORS.red }}>{luckRating.stats.rare} Rare</span>}
                                                             </div>
                                                             <div style={{ color: COLORS.textMuted }}>
-                                                                Expected: ~{luckRating.stats.expectedSpecial ?? 0} special
+                                                                Expected: ~{luckRating.stats.expectedSpecial ?? 0} special in {luckRating.stats.totalSpins?.toLocaleString()} spins
                                                             </div>
                                                         </div>
                                                     )}
-                                                    <div style={{
-                                                        marginTop: '10px',
-                                                        padding: '8px',
-                                                        background: COLORS.bgLight,
-                                                        borderRadius: '6px',
-                                                        fontSize: '10px'
-                                                    }}>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                            <span style={{ color: COLORS.gold }}>100</span>
-                                                            <span style={{ color: COLORS.textMuted }}>= Expected</span>
+                                                    {luckRating?.zScores && (
+                                                        <div style={{
+                                                            marginTop: '8px',
+                                                            padding: '8px',
+                                                            background: COLORS.bgLight,
+                                                            borderRadius: '6px',
+                                                            fontSize: '10px'
+                                                        }}>
+                                                            <div style={{ marginBottom: '6px', color: COLORS.text, fontWeight: '500' }}>Combined Z-Score:</div>
+                                                            <div style={{
+                                                                color: luckRating.zScores.combined > 0 ? COLORS.green : luckRating.zScores.combined < 0 ? COLORS.red : COLORS.text,
+                                                                fontSize: '14px',
+                                                                fontWeight: '600'
+                                                            }}>
+                                                                {luckRating.zScores.combined > 0 ? '+' : ''}{luckRating.zScores.combined}<span style={{ fontSize: '10px', marginLeft: '1px' }}>σ</span>
+                                                            </div>
                                                         </div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                                            <span style={{ color: COLORS.green }}>&gt;100</span>
-                                                            <span style={{ color: COLORS.textMuted }}>= Lucky</span>
-                                                        </div>
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                            <span style={{ color: COLORS.red }}>&lt;100</span>
-                                                            <span style={{ color: COLORS.textMuted }}>= Unlucky</span>
-                                                        </div>
-                                                    </div>
+                                                    )}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setShowLuckTooltip(false);
+                                                            setShowLuckInfoModal(true);
+                                                        }}
+                                                        style={{
+                                                            marginTop: '10px',
+                                                            width: '100%',
+                                                            padding: '8px 12px',
+                                                            background: `${COLORS.gold}22`,
+                                                            border: `1px solid ${COLORS.gold}44`,
+                                                            borderRadius: '6px',
+                                                            color: COLORS.gold,
+                                                            fontSize: '11px',
+                                                            fontWeight: '600',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '6px'
+                                                        }}
+                                                    >
+                                                        <HelpCircle size={12} />
+                                                        Learn more about luck calculation
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -1490,7 +1660,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         {profile.total_duplicates.toLocaleString()}
                                     </div>
                                     <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                        Duplicates · {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
+                                        Duplicates <span style={{ margin: '0 4px', opacity: 0.5 }}>•</span> {profile.unique_items > 0 ? (profile.total_duplicates / profile.unique_items).toFixed(1) : 0} per item avg
                                     </div>
                                 </div>
                             </div>
@@ -1694,159 +1864,6 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                         </>
                     )}
 
-                    {activeTab === 'activity' && extendedStats && (
-                        <>
-                            {/* Quick Stats with labels */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(3, 1fr)',
-                                gap: '10px',
-                                marginBottom: '20px'
-                            }}>
-                                <div className="stat-card" style={{
-                                    background: COLORS.bgLight,
-                                    borderRadius: '10px',
-                                    padding: '14px 12px',
-                                    border: `1px solid ${COLORS.border}`,
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                        Today
-                                    </div>
-                                    <div style={{ color: COLORS.orange, fontSize: '22px', fontWeight: '700' }}>
-                                        {extendedStats.spinsToday?.spins || 0}
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
-                                        spins
-                                    </div>
-                                </div>
-                                <div className="stat-card" style={{
-                                    background: COLORS.bgLight,
-                                    borderRadius: '10px',
-                                    padding: '14px 12px',
-                                    border: `1px solid ${COLORS.border}`,
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                        This Week
-                                    </div>
-                                    <div style={{ color: COLORS.accent, fontSize: '22px', fontWeight: '700' }}>
-                                        {chartData.slice(-7).reduce((sum, d) => sum + d.spins, 0)}
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
-                                        spins
-                                    </div>
-                                </div>
-                                <div className="stat-card" style={{
-                                    background: COLORS.bgLight,
-                                    borderRadius: '10px',
-                                    padding: '14px 12px',
-                                    border: `1px solid ${COLORS.border}`,
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '10px', textTransform: 'uppercase', marginBottom: '6px' }}>
-                                        Daily Avg
-                                    </div>
-                                    <div style={{ color: COLORS.purple, fontSize: '22px', fontWeight: '700' }}>
-                                        {(chartData.reduce((sum, d) => sum + d.spins, 0) / 14).toFixed(1)}
-                                    </div>
-                                    <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
-                                        spins
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Activity Chart */}
-                            <div style={{
-                                background: COLORS.bgLight,
-                                borderRadius: '12px',
-                                padding: '16px',
-                                border: `1px solid ${COLORS.border}`
-                            }}>
-                                <div style={{
-                                    color: COLORS.textMuted,
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px',
-                                    marginBottom: '16px'
-                                }}>
-                                    Spins per Day (Last 14 Days)
-                                </div>
-
-                                {/* Chart */}
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'flex-end',
-                                    gap: '4px',
-                                    height: '100px',
-                                    position: 'relative'
-                                }}>
-                                    {chartData.map((day, idx) => {
-                                        const height = maxSpins > 0 ? (day.spins / maxSpins) * 100 : 0;
-                                        const hasSpecial = day.mythic + day.legendary + day.rare > 0;
-                                        const isToday = idx === chartData.length - 1;
-
-                                        return (
-                                            <div
-                                                key={day.date}
-                                                style={{
-                                                    flex: 1,
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    height: '100%',
-                                                    justifyContent: 'flex-end',
-                                                    position: 'relative'
-                                                }}
-                                                title={`${day.label}: ${day.spins} spins`}
-                                            >
-                                                {/* Bar */}
-                                                <div style={{
-                                                    width: '100%',
-                                                    height: `${Math.max(height, 3)}%`,
-                                                    background: hasSpecial
-                                                        ? COLORS.purple
-                                                        : isToday
-                                                            ? COLORS.accent
-                                                            : `${COLORS.accent}55`,
-                                                    borderRadius: '3px 3px 0 0',
-                                                    minHeight: day.spins > 0 ? '4px' : '2px',
-                                                    position: 'relative'
-                                                }}>
-                                                    {hasSpecial && (
-                                                        <div style={{
-                                                            position: 'absolute',
-                                                            top: '-6px',
-                                                            left: '50%',
-                                                            transform: 'translateX(-50%)',
-                                                            width: '4px',
-                                                            height: '4px',
-                                                            borderRadius: '50%',
-                                                            background: day.mythic > 0 ? COLORS.aqua : day.legendary > 0 ? COLORS.purple : COLORS.red,
-                                                            boxShadow: `0 0 6px ${day.mythic > 0 ? COLORS.aqua : day.legendary > 0 ? COLORS.purple : COLORS.red}`
-                                                        }} />
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                {/* X-axis labels */}
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    marginTop: '8px',
-                                    fontSize: '9px',
-                                    color: COLORS.textMuted
-                                }}>
-                                    <span>{chartData[0]?.shortLabel}</span>
-                                    <span>Today</span>
-                                </div>
-                            </div>
-                        </>
-                    )}
                 </div>
             </div>
 
@@ -2147,69 +2164,119 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             ) : (
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
                                     {userCollection.map(item => {
-                                        const isSelected = pendingShowcase.includes(item.item_texture);
+                                        const selectedCount = pendingShowcase.filter(t => t === item.item_texture).length;
+                                        const ownedCount = item.count || 1;
+                                        const isSelected = selectedCount > 0;
+                                        const canAddMore = selectedCount < ownedCount && pendingShowcase.length < 3;
                                         return (
-                                            <button
+                                            <div
                                                 key={item.item_texture}
-                                                onClick={() => toggleShowcaseItem(item.item_texture)}
-                                                title={`${item.item_name} (${item.item_type})`}
-                                                style={{
-                                                    aspectRatio: '1',
-                                                    borderRadius: '8px',
-                                                    background: COLORS.bgLight,
-                                                    border: isSelected
-                                                        ? `2px solid ${getRarityColor(item.item_type)}`
-                                                        : `1px solid ${COLORS.border}`,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    cursor: 'pointer',
-                                                    position: 'relative',
-                                                    padding: '4px',
-                                                    transition: 'all 0.2s',
-                                                    boxShadow: isSelected ? `0 0 10px ${getRarityColor(item.item_type)}44` : 'none'
-                                                }}
+                                                style={{ position: 'relative' }}
                                             >
-                                                <img
-                                                    src={getShowcaseImageUrl(item)}
-                                                    alt={item.item_name}
+                                                <button
+                                                    onClick={() => canAddMore ? addShowcaseItem(item.item_texture, ownedCount) : null}
+                                                    title={`${item.item_name} (${item.item_type}) - Own: ${ownedCount}${selectedCount > 0 ? `, Selected: ${selectedCount}` : ''}${canAddMore ? ' - Click to add' : ''}`}
                                                     style={{
-                                                        width: '32px',
-                                                        height: '32px',
-                                                        imageRendering: 'pixelated'
+                                                        width: '100%',
+                                                        aspectRatio: '1',
+                                                        borderRadius: '8px',
+                                                        background: COLORS.bgLight,
+                                                        border: isSelected
+                                                            ? `2px solid ${getRarityColor(item.item_type)}`
+                                                            : `1px solid ${COLORS.border}`,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        cursor: canAddMore ? 'pointer' : 'default',
+                                                        position: 'relative',
+                                                        padding: '4px',
+                                                        transition: 'all 0.2s',
+                                                        boxShadow: isSelected ? `0 0 10px ${getRarityColor(item.item_type)}44` : 'none',
+                                                        opacity: (!canAddMore && !isSelected) ? 0.5 : 1
                                                     }}
-                                                    onError={(e) => {
-                                                        e.target.onerror = null;
-                                                        e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
-                                                    }}
-                                                />
-                                                {isSelected && (
+                                                >
+                                                    <img
+                                                        src={getShowcaseImageUrl(item)}
+                                                        alt={item.item_name}
+                                                        style={{
+                                                            width: '32px',
+                                                            height: '32px',
+                                                            imageRendering: 'pixelated'
+                                                        }}
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
+                                                        }}
+                                                    />
+                                                    {/* Show count badge if owns multiple */}
+                                                    {ownedCount > 1 && (
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: '2px',
+                                                            left: '2px',
+                                                            fontSize: '9px',
+                                                            fontWeight: '700',
+                                                            color: COLORS.text,
+                                                            background: 'rgba(0,0,0,0.7)',
+                                                            padding: '1px 4px',
+                                                            borderRadius: '4px'
+                                                        }}>
+                                                            ×{ownedCount}
+                                                        </div>
+                                                    )}
+                                                </button>
+                                                {/* Remove button when selected */}
+                                                {selectedCount > 0 && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removeShowcaseItem(item.item_texture);
+                                                        }}
+                                                        title="Click to remove from showcase"
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: '-6px',
+                                                            right: '-6px',
+                                                            width: '20px',
+                                                            height: '20px',
+                                                            borderRadius: '50%',
+                                                            background: '#ff4444',
+                                                            border: '2px solid ' + COLORS.bg,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontSize: '12px',
+                                                            fontWeight: '700',
+                                                            color: '#fff',
+                                                            cursor: 'pointer',
+                                                            padding: 0,
+                                                            zIndex: 10
+                                                        }}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                )}
+                                                {/* Selected count badge */}
+                                                {selectedCount > 0 && (
                                                     <div style={{
                                                         position: 'absolute',
                                                         bottom: '2px',
                                                         right: '2px',
-                                                        width: '14px',
+                                                        minWidth: '14px',
                                                         height: '14px',
                                                         borderRadius: '50%',
                                                         background: getRarityColor(item.item_type),
                                                         display: 'flex',
                                                         alignItems: 'center',
-                                                        justifyContent: 'center'
+                                                        justifyContent: 'center',
+                                                        fontSize: '9px',
+                                                        fontWeight: '700',
+                                                        color: '#000'
                                                     }}>
-                                                        <Check size={10} color="#fff" />
+                                                        {selectedCount}
                                                     </div>
                                                 )}
-                                                {/* Rarity indicator dot */}
-                                                <div style={{
-                                                    position: 'absolute',
-                                                    top: '2px',
-                                                    right: '2px',
-                                                    width: '6px',
-                                                    height: '6px',
-                                                    borderRadius: '50%',
-                                                    background: getRarityColor(item.item_type)
-                                                }} />
-                                            </button>
+                                            </div>
                                         );
                                     })}
                                 </div>
@@ -2258,7 +2325,37 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
 
             {/* Achievements Modal */}
             {showAchievements && (
-                <Achievements onClose={() => setShowAchievements(false)} />
+                <Achievements
+                    onClose={() => setShowAchievements(false)}
+                    userId={userId}
+                    username={profile?.custom_username || 'User'}
+                    isOwnProfile={isOwnProfile}
+                />
+            )}
+
+            {/* Luck Info Modal */}
+            {showLuckInfoModal && (
+                <LuckInfoModal
+                    onClose={() => setShowLuckInfoModal(false)}
+                    luckRating={luckRating}
+                    isMobile={window.innerWidth < 768}
+                />
+            )}
+
+            {/* Collection Book Modal */}
+            {showCollectionBook && collectionBookData && (
+                <CollectionBook
+                    collection={collectionBookData.collection}
+                    collectionDetails={collectionBookData.collectionDetails}
+                    stats={collectionBookData.stats}
+                    allItems={collectionBookData.allItems}
+                    dynamicItems={collectionBookData.dynamicItems}
+                    onClose={() => {
+                        setShowCollectionBook(false);
+                        setCollectionBookData(null);
+                    }}
+                    viewingUser={!isOwnProfile ? profile?.custom_username : null}
+                />
             )}
         </div>
     );

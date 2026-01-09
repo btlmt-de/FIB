@@ -110,7 +110,7 @@ export const RECURSION_ITEM = {
     texture: 'recursion',
     chance: 0.0025,
     type: 'recursion',
-    imageUrl: '/wheel.png'
+    imageUrl: WHEEL_TEXTURE_URL
 };
 
 // Available bonus events

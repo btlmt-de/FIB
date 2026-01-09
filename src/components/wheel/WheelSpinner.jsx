@@ -194,44 +194,27 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         return shuffled;
     }
 
-    // Get a random item that's visually different from the last one
-    function getRandomItem(items, lastItem) {
-        if (!items || items.length === 0) return null;
-        if (items.length === 1) return items[0];
-
-        // Try up to 5 times to get a visually different item
-        for (let attempt = 0; attempt < 5; attempt++) {
-            const item = items[Math.floor(Math.random() * items.length)];
-            if (!lastItem) return item;
-
-            // Check if item looks different (different texture prefix)
-            const lastPrefix = (lastItem.texture || '').split('_')[0];
-            const newPrefix = (item.texture || '').split('_')[0];
-
-            if (lastPrefix !== newPrefix) return item;
-        }
-
-        // Fallback: just return any random item
-        return items[Math.floor(Math.random() * items.length)];
-    }
-
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
         const finalIndex = length - 8;
 
         // Shuffle all item pools for better visual randomness
-        const shuffledItems = shuffleArray(allItems);
-        const shuffledInsane = shuffleArray(INSANE_ITEMS);
-        const shuffledMythic = shuffleArray(MYTHIC_ITEMS);
-        const shuffledRare = shuffleArray(RARE_MEMBERS);
-        const shuffledLegendary = shuffleArray(TEAM_MEMBERS);
+        const shuffledItems = shuffleArray([...allItems]);
+        const shuffledInsane = shuffleArray([...INSANE_ITEMS]);
+        const shuffledMythic = shuffleArray([...MYTHIC_ITEMS]);
+        const shuffledRare = shuffleArray([...RARE_MEMBERS]);
+        const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
-        let lastItem = null;
+        // Use indices to iterate through shuffled arrays (guarantees distribution)
+        let itemIndex = 0;
+        let insaneIndex = 0;
+        let mythicIndex = 0;
+        let rareIndex = 0;
+        let legendaryIndex = 0;
 
         for (let i = 0; i < length; i++) {
             if (i === finalIndex) {
                 newStrip.push(finalItem);
-                lastItem = finalItem;
             } else {
                 const roll = Math.random();
                 let newItem = null;
@@ -239,32 +222,36 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 // Visual flair - show special items in the strip animation
                 if (roll < 0.001 && shuffledInsane.length > 0) {
                     // 0.1% chance for insane
-                    const insane = getRandomItem(shuffledInsane, lastItem);
+                    const insane = shuffledInsane[insaneIndex % shuffledInsane.length];
+                    insaneIndex++;
                     newItem = { ...insane, isInsane: true };
                 } else if (roll < 0.003 && shuffledMythic.length > 0) {
                     // 0.2% chance for mythic (0.1% to 0.3%)
-                    const mythic = getRandomItem(shuffledMythic, lastItem);
+                    const mythic = shuffledMythic[mythicIndex % shuffledMythic.length];
+                    mythicIndex++;
                     newItem = { ...mythic, isMythic: true };
                 } else if (roll < 0.033 && shuffledRare.length > 0) {
                     // 3% chance for rare
-                    const rare = getRandomItem(shuffledRare, lastItem);
+                    const rare = shuffledRare[rareIndex % shuffledRare.length];
+                    rareIndex++;
                     newItem = { ...rare, isRare: true, texture: `rare_${rare.username}` };
                 } else if (roll < 0.053 && shuffledLegendary.length > 0) {
                     // 2% chance for legendary
-                    const member = getRandomItem(shuffledLegendary, lastItem);
+                    const member = shuffledLegendary[legendaryIndex % shuffledLegendary.length];
+                    legendaryIndex++;
                     newItem = {
                         ...member,
                         isSpecial: true,
                         texture: member.username ? `special_${member.username}` : member.name.toLowerCase().replace(/\s+/g, '_')
                     };
                 } else if (shuffledItems.length > 0) {
-                    // Regular items - use shuffled pool and avoid similar consecutive items
-                    newItem = getRandomItem(shuffledItems, lastItem);
+                    // Regular items - iterate through shuffled pool for maximum variety
+                    newItem = shuffledItems[itemIndex % shuffledItems.length];
+                    itemIndex++;
                 }
 
                 if (newItem) {
                     newStrip.push(newItem);
-                    lastItem = newItem;
                 }
             }
         }
