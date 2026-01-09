@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { COLORS } from '../../config/constants.js';
 import { Activity, Sparkles, Crown } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
@@ -31,28 +31,60 @@ function formatExactTime(dateStr) {
 }
 
 export function ActivityFeedSidebar() {
-    const { feed: rawFeed, serverTime, initialized } = useActivity();
+    const { feed: rawFeed, initialized } = useActivity();
     const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
+    const [delayedFeed, setDelayedFeed] = useState([]);
+    const processedIdsRef = useRef(new Set());
 
-    const feed = useMemo(() => {
-        if (!rawFeed || !serverTime) return [];
+    // Delay new items by 4 seconds to respect spin animation
+    useEffect(() => {
+        if (!rawFeed) return;
 
-        const DELAY_AFTER_CREATION = 5000;
+        rawFeed.forEach(item => {
+            if (item.event_type === 'achievement_unlock') return;
+            if (processedIdsRef.current.has(item.id)) return;
 
-        return rawFeed.filter(item => {
-            // Filter out achievement unlocks
-            if (item.event_type === 'achievement_unlock') return false;
+            processedIdsRef.current.add(item.id);
 
-            // Parse created_at - append 'Z' if no timezone to treat as UTC
+            // Check if item is fresh (< 2 seconds old = from SSE)
             let createdAtStr = item.created_at;
             if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
                 createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
             }
-            const itemCreatedAt = new Date(createdAtStr).getTime();
-            const itemAge = serverTime - itemCreatedAt;
-            return itemAge >= DELAY_AFTER_CREATION;
+            const itemAge = Date.now() - new Date(createdAtStr).getTime();
+
+            if (itemAge < 2000) {
+                // Fresh SSE item - delay by 4 seconds
+                setTimeout(() => {
+                    setDelayedFeed(prev => {
+                        if (prev.some(i => i.id === item.id)) return prev;
+                        return [item, ...prev].slice(0, 150);
+                    });
+                }, 4000);
+            } else {
+                // Older item from initial fetch - show immediately
+                setDelayedFeed(prev => {
+                    if (prev.some(i => i.id === item.id)) return prev;
+                    return [item, ...prev].slice(0, 150);
+                });
+            }
         });
-    }, [rawFeed, serverTime]);
+
+        // Keep processedIds clean
+        if (processedIdsRef.current.size > 200) {
+            const ids = Array.from(processedIdsRef.current);
+            processedIdsRef.current = new Set(ids.slice(-100));
+        }
+    }, [rawFeed]);
+
+    // Sort delayed feed by created_at
+    const feed = useMemo(() => {
+        return [...delayedFeed].sort((a, b) => {
+            const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
+            const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
+            return dateB - dateA;
+        });
+    }, [delayedFeed]);
 
     // Filter for mythic and insane only
     const specialFeed = useMemo(() => {

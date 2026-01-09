@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLORS, API_BASE_URL } from '../../config/constants';
-import { MessageCircle, Send, X, Minimize2, Maximize2, Trash2, Users, ChevronDown, Reply, AtSign } from 'lucide-react';
+import { MessageCircle, Send, X, Minimize2, Maximize2, Trash2, Users, ChevronDown, Reply, AtSign, Move, RotateCcw } from 'lucide-react';
 
 // ============================================
 // Live Chat Component - With @Mentions
@@ -28,6 +28,20 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Ping notification state
     const [hasPing, setHasPing] = useState(false);
+
+    // Position and size state for draggable/resizable
+    const [position, setPosition] = useState(() => {
+        const saved = localStorage.getItem('chat-position');
+        return saved ? JSON.parse(saved) : { x: 20, y: null }; // y: null means use bottom positioning
+    });
+    const [size, setSize] = useState(() => {
+        const saved = localStorage.getItem('chat-size');
+        return saved ? JSON.parse(saved) : { width: 380, height: 520 };
+    });
+    const [isDragging, setIsDragging] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
+    const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+    const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
@@ -68,22 +82,141 @@ export function LiveChat({ user, isAdmin = false }) {
         return FAST_POLL_INTERVAL;
     }, []);
 
-    // Helper to find the message being replied to (only searches messages BEFORE currentIndex)
-    const findRepliedMessage = useCallback((message, currentIndex) => {
-        // Check if message starts with @username pattern
-        const replyMatch = message.match(/^@(\S+)\s/);
-        if (!replyMatch) return null;
+    // Save position and size to localStorage
+    useEffect(() => {
+        if (position.x !== 20 || position.y !== null) {
+            localStorage.setItem('chat-position', JSON.stringify(position));
+        }
+    }, [position]);
 
-        const mentionedUsername = replyMatch[1].toLowerCase();
+    useEffect(() => {
+        if (size.width !== 380 || size.height !== 520) {
+            localStorage.setItem('chat-size', JSON.stringify(size));
+        }
+    }, [size]);
 
-        // Only search messages before the current one, in reverse order (most recent first)
-        const previousMessages = messages.slice(0, currentIndex);
-        const repliedMsg = [...previousMessages].reverse().find(m => {
-            const msgUsername = (m.custom_username || m.discord_username || '').toLowerCase();
-            return msgUsername === mentionedUsername;
-        });
+    // Drag handlers
+    const handleDragStart = useCallback((e) => {
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea')) return;
+        e.preventDefault();
+        setIsDragging(true);
 
-        return repliedMsg || null;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // Calculate current top position
+        const currentY = position.y !== null ? position.y : window.innerHeight - 20 - size.height;
+
+        dragStartRef.current = {
+            x: clientX,
+            y: clientY,
+            posX: position.x,
+            posY: currentY
+        };
+    }, [position, size.height]);
+
+    const handleDragMove = useCallback((e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const deltaX = clientX - dragStartRef.current.x;
+        const deltaY = clientY - dragStartRef.current.y;
+
+        const newX = Math.max(0, Math.min(window.innerWidth - size.width, dragStartRef.current.posX + deltaX));
+        const newY = Math.max(0, Math.min(window.innerHeight - 60, dragStartRef.current.posY + deltaY));
+
+        setPosition({ x: newX, y: newY });
+    }, [isDragging, size.width]);
+
+    const handleDragEnd = useCallback(() => {
+        setIsDragging(false);
+    }, []);
+
+    // Resize handlers
+    const handleResizeStart = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsResizing(true);
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        resizeStartRef.current = {
+            x: clientX,
+            y: clientY,
+            width: size.width,
+            height: size.height
+        };
+    }, [size]);
+
+    const handleResizeMove = useCallback((e) => {
+        if (!isResizing) return;
+        e.preventDefault();
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        const deltaX = clientX - resizeStartRef.current.x;
+        const deltaY = resizeStartRef.current.y - clientY; // Inverted because resizing from top-right
+
+        const newWidth = Math.max(300, Math.min(600, resizeStartRef.current.width + deltaX));
+        const newHeight = Math.max(400, Math.min(800, resizeStartRef.current.height + deltaY));
+
+        setSize({ width: newWidth, height: newHeight });
+    }, [isResizing]);
+
+    const handleResizeEnd = useCallback(() => {
+        setIsResizing(false);
+    }, []);
+
+    // Global mouse/touch event listeners for drag and resize
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleDragMove);
+            window.addEventListener('mouseup', handleDragEnd);
+            window.addEventListener('touchmove', handleDragMove, { passive: false });
+            window.addEventListener('touchend', handleDragEnd);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleDragMove);
+            window.removeEventListener('mouseup', handleDragEnd);
+            window.removeEventListener('touchmove', handleDragMove);
+            window.removeEventListener('touchend', handleDragEnd);
+        };
+    }, [isDragging, handleDragMove, handleDragEnd]);
+
+    useEffect(() => {
+        if (isResizing) {
+            window.addEventListener('mousemove', handleResizeMove);
+            window.addEventListener('mouseup', handleResizeEnd);
+            window.addEventListener('touchmove', handleResizeMove, { passive: false });
+            window.addEventListener('touchend', handleResizeEnd);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleResizeMove);
+            window.removeEventListener('mouseup', handleResizeEnd);
+            window.removeEventListener('touchmove', handleResizeMove);
+            window.removeEventListener('touchend', handleResizeEnd);
+        };
+    }, [isResizing, handleResizeMove, handleResizeEnd]);
+
+    // Reset position function
+    const resetPosition = useCallback(() => {
+        setPosition({ x: 20, y: null });
+        setSize({ width: 380, height: 520 });
+        localStorage.removeItem('chat-position');
+        localStorage.removeItem('chat-size');
+    }, []);
+
+    // Helper to find the message being replied to by reply_to_id
+    const findRepliedMessage = useCallback((msg) => {
+        // Only show reply if explicitly set via reply_to_id
+        if (!msg.reply_to_id) return null;
+
+        return messages.find(m => m.id === msg.reply_to_id) || null;
     }, [messages]);
 
     // Scroll to a specific message
@@ -191,25 +324,60 @@ export function LiveChat({ user, isAdmin = false }) {
 
     useEffect(() => {
         if (user) {
+            // Initial fetch
             fetchMessages();
 
-            // Adaptive polling - adjust interval based on activity
-            const poll = () => {
-                fetchMessages(lastMessageIdRef.current || undefined);
-                // Schedule next poll with current interval
-                pollIntervalRef.current = setTimeout(poll, getPollInterval());
-            };
+            // Listen for SSE chat messages (real-time)
+            const handleSSEMessage = (event) => {
+                const newMessage = event.detail;
+                if (newMessage && newMessage.id) {
+                    setMessages(prev => {
+                        // Avoid duplicates (might already have it from own send)
+                        if (prev.some(m => m.id === newMessage.id)) return prev;
 
-            // Start polling
-            pollIntervalRef.current = setTimeout(poll, getPollInterval());
+                        // Update lastMessageIdRef
+                        if (newMessage.id > lastMessageIdRef.current) {
+                            lastMessageIdRef.current = newMessage.id;
+                        }
 
-            return () => {
-                if (pollIntervalRef.current) {
-                    clearTimeout(pollIntervalRef.current);
+                        // Track if it was for us (ping) - check for @mention of current user
+                        const currentUsername = user.custom_username || user.customUsername || user.discord_username;
+                        if (currentUsername && newMessage.message) {
+                            const mentionPattern = new RegExp(`@${currentUsername}\\b`, 'i');
+                            if (mentionPattern.test(newMessage.message) && newMessage.user_id !== user.id) {
+                                if (!isOpenRef.current || isMinimizedRef.current) {
+                                    setHasPing(true);
+                                }
+                            }
+                        }
+
+                        // Update unread count if chat is closed/minimized
+                        if (!isOpenRef.current || isMinimizedRef.current) {
+                            setUnreadCount(c => c + 1);
+                            setHasNewMessage(true);
+                        }
+
+                        return [...prev, newMessage];
+                    });
                 }
             };
+
+            window.addEventListener('sse-chat-message', handleSSEMessage);
+
+            // Sync when tab becomes visible (in case SSE missed messages while hidden)
+            const handleVisibilityChange = () => {
+                if (!document.hidden) {
+                    fetchMessages(lastMessageIdRef.current || undefined);
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+
+            return () => {
+                window.removeEventListener('sse-chat-message', handleSSEMessage);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            };
         }
-    }, [user, fetchMessages, getPollInterval]);
+    }, [user, fetchMessages]);
 
     useEffect(() => {
         if (isOpen && !isMinimized) {
@@ -312,7 +480,10 @@ export function LiveChat({ user, isAdmin = false }) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ message: messageText })
+                body: JSON.stringify({
+                    message: messageText,
+                    reply_to_id: replyingTo?.id || null
+                })
             });
 
             const data = await res.json();
@@ -320,7 +491,8 @@ export function LiveChat({ user, isAdmin = false }) {
             if (res.ok) {
                 setInputValue('');
                 setReplyingTo(null);
-                setMessages(prev => [...prev, data.message]);
+                // Don't add message locally - SSE will broadcast it back
+                // This prevents duplicate messages
                 lastMessageIdRef.current = data.message.id;
             } else {
                 setError(data.error || 'Failed to send message');
@@ -553,29 +725,66 @@ export function LiveChat({ user, isAdmin = false }) {
             {isOpen && (
                 <div style={{
                     position: 'fixed',
-                    bottom: '20px',
-                    left: '20px',
-                    width: '380px',
-                    height: isMinimized ? 'auto' : '520px',
+                    ...(position.y !== null
+                            ? { top: `${position.y}px`, left: `${position.x}px` }
+                            : { bottom: '20px', left: `${position.x}px` }
+                    ),
+                    width: `${size.width}px`,
+                    height: isMinimized ? 'auto' : `${size.height}px`,
                     background: '#12121a',
                     borderRadius: '12px',
                     border: '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    boxShadow: isDragging ? '0 12px 48px rgba(0,0,0,0.7)' : '0 8px 32px rgba(0,0,0,0.5)',
                     display: 'flex',
                     flexDirection: 'column',
                     overflow: 'hidden',
                     zIndex: 950,
-                    animation: 'chatSlideUp 0.25s ease-out'
+                    animation: isDragging ? 'none' : 'chatSlideUp 0.25s ease-out',
+                    transition: isDragging || isResizing ? 'none' : 'box-shadow 0.2s'
                 }}>
-                    {/* Header */}
-                    <div style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid rgba(255,255,255,0.06)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: 'rgba(88, 101, 242, 0.05)'
-                    }}>
+                    {/* Resize handle (top-right corner) */}
+                    {!isMinimized && (
+                        <div
+                            onMouseDown={handleResizeStart}
+                            onTouchStart={handleResizeStart}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: '20px',
+                                height: '20px',
+                                cursor: 'ne-resize',
+                                zIndex: 10
+                            }}
+                        >
+                            <div style={{
+                                position: 'absolute',
+                                top: '4px',
+                                right: '4px',
+                                width: '8px',
+                                height: '8px',
+                                borderTop: '2px solid rgba(255,255,255,0.3)',
+                                borderRight: '2px solid rgba(255,255,255,0.3)',
+                                borderRadius: '0 4px 0 0'
+                            }} />
+                        </div>
+                    )}
+
+                    {/* Header - Draggable */}
+                    <div
+                        onMouseDown={handleDragStart}
+                        onTouchStart={handleDragStart}
+                        style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'rgba(88, 101, 242, 0.05)',
+                            cursor: isDragging ? 'grabbing' : 'grab',
+                            userSelect: 'none'
+                        }}
+                    >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{
                                 width: '32px',
@@ -600,13 +809,33 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages • Use @ to mention
+                                    {messages.length} messages • Drag to move
                                 </div>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '2px' }}>
+                            {/* Reset position button - only show if moved */}
+                            {(position.x !== 20 || position.y !== null || size.width !== 380 || size.height !== 520) && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); resetPosition(); }}
+                                    title="Reset position & size"
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'rgba(255,255,255,0.4)',
+                                        cursor: 'pointer',
+                                        padding: '8px',
+                                        borderRadius: '6px',
+                                        display: 'flex'
+                                    }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+                                >
+                                    <RotateCcw size={14} />
+                                </button>
+                            )}
                             <button
-                                onClick={() => { if (isMinimized) trackActivity(); setIsMinimized(!isMinimized); }}
+                                onClick={(e) => { e.stopPropagation(); if (isMinimized) trackActivity(); setIsMinimized(!isMinimized); }}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -622,7 +851,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                 {isMinimized ? <Maximize2 size={15} /> : <Minimize2 size={15} />}
                             </button>
                             <button
-                                onClick={() => setIsOpen(false)}
+                                onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
                                 style={{
                                     background: 'transparent',
                                     border: 'none',
@@ -690,8 +919,8 @@ export function LiveChat({ user, isAdmin = false }) {
                                             const showDate = shouldShowDateSeparator(msg, index);
                                             const isMentioned = !isOwnMessage && isUserMentioned(msg.message);
 
-                                            // Check if this is a reply to someone (only search messages before this one)
-                                            const repliedMessage = findRepliedMessage(msg.message, index);
+                                            // Check if this is an explicit reply (has reply_to_id)
+                                            const repliedMessage = findRepliedMessage(msg);
                                             const isReply = repliedMessage !== null;
 
                                             return (
@@ -977,7 +1206,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '150px'
                                             }}>
-                                                — {decodeHtmlEntities(replyingTo.message)}
+                                                â€” {decodeHtmlEntities(replyingTo.message)}
                                             </span>
                                         )}
                                     </div>

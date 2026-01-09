@@ -20,7 +20,9 @@ export const COLORS = {
     purple: '#AA00AA',
     red: '#FF5555',
     orange: '#FF8800',
-    insane: '#FFD700'  // Bright gold for insane rarity
+    insane: '#FFD700',  // Bright gold for insane rarity
+    recursion: '#00FF00', // Matrix green for recursion
+    recursionDark: '#001100', // Dark green/black for recursion
 };
 
 export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
@@ -100,6 +102,15 @@ export const EVENT_ITEM = {
     chance: 0.9,
     type: 'event',
     imageUrl: '/event.png'
+};
+
+// Recursion - wheel within the wheel (global lucky spin event)
+export const RECURSION_ITEM = {
+    name: 'RECURSION',
+    texture: 'recursion',
+    chance: 0.0025,
+    type: 'recursion',
+    imageUrl: '/wheel.png'
 };
 
 // Available bonus events

@@ -6,6 +6,14 @@ import unicodeItems from '../unicodeItems.json'
 
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
+// Register service worker for texture caching
+// Textures cache naturally as you spin - no upfront download needed
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('[SW] Registered'))
+        .catch(err => console.error('[SW] Registration failed:', err));
+}
+
 const mainItems = unicodeItems
     .filter(item => !item.material.endsWith('_tabChat'))
     .map(item => item.material.toLowerCase());

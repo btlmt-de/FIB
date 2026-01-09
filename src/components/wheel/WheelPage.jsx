@@ -13,6 +13,7 @@ import { Achievements } from './Achievements';
 import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
 import { MythicCelebration } from './MythicCelebration';
+import { RecursionOverlay } from './RecursionOverlay';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
@@ -230,17 +231,17 @@ function WheelOfFortunePage({ onBack }) {
         }
 
         fetchNotificationCount();
-        // Poll every 60 seconds
-        const interval = setInterval(fetchNotificationCount, 60000);
+        // Poll every 5 minutes as backup
+        const interval = setInterval(fetchNotificationCount, 300000);
         return () => clearInterval(interval);
     }, [user]);
 
-    // Preload item images to prevent pop-in during spin
+    // Preload some item images - service worker caches the rest as you play
     function preloadImages(items, specialItems) {
         const IMAGE_BASE = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
-        // Preload regular items (sample ~100 random ones to avoid loading 400+)
-        const sampleSize = Math.min(100, items.length);
+        // Preload ~50 random items to warm up cache for first spin
+        const sampleSize = Math.min(50, items.length);
         const sampledItems = items.sort(() => Math.random() - 0.5).slice(0, sampleSize);
 
         sampledItems.forEach(item => {
@@ -248,7 +249,7 @@ function WheelOfFortunePage({ onBack }) {
             img.src = `${IMAGE_BASE}/${item.texture}.png`;
         });
 
-        // Preload all special item images
+        // Preload all special item images (rare, always want these ready)
         specialItems.forEach(item => {
             const img = new Image();
             if (item.image_url) {
@@ -933,6 +934,9 @@ function WheelOfFortunePage({ onBack }) {
 
             {/* Insane Item Celebration - full screen celebration for insane pulls */}
             <MythicCelebration currentUserId={user?.id} />
+
+            {/* Recursion Overlay - matrix effect when recursion event is active */}
+            <RecursionOverlay currentUserId={user?.id} />
 
             {/* Notification Center */}
             {showNotifications && (

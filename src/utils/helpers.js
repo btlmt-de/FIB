@@ -123,6 +123,10 @@ export function isEventItem(item) {
     return item?.isEvent || item?.type === 'event' || item?.texture?.startsWith('event_');
 }
 
+export function isRecursionItem(item) {
+    return item?.isRecursion || item?.type === 'recursion' || item?.texture === 'recursion';
+}
+
 // ============================================
 // Item Display Helpers
 // ============================================
@@ -179,6 +183,11 @@ export function getItemImageUrl(item) {
         return '/event.png';
     }
 
+    // Recursion items use wheel texture
+    if (type === 'recursion' || texture === 'recursion') {
+        return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
+    }
+
     // Regular items
     if (texture) {
         return `${IMAGE_BASE_URL}/${texture}.png`;
@@ -193,6 +202,7 @@ export function getItemColor(item) {
     if (isMythicItem(item)) return COLORS.aqua;
     if (isSpecialItem(item)) return COLORS.purple;
     if (isRareItem(item)) return COLORS.red;
+    if (isRecursionItem(item)) return COLORS.recursion;
     if (isEventItem(item)) return COLORS.gold;
     return COLORS.gold;
 }

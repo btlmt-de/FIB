@@ -27,7 +27,7 @@ function AchievementIcon({ name, size = 16, color, style = {} }) {
 
 export function LiveActivityToast() {
     const [toasts, setToasts] = useState([]);
-    const { newItems, serverTime, clearNewItems } = useActivity();
+    const { newItems, clearNewItems } = useActivity();
     const pendingTimeoutsRef = useRef([]);
     const processedIdsRef = useRef(new Set());
     const isMountedRef = useRef(true);
@@ -35,9 +35,6 @@ export function LiveActivityToast() {
     // Process new items from context
     useEffect(() => {
         if (!newItems || newItems.length === 0) return;
-
-        const DELAY_AFTER_CREATION = 5000; // Show toast 5s after spin (matches 4s spin duration)
-        const currentServerTime = serverTime || Date.now();
 
         // Filter out already processed items
         const unprocessedItems = newItems.filter(item => !processedIdsRef.current.has(item.id));
@@ -49,21 +46,33 @@ export function LiveActivityToast() {
             // Mark as processed
             processedIdsRef.current.add(item.id);
 
-            // Parse created_at - append 'Z' if no timezone to treat as UTC
+            // Parse created_at
             let createdAtStr = item.created_at;
             if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
                 createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
             }
             const itemCreatedAt = new Date(createdAtStr).getTime();
-            const itemAge = currentServerTime - itemCreatedAt;
-            const remainingDelay = Math.max(500, DELAY_AFTER_CREATION - itemAge) + (idx * 300);
+            const now = Date.now();
+            const itemAge = now - itemCreatedAt;
+
+            // If item is very fresh (< 2 seconds), it's from SSE - delay to respect spin animation
+            // If item is older, it's from initial fetch during spin animation - calculate remaining delay
+            let delay;
+            if (itemAge < 2000) {
+                // Fresh SSE item - delay 4 seconds to respect spin animation
+                delay = 4000 + (idx * 300);
+            } else {
+                // Older item - apply remaining delay to sync with spin animation
+                const DELAY_AFTER_CREATION = 5000;
+                delay = Math.max(500, DELAY_AFTER_CREATION - itemAge) + (idx * 300);
+            }
 
             const timeoutId = setTimeout(() => {
                 if (isMountedRef.current) {
                     addToast(item);
                 }
                 pendingTimeoutsRef.current = pendingTimeoutsRef.current.filter(id => id !== timeoutId);
-            }, remainingDelay);
+            }, delay);
             pendingTimeoutsRef.current.push(timeoutId);
         });
 
@@ -75,7 +84,7 @@ export function LiveActivityToast() {
             const idsArray = Array.from(processedIdsRef.current);
             processedIdsRef.current = new Set(idsArray.slice(-50));
         }
-    }, [newItems, serverTime, clearNewItems]);
+    }, [newItems, clearNewItems]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -379,7 +388,7 @@ export function LiveActivityToast() {
                                         fontWeight: '600',
                                         flexShrink: 0
                                     }}>
-                                        🍀
+                                        ðŸ€
                                     </span>
                                 )}
                             </div>
