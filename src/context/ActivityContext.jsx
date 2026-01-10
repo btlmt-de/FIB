@@ -132,13 +132,18 @@ export function ActivityProvider({ children }) {
 
                             case 'activity':
                                 if (data.item && data.item.id) {
-                                    // Update serverTime from SSE message if provided, otherwise use current time
+                                    // Update serverTime from SSE message if provided and valid
                                     // This prevents stale timestamps that cause delayed celebrations
                                     if (data.serverTime) {
-                                        setServerTime(new Date(data.serverTime).getTime());
-                                    } else {
-                                        setServerTime(Date.now());
+                                        const parsedTime = new Date(data.serverTime).getTime();
+                                        if (Number.isFinite(parsedTime)) {
+                                            setServerTime(parsedTime);
+                                        } else {
+                                            console.warn('[ActivityContext] Invalid serverTime from SSE:', data.serverTime);
+                                            setServerTime(null);
+                                        }
                                     }
+                                    // If no serverTime provided, leave it unchanged (don't default to Date.now())
 
                                     // Prepend to feed
                                     setFeed(prev => {

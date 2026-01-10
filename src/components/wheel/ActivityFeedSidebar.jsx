@@ -37,6 +37,12 @@ export function ActivityFeedSidebar() {
     const processedIdsRef = useRef(new Set());
     const timeoutsRef = useRef([]);
     const isMountedRef = useRef(true);
+    const serverTimeRef = useRef(serverTime);
+
+    // Keep serverTimeRef in sync without causing effect re-runs
+    useEffect(() => {
+        serverTimeRef.current = serverTime;
+    }, [serverTime]);
 
     // Track mounted state and cleanup timeouts on unmount only
     useEffect(() => {
@@ -53,8 +59,8 @@ export function ActivityFeedSidebar() {
     useEffect(() => {
         if (!rawFeed) return;
 
-        // Use serverTime if available to avoid client clock skew
-        const now = serverTime || Date.now();
+        // Use serverTime if available to avoid client clock skew (read from ref to avoid dependency)
+        const now = serverTimeRef.current || Date.now();
 
         rawFeed.forEach(item => {
             if (item.event_type === 'achievement_unlock') return;
@@ -98,7 +104,7 @@ export function ActivityFeedSidebar() {
             processedIdsRef.current = new Set(ids.slice(-100));
         }
         // Note: No cleanup here - timeouts are managed separately and cleared on unmount
-    }, [rawFeed, serverTime]);
+    }, [rawFeed]); // serverTime accessed via ref to avoid frequent re-runs
 
     // Sort delayed feed by created_at
     const feed = useMemo(() => {

@@ -33,6 +33,7 @@ export function LiveChat({ user, isAdmin = false }) {
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [showOnlineList, setShowOnlineList] = useState(false);
     const savedScrollPosRef = useRef(null);
+    const restoringScrollRef = useRef(false);
 
     // Typing indicator state
     const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, username}
@@ -532,11 +533,14 @@ export function LiveChat({ user, isAdmin = false }) {
         }
     }, [user, fetchMessages]);
 
+    // Auto-scroll to bottom when new messages arrive (skip when viewing online list or restoring scroll)
     useEffect(() => {
+        if (showOnlineList) return; // Don't auto-scroll when online list is shown
+        if (restoringScrollRef.current) return; // Don't auto-scroll during scroll restoration
         if (isOpen && !isMinimized) {
             scrollToBottom(false);
         }
-    }, [messages.length, isOpen, isMinimized]);
+    }, [messages.length, isOpen, isMinimized, showOnlineList]);
 
     useEffect(() => {
         if (isOpen && !isMinimized) {
@@ -1164,10 +1168,15 @@ export function LiveChat({ user, isAdmin = false }) {
                                         }
                                     } else {
                                         // Switching back to messages - restore scroll position after render
+                                        restoringScrollRef.current = true;
                                         setTimeout(() => {
                                             if (messagesContainerRef.current && savedScrollPosRef.current !== null) {
                                                 messagesContainerRef.current.scrollTop = savedScrollPosRef.current;
                                             }
+                                            // Clear flag after a short delay to allow scroll to settle
+                                            setTimeout(() => {
+                                                restoringScrollRef.current = false;
+                                            }, 50);
                                         }, 0);
                                     }
                                     setShowOnlineList(!showOnlineList);

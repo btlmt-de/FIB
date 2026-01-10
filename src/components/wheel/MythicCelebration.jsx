@@ -14,7 +14,7 @@ import { Sparkles, Star, Crown, Diamond } from 'lucide-react';
 // Configuration
 const CELEBRATION_DELAY = 4000;
 const CELEBRATION_DURATION = 12000;
-const CONFETTI_COUNT = 300;
+const CONFETTI_COUNT = 500;
 
 // Color schemes for each rarity
 const RARITY_THEMES = {
@@ -73,7 +73,8 @@ export function MythicCelebration({ currentUserId }) {
     const triggerCelebration = useCallback((item) => {
         const rarity = item.item_rarity;
         const theme = RARITY_THEMES[rarity] || RARITY_THEMES.mythic;
-        const isCurrentUser = item.user_id === currentUserId;
+        // Defensive check: only match if currentUserId is defined
+        const isCurrentUser = currentUserId != null && item.user_id === currentUserId;
 
         // Play sound for OTHER users only - the user who pulled already hears it from WheelSpinner
         if (!isCurrentUser) {
@@ -93,7 +94,7 @@ export function MythicCelebration({ currentUserId }) {
             itemTexture: item.item_texture || item.texture,
             discordId: item.discord_id,
             discordAvatar: item.discord_avatar,
-            isCurrentUser: item.user_id === currentUserId,
+            isCurrentUser, // Reuse computed variable
             rarity: rarity,
             theme: theme,
             // For mythic items with username (like eltobito), we need the head URL
