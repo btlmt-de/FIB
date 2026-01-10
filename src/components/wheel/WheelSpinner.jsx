@@ -130,7 +130,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 e.preventDefault();
 
                 // If in result state, use respin for instant re-spin
-                if (state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult') {
+                if (state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult' || state === 'recursion') {
                     respinRef.current?.();
                 } else if (state === 'idle') {
                     spinRef.current?.();
@@ -196,7 +196,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
-        const finalIndex = length - 8;
+        const finalIndex = length - 8; // Position 72 for length 80
 
         // Shuffle all item pools for better visual randomness
         const shuffledItems = shuffleArray([...allItems]);
@@ -250,8 +250,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     itemIndex++;
                 }
 
+                // ALWAYS push an item - fallback to first available item if needed
                 if (newItem) {
                     newStrip.push(newItem);
+                } else if (shuffledItems.length > 0) {
+                    // Fallback: use a regular item
+                    newStrip.push(shuffledItems[itemIndex % shuffledItems.length]);
+                    itemIndex++;
+                } else {
+                    // Ultimate fallback: use the finalItem (shouldn't happen in practice)
+                    newStrip.push(finalItem);
                 }
             }
         }
@@ -384,13 +392,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     // Check again before updating state
                     if (animationCancelledRef.current) return null;
 
-                    // Update only the final item in the strip, preserving all other items
+                    // Update only the final item in the strip at FINAL_INDEX (position 72)
                     // This prevents visible items from randomly changing during the animation
                     setStrip(prevStrip => {
                         const newStrip = [...prevStrip];
-                        const finalIndex = newStrip.length - 8;
-                        if (finalIndex >= 0 && finalIndex < newStrip.length) {
-                            newStrip[finalIndex] = finalItem;
+                        // Use constant FINAL_INDEX to ensure consistency with animation target
+                        if (FINAL_INDEX >= 0 && FINAL_INDEX < newStrip.length) {
+                            newStrip[FINAL_INDEX] = finalItem;
                         }
                         return newStrip;
                     });
@@ -433,7 +441,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     // Animation complete - wait for API if needed, then finish
                     apiCall.then((result) => {
                         // Check for cancellation before updating state
-                        if (animationCancelledRef.current || result === null) return;
+                        if (animationCancelledRef.current) return;
+
+                        // If result is null (e.g., abort), reset to idle
+                        if (result === null) {
+                            setState('idle');
+                            return;
+                        }
+
                         if (result.isRecursion) {
                             // RECURSION triggered! Show special result state
                             setState('recursion');
@@ -1331,7 +1346,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 <div
                     onClick={() => {
                         if (!isMobile || !user || allItems.length === 0) return;
-                        if (state === 'result') {
+                        if (state === 'result' || state === 'recursion') {
                             respinRef.current?.();
                         } else if (state === 'idle') {
                             spinRef.current?.();
