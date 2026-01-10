@@ -378,7 +378,7 @@ function CraftingGrid({ recipe, result, resultName, glowColor = COLORS.gold }) {
                     fontSize: '32px',
                     transition: 'all 0.3s ease',
                     textShadow: `0 0 10px ${glowColor}44`
-                }}>â†’</div>
+                }}>→</div>
 
                 <div style={{
                     width: '70px',
@@ -621,7 +621,7 @@ function LootSimulationResult({ items, onReroll, roomColor }) {
                         e.currentTarget.style.transform = 'translateY(0)';
                     }}
                 >
-                    â†» Open Again
+                    ↻ Open Again
                 </button>
             </div>
 
@@ -690,7 +690,7 @@ function LootSimulationResult({ items, onReroll, roomColor }) {
                                             borderRadius: '4px',
                                             border: `1px solid ${COLORS.border}`
                                         }}>
-                                            Ã—{item.count}
+                                            ×{item.count}
                                         </span>
                                     )}
                                 </div>
@@ -1123,7 +1123,7 @@ export default function CustomStructures() {
                     <Section id="antimatter-depths" title="Antimatter Depths" color={COLORS.purple}>
                         <Paragraph>
                             The Antimatter Depths replaces the vanilla Stronghold as the gateway to the End.
-                            It spawns at <Highlight>Y-level âˆ’10</Highlight> and provides a much faster route
+                            It spawns at <Highlight>Y-level −10</Highlight> and provides a much faster route
                             to the End dimension.
                         </Paragraph>
                         <Paragraph>
@@ -1325,7 +1325,7 @@ export default function CustomStructures() {
                         </a>
                     </div>
                     <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
-                        Made with â¤ï¸
+                        Made with ❤️
                     </p>
                     <p style={{ margin: '12px 0 0 0', fontSize: '11px', color: `${COLORS.textMuted}99` }}>
                         Not affiliated with Mojang Studios

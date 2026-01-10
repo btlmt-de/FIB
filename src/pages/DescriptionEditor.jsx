@@ -541,7 +541,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
         if (existingDraft) {
             setSaveStatus({
                 type: 'info',
-                message: `📝 Draft restored from ${new Date(existingDraft.timestamp).toLocaleString()}`
+                message: `📋 Draft restored from ${new Date(existingDraft.timestamp).toLocaleString()}`
             });
             // Auto-clear after 3 seconds
             setTimeout(() => setSaveStatus(null), 3000);
@@ -1662,7 +1662,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         alignItems: 'center',
                                         gap: '4px'
                                     }}>
-                                        ⚠️ Pushing directly to {DEFAULT_BRANCH}
+                                        ⚠ Pushing directly to {DEFAULT_BRANCH}
                                     </span>
                                 )}
                             </div>

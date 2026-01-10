@@ -238,9 +238,9 @@ function NotificationManager() {
                                     cursor: 'pointer'
                                 }}
                             >
-                                <option value="changelog">ðŸ“ Changelog</option>
-                                <option value="announcement">ðŸ“¢ Announcement</option>
-                                <option value="maintenance">ðŸ”§ Maintenance</option>
+                                <option value="changelog">📋 Changelog</option>
+                                <option value="announcement">📢 Announcement</option>
+                                <option value="maintenance">🔧 Maintenance</option>
                             </select>
                         </div>
 
