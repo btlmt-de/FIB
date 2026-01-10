@@ -401,8 +401,8 @@ export function useNotifications() {
 
     useEffect(() => {
         fetchUnreadCount();
-        // Poll every 60 seconds
-        const interval = setInterval(fetchUnreadCount, 60000);
+        // Poll every 5 minutes as backup
+        const interval = setInterval(fetchUnreadCount, 300000);
         return () => clearInterval(interval);
     }, [fetchUnreadCount]);
 

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { COLORS } from '../../config/constants.js';
 import { Activity, Sparkles, Crown } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
@@ -31,28 +31,83 @@ function formatExactTime(dateStr) {
 }
 
 export function ActivityFeedSidebar() {
-    const { feed: rawFeed, serverTime, initialized } = useActivity();
+    const { feed: rawFeed, initialized, serverTime } = useActivity();
     const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
+    const [delayedFeed, setDelayedFeed] = useState([]);
+    const processedIdsRef = useRef(new Set());
+    const timeoutsRef = useRef([]);
+    const isMountedRef = useRef(true);
 
-    const feed = useMemo(() => {
-        if (!rawFeed || !serverTime) return [];
+    // Track mounted state
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
-        const DELAY_AFTER_CREATION = 5000;
+    // Delay new items by 4 seconds to respect spin animation
+    useEffect(() => {
+        if (!rawFeed) return;
 
-        return rawFeed.filter(item => {
-            // Filter out achievement unlocks
-            if (item.event_type === 'achievement_unlock') return false;
+        // Use serverTime if available to avoid client clock skew
+        const now = serverTime || Date.now();
 
-            // Parse created_at - append 'Z' if no timezone to treat as UTC
+        rawFeed.forEach(item => {
+            if (item.event_type === 'achievement_unlock') return;
+            if (processedIdsRef.current.has(item.id)) return;
+
+            processedIdsRef.current.add(item.id);
+
+            // Check if item is fresh (< 2 seconds old = from SSE)
             let createdAtStr = item.created_at;
             if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
                 createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
             }
-            const itemCreatedAt = new Date(createdAtStr).getTime();
-            const itemAge = serverTime - itemCreatedAt;
-            return itemAge >= DELAY_AFTER_CREATION;
+            const itemAge = now - new Date(createdAtStr).getTime();
+
+            if (itemAge < 2000) {
+                // Fresh SSE item - delay by 4 seconds
+                const timeoutId = setTimeout(() => {
+                    if (!isMountedRef.current) return;
+                    setDelayedFeed(prev => {
+                        if (prev.some(i => i.id === item.id)) return prev;
+                        return [item, ...prev].slice(0, 150);
+                    });
+                }, 4000);
+                timeoutsRef.current.push(timeoutId);
+            } else {
+                // Older item from initial fetch - show immediately
+                if (isMountedRef.current) {
+                    setDelayedFeed(prev => {
+                        if (prev.some(i => i.id === item.id)) return prev;
+                        return [item, ...prev].slice(0, 150);
+                    });
+                }
+            }
         });
+
+        // Keep processedIds clean
+        if (processedIdsRef.current.size > 200) {
+            const ids = Array.from(processedIdsRef.current);
+            processedIdsRef.current = new Set(ids.slice(-100));
+        }
+
+        // Cleanup: clear all pending timeouts on unmount or when effect re-runs
+        return () => {
+            timeoutsRef.current.forEach(id => clearTimeout(id));
+            timeoutsRef.current = [];
+        };
     }, [rawFeed, serverTime]);
+
+    // Sort delayed feed by created_at
+    const feed = useMemo(() => {
+        return [...delayedFeed].sort((a, b) => {
+            const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
+            const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
+            return dateB - dateA;
+        });
+    }, [delayedFeed]);
 
     // Filter for mythic and insane only
     const specialFeed = useMemo(() => {
@@ -370,18 +425,23 @@ export function ActivityFeedSidebar() {
                                             {item.item_name}
                                         </span>
                                         {item.is_lucky === 1 && (
-                                            <span title="Lucky Spin" style={{
-                                                fontSize: '10px',
-                                                background: `${COLORS.gold}33`,
-                                                color: COLORS.gold,
-                                                padding: '1px 4px',
+                                            <span style={{
+                                                fontSize: '9px',
+                                                background: 'linear-gradient(135deg, #00440033, #00FF0022)',
+                                                color: '#00FF00',
+                                                padding: '2px 5px',
                                                 borderRadius: '4px',
-                                                fontWeight: '600',
+                                                fontWeight: '700',
                                                 flexShrink: 0,
                                                 display: 'flex',
-                                                alignItems: 'center'
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                border: '1px solid #00FF0033',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.3px',
+                                                textShadow: '0 0 6px #00FF0044'
                                             }}>
-                                                <Sparkles size={10} />
+                                                Lucky Spin
                                             </span>
                                         )}
                                     </div>

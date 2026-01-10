@@ -267,5 +267,296 @@ export const AnimationStyles = () => (
                 transform: translateY(0) scale(1);
             }
         }
+        @keyframes recursionGlow {
+            0%, 100% { 
+                box-shadow: 0 0 20px ${COLORS.recursion}cc, 0 0 40px ${COLORS.recursion}66, 0 0 60px ${COLORS.recursionDark}44;
+                border-color: ${COLORS.recursion};
+                filter: brightness(1.1);
+            }
+            50% { 
+                box-shadow: 0 0 30px ${COLORS.recursionDark}dd, 0 0 60px ${COLORS.recursion}77, 0 0 90px ${COLORS.recursion}33;
+                border-color: ${COLORS.recursionDark};
+                filter: brightness(0.9);
+            }
+        }
+        @keyframes recursionPulse {
+            0%, 100% { 
+                transform: scale(1);
+                filter: brightness(1) hue-rotate(0deg);
+            }
+            25% { 
+                transform: scale(1.02);
+                filter: brightness(1.3) hue-rotate(5deg);
+            }
+            50% { 
+                transform: scale(1);
+                filter: brightness(0.8) hue-rotate(-5deg);
+            }
+            75% { 
+                transform: scale(1.01);
+                filter: brightness(1.2) hue-rotate(3deg);
+            }
+        }
+        @keyframes matrixRain {
+            0% { transform: translateY(-100%); opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+        @keyframes matrixGlitch {
+            0%, 100% { 
+                transform: translate(0);
+                filter: none;
+            }
+            10% { 
+                transform: translate(-2px, 1px);
+                filter: hue-rotate(90deg);
+            }
+            20% { 
+                transform: translate(2px, -1px);
+                filter: hue-rotate(-90deg);
+            }
+            30% { 
+                transform: translate(-1px, 2px);
+                filter: saturate(2);
+            }
+            40% { 
+                transform: translate(1px, -2px);
+                filter: brightness(1.5);
+            }
+            50% { 
+                transform: translate(-2px, -1px);
+                filter: contrast(1.5);
+            }
+            60% { 
+                transform: translate(2px, 1px);
+                filter: invert(0.1);
+            }
+            70% { 
+                transform: translate(0, 2px);
+                filter: hue-rotate(180deg);
+            }
+            80% { 
+                transform: translate(-1px, 0);
+                filter: saturate(0.5);
+            }
+            90% { 
+                transform: translate(1px, 1px);
+                filter: brightness(0.8);
+            }
+        }
+        @keyframes matrixFlicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+            75% { opacity: 0.95; }
+            90% { opacity: 0.9; }
+        }
+        @keyframes recursionTextGlitch {
+            0%, 100% { 
+                text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
+                transform: translate(0);
+            }
+            10% { 
+                text-shadow: -2px 0 #FF0000, 2px 0 #00FFFF, 0 0 10px #00FF00;
+                transform: translate(2px, -1px);
+            }
+            20% { 
+                text-shadow: 2px 0 #FF0000, -2px 0 #00FFFF, 0 0 10px #00FF00;
+                transform: translate(-2px, 1px);
+            }
+            30% { 
+                text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
+                transform: translate(0);
+            }
+        }
+        
+        /* Chromatic Aberration - RGB color split effect */
+        @keyframes chromaticAberration {
+            0%, 100% {
+                text-shadow: 
+                    0 0 10px #00FF00,
+                    0 0 20px #00FF00;
+                filter: none;
+            }
+            25% {
+                text-shadow: 
+                    -3px 0 rgba(255, 0, 0, 0.8),
+                    3px 0 rgba(0, 255, 255, 0.8),
+                    0 0 15px #00FF00;
+                filter: blur(0.3px);
+            }
+            50% {
+                text-shadow: 
+                    2px 0 rgba(255, 0, 0, 0.6),
+                    -2px 0 rgba(0, 255, 255, 0.6),
+                    0 0 20px #00FF00;
+                filter: none;
+            }
+            75% {
+                text-shadow: 
+                    -2px 1px rgba(255, 0, 0, 0.7),
+                    2px -1px rgba(0, 255, 255, 0.7),
+                    0 0 15px #00FF00;
+                filter: blur(0.2px);
+            }
+        }
+        
+        /* Chromatic aberration for boxes/containers */
+        @keyframes chromaticBox {
+            0%, 100% {
+                box-shadow: 
+                    0 0 20px #00FF0088,
+                    inset 0 0 15px #00FF0022;
+            }
+            20% {
+                box-shadow: 
+                    -3px 0 15px rgba(255, 0, 0, 0.4),
+                    3px 0 15px rgba(0, 255, 255, 0.4),
+                    0 0 25px #00FF0088,
+                    inset 0 0 15px #00FF0022;
+            }
+            40% {
+                box-shadow: 
+                    2px 0 10px rgba(255, 0, 0, 0.3),
+                    -2px 0 10px rgba(0, 255, 255, 0.3),
+                    0 0 20px #00FF0088,
+                    inset 0 0 15px #00FF0022;
+            }
+            60% {
+                box-shadow: 
+                    -2px 1px 12px rgba(255, 0, 0, 0.35),
+                    2px -1px 12px rgba(0, 255, 255, 0.35),
+                    0 0 22px #00FF0088,
+                    inset 0 0 15px #00FF0022;
+            }
+            80% {
+                box-shadow: 
+                    0 0 20px #00FF0088,
+                    inset 0 0 15px #00FF0022;
+            }
+        }
+        
+        /* Enhanced indicator needle pulse */
+        @keyframes indicatorPulse {
+            0%, 100% {
+                filter: drop-shadow(0 0 8px #00FF00) drop-shadow(0 0 16px #00FF00);
+                transform: translateX(-50%) scale(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 15px #00FF00) drop-shadow(0 0 30px #00FF00) drop-shadow(0 0 45px #00FF0088);
+                transform: translateX(-50%) scale(1.1);
+            }
+        }
+        
+        /* Indicator pulse when landing on item */
+        @keyframes indicatorLand {
+            0% {
+                filter: drop-shadow(0 0 20px #00FF00) drop-shadow(0 0 40px #00FF00);
+                transform: translateX(-50%) scale(1.3);
+            }
+            50% {
+                filter: drop-shadow(0 0 30px #FFFFFF) drop-shadow(0 0 60px #00FF00);
+                transform: translateX(-50%) scale(1.4);
+            }
+            100% {
+                filter: drop-shadow(0 0 10px #00FF00) drop-shadow(0 0 20px #00FF00);
+                transform: translateX(-50%) scale(1);
+            }
+        }
+        
+        /* Matrix rain for banner */
+        @keyframes matrixRainFast {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        
+        /* Rarity aura glow for spinning items */
+        @keyframes rarityAuraPurple {
+            0%, 100% { 
+                box-shadow: 0 0 15px ${COLORS.purple}66, 0 0 30px ${COLORS.purple}33;
+            }
+            50% { 
+                box-shadow: 0 0 25px ${COLORS.purple}88, 0 0 50px ${COLORS.purple}44;
+            }
+        }
+        @keyframes rarityAuraGold {
+            0%, 100% { 
+                box-shadow: 0 0 15px ${COLORS.gold}66, 0 0 30px ${COLORS.gold}33;
+            }
+            50% { 
+                box-shadow: 0 0 25px ${COLORS.gold}88, 0 0 50px ${COLORS.gold}44;
+            }
+        }
+        @keyframes rarityAuraAqua {
+            0%, 100% { 
+                box-shadow: 0 0 20px ${COLORS.aqua}77, 0 0 40px ${COLORS.purple}33;
+            }
+            50% { 
+                box-shadow: 0 0 35px ${COLORS.aqua}99, 0 0 60px ${COLORS.purple}55;
+            }
+        }
+        @keyframes rarityAuraRed {
+            0%, 100% { 
+                box-shadow: 0 0 12px ${COLORS.red}55, 0 0 24px ${COLORS.red}22;
+            }
+            50% { 
+                box-shadow: 0 0 20px ${COLORS.red}77, 0 0 40px ${COLORS.red}33;
+            }
+        }
+        @keyframes rarityAuraInsane {
+            0%, 100% { 
+                box-shadow: 0 0 25px ${COLORS.insane}88, 0 0 50px #FFF5B044;
+            }
+            50% { 
+                box-shadow: 0 0 40px ${COLORS.insane}aa, 0 0 70px #FFF5B066;
+            }
+        }
+        @keyframes rarityAuraGreen {
+            0%, 100% { 
+                box-shadow: 0 0 15px #00FF0066, 0 0 30px #00FF0033;
+            }
+            50% { 
+                box-shadow: 0 0 25px #00FF0088, 0 0 50px #00FF0044;
+            }
+        }
+        
+        /* CRT flicker effect */
+        @keyframes crtFlicker {
+            0% { opacity: 0.97; }
+            5% { opacity: 0.95; }
+            10% { opacity: 0.98; }
+            15% { opacity: 0.94; }
+            20% { opacity: 0.98; }
+            50% { opacity: 0.96; }
+            80% { opacity: 0.98; }
+            90% { opacity: 0.95; }
+            100% { opacity: 0.97; }
+        }
+        
+        /* Glitch slice effect */
+        @keyframes glitchSlice {
+            0%, 100% {
+                clip-path: inset(0 0 0 0);
+                transform: translate(0);
+            }
+            10% {
+                clip-path: inset(20% 0 60% 0);
+                transform: translate(-5px);
+            }
+            20% {
+                clip-path: inset(50% 0 30% 0);
+                transform: translate(5px);
+            }
+            30% {
+                clip-path: inset(10% 0 70% 0);
+                transform: translate(-3px);
+            }
+            40% {
+                clip-path: inset(70% 0 10% 0);
+                transform: translate(3px);
+            }
+            50% {
+                clip-path: inset(0 0 0 0);
+                transform: translate(0);
+            }
+        }
     `}</style>
 );

@@ -20,7 +20,9 @@ export const COLORS = {
     purple: '#AA00AA',
     red: '#FF5555',
     orange: '#FF8800',
-    insane: '#FFD700'  // Bright gold for insane rarity
+    insane: '#FFD700',  // Bright gold for insane rarity
+    recursion: '#00FF00', // Matrix green for recursion
+    recursionDark: '#001100', // Dark green/black for recursion
 };
 
 export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
@@ -37,6 +39,7 @@ export const TEAM_MEMBERS = [
     { name: 'CH0RD', username: 'CH0RD', chance: 0.0004, rarity: 'legendary' },
     { name: 'stupxd', username: 'stupxd', chance: 0.0005, rarity: 'legendary' },
     { name: 'Wandering Trader', username: null, chance: 0.00005, rarity: 'legendary', imageUrl: '/wandering_trader.png' },
+    { name: 'ChromaRGBDirt', username: null, chance: 0.0002, rarity: 'legendary', imageUrl: '/rgbdirt.gif' },
 ];
 
 export const RARE_MEMBERS = [
@@ -102,10 +105,19 @@ export const EVENT_ITEM = {
     imageUrl: '/event.png'
 };
 
+// Recursion - wheel within the wheel (global lucky spin event)
+export const RECURSION_ITEM = {
+    name: 'RECURSION',
+    texture: 'recursion',
+    chance: 0.0025,
+    type: 'recursion',
+    imageUrl: WHEEL_TEXTURE_URL
+};
+
 // Available bonus events
 // Weights: 20% triple_lucky_spin, 40% triple_spin, 40% lucky_spin
 export const BONUS_EVENTS = [
-    { id: 'triple_spin', name: 'Triple Spin', description: '3 bonus spins!', color: COLORS.orange, weight: 40 },
+    { id: 'triple_spin', name: '5x Spin', description: '5 bonus spins!', color: COLORS.orange, weight: 40 },
     { id: 'lucky_spin', name: 'Lucky Spin', description: 'Equal chance for all items!', color: COLORS.green, weight: 40 },
     { id: 'triple_lucky_spin', name: 'Triple Lucky Spin', description: '3 lucky spins!', color: COLORS.gold, weight: 20 },
 ];

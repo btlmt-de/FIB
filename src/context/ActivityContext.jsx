@@ -1,7 +1,8 @@
 // ============================================
-// Activity Context - Centralized activity feed polling
+// Activity Context - Real-time activity via SSE
 // ============================================
-// This prevents multiple components from polling /api/activity independently
+// Uses Server-Sent Events for instant updates
+// Initial fetch on mount, then pure SSE for real-time
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
@@ -12,21 +13,42 @@ export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
     const [serverTime, setServerTime] = useState(null);
     const [lastId, setLastId] = useState(null);
-    const [newItems, setNewItems] = useState([]); // Items detected since last check
+    const [newItems, setNewItems] = useState([]);
     const [initialized, setInitialized] = useState(false);
+    const [recursionStatus, setRecursionStatus] = useState({ active: false });
 
-    const intervalRef = useRef(null);
     const isVisibleRef = useRef(true);
+    const eventSourceRef = useRef(null);
+    const lastIdRef = useRef(null);
+    const initializedRef = useRef(false);
 
+    // Keep refs in sync with state
+    useEffect(() => {
+        lastIdRef.current = lastId;
+    }, [lastId]);
+
+    useEffect(() => {
+        initializedRef.current = initialized;
+    }, [initialized]);
+
+    // Fetch recursion status
+    const fetchRecursionStatus = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/recursion/status`, { credentials: 'include' });
+            const data = await res.json();
+            setRecursionStatus(data);
+        } catch (e) {
+            console.error('[ActivityContext] Failed to fetch recursion status:', e);
+        }
+    }, []);
+
+    // Fetch activity feed - uses refs to avoid dependency issues
     const fetchActivity = useCallback(async () => {
-        // Skip fetch if tab is not visible
         if (!isVisibleRef.current) return;
 
         try {
-            // Fetch all activity including achievements (for toasts) with higher limit
-            // so sidebar has enough items after filtering out achievements
             const [allRes, rareRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/activity/all?limit=100`),
+                fetch(`${API_BASE_URL}/api/activity/all?limit=100`, { credentials: 'include' }),
                 fetch(`${API_BASE_URL}/api/activity/rare?days=7&limit=50`)
             ]);
 
@@ -34,19 +56,27 @@ export function ActivityProvider({ children }) {
             const rareData = await rareRes.json();
 
             if (allData.feed) {
-                // Store server time for accurate age calculations
                 if (allData.serverTime) {
                     setServerTime(new Date(allData.serverTime).getTime());
                 }
 
-                // Merge rare drops (mythic/insane from past 7 days) with all activity
-                // This ensures older mythic/insane items stay visible even when pushed out of recent 100
+                if (allData.recursionStatus !== undefined) {
+                    setRecursionStatus(prev => {
+                        if (!prev.active && allData.recursionStatus.active) {
+                            return allData.recursionStatus;
+                        }
+                        if (allData.recursionStatus.userSpinsRemaining !== undefined || allData.recursionStatus.remainingTime !== undefined) {
+                            return { ...prev, ...allData.recursionStatus };
+                        }
+                        return prev;
+                    });
+                }
+
                 let mergedFeed = allData.feed;
                 if (rareData.feed && rareData.feed.length > 0) {
                     const existingIds = new Set(allData.feed.map(item => item.id));
                     const additionalRare = rareData.feed.filter(item => !existingIds.has(item.id));
                     if (additionalRare.length > 0) {
-                        // Merge and re-sort by created_at descending
                         mergedFeed = [...allData.feed, ...additionalRare].sort((a, b) => {
                             const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
                             const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
@@ -56,20 +86,19 @@ export function ActivityProvider({ children }) {
                 }
 
                 const newestId = mergedFeed[0]?.id;
+                const currentLastId = lastIdRef.current;
+                const isInit = initializedRef.current;
 
-                if (!initialized) {
-                    // First fetch - just store the ID, don't trigger new item notifications
+                if (!isInit) {
                     setLastId(newestId);
                     setInitialized(true);
                     setFeed(mergedFeed);
-                } else if (lastId !== null && newestId && newestId > lastId) {
-                    // New items found
-                    const newlyDetected = mergedFeed.filter(item => item.id > lastId);
+                } else if (currentLastId !== null && newestId && newestId > currentLastId) {
+                    const newlyDetected = mergedFeed.filter(item => item.id > currentLastId);
                     setNewItems(newlyDetected);
                     setLastId(newestId);
                     setFeed(mergedFeed);
                 } else {
-                    // No new items, just update feed (for age calculations)
                     setFeed(mergedFeed);
                     setNewItems([]);
                 }
@@ -77,45 +106,144 @@ export function ActivityProvider({ children }) {
         } catch (e) {
             console.error('Failed to fetch activity:', e);
         }
-    }, [initialized, lastId]);
+    }, []); // No dependencies - uses refs
 
-    // Clear new items after they've been processed
-    const clearNewItems = useCallback(() => {
-        setNewItems([]);
-    }, []);
-
+    // SSE connection - runs once on mount
     useEffect(() => {
-        // Handle visibility change to pause/resume polling
+        fetchActivity();
+
+        const connectSSE = () => {
+            if (eventSourceRef.current?.readyState === EventSource.OPEN) return;
+
+            try {
+                const eventSource = new EventSource(`${API_BASE_URL}/api/events/stream`, {
+                    withCredentials: true
+                });
+
+                eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+
+                        switch (data.type) {
+                            case 'recursion_wakeup':
+                                console.log('[SSE] Recursion wake-up received');
+                                fetchRecursionStatus();
+                                break;
+
+                            case 'activity':
+                                if (data.item && data.item.id) {
+                                    // Prepend to feed
+                                    setFeed(prev => {
+                                        if (prev.some(item => item.id === data.item.id)) return prev;
+                                        return [data.item, ...prev].slice(0, 150);
+                                    });
+
+                                    // Update lastId
+                                    setLastId(prev => {
+                                        if (prev === null || data.item.id > prev) return data.item.id;
+                                        return prev;
+                                    });
+
+                                    // Add to newItems for toast notification (capped at 50)
+                                    setNewItems(prev => {
+                                        if (prev.some(item => item.id === data.item.id)) return prev;
+                                        return [data.item, ...prev].slice(0, 50);
+                                    });
+
+                                    // Mark as initialized if not already
+                                    setInitialized(true);
+                                }
+                                break;
+
+                            case 'chat':
+                                window.dispatchEvent(new CustomEvent('sse-chat-message', {
+                                    detail: data.message
+                                }));
+                                break;
+
+                            case 'chat_typing':
+                                window.dispatchEvent(new CustomEvent('sse-chat-typing', {
+                                    detail: { userId: data.userId, username: data.username, isTyping: data.isTyping }
+                                }));
+                                break;
+
+                            case 'online_count':
+                                window.dispatchEvent(new CustomEvent('sse-online-count', {
+                                    detail: { count: data.count, userIds: data.userIds }
+                                }));
+                                break;
+
+                            case 'connected':
+                                console.log('[SSE] Connected');
+                                // If we got online count with connection, dispatch it
+                                if (data.onlineCount !== undefined) {
+                                    window.dispatchEvent(new CustomEvent('sse-online-count', {
+                                        detail: { count: data.onlineCount, userIds: data.onlineUserIds }
+                                    }));
+                                }
+                                break;
+                        }
+                    } catch (e) {
+                        console.error('[SSE] Parse error:', e);
+                    }
+                };
+
+                eventSource.onerror = () => {
+                    console.log('[SSE] Error, reconnecting in 3s...');
+                    eventSource.close();
+                    eventSourceRef.current = null;
+                    setTimeout(() => {
+                        connectSSE();
+                        fetchActivity();
+                    }, 3000);
+                };
+
+                eventSourceRef.current = eventSource;
+            } catch (e) {
+                console.error('[SSE] Connect error:', e);
+                setTimeout(connectSSE, 3000);
+            }
+        };
+
+        connectSSE();
+
         const handleVisibilityChange = () => {
             isVisibleRef.current = !document.hidden;
             if (!document.hidden) {
-                // Fetch immediately when tab becomes visible
                 fetchActivity();
+                if (eventSourceRef.current?.readyState !== EventSource.OPEN) {
+                    connectSSE();
+                }
             }
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Initial fetch
-        fetchActivity();
-
-        // Poll every 5 seconds (single source of truth)
-        intervalRef.current = setInterval(fetchActivity, 5000);
-
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
             }
         };
-    }, [fetchActivity]);
+    }, [fetchActivity, fetchRecursionStatus]);
+
+    const clearNewItems = useCallback(() => {
+        setNewItems([]);
+    }, []);
+
+    const updateRecursionStatus = useCallback((status) => {
+        setRecursionStatus(status);
+    }, []);
 
     const value = {
         feed,
         serverTime,
         newItems,
         clearNewItems,
-        initialized
+        initialized,
+        recursionStatus,
+        updateRecursionStatus
     };
 
     return (

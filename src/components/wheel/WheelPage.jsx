@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { COLORS, API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
 import { ActivityProvider } from '../../context/ActivityContext';
+import { SoundProvider } from '../../context/SoundContext.jsx';
 import { AnimationStyles } from './AnimationStyles';
 import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal, ImportPromptModal, MigrationModal } from './modals';
@@ -13,10 +14,12 @@ import { Achievements } from './Achievements';
 import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
 import { MythicCelebration } from './MythicCelebration';
+import { RecursionOverlay } from './RecursionOverlay';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { LiveChat } from './LiveChat';
+import { SoundButton, SoundSettingsPanel } from './SoundSettings';
 import {
     User, Edit3, LogOut, Upload, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -158,6 +161,7 @@ function WheelOfFortunePage({ onBack }) {
 
     // Notification state
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showSoundSettings, setShowSoundSettings] = useState(false);
     const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
     // Mobile activity feed modal state
@@ -230,25 +234,25 @@ function WheelOfFortunePage({ onBack }) {
         }
 
         fetchNotificationCount();
-        // Poll every 60 seconds
-        const interval = setInterval(fetchNotificationCount, 60000);
+        // Poll every 5 minutes as backup
+        const interval = setInterval(fetchNotificationCount, 300000);
         return () => clearInterval(interval);
     }, [user]);
 
-    // Preload item images to prevent pop-in during spin
+    // Preload some item images - service worker caches the rest as you play
     function preloadImages(items, specialItems) {
         const IMAGE_BASE = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
-        // Preload regular items (sample ~100 random ones to avoid loading 400+)
-        const sampleSize = Math.min(100, items.length);
-        const sampledItems = items.sort(() => Math.random() - 0.5).slice(0, sampleSize);
+        // Preload ~50 random items to warm up cache for first spin
+        const sampleSize = Math.min(50, items.length);
+        const sampledItems = [...items].sort(() => Math.random() - 0.5).slice(0, sampleSize);
 
         sampledItems.forEach(item => {
             const img = new Image();
             img.src = `${IMAGE_BASE}/${item.texture}.png`;
         });
 
-        // Preload all special item images
+        // Preload all special item images (rare, always want these ready)
         specialItems.forEach(item => {
             const img = new Image();
             if (item.image_url) {
@@ -698,6 +702,9 @@ function WheelOfFortunePage({ onBack }) {
                                     </button>
                                 )}
 
+                                {/* Sound settings button */}
+                                <SoundButton onClick={() => setShowSoundSettings(true)} />
+
                                 {/* Notification bell */}
                                 <button
                                     onClick={() => setShowNotifications(true)}
@@ -779,7 +786,7 @@ function WheelOfFortunePage({ onBack }) {
                     )}
 
                     {/* Wheel - now bigger */}
-                    <div style={{ marginBottom: '20px' }}>
+                    <div style={{ marginBottom: '20px', minHeight: '320px' }}>
                         <WheelSpinner
                             allItems={allItems}
                             collection={collection}
@@ -934,6 +941,9 @@ function WheelOfFortunePage({ onBack }) {
             {/* Insane Item Celebration - full screen celebration for insane pulls */}
             <MythicCelebration currentUserId={user?.id} />
 
+            {/* Recursion Overlay - matrix effect when recursion event is active */}
+            <RecursionOverlay currentUserId={user?.id} />
+
             {/* Notification Center */}
             {showNotifications && (
                 <NotificationCenter
@@ -947,6 +957,11 @@ function WheelOfFortunePage({ onBack }) {
                             .catch(() => {});
                     }}
                 />
+            )}
+
+            {/* Sound Settings Modal */}
+            {showSoundSettings && (
+                <SoundSettingsPanel onClose={() => setShowSoundSettings(false)} />
             )}
 
             {/* Mobile Activity Feed Modal */}
@@ -1073,7 +1088,9 @@ export default function WheelOfFortune({ onBack }) {
     return (
         <AuthProvider>
             <ActivityProvider>
-                <WheelOfFortunePage onBack={onBack || (() => window.location.hash = '')} />
+                <SoundProvider>
+                    <WheelOfFortunePage onBack={onBack || (() => window.location.hash = '')} />
+                </SoundProvider>
             </ActivityProvider>
         </AuthProvider>
     );

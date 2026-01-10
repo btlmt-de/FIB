@@ -1,20 +1,33 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, Sparkles, Star, Diamond, ChevronDown, ChevronUp, Zap, X } from 'lucide-react';
+import {
+    Crown, Sparkles, Star, Diamond, ChevronDown, ChevronUp, Zap, X,
+    Calculator, BarChart3, Info, AlertTriangle, Scale,
+    Gift, Shuffle, Repeat, Layers, Database, Server
+} from 'lucide-react';
+import { OddsInfoModal } from './OddsInfoModal.jsx';
 import {
     COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
     ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
-    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS
+    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
 import {
     formatChance, getMinecraftHeadUrl,
-    isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem
+    isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem
 } from '../../utils/helpers.js';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
+import { useActivity } from '../../context/ActivityContext.jsx';
+import { useSound } from '../../context/SoundContext.jsx';
 
 
 function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
+
+    // Get recursion status from ActivityContext - no separate polling!
+    const { recursionStatus, updateRecursionStatus } = useActivity();
+
+    // Get sound functions
+    const { startSoundtrack, stopSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
 
     const [state, setState] = useState('idle');
     const [strip, setStrip] = useState([]);
@@ -22,21 +35,24 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [isNewItem, setIsNewItem] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
-    const [expandedItemsList, setExpandedItemsList] = useState(false);
-    const [expandedRarities, setExpandedRarities] = useState({});
     const animationRef = useRef(null);
+
+    // Mobile-specific dimensions - taller strip with more items visible
+    const MOBILE_STRIP_HEIGHT = 400;
+    const MOBILE_STRIP_WIDTH = 140;
+    const MOBILE_ITEM_WIDTH = 90;
 
     // Use refs for animation offsets to avoid re-renders during animation
     const stripRef = useRef(null);
     const offsetRef = useRef(0);
 
     // Triple spin state
-    const [tripleStrips, setTripleStrips] = useState([[], [], []]);
-    const [tripleResults, setTripleResults] = useState([null, null, null]);
-    const [tripleNewItems, setTripleNewItems] = useState([false, false, false]);
-    const tripleAnimationRefs = useRef([null, null, null]);
-    const tripleStripRefs = useRef([null, null, null]);
-    const tripleOffsetRefs = useRef([0, 0, 0]);
+    const [tripleStrips, setTripleStrips] = useState([[], [], [], [], []]);
+    const [tripleResults, setTripleResults] = useState([null, null, null, null, null]);
+    const [tripleNewItems, setTripleNewItems] = useState([false, false, false, false, false]);
+    const tripleAnimationRefs = useRef([null, null, null, null, null]);
+    const tripleStripRefs = useRef([null, null, null, null, null]);
+    const tripleOffsetRefs = useRef([0, 0, 0, 0, 0]);
 
     // Bonus wheel state - using horizontal strip like main wheel
     const [bonusStrip, setBonusStrip] = useState([]);
@@ -48,8 +64,26 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [luckyResult, setLuckyResult] = useState(null);
     const [isLuckyNew, setIsLuckyNew] = useState(false);
 
+    // Recursion active state - derived from ActivityContext
+    const recursionActive = recursionStatus?.active || false;
+    const recursionSpinsRemaining = recursionStatus?.userSpinsRemaining ?? 0;
+
+    // Track if the CURRENT RESULT was from a recursion lucky spin
+    // This persists during result display even after user runs out of spins
+    const [resultWasRecursionSpin, setResultWasRecursionSpin] = useState(false);
+
+    // Track if the CURRENT spin animation is a recursion lucky spin
+    // This prevents visual effects from changing mid-animation when spinsRemaining updates
+    const currentSpinIsRecursionRef = useRef(false);
+
     // Pending spin flag for instant respin
     const pendingSpinRef = useRef(false);
+
+    // Ref to hold current spin function for keyboard events
+    const spinRef = useRef(null);
+
+    // Ref to hold current respin function for keyboard events
+    const respinRef = useRef(null);
 
     // Animation cancellation flag to prevent stale updates
     const animationCancelledRef = useRef(false);
@@ -83,6 +117,31 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Spacebar to spin/respin
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // Only trigger on spacebar, and not when typing in an input
+            if (e.code === 'Space' &&
+                !e.target.closest('input, textarea, [contenteditable]')) {
+
+                // Check if we can spin
+                if (!user || allItems.length === 0) return;
+
+                e.preventDefault();
+
+                // If in result state, use respin for instant re-spin
+                if (state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult') {
+                    respinRef.current?.();
+                } else if (state === 'idle') {
+                    spinRef.current?.();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [state, user, allItems.length]);
+
     useEffect(() => {
         return () => {
             animationCancelledRef.current = true;
@@ -110,6 +169,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         if (item.imageUrl) return item.imageUrl;
         if (item.image_url) return item.image_url;
         if (isEventItem(item)) return EVENT_ITEM.imageUrl;
+        if (isRecursionItem(item)) return RECURSION_ITEM.imageUrl;
         if (isInsaneItem(item) && !item.username) {
             const insane = INSANE_ITEMS.find(i => i.texture === item.texture);
             if (insane) return insane.imageUrl;
@@ -134,44 +194,27 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         return shuffled;
     }
 
-    // Get a random item that's visually different from the last one
-    function getRandomItem(items, lastItem) {
-        if (!items || items.length === 0) return null;
-        if (items.length === 1) return items[0];
-
-        // Try up to 5 times to get a visually different item
-        for (let attempt = 0; attempt < 5; attempt++) {
-            const item = items[Math.floor(Math.random() * items.length)];
-            if (!lastItem) return item;
-
-            // Check if item looks different (different texture prefix)
-            const lastPrefix = (lastItem.texture || '').split('_')[0];
-            const newPrefix = (item.texture || '').split('_')[0];
-
-            if (lastPrefix !== newPrefix) return item;
-        }
-
-        // Fallback: just return any random item
-        return items[Math.floor(Math.random() * items.length)];
-    }
-
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
         const finalIndex = length - 8;
 
         // Shuffle all item pools for better visual randomness
-        const shuffledItems = shuffleArray(allItems);
-        const shuffledInsane = shuffleArray(INSANE_ITEMS);
-        const shuffledMythic = shuffleArray(MYTHIC_ITEMS);
-        const shuffledRare = shuffleArray(RARE_MEMBERS);
-        const shuffledLegendary = shuffleArray(TEAM_MEMBERS);
+        const shuffledItems = shuffleArray([...allItems]);
+        const shuffledInsane = shuffleArray([...INSANE_ITEMS]);
+        const shuffledMythic = shuffleArray([...MYTHIC_ITEMS]);
+        const shuffledRare = shuffleArray([...RARE_MEMBERS]);
+        const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
-        let lastItem = null;
+        // Use indices to iterate through shuffled arrays (guarantees distribution)
+        let itemIndex = 0;
+        let insaneIndex = 0;
+        let mythicIndex = 0;
+        let rareIndex = 0;
+        let legendaryIndex = 0;
 
         for (let i = 0; i < length; i++) {
             if (i === finalIndex) {
                 newStrip.push(finalItem);
-                lastItem = finalItem;
             } else {
                 const roll = Math.random();
                 let newItem = null;
@@ -179,32 +222,36 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 // Visual flair - show special items in the strip animation
                 if (roll < 0.001 && shuffledInsane.length > 0) {
                     // 0.1% chance for insane
-                    const insane = getRandomItem(shuffledInsane, lastItem);
+                    const insane = shuffledInsane[insaneIndex % shuffledInsane.length];
+                    insaneIndex++;
                     newItem = { ...insane, isInsane: true };
                 } else if (roll < 0.003 && shuffledMythic.length > 0) {
                     // 0.2% chance for mythic (0.1% to 0.3%)
-                    const mythic = getRandomItem(shuffledMythic, lastItem);
+                    const mythic = shuffledMythic[mythicIndex % shuffledMythic.length];
+                    mythicIndex++;
                     newItem = { ...mythic, isMythic: true };
                 } else if (roll < 0.033 && shuffledRare.length > 0) {
                     // 3% chance for rare
-                    const rare = getRandomItem(shuffledRare, lastItem);
+                    const rare = shuffledRare[rareIndex % shuffledRare.length];
+                    rareIndex++;
                     newItem = { ...rare, isRare: true, texture: `rare_${rare.username}` };
                 } else if (roll < 0.053 && shuffledLegendary.length > 0) {
                     // 2% chance for legendary
-                    const member = getRandomItem(shuffledLegendary, lastItem);
+                    const member = shuffledLegendary[legendaryIndex % shuffledLegendary.length];
+                    legendaryIndex++;
                     newItem = {
                         ...member,
                         isSpecial: true,
                         texture: member.username ? `special_${member.username}` : member.name.toLowerCase().replace(/\s+/g, '_')
                     };
                 } else if (shuffledItems.length > 0) {
-                    // Regular items - use shuffled pool and avoid similar consecutive items
-                    newItem = getRandomItem(shuffledItems, lastItem);
+                    // Regular items - iterate through shuffled pool for maximum variety
+                    newItem = shuffledItems[itemIndex % shuffledItems.length];
+                    itemIndex++;
                 }
 
                 if (newItem) {
                     newStrip.push(newItem);
-                    lastItem = newItem;
                 }
             }
         }
@@ -219,12 +266,15 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // Reset states
         setResult(null);
         setIsNewItem(false);
-        setTripleResults([null, null, null]);
-        setTripleNewItems([false, false, false]);
+        setTripleResults([null, null, null, null, null]);
+        setTripleNewItems([false, false, false, false, false]);
 
         // Directly perform spin (bypass idle check)
         performSpin();
     }
+
+    // Keep refs updated for keyboard handler
+    respinRef.current = respin;
 
     // Core spin logic - extracted so respin can call it directly
     async function performSpin() {
@@ -236,8 +286,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // Reset cancellation flag for new spin
         animationCancelledRef.current = false;
 
+        // Track if this spin will use a recursion lucky spin (before API call)
+        // This ensures visual effects stay consistent during the animation
+        currentSpinIsRecursionRef.current = recursionActive && recursionSpinsRemaining > 0;
+
         try {
             setState('spinning');
+
+            // Start soundtrack when spinning begins
+            if (!isMusicPlaying) {
+                startSoundtrack();
+            }
 
             // IMMEDIATELY build a placeholder strip and start animation
             // This makes the wheel feel instant - no waiting for API
@@ -246,8 +305,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setStrip(placeholderStrip);
             offsetRef.current = 0;
 
-            // Pre-calculate animation parameters
-            const targetOffset = FINAL_INDEX * ITEM_WIDTH;
+            // Pre-calculate animation parameters (use larger items on mobile)
+            const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
+            const targetOffset = FINAL_INDEX * itemWidth;
             let offsetVariance;
             const edgeRoll = Math.random();
             if (edgeRoll < 0.15) {
@@ -300,6 +360,15 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         throw new Error(spinResult.error || 'Spin failed');
                     }
 
+                    // Track if this specific spin was a recursion lucky spin
+                    // This persists in the result view even after user runs out of spins
+                    setResultWasRecursionSpin(spinResult.isRecursionSpin || false);
+
+                    // Update recursion state in ActivityContext from spin result
+                    if (spinResult.recursionStatus) {
+                        updateRecursionStatus(spinResult.recursionStatus);
+                    }
+
                     // Mark spin time only after successful response
                     markSpinTime();
 
@@ -308,7 +377,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         isSpecial: spinResult.result.type === 'legendary',
                         isRare: spinResult.result.type === 'rare',
                         isMythic: spinResult.result.type === 'mythic',
-                        isEvent: spinResult.result.type === 'event'
+                        isEvent: spinResult.result.type === 'event',
+                        isRecursion: spinResult.result.type === 'recursion'
                     };
 
                     // Check again before updating state
@@ -344,7 +414,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 // Direct DOM manipulation - no React re-render
                 if (stripRef.current) {
                     if (isMobile) {
-                        stripRef.current.style.top = `${(280 / 2) - (ITEM_WIDTH / 2) - offsetRef.current}px`;
+                        stripRef.current.style.top = `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current}px`;
                     } else {
                         stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
                     }
@@ -357,11 +427,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     apiCall.then((result) => {
                         // Check for cancellation before updating state
                         if (animationCancelledRef.current || result === null) return;
-                        if (result.isEvent) {
+                        if (result.isRecursion) {
+                            // RECURSION triggered! Show special result state
+                            setState('recursion');
+                            playRecursionSound();
+                            if (onSpinComplete) onSpinComplete(result);
+                        } else if (result.isEvent) {
                             setState('event');
                             setTimeout(() => spinBonusWheel(), 1500);
                         } else {
                             setState('result');
+                            // Play sound based on item rarity
+                            if (result.result?.type) {
+                                playRaritySound(result.result.type);
+                            }
                             if (onSpinComplete) onSpinComplete(result);
                         }
                     }).catch((err) => {
@@ -404,6 +483,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         setError(null); // Clear any previous error
         performSpin();
     }
+
+    // Keep spinRef updated for keyboard handler
+    spinRef.current = spin;
 
     // Helper function to select a weighted random event
     function selectWeightedEvent() {
@@ -511,7 +593,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setIsLuckyNew(spinResult.isNew);
             offsetRef.current = 0;
 
-            const targetOffset = FINAL_INDEX * ITEM_WIDTH;
+            const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
+            const targetOffset = FINAL_INDEX * itemWidth;
             // Add "edge" tension - sometimes land very close to adjacent items
             let offsetVariance;
             const edgeRoll = Math.random();
@@ -538,7 +621,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 // Direct DOM manipulation for smooth animation
                 if (stripRef.current) {
                     if (isMobile) {
-                        stripRef.current.style.top = `${(280 / 2) - (ITEM_WIDTH / 2) - offsetRef.current}px`;
+                        stripRef.current.style.top = `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current}px`;
                     } else {
                         stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
                     }
@@ -548,6 +631,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     animationRef.current = requestAnimationFrame(animate);
                 } else if (!animationCancelledRef.current) {
                     setState('luckyResult');
+                    // Play sound for lucky result
+                    if (finalItem?.type) {
+                        playRaritySound(finalItem.type);
+                    }
                     if (onSpinComplete) onSpinComplete(spinResult);
                 }
             };
@@ -607,14 +694,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 };
             }
 
-            // Get 3 valid spins (retrying if we hit events)
-            const results = await Promise.all([getValidSpin(), getValidSpin(), getValidSpin()]);
+            // Get 5 valid spins (retrying if we hit events)
+            const results = await Promise.all([getValidSpin(), getValidSpin(), getValidSpin(), getValidSpin(), getValidSpin()]);
 
             const newStrips = [];
             const newResults = [];
             const newItems = [];
 
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < 5; i++) {
                 const spinResult = results[i];
                 const finalItem = {
                     ...spinResult.result,
@@ -630,13 +717,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setTripleStrips(newStrips);
             setTripleResults(newResults);
             setTripleNewItems(newItems);
-            tripleOffsetRefs.current = [0, 0, 0];
+            tripleOffsetRefs.current = [0, 0, 0, 0, 0];
 
             // Staggered animation start
-            const delays = [0, 300, 600];
+            const delays = [0, 200, 400, 600, 800];
             const completedCount = { current: 0 };
-            // Use responsive item width for animation - must match the display
-            const tripleItemWidth = isMobile ? 70 : ITEM_WIDTH;
+            // Use responsive item width for animation - must match the display (58 for 5x spin on mobile)
+            const tripleItemWidth = isMobile ? 58 : ITEM_WIDTH;
             const STRIP_HEIGHT_MOBILE = 200;
 
             delays.forEach((delay, rowIndex) => {
@@ -679,8 +766,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
                         } else {
                             completedCount.current++;
-                            if (completedCount.current === 3) {
+                            if (completedCount.current === 5) {
                                 setState('tripleResult');
+                                // Play sound for best rarity among all 5 results
+                                const rarityPriority = ['insane', 'mythic', 'legendary', 'rare'];
+                                const bestRarity = results.reduce((best, r) => {
+                                    const type = r?.result?.type;
+                                    const bestIndex = rarityPriority.indexOf(best);
+                                    const typeIndex = rarityPriority.indexOf(type);
+                                    if (typeIndex !== -1 && (bestIndex === -1 || typeIndex < bestIndex)) {
+                                        return type;
+                                    }
+                                    return best;
+                                }, null);
+                                if (bestRarity) playRaritySound(bestRarity);
                                 results.forEach(r => { if (onSpinComplete) onSpinComplete(r); });
                             }
                         }
@@ -765,6 +864,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const delays = [0, 200, 400];
             // Use responsive item width for animation - must match the display
             const tripleItemWidth = isMobile ? 70 : ITEM_WIDTH;
+            const STRIP_HEIGHT_MOBILE = 200; // Must match rendering
 
             strips.forEach((_, rowIndex) => {
                 const delay = delays[rowIndex];
@@ -793,7 +893,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         const stripEl = tripleStripRefs.current[rowIndex];
                         if (stripEl) {
                             if (isMobile) {
-                                stripEl.style.top = `${(280 / 2) - (tripleItemWidth / 2) - tripleOffsetRefs.current[rowIndex]}px`;
+                                // Use transform for smoother animation, matching the initial position
+                                stripEl.style.transform = `translateY(-${tripleOffsetRefs.current[rowIndex]}px)`;
                             } else {
                                 stripEl.style.transform = `translateX(calc(50% - ${tripleOffsetRefs.current[rowIndex]}px - ${tripleItemWidth / 2}px))`;
                             }
@@ -805,6 +906,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             completedCount.current++;
                             if (completedCount.current === 3) {
                                 setState('tripleLuckyResult');
+                                // Play sound for best rarity among all 3 results
+                                const rarityPriority = ['insane', 'mythic', 'legendary', 'rare'];
+                                const bestRarity = results.reduce((best, r) => {
+                                    const type = r?.result?.type;
+                                    const bestIndex = rarityPriority.indexOf(best);
+                                    const typeIndex = rarityPriority.indexOf(type);
+                                    if (typeIndex !== -1 && (bestIndex === -1 || typeIndex < bestIndex)) {
+                                        return type;
+                                    }
+                                    return best;
+                                }, null);
+                                if (bestRarity) playRaritySound(bestRarity);
                                 results.forEach(r => { if (onSpinComplete) onSpinComplete(r); });
                             }
                         }
@@ -824,10 +937,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         offsetRef.current = 0;
         setStrip([]);
         setIsNewItem(false);
-        setTripleStrips([[], [], []]);
-        tripleOffsetRefs.current = [0, 0, 0];
-        setTripleResults([null, null, null]);
-        setTripleNewItems([false, false, false]);
+        setTripleStrips([[], [], [], [], []]);
+        tripleOffsetRefs.current = [0, 0, 0, 0, 0];
+        setTripleResults([null, null, null, null, null]);
+        setTripleNewItems([false, false, false, false, false]);
         setSelectedEvent(null);
         setBonusStrip([]);
         setBonusOffset(0);
@@ -850,545 +963,157 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         const isMythic = isMythicItem(item);
         const isRare = isRareItem(item);
         const isEvent = isEventItem(item);
+        const isRecursion = isRecursionItem(item);
 
         // Enable glow animations for special items even during spinning (looks better)
         // disableAnimation only affects regular items for performance
-        const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent;
+        const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent || isRecursion;
         const shouldAnimate = isSpecialType || (!disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult'));
+
+        // During recursion spin, ALL items get a green aura while spinning
+        // Use the ref to check if THIS spin is a recursion spin (not the live state)
+        const isSpinning = state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning';
+        const spinIsRecursion = currentSpinIsRecursionRef.current;
+        const showRarityAura = isSpinning && (isSpecialType || spinIsRecursion);
+
+        // Get rarity-specific aura animation
+        const getRarityAura = () => {
+            if (spinIsRecursion && !isSpecialType) return 'rarityAuraGreen 1s ease-in-out infinite';
+            if (isInsane) return 'rarityAuraInsane 0.8s ease-in-out infinite';
+            if (isMythic) return 'rarityAuraAqua 1s ease-in-out infinite';
+            if (isSpecial) return 'rarityAuraPurple 1.2s ease-in-out infinite';
+            if (isRare) return 'rarityAuraRed 1.2s ease-in-out infinite';
+            if (isEvent) return 'rarityAuraGold 1s ease-in-out infinite';
+            if (isRecursion) return 'rarityAuraGreen 0.8s ease-in-out infinite';
+            return 'none';
+        };
 
         return (
             <div style={{
-                width: `${size}px`, height: `${size}px`,
-                background: isEvent
-                    ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33, ${COLORS.gold}33, ${COLORS.green}33, ${COLORS.aqua}33, ${COLORS.purple}33)`
-                    : isInsane
-                        ? `linear-gradient(135deg, ${COLORS.insane}55, #FFF5B0 44, ${COLORS.insane}55)`
-                        : isMythic
-                            ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
-                            : isSpecial
-                                ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
-                                : isRare
-                                    ? `linear-gradient(135deg, ${COLORS.red}44, ${COLORS.orange}44)`
-                                    : COLORS.bgLight,
-                borderRadius: '6px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: `2px solid ${
-                    isEvent ? COLORS.gold
-                        : isWinning ? COLORS.gold
-                            : isInsane ? COLORS.insane
-                                : isMythic ? COLORS.aqua
-                                    : isSpecial ? COLORS.purple
-                                        : isRare ? COLORS.red
-                                            : COLORS.border
-                }`,
-                boxShadow: shouldAnimate ? (
-                    isEvent
-                        ? `0 0 15px ${COLORS.gold}88, 0 0 30px ${COLORS.purple}44`
-                        : isInsane
-                            ? `0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044`
-                            : isMythic
-                                ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
-                                : isSpecial
-                                    ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
-                                    : isRare
-                                        ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
-                                        : isWinning
-                                            ? `0 0 20px ${COLORS.gold}66`
-                                            : 'none'
-                ) : 'none',
-                animation: shouldAnimate ? (
-                    isEvent ? 'eventGlow 1.5s ease-in-out infinite'
-                        : isInsane ? 'insaneGlow 0.8s ease-in-out infinite'
-                            : isMythic ? 'mythicGlow 1s ease-in-out infinite'
-                                : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
-                                    : isRare ? 'rareGlow 1.5s ease-in-out infinite'
-                                        : 'none'
-                ) : 'none'
+                position: 'relative',
             }}>
-                <img
-                    src={getItemImageUrl(item)}
-                    alt={item.name}
-                    loading="lazy"
-                    style={{
-                        width: isEvent ? `${size * 1.1}px` : `${size * 0.77}px`,
-                        height: isEvent ? `${size * 1.1}px` : `${size * 0.77}px`,
-                        imageRendering: (isInsane || isSpecial || isRare || item.username || isEvent) ? 'auto' : 'pixelated',
-                        borderRadius: (isInsane || isSpecial || isRare || item.username) ? '4px' : '0'
-                    }}
-                    onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                />
-            </div>
-        );
-    };
-
-    // Odds Info Modal Component
-    const OddsInfoModal = () => {
-        const modalContentRef = useRef(null);
-
-        // Calculate weights by rarity tier from dynamicItems
-        const TOTAL_WEIGHT = 10000000;
-
-        const tierWeights = {
-            insane: 0,
-            mythic: 0,
-            legendary: 0,
-            rare: 0,
-            event: 0
-        };
-
-        let totalSpecialWeight = 0;
-        const specialItemCount = dynamicItems ? dynamicItems.length : 0;
-
-        if (dynamicItems && dynamicItems.length > 0) {
-            dynamicItems.forEach(item => {
-                const weight = item.weight || 0;
-                totalSpecialWeight += weight;
-                if (item.rarity && tierWeights.hasOwnProperty(item.rarity)) {
-                    tierWeights[item.rarity] += weight;
-                }
-            });
-        }
-
-        const regularWeight = TOTAL_WEIGHT - totalSpecialWeight;
-        const regularItemCount = allItems ? allItems.length : 0;
-
-        // Calculate expected spins (1/probability = totalWeight/tierWeight)
-        const expectedSpins = {
-            insane: tierWeights.insane > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.insane) : null,
-            mythic: tierWeights.mythic > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.mythic) : null,
-            legendary: tierWeights.legendary > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.legendary) : null,
-            rare: tierWeights.rare > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.rare) : null
-        };
-
-        // Format large numbers
-        const formatNumber = (n) => {
-            if (n === null) return '—';
-            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-            return n.toLocaleString();
-        };
-
-        // Format percentage - show enough decimals, remove trailing zeros
-        const formatPercent = (weight) => {
-            const chance = (weight / TOTAL_WEIGHT) * 100;
-            // Get enough decimal places, then remove trailing zeros
-            let str;
-            if (chance >= 1) str = chance.toFixed(2);
-            else if (chance >= 0.1) str = chance.toFixed(3);
-            else if (chance >= 0.01) str = chance.toFixed(4);
-            else if (chance >= 0.001) str = chance.toFixed(5);
-            else if (chance >= 0.0001) str = chance.toFixed(6);
-            else str = chance.toFixed(7);
-            // Remove trailing zeros after decimal point
-            return str.replace(/\.?0+$/, '');
-        };
-
-        // Calculate percentages
-        const specialPercent = ((totalSpecialWeight / TOTAL_WEIGHT) * 100).toFixed(2);
-        const regularPercent = ((regularWeight / TOTAL_WEIGHT) * 100).toFixed(2);
-
-        // Handle collapse toggle without scrolling
-        const handleToggle = () => {
-            const scrollTop = modalContentRef.current?.scrollTop || 0;
-            setExpandedItemsList(!expandedItemsList);
-            // Restore scroll position after state update
-            requestAnimationFrame(() => {
-                if (modalContentRef.current) {
-                    modalContentRef.current.scrollTop = scrollTop;
-                }
-            });
-        };
-
-        // Handle rarity dropdown toggle
-        const toggleRarity = (rarity) => {
-            const scrollTop = modalContentRef.current?.scrollTop || 0;
-            setExpandedRarities(prev => ({ ...prev, [rarity]: !prev[rarity] }));
-            requestAnimationFrame(() => {
-                if (modalContentRef.current) {
-                    modalContentRef.current.scrollTop = scrollTop;
-                }
-            });
-        };
-
-        // Get items for a rarity tier
-        const getItemsForRarity = (rarity) => {
-            if (!dynamicItems) return [];
-            return dynamicItems
-                .filter(i => i.rarity === rarity)
-                .sort((a, b) => (a.weight || 0) - (b.weight || 0));
-        };
-
-        // Rarity config
-        const rarityConfig = {
-            insane: { icon: <Crown size={14} />, color: COLORS.insane, label: 'Insane' },
-            mythic: { icon: <Sparkles size={14} />, color: COLORS.aqua, label: 'Any Mythic' },
-            legendary: { icon: <Star size={14} />, color: COLORS.purple, label: 'Any Legendary' },
-            rare: { icon: <Diamond size={14} />, color: COLORS.red, label: 'Any Rare' },
-            event: { icon: <Zap size={14} />, color: COLORS.orange, label: 'Event' }
-        };
-
-        return (
-            <div
-                style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0, 0, 0, 0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 10000,
-                    padding: '16px',
-                    boxSizing: 'border-box'
-                }}
-                onClick={() => setShowOddsInfo(false)}
-            >
-                <div
-                    ref={modalContentRef}
-                    style={{
-                        background: COLORS.bgLight,
-                        borderRadius: '12px',
-                        padding: isMobile ? '20px' : '24px',
-                        maxWidth: '480px',
-                        width: '100%',
-                        maxHeight: '85vh',
-                        overflow: 'auto',
-                        border: `1px solid ${COLORS.border}`
-                    }}
-                    onClick={e => e.stopPropagation()}
-                >
-                    {/* Header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <span style={{ color: COLORS.gold, fontSize: '16px', fontWeight: '600' }}>
-                            Drop Rates
-                        </span>
-                        <button
-                            onClick={() => setShowOddsInfo(false)}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                color: COLORS.textMuted,
-                                cursor: 'pointer',
-                                padding: '4px',
-                                lineHeight: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}
-                        >
-                            <X size={18} />
-                        </button>
-                    </div>
-
-                    {/* Formula */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginBottom: '8px' }}>
-                            The Formula
-                        </div>
-                        <div style={{
-                            padding: '12px 14px',
-                            background: COLORS.bg,
-                            borderRadius: '8px',
-                            border: `1px solid ${COLORS.border}`
-                        }}>
-                            <code style={{ color: COLORS.aqua, fontSize: '13px' }}>
-                                Drop Rate = Weight ÷ 10,000,000
-                            </code>
-                            <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '8px' }}>
-                                Total weight is fixed at 10M. Regular items share the remaining weight equally.
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Expected Spins by Rarity */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginBottom: '8px' }}>
-                            Expected Spins by Rarity
-                        </div>
-                        <div style={{
-                            background: COLORS.bg,
-                            borderRadius: '8px',
-                            border: `1px solid ${COLORS.border}`,
-                            overflow: 'hidden'
-                        }}>
-                            {['insane', 'mythic', 'legendary', 'rare'].map((rarity, idx, arr) => {
-                                const config = rarityConfig[rarity];
-                                const items = getItemsForRarity(rarity);
-                                const isExpanded = expandedRarities[rarity];
-                                const isLast = idx === arr.length - 1 && !isExpanded;
-
-                                return (
-                                    <div key={rarity}>
-                                        <button
-                                            type="button"
-                                            onClick={() => toggleRarity(rarity)}
-                                            style={{
-                                                width: '100%',
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                padding: '10px 14px',
-                                                background: 'transparent',
-                                                border: 'none',
-                                                borderBottom: isLast ? 'none' : `1px solid ${COLORS.border}`,
-                                                cursor: items.length > 0 ? 'pointer' : 'default',
-                                                opacity: items.length > 0 ? 1 : 0.6
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <span style={{ color: config.color }}>{config.icon}</span>
-                                                <span style={{ color: COLORS.text, fontSize: '13px' }}>{config.label}</span>
-                                                {items.length > 0 && (
-                                                    <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>({items.length})</span>
-                                                )}
-                                                {items.length > 0 && (
-                                                    <ChevronDown
-                                                        size={12}
-                                                        style={{
-                                                            color: COLORS.textMuted,
-                                                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                                            transition: 'transform 0.2s'
-                                                        }}
-                                                    />
-                                                )}
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <span style={{ color: config.color, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                                    ~{formatNumber(expectedSpins[rarity])}
-                                                </span>
-                                                <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '4px' }}>spins</span>
-                                            </div>
-                                        </button>
-
-                                        {/* Expanded items list */}
-                                        {isExpanded && items.length > 0 && (
-                                            <div style={{
-                                                background: `${config.color}08`,
-                                                borderBottom: idx === arr.length - 1 ? 'none' : `1px solid ${COLORS.border}`
-                                            }}>
-                                                {items.map((item, itemIdx) => (
-                                                    <div
-                                                        key={item.id || itemIdx}
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            padding: '6px 14px 6px 36px',
-                                                            fontSize: '11px',
-                                                            borderBottom: itemIdx < items.length - 1 ? `1px solid ${COLORS.border}22` : 'none'
-                                                        }}
-                                                    >
-                                                        <span style={{ color: COLORS.textMuted }}>{item.name}</span>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            <span style={{ color: COLORS.textMuted, fontFamily: 'monospace', fontSize: '10px' }}>
-                                                                weight:{item.weight?.toLocaleString()}
-                                                            </span>
-                                                            <span style={{ color: config.color, fontFamily: 'monospace', minWidth: '70px', textAlign: 'right' }}>
-                                                                {formatPercent(item.weight)}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Weight Examples */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginBottom: '8px' }}>
-                            Weight Reference
-                        </div>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: '8px',
-                            fontSize: '12px'
-                        }}>
-                            <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10 → </span>
-                                <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.0001%</span>
-                            </div>
-                            <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 100 → </span>
-                                <span style={{ color: COLORS.aqua, fontFamily: 'monospace' }}>0.001%</span>
-                            </div>
-                            <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 1K → </span>
-                                <span style={{ color: COLORS.purple, fontFamily: 'monospace' }}>0.01%</span>
-                            </div>
-                            <div style={{ padding: '8px 10px', background: COLORS.bg, borderRadius: '6px', border: `1px solid ${COLORS.border}` }}>
-                                <span style={{ color: COLORS.textMuted }}>Weight 10K → </span>
-                                <span style={{ color: COLORS.gold, fontFamily: 'monospace' }}>0.1%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Bonus Event */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginBottom: '8px' }}>
-                            Bonus Event
-                        </div>
-                        <div style={{
-                            background: COLORS.bg,
-                            borderRadius: '8px',
-                            border: `1px solid ${COLORS.border}`,
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                padding: '10px 14px',
-                                borderBottom: `1px solid ${COLORS.border}`,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}>
-                                <span style={{ color: COLORS.text, fontSize: '12px' }}>Chance to trigger bonus wheel</span>
-                                <span style={{ color: COLORS.orange, fontSize: '13px', fontWeight: '600', fontFamily: 'monospace' }}>0.5%</span>
-                            </div>
-                            <div style={{ padding: '10px 14px' }}>
-                                <div style={{ color: COLORS.textMuted, fontSize: '11px', marginBottom: '8px' }}>Bonus wheel distribution:</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                                        <span style={{ color: COLORS.text }}>Lucky Spin</span>
-                                        <span style={{ color: COLORS.green, fontFamily: 'monospace' }}>40%</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                                        <span style={{ color: COLORS.text }}>Triple Spin</span>
-                                        <span style={{ color: COLORS.gold, fontFamily: 'monospace' }}>40%</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                                        <span style={{ color: COLORS.text }}>Triple Lucky Spin</span>
-                                        <span style={{ color: COLORS.green, fontFamily: 'monospace' }}>20%</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Lucky Spin Explanation */}
+                {/* Rarity aura glow behind item during spin */}
+                {showRarityAura && (
                     <div style={{
-                        padding: '12px 14px',
-                        background: `${COLORS.green}11`,
-                        borderRadius: '8px',
-                        border: `1px solid ${COLORS.green}33`,
-                        marginBottom: '20px'
-                    }}>
-                        <div style={{ color: COLORS.green, fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                            Lucky Spin
-                        </div>
-                        <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                            Ignores all weights. Every item has equal chance: <code style={{ color: COLORS.green }}>1 ÷ {totalItemCount}</code>
-                        </div>
-                    </div>
-
-                    {/* Triple Spin Explanation */}
-                    <div style={{
-                        padding: '12px 14px',
-                        background: `${COLORS.gold}11`,
-                        borderRadius: '8px',
-                        border: `1px solid ${COLORS.gold}33`,
-                        marginBottom: '20px'
-                    }}>
-                        <div style={{ color: COLORS.gold, fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>
-                            Triple Spin
-                        </div>
-                        <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                            3 independent spins using normal weighted probabilities. Each spin has the same odds as a regular spin.
-                        </div>
-                    </div>
-
-                    {/* Regular Items Explanation */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginBottom: '8px' }}>
-                            Regular Items
-                        </div>
-                        <div style={{
-                            padding: '12px 14px',
-                            background: COLORS.bg,
-                            borderRadius: '8px',
-                            border: `1px solid ${COLORS.border}`
-                        }}>
-                            <div style={{ color: COLORS.textMuted, fontSize: '11px', lineHeight: 1.5 }}>
-                                Regular items share the remaining weight after special items. Each regular item has an <span style={{ color: COLORS.text }}>equal chance</span> within that pool.
-                            </div>
-                            <div style={{
-                                marginTop: '8px',
-                                padding: '8px 10px',
-                                background: COLORS.bgLighter,
-                                borderRadius: '6px',
-                                fontFamily: 'monospace',
-                                fontSize: '11px',
-                                color: COLORS.textMuted
-                            }}>
-                                Per regular item: {regularItemCount > 0 ? ((regularWeight / TOTAL_WEIGHT / regularItemCount) * 100).toFixed(4) : '—'}%
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Current Pool Stats */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginBottom: '8px' }}>
-                            Current Pool
-                        </div>
-                        <div style={{
-                            background: COLORS.bg,
-                            borderRadius: '8px',
-                            border: `1px solid ${COLORS.border}`,
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px',
-                                borderBottom: `1px solid ${COLORS.border}`
-                            }}>
-                                <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Special items</span>
-                                <div>
-                                    <span style={{ color: COLORS.text, fontSize: '12px', fontFamily: 'monospace' }}>{specialItemCount}</span>
-                                    <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '8px' }}>({specialPercent}%)</span>
-                                </div>
-                            </div>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px',
-                                borderBottom: `1px solid ${COLORS.border}`
-                            }}>
-                                <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Regular items</span>
-                                <div>
-                                    <span style={{ color: COLORS.text, fontSize: '12px', fontFamily: 'monospace' }}>{regularItemCount}</span>
-                                    <span style={{ color: COLORS.textMuted, fontSize: '11px', marginLeft: '8px' }}>({regularPercent}%)</span>
-                                </div>
-                            </div>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '10px 14px'
-                            }}>
-                                <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Total weight</span>
-                                <span style={{ color: COLORS.gold, fontSize: '12px', fontFamily: 'monospace' }}>10,000,000</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <div style={{ color: COLORS.textMuted, fontSize: '10px', textAlign: 'center' }}>
-                        All spins processed server-side • Drop rates are exact calculations
-                    </div>
+                        position: 'absolute',
+                        top: '-4px',
+                        left: '-4px',
+                        right: '-4px',
+                        bottom: '-4px',
+                        borderRadius: '10px',
+                        animation: getRarityAura(),
+                        pointerEvents: 'none',
+                        zIndex: 0,
+                    }} />
+                )}
+                <div style={{
+                    position: 'relative',
+                    zIndex: 1,
+                    width: `${size}px`, height: `${size}px`,
+                    background: isRecursion
+                        ? `linear-gradient(135deg, ${COLORS.recursion}55, ${COLORS.recursionDark}55, ${COLORS.recursion}55)`
+                        : isEvent
+                            ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33, ${COLORS.gold}33, ${COLORS.green}33, ${COLORS.aqua}33, ${COLORS.purple}33)`
+                            : isInsane
+                                ? `linear-gradient(135deg, ${COLORS.insane}55, #FFF5B0 44, ${COLORS.insane}55)`
+                                : isMythic
+                                    ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
+                                    : isSpecial
+                                        ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
+                                        : isRare
+                                            ? `linear-gradient(135deg, ${COLORS.red}44, ${COLORS.orange}44)`
+                                            : (isSpinning && spinIsRecursion)
+                                                ? `${COLORS.recursionDark}`
+                                                : COLORS.bgLight,
+                    borderRadius: '6px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `2px solid ${
+                        isRecursion ? COLORS.recursion
+                            : isEvent ? COLORS.gold
+                                : isWinning ? COLORS.gold
+                                    : isInsane ? COLORS.insane
+                                        : isMythic ? COLORS.aqua
+                                            : isSpecial ? COLORS.purple
+                                                : isRare ? COLORS.red
+                                                    : (isSpinning && spinIsRecursion) ? `${COLORS.recursion}44`
+                                                        : COLORS.border
+                    }`,
+                    boxShadow: shouldAnimate ? (
+                        isRecursion
+                            ? `0 0 20px ${COLORS.recursion}cc, 0 0 40px ${COLORS.recursion}66, 0 0 60px ${COLORS.recursionDark}44`
+                            : isEvent
+                                ? `0 0 15px ${COLORS.gold}88, 0 0 30px ${COLORS.purple}44`
+                                : isInsane
+                                    ? `0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044`
+                                    : isMythic
+                                        ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
+                                        : isSpecial
+                                            ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
+                                            : isRare
+                                                ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
+                                                : isWinning
+                                                    ? `0 0 20px ${COLORS.gold}66`
+                                                    : 'none'
+                    ) : 'none',
+                    animation: shouldAnimate ? (
+                        isRecursion ? 'recursionGlow 0.5s ease-in-out infinite'
+                            : isEvent ? 'eventGlow 1.5s ease-in-out infinite'
+                                : isInsane ? 'insaneGlow 0.8s ease-in-out infinite'
+                                    : isMythic ? 'mythicGlow 1s ease-in-out infinite'
+                                        : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
+                                            : isRare ? 'rareGlow 1.5s ease-in-out infinite'
+                                                : 'none'
+                    ) : 'none'
+                }}>
+                    <img
+                        src={getItemImageUrl(item)}
+                        alt={item.name}
+                        loading="lazy"
+                        style={{
+                            width: isEvent ? `${size * 1.1}px` : isRecursion ? `${size * 0.9}px` : `${size * 0.77}px`,
+                            height: isEvent ? `${size * 1.1}px` : isRecursion ? `${size * 0.9}px` : `${size * 0.77}px`,
+                            imageRendering: (isInsane || isSpecial || isRare || item.username || isEvent || isRecursion) ? 'auto' : 'pixelated',
+                            borderRadius: (isInsane || isSpecial || isRare || item.username) ? '4px' : '0',
+                            filter: isRecursion ? `drop-shadow(0 0 10px ${COLORS.recursion})` : 'none',
+                        }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                    />
                 </div>
             </div>
         );
     };
 
+
     // Idle state - show clickable wheel
     if (state === 'idle') {
+        // Show green effects only if user has recursion spins remaining
+        const showRecursionEffects = recursionActive && recursionSpinsRemaining > 0;
+
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                position: 'relative',
+                minHeight: '320px', // Prevent layout shift when transitioning to spin state
+                justifyContent: 'center',
+            }}>
+                {/* Recursion glow effect behind wheel */}
+                {showRecursionEffects && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -60%)',
+                        width: '220px',
+                        height: '220px',
+                        background: `radial-gradient(circle, ${COLORS.recursion}33 0%, transparent 70%)`,
+                        borderRadius: '50%',
+                        animation: 'recursionPulse 2s ease-in-out infinite',
+                        pointerEvents: 'none',
+                    }} />
+                )}
                 <button
                     onClick={spin}
                     disabled={isDisabled}
@@ -1398,18 +1123,25 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         padding: 0,
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         transition: 'transform 0.3s, filter 0.3s',
-                        filter: 'drop-shadow(0 8px 24px rgba(255, 170, 0, 0.3))',
-                        opacity: isDisabled ? 0.5 : 1
+                        filter: showRecursionEffects
+                            ? `drop-shadow(0 0 20px ${COLORS.recursion}) drop-shadow(0 0 40px ${COLORS.recursion}66)`
+                            : 'drop-shadow(0 8px 24px rgba(255, 170, 0, 0.3))',
+                        opacity: isDisabled ? 0.5 : 1,
+                        animation: showRecursionEffects ? 'matrixGlitch 3s ease-in-out infinite' : 'none',
                     }}
                     onMouseEnter={e => {
                         if (!isDisabled) {
                             e.currentTarget.style.transform = 'scale(1.05) translateY(-4px)';
-                            e.currentTarget.style.filter = 'drop-shadow(0 12px 32px rgba(255, 170, 0, 0.5))';
+                            e.currentTarget.style.filter = showRecursionEffects
+                                ? `drop-shadow(0 0 30px ${COLORS.recursion}) drop-shadow(0 0 60px ${COLORS.recursion}88)`
+                                : 'drop-shadow(0 12px 32px rgba(255, 170, 0, 0.5))';
                         }
                     }}
                     onMouseLeave={e => {
                         e.currentTarget.style.transform = 'scale(1) translateY(0)';
-                        e.currentTarget.style.filter = 'drop-shadow(0 8px 24px rgba(255, 170, 0, 0.3))';
+                        e.currentTarget.style.filter = showRecursionEffects
+                            ? `drop-shadow(0 0 20px ${COLORS.recursion}) drop-shadow(0 0 40px ${COLORS.recursion}66)`
+                            : 'drop-shadow(0 8px 24px rgba(255, 170, 0, 0.3))';
                     }}
                 >
                     <img
@@ -1420,11 +1152,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 </button>
 
                 <div style={{ textAlign: 'center' }}>
-                    <div style={{ color: COLORS.gold, fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
-                        {!user ? 'Login to spin!' : allItems.length === 0 ? 'Loading items...' : 'Click to spin!'}
+                    <div style={{
+                        color: (recursionActive && recursionSpinsRemaining > 0) ? COLORS.recursion : COLORS.gold,
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        marginBottom: '4px',
+                        textShadow: (recursionActive && recursionSpinsRemaining > 0) ? `0 0 10px ${COLORS.recursion}` : 'none',
+                    }}>
+                        {!user ? 'Login to spin!' : allItems.length === 0 ? 'Loading items...' : (recursionActive && recursionSpinsRemaining > 0) ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡` : 'Click to spin!'}
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '12px' }}>
-                        {allItems.length > 0 && `Win one of ${totalItemCount} items!`}
+                        {(recursionActive && recursionSpinsRemaining > 0)
+                            ? <span style={{ color: COLORS.recursion }}>Equal chance for ALL items!</span>
+                            : allItems.length > 0 && `Win one of ${totalItemCount} items!`
+                        }
                     </div>
                     {error && (
                         <div style={{
@@ -1466,16 +1207,43 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 </div>
 
                 {/* Odds Info Modal */}
-                {showOddsInfo && <OddsInfoModal />}
+                {showOddsInfo && (
+                    <OddsInfoModal
+                        onClose={() => setShowOddsInfo(false)}
+                        dynamicItems={dynamicItems}
+                        allItems={allItems}
+                        isMobile={isMobile}
+                    />
+                )}
             </div>
         );
     }
 
     // Spinning or Result state - RESTORED beautiful animation
+    // Use ref for visual effects during spin to prevent mid-animation changes
+    const showSpinRecursionEffects = state === 'spinning' ? currentSpinIsRecursionRef.current : (recursionActive && recursionSpinsRemaining > 0);
+
     return (
-        <div style={{ background: COLORS.bgLight, borderRadius: '16px', padding: '24px', border: `1px solid ${COLORS.border}`, width: '100%', boxSizing: 'border-box' }}>
+        <div style={{
+            background: showSpinRecursionEffects ? `linear-gradient(135deg, ${COLORS.recursionDark} 0%, #0a1a0a 50%, ${COLORS.recursionDark} 100%)` : COLORS.bgLight,
+            borderRadius: '16px',
+            padding: '24px',
+            border: showSpinRecursionEffects ? `2px solid ${COLORS.recursion}66` : `1px solid ${COLORS.border}`,
+            width: '100%',
+            boxSizing: 'border-box',
+            boxShadow: showSpinRecursionEffects ? `0 0 30px ${COLORS.recursion}22, inset 0 0 60px ${COLORS.recursion}11` : 'none',
+            transition: 'all 0.5s ease-out',
+            minHeight: '320px', // Match idle state to prevent layout shift
+        }}>
             {/* Odds Info Modal */}
-            {showOddsInfo && <OddsInfoModal />}
+            {showOddsInfo && (
+                <OddsInfoModal
+                    onClose={() => setShowOddsInfo(false)}
+                    dynamicItems={dynamicItems}
+                    allItems={allItems}
+                    isMobile={isMobile}
+                />
+            )}
 
             {/* Header with spinning wheel icon */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
@@ -1485,21 +1253,28 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         alt="Wheel"
                         style={{
                             width: '32px', height: 'auto', imageRendering: 'pixelated',
-                            animation: (state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning') ? 'wheelSpin 0.5s linear infinite' : 'none'
+                            animation: (state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning') ? 'wheelSpin 0.5s linear infinite' : 'none',
+                            filter: showSpinRecursionEffects ? `drop-shadow(0 0 8px ${COLORS.recursion})` : 'none',
                         }}
                     />
-                    <span style={{ color: state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.green : COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
-                        {state === 'spinning' ? 'Spinning...' :
-                            state === 'event' ? 'BONUS EVENT!' :
-                                state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
-                                    state === 'bonusResult' ? 'Event Selected!' :
-                                        state === 'tripleSpinning' ? 'Triple Spinning...' :
-                                            state === 'tripleResult' ? 'Triple Win!' :
-                                                state === 'luckySpinning' ? 'Lucky Spinning...' :
-                                                    state === 'luckyResult' ? 'Lucky Win!' :
-                                                        state === 'tripleLuckySpinning' ? 'Triple Lucky Spinning...' :
-                                                            state === 'tripleLuckyResult' ? 'Triple Lucky Win!' :
-                                                                'Gamba!'}
+                    <span style={{
+                        color: state === 'recursion' ? COLORS.recursion : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.green : showSpinRecursionEffects ? COLORS.recursion : COLORS.gold,
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
+                    }}>
+                        {state === 'spinning' ? (showSpinRecursionEffects ? '⚡ Lucky Spinning...' : 'Spinning...') :
+                            state === 'recursion' ? 'RECURSION!' :
+                                state === 'event' ? 'BONUS EVENT!' :
+                                    state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
+                                        state === 'bonusResult' ? 'Event Selected!' :
+                                            state === 'tripleSpinning' ? '5x Spinning...' :
+                                                state === 'tripleResult' ? '5x Win!' :
+                                                    state === 'luckySpinning' ? 'Lucky Spinning...' :
+                                                        state === 'luckyResult' ? 'Lucky Win!' :
+                                                            state === 'tripleLuckySpinning' ? 'Triple Lucky Spinning...' :
+                                                                state === 'tripleLuckyResult' ? 'Triple Lucky Win!' :
+                                                                    'Gamba!'}
                     </span>
                 </div>
 
@@ -1529,7 +1304,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         ?
                     </button>
 
-                    {(state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult') && (
+                    {(state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult' || state === 'recursion') && (
                         <button onClick={respin} style={{
                             padding: '8px 16px', background: 'transparent',
                             border: `1px solid ${COLORS.border}`, borderRadius: '6px',
@@ -1546,53 +1321,150 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             {/* Spinner Container - RESTORED with all visual effects */}
             {/* Hidden during bonus wheel, lucky spin, and triple spin (they have their own displays) */}
             {state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && state !== 'tripleSpinning' && state !== 'tripleResult' && state !== 'tripleLuckySpinning' && state !== 'tripleLuckyResult' && (
-                <div style={{
-                    position: 'relative',
-                    height: isMobile ? '280px' : '100px',
-                    width: isMobile ? '100px' : '100%',
-                    overflow: 'hidden',
-                    borderRadius: '8px',
-                    background: COLORS.bg,
-                    border: `1px solid ${COLORS.border}`,
-                    margin: isMobile ? '0 auto' : '0'
-                }}>
+                <div
+                    onClick={() => {
+                        if (!isMobile || !user || allItems.length === 0) return;
+                        if (state === 'result') {
+                            respinRef.current?.();
+                        } else if (state === 'idle') {
+                            spinRef.current?.();
+                        }
+                    }}
+                    style={{
+                        position: 'relative',
+                        height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : '100px',
+                        width: isMobile ? `${MOBILE_STRIP_WIDTH}px` : '100%',
+                        overflow: 'hidden',
+                        borderRadius: isMobile ? '12px' : '8px',
+                        background: showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg,
+                        border: showSpinRecursionEffects ? `2px solid ${COLORS.recursion}` : `1px solid ${COLORS.border}`,
+                        margin: isMobile ? '0 auto' : '0',
+                        boxShadow: showSpinRecursionEffects ? `0 0 20px ${COLORS.recursion}66, 0 0 40px ${COLORS.recursion}33, inset 0 0 30px ${COLORS.recursion}22` : 'none',
+                        transition: 'all 0.3s ease-out',
+                        cursor: isMobile && (state === 'idle' || state === 'result') ? 'pointer' : 'default',
+                    }}>
+                    {/* Recursion scanlines overlay */}
+                    {showSpinRecursionEffects && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.05) 2px, rgba(0,255,0,0.05) 4px)',
+                            zIndex: 6,
+                            pointerEvents: 'none',
+                            animation: 'matrixFlicker 0.1s infinite',
+                        }} />
+                    )}
+
                     {/* Center Indicator Line */}
                     <div style={{
                         position: 'absolute',
                         ...(isMobile ? {
-                            left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', height: '3px'
+                            left: 0, right: 0, top: '50%', transform: 'translateY(-50%)',
+                            height: showSpinRecursionEffects ? '3px' : '3px'
                         } : {
-                            top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '3px'
+                            top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)',
+                            width: showSpinRecursionEffects ? '3px' : '3px'
                         }),
-                        background: COLORS.gold,
+                        background: showSpinRecursionEffects ? COLORS.recursion : COLORS.gold,
                         zIndex: 10,
-                        boxShadow: `0 0 16px ${COLORS.gold}88`
+                        boxShadow: showSpinRecursionEffects
+                            ? `0 0 10px ${COLORS.recursion}, 0 0 20px ${COLORS.recursion}88`
+                            : `0 0 16px ${COLORS.gold}88`,
+                        transition: 'all 0.3s ease-out',
                     }} />
 
-                    {/* Pointer */}
-                    <div style={{
-                        position: 'absolute',
-                        ...(isMobile ? {
-                            left: '-2px', top: '50%', transform: 'translateY(-50%)',
-                            width: 0, height: 0,
-                            borderTop: '8px solid transparent', borderBottom: '8px solid transparent',
-                            borderLeft: `12px solid ${COLORS.gold}`
-                        } : {
-                            top: '-2px', left: '50%', transform: 'translateX(-50%)',
-                            width: 0, height: 0,
-                            borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
-                            borderTop: `12px solid ${COLORS.gold}`
-                        }),
-                        zIndex: 11,
-                        filter: `drop-shadow(0 2px 4px ${COLORS.gold}66)`
-                    }} />
+                    {/* Pointer - Normal triangle for regular, bracket for recursion */}
+                    {showSpinRecursionEffects ? (
+                        <>
+                            {/* Top Bracket for recursion */}
+                            <div style={{
+                                position: 'absolute',
+                                ...(isMobile ? {
+                                    left: '-4px', top: '50%', transform: 'translateY(-50%)',
+                                } : {
+                                    top: '-4px', left: '50%', transform: 'translateX(-50%)',
+                                }),
+                                zIndex: 11,
+                                filter: `drop-shadow(0 0 6px ${COLORS.recursion}) drop-shadow(0 0 12px ${COLORS.recursion}88)`,
+                            }}>
+                                <div style={{
+                                    ...(isMobile ? {
+                                        width: '8px',
+                                        height: '18px',
+                                        borderTop: `2px solid ${COLORS.recursion}`,
+                                        borderBottom: `2px solid ${COLORS.recursion}`,
+                                        borderLeft: `2px solid ${COLORS.recursion}`,
+                                        borderRight: 'none',
+                                        borderRadius: '3px 0 0 3px',
+                                    } : {
+                                        width: '18px',
+                                        height: '8px',
+                                        borderLeft: `2px solid ${COLORS.recursion}`,
+                                        borderRight: `2px solid ${COLORS.recursion}`,
+                                        borderTop: `2px solid ${COLORS.recursion}`,
+                                        borderBottom: 'none',
+                                        borderRadius: '3px 3px 0 0',
+                                    }),
+                                }} />
+                            </div>
+                            {/* Bottom Bracket for recursion */}
+                            <div style={{
+                                position: 'absolute',
+                                ...(isMobile ? {
+                                    right: '-4px', top: '50%', transform: 'translateY(-50%)',
+                                } : {
+                                    bottom: '-4px', left: '50%', transform: 'translateX(-50%)',
+                                }),
+                                zIndex: 11,
+                                filter: `drop-shadow(0 0 6px ${COLORS.recursion}) drop-shadow(0 0 12px ${COLORS.recursion}88)`,
+                            }}>
+                                <div style={{
+                                    ...(isMobile ? {
+                                        width: '8px',
+                                        height: '18px',
+                                        borderTop: `2px solid ${COLORS.recursion}`,
+                                        borderBottom: `2px solid ${COLORS.recursion}`,
+                                        borderRight: `2px solid ${COLORS.recursion}`,
+                                        borderLeft: 'none',
+                                        borderRadius: '0 3px 3px 0',
+                                    } : {
+                                        width: '18px',
+                                        height: '8px',
+                                        borderLeft: `2px solid ${COLORS.recursion}`,
+                                        borderRight: `2px solid ${COLORS.recursion}`,
+                                        borderBottom: `2px solid ${COLORS.recursion}`,
+                                        borderTop: 'none',
+                                        borderRadius: '0 0 3px 3px',
+                                    }),
+                                }} />
+                            </div>
+                        </>
+                    ) : (
+                        /* Normal triangle pointer for regular spins */
+                        <div style={{
+                            position: 'absolute',
+                            ...(isMobile ? {
+                                left: '-2px', top: '50%', transform: 'translateY(-50%)',
+                                width: 0, height: 0,
+                                borderTop: '8px solid transparent', borderBottom: '8px solid transparent',
+                                borderLeft: `12px solid ${COLORS.gold}`
+                            } : {
+                                top: '-2px', left: '50%', transform: 'translateX(-50%)',
+                                width: 0, height: 0,
+                                borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
+                                borderTop: `12px solid ${COLORS.gold}`
+                            }),
+                            zIndex: 11,
+                            filter: `drop-shadow(0 2px 4px ${COLORS.gold}66)`,
+                        }} />
+                    )}
 
                     {/* Edge fade gradients */}
                     <div style={{
                         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                         background: isMobile
-                            ? `linear-gradient(180deg, ${COLORS.bg} 0%, transparent 20%, transparent 80%, ${COLORS.bg} 100%)`
-                            : `linear-gradient(90deg, ${COLORS.bg} 0%, transparent 15%, transparent 85%, ${COLORS.bg} 100%)`,
+                            ? `linear-gradient(180deg, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 0%, transparent 20%, transparent 80%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 100%)`
+                            : `linear-gradient(90deg, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 0%, transparent 15%, transparent 85%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 100%)`,
                         zIndex: 5, pointerEvents: 'none'
                     }} />
 
@@ -1606,8 +1478,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             alignItems: 'center',
                             willChange: 'transform, top',
                             ...(isMobile ? {
-                                left: '50%', marginLeft: `-${ITEM_WIDTH / 2}px`,
-                                top: `${(280 / 2) - (ITEM_WIDTH / 2)}px`
+                                left: '50%', marginLeft: `-${MOBILE_ITEM_WIDTH / 2}px`,
+                                top: `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2)}px`
                             } : {
                                 height: '100%',
                                 transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
@@ -1617,15 +1489,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         {strip.map((item, idx) => {
                             const isWinningItem = idx === FINAL_INDEX && (state === 'result' || state === 'event');
                             const isSpinning = state === 'spinning';
+                            const stripItemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
                             return (
                                 <div key={idx} style={{
-                                    width: `${ITEM_WIDTH}px`, height: `${ITEM_WIDTH}px`, flexShrink: 0,
+                                    width: `${stripItemWidth}px`, height: `${stripItemWidth}px`, flexShrink: 0,
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     ...(isMobile
-                                        ? { borderBottom: `1px solid ${COLORS.border}33` }
-                                        : { borderRight: `1px solid ${COLORS.border}33` })
+                                        ? { borderBottom: `1px solid ${showSpinRecursionEffects ? COLORS.recursion + '33' : COLORS.border + '33'}` }
+                                        : { borderRight: `1px solid ${showSpinRecursionEffects ? COLORS.recursion + '33' : COLORS.border + '33'}` })
                                 }}>
-                                    {renderItemBox(item, idx, isWinningItem, 52, isSpinning)}
+                                    {renderItemBox(item, idx, isWinningItem, isMobile ? 60 : 52, isSpinning)}
                                 </div>
                             );
                         })}
@@ -1638,35 +1511,76 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 <div style={{
                     marginTop: '24px',
                     padding: '32px 24px',
-                    background: isInsaneItem(result)
-                        ? `radial-gradient(ellipse at center, ${COLORS.insane}25 0%, #FFF5B015 30%, ${COLORS.bg} 70%)`
-                        : isMythicItem(result)
-                            ? `radial-gradient(ellipse at center, ${COLORS.aqua}15 0%, ${COLORS.purple}10 50%, ${COLORS.bg} 70%)`
-                            : isSpecialItem(result)
-                                ? `radial-gradient(ellipse at center, ${COLORS.purple}22 0%, ${COLORS.bg} 70%)`
-                                : isRareItem(result)
-                                    ? `radial-gradient(ellipse at center, ${COLORS.red}18 0%, ${COLORS.bg} 70%)`
-                                    : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
+                    background: resultWasRecursionSpin
+                        ? `radial-gradient(ellipse at center, ${COLORS.recursion}20 0%, ${COLORS.recursionDark}40 40%, ${COLORS.bg} 70%)`
+                        : isInsaneItem(result)
+                            ? `radial-gradient(ellipse at center, ${COLORS.insane}25 0%, #FFF5B015 30%, ${COLORS.bg} 70%)`
+                            : isMythicItem(result)
+                                ? `radial-gradient(ellipse at center, ${COLORS.aqua}15 0%, ${COLORS.purple}10 50%, ${COLORS.bg} 70%)`
+                                : isSpecialItem(result)
+                                    ? `radial-gradient(ellipse at center, ${COLORS.purple}22 0%, ${COLORS.bg} 70%)`
+                                    : isRareItem(result)
+                                        ? `radial-gradient(ellipse at center, ${COLORS.red}18 0%, ${COLORS.bg} 70%)`
+                                        : `radial-gradient(ellipse at center, ${COLORS.bgLighter} 0%, ${COLORS.bg} 70%)`,
                     borderRadius: '12px',
-                    border: `1px solid ${isInsaneItem(result) ? COLORS.insane + '88' : isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : isRareItem(result) ? COLORS.red + '66' : COLORS.gold + '44'}`,
+                    border: resultWasRecursionSpin
+                        ? `2px solid ${COLORS.recursion}88`
+                        : `1px solid ${isInsaneItem(result) ? COLORS.insane + '88' : isMythicItem(result) ? COLORS.aqua + '66' : isSpecialItem(result) ? COLORS.purple + '66' : isRareItem(result) ? COLORS.red + '66' : COLORS.gold + '44'}`,
                     textAlign: 'center',
                     position: 'relative',
                     overflow: 'hidden',
-                    animation: isInsaneItem(result) ? 'insanePulse 1.5s ease-in-out infinite, resultSlideIn 0.4s ease-out' : 'resultSlideIn 0.4s ease-out'
+                    animation: isInsaneItem(result) ? 'insanePulse 1.5s ease-in-out infinite, resultSlideIn 0.4s ease-out' : 'resultSlideIn 0.4s ease-out',
+                    boxShadow: resultWasRecursionSpin ? `0 0 25px ${COLORS.recursion}44, 0 0 50px ${COLORS.recursion}22, inset 0 0 30px ${COLORS.recursion}11` : 'none',
                 }}>
-                    {/* Floating particles - MORE for insane */}
-                    {[...Array(isInsaneItem(result) ? 30 : isMythicItem(result) ? 20 : 12)].map((_, i) => (
+                    {/* Recursion scanlines overlay */}
+                    {resultWasRecursionSpin && (
+                        <div style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.03) 2px, rgba(0,255,0,0.03) 4px)',
+                            pointerEvents: 'none',
+                            zIndex: 0,
+                        }} />
+                    )}
+
+                    {/* Recursion Lucky Spin badge */}
+                    {resultWasRecursionSpin && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '12px',
+                            right: '12px',
+                            background: `linear-gradient(135deg, ${COLORS.recursion}dd 0%, ${COLORS.recursion}99 100%)`,
+                            color: '#000',
+                            fontSize: '10px',
+                            fontWeight: '800',
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            fontFamily: 'monospace',
+                            boxShadow: `0 0 10px ${COLORS.recursion}66`,
+                            zIndex: 2,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}>
+                            <Zap size={10} /> LUCKY
+                        </div>
+                    )}
+
+                    {/* Floating particles - MORE for insane, GREEN for recursion */}
+                    {[...Array(resultWasRecursionSpin ? 16 : isInsaneItem(result) ? 30 : isMythicItem(result) ? 20 : 12)].map((_, i) => (
                         <div key={i} style={{
                             position: 'absolute',
                             width: isInsaneItem(result) ? '10px' : isMythicItem(result) ? '8px' : '6px',
                             height: isInsaneItem(result) ? '10px' : isMythicItem(result) ? '8px' : '6px',
-                            background: isInsaneItem(result)
-                                ? (i % 4 === 0 ? COLORS.insane : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
-                                : isMythicItem(result)
-                                    ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                    : isSpecialItem(result) ? COLORS.purple
-                                        : isRareItem(result) ? COLORS.red
-                                            : COLORS.gold,
+                            background: resultWasRecursionSpin
+                                ? COLORS.recursion
+                                : isInsaneItem(result)
+                                    ? (i % 4 === 0 ? COLORS.insane : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
+                                    : isMythicItem(result)
+                                        ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
+                                        : isSpecialItem(result) ? COLORS.purple
+                                            : isRareItem(result) ? COLORS.red
+                                                : COLORS.gold,
                             borderRadius: '50%',
                             left: `${5 + Math.random() * 90}%`,
                             top: '85%',
@@ -1857,7 +1771,22 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     boxShadow: `0 0 15px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}33, inset 0 0 10px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}15`,
                                     border: `1px solid ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}44`
                                 }}>
-                                    {formatChance(result.chance)}% drop rate
+                                    {resultWasRecursionSpin && result.equalChance
+                                        ? `${formatChance(result.equalChance)}% (equal chance)`
+                                        : `${formatChance(result.chance)}% drop rate`
+                                    }
+                                </span>
+                            ) : resultWasRecursionSpin && result.equalChance ? (
+                                <span style={{
+                                    fontSize: '11px',
+                                    color: COLORS.recursion,
+                                    fontWeight: '600',
+                                    background: `${COLORS.recursion}22`,
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    marginTop: '4px'
+                                }}>
+                                    {formatChance(result.equalChance)}% (equal chance)
                                 </span>
                             ) : !isNewItem && collection[result.texture] > 1 && (
                                 <span style={{ fontSize: '12px', color: COLORS.textMuted, fontWeight: '500' }}>
@@ -1908,6 +1837,93 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             fontSize: isMobile ? '13px' : '14px'
                         }}>
                             Spinning to determine your reward...
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* RECURSION Display - Wheel within the wheel! */}
+            {state === 'recursion' && (
+                <div style={{
+                    marginTop: isMobile ? '16px' : '24px',
+                    padding: isMobile ? '24px' : '32px',
+                    background: `linear-gradient(135deg, ${COLORS.recursionDark} 0%, ${COLORS.bg} 50%, ${COLORS.recursionDark} 100%)`,
+                    borderRadius: '12px',
+                    border: `3px solid ${COLORS.recursion}`,
+                    textAlign: 'center',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    animation: 'recursionPulse 1s ease-in-out infinite'
+                }}>
+                    {/* Matrix-style scanlines */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.05) 2px, rgba(0,255,0,0.05) 4px)',
+                        pointerEvents: 'none'
+                    }} />
+
+                    {/* Glowing border effect */}
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        boxShadow: `inset 0 0 30px ${COLORS.recursion}44, inset 0 0 60px ${COLORS.recursion}22`,
+                        pointerEvents: 'none'
+                    }} />
+
+                    {/* Content */}
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                        {/* Headline with glitch effect */}
+                        <div style={{
+                            fontSize: isMobile ? '28px' : '36px',
+                            fontWeight: '900',
+                            color: COLORS.recursion,
+                            marginBottom: '12px',
+                            letterSpacing: '8px',
+                            textShadow: `0 0 20px ${COLORS.recursion}, 0 0 40px ${COLORS.recursion}`,
+                            fontFamily: 'monospace',
+                            animation: 'recursionTextGlitch 0.5s ease-in-out infinite'
+                        }}>
+                            RECURSION
+                        </div>
+
+                        {/* Wheel icon */}
+                        <div style={{
+                            width: isMobile ? '60px' : '80px',
+                            height: isMobile ? '60px' : '80px',
+                            margin: '0 auto 12px',
+                            animation: 'wheelSpin 2s linear infinite',
+                            filter: `drop-shadow(0 0 15px ${COLORS.recursion})`
+                        }}>
+                            <img
+                                src={WHEEL_TEXTURE_URL}
+                                alt="Wheel"
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    imageRendering: 'pixelated',
+                                }}
+                            />
+                        </div>
+
+                        {/* Subtext */}
+                        <div style={{
+                            color: COLORS.recursion,
+                            fontSize: isMobile ? '14px' : '16px',
+                            fontFamily: 'monospace',
+                            textShadow: `0 0 10px ${COLORS.recursion}88`
+                        }}>
+                            You hit the wheel in the wheel!
+                        </div>
+
+                        {/* Info */}
+                        <div style={{
+                            color: '#00FF0088',
+                            fontSize: isMobile ? '12px' : '13px',
+                            marginTop: '8px',
+                            fontFamily: 'monospace'
+                        }}>
+                            Global lucky spin event triggered for ALL users!
                         </div>
                     </div>
                 </div>
@@ -2073,7 +2089,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 letterSpacing: '0.5px',
                                                 textTransform: 'uppercase'
                                             }}>
-                                                {isTripleLucky ? 'TRIPLE LUCKY' : isLucky ? 'LUCKY SPIN' : isTriple ? 'TRIPLE SPIN' : event.name}
+                                                {isTripleLucky ? 'TRIPLE LUCKY' : isLucky ? 'LUCKY SPIN' : isTriple ? '5X SPIN' : event.name}
                                             </span>
                                         </div>
                                     </div>
@@ -2098,7 +2114,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             )}
 
             {/*Lucky Spin Display */}
-            {state === 'luckySpinning' && (
+            {(state === 'luckySpinning' || state === 'luckyResult') && (
                 <div style={{ marginTop: isMobile ? '20px' : '28px', animation: 'fadeIn 0.4s ease-out' }}>
                     {/* Lucky badge - enhanced */}
                     <div style={{
@@ -2123,7 +2139,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             justifyContent: 'center',
                             gap: '8px'
                         }}>
-                           Lucky Spin
+                           {state === 'luckyResult' ? 'Lucky Win!' : 'Lucky Spin'}
                         </span>
                         <div style={{
                             marginTop: '6px',
@@ -2131,14 +2147,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             fontSize: '11px',
                             fontWeight: '500',
                             letterSpacing: '0.5px'
-                        }}>Equal chance for all items</div>
+                        }}>{state === 'luckyResult' ? 'You received' : 'Equal chance for all items'}</div>
                     </div>
 
                     {/* Reuse main spinner strip */}
                     <div style={{
                         position: 'relative',
-                        height: isMobile ? '280px' : '100px',
-                        width: isMobile ? '100px' : '100%',
+                        height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : '100px',
+                        width: isMobile ? `${MOBILE_STRIP_WIDTH}px` : '100%',
                         overflow: 'hidden',
                         borderRadius: '12px',
                         background: COLORS.bg,
@@ -2191,24 +2207,26 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 alignItems: 'center',
                                 willChange: 'transform',
                                 ...(isMobile ? {
-                                    left: '50%', marginLeft: `-${ITEM_WIDTH / 2}px`,
-                                    top: `${(280 / 2) - (ITEM_WIDTH / 2)}px`
+                                    left: '50%', marginLeft: `-${MOBILE_ITEM_WIDTH / 2}px`,
+                                    top: `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2)}px`
                                 } : {
                                     height: '100%',
                                     transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
                                 })
                             }}>
-                            {strip.map((item, idx) => (
-                                <div key={idx} style={{
-                                    width: `${ITEM_WIDTH}px`, height: `${ITEM_WIDTH}px`, flexShrink: 0,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    ...(isMobile
-                                        ? { borderBottom: `1px solid ${COLORS.border}33` }
-                                        : { borderRight: `1px solid ${COLORS.border}33` })
-                                }}>
-                                    {renderItemBox(item, idx, false, 52)}
-                                </div>
-                            ))}
+                            {strip.map((item, idx) => {
+                                const stripItemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
+                                return (
+                                    <div key={idx} style={{
+                                        width: `${stripItemWidth}px`, height: `${stripItemWidth}px`, flexShrink: 0,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        ...(isMobile
+                                            ? { borderBottom: `1px solid ${COLORS.border}33` }
+                                            : { borderRight: `1px solid ${COLORS.border}33` })
+                                    }}>
+                                        {renderItemBox(item, idx, false, isMobile ? 60 : 52)}
+                                    </div>
+                                )})}
                         </div>
                     </div>
                 </div>
@@ -2217,7 +2235,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             {/*Lucky Spin Result */}
             {state === 'luckyResult' && luckyResult && (
                 <div style={{
-                    marginTop: isMobile ? '20px' : '28px',
+                    marginTop: isMobile ? '12px' : '16px',
                     padding: isMobile ? '24px 20px' : '32px 28px',
                     background: `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.green}25 0%, ${COLORS.aqua}08 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
                     borderRadius: '16px',
@@ -2420,15 +2438,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     {(state === 'tripleSpinning' || state === 'tripleResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (() => {
                         const isTripleLucky = state === 'tripleLuckySpinning' || state === 'tripleLuckyResult';
                         const accentColor = isTripleLucky ? COLORS.green : COLORS.gold;
+                        const stripCount = isTripleLucky ? 3 : 5; // 3 for Triple Lucky, 5 for 5x Spin
+                        const stripIndices = [...Array(stripCount).keys()];
                         return isMobile ? (
-                            /* Mobile: 3 vertical strips side by side */
+                            /* Mobile: vertical strips side by side */
                             <div style={{
                                 display: 'flex',
                                 justifyContent: 'center',
-                                gap: '8px'
+                                gap: '6px'
                             }}>
-                                {[0, 1, 2].map(rowIndex => {
-                                    const TRIPLE_ITEM_WIDTH_MOBILE = 70;
+                                {stripIndices.map(rowIndex => {
+                                    const TRIPLE_ITEM_WIDTH_MOBILE = isTripleLucky ? 70 : 58;
                                     const STRIP_HEIGHT_MOBILE = 200;
                                     return (
                                         <div key={rowIndex} style={{
@@ -2438,8 +2458,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             overflow: 'hidden',
                                             borderRadius: '8px',
                                             background: COLORS.bg,
-                                            border: rowIndex === 1 ? `2px solid ${accentColor}` : `1px solid ${COLORS.border}`,
-                                            boxShadow: rowIndex === 1 ? `0 0 20px ${accentColor}44` : 'none'
+                                            border: `2px solid ${accentColor}`,
+                                            boxShadow: `0 0 12px ${accentColor}33`
                                         }}>
                                             {/* Center Indicator - horizontal line */}
                                             <div style={{
@@ -2485,31 +2505,35 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                     willChange: 'transform'
                                                 }}
                                             >
-                                                {tripleStrips[rowIndex].map((item, idx) => (
-                                                    <div key={idx} style={{
-                                                        width: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
-                                                        height: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
-                                                        flexShrink: 0,
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        borderBottom: `1px solid ${COLORS.border}33`
-                                                    }}>
-                                                        {renderItemBox(item, idx, false, 44)}
-                                                    </div>
-                                                ))}
+                                                {(tripleStrips[rowIndex] || []).map((item, idx) => {
+                                                    const isWinning = idx === FINAL_INDEX && (state === 'tripleResult' || state === 'tripleLuckyResult');
+                                                    return (
+                                                        <div key={idx} style={{
+                                                            width: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
+                                                            height: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
+                                                            flexShrink: 0,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            borderBottom: `1px solid ${COLORS.border}33`
+                                                        }}>
+                                                            {renderItemBox(item, idx, isWinning, isTripleLucky ? 44 : 38)}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
                         ) : (
-                            /* Desktop: 3 horizontal strips stacked */
-                            [0, 1, 2].map(rowIndex => {
+                            /* Desktop: horizontal strips stacked */
+                            stripIndices.map(rowIndex => {
                                 const TRIPLE_ITEM_WIDTH = 80;
+                                const stripHeight = isTripleLucky ? 100 : 80; // Smaller for 5 strips
                                 return (
-                                    <div key={rowIndex} style={{ marginBottom: rowIndex < 2 ? '12px' : '0' }}>
+                                    <div key={rowIndex} style={{ marginBottom: rowIndex < stripCount - 1 ? '8px' : '0' }}>
                                         <div style={{
                                             position: 'relative',
-                                            height: '100px',
+                                            height: `${stripHeight}px`,
                                             width: '100%',
                                             overflow: 'hidden',
                                             borderRadius: '8px',
@@ -2548,15 +2572,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                     willChange: 'transform'
                                                 }}
                                             >
-                                                {tripleStrips[rowIndex].map((item, idx) => (
-                                                    <div key={idx} style={{
-                                                        width: `${TRIPLE_ITEM_WIDTH}px`, height: `${TRIPLE_ITEM_WIDTH}px`, flexShrink: 0,
-                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        borderRight: `1px solid ${COLORS.border}33`
-                                                    }}>
-                                                        {renderItemBox(item, idx, false, 52)}
-                                                    </div>
-                                                ))}
+                                                {(tripleStrips[rowIndex] || []).map((item, idx) => {
+                                                    const isWinning = idx === FINAL_INDEX && (state === 'tripleResult' || state === 'tripleLuckyResult');
+                                                    return (
+                                                        <div key={idx} style={{
+                                                            width: `${TRIPLE_ITEM_WIDTH}px`, height: `${TRIPLE_ITEM_WIDTH}px`, flexShrink: 0,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            borderRight: `1px solid ${COLORS.border}33`
+                                                        }}>
+                                                            {renderItemBox(item, idx, isWinning, isTripleLucky ? 52 : 48)}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>
@@ -2565,54 +2592,57 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         );
                     })()}
 
-                    {/* Results display - 3 items */}
-                    {(state === 'tripleResult' || state === 'tripleLuckyResult') && (
-                        <div style={{
-                            padding: isMobile ? '24px 16px' : '32px 28px',
-                            background: state === 'tripleLuckyResult'
-                                ? `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.green}25 0%, ${COLORS.aqua}08 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`
-                                : `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.gold}28 0%, ${COLORS.orange}12 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
-                            borderRadius: '16px',
-                            border: `2px solid ${state === 'tripleLuckyResult' ? COLORS.green : COLORS.gold}77`,
-                            textAlign: 'center',
-                            position: 'relative',
-                            overflow: 'hidden',
-                            boxShadow: state === 'tripleLuckyResult'
-                                ? `0 0 40px ${COLORS.green}55, 0 0 80px ${COLORS.green}22, inset 0 1px 0 ${COLORS.green}44`
-                                : `0 0 40px ${COLORS.gold}55, 0 0 80px ${COLORS.orange}22, inset 0 1px 0 ${COLORS.gold}44`
-                        }}>
-                            {/* Floating particles - enhanced */}
-                            {[...Array(isMobile ? 12 : 18)].map((_, i) => (
-                                <div key={i} style={{
-                                    position: 'absolute',
-                                    width: isMobile ? '5px' : '7px',
-                                    height: isMobile ? '5px' : '7px',
-                                    background: state === 'tripleLuckyResult'
-                                        ? (i % 3 === 0 ? COLORS.green : i % 3 === 1 ? COLORS.aqua : COLORS.gold)
-                                        : (i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple),
-                                    borderRadius: '50%',
-                                    left: `${3 + Math.random() * 94}%`,
-                                    top: '88%',
-                                    opacity: 0,
-                                    animation: `floatParticle 2.5s ease-out ${i * 0.1}s infinite`,
-                                    boxShadow: state === 'tripleLuckyResult'
-                                        ? `0 0 10px ${i % 3 === 0 ? COLORS.green : i % 3 === 1 ? COLORS.aqua : COLORS.gold}`
-                                        : `0 0 10px ${i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple}`
-                                }} />
-                            ))}
-
-                            {/* Header - enhanced */}
+                    {/* Results display */}
+                    {(state === 'tripleResult' || state === 'tripleLuckyResult') && (() => {
+                        const isTripleLucky = state === 'tripleLuckyResult';
+                        const itemCount = isTripleLucky ? 3 : 5;
+                        return (
                             <div style={{
-                                marginBottom: isMobile ? '18px' : '28px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: isMobile ? '10px' : '14px',
+                                padding: isMobile ? '24px 16px' : '32px 28px',
+                                background: state === 'tripleLuckyResult'
+                                    ? `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.green}25 0%, ${COLORS.aqua}08 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`
+                                    : `radial-gradient(ellipse 120% 200% at 50% 0%, ${COLORS.gold}28 0%, ${COLORS.orange}12 30%, ${COLORS.bgLight} 70%, ${COLORS.bgLight} 100%)`,
+                                borderRadius: '16px',
+                                border: `2px solid ${state === 'tripleLuckyResult' ? COLORS.green : COLORS.gold}77`,
+                                textAlign: 'center',
                                 position: 'relative',
-                                zIndex: 1,
-                                animation: 'fadeSlideDown 0.4s ease-out',
-                                flexWrap: 'wrap'
+                                overflow: 'hidden',
+                                boxShadow: state === 'tripleLuckyResult'
+                                    ? `0 0 40px ${COLORS.green}55, 0 0 80px ${COLORS.green}22, inset 0 1px 0 ${COLORS.green}44`
+                                    : `0 0 40px ${COLORS.gold}55, 0 0 80px ${COLORS.orange}22, inset 0 1px 0 ${COLORS.gold}44`
                             }}>
+                                {/* Floating particles - enhanced */}
+                                {[...Array(isMobile ? 12 : 18)].map((_, i) => (
+                                    <div key={i} style={{
+                                        position: 'absolute',
+                                        width: isMobile ? '5px' : '7px',
+                                        height: isMobile ? '5px' : '7px',
+                                        background: state === 'tripleLuckyResult'
+                                            ? (i % 3 === 0 ? COLORS.green : i % 3 === 1 ? COLORS.aqua : COLORS.gold)
+                                            : (i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple),
+                                        borderRadius: '50%',
+                                        left: `${3 + Math.random() * 94}%`,
+                                        top: '88%',
+                                        opacity: 0,
+                                        animation: `floatParticle 2.5s ease-out ${i * 0.1}s infinite`,
+                                        boxShadow: state === 'tripleLuckyResult'
+                                            ? `0 0 10px ${i % 3 === 0 ? COLORS.green : i % 3 === 1 ? COLORS.aqua : COLORS.gold}`
+                                            : `0 0 10px ${i % 3 === 0 ? COLORS.gold : i % 3 === 1 ? COLORS.orange : COLORS.purple}`
+                                    }} />
+                                ))}
+
+                                {/* Header - enhanced */}
+                                <div style={{
+                                    marginBottom: isMobile ? '18px' : '28px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: isMobile ? '10px' : '14px',
+                                    position: 'relative',
+                                    zIndex: 1,
+                                    animation: 'fadeSlideDown 0.4s ease-out',
+                                    flexWrap: 'wrap'
+                                }}>
                                 <span style={{
                                     background: state === 'tripleLuckyResult'
                                         ? `linear-gradient(135deg, ${COLORS.gold}ee 0%, ${COLORS.green}cc 100%)`
@@ -2630,133 +2660,136 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     gap: '6px'
                                 }}>
 
-                                    {state === 'tripleLuckyResult' ? 'Triple Lucky Win' : 'Triple Win'}
+                                    {state === 'tripleLuckyResult' ? 'Triple Lucky Win' : '5x Win'}
 
                                 </span>
-                                <span style={{
-                                    color: COLORS.textMuted,
-                                    fontSize: isMobile ? '12px' : '14px',
-                                    fontWeight: '500',
-                                    letterSpacing: '0.3px'
-                                }}>You received</span>
-                            </div>
+                                    <span style={{
+                                        color: COLORS.textMuted,
+                                        fontSize: isMobile ? '12px' : '14px',
+                                        fontWeight: '500',
+                                        letterSpacing: '0.3px'
+                                    }}>You received</span>
+                                </div>
 
-                            {/* 3 Items - horizontal row on both mobile and desktop */}
-                            <div style={{
-                                display: 'flex',
-                                flexDirection: 'row',
-                                alignItems: 'flex-start',
-                                justifyContent: 'center',
-                                gap: isMobile ? '12px' : '40px',
-                                position: 'relative',
-                                zIndex: 1,
-                                flexWrap: isMobile ? 'nowrap' : 'nowrap'
-                            }}>
-                                {tripleResults.map((item, idx) => {
-                                    if (!item) return null;
-                                    const isMythic = isMythicItem(item);
-                                    const isSpecial = isSpecialItem(item);
-                                    const isRare = isRareItem(item);
-                                    const itemColor = isMythic ? COLORS.aqua : isSpecial ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
-                                    const itemSize = isMobile ? 60 : 80;
-                                    const imgSize = isMobile ? 42 : 56;
+                                {/* Items - horizontal row on both mobile and desktop */}
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'row',
+                                    alignItems: 'flex-start',
+                                    justifyContent: 'center',
+                                    gap: isMobile ? (isTripleLucky ? '12px' : '6px') : (isTripleLucky ? '40px' : '24px'),
+                                    position: 'relative',
+                                    zIndex: 1,
+                                    flexWrap: isMobile && !isTripleLucky ? 'wrap' : 'nowrap',
+                                    maxWidth: isMobile && !isTripleLucky ? '320px' : 'none',
+                                    margin: '0 auto'
+                                }}>
+                                    {tripleResults.slice(0, itemCount).map((item, idx) => {
+                                        if (!item) return null;
+                                        const isMythic = isMythicItem(item);
+                                        const isSpecial = isSpecialItem(item);
+                                        const isRare = isRareItem(item);
+                                        const itemColor = isMythic ? COLORS.aqua : isSpecial ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
+                                        const itemSize = isMobile ? (isTripleLucky ? 60 : 48) : (isTripleLucky ? 80 : 70);
+                                        const imgSize = isMobile ? (isTripleLucky ? 42 : 32) : (isTripleLucky ? 56 : 48);
 
-                                    return (
-                                        <div key={idx} style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            width: isMobile ? '90px' : '120px',
-                                            animation: `itemReveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${idx * 0.15}s both`
-                                        }}>
-                                            {/* Item box with glow */}
-                                            <div style={{ position: 'relative', marginBottom: isMobile ? '8px' : '12px' }}>
-                                                {(isMythic || isSpecial || isRare) && (
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        top: isMobile ? '-6px' : '-8px',
-                                                        left: isMobile ? '-6px' : '-8px',
-                                                        right: isMobile ? '-6px' : '-8px',
-                                                        bottom: isMobile ? '-6px' : '-8px',
-                                                        borderRadius: isMobile ? '12px' : '14px',
-                                                        background: isMythic
-                                                            ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
-                                                            : isSpecial ? `radial-gradient(circle, ${COLORS.purple}33 0%, transparent 70%)`
-                                                                : `radial-gradient(circle, ${COLORS.red}33 0%, transparent 70%)`,
-                                                        animation: 'pulseGlow 1.5s ease-in-out infinite'
-                                                    }} />
-                                                )}
-                                                <div style={{
-                                                    width: `${itemSize}px`, height: `${itemSize}px`, position: 'relative',
-                                                    background: isMythic
-                                                        ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                                        : isSpecial
-                                                            ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                                            : isRare
-                                                                ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33)`
-                                                                : COLORS.bgLight,
-                                                    borderRadius: isMobile ? '8px' : '10px',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    border: `${isMobile ? '2px' : '3px'} solid ${itemColor}`,
-                                                    boxShadow: isMythic
-                                                        ? `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.aqua}66, 0 0 ${isMobile ? '30px' : '50px'} ${COLORS.purple}44`
-                                                        : isSpecial
-                                                            ? `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.purple}66`
-                                                            : isRare
-                                                                ? `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.red}66`
-                                                                : `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.gold}44`,
-                                                    animation: isMythic ? 'mythicGlow 1s ease-in-out infinite' : isSpecial ? 'specialGlow 1.5s ease-in-out infinite' : isRare ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
-                                                }}>
-                                                    <img
-                                                        src={getItemImageUrl(item)}
-                                                        alt={item.name}
-                                                        style={{
-                                                            width: `${imgSize}px`, height: `${imgSize}px`,
-                                                            imageRendering: (item.username || isSpecial || isRare) ? 'auto' : 'pixelated',
-                                                            borderRadius: (item.username || isSpecial || isRare) ? (isMobile ? '4px' : '6px') : '0',
-                                                            animation: 'itemBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                                            filter: `drop-shadow(0 0 6px ${itemColor}88)`
-                                                        }}
-                                                        onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {/* Item name */}
-                                            <span style={{
-                                                color: itemColor,
-                                                fontSize: isMobile ? '11px' : '14px',
-                                                fontWeight: '600',
-                                                textAlign: 'center',
-                                                lineHeight: '1.2',
-                                                maxWidth: '100%',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                display: '-webkit-box',
-                                                WebkitLineClamp: 2,
-                                                WebkitBoxOrient: 'vertical'
+                                        return (
+                                            <div key={idx} style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                width: isMobile ? (isTripleLucky ? '90px' : '58px') : (isTripleLucky ? '120px' : '100px'),
+                                                animation: `itemReveal 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${idx * 0.1}s both`
                                             }}>
+                                                {/* Item box with glow */}
+                                                <div style={{ position: 'relative', marginBottom: isMobile ? '8px' : '12px' }}>
+                                                    {(isMythic || isSpecial || isRare) && (
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: isMobile ? '-6px' : '-8px',
+                                                            left: isMobile ? '-6px' : '-8px',
+                                                            right: isMobile ? '-6px' : '-8px',
+                                                            bottom: isMobile ? '-6px' : '-8px',
+                                                            borderRadius: isMobile ? '12px' : '14px',
+                                                            background: isMythic
+                                                                ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
+                                                                : isSpecial ? `radial-gradient(circle, ${COLORS.purple}33 0%, transparent 70%)`
+                                                                    : `radial-gradient(circle, ${COLORS.red}33 0%, transparent 70%)`,
+                                                            animation: 'pulseGlow 1.5s ease-in-out infinite'
+                                                        }} />
+                                                    )}
+                                                    <div style={{
+                                                        width: `${itemSize}px`, height: `${itemSize}px`, position: 'relative',
+                                                        background: isMythic
+                                                            ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
+                                                            : isSpecial
+                                                                ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
+                                                                : isRare
+                                                                    ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33)`
+                                                                    : COLORS.bgLight,
+                                                        borderRadius: isMobile ? '8px' : '10px',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        border: `${isMobile ? '2px' : '3px'} solid ${itemColor}`,
+                                                        boxShadow: isMythic
+                                                            ? `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.aqua}66, 0 0 ${isMobile ? '30px' : '50px'} ${COLORS.purple}44`
+                                                            : isSpecial
+                                                                ? `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.purple}66`
+                                                                : isRare
+                                                                    ? `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.red}66`
+                                                                    : `0 0 ${isMobile ? '15px' : '25px'} ${COLORS.gold}44`,
+                                                        animation: isMythic ? 'mythicGlow 1s ease-in-out infinite' : isSpecial ? 'specialGlow 1.5s ease-in-out infinite' : isRare ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
+                                                    }}>
+                                                        <img
+                                                            src={getItemImageUrl(item)}
+                                                            alt={item.name}
+                                                            style={{
+                                                                width: `${imgSize}px`, height: `${imgSize}px`,
+                                                                imageRendering: (item.username || isSpecial || isRare) ? 'auto' : 'pixelated',
+                                                                borderRadius: (item.username || isSpecial || isRare) ? (isMobile ? '4px' : '6px') : '0',
+                                                                animation: 'itemBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                                                filter: `drop-shadow(0 0 6px ${itemColor}88)`
+                                                            }}
+                                                            onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Item name */}
+                                                <span style={{
+                                                    color: itemColor,
+                                                    fontSize: isMobile ? (isTripleLucky ? '11px' : '9px') : '14px',
+                                                    fontWeight: '600',
+                                                    textAlign: 'center',
+                                                    lineHeight: '1.2',
+                                                    maxWidth: '100%',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    display: '-webkit-box',
+                                                    WebkitLineClamp: isMobile && !isTripleLucky ? 1 : 2,
+                                                    WebkitBoxOrient: 'vertical'
+                                                }}>
                                                 {item.name}
                                             </span>
 
-                                            {/* NEW badge */}
-                                            {tripleNewItems[idx] && (
-                                                <span style={{
-                                                    marginTop: '4px',
-                                                    background: COLORS.green,
-                                                    color: COLORS.bg,
-                                                    fontSize: isMobile ? '8px' : '9px',
-                                                    fontWeight: '700',
-                                                    padding: isMobile ? '2px 6px' : '2px 8px',
-                                                    borderRadius: '3px'
-                                                }}>NEW</span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                                {/* NEW badge */}
+                                                {tripleNewItems[idx] && (
+                                                    <span style={{
+                                                        marginTop: isMobile ? '2px' : '4px',
+                                                        background: COLORS.green,
+                                                        color: COLORS.bg,
+                                                        fontSize: isMobile ? '7px' : '9px',
+                                                        fontWeight: '700',
+                                                        padding: isMobile ? '1px 4px' : '2px 8px',
+                                                        borderRadius: '3px'
+                                                    }}>NEW</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             )}
 

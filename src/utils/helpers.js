@@ -13,10 +13,13 @@ export function formatChance(chance) {
     let formatted;
     if (percent >= 1) {
         formatted = percent.toFixed(1);
-    } else if (percent >= 0.01) {
+    } else if (percent >= 0.1) {
         formatted = percent.toFixed(2);
+    } else if (percent >= 0.01) {
+        // Show 3 decimals for values like 0.072%
+        formatted = percent.toFixed(3);
     } else {
-        // For very small percentages like 0.0001%, show up to 4 decimal places
+        // For very small percentages like 0.001%, show up to 4 decimal places
         formatted = percent.toFixed(4);
     }
 
@@ -123,6 +126,10 @@ export function isEventItem(item) {
     return item?.isEvent || item?.type === 'event' || item?.texture?.startsWith('event_');
 }
 
+export function isRecursionItem(item) {
+    return item?.isRecursion || item?.type === 'recursion' || item?.texture === 'recursion';
+}
+
 // ============================================
 // Item Display Helpers
 // ============================================
@@ -179,6 +186,11 @@ export function getItemImageUrl(item) {
         return '/event.png';
     }
 
+    // Recursion items use wheel texture
+    if (type === 'recursion' || texture === 'recursion') {
+        return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
+    }
+
     // Regular items
     if (texture) {
         return `${IMAGE_BASE_URL}/${texture}.png`;
@@ -193,6 +205,7 @@ export function getItemColor(item) {
     if (isMythicItem(item)) return COLORS.aqua;
     if (isSpecialItem(item)) return COLORS.purple;
     if (isRareItem(item)) return COLORS.red;
+    if (isRecursionItem(item)) return COLORS.recursion;
     if (isEventItem(item)) return COLORS.gold;
     return COLORS.gold;
 }

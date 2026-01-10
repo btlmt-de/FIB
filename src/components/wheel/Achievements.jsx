@@ -32,37 +32,54 @@ const CATEGORY_COLORS = {
     special: COLORS.aqua
 };
 
-export function Achievements({ onClose }) {
+export function Achievements({ onClose, userId, username, isOwnProfile = true }) {
     const [achievements, setAchievements] = useState({});
     const [userAchievements, setUserAchievements] = useState({ unlocked: [], progress: {} });
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
+    const [hiddenStats, setHiddenStats] = useState({ unlocked: 0, total: 0 });
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [userId, isOwnProfile]);
 
     async function loadData() {
         try {
-            const [allRes, userRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/achievements`),
-                fetch(`${API_BASE_URL}/api/achievements/me`, { credentials: 'include' })
-            ]);
+            if (!isOwnProfile && !userId) {
+                throw new Error('Missing userId for non-owner achievements view');
+            }
+            // Fetch all achievements definition
+            const allRes = await fetch(`${API_BASE_URL}/api/achievements`);
 
             if (!allRes.ok) {
-                const errorText = await allRes.text().catch(() => 'Unknown error');
-                throw new Error(`Failed to fetch achievements: ${allRes.status} ${allRes.statusText} - ${errorText}`);
-            }
-            if (!userRes.ok) {
-                const errorText = await userRes.text().catch(() => 'Unknown error');
-                throw new Error(`Failed to fetch user achievements: ${userRes.status} ${userRes.statusText} - ${errorText}`);
+                throw new Error(`Failed to fetch achievements: ${allRes.status}`);
             }
 
             const allData = await allRes.json();
-            const userData = await userRes.json();
-
             setAchievements(allData.achievements || {});
+
+            // Fetch user's achievements - different endpoint for own vs others
+            let userRes;
+            if (isOwnProfile) {
+                userRes = await fetch(`${API_BASE_URL}/api/achievements/me`, { credentials: 'include' });
+            } else {
+                userRes = await fetch(`${API_BASE_URL}/api/achievements/user/${userId}`);
+            }
+
+            if (!userRes.ok) {
+                throw new Error(`Failed to fetch user achievements: ${userRes.status}`);
+            }
+
+            const userData = await userRes.json();
             setUserAchievements(userData);
+
+            // Store hidden achievement stats for other users
+            if (!isOwnProfile) {
+                setHiddenStats({
+                    unlocked: userData.hiddenUnlockedCount || 0,
+                    total: userData.totalHidden || 0
+                });
+            }
         } catch (e) {
             console.error('Failed to load achievements:', e);
         } finally {
@@ -71,12 +88,17 @@ export function Achievements({ onClose }) {
     }
 
     // Memoize derived data
-    const { unlockedIds, progress, achievementList, categories } = useMemo(() => {
+    const { unlockedIds, unlockedCensored, progress, achievementList, categories } = useMemo(() => {
         const unlocked = new Set(userAchievements.unlocked?.map(a => a.id) || []);
+        // Track which unlocked achievements are censored (hidden achievements from other users)
+        const censored = new Set(
+            userAchievements.unlocked?.filter(a => a.censored).map(a => a.id) || []
+        );
         const list = Object.values(achievements);
         const cats = [...new Set(list.map(a => a.category))];
         return {
             unlockedIds: unlocked,
+            unlockedCensored: censored,
             progress: userAchievements.progress || {},
             achievementList: list,
             categories: cats
@@ -86,6 +108,11 @@ export function Achievements({ onClose }) {
     // Memoize filtered achievements
     const { filteredAchievements, unlockedCount, totalAchievements, hiddenCount } = useMemo(() => {
         const filtered = achievementList.filter(a => {
+            // For other users: only show hidden achievements if they've unlocked them
+            if (!isOwnProfile && a.hidden && !unlockedIds.has(a.id)) {
+                return false;
+            }
+
             if (filter === 'all') return !a.hidden || unlockedIds.has(a.id);
             if (filter === 'unlocked') return unlockedIds.has(a.id);
             if (filter === 'locked') return !unlockedIds.has(a.id) && !a.hidden;
@@ -97,7 +124,7 @@ export function Achievements({ onClose }) {
             totalAchievements: achievementList.length,
             hiddenCount: achievementList.filter(a => a.hidden).length
         };
-    }, [achievementList, filter, unlockedIds]);
+    }, [achievementList, filter, unlockedIds, isOwnProfile]);
 
     return (
         <div style={{
@@ -163,11 +190,16 @@ export function Achievements({ onClose }) {
                             gap: '10px'
                         }}>
                             <Trophy size={22} color={COLORS.gold} />
-                            Achievements
+                            {isOwnProfile ? 'Achievements' : `${username}'s Achievements`}
                         </h2>
                         <div style={{ color: COLORS.textMuted, fontSize: '13px', marginTop: '4px' }}>
                             {unlockedCount} / {totalAchievements} unlocked
-                            {hiddenCount > 0 && ` (${hiddenCount} hidden)`}
+                            {isOwnProfile && hiddenCount > 0 && ` (${hiddenCount} hidden)`}
+                            {!isOwnProfile && hiddenStats.total > 0 && (
+                                <span style={{ color: COLORS.purple }}>
+                                    {' '}· {hiddenStats.unlocked} / {hiddenStats.total} secret
+                                </span>
+                            )}
                         </div>
                     </div>
                     <button onClick={onClose} style={{
@@ -259,12 +291,19 @@ export function Achievements({ onClose }) {
                         }}>
                             {filteredAchievements.map(achievement => {
                                 const isUnlocked = unlockedIds.has(achievement.id);
-                                const isHidden = achievement.hidden && !isUnlocked;
+                                const isCensored = unlockedCensored.has(achievement.id);
+                                const isHidden = (achievement.hidden && !isUnlocked) || isCensored;
                                 const prog = progress[achievement.id];
                                 const progressPercent = prog && Number.isFinite(prog.target) && prog.target > 0
                                     ? Math.min((prog.current / prog.target) * 100, 100)
                                     : 0;
                                 const categoryColor = CATEGORY_COLORS[achievement.category] || COLORS.gold;
+
+                                // Determine what to show for hidden/censored achievements
+                                const showName = isCensored ? '??? Secret Achievement' : (isHidden ? '???' : achievement.name);
+                                const showDescription = isCensored
+                                    ? 'This user has unlocked a secret achievement!'
+                                    : (isHidden ? 'Hidden achievement - discover it yourself!' : achievement.description);
 
                                 return (
                                     <div
@@ -273,10 +312,12 @@ export function Achievements({ onClose }) {
                                         style={{
                                             padding: '16px',
                                             background: isUnlocked
-                                                ? `linear-gradient(135deg, ${categoryColor}22 0%, ${COLORS.bgLight} 100%)`
+                                                ? isCensored
+                                                    ? `linear-gradient(135deg, ${COLORS.purple}22 0%, ${COLORS.bgLight} 100%)`
+                                                    : `linear-gradient(135deg, ${categoryColor}22 0%, ${COLORS.bgLight} 100%)`
                                                 : COLORS.bgLight,
                                             borderRadius: '12px',
-                                            border: `1px solid ${isUnlocked ? categoryColor + '44' : COLORS.border}`,
+                                            border: `1px solid ${isUnlocked ? (isCensored ? COLORS.purple + '44' : categoryColor + '44') : COLORS.border}`,
                                             opacity: isUnlocked ? 1 : (isHidden ? 0.5 : 0.7),
                                             position: 'relative'
                                         }}
@@ -300,15 +341,17 @@ export function Achievements({ onClose }) {
                                                 width: '40px',
                                                 height: '40px',
                                                 borderRadius: '10px',
-                                                background: isUnlocked ? categoryColor + '33' : COLORS.bg,
+                                                background: isUnlocked
+                                                    ? (isCensored ? COLORS.purple + '33' : categoryColor + '33')
+                                                    : COLORS.bg,
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 fontSize: '20px',
-                                                border: `1px solid ${isUnlocked ? categoryColor : COLORS.border}`
+                                                border: `1px solid ${isUnlocked ? (isCensored ? COLORS.purple : categoryColor) : COLORS.border}`
                                             }}>
                                                 {isHidden ? (
-                                                    <LucideIcons.HelpCircle size={20} color={COLORS.textMuted} />
+                                                    <LucideIcons.HelpCircle size={20} color={isCensored && isUnlocked ? COLORS.purple : COLORS.textMuted} />
                                                 ) : (
                                                     <AchievementIcon
                                                         name={achievement.icon}
@@ -319,18 +362,18 @@ export function Achievements({ onClose }) {
                                             </div>
                                             <div>
                                                 <div style={{
-                                                    color: isUnlocked ? categoryColor : COLORS.text,
+                                                    color: isUnlocked ? (isCensored ? COLORS.purple : categoryColor) : COLORS.text,
                                                     fontWeight: '600',
                                                     fontSize: '14px'
                                                 }}>
-                                                    {isHidden ? '???' : achievement.name}
+                                                    {showName}
                                                 </div>
                                                 <div style={{
                                                     color: COLORS.textMuted,
                                                     fontSize: '11px',
                                                     textTransform: 'capitalize'
                                                 }}>
-                                                    {achievement.category}
+                                                    {isCensored ? 'Secret' : achievement.category}
                                                 </div>
                                             </div>
                                         </div>
@@ -341,7 +384,7 @@ export function Achievements({ onClose }) {
                                             fontSize: '12px',
                                             marginBottom: (prog && !isUnlocked && !isHidden) ? '12px' : '0'
                                         }}>
-                                            {isHidden ? 'Hidden achievement - discover it yourself!' : achievement.description}
+                                            {showDescription}
                                         </div>
 
                                         {/* Progress bar (if not unlocked, not hidden, and has progress) */}
