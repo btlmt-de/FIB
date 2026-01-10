@@ -40,26 +40,12 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Position and size state for draggable/resizable
     const [position, setPosition] = useState(() => {
-        if (typeof window === 'undefined' || !window.localStorage) {
-            return { x: 20, y: null };
-        }
-        try {
-            const saved = localStorage.getItem('chat-position');
-            return saved ? JSON.parse(saved) : { x: 20, y: null };
-        } catch {
-            return { x: 20, y: null }; // y: null means use bottom positioning
-        }
+        const saved = localStorage.getItem('chat-position');
+        return saved ? JSON.parse(saved) : { x: 20, y: null }; // y: null means use bottom positioning
     });
     const [size, setSize] = useState(() => {
-        if (typeof window === 'undefined' || !window.localStorage) {
-            return { width: 380, height: 520 };
-        }
-        try {
-            const saved = localStorage.getItem('chat-size');
-            return saved ? JSON.parse(saved) : { width: 380, height: 520 };
-        } catch {
-            return { width: 380, height: 520 };
-        }
+        const saved = localStorage.getItem('chat-size');
+        return saved ? JSON.parse(saved) : { width: 380, height: 520 };
     });
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
@@ -108,21 +94,13 @@ export function LiveChat({ user, isAdmin = false }) {
     // Save position and size to localStorage
     useEffect(() => {
         if (position.x !== 20 || position.y !== null) {
-            try {
-                localStorage.setItem('chat-position', JSON.stringify(position));
-            } catch (e) {
-                // Ignore storage errors (quota exceeded, private mode, etc.)
-            }
+            localStorage.setItem('chat-position', JSON.stringify(position));
         }
     }, [position]);
 
     useEffect(() => {
         if (size.width !== 380 || size.height !== 520) {
-            try {
-                localStorage.setItem('chat-size', JSON.stringify(size));
-            } catch (e) {
-                // Ignore storage errors (quota exceeded, private mode, etc.)
-            }
+            localStorage.setItem('chat-size', JSON.stringify(size));
         }
     }, [size]);
 
@@ -282,9 +260,7 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Image URL pattern - matches common image hosts and direct image links
     const imageUrlPattern = /https?:\/\/[^\s<>"']+?\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s<>"']*)?/gi;
-    const imageHostPattern = /https?:\/\/(?:i\.imgur\.com|imgur\.com\/[a-zA-Z0-9]+|cdn\.discordapp\.com|media\.discordapp\.net|pbs\.twimg\.com|tenor\.com\/view|media\.tenor\.com|i\.redd\.it|preview\.redd\.it|image\.prntscr\.com)[^\s<>"']*/gi;
-    // prnt.sc URLs don't serve images directly (they serve HTML pages), so we handle them as link previews
-    const screenshotLinkPattern = /https?:\/\/(?:prnt\.sc|prntscr\.com)\/[^\s<>"']*/gi;
+    const imageHostPattern = /https?:\/\/(?:i\.imgur\.com|imgur\.com\/[a-zA-Z0-9]+|cdn\.discordapp\.com|media\.discordapp\.net|pbs\.twimg\.com|tenor\.com\/view|media\.tenor\.com|i\.redd\.it|preview\.redd\.it)[^\s<>"']*/gi;
 
     // Extract image URLs from message
     const extractImageUrls = (message) => {
@@ -301,18 +277,11 @@ export function LiveChat({ user, isAdmin = false }) {
         return Array.from(urls);
     };
 
-    // Extract screenshot link URLs (prnt.sc etc) that can't be embedded directly
-    const extractScreenshotLinks = (message) => {
-        const matches = message.match(screenshotLinkPattern) || [];
-        return [...new Set(matches)];
-    };
-
     // Remove image URLs from message text for cleaner display
     const removeImageUrls = (message) => {
         let cleaned = message
             .replace(imageUrlPattern, '')
             .replace(imageHostPattern, '')
-            .replace(screenshotLinkPattern, '')
             .trim();
         return cleaned;
     };
@@ -442,8 +411,7 @@ export function LiveChat({ user, isAdmin = false }) {
                         // Track if it was for us (ping) - check for @mention of current user
                         const currentUsername = user.custom_username || user.customUsername || user.discord_username;
                         if (currentUsername && newMessage.message) {
-                            const escapedUsername = currentUsername.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-                            const mentionPattern = new RegExp(`@${escapedUsername}\\b`, 'i');
+                            const mentionPattern = new RegExp(`@${currentUsername}\\b`, 'i');
                             if (mentionPattern.test(newMessage.message) && newMessage.user_id !== user.id) {
                                 if (!isOpenRef.current || isMinimizedRef.current) {
                                     setHasPing(true);
@@ -639,12 +607,12 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Slash command handlers
     const slashCommands = {
-        shrug: () => '¯\\_(ツ)_/¯',
-        tableflip: () => '(╯°□°)╯︵ ┻━┻',
-        unflip: () => '┬─┬ノ( º _ ºノ)',
-        lenny: () => '( ͡° ͜ʖ ͡°)',
-        disapprove: () => 'ಠ_ಠ',
-        sparkles: () => '✨',
+        shrug: () => 'Â¯\\_(ãƒ„)_/Â¯',
+        tableflip: () => '(â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»',
+        unflip: () => 'â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)',
+        lenny: () => '( Í¡Â° ÍœÊ– Í¡Â°)',
+        disapprove: () => 'à² _à² ',
+        sparkles: () => 'âœ¨',
         help: () => null, // Special handling below
     };
 
@@ -668,14 +636,14 @@ export function LiveChat({ user, isAdmin = false }) {
                 type: 'local',
                 content: (
                     <div style={{ padding: '12px', background: 'rgba(88, 101, 242, 0.1)', borderRadius: '8px', fontSize: '12px' }}>
-                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📝 Available Commands</div>
+                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>ðŸ“ Available Commands</div>
                         <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\_(ツ)_/¯</div>
-                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> — (╯°□°)╯︵ ┻━┻</div>
-                            <div><code style={{ color: '#5865F2' }}>/unflip</code> — ┬─┬ノ( º _ ºノ)</div>
-                            <div><code style={{ color: '#5865F2' }}>/lenny</code> — ( ͡° ͜ʖ ͡°)</div>
-                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> — ಠ_ಠ</div>
-                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> — ✨</div>
+                            <div><code style={{ color: '#5865F2' }}>/shrug</code> â€” Â¯\_(ãƒ„)_/Â¯</div>
+                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> â€” (â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»</div>
+                            <div><code style={{ color: '#5865F2' }}>/unflip</code> â€” â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)</div>
+                            <div><code style={{ color: '#5865F2' }}>/lenny</code> â€” ( Í¡Â° ÍœÊ– Í¡Â°)</div>
+                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> â€” à² _à² </div>
+                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> â€” âœ¨</div>
                             <div style={{ marginTop: '8px', color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
                                 Tip: Share images by pasting imgur/discord CDN links!
                             </div>
@@ -845,13 +813,10 @@ export function LiveChat({ user, isAdmin = false }) {
     const renderMessageText = (text, msgUserId) => {
         const decoded = decodeHtmlEntities(text);
 
-        // Extract image URLs and screenshot links
+        // Extract image URLs
         const imageUrls = extractImageUrls(decoded);
-        const screenshotLinks = extractScreenshotLinks(decoded);
-        const hasMedia = imageUrls.length > 0 || screenshotLinks.length > 0;
-
-        // Remove image URLs and screenshot links from text for cleaner display
-        const cleanedText = hasMedia ? removeImageUrls(decoded) : decoded;
+        // Remove image URLs from text for cleaner display
+        const cleanedText = imageUrls.length > 0 ? removeImageUrls(decoded) : decoded;
 
         // Render text with highlighted mentions
         const parts = cleanedText.split(/(@\w+)/g);
@@ -880,16 +845,15 @@ export function LiveChat({ user, isAdmin = false }) {
             return part;
         });
 
-        // If there are images or screenshot links, render text + media
-        if (hasMedia) {
+        // If there are images, render text + images
+        if (imageUrls.length > 0) {
             return (
                 <>
                     {cleanedText.trim() && <div>{textContent}</div>}
                     <div style={{ marginTop: cleanedText.trim() ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {/* Embedded images */}
                         {imageUrls.map((url, i) => (
                             <a
-                                key={`img-${i}`}
+                                key={i}
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -898,8 +862,9 @@ export function LiveChat({ user, isAdmin = false }) {
                                 <img
                                     src={url}
                                     alt="Shared image"
-                                    referrerPolicy="no-referrer"
                                     loading="lazy"
+                                    referrerPolicy="no-referrer"
+                                    decoding
                                     style={{
                                         maxWidth: '100%',
                                         maxHeight: '200px',
@@ -911,38 +876,6 @@ export function LiveChat({ user, isAdmin = false }) {
                                         e.target.style.display = 'none';
                                     }}
                                 />
-                            </a>
-                        ))}
-                        {/* Screenshot link previews (prnt.sc etc) */}
-                        {screenshotLinks.map((url, i) => (
-                            <a
-                                key={`ss-${i}`}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '8px 12px',
-                                    background: 'rgba(139, 92, 246, 0.1)',
-                                    border: '1px solid rgba(139, 92, 246, 0.3)',
-                                    borderRadius: '8px',
-                                    color: '#8B5CF6',
-                                    fontSize: '12px',
-                                    textDecoration: 'none',
-                                    maxWidth: 'fit-content'
-                                }}
-                            >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                                    <polyline points="21 15 16 10 5 21"/>
-                                </svg>
-                                <span>Screenshot</span>
-                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}>
-                                    {url.replace(/^https?:\/\//, '').split('/')[0]}
-                                </span>
                             </a>
                         ))}
                     </div>
@@ -1147,7 +1080,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages • Drag to move
+                                    {messages.length} messages â€¢ Drag to move
                                 </div>
                             </div>
                         </div>
@@ -1282,8 +1215,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                                                     onClick={() => {
                                                         // Insert @mention into input
-                                                        const username = onlineUser.custom_username || onlineUser.discord_username || onlineUser.username || 'user';
-                                                        const mention = `@${username} `;
+                                                        const mention = `@${onlineUser.username} `;
                                                         setInputValue(prev => prev + mention);
                                                         setShowOnlineList(false);
                                                         inputRef.current?.focus();
@@ -1296,8 +1228,6 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 : `https://cdn.discordapp.com/embed/avatars/${parseInt(onlineUser.discord_id || '0') % 5}.png`
                                                             }
                                                             alt=""
-                                                            referrerPolicy="no-referrer"
-                                                            loading="lazy"
                                                             style={{
                                                                 width: '32px',
                                                                 height: '32px',
@@ -1325,7 +1255,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                             textOverflow: 'ellipsis',
                                                             whiteSpace: 'nowrap'
                                                         }}>
-                                                            {onlineUser.custom_username || onlineUser.discord_username || onlineUser.username || 'Unknown'}
+                                                            {onlineUser.username}
                                                         </div>
                                                     </div>
                                                     <AtSign size={14} style={{ color: 'rgba(255,255,255,0.3)' }} />
@@ -1436,7 +1366,6 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                 <img
                                                                     src={getAvatarUrl(repliedMessage.discord_id, repliedMessage.discord_avatar)}
                                                                     alt=""
-                                                                    referrerPolicy="no-referrer"
                                                                     style={{
                                                                         width: '14px',
                                                                         height: '14px',
@@ -1485,7 +1414,6 @@ export function LiveChat({ user, isAdmin = false }) {
                                                                     <img
                                                                         src={getAvatarUrl(msg.discord_id, msg.discord_avatar)}
                                                                         alt=""
-                                                                        referrerPolicy="no-referrer"
                                                                         style={{
                                                                             width: '32px',
                                                                             height: '32px',
@@ -1718,7 +1646,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '150px'
                                             }}>
-                                                — {decodeHtmlEntities(replyingTo.message)}
+                                                Ã¢â‚¬â€ {decodeHtmlEntities(replyingTo.message)}
                                             </span>
                                         )}
                                     </div>
@@ -1787,7 +1715,6 @@ export function LiveChat({ user, isAdmin = false }) {
                                                     <img
                                                         src={getAvatarUrl(u.discord_id, u.discord_avatar)}
                                                         alt=""
-                                                        referrerPolicy="no-referrer"
                                                         style={{
                                                             width: '24px',
                                                             height: '24px',
