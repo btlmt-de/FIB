@@ -437,9 +437,10 @@ function WheelOfFortunePage({ onBack }) {
             <div style={{
                 display: 'flex',
                 justifyContent: 'center',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: '40px',
                 padding: '20px',
+                paddingTop: '40px',
                 minHeight: '100vh'
             }}>
                 {/* Left Sidebar - Activity Feed */}
