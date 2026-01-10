@@ -8,12 +8,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { COLORS } from '../../config/constants.js';
 import { getDiscordAvatarUrl, getItemImageUrl, getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { useActivity } from '../../context/ActivityContext';
+import { useSound } from '../../context/SoundContext.jsx';
 import { Sparkles, Star, Crown, Diamond } from 'lucide-react';
 
 // Configuration
-const CELEBRATION_DELAY = 7000;
+const CELEBRATION_DELAY = 4000;
 const CELEBRATION_DURATION = 12000;
-const CONFETTI_COUNT = 300;
+const CONFETTI_COUNT = 500;
 
 // Color schemes for each rarity
 const RARITY_THEMES = {
@@ -59,6 +60,7 @@ function ConfettiParticle({ delay, color, left, size, duration }) {
 
 export function MythicCelebration({ currentUserId }) {
     const { newItems, serverTime } = useActivity();
+    const { playRaritySound } = useSound();
     const [celebration, setCelebration] = useState(null);
     const [confetti, setConfetti] = useState([]);
     const [showFlash, setShowFlash] = useState(false);
@@ -71,6 +73,13 @@ export function MythicCelebration({ currentUserId }) {
     const triggerCelebration = useCallback((item) => {
         const rarity = item.item_rarity;
         const theme = RARITY_THEMES[rarity] || RARITY_THEMES.mythic;
+        // Defensive check: only match if currentUserId is defined
+        const isCurrentUser = currentUserId != null && item.user_id === currentUserId;
+
+        // Play sound for OTHER users only - the user who pulled already hears it from WheelSpinner
+        if (!isCurrentUser) {
+            playRaritySound(rarity);
+        }
 
         // Helper to track timeouts for cleanup
         const trackTimeout = (callback, delay) => {
@@ -85,7 +94,7 @@ export function MythicCelebration({ currentUserId }) {
             itemTexture: item.item_texture || item.texture,
             discordId: item.discord_id,
             discordAvatar: item.discord_avatar,
-            isCurrentUser: item.user_id === currentUserId,
+            isCurrentUser, // Reuse computed variable
             rarity: rarity,
             theme: theme,
             // For mythic items with username (like eltobito), we need the head URL
@@ -123,7 +132,7 @@ export function MythicCelebration({ currentUserId }) {
         }, CELEBRATION_DURATION);
 
         trackTimeout(() => setConfetti([]), CELEBRATION_DURATION + 3000);
-    }, [currentUserId]);
+    }, [currentUserId, playRaritySound]);
 
     // Cleanup pending timeouts on unmount
     useEffect(() => {

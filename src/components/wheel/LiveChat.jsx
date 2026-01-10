@@ -32,6 +32,8 @@ export function LiveChat({ user, isAdmin = false }) {
     // Online users state
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [showOnlineList, setShowOnlineList] = useState(false);
+    const savedScrollPosRef = useRef(null);
+    const restoringScrollRef = useRef(false);
 
     // Typing indicator state
     const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, username}
@@ -531,11 +533,14 @@ export function LiveChat({ user, isAdmin = false }) {
         }
     }, [user, fetchMessages]);
 
+    // Auto-scroll to bottom when new messages arrive (skip when viewing online list or restoring scroll)
     useEffect(() => {
+        if (showOnlineList) return; // Don't auto-scroll when online list is shown
+        if (restoringScrollRef.current) return; // Don't auto-scroll during scroll restoration
         if (isOpen && !isMinimized) {
             scrollToBottom(false);
         }
-    }, [messages.length, isOpen, isMinimized]);
+    }, [messages.length, isOpen, isMinimized, showOnlineList]);
 
     useEffect(() => {
         if (isOpen && !isMinimized) {
@@ -668,9 +673,9 @@ export function LiveChat({ user, isAdmin = false }) {
                 type: 'local',
                 content: (
                     <div style={{ padding: '12px', background: 'rgba(88, 101, 242, 0.1)', borderRadius: '8px', fontSize: '12px' }}>
-                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📝 Available Commands</div>
+                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📋 Available Commands</div>
                         <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\_(ツ)_/¯</div>
+                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\\_(ツ)_/¯</div>
                             <div><code style={{ color: '#5865F2' }}>/tableflip</code> — (╯°□°)╯︵ ┻━┻</div>
                             <div><code style={{ color: '#5865F2' }}>/unflip</code> — ┬─┬ノ( º _ ºノ)</div>
                             <div><code style={{ color: '#5865F2' }}>/lenny</code> — ( ͡° ͜ʖ ͡°)</div>
@@ -1154,7 +1159,28 @@ export function LiveChat({ user, isAdmin = false }) {
                         <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                             {/* Online users button */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); setShowOnlineList(!showOnlineList); }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!showOnlineList) {
+                                        // Switching TO online list - save current scroll position
+                                        if (messagesContainerRef.current) {
+                                            savedScrollPosRef.current = messagesContainerRef.current.scrollTop;
+                                        }
+                                    } else {
+                                        // Switching back to messages - restore scroll position after render
+                                        restoringScrollRef.current = true;
+                                        setTimeout(() => {
+                                            if (messagesContainerRef.current && savedScrollPosRef.current !== null) {
+                                                messagesContainerRef.current.scrollTop = savedScrollPosRef.current;
+                                            }
+                                            // Clear flag after a short delay to allow scroll to settle
+                                            setTimeout(() => {
+                                                restoringScrollRef.current = false;
+                                            }, 50);
+                                        }, 0);
+                                    }
+                                    setShowOnlineList(!showOnlineList);
+                                }}
                                 title={`${onlineUsers.length} online`}
                                 style={{
                                     background: showOnlineList ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
@@ -1239,6 +1265,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     className="chat-scrollbar"
                                     style={{
                                         flex: 1,
+                                        minHeight: 0,
                                         overflow: 'auto',
                                         background: '#0e0e15',
                                         padding: '12px'

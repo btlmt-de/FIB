@@ -384,9 +384,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     // Check again before updating state
                     if (animationCancelledRef.current) return null;
 
-                    // Update strip with real result - the animation continues smoothly
-                    const newStrip = buildStrip(finalItem);
-                    setStrip(newStrip);
+                    // Update only the final item in the strip, preserving all other items
+                    // This prevents visible items from randomly changing during the animation
+                    setStrip(prevStrip => {
+                        const newStrip = [...prevStrip];
+                        const finalIndex = newStrip.length - 8;
+                        if (finalIndex >= 0 && finalIndex < newStrip.length) {
+                            newStrip[finalIndex] = finalItem;
+                        }
+                        return newStrip;
+                    });
                     setResult(finalItem);
                     setIsNewItem(spinResult.isNew);
 

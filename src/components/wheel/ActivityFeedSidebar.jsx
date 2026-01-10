@@ -37,12 +37,21 @@ export function ActivityFeedSidebar() {
     const processedIdsRef = useRef(new Set());
     const timeoutsRef = useRef([]);
     const isMountedRef = useRef(true);
+    const serverTimeRef = useRef(serverTime);
 
-    // Track mounted state
+    // Keep serverTimeRef in sync without causing effect re-runs
+    useEffect(() => {
+        serverTimeRef.current = serverTime;
+    }, [serverTime]);
+
+    // Track mounted state and cleanup timeouts on unmount only
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            // Clear timeouts only on unmount
+            timeoutsRef.current.forEach(id => clearTimeout(id));
+            timeoutsRef.current = [];
         };
     }, []);
 
@@ -50,8 +59,8 @@ export function ActivityFeedSidebar() {
     useEffect(() => {
         if (!rawFeed) return;
 
-        // Use serverTime if available to avoid client clock skew
-        const now = serverTime || Date.now();
+        // Use serverTime if available to avoid client clock skew (read from ref to avoid dependency)
+        const now = serverTimeRef.current || Date.now();
 
         rawFeed.forEach(item => {
             if (item.event_type === 'achievement_unlock') return;
@@ -74,6 +83,8 @@ export function ActivityFeedSidebar() {
                         if (prev.some(i => i.id === item.id)) return prev;
                         return [item, ...prev].slice(0, 150);
                     });
+                    // Remove this timeout from the ref after it executes
+                    timeoutsRef.current = timeoutsRef.current.filter(id => id !== timeoutId);
                 }, 4000);
                 timeoutsRef.current.push(timeoutId);
             } else {
@@ -92,13 +103,8 @@ export function ActivityFeedSidebar() {
             const ids = Array.from(processedIdsRef.current);
             processedIdsRef.current = new Set(ids.slice(-100));
         }
-
-        // Cleanup: clear all pending timeouts on unmount or when effect re-runs
-        return () => {
-            timeoutsRef.current.forEach(id => clearTimeout(id));
-            timeoutsRef.current = [];
-        };
-    }, [rawFeed, serverTime]);
+        // Note: No cleanup here - timeouts are managed separately and cleared on unmount
+    }, [rawFeed]); // serverTime accessed via ref to avoid frequent re-runs
 
     // Sort delayed feed by created_at
     const feed = useMemo(() => {
