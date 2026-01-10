@@ -282,7 +282,9 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Image URL pattern - matches common image hosts and direct image links
     const imageUrlPattern = /https?:\/\/[^\s<>"']+?\.(?:png|jpg|jpeg|gif|webp)(?:\?[^\s<>"']*)?/gi;
-    const imageHostPattern = /https?:\/\/(?:i\.imgur\.com|imgur\.com\/[a-zA-Z0-9]+|cdn\.discordapp\.com|media\.discordapp\.net|pbs\.twimg\.com|tenor\.com\/view|media\.tenor\.com|i\.redd\.it|preview\.redd\.it)[^\s<>"']*/gi;
+    const imageHostPattern = /https?:\/\/(?:i\.imgur\.com|imgur\.com\/[a-zA-Z0-9]+|cdn\.discordapp\.com|media\.discordapp\.net|pbs\.twimg\.com|tenor\.com\/view|media\.tenor\.com|i\.redd\.it|preview\.redd\.it|image\.prntscr\.com)[^\s<>"']*/gi;
+    // prnt.sc URLs don't serve images directly (they serve HTML pages), so we handle them as link previews
+    const screenshotLinkPattern = /https?:\/\/(?:prnt\.sc|prntscr\.com)\/[^\s<>"']*/gi;
 
     // Extract image URLs from message
     const extractImageUrls = (message) => {
@@ -299,11 +301,18 @@ export function LiveChat({ user, isAdmin = false }) {
         return Array.from(urls);
     };
 
+    // Extract screenshot link URLs (prnt.sc etc) that can't be embedded directly
+    const extractScreenshotLinks = (message) => {
+        const matches = message.match(screenshotLinkPattern) || [];
+        return [...new Set(matches)];
+    };
+
     // Remove image URLs from message text for cleaner display
     const removeImageUrls = (message) => {
         let cleaned = message
             .replace(imageUrlPattern, '')
             .replace(imageHostPattern, '')
+            .replace(screenshotLinkPattern, '')
             .trim();
         return cleaned;
     };
@@ -836,10 +845,13 @@ export function LiveChat({ user, isAdmin = false }) {
     const renderMessageText = (text, msgUserId) => {
         const decoded = decodeHtmlEntities(text);
 
-        // Extract image URLs
+        // Extract image URLs and screenshot links
         const imageUrls = extractImageUrls(decoded);
-        // Remove image URLs from text for cleaner display
-        const cleanedText = imageUrls.length > 0 ? removeImageUrls(decoded) : decoded;
+        const screenshotLinks = extractScreenshotLinks(decoded);
+        const hasMedia = imageUrls.length > 0 || screenshotLinks.length > 0;
+
+        // Remove image URLs and screenshot links from text for cleaner display
+        const cleanedText = hasMedia ? removeImageUrls(decoded) : decoded;
 
         // Render text with highlighted mentions
         const parts = cleanedText.split(/(@\w+)/g);
@@ -868,15 +880,16 @@ export function LiveChat({ user, isAdmin = false }) {
             return part;
         });
 
-        // If there are images, render text + images
-        if (imageUrls.length > 0) {
+        // If there are images or screenshot links, render text + media
+        if (hasMedia) {
             return (
                 <>
                     {cleanedText.trim() && <div>{textContent}</div>}
                     <div style={{ marginTop: cleanedText.trim() ? '8px' : '0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {/* Embedded images */}
                         {imageUrls.map((url, i) => (
                             <a
-                                key={i}
+                                key={`img-${i}`}
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -898,6 +911,38 @@ export function LiveChat({ user, isAdmin = false }) {
                                         e.target.style.display = 'none';
                                     }}
                                 />
+                            </a>
+                        ))}
+                        {/* Screenshot link previews (prnt.sc etc) */}
+                        {screenshotLinks.map((url, i) => (
+                            <a
+                                key={`ss-${i}`}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    padding: '8px 12px',
+                                    background: 'rgba(139, 92, 246, 0.1)',
+                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                    borderRadius: '8px',
+                                    color: '#8B5CF6',
+                                    fontSize: '12px',
+                                    textDecoration: 'none',
+                                    maxWidth: 'fit-content'
+                                }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <polyline points="21 15 16 10 5 21"/>
+                                </svg>
+                                <span>Screenshot</span>
+                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px' }}>
+                                    {url.replace(/^https?:\/\//, '').split('/')[0]}
+                                </span>
                             </a>
                         ))}
                     </div>
