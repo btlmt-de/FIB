@@ -146,17 +146,6 @@ export function MythicCelebration({ currentUserId }) {
     useEffect(() => {
         if (!newItems || newItems.length === 0) return;
 
-        // Debug logging
-        console.log('[MythicCelebration] New items received:', newItems.length);
-        newItems.forEach(item => {
-            console.log('[MythicCelebration] Item:', {
-                id: item.id,
-                rarity: item.item_rarity,
-                type: item.event_type,
-                name: item.item_name
-            });
-        });
-
         // Find both insane AND mythic pulls
         const specialPulls = newItems.filter(item =>
             (item.item_rarity === 'insane' || item.item_rarity === 'mythic') &&
@@ -164,11 +153,9 @@ export function MythicCelebration({ currentUserId }) {
             !processedItemsRef.current.has(item.id)
         );
 
-        console.log('[MythicCelebration] Special pulls found:', specialPulls.length);
 
         if (specialPulls.length > 0) {
             const specialItem = specialPulls[0];
-            console.log('[MythicCelebration] Processing special item:', specialItem);
             processedItemsRef.current.add(specialItem.id);
 
             if (processedItemsRef.current.size > 50) {
@@ -176,16 +163,36 @@ export function MythicCelebration({ currentUserId }) {
                 processedItemsRef.current = new Set(arr.slice(-25));
             }
 
+            const isCurrentUser = currentUserId != null && specialItem.user_id === currentUserId;
             let delay = CELEBRATION_DELAY;
 
-            if (serverTime && specialItem.created_at) {
-                let createdAtStr = specialItem.created_at;
-                if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                    createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
+            // Parse the item's creation time
+            let createdAtStr = specialItem.created_at;
+            if (createdAtStr && !createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
+                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
+            }
+            const createdAt = createdAtStr ? new Date(createdAtStr).getTime() : null;
+
+            if (isCurrentUser) {
+                // Current user: Use Date.now() for accurate age calculation
+                // The spin just finished, so the item was created very recently
+                if (createdAt) {
+                    const age = Date.now() - createdAt;
+                    delay = Math.max(0, CELEBRATION_DELAY - age);
+                } else {
+                    // Fallback: minimal delay since they already see the result
+                    delay = 500;
                 }
-                const createdAt = new Date(createdAtStr).getTime();
-                const age = serverTime - createdAt;
-                delay = Math.max(2000, CELEBRATION_DELAY - age);
+            } else {
+                // Other users: Use serverTime for sync (with fallback to full delay)
+                if (serverTime && createdAt) {
+                    const age = serverTime - createdAt;
+                    // Only use age-based calculation if age is positive (serverTime is fresh)
+                    if (age >= 0) {
+                        delay = Math.max(2000, CELEBRATION_DELAY - age);
+                    }
+                    // If age is negative, serverTime is stale - use full delay
+                }
             }
 
             const timeoutId = setTimeout(() => {
