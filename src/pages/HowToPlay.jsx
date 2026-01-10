@@ -108,7 +108,7 @@ function RepoLink({ href, title, description, extra }) {
                 justifyContent: 'space-between'
             }}>
                 {title}
-                <span style={{ color: COLORS.textMuted }}>â†’</span>
+                <span style={{ color: COLORS.textMuted }}>→</span>
             </div>
             <div style={{
                 color: COLORS.textMuted,
@@ -249,7 +249,7 @@ export default function HowToPlay() {
                                     }}
                                     onClick={e => e.stopPropagation()}
                                 >
-                                    Browse descriptions â†’
+                                    Browse descriptions →
                                 </a>
                             }
                         />

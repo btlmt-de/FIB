@@ -302,8 +302,8 @@ function PoolStatistics({ poolStats }) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px' }}>
-                    <span style={{ color: COLORS.gold }}>■ Regular Items</span>
-                    <span style={{ color: COLORS.purple }}>■ Special Items</span>
+                    <span style={{ color: COLORS.gold }}>▪ Regular Items</span>
+                    <span style={{ color: COLORS.purple }}>▪ Special Items</span>
                 </div>
             </div>
 
@@ -1529,7 +1529,7 @@ export function AdminPanel({ onClose, allItems }) {
                                                     cursor: 'pointer'
                                                 }}
                                             >
-                                                <option value="changelog">📝 Changelog</option>
+                                                <option value="changelog">📋 Changelog</option>
                                                 <option value="announcement">📢 Announcement</option>
                                                 <option value="maintenance">🔧 Maintenance</option>
                                             </select>

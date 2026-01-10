@@ -201,14 +201,19 @@ export function ActivityProvider({ children }) {
                     }
                 };
 
-                eventSource.onerror = () => {
-                    console.log('[SSE] Error, reconnecting in 3s...');
+                eventSource.onerror = (e) => {
+                    // Log more details for debugging
+                    console.log('[SSE] Connection error, state:', eventSource.readyState);
                     eventSource.close();
                     eventSourceRef.current = null;
+
+                    // Reconnect faster in production - use 1 second instead of 3
+                    // The server is probably fine, it's likely a proxy timeout
                     setTimeout(() => {
+                        console.log('[SSE] Attempting reconnection...');
                         connectSSE();
                         fetchActivity();
-                    }, 3000);
+                    }, 1000);
                 };
 
                 eventSourceRef.current = eventSource;

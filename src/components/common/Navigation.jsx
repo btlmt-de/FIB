@@ -115,7 +115,7 @@ export default function Navigation({ currentPage, onNavigate }) {
                             padding: '8px'
                         }}
                     >
-                        {mobileMenuOpen ? 'âœ•' : 'â˜°'}
+                        {mobileMenuOpen ? '✕' : '☰'}
                     </button>
                 )}
             </div>
