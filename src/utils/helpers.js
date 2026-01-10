@@ -2,7 +2,7 @@
 // Client-side utility functions
 // ============================================
 
-import { IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, COLORS } from '../config/constants.js';
+import { IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
 
 // Format chance as a readable percentage (strips trailing zeros)
 export function formatChance(chance) {
@@ -168,6 +168,18 @@ export function getItemImageUrl(item) {
         }
     }
 
+    // Check TEAM_MEMBERS for items with custom imageUrls (like ChromaRGBDirt, Wandering Trader)
+    if (type === 'legendary' || texture?.startsWith('special_')) {
+        const memberName = item.name || (texture?.includes('_') ? texture.split('_').slice(1).join('_') : null);
+        if (memberName) {
+            const member = TEAM_MEMBERS?.find(m =>
+                m.name?.toLowerCase() === memberName.toLowerCase() ||
+                (m.username && m.username.toLowerCase() === memberName.toLowerCase())
+            );
+            if (member?.imageUrl) return member.imageUrl;
+        }
+    }
+
     // Player heads (legendaries and rares with usernames)
     if (item.username) {
         return getMinecraftHeadUrl(item.username);
@@ -177,6 +189,12 @@ export function getItemImageUrl(item) {
     if ((type === 'legendary' || type === 'rare' || type === 'mythic' || texture?.startsWith('special_') || texture?.startsWith('rare_') || texture?.startsWith('mythic_')) && texture?.includes('_')) {
         const extractedUsername = texture.split('_').slice(1).join('_');
         if (extractedUsername && !['cavendish', 'jimbo', 'gros_michel'].includes(extractedUsername.toLowerCase())) {
+            // Check if this is a TEAM_MEMBER with no username (uses custom imageUrl instead of player head)
+            const member = TEAM_MEMBERS?.find(m =>
+                m.name?.toLowerCase() === extractedUsername.toLowerCase() && m.username === null
+            );
+            if (member?.imageUrl) return member.imageUrl;
+
             return getMinecraftHeadUrl(extractedUsername);
         }
     }

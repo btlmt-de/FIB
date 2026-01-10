@@ -132,6 +132,14 @@ export function ActivityProvider({ children }) {
 
                             case 'activity':
                                 if (data.item && data.item.id) {
+                                    // Update serverTime from SSE message if provided, otherwise use current time
+                                    // This prevents stale timestamps that cause delayed celebrations
+                                    if (data.serverTime) {
+                                        setServerTime(new Date(data.serverTime).getTime());
+                                    } else {
+                                        setServerTime(Date.now());
+                                    }
+
                                     // Prepend to feed
                                     setFeed(prev => {
                                         if (prev.some(item => item.id === data.item.id)) return prev;

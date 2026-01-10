@@ -32,6 +32,7 @@ export function LiveChat({ user, isAdmin = false }) {
     // Online users state
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [showOnlineList, setShowOnlineList] = useState(false);
+    const savedScrollPosRef = useRef(null);
 
     // Typing indicator state
     const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, username}
@@ -639,12 +640,12 @@ export function LiveChat({ user, isAdmin = false }) {
 
     // Slash command handlers
     const slashCommands = {
-        shrug: () => '¯\\_(ツ)_/¯',
-        tableflip: () => '(╯°□°)╯︵ ┻━┻',
-        unflip: () => '┬─┬ノ( º _ ºノ)',
-        lenny: () => '( ͡° ͜ʖ ͡°)',
-        disapprove: () => 'ಠ_ಠ',
-        sparkles: () => '✨',
+        shrug: () => 'Â¯\\_(ãƒ„)_/Â¯',
+        tableflip: () => '(â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»',
+        unflip: () => 'â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)',
+        lenny: () => '( Í¡Â° ÍœÊ– Í¡Â°)',
+        disapprove: () => 'à² _à² ',
+        sparkles: () => 'âœ¨',
         help: () => null, // Special handling below
     };
 
@@ -668,14 +669,14 @@ export function LiveChat({ user, isAdmin = false }) {
                 type: 'local',
                 content: (
                     <div style={{ padding: '12px', background: 'rgba(88, 101, 242, 0.1)', borderRadius: '8px', fontSize: '12px' }}>
-                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>📝 Available Commands</div>
+                        <div style={{ color: '#8B5CF6', fontWeight: '600', marginBottom: '8px' }}>ðŸ“ Available Commands</div>
                         <div style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            <div><code style={{ color: '#5865F2' }}>/shrug</code> — ¯\_(ツ)_/¯</div>
-                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> — (╯°□°)╯︵ ┻━┻</div>
-                            <div><code style={{ color: '#5865F2' }}>/unflip</code> — ┬─┬ノ( º _ ºノ)</div>
-                            <div><code style={{ color: '#5865F2' }}>/lenny</code> — ( ͡° ͜ʖ ͡°)</div>
-                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> — ಠ_ಠ</div>
-                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> — ✨</div>
+                            <div><code style={{ color: '#5865F2' }}>/shrug</code> â€” Â¯\_(ãƒ„)_/Â¯</div>
+                            <div><code style={{ color: '#5865F2' }}>/tableflip</code> â€” (â•¯Â°â–¡Â°)â•¯ï¸µ â”»â”â”»</div>
+                            <div><code style={{ color: '#5865F2' }}>/unflip</code> â€” â”¬â”€â”¬ãƒŽ( Âº _ ÂºãƒŽ)</div>
+                            <div><code style={{ color: '#5865F2' }}>/lenny</code> â€” ( Í¡Â° ÍœÊ– Í¡Â°)</div>
+                            <div><code style={{ color: '#5865F2' }}>/disapprove</code> â€” à² _à² </div>
+                            <div><code style={{ color: '#5865F2' }}>/sparkles</code> â€” âœ¨</div>
                             <div style={{ marginTop: '8px', color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
                                 Tip: Share images by pasting imgur/discord CDN links!
                             </div>
@@ -1147,14 +1148,30 @@ export function LiveChat({ user, isAdmin = false }) {
                                     }} />
                                 </div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                                    {messages.length} messages • Drag to move
+                                    {messages.length} messages â€¢ Drag to move
                                 </div>
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                             {/* Online users button */}
                             <button
-                                onClick={(e) => { e.stopPropagation(); setShowOnlineList(!showOnlineList); }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!showOnlineList) {
+                                        // Switching TO online list - save current scroll position
+                                        if (messagesContainerRef.current) {
+                                            savedScrollPosRef.current = messagesContainerRef.current.scrollTop;
+                                        }
+                                    } else {
+                                        // Switching back to messages - restore scroll position after render
+                                        setTimeout(() => {
+                                            if (messagesContainerRef.current && savedScrollPosRef.current !== null) {
+                                                messagesContainerRef.current.scrollTop = savedScrollPosRef.current;
+                                            }
+                                        }, 0);
+                                    }
+                                    setShowOnlineList(!showOnlineList);
+                                }}
                                 title={`${onlineUsers.length} online`}
                                 style={{
                                     background: showOnlineList ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
@@ -1239,6 +1256,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                     className="chat-scrollbar"
                                     style={{
                                         flex: 1,
+                                        minHeight: 0,
                                         overflow: 'auto',
                                         background: '#0e0e15',
                                         padding: '12px'
@@ -1718,7 +1736,7 @@ export function LiveChat({ user, isAdmin = false }) {
                                                 whiteSpace: 'nowrap',
                                                 maxWidth: '150px'
                                             }}>
-                                                — {decodeHtmlEntities(replyingTo.message)}
+                                                â€” {decodeHtmlEntities(replyingTo.message)}
                                             </span>
                                         )}
                                     </div>

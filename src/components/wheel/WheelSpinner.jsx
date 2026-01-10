@@ -384,9 +384,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     // Check again before updating state
                     if (animationCancelledRef.current) return null;
 
-                    // Update strip with real result - the animation continues smoothly
-                    const newStrip = buildStrip(finalItem);
-                    setStrip(newStrip);
+                    // Update only the final item in the strip, preserving all other items
+                    // This prevents visible items from randomly changing during the animation
+                    setStrip(prevStrip => {
+                        const newStrip = [...prevStrip];
+                        const finalIndex = newStrip.length - 8;
+                        if (finalIndex >= 0 && finalIndex < newStrip.length) {
+                            newStrip[finalIndex] = finalItem;
+                        }
+                        return newStrip;
+                    });
                     setResult(finalItem);
                     setIsNewItem(spinResult.isNew);
 
@@ -1159,7 +1166,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         marginBottom: '4px',
                         textShadow: (recursionActive && recursionSpinsRemaining > 0) ? `0 0 10px ${COLORS.recursion}` : 'none',
                     }}>
-                        {!user ? 'Login to spin!' : allItems.length === 0 ? 'Loading items...' : (recursionActive && recursionSpinsRemaining > 0) ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡` : 'Click to spin!'}
+                        {!user ? 'Login to spin!' : allItems.length === 0 ? 'Loading items...' : (recursionActive && recursionSpinsRemaining > 0) ? `${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! âš¡` : 'Click to spin!'}
                     </div>
                     <div style={{ color: COLORS.textMuted, fontSize: '12px' }}>
                         {(recursionActive && recursionSpinsRemaining > 0)
@@ -1263,7 +1270,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         fontWeight: '600',
                         textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
                     }}>
-                        {state === 'spinning' ? (showSpinRecursionEffects ? '⚡ Lucky Spinning...' : 'Spinning...') :
+                        {state === 'spinning' ? (showSpinRecursionEffects ? 'Lucky Spinning...' : 'Spinning...') :
                             state === 'recursion' ? 'RECURSION!' :
                                 state === 'event' ? 'BONUS EVENT!' :
                                     state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :

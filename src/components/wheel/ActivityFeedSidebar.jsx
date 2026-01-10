@@ -38,11 +38,14 @@ export function ActivityFeedSidebar() {
     const timeoutsRef = useRef([]);
     const isMountedRef = useRef(true);
 
-    // Track mounted state
+    // Track mounted state and cleanup timeouts on unmount only
     useEffect(() => {
         isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            // Clear timeouts only on unmount
+            timeoutsRef.current.forEach(id => clearTimeout(id));
+            timeoutsRef.current = [];
         };
     }, []);
 
@@ -74,6 +77,8 @@ export function ActivityFeedSidebar() {
                         if (prev.some(i => i.id === item.id)) return prev;
                         return [item, ...prev].slice(0, 150);
                     });
+                    // Remove this timeout from the ref after it executes
+                    timeoutsRef.current = timeoutsRef.current.filter(id => id !== timeoutId);
                 }, 4000);
                 timeoutsRef.current.push(timeoutId);
             } else {
@@ -92,12 +97,7 @@ export function ActivityFeedSidebar() {
             const ids = Array.from(processedIdsRef.current);
             processedIdsRef.current = new Set(ids.slice(-100));
         }
-
-        // Cleanup: clear all pending timeouts on unmount or when effect re-runs
-        return () => {
-            timeoutsRef.current.forEach(id => clearTimeout(id));
-            timeoutsRef.current = [];
-        };
+        // Note: No cleanup here - timeouts are managed separately and cleared on unmount
     }, [rawFeed, serverTime]);
 
     // Sort delayed feed by created_at
