@@ -5,11 +5,16 @@ import { COLORS, ITEM_WIDTH, FINAL_INDEX } from '../../config/constants.js';
 // SPEED LINE COMPONENT
 // ============================================
 const SpeedLine = ({ index, isVertical, color }) => {
+    // Generate stable random values once on mount
+    const stableRandom = useRef({
+        width: 30 + Math.random() * 70,
+        delay: Math.random() * 0.3,
+        duration: 0.2 + Math.random() * 0.2,
+    }).current;
+
     const style = useMemo(() => {
         const offset = (index / 12) * 100;
-        const width = 30 + Math.random() * 70;
-        const delay = Math.random() * 0.3;
-        const duration = 0.2 + Math.random() * 0.2;
+        const { width, delay, duration } = stableRandom;
 
         return isVertical ? {
             position: 'absolute',
@@ -32,7 +37,7 @@ const SpeedLine = ({ index, isVertical, color }) => {
             opacity: 0.6,
             pointerEvents: 'none',
         };
-    }, [index, isVertical, color]);
+    }, [index, isVertical, color, stableRandom]);
 
     return <div style={style} />;
 };
@@ -67,7 +72,7 @@ export const EnhancedIndicator = ({
                                       isRecursion = false
                                   }) => {
     const pulseAnimation = isSlowingDown
-        ? 'indicatorHeartbeat 0.5s ease-in-out infinite'
+        ? (isMobile ? 'indicatorHeartbeatMobile 0.5s ease-in-out infinite' : 'indicatorHeartbeat 0.5s ease-in-out infinite')
         : isResult
             ? 'indicatorLand 0.5s ease-out forwards'
             : 'none';

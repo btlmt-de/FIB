@@ -60,11 +60,11 @@ export function LiveActivityToast() {
             // If item is older, it's from initial fetch during spin animation - calculate remaining delay
             let delay;
             if (itemAge < 2000) {
-                // Fresh SSE item - delay 4.5 seconds to cover bonus spin animations (~4.8s)
+                // Fresh SSE item - delay 4.5 seconds to cover spin animations
                 delay = 4500 + (idx * 300);
             } else {
                 // Older item - apply remaining delay to sync with spin animation
-                const DELAY_AFTER_CREATION = 5500;
+                const DELAY_AFTER_CREATION = 5000;
                 delay = Math.max(500, DELAY_AFTER_CREATION - itemAge) + (idx * 300);
             }
 

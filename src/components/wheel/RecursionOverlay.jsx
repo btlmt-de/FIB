@@ -178,8 +178,10 @@ export function RecursionOverlay() {
     const isLowTime = remainingTime <= 30;
     const isCriticalTime = remainingTime <= 10;
 
-    // Calculate progress
-    const progressPercent = initialTime > 0 ? (remainingTime / initialTime) * 100 : 100;
+    // Calculate progress (clamped to 0-100 to prevent visual glitches)
+    const progressPercent = initialTime > 0
+        ? Math.max(0, Math.min(100, (remainingTime / initialTime) * 100))
+        : 100;
 
     // Color scheme based on state
     const activeColor = hasSpins ? COLORS.recursion : '#666666';

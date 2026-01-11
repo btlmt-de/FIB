@@ -508,10 +508,6 @@ export const AnimationStyles = () => (
             0%, 100% { box-shadow: 0 0 25px ${COLORS.insane}88, 0 0 50px #FFF5B044; }
             50% { box-shadow: 0 0 40px ${COLORS.insane}aa, 0 0 70px #FFF5B066; }
         }
-        @keyframes rarityAuraGreen {
-            0%, 100% { box-shadow: 0 0 15px #00FF0066, 0 0 30px #00FF0033; }
-            50% { box-shadow: 0 0 25px #00FF0088, 0 0 50px #00FF0044; }
-        }
 
 
         /* ============================================
@@ -656,22 +652,6 @@ export const AnimationStyles = () => (
             0% { filter: blur(0px); }
             50% { filter: blur(2px); }
             100% { filter: blur(0px); }
-        }
-        
-        /* Center indicator heartbeat at slowdown */
-        @keyframes indicatorHeartbeat {
-            0%, 100% {
-                transform: translateX(-50%) scale(1);
-                filter: drop-shadow(0 0 8px ${COLORS.gold}cc);
-            }
-            15% {
-                transform: translateX(-50%) scale(1.3);
-                filter: drop-shadow(0 0 20px ${COLORS.gold}ff);
-            }
-            30% {
-                transform: translateX(-50%) scale(1);
-                filter: drop-shadow(0 0 8px ${COLORS.gold}cc);
-            }
         }
         
         /* Result shockwave */

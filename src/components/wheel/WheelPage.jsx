@@ -657,8 +657,15 @@ function WheelOfFortunePage({ onBack }) {
             <CosmicBackground />
 
             {/* Back Button - Fixed position in corner */}
-            <a
-                href="/"
+            <button
+                onClick={(e) => {
+                    e.preventDefault();
+                    if (onBack) {
+                        onBack();
+                    } else {
+                        window.location.href = '/';
+                    }
+                }}
                 style={{
                     position: 'fixed',
                     top: '20px',
@@ -676,6 +683,7 @@ function WheelOfFortunePage({ onBack }) {
                     background: 'rgba(20, 20, 25, 0.8)',
                     border: `1px solid ${COLORS.border}`,
                     backdropFilter: 'blur(8px)',
+                    cursor: 'pointer',
                 }}
                 onMouseEnter={e => {
                     e.currentTarget.style.color = COLORS.text;
@@ -692,7 +700,7 @@ function WheelOfFortunePage({ onBack }) {
             >
                 <ArrowLeft size={18} />
                 <span>Back</span>
-            </a>
+            </button>
 
             {/* Main layout with sidebars */}
             <div style={{
