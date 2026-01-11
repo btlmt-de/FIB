@@ -688,7 +688,7 @@ export function SoundSettingsPanel({ onClose }) {
 }
 
 // Compact sound button for header/navigation
-export function SoundButton({ onClick }) {
+export function SoundButton({ onClick, isMobile = false }) {
     const { settings, isPlaying } = useSound();
     const label = settings.enabled ? "Sound settings (enabled)" : "Sound settings (disabled)";
 
@@ -699,8 +699,8 @@ export function SoundButton({ onClick }) {
             title="Sound Settings"
             aria-label={label}
             style={{
-                width: '36px',
-                height: '36px',
+                width: isMobile ? '32px' : '36px',
+                height: isMobile ? '32px' : '36px',
                 borderRadius: '8px',
                 background: settings.enabled
                     ? (isPlaying ? `${COLORS.accent}22` : COLORS.bgLighter)
@@ -719,7 +719,7 @@ export function SoundButton({ onClick }) {
                 padding: 0,
             }}
         >
-            {settings.enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            {settings.enabled ? <Volume2 size={isMobile ? 16 : 18} /> : <VolumeX size={isMobile ? 16 : 18} />}
         </button>
     );
 }

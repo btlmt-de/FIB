@@ -106,13 +106,15 @@ export function ActivityFeedSidebar() {
         // Note: No cleanup here - timeouts are managed separately and cleared on unmount
     }, [rawFeed]); // serverTime accessed via ref to avoid frequent re-runs
 
-    // Sort delayed feed by created_at
+    // Sort delayed feed by created_at and filter out any achievements that may have slipped through
     const feed = useMemo(() => {
-        return [...delayedFeed].sort((a, b) => {
-            const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
-            const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
-            return dateB - dateA;
-        });
+        return [...delayedFeed]
+            .filter(item => item.event_type !== 'achievement_unlock')
+            .sort((a, b) => {
+                const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
+                const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
+                return dateB - dateA;
+            });
     }, [delayedFeed]);
 
     // Filter for mythic and insane only
