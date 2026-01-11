@@ -137,17 +137,17 @@ export function EnhancedWheelIdleState({
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '20px',
+            gap: isMobile ? '12px' : '20px',
             position: 'relative',
-            minHeight: '440px',
+            minHeight: isMobile ? '320px' : '440px',
             justifyContent: 'center',
-            padding: '16px 20px',
+            padding: isMobile ? '8px 12px' : '16px 20px',
         }}>
             {/* Wheel Container with Effects */}
             <div style={{
                 position: 'relative',
-                width: '240px',
-                height: '240px',
+                width: isMobile ? '180px' : '240px',
+                height: isMobile ? '180px' : '240px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -158,8 +158,8 @@ export function EnhancedWheelIdleState({
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: showRecursionEffects ? '280px' : '260px',
-                    height: showRecursionEffects ? '280px' : '260px',
+                    width: showRecursionEffects ? (isMobile ? '200px' : '280px') : (isMobile ? '190px' : '260px'),
+                    height: showRecursionEffects ? (isMobile ? '200px' : '280px') : (isMobile ? '190px' : '260px'),
                     background: showRecursionEffects
                         ? `radial-gradient(circle, ${COLORS.recursion}40 0%, ${COLORS.recursion}15 40%, transparent 70%)`
                         : `radial-gradient(circle, ${COLORS.gold}25 0%, ${COLORS.orange}10 40%, transparent 70%)`,
@@ -174,8 +174,8 @@ export function EnhancedWheelIdleState({
                     position: 'absolute',
                     top: '50%',
                     left: '50%',
-                    width: '200px',
-                    height: '200px',
+                    width: isMobile ? '150px' : '200px',
+                    height: isMobile ? '150px' : '200px',
                     background: showRecursionEffects
                         ? `radial-gradient(circle, transparent 60%, ${COLORS.recursion}15 80%, transparent 100%)`
                         : `radial-gradient(circle, transparent 60%, ${COLORS.gold}10 80%, transparent 100%)`,
@@ -254,7 +254,7 @@ export function EnhancedWheelIdleState({
                         src={WHEEL_TEXTURE_URL}
                         alt="Spin the wheel"
                         style={{
-                            width: '180px',
+                            width: isMobile ? '140px' : '180px',
                             height: 'auto',
                             imageRendering: 'pixelated',
                         }}
@@ -279,9 +279,9 @@ export function EnhancedWheelIdleState({
                 {/* Main CTA Text */}
                 <div style={{
                     color: showRecursionEffects ? COLORS.recursion : COLORS.gold,
-                    fontSize: '18px',
+                    fontSize: isMobile ? '15px' : '18px',
                     fontWeight: '700',
-                    marginBottom: '8px',
+                    marginBottom: isMobile ? '4px' : '8px',
                     textShadow: showRecursionEffects
                         ? `0 0 20px ${COLORS.recursion}`
                         : `0 0 20px ${COLORS.gold}44`,
@@ -292,14 +292,14 @@ export function EnhancedWheelIdleState({
                         : allItems.length === 0 ? 'Loading items...'
                             : showRecursionEffects
                                 ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
-                                : 'Click to spin!'}
+                                : isMobile ? 'Tap to spin!' : 'Click to spin!'}
                 </div>
 
                 {/* Subtitle */}
                 <div style={{
                     color: COLORS.textMuted,
-                    fontSize: '13px',
-                    marginBottom: '12px',
+                    fontSize: isMobile ? '11px' : '13px',
+                    marginBottom: isMobile ? '8px' : '12px',
                 }}>
                     {showRecursionEffects ? (
                         <span style={{
@@ -344,7 +344,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        ⚠️ {error}
+                        âš ï¸ {error}
                     </div>
                 )}
 
@@ -352,13 +352,13 @@ export function EnhancedWheelIdleState({
                 <button
                     onClick={onShowOddsInfo}
                     style={{
-                        marginTop: '16px',
-                        padding: '10px 20px',
+                        marginTop: isMobile ? '8px' : '16px',
+                        padding: isMobile ? '8px 16px' : '10px 20px',
                         borderRadius: '20px',
                         background: 'rgba(255, 255, 255, 0.03)',
                         border: `1px solid ${COLORS.border}`,
                         color: COLORS.textMuted,
-                        fontSize: '12px',
+                        fontSize: isMobile ? '11px' : '12px',
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -379,7 +379,7 @@ export function EnhancedWheelIdleState({
                         e.currentTarget.style.transform = 'translateY(0)';
                     }}
                 >
-                    <Info size={14} />
+                    <Info size={isMobile ? 12 : 14} />
                     How odds work
                 </button>
             </div>

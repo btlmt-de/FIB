@@ -671,12 +671,17 @@ function WheelOfFortunePage({ onBack }) {
                 </div>
 
                 {/* Center Content */}
-                <div style={{ maxWidth: '900px', width: '100%', position: 'relative', zIndex: 1 }}>
+                <div style={{
+                    maxWidth: '900px',
+                    width: '100%',
+                    position: 'relative',
+                    zIndex: 1,
+                }}>
                     {/* Header */}
                     <div style={{
                         textAlign: 'center',
-                        marginBottom: '24px',
-                        paddingTop: '16px',
+                        marginBottom: '16px',
+                        paddingTop: '8px',
                         animation: 'sectionFadeIn 0.6s ease-out',
                     }}>
                         {/* Main Title */}
@@ -703,7 +708,7 @@ function WheelOfFortunePage({ onBack }) {
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '12px',
-                            margin: '16px 0',
+                            margin: '10px 0',
                         }}>
                             <div style={{
                                 width: '60px',
@@ -984,7 +989,7 @@ function WheelOfFortunePage({ onBack }) {
                     {/* Wheel - Floating without container */}
                     <div style={{
                         marginBottom: '16px',
-                        minHeight: '460px',
+                        minHeight: '420px',
                     }}>
                         <WheelSpinner
                             allItems={allItems}
@@ -1031,8 +1036,8 @@ function WheelOfFortunePage({ onBack }) {
 
                     {/* Footer */}
                     <div style={{
-                        marginTop: '48px',
-                        paddingTop: '24px',
+                        marginTop: '24px',
+                        paddingTop: '16px',
                         borderTop: `1px solid ${COLORS.border}33`,
                         textAlign: 'center',
                         animation: 'sectionFadeIn 0.6s ease-out 0.5s both',
