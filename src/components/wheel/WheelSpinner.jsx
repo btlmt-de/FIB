@@ -439,9 +439,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 else if (progress >= 0.9) setSpinProgress(0.95);
 
                 // Direct DOM manipulation - no React re-render
+                // Use transform for GPU acceleration on both mobile and desktop
                 if (stripRef.current) {
                     if (isMobile) {
-                        stripRef.current.style.top = `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current}px`;
+                        const yOffset = (MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current;
+                        stripRef.current.style.transform = `translate(-50%, ${yOffset}px)`;
                     } else {
                         stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
                     }
@@ -654,9 +656,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 offsetRef.current = eased * finalOffset;
 
                 // Direct DOM manipulation for smooth animation
+                // Use transform for GPU acceleration on both mobile and desktop
                 if (stripRef.current) {
                     if (isMobile) {
-                        stripRef.current.style.top = `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current}px`;
+                        const yOffset = (MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current;
+                        stripRef.current.style.transform = `translate(-50%, ${yOffset}px)`;
                     } else {
                         stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
                     }
@@ -1006,7 +1010,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // Use the ref to check if THIS spin is a recursion spin (not the live state)
         const isSpinning = state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning';
         const spinIsRecursion = currentSpinIsRecursionRef.current;
-        const showRarityAura = isSpinning && (isSpecialType || spinIsRecursion);
+        // Disable rarity aura on mobile during spinning for better performance
+        const showRarityAura = !isMobile && isSpinning && (isSpecialType || spinIsRecursion);
 
         // Get rarity-specific aura animation
         const getRarityAura = () => {
@@ -1070,7 +1075,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                     : (isSpinning && spinIsRecursion) ? `${COLORS.recursion}44`
                                                         : COLORS.border
                     }`,
-                    boxShadow: shouldAnimate ? (
+                    // Simplify box shadows on mobile during spinning for better performance
+                    boxShadow: (isMobile && isSpinning && !isWinning) ? 'none' : (shouldAnimate ? (
                         isRecursion
                             ? `0 0 20px ${COLORS.recursion}cc, 0 0 40px ${COLORS.recursion}66, 0 0 60px ${COLORS.recursionDark}44`
                             : isEvent
@@ -1088,8 +1094,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         ? `0 0 20px ${COLORS.green}66`
                                                         : `0 0 20px ${COLORS.gold}66`)
                                                     : 'none'
-                    ) : 'none',
-                    animation: shouldAnimate ? (
+                    ) : 'none'),
+                    // Disable glow animations on mobile during spinning for performance
+                    animation: (isMobile && isSpinning) ? 'none' : (shouldAnimate ? (
                         isRecursion ? 'recursionGlow 0.5s ease-in-out infinite'
                             : isEvent ? 'eventGlow 1.5s ease-in-out infinite'
                                 : isInsane ? 'insaneGlow 0.8s ease-in-out infinite'
@@ -1097,7 +1104,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
                                             : isRare ? 'rareGlow 1.5s ease-in-out infinite'
                                                 : 'none'
-                    ) : 'none'
+                    ) : 'none')
                 }}>
                     <img
                         src={getItemImageUrl(item)}
@@ -1722,11 +1729,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         display: 'flex',
                                         flexDirection: isMobile ? 'column' : 'row',
                                         alignItems: 'center',
-                                        willChange: 'transform, top',
+                                        willChange: 'transform',
                                         zIndex: 2,
                                         ...(isMobile ? {
-                                            left: '50%', marginLeft: `-${MOBILE_ITEM_WIDTH / 2}px`,
-                                            top: `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2)}px`
+                                            left: '50%',
+                                            transform: `translate(-50%, ${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2)}px)`,
+                                            top: 0,
                                         } : {
                                             height: '100%',
                                             transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
@@ -1741,6 +1749,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             <div key={idx} style={{
                                                 width: `${stripItemWidth}px`, height: `${stripItemWidth}px`, flexShrink: 0,
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                contain: 'layout style paint',
                                                 ...(isMobile
                                                     ? { borderBottom: `1px solid ${showSpinRecursionEffects ? COLORS.recursion + '33' : COLORS.border + '33'}` }
                                                     : { borderRight: `1px solid ${showSpinRecursionEffects ? COLORS.recursion + '33' : COLORS.border + '33'}` })
