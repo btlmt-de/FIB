@@ -19,6 +19,7 @@ import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { LiveChat } from './LiveChat';
+import { getDiscordAvatarUrl } from '../../utils/helpers';
 import { SoundButton, SoundSettingsPanel } from './SoundSettings';
 import {
     User, Edit3, LogOut, Upload, Settings,
@@ -621,23 +622,6 @@ function WheelOfFortunePage({ onBack }) {
         }
     }
 
-    // Helper to get Discord avatar URL
-    function getDiscordAvatarUrl() {
-        if (!user) return 'https://cdn.discordapp.com/embed/avatars/0.png';
-        if (user.discordAvatar && user.discordId) {
-            const format = user.discordAvatar.startsWith('a_') ? 'gif' : 'png';
-            return `https://cdn.discordapp.com/avatars/${user.discordId}/${user.discordAvatar}.${format}?size=64`;
-        }
-        if (user.discordId) {
-            try {
-                const defaultIndex = Number(BigInt(user.discordId) >> 22n) % 6;
-                return `https://cdn.discordapp.com/embed/avatars/${defaultIndex}.png`;
-            } catch {
-                return 'https://cdn.discordapp.com/embed/avatars/0.png';
-            }
-        }
-        return 'https://cdn.discordapp.com/embed/avatars/0.png';
-    }
 
     if (authLoading || loading) {
         return <CosmicLoader />;
@@ -882,7 +866,7 @@ function WheelOfFortunePage({ onBack }) {
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                 >
                                     <img
-                                        src={getDiscordAvatarUrl()}
+                                        src={getDiscordAvatarUrl(user.discordId, user.discordAvatar)}
                                         alt="Avatar"
                                         style={{
                                             width: '36px',
