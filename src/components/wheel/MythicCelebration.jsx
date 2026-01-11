@@ -12,7 +12,7 @@ import { useSound } from '../../context/SoundContext.jsx';
 import { Sparkles, Star, Crown, Diamond } from 'lucide-react';
 
 // Configuration
-const CELEBRATION_DELAY = 4000;
+const CELEBRATION_DELAY = 4500;
 const CELEBRATION_DURATION = 12000;
 const CONFETTI_COUNT = 500;
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { COLORS } from '../../config/constants.js';
-import { Activity, Sparkles, Crown } from 'lucide-react';
+import { Activity, Sparkles, Crown, Radio } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../context/ActivityContext';
@@ -129,14 +129,15 @@ export function ActivityFeedSidebar() {
         <div style={{
             width: '340px',
             height: '520px',
-            background: `${COLORS.bg}ee`,
-            borderRadius: '14px',
+            background: `linear-gradient(180deg, ${COLORS.bgLight}f8 0%, ${COLORS.bg}fc 100%)`,
+            borderRadius: '16px',
             border: `1px solid ${COLORS.border}`,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+            boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 60px ${COLORS.gold}08, inset 0 1px 0 rgba(255,255,255,0.05)`,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            backdropFilter: 'blur(10px)'
+            backdropFilter: 'blur(12px)',
+            position: 'relative'
         }}>
             <style>{`
                 @keyframes pulse {
@@ -161,144 +162,194 @@ export function ActivityFeedSidebar() {
                     0% { background-position: -200% center; }
                     100% { background-position: 200% center; }
                 }
-                .sidebar-feed-item {
-                    transition: all 0.3s ease;
-                    animation: slideIn 0.4s ease-out;
-                    border-radius: 8px;
-                    margin: 0 8px;
+                @keyframes liveIndicator {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.5; transform: scale(0.9); }
                 }
-                .sidebar-feed-item:hover {
-                    background: ${COLORS.bgLighter} !important;
-                    transform: translateX(4px);
-                    box-shadow: inset 0 0 12px rgba(88, 101, 242, 0.1);
+                @keyframes headerGlow {
+                    0%, 100% { box-shadow: 0 1px 0 ${COLORS.gold}20; }
+                    50% { box-shadow: 0 1px 0 ${COLORS.gold}40, 0 4px 20px ${COLORS.gold}10; }
                 }
-                .activity-feed-scroll::-webkit-scrollbar {
-                    width: 6px;
+                @keyframes shimmerSweep {
+                    0% { transform: translateX(-100%); }
+                    100% { transform: translateX(100%); }
                 }
-                .activity-feed-scroll::-webkit-scrollbar-track {
-                    background: ${COLORS.bg};
-                    border-radius: 3px;
-                }
-                .activity-feed-scroll::-webkit-scrollbar-thumb {
-                    background: ${COLORS.border};
-                    border-radius: 3px;
-                }
-                .activity-feed-scroll::-webkit-scrollbar-thumb:hover {
-                    background: ${COLORS.textMuted};
-                }
-                .activity-tab {
-                    flex: 1;
-                    padding: 8px 12px;
-                    background: transparent;
-                    border: none;
-                    color: ${COLORS.textMuted};
-                    font-size: 12px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 6px;
-                    border-radius: 6px;
-                }
-                .activity-tab:hover {
-                    color: ${COLORS.text};
-                    background: ${COLORS.bgLighter};
-                }
-                .activity-tab.active {
-                    color: ${COLORS.text};
-                    background: ${COLORS.bgLight};
+                .activity-item:hover {
+                    background: ${COLORS.bgLighter}80 !important;
+                    transform: translateX(2px);
                 }
             `}</style>
 
+            {/* Corner accents */}
+            <div style={{ position: 'absolute', top: '8px', left: '8px', width: '16px', height: '16px', borderTop: `2px solid ${COLORS.gold}40`, borderLeft: `2px solid ${COLORS.gold}40`, borderRadius: '4px 0 0 0', zIndex: 5 }} />
+            <div style={{ position: 'absolute', top: '8px', right: '8px', width: '16px', height: '16px', borderTop: `2px solid ${COLORS.gold}40`, borderRight: `2px solid ${COLORS.gold}40`, borderRadius: '0 4px 0 0', zIndex: 5 }} />
+
             {/* Header */}
             <div style={{
-                padding: '16px 18px 12px',
+                padding: '16px 16px 12px 16px',
                 borderBottom: `1px solid ${COLORS.border}`,
-                background: `linear-gradient(135deg, ${COLORS.bgLight}aa 0%, ${COLORS.bg}aa 100%)`,
-                borderRadius: '14px 14px 0 0',
-                boxShadow: `inset 0 1px 0 ${COLORS.border}`
+                background: `linear-gradient(180deg, ${COLORS.bgLighter}60 0%, transparent 100%)`,
+                position: 'relative',
+                overflow: 'hidden',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <Activity size={18} color={COLORS.green} />
-                    <span style={{
-                        color: COLORS.text,
-                        fontWeight: '600',
-                        fontSize: '15px'
-                    }}>
-                        Live Activity
-                    </span>
+                {/* Subtle shimmer effect */}
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '50%',
+                    height: '100%',
+                    backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
+                    animation: 'shimmerSweep 8s ease-in-out infinite',
+                    pointerEvents: 'none',
+                }} />
+
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    position: 'relative',
+                    zIndex: 1,
+                }}>
                     <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        background: COLORS.green,
-                        animation: 'pulse 2s infinite'
-                    }} />
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                    }}>
+                        <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            background: `linear-gradient(135deg, ${COLORS.gold}25, ${COLORS.orange}15)`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: `1px solid ${COLORS.gold}30`,
+                            boxShadow: `0 0 20px ${COLORS.gold}15`,
+                        }}>
+                            <Activity size={18} color={COLORS.gold} />
+                        </div>
+                        <div>
+                            <h3 style={{
+                                margin: 0,
+                                color: COLORS.text,
+                                fontSize: '15px',
+                                fontWeight: '700',
+                                letterSpacing: '-0.3px'
+                            }}>
+                                Live Activity
+                            </h3>
+                            <div style={{
+                                fontSize: '11px',
+                                color: COLORS.textMuted,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                marginTop: '2px'
+                            }}>
+                                <Radio size={10} color={COLORS.green} style={{ animation: 'liveIndicator 2s ease-in-out infinite' }} />
+                                Real-time feed
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Tabs */}
                 <div style={{
                     display: 'flex',
-                    gap: '6px',
-                    background: COLORS.bg,
-                    padding: '4px',
-                    borderRadius: '8px'
+                    gap: '8px',
+                    marginTop: '14px'
                 }}>
                     <button
-                        className={`activity-tab ${activeTab === 'all' ? 'active' : ''}`}
                         onClick={() => setActiveTab('all')}
+                        style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            border: activeTab === 'all' ? `1px solid ${COLORS.gold}50` : `1px solid ${COLORS.border}`,
+                            borderRadius: '8px',
+                            background: activeTab === 'all'
+                                ? `linear-gradient(135deg, ${COLORS.gold}20, ${COLORS.orange}10)`
+                                : 'transparent',
+                            color: activeTab === 'all' ? COLORS.gold : COLORS.textMuted,
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease',
+                            boxShadow: activeTab === 'all' ? `0 0 15px ${COLORS.gold}15` : 'none',
+                        }}
                     >
                         <Activity size={13} />
                         All Drops
                     </button>
                     <button
-                        className={`activity-tab ${activeTab === 'special' ? 'active' : ''}`}
                         onClick={() => setActiveTab('special')}
+                        style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            border: activeTab === 'special' ? `1px solid ${COLORS.aqua}50` : `1px solid ${COLORS.border}`,
+                            borderRadius: '8px',
+                            background: activeTab === 'special'
+                                ? `linear-gradient(135deg, ${COLORS.aqua}15, ${COLORS.purple}10)`
+                                : 'transparent',
+                            color: activeTab === 'special' ? COLORS.aqua : COLORS.textMuted,
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease',
+                            boxShadow: activeTab === 'special' ? `0 0 15px ${COLORS.aqua}15` : 'none',
+                        }}
                     >
-                        <Crown size={13} color={activeTab === 'special' ? COLORS.insane : undefined} />
-                        <Sparkles size={13} color={activeTab === 'special' ? COLORS.aqua : undefined} />
-                        Rare Pulls
+                        <Crown size={13} />
+                        Mythic & Insane
                     </button>
                 </div>
             </div>
 
-            {/* Feed content */}
-            <div className="activity-feed-scroll" style={{
+            {/* Feed List */}
+            <div style={{
                 flex: 1,
-                overflow: 'auto',
-                padding: '6px 0'
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                padding: '8px',
             }}>
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '30px', color: COLORS.textMuted, fontSize: '13px' }}>
-                        Loading...
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        padding: '8px'
+                    }}>
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} style={{
+                                height: '52px',
+                                background: `linear-gradient(90deg, ${COLORS.bgLighter}40 0%, ${COLORS.bgLighter}60 50%, ${COLORS.bgLighter}40 100%)`,
+                                backgroundSize: '200% 100%',
+                                borderRadius: '10px',
+                                animation: 'pulse 1.5s infinite'
+                            }} />
+                        ))}
                     </div>
                 ) : displayFeed.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-                        {activeTab === 'special' ? (
-                            <>
-                                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px', opacity: 0.4 }}>
-                                    <Crown size={28} color={COLORS.insane} />
-                                    <Sparkles size={28} color={COLORS.aqua} />
-                                </div>
-                                <div style={{ fontSize: '13px' }}>No mythic or insane drops yet</div>
-                                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
-                                    The rarest pulls will appear here
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <Activity size={32} style={{ marginBottom: '12px', opacity: 0.3 }} />
-                                <div style={{ fontSize: '13px' }}>No recent drops</div>
-                                <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
-                                    Special items will appear here
-                                </div>
-                            </>
-                        )}
+                    <div style={{
+                        textAlign: 'center',
+                        padding: '40px 20px',
+                        color: COLORS.textMuted
+                    }}>
+                        <Sparkles size={32} style={{ marginBottom: '12px', opacity: 0.4 }} />
+                        <p style={{ margin: 0, fontSize: '13px' }}>
+                            {activeTab === 'special' ? 'No mythic or insane drops yet' : 'No activity yet'}
+                        </p>
                     </div>
                 ) : (
-                    displayFeed.slice(0, activeTab === 'special' ? 50 : 15).map((item, idx) => {
+                    displayFeed.slice(0, 50).map((item, index) => {
                         const rarityColor = getRarityColor(item.item_rarity);
                         const isInsane = item.item_rarity === 'insane';
                         const isMythic = item.item_rarity === 'mythic';
@@ -306,26 +357,31 @@ export function ActivityFeedSidebar() {
 
                         return (
                             <div
-                                key={item.id || idx}
-                                className="sidebar-feed-item"
+                                key={item.id}
+                                className="activity-item"
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '10px',
-                                    padding: isInsane ? '12px 12px' : isMythic ? '11px 12px' : '10px 12px',
-                                    borderLeft: `3px solid ${rarityColor}`,
+                                    padding: isInsane ? '12px' : isMythic ? '11px' : '10px',
+                                    marginBottom: '6px',
+                                    borderRadius: '10px',
                                     background: isInsane
-                                        ? `linear-gradient(90deg, ${rarityColor}18 0%, ${rarityColor}08 50%, transparent 100%)`
+                                        ? `linear-gradient(135deg, ${COLORS.insane}12, ${COLORS.insane}06)`
                                         : isMythic
-                                            ? `linear-gradient(90deg, ${rarityColor}14 0%, ${rarityColor}06 50%, transparent 100%)`
-                                            : `linear-gradient(90deg, ${rarityColor}08 0%, transparent 100%)`,
+                                            ? `linear-gradient(135deg, ${COLORS.aqua}10, ${COLORS.purple}06)`
+                                            : `linear-gradient(135deg, ${rarityColor}08, ${rarityColor}04)`,
+                                    border: `1px solid ${rarityColor}${isInsane ? '35' : isMythic ? '30' : '25'}`,
                                     boxShadow: isInsane
-                                        ? `inset 0 0 15px ${rarityColor}15, 0 0 10px ${rarityColor}10`
+                                        ? `0 4px 20px ${COLORS.insane}15, inset 0 1px 0 ${COLORS.insane}15`
                                         : isMythic
-                                            ? `inset 0 0 12px ${rarityColor}12, 0 0 8px ${rarityColor}08`
-                                            : `inset 0 0 8px ${rarityColor}06`,
+                                            ? `0 4px 16px ${COLORS.aqua}10, inset 0 1px 0 ${COLORS.aqua}10`
+                                            : `inset 0 1px 0 ${rarityColor}08`,
+                                    animation: index < 3 ? `slideIn 0.3s ease-out ${index * 0.05}s both` : 'none',
                                     position: 'relative',
-                                    overflow: 'hidden'
+                                    overflow: 'hidden',
+                                    cursor: 'default',
+                                    transition: 'all 0.2s ease',
                                 }}
                             >
                                 {/* Shimmer effect for insane */}
@@ -358,17 +414,17 @@ export function ActivityFeedSidebar() {
                                     }} />
                                 )}
 
-                                {/* User avatar */}
+                                {/* Avatar */}
                                 <img
                                     src={getDiscordAvatarUrl(item.discord_id, item.discord_avatar)}
                                     alt=""
                                     style={{
-                                        width: isInsane ? '32px' : isMythic ? '30px' : '28px',
-                                        height: isInsane ? '32px' : isMythic ? '30px' : '28px',
+                                        width: isInsane ? '34px' : isMythic ? '32px' : '30px',
+                                        height: isInsane ? '34px' : isMythic ? '32px' : '30px',
                                         borderRadius: '50%',
                                         flexShrink: 0,
-                                        border: isInsane ? `2px solid ${rarityColor}` : isMythic ? `1.5px solid ${rarityColor}` : `1.5px solid ${COLORS.border}`,
-                                        boxShadow: isInsane ? `0 0 12px ${rarityColor}40` : isMythic ? `0 0 10px ${rarityColor}30` : `0 0 8px ${rarityColor}20`,
+                                        border: isInsane ? `2px solid ${rarityColor}` : isMythic ? `2px solid ${rarityColor}88` : `1.5px solid ${rarityColor}50`,
+                                        boxShadow: isInsane ? `0 0 15px ${rarityColor}50` : isMythic ? `0 0 12px ${rarityColor}40` : `0 0 8px ${rarityColor}20`,
                                         position: 'relative',
                                         zIndex: 1
                                     }}
@@ -395,7 +451,7 @@ export function ActivityFeedSidebar() {
                                             alignItems: 'center',
                                             gap: '4px'
                                         }}>
-                                            <span style={{ color: COLORS.text, fontWeight: '500' }}>
+                                            <span style={{ color: COLORS.text, fontWeight: '600' }}>
                                                 {item.custom_username || 'Unknown'}
                                             </span>
                                             <span style={{ color: COLORS.textMuted }}>got</span>
@@ -419,8 +475,8 @@ export function ActivityFeedSidebar() {
                                         color: rarityColor,
                                         fontWeight: isInsane ? '700' : isMythic ? '650' : '600',
                                         fontSize: isInsane ? '13px' : isMythic ? '12.5px' : '12px',
-                                        marginTop: '2px',
-                                        textShadow: isInsane ? `0 0 8px ${rarityColor}44` : isMythic ? `0 0 6px ${rarityColor}33` : 'none'
+                                        marginTop: '3px',
+                                        textShadow: isInsane ? `0 0 10px ${rarityColor}55` : isMythic ? `0 0 8px ${rarityColor}44` : 'none'
                                     }}>
                                         {getRarityIcon(item.item_rarity, isInsane ? 14 : isMythic ? 13 : 12)}
                                         <span style={{
@@ -435,7 +491,7 @@ export function ActivityFeedSidebar() {
                                                 fontSize: '9px',
                                                 background: 'linear-gradient(135deg, #00440033, #00FF0022)',
                                                 color: '#00FF00',
-                                                padding: '2px 5px',
+                                                padding: '2px 6px',
                                                 borderRadius: '4px',
                                                 fontWeight: '700',
                                                 flexShrink: 0,
@@ -447,7 +503,7 @@ export function ActivityFeedSidebar() {
                                                 letterSpacing: '0.3px',
                                                 textShadow: '0 0 6px #00FF0044'
                                             }}>
-                                                Lucky Spin
+                                                Lucky
                                             </span>
                                         )}
                                     </div>
@@ -455,23 +511,23 @@ export function ActivityFeedSidebar() {
 
                                 {/* Item image */}
                                 <div style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    background: `linear-gradient(135deg, ${rarityColor}30, ${rarityColor}15)`,
-                                    borderRadius: '6px',
+                                    width: isInsane ? '34px' : isMythic ? '32px' : '30px',
+                                    height: isInsane ? '34px' : isMythic ? '32px' : '30px',
+                                    background: `linear-gradient(135deg, ${rarityColor}25, ${rarityColor}10)`,
+                                    borderRadius: '8px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     flexShrink: 0,
-                                    border: `1px solid ${rarityColor}20`,
-                                    boxShadow: `0 0 10px ${rarityColor}15`
+                                    border: `1px solid ${rarityColor}30`,
+                                    boxShadow: `0 0 12px ${rarityColor}15`
                                 }}>
                                     <img
                                         src={getItemImageUrl(item)}
                                         alt={item.item_name}
                                         style={{
-                                            width: '22px',
-                                            height: '22px',
+                                            width: isInsane ? '26px' : isMythic ? '24px' : '22px',
+                                            height: isInsane ? '26px' : isMythic ? '24px' : '22px',
                                             objectFit: 'contain',
                                             imageRendering: 'pixelated'
                                         }}
@@ -489,34 +545,40 @@ export function ActivityFeedSidebar() {
 
             {/* Footer */}
             <div style={{
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderTop: `1px solid ${COLORS.border}`,
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                gap: '10px',
+                gap: '12px',
                 fontSize: '10px',
                 color: COLORS.textMuted,
-                background: `linear-gradient(135deg, ${COLORS.bg}aa 0%, ${COLORS.bgLight}aa 100%)`,
-                boxShadow: `inset 0 -1px 0 ${COLORS.border}`
+                background: `linear-gradient(180deg, transparent 0%, ${COLORS.bgLighter}30 100%)`,
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {getRarityIcon('insane', 11)}
-                    <span>Insane</span>
+                    <span style={{ color: COLORS.insane }}>Insane</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ width: '1px', height: '12px', background: COLORS.border }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {getRarityIcon('mythic', 11)}
-                    <span>Mythic</span>
+                    <span style={{ color: COLORS.aqua }}>Mythic</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ width: '1px', height: '12px', background: COLORS.border }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {getRarityIcon('legendary', 11)}
-                    <span>Legendary</span>
+                    <span style={{ color: COLORS.purple }}>Legendary</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ width: '1px', height: '12px', background: COLORS.border }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {getRarityIcon('rare', 11)}
-                    <span>Rare</span>
+                    <span style={{ color: COLORS.red }}>Rare</span>
                 </div>
             </div>
+
+            {/* Bottom corner accents */}
+            <div style={{ position: 'absolute', bottom: '8px', left: '8px', width: '16px', height: '16px', borderBottom: `2px solid ${COLORS.gold}40`, borderLeft: `2px solid ${COLORS.gold}40`, borderRadius: '0 0 0 4px', zIndex: 5 }} />
+            <div style={{ position: 'absolute', bottom: '8px', right: '8px', width: '16px', height: '16px', borderBottom: `2px solid ${COLORS.gold}40`, borderRight: `2px solid ${COLORS.gold}40`, borderRadius: '0 0 4px 0', zIndex: 5 }} />
         </div>
     );
 }
