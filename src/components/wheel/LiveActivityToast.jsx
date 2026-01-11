@@ -60,8 +60,8 @@ export function LiveActivityToast() {
             // If item is older, it's from initial fetch during spin animation - calculate remaining delay
             let delay;
             if (itemAge < 2000) {
-                // Fresh SSE item - delay 4 seconds to respect spin animation
-                delay = 4000 + (idx * 300);
+                // Fresh SSE item - delay 4.5 seconds to cover spin animations
+                delay = 4500 + (idx * 300);
             } else {
                 // Older item - apply remaining delay to sync with spin animation
                 const DELAY_AFTER_CREATION = 5000;
@@ -194,7 +194,7 @@ export function LiveActivityToast() {
                                 left: 0,
                                 right: 0,
                                 bottom: 0,
-                                background: `linear-gradient(90deg, transparent, ${categoryColor}22, transparent)`,
+                                backgroundImage: `linear-gradient(90deg, transparent, ${categoryColor}22, transparent)`,
                                 backgroundSize: '200% 100%',
                                 animation: 'achievementShine 2s ease-in-out infinite',
                                 pointerEvents: 'none'
