@@ -299,7 +299,7 @@ export function MythicCelebration({ currentUserId }) {
             )}
 
             {showFlash && (
-                <div style={{ position: 'fixed', inset: 0, background: `linear-gradient(135deg, ${theme.primary}aa, ${theme.secondary}aa, ${theme.accent}aa)`, animation: 'screenFlash 0.12s ease-out forwards', pointerEvents: 'none', zIndex: 9998 }} />
+                <div style={{ position: 'fixed', inset: 0, backgroundImage: `linear-gradient(135deg, ${theme.primary}aa, ${theme.secondary}aa, ${theme.accent}aa)`, animation: 'screenFlash 0.12s ease-out forwards', pointerEvents: 'none', zIndex: 9998 }} />
             )}
 
             <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9997, overflow: 'hidden' }}>
@@ -317,7 +317,7 @@ export function MythicCelebration({ currentUserId }) {
                         )}
                     </div>
 
-                    <div style={{ padding: '5px', borderRadius: '28px', background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary}, ${theme.accent}, ${theme.primary}, ${theme.secondary})`, backgroundSize: '400% 100%', animation: 'borderRotate 1.5s linear infinite, celebrationPulse 0.8s ease-in-out infinite' }}>
+                    <div style={{ padding: '5px', borderRadius: '28px', backgroundImage: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary}, ${theme.accent}, ${theme.primary}, ${theme.secondary})`, backgroundSize: '400% 100%', animation: 'borderRotate 1.5s linear infinite, celebrationPulse 0.8s ease-in-out infinite' }}>
                         <div style={{ background: `linear-gradient(135deg, ${COLORS.bg} 0%, ${COLORS.bgLight} 50%, ${COLORS.bg} 100%)`, borderRadius: '24px', padding: '32px 48px', display: 'flex', alignItems: 'center', gap: '28px', minWidth: '550px', position: 'relative', overflow: 'hidden' }}>
                             {/* Sparkle decorations */}
                             {[...Array(12)].map((_, i) => {
@@ -350,7 +350,7 @@ export function MythicCelebration({ currentUserId }) {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: `linear-gradient(135deg, ${theme.primary}55, ${theme.accent}55, ${theme.primary}55)`,
+                                backgroundImage: `linear-gradient(135deg, ${theme.primary}55, ${theme.accent}55, ${theme.primary}55)`,
                                 borderRadius: '20px',
                                 border: `4px solid ${theme.primary}aa`,
                                 animation: 'itemFloat 1.5s ease-in-out infinite',
@@ -444,7 +444,7 @@ export function MythicCelebration({ currentUserId }) {
                                 <div style={{
                                     fontSize: '32px',
                                     fontWeight: '900',
-                                    background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary}, ${theme.accent}, ${theme.primary})`,
+                                    backgroundImage: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary}, ${theme.accent}, ${theme.primary})`,
                                     backgroundSize: '300% 100%',
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
