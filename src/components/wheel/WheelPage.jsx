@@ -153,6 +153,7 @@ const CosmicLoader = () => (
         justifyContent: 'center',
         gap: '24px'
     }}>
+        <AnimationStyles />
         <CosmicBackground />
         <div style={{
             position: 'relative',

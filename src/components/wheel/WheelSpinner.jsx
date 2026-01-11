@@ -983,8 +983,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     };
 
     const isDisabled = !user || allItems.length === 0;
-    // totalItemCount should just be allItems.length - the server returns all spinnable items
-    const totalItemCount = allItems.length;
+    // totalItemCount includes both regular items and dynamic items (team members, special items)
+    const totalItemCount = allItems.length + (dynamicItems?.length || 0);
 
     // Render item box with proper styling matching old_wheel.jsx
     const renderItemBox = (item, idx, isWinning, size = 52, disableAnimation = false) => {

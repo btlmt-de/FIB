@@ -362,6 +362,10 @@ export function LeaderboardSidebar({ onOpenFull }) {
                     0% { transform: translateX(-100%); }
                     100% { transform: translateX(300%); }
                 }
+                @keyframes pulse {
+                    0%, 100% { background-position: 200% 0; }
+                    50% { background-position: 0% 0; }
+                }
                 .sidebar-leaderboard-row {
                     transition: all 0.2s ease;
                     animation: slideIn 0.4s ease-out;

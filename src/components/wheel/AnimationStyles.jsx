@@ -1036,6 +1036,16 @@ export const AnimationStyles = () => (
             }
         }
         
+        /* Strip item pulse effect */
+        @keyframes stripItemPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 transparent;
+            }
+            50% {
+                box-shadow: 0 0 20px 5px var(--pulse-color, rgba(255, 215, 0, 0.27));
+            }
+        }
+        
         /* Result shockwave - enhanced */
         @keyframes resultShockwaveRing {
             0% {
