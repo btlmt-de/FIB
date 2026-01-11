@@ -5,7 +5,7 @@ import { ActivityProvider } from '../../context/ActivityContext';
 import { SoundProvider } from '../../context/SoundContext.jsx';
 import { AnimationStyles } from './AnimationStyles';
 import { WheelSpinner } from './WheelSpinner';
-import { UsernameModal, ImportPromptModal, MigrationModal } from './modals';
+import { UsernameModal } from './modals';
 import { Leaderboard } from './Leaderboard';
 import { CollectionBook } from './CollectionBook';
 import { SpinHistory } from './SpinHistory';
@@ -21,7 +21,7 @@ import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { LiveChat } from './LiveChat';
 import { SoundButton, SoundSettingsPanel } from './SoundSettings';
 import {
-    User, Edit3, LogOut, Upload, Settings,
+    User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
     ArrowLeft, Home, Bell, X
@@ -430,8 +430,6 @@ function WheelOfFortunePage({ onBack }) {
     const [loading, setLoading] = useState(true);
 
     const [showUsernameModal, setShowUsernameModal] = useState(false);
-    const [showMigration, setShowMigration] = useState(false);
-    const [showImportPrompt, setShowImportPrompt] = useState(false);
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showCollection, setShowCollection] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
@@ -439,8 +437,6 @@ function WheelOfFortunePage({ onBack }) {
     const [showProfile, setShowProfile] = useState(false);
     const [showAchievements, setShowAchievements] = useState(false);
     const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
-    const [hasLocalData, setHasLocalData] = useState(false);
-    const [localDataInfo, setLocalDataInfo] = useState(null);
 
     // Notification state
     const [showNotifications, setShowNotifications] = useState(false);
@@ -457,30 +453,6 @@ function WheelOfFortunePage({ onBack }) {
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    // Check for local data on mount
-    useEffect(() => {
-        const stored = localStorage.getItem('fib_wheel_collection');
-        if (stored) {
-            try {
-                const data = JSON.parse(stored);
-                const totalItems = Object.keys(data).length;
-                const totalSpins = Object.values(data).reduce((sum, count) => sum + count, 0);
-
-                let mythicCount = 0, legendaryCount = 0, rareCount = 0;
-                for (const [texture, count] of Object.entries(data)) {
-                    if (texture === 'mythic_cavendish' || texture.startsWith('mythic_')) mythicCount += count;
-                    else if (texture.startsWith('special_')) legendaryCount += count;
-                    else if (texture.startsWith('rare_')) rareCount += count;
-                }
-
-                setHasLocalData(true);
-                setLocalDataInfo({ totalItems, totalSpins, mythicCount, legendaryCount, rareCount });
-            } catch (e) {
-                console.error('Failed to parse local data:', e);
-            }
-        }
     }, []);
 
     // Fetch items and user data
@@ -546,16 +518,8 @@ function WheelOfFortunePage({ onBack }) {
             fetchCollection();
             fetchHistory();
             fetchUnreadCount();
-
-            // Check for import prompt if user has local data
-            if (hasLocalData && localDataInfo) {
-                const dismissedImport = localStorage.getItem('fib_import_dismissed');
-                if (!dismissedImport) {
-                    setShowImportPrompt(true);
-                }
-            }
         }
-    }, [user, hasLocalData, localDataInfo]);
+    }, [user]);
 
     const handleSpinComplete = useCallback((spinResult) => {
         if (!spinResult?.result) return;
@@ -598,28 +562,6 @@ function WheelOfFortunePage({ onBack }) {
             }
         }
     }, [user]);
-
-    async function handleImport(importData) {
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/import`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ collection: importData })
-            });
-            if (res.ok) {
-                localStorage.removeItem('fib_wheel_collection');
-                setHasLocalData(false);
-                setLocalDataInfo(null);
-                await fetchCollection();
-                await fetchHistory();
-            }
-            return res;
-        } catch (error) {
-            console.error('Import failed:', error);
-            throw error;
-        }
-    }
 
     // Helper to get Discord avatar URL
     function getDiscordAvatarUrl() {
@@ -830,19 +772,6 @@ function WheelOfFortunePage({ onBack }) {
                                 </svg>
                                 Login with Discord
                             </button>
-                            {hasLocalData && (
-                                <span style={{
-                                    color: COLORS.gold,
-                                    fontSize: '13px',
-                                    fontWeight: '500',
-                                    padding: '8px 16px',
-                                    background: `${COLORS.gold}15`,
-                                    borderRadius: '8px',
-                                    border: `1px solid ${COLORS.gold}33`,
-                                }}>
-                                    ✨ Local data ready to import
-                                </span>
-                            )}
                         </div>
                     ) : (
                         <div style={{
@@ -937,30 +866,6 @@ function WheelOfFortunePage({ onBack }) {
                                 >
                                     <Edit3 size={18} />
                                 </button>
-
-                                {/* Import button (if has local data) */}
-                                {hasLocalData && (
-                                    <button
-                                        onClick={() => setShowMigration(true)}
-                                        style={{
-                                            padding: '10px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '50%',
-                                            color: COLORS.gold,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.background = `${COLORS.gold}22`}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        title="Import Local Data"
-                                    >
-                                        <Upload size={18} />
-                                    </button>
-                                )}
 
                                 {/* Admin button */}
                                 {user.isAdmin && (
@@ -1189,24 +1094,6 @@ function WheelOfFortunePage({ onBack }) {
                 <UsernameModal
                     onClose={() => setShowUsernameModal(false)}
                     currentUsername={user?.customUsername}
-                />
-            )}
-
-            {showImportPrompt && localDataInfo && (
-                <ImportPromptModal
-                    localDataInfo={localDataInfo}
-                    onImport={() => {
-                        setShowImportPrompt(false);
-                        setShowMigration(true);
-                    }}
-                    onSkip={() => setShowImportPrompt(false)}
-                />
-            )}
-
-            {showMigration && (
-                <MigrationModal
-                    onClose={() => setShowMigration(false)}
-                    onImport={handleImport}
                 />
             )}
 
