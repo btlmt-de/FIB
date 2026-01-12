@@ -14,7 +14,6 @@ import { getItemImageUrl, isInsaneItem, isSpecialItem, isRareItem, isMythicItem,
 
 const DEFAULT_SIZE = 80; // Default box size
 const GLOW_PADDING = 30; // Extra space for glow effects
-const SPARKLE_COUNT = { insane: 12, mythic: 8, special: 6, rare: 5, common: 4 };
 
 // ============================================
 // HELPERS
@@ -24,9 +23,9 @@ function hexToRgb(hex) {
     if (!hex) return { r: 255, g: 170, b: 0 };
     const cleanHex = hex.replace('#', '');
     return {
-        r: parseInt(cleanHex.substr(0, 2), 16) || 0,
-        g: parseInt(cleanHex.substr(2, 2), 16) || 0,
-        b: parseInt(cleanHex.substr(4, 2), 16) || 0
+        r: parseInt(cleanHex.substring(0, 2), 16) || 0,
+        g: parseInt(cleanHex.substring(2, 4), 16) || 0,
+        b: parseInt(cleanHex.substring(4, 6), 16) || 0
     };
 }
 
@@ -98,31 +97,6 @@ function drawRoundedRectPath(ctx, x, y, w, h, r) {
 }
 
 // ============================================
-// SPARKLE RENDERER
-// ============================================
-
-function drawSparkle(ctx, x, y, size, color, phase) {
-    const rgb = hexToRgb(color);
-    const alpha = 0.5 + Math.sin(phase * Math.PI * 2) * 0.5;
-    const scale = 0.6 + Math.sin(phase * Math.PI * 2) * 0.4;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(scale, scale);
-
-    // Horizontal line
-    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 4;
-    ctx.fillRect(-size/2, -1, size, 2);
-
-    // Vertical line
-    ctx.fillRect(-1, -size/2, 2, size);
-
-    ctx.restore();
-}
-
-// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -158,25 +132,6 @@ export function CanvasResultItem({
     const canvasSize = size + GLOW_PADDING * 2;
     const centerX = canvasSize / 2;
     const centerY = canvasSize / 2;
-
-    // Get sparkle count based on rarity
-    const getSparkleCount = () => {
-        if (isInsane) return SPARKLE_COUNT.insane;
-        if (isMythic) return SPARKLE_COUNT.mythic;
-        if (isSpecial) return SPARKLE_COUNT.special;
-        if (isRare) return SPARKLE_COUNT.rare;
-        return SPARKLE_COUNT.common;
-    };
-
-    // Pre-generate sparkle positions (stable across renders)
-    const sparklePositions = useRef(
-        Array.from({ length: 12 }, (_, i) => ({
-            angle: (i / 12) * Math.PI * 2 + Math.random() * 0.5,
-            distance: 0.55 + Math.random() * 0.15,
-            offset: Math.random(),
-            colorIndex: i % 4,
-        }))
-    ).current;
 
     // Load item image with race condition protection
     useEffect(() => {
@@ -248,29 +203,6 @@ export function CanvasResultItem({
 
             // Clear
             ctx.clearRect(0, 0, canvasSize, canvasSize);
-
-            // ============================================
-            // 0. POP SHADOW (expands outward on reveal)
-            // ============================================
-            if (time < 0.8) {
-                // Quick expand in first 0.8 seconds
-                const popProgress = Math.min(1, time / 0.5);
-                const eased = 1 - Math.pow(1 - popProgress, 3); // Ease out
-                const shadowSize = size * 0.5 + eased * size * 0.8;
-                const shadowAlpha = 0.4 * (1 - popProgress * 0.7); // Fade out as it expands
-
-                const popGradient = ctx.createRadialGradient(
-                    centerX, centerY, size * 0.3,
-                    centerX, centerY, shadowSize
-                );
-                popGradient.addColorStop(0, `rgba(255, 255, 255, ${shadowAlpha * 0.5})`);
-                popGradient.addColorStop(0.3, `rgba(255, 255, 255, ${shadowAlpha * 0.3})`);
-                popGradient.addColorStop(0.6, `rgba(255, 255, 255, ${shadowAlpha * 0.1})`);
-                popGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-                ctx.fillStyle = popGradient;
-                ctx.fillRect(0, 0, canvasSize, canvasSize);
-            }
 
             // ============================================
             // 1. OUTER GLOW RING (pulsing)
@@ -569,78 +501,6 @@ export function CanvasResultItem({
                 ctx.drawImage(imageRef.current, imgX, imgY, imgSize, imgSize);
                 ctx.shadowBlur = 0;
                 ctx.imageSmoothingEnabled = true;
-            }
-
-            // ============================================
-            // 7. SPARKLES (orbiting)
-            // ============================================
-            const sparkleCount = getSparkleCount();
-            for (let i = 0; i < sparkleCount; i++) {
-                const sp = sparklePositions[i];
-                const sparklePhase = ((time + sp.offset) % 1);
-
-                const dist = size * sp.distance;
-                const x = centerX + Math.cos(sp.angle + time * 0.3) * dist;
-                const y = centerY + Math.sin(sp.angle + time * 0.3) * dist;
-
-                let sparkleColor;
-                if (isInsane) {
-                    sparkleColor = sp.colorIndex % 2 === 0 ? COLORS.insane : '#FFF5B0';
-                } else if (isMythic) {
-                    sparkleColor = sp.colorIndex % 3 === 0 ? COLORS.aqua : sp.colorIndex % 3 === 1 ? COLORS.purple : COLORS.gold;
-                } else if (isSpecial) {
-                    sparkleColor = COLORS.purple;
-                } else if (isRare) {
-                    sparkleColor = COLORS.red;
-                } else if (isRecursionType || isRecursionSpin) {
-                    sparkleColor = COLORS.recursion;
-                } else if (isLuckyCommon) {
-                    sparkleColor = COLORS.green;
-                } else {
-                    sparkleColor = COLORS.gold;
-                }
-
-                drawSparkle(ctx, x, y, 8, sparkleColor, sparklePhase);
-            }
-
-            // ============================================
-            // 8. SPARKLE BURST (explodes outward on reveal)
-            // ============================================
-            if (time < 1.0) {
-                const burstCount = 8;
-                const burstProgress = time / 0.8; // Complete in 0.8 seconds
-                const burstEased = 1 - Math.pow(1 - Math.min(1, burstProgress), 2); // Ease out
-
-                for (let i = 0; i < burstCount; i++) {
-                    const angle = (i / burstCount) * Math.PI * 2 + 0.3; // Offset so not aligned with box
-                    const distance = size * 0.3 + burstEased * size * 0.7;
-                    const burstX = centerX + Math.cos(angle) * distance;
-                    const burstY = centerY + Math.sin(angle) * distance;
-                    const burstAlpha = Math.max(0, 1 - burstProgress * 1.2); // Fade out
-                    const burstSize = 4 + (1 - burstProgress) * 6; // Shrink as they fly
-
-                    // Color based on rarity
-                    let burstColor;
-                    if (isInsane) burstColor = COLORS.insane;
-                    else if (isMythic) burstColor = COLORS.aqua;
-                    else if (isSpecial) burstColor = COLORS.purple;
-                    else if (isRare) burstColor = COLORS.red;
-                    else if (isRecursionType || isRecursionSpin) burstColor = COLORS.recursion;
-                    else if (isLuckyCommon) burstColor = COLORS.green;
-                    else burstColor = COLORS.gold;
-
-                    const rgb = hexToRgb(burstColor);
-                    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${burstAlpha})`;
-                    ctx.beginPath();
-                    ctx.arc(burstX, burstY, burstSize, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Small white core
-                    ctx.fillStyle = `rgba(255, 255, 255, ${burstAlpha * 0.8})`;
-                    ctx.beginPath();
-                    ctx.arc(burstX, burstY, burstSize * 0.4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
             }
 
             if (showAnimation) {
