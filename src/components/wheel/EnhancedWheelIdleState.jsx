@@ -124,9 +124,11 @@ export function EnhancedWheelIdleState({
                                            onSpin,
                                            onShowOddsInfo,
                                            isMobile,
+                                           isLoading = false,
+                                           loadingProgress = 0,
                                        }) {
     const [isHovered, setIsHovered] = useState(false);
-    const isDisabled = !user || allItems.length === 0;
+    const isDisabled = !user || allItems.length === 0 || isLoading;
     const showRecursionEffects = recursionActive && recursionSpinsRemaining > 0;
 
     // Particle colors based on state
@@ -235,7 +237,7 @@ export function EnhancedWheelIdleState({
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         position: 'relative',
                         zIndex: 2,
-                        opacity: isDisabled ? 0.5 : 1,
+                        opacity: (isDisabled && !isLoading) ? 0.5 : 1,
                         transform: isHovered && !isDisabled ? 'scale(1.08)' : 'scale(1)',
                         transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                         filter: showRecursionEffects
@@ -276,24 +278,58 @@ export function EnhancedWheelIdleState({
 
             {/* Text Content */}
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                {/* Main CTA Text */}
-                <div style={{
-                    color: showRecursionEffects ? COLORS.recursion : COLORS.gold,
-                    fontSize: isMobile ? '15px' : '18px',
-                    fontWeight: '700',
-                    marginBottom: isMobile ? '4px' : '8px',
-                    textShadow: showRecursionEffects
-                        ? `0 0 20px ${COLORS.recursion}`
-                        : `0 0 20px ${COLORS.gold}44`,
-                    letterSpacing: showRecursionEffects ? '2px' : '0.5px',
-                    animation: showRecursionEffects ? 'recursionTextGlitch 2s ease-in-out infinite' : 'none',
-                }}>
-                    {!user ? 'Login to spin!'
-                        : allItems.length === 0 ? 'Loading items...'
-                            : showRecursionEffects
-                                ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
-                                : isMobile ? 'Tap to spin!' : 'Click to spin!'}
-                </div>
+                {/* Main CTA Text or Loading Bar */}
+                {isLoading ? (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '6px',
+                        marginBottom: isMobile ? '4px' : '8px',
+                    }}>
+                        <div style={{
+                            color: COLORS.gold,
+                            fontSize: isMobile ? '13px' : '14px',
+                            fontWeight: 600,
+                        }}>
+                            Loading items... {loadingProgress}%
+                        </div>
+                        <div style={{
+                            width: isMobile ? '140px' : '180px',
+                            height: '6px',
+                            background: 'rgba(255,255,255,0.1)',
+                            borderRadius: '3px',
+                            overflow: 'hidden',
+                        }}>
+                            <div style={{
+                                width: `${loadingProgress}%`,
+                                height: '100%',
+                                background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
+                                borderRadius: '3px',
+                                transition: 'width 0.15s ease-out',
+                                boxShadow: `0 0 8px ${COLORS.gold}66`,
+                            }} />
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{
+                        color: showRecursionEffects ? COLORS.recursion : COLORS.gold,
+                        fontSize: isMobile ? '15px' : '18px',
+                        fontWeight: '700',
+                        marginBottom: isMobile ? '4px' : '8px',
+                        textShadow: showRecursionEffects
+                            ? `0 0 20px ${COLORS.recursion}`
+                            : `0 0 20px ${COLORS.gold}44`,
+                        letterSpacing: showRecursionEffects ? '2px' : '0.5px',
+                        animation: showRecursionEffects ? 'recursionTextGlitch 2s ease-in-out infinite' : 'none',
+                    }}>
+                        {!user ? 'Login to spin!'
+                            : allItems.length === 0 ? 'Loading items...'
+                                : showRecursionEffects
+                                    ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
+                                    : isMobile ? 'Tap to spin!' : 'Click to spin!'}
+                    </div>
+                )}
 
                 {/* Subtitle */}
                 <div style={{
@@ -344,7 +380,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        âš ï¸ {error}
+                        Ã¢Å¡Â Ã¯Â¸Â {error}
                     </div>
                 )}
 

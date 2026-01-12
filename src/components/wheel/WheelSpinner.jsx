@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
 import { OddsInfoModal } from './OddsInfoModal.jsx';
 import { EnhancedWheelIdleState } from './EnhancedWheelIdleState.jsx';
-import { CanvasSpinningStrip } from './CanvasSpinningStrip.jsx';
+import { CanvasSpinningStrip, preloadItemImages } from './CanvasSpinningStrip.jsx';
 import { CanvasResultItem } from './CanvasResultItem.jsx';
 import { CanvasBonusStrip } from './CanvasBonusStrip.jsx';
 
@@ -37,7 +37,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [spinProgress, setSpinProgress] = useState(0); // 0-1 for Phase 2 effects
-    const [canvasOffset, setCanvasOffset] = useState(0); // For Canvas strip animation
+    const [imagesPreloaded, setImagesPreloaded] = useState(false); // Track if images are ready
+    const [preloadProgress, setPreloadProgress] = useState(0); // 0-100 percentage
+    // Use ref for canvas offset to avoid re-renders during animation
+    const canvasOffsetRef = useRef(0);
     const animationRef = useRef(null);
 
     // Mobile-specific dimensions - taller strip with more items visible
@@ -54,14 +57,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [tripleStrips, setTripleStrips] = useState([[], [], [], [], []]);
     const [tripleResults, setTripleResults] = useState([null, null, null, null, null]);
     const [tripleNewItems, setTripleNewItems] = useState([false, false, false, false, false]);
-    const [tripleCanvasOffsets, setTripleCanvasOffsets] = useState([0, 0, 0, 0, 0]); // For Canvas strips
+    // Use refs for triple offsets to avoid re-renders during animation
     const tripleAnimationRefs = useRef([null, null, null, null, null]);
     const tripleStripRefs = useRef([null, null, null, null, null]);
     const tripleOffsetRefs = useRef([0, 0, 0, 0, 0]);
 
     // Bonus wheel state - using horizontal strip like main wheel
     const [bonusStrip, setBonusStrip] = useState([]);
-    const [bonusOffset, setBonusOffset] = useState(0);
+    const bonusOffsetRef = useRef(0); // Use ref instead of state
     const [selectedEvent, setSelectedEvent] = useState(null);
     const bonusWheelRef = useRef(null);
 
@@ -121,6 +124,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Preload ALL item images on mount so they're ready for first spin
+    useEffect(() => {
+        if (allItems.length === 0) return;
+
+        setImagesPreloaded(false);
+        setPreloadProgress(0);
+
+        preloadItemImages(allItems, (loaded, total) => {
+            setPreloadProgress(Math.round((loaded / total) * 100));
+        }).then(() => {
+            setImagesPreloaded(true);
+        });
+    }, [allItems]);
 
     // Spacebar to spin/respin
     useEffect(() => {
@@ -318,7 +335,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const placeholderStrip = buildStrip(placeholderItem);
             setStrip(placeholderStrip);
             offsetRef.current = 0;
-            setCanvasOffset(0);
+            canvasOffsetRef.current = 0;
 
             // Pre-calculate animation parameters (use larger items on mobile)
             const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
@@ -440,8 +457,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 else if (progress >= 0.7 && progress < 0.75) setSpinProgress(0.7);
                 else if (progress >= 0.9) setSpinProgress(0.95);
 
-                // Canvas strip uses state-based offset
-                setCanvasOffset(offsetRef.current);
+                // Canvas strip reads directly from canvasOffsetRef - no setState needed!
+                canvasOffsetRef.current = offsetRef.current;
 
                 if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
@@ -552,7 +569,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             }
         }
         setBonusStrip(newStrip);
-        setBonusOffset(0);
+        bonusOffsetRef.current = 0;
 
         // Animate the strip
         const targetOffset = BONUS_FINAL_INDEX * BONUS_ITEM_WIDTH;
@@ -566,7 +583,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const progress = Math.min(elapsed / duration, 1);
             // Ease out quartic for nice deceleration
             const eased = 1 - Math.pow(1 - progress, 4);
-            setBonusOffset(eased * finalOffset);
+            bonusOffsetRef.current = eased * finalOffset;
 
             if (progress < 1) {
                 bonusWheelRef.current = requestAnimationFrame(animateStrip);
@@ -623,7 +640,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
             offsetRef.current = 0;
-            setCanvasOffset(0);
+            canvasOffsetRef.current = 0;
 
             const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
             const targetOffset = FINAL_INDEX * itemWidth;
@@ -650,8 +667,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 const eased = 1 - Math.pow(1 - progress, 4);
                 offsetRef.current = eased * finalOffset;
 
-                // Canvas strip uses state-based offset
-                setCanvasOffset(offsetRef.current);
+                // Canvas strip reads directly from canvasOffsetRef - no setState needed!
+                canvasOffsetRef.current = offsetRef.current;
 
                 if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
@@ -774,14 +791,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         const progress = Math.min(elapsed / spinDuration, 1);
                         const eased = 1 - Math.pow(1 - progress, 4);
 
+                        // Canvas strips read directly from tripleOffsetRefs - no setState needed!
                         tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
-
-                        // Update canvas offset state for this strip
-                        setTripleCanvasOffsets(prev => {
-                            const newOffsets = [...prev];
-                            newOffsets[rowIndex] = tripleOffsetRefs.current[rowIndex];
-                            return newOffsets;
-                        });
 
                         if (progress < 1) {
                             tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
@@ -909,14 +920,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         const elapsed = timestamp - startTime;
                         const progress = Math.min(elapsed / spinDuration, 1);
                         const eased = 1 - Math.pow(1 - progress, 4);
-                        tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
 
-                        // Update canvas offset state for this strip
-                        setTripleCanvasOffsets(prev => {
-                            const newOffsets = [...prev];
-                            newOffsets[rowIndex] = tripleOffsetRefs.current[rowIndex];
-                            return newOffsets;
-                        });
+                        // Canvas strips read directly from tripleOffsetRefs - no setState needed!
+                        tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
 
                         if (progress < 1) {
                             tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
@@ -953,7 +959,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         setState('idle');
         setResult(null);
         offsetRef.current = 0;
-        setCanvasOffset(0);
+        canvasOffsetRef.current = 0;
         setStrip([]);
         setIsNewItem(false);
         setTripleStrips([[], [], [], [], []]);
@@ -962,7 +968,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         setTripleNewItems([false, false, false, false, false]);
         setSelectedEvent(null);
         setBonusStrip([]);
-        setBonusOffset(0);
+        bonusOffsetRef.current = 0;
         setLuckyResult(null);
         setIsLuckyNew(false);
     };
@@ -1111,7 +1117,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Idle state - show clickable wheel with enhanced cosmic visuals
     if (state === 'idle') {
         return (
-            <>
+            <div style={{ position: 'relative' }}>
                 <EnhancedWheelIdleState
                     user={user}
                     allItems={allItems}
@@ -1122,6 +1128,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     onSpin={spin}
                     onShowOddsInfo={() => setShowOddsInfo(true)}
                     isMobile={isMobile}
+                    isLoading={!imagesPreloaded}
+                    loadingProgress={preloadProgress}
                 />
 
                 {/* Odds Info Modal */}
@@ -1133,7 +1141,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         isMobile={isMobile}
                     />
                 )}
-            </>
+            </div>
         );
     }
 
@@ -1359,7 +1367,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     fontWeight: '600',
                                     textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
                                 }}>
-                                {state === 'spinning' ? (showSpinRecursionEffects ? '⚡ Lucky Spinning...' : 'Spinning...') :
+                                {state === 'spinning' ? (showSpinRecursionEffects ? 'âš¡ Lucky Spinning...' : 'Spinning...') :
                                     state === 'recursion' ? 'RECURSION!' :
                                         state === 'event' ? 'BONUS EVENT!' :
                                             state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
@@ -1644,7 +1652,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 {/* Item Strip */}
                                 <CanvasSpinningStrip
                                     items={strip}
-                                    offset={canvasOffset}
+                                    offsetRef={canvasOffsetRef}
                                     isMobile={isMobile}
                                     isSpinning={state === 'spinning'}
                                     isResult={state === 'result' || state === 'event'}
@@ -2304,7 +2312,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'âœ¨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2364,7 +2372,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 {/* Event Strip */}
                                 <CanvasBonusStrip
                                     events={bonusStrip}
-                                    offset={bonusOffset}
+                                    offsetRef={bonusOffsetRef}
                                     isMobile={isMobile}
                                     isSpinning={state === 'bonusWheel'}
                                     isResult={state === 'bonusResult'}
@@ -2607,7 +2615,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 {/* Item Strip */}
                                 <CanvasSpinningStrip
                                     items={strip}
-                                    offset={canvasOffset}
+                                    offsetRef={canvasOffsetRef}
                                     isMobile={isMobile}
                                     isSpinning={state === 'luckySpinning'}
                                     isResult={state === 'luckyResult'}
@@ -2696,7 +2704,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         textShadow: `0 0 20px ${COLORS.green}60`,
                                         animation: 'pulse 2s ease-in-out infinite',
                                     }}>
-                                        ✦ Lucky Win ✦
+                                        âœ¦ Lucky Win âœ¦
                                     </span>
                                 </div>
 
@@ -2811,7 +2819,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>★ NEW TO COLLECTION ★</span>
+                                                    }}>â˜… NEW TO COLLECTION â˜…</span>
                                                 )}
                                             </div>
                                         );
@@ -2984,7 +2992,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         {/* Item Strip */}
                                                         <CanvasSpinningStrip
                                                             items={tripleStrips[rowIndex] || []}
-                                                            offset={tripleCanvasOffsets[rowIndex] || 0}
+                                                            offsetRef={{ get current() { return tripleOffsetRefs.current[rowIndex] || 0; } }}
                                                             isMobile={true}
                                                             isSpinning={state === 'tripleSpinning' || state === 'tripleLuckySpinning'}
                                                             isResult={state === 'tripleResult' || state === 'tripleLuckyResult'}
@@ -3063,7 +3071,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         {/* Item Strip */}
                                                         <CanvasSpinningStrip
                                                             items={tripleStrips[rowIndex] || []}
-                                                            offset={tripleCanvasOffsets[rowIndex] || 0}
+                                                            offsetRef={{ get current() { return tripleOffsetRefs.current[rowIndex] || 0; } }}
                                                             isMobile={false}
                                                             isSpinning={state === 'tripleSpinning' || state === 'tripleLuckySpinning'}
                                                             isResult={state === 'tripleResult' || state === 'tripleLuckyResult'}
@@ -3157,7 +3165,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             textShadow: `0 0 20px ${accentColor}60`,
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            {isTripleLucky ? '✦ Triple Lucky Results ✦' : '✦ 5x Spin Results ✦'}
+                                            {isTripleLucky ? 'âœ¦ Triple Lucky Results âœ¦' : 'âœ¦ 5x Spin Results âœ¦'}
                                         </span>
                                     </div>
 
@@ -3322,7 +3330,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>★ NEW</span>
+                                                        }}>â˜… NEW</span>
                                                     )}
                                                 </div>
                                             );

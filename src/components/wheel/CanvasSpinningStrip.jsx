@@ -36,15 +36,16 @@ function loadImage(src) {
         return Promise.resolve(imageCache.get(src));
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        // Note: crossOrigin not needed since we only draw, never read pixels
         img.onload = () => {
             imageCache.set(src, img);
             resolve(img);
         };
         img.onerror = () => {
-            // Return a placeholder on error
+            // Cache the failed state to prevent repeated load attempts
+            imageCache.set(src, null);
             resolve(null);
         };
         img.src = src;
@@ -77,6 +78,29 @@ function getItemRarityColor(item) {
 
 function isHighRarity(item) {
     return isInsaneItem(item) || isMythicItem(item) || isSpecialItem(item) || isRareItem(item) || isEventItem(item) || isRecursionItem(item);
+}
+
+// ============================================
+// ROUNDED RECT HELPER (browser compatibility)
+// ============================================
+
+function drawRoundedRectPath(ctx, x, y, w, h, r) {
+    // Feature detect and use native roundRect if available
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, w, h, r);
+    } else {
+        // Manual path construction fallback for older browsers
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
 }
 
 // ============================================
@@ -120,6 +144,9 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     };
 
     ctx.save();
+
+    // Local variable for animated border color (avoids mutating ctx)
+    let animatedBorderColor = null;
 
     // ============================================
     // WINNING ITEM PULSE - subtle scale animation
@@ -240,15 +267,15 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         ctx.fillStyle = gradient2;
         ctx.fillRect(boxX - 15, boxY - 15, boxSize + 30, boxSize + 30);
 
-        // Store border color for later
-        ctx._borderColor = `rgb(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b})`;
+        // Store border color in local variable (not on ctx to maintain reentrability)
+        animatedBorderColor = `rgb(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b})`;
     }
 
     // ============================================
     // 2. BACKGROUND (semi-transparent, SMALLER to show glow)
     // ============================================
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxSize, boxSize, radius);
+    drawRoundedRectPath(ctx, boxX, boxY, boxSize, boxSize, radius);
 
     // Dark background so glow shows through
     if (isSpecialType) {
@@ -274,7 +301,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     // ============================================
     if (isSpecialType) {
         ctx.beginPath();
-        ctx.roundRect(boxX + 2, boxY + 2, boxSize - 4, boxSize - 4, radius - 1);
+        drawRoundedRectPath(ctx, boxX + 2, boxY + 2, boxSize - 4, boxSize - 4, radius - 1);
 
         const innerGradient = ctx.createLinearGradient(boxX, boxY, boxX + boxSize, boxY + boxSize);
 
@@ -312,7 +339,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     // ============================================
     // 4. BORDER (animated color for special items)
     // ============================================
-    let borderColor = ctx._borderColor || COLORS.border;
+    let borderColor = animatedBorderColor || COLORS.border;
     if (!isSpecialType) {
         if (isWinning) {
             borderColor = COLORS.gold;
@@ -326,7 +353,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxSize, boxSize, radius);
+    drawRoundedRectPath(ctx, boxX, boxY, boxSize, boxSize, radius);
     ctx.stroke();
 
     // Add glow to border for special items
@@ -365,7 +392,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
             ctx.shadowColor = COLORS.recursion;
             ctx.shadowBlur = 12;
         } else if (isSpecialType) {
-            ctx.shadowColor = ctx._borderColor || borderColor;
+            ctx.shadowColor = animatedBorderColor || borderColor;
             ctx.shadowBlur = 6;
         }
 
@@ -374,9 +401,6 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         ctx.shadowBlur = 0;
         ctx.imageSmoothingEnabled = true;
     }
-
-    // Clean up
-    delete ctx._borderColor;
 
     ctx.restore();
 }
@@ -621,7 +645,8 @@ function drawCenterRipples(ctx, width, height, isVertical, color, time) {
 
 export function CanvasSpinningStrip({
                                         items = [],
-                                        offset = 0,
+                                        offsetRef = null, // Ref object for offset (avoids re-renders during animation)
+                                        offset: offsetProp = 0, // Fallback value when not using ref
                                         isMobile = false,
                                         isSpinning = false,
                                         isResult = false,
@@ -644,8 +669,12 @@ export function CanvasSpinningStrip({
     const [containerWidth, setContainerWidth] = useState(stripWidth || (isMobile ? 140 : 800));
 
     // Refs for props that change during animation (so render loop always has current values)
-    const propsRef = useRef({ offset, isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, isLuckySpin });
-    propsRef.current = { offset, isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, isLuckySpin };
+    // Note: offset is read from offsetRef if provided, otherwise from offsetProp
+    const propsRef = useRef({ isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, isLuckySpin });
+    propsRef.current = { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, isLuckySpin };
+
+    // Helper to get current offset - reads from ref if provided, otherwise uses prop value
+    const getOffset = () => offsetRef ? offsetRef.current : offsetProp;
 
     const itemWidth = itemWidthOverride || (isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH);
     const width = stripWidth || containerWidth;
@@ -673,23 +702,48 @@ export function CanvasSpinningStrip({
         return () => resizeObserver.disconnect();
     }, [isMobile]);
 
-    // Pre-load all item images
+    // Pre-load all item images - use cache immediately, load missing incrementally
     useEffect(() => {
         if (items.length === 0) return;
+
+        let cancelled = false;
+
+        // Immediately populate from cache for instant display
+        items.forEach(item => {
+            const src = getItemImageUrl(item);
+            const cached = imageCache.get(src);
+            if (cached) {
+                imagesRef.current.set(src, cached);
+            }
+        });
 
         const loadAllImages = async () => {
             const imagePromises = items.map(item => {
                 const src = getItemImageUrl(item);
+                // Skip if already in our map (from cache above)
+                if (imagesRef.current.has(src)) {
+                    return Promise.resolve();
+                }
                 return loadImage(src).then(img => {
-                    if (img) imagesRef.current.set(src, img);
+                    // Add incrementally as each image loads
+                    if (!cancelled && img) {
+                        imagesRef.current.set(src, img);
+                    }
                 });
             });
 
             await Promise.all(imagePromises);
-            setImagesLoaded(true);
+
+            if (!cancelled) {
+                setImagesLoaded(true);
+            }
         };
 
         loadAllImages();
+
+        return () => {
+            cancelled = true;
+        };
     }, [items]);
 
     // Main render loop
@@ -712,7 +766,9 @@ export function CanvasSpinningStrip({
             const time = timeRef.current;
 
             // Get current prop values from ref (so animation has latest values)
-            const { offset, isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor: accentOverride, isLuckySpin } = propsRef.current;
+            // Note: offset comes from offsetRef or offsetProp, not propsRef
+            const { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor: accentOverride, isLuckySpin } = propsRef.current;
+            const offset = getOffset();
             const motionIntensity = isSpinning ? Math.max(0, 1 - spinProgress * 1.5) : 0;
             const accentColor = accentOverride || (isRecursion ? COLORS.recursion : COLORS.gold);
             const bgColor = accentOverride ? '#0a150a' : (isRecursion ? COLORS.recursionDark : COLORS.bg);
@@ -880,10 +936,21 @@ export function CanvasSpinningStrip({
         // Only restart animation when canvas size or items change, not on every prop change
     }, [items, width, height, imagesLoaded]);
 
+    // Keyboard handler for accessibility
+    const handleKeyDown = useCallback((e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick(e);
+        }
+    }, [onClick]);
+
     return (
         <div
             ref={containerRef}
             onClick={onClick}
+            onKeyDown={onClick ? handleKeyDown : undefined}
+            role={onClick ? 'button' : undefined}
+            tabIndex={onClick ? 0 : undefined}
             style={{
                 position: isMobile ? 'relative' : 'absolute',
                 width: isMobile ? `${width}px` : '100%',
@@ -941,6 +1008,23 @@ export function CanvasSpinningStripWrapper({
             onClick={onClick}
         />
     );
+}
+
+// Export preload function for use by parent components
+export async function preloadItemImages(items, onProgress) {
+    const batchSize = 20;
+    let loaded = 0;
+
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        await Promise.all(batch.map(item => {
+            const src = getItemImageUrl(item);
+            return loadImage(src).then(() => {
+                loaded++;
+                if (onProgress) onProgress(loaded, items.length);
+            });
+        }));
+    }
 }
 
 export default CanvasSpinningStrip;

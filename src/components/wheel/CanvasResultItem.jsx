@@ -156,15 +156,28 @@ export function CanvasResultItem({
         }))
     ).current;
 
-    // Load item image
+    // Load item image with race condition protection
     useEffect(() => {
         if (!item) return;
 
+        // Reset state immediately when item changes
+        imageRef.current = null;
+        setImageLoaded(false);
+
         const src = getItemImageUrl(item);
+        let cancelled = false;
+
         loadImage(src).then(img => {
-            imageRef.current = img;
-            setImageLoaded(true);
+            // Only update if this is still the current item and not cancelled
+            if (!cancelled && img) {
+                imageRef.current = img;
+                setImageLoaded(true);
+            }
         });
+
+        return () => {
+            cancelled = true;
+        };
     }, [item]);
 
     // Main render loop

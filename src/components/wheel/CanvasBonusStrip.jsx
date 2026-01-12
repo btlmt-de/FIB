@@ -280,7 +280,8 @@ function drawEventSlot(ctx, event, x, y, width, height, isSelected, time, isMobi
 
 export function CanvasBonusStrip({
                                      events = [],
-                                     offset = 0,
+                                     offsetRef = null, // Ref object for offset (avoids re-renders during animation)
+                                     offset: offsetProp = 0, // Fallback value when not using ref
                                      isMobile = false,
                                      isSpinning = false,
                                      isResult = false,
@@ -293,8 +294,12 @@ export function CanvasBonusStrip({
     const [containerWidth, setContainerWidth] = useState(800);
 
     // Refs for props that change during animation
-    const propsRef = useRef({ offset, isSpinning, isResult, finalIndex });
-    propsRef.current = { offset, isSpinning, isResult, finalIndex };
+    // Note: offset is read from offsetRef if provided, otherwise from offsetProp
+    const propsRef = useRef({ isSpinning, isResult, finalIndex });
+    propsRef.current = { isSpinning, isResult, finalIndex };
+
+    // Helper to get current offset - reads from ref if provided, otherwise uses prop value
+    const getOffset = () => offsetRef ? offsetRef.current : offsetProp;
 
     const height = isMobile ? STRIP_HEIGHT_MOBILE : STRIP_HEIGHT;
     const width = containerWidth;
@@ -319,13 +324,14 @@ export function CanvasBonusStrip({
         return () => resizeObserver.disconnect();
     }, []);
 
-    // Main render loop
+    // Main render loop - only animate when spinning or showing result
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas || events.length === 0) return;
 
         const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
+        let dpr = window.devicePixelRatio || 1;
+        let lastTime = performance.now();
 
         // Set canvas size with DPR
         canvas.width = width * dpr;
@@ -334,11 +340,19 @@ export function CanvasBonusStrip({
         canvas.style.height = `${height}px`;
         ctx.scale(dpr, dpr);
 
-        const render = () => {
-            timeRef.current += 0.016;
-            const time = timeRef.current;
+        const render = (timestamp) => {
+            const { isSpinning, isResult, finalIndex } = propsRef.current;
+            const offset = getOffset();
 
-            const { offset, isResult, finalIndex } = propsRef.current;
+            // Use real delta time for frame-rate independent animation
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            // Only increment time when animating (spinning or showing result with pulse)
+            if (isSpinning || isResult) {
+                timeRef.current += dt;
+            }
+            const time = timeRef.current;
 
             // Clear
             ctx.clearRect(0, 0, width, height);
@@ -364,17 +378,75 @@ export function CanvasBonusStrip({
                 }
             });
 
-            animationRef.current = requestAnimationFrame(render);
+            // Only continue animation loop if spinning or showing result
+            // Otherwise render once and stop to save CPU
+            if (isSpinning || isResult) {
+                animationRef.current = requestAnimationFrame(render);
+            } else {
+                animationRef.current = null;
+            }
         };
 
-        render();
+        // Initial render
+        animationRef.current = requestAnimationFrame(render);
 
         return () => {
             if (animationRef.current) {
                 cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
             }
         };
     }, [events, width, height, isMobile]);
+
+    // Re-trigger render when spinning/result state changes from idle
+    useEffect(() => {
+        if ((isSpinning || isResult) && !animationRef.current) {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            let lastTime = performance.now();
+
+            const render = (timestamp) => {
+                const { isSpinning: spinning, isResult: result, finalIndex } = propsRef.current;
+                const offset = getOffset();
+                const dt = (timestamp - lastTime) / 1000;
+                lastTime = timestamp;
+
+                if (spinning || result) {
+                    timeRef.current += dt;
+                }
+                const time = timeRef.current;
+
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, width, height);
+
+                const bgGradient = ctx.createLinearGradient(0, 0, width, 0);
+                bgGradient.addColorStop(0, '#12100c');
+                bgGradient.addColorStop(0.5, '#1a1610');
+                bgGradient.addColorStop(1, '#12100c');
+                ctx.fillStyle = bgGradient;
+                ctx.fillRect(0, 0, width, height);
+
+                const centerX = width / 2 - ITEM_WIDTH / 2;
+                events.forEach((event, idx) => {
+                    const eventX = centerX + idx * ITEM_WIDTH - offset;
+                    if (eventX > -ITEM_WIDTH && eventX < width + ITEM_WIDTH) {
+                        const isSelected = result && idx === finalIndex;
+                        drawEventSlot(ctx, event, eventX, 0, ITEM_WIDTH, height, isSelected, time, isMobile);
+                    }
+                });
+
+                if (spinning || result) {
+                    animationRef.current = requestAnimationFrame(render);
+                } else {
+                    animationRef.current = null;
+                }
+            };
+            animationRef.current = requestAnimationFrame(render);
+        }
+    }, [isSpinning, isResult, events, width, height, isMobile]);
 
     return (
         <div

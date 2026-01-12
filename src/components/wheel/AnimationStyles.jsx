@@ -276,13 +276,24 @@ export const AnimationStyles = () => (
         /* Result glow burst */
         /* Letter by letter reveal */
         /* Vignette pulse */
-        /* Background gradient mesh animation */
-        @keyframes meshGradient {
-            0%, 100% {
-                background-position: 0% 50%;
+        /* Background gradient mesh animation - respects reduced motion preference */
+        @media (prefers-reduced-motion: no-preference) {
+            @keyframes meshGradient {
+                0%, 100% {
+                    background-position: 0% 50%;
+                }
+                50% {
+                    background-position: 100% 50%;
+                }
             }
-            50% {
-                background-position: 100% 50%;
+        }
+        
+        /* Fallback for reduced motion - static position */
+        @media (prefers-reduced-motion: reduce) {
+            @keyframes meshGradient {
+                0%, 100% {
+                    background-position: 50% 50%;
+                }
             }
         }
         

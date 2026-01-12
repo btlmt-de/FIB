@@ -32,21 +32,30 @@ export function CanvasStarField({ starCount = 50 }) {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
+        let dpr = window.devicePixelRatio || 1;
+        let lastTime = performance.now();
 
         const resize = () => {
+            // Refresh DPR on resize (handles display changes)
+            dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
             canvas.style.width = `${window.innerWidth}px`;
             canvas.style.height = `${window.innerHeight}px`;
+            // Reset transform after resize
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         };
 
         resize();
         window.addEventListener('resize', resize);
 
-        const render = () => {
-            timeRef.current += 0.016;
+        const render = (timestamp) => {
+            // Use real delta time for frame-rate independent animation
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            timeRef.current += dt;
             const time = timeRef.current;
+
             const width = window.innerWidth;
             const height = window.innerHeight;
 
@@ -88,7 +97,7 @@ export function CanvasStarField({ starCount = 50 }) {
             animationRef.current = requestAnimationFrame(render);
         };
 
-        render();
+        animationRef.current = requestAnimationFrame(render);
 
         return () => {
             window.removeEventListener('resize', resize);
@@ -134,13 +143,18 @@ export function CanvasCosmicBackground() {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
+        let dpr = window.devicePixelRatio || 1;
+        let lastTime = performance.now();
 
         const resize = () => {
+            // Refresh DPR on resize
+            dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
             canvas.style.width = `${window.innerWidth}px`;
             canvas.style.height = `${window.innerHeight}px`;
+            // Reset transform after resize
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         };
 
         resize();
@@ -155,9 +169,13 @@ export function CanvasCosmicBackground() {
             } : { r: 0, g: 0, b: 0 };
         };
 
-        const render = () => {
-            orbTimeRef.current += 0.016;
+        const render = (timestamp) => {
+            // Use real delta time
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            orbTimeRef.current += dt;
             const time = orbTimeRef.current;
+
             const width = window.innerWidth;
             const height = window.innerHeight;
 
@@ -193,7 +211,7 @@ export function CanvasCosmicBackground() {
             orbAnimationRef.current = requestAnimationFrame(render);
         };
 
-        render();
+        orbAnimationRef.current = requestAnimationFrame(render);
 
         return () => {
             window.removeEventListener('resize', resize);

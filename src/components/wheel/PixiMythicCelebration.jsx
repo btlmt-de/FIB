@@ -4,7 +4,7 @@
 // Drop-in replacement for MythicCelebration using GPU-accelerated Canvas
 // Maintains identical visual appearance - no PixiJS, just Canvas 2D
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { COLORS } from '../../config/constants.js';
 import { getDiscordAvatarUrl, getItemImageUrl, getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { useActivity } from '../../context/ActivityContext';
@@ -318,6 +318,20 @@ export function PixiMythicCelebration({ currentUserId }) {
     const processedItemsRef = useRef(new Set());
     const pendingCelebrationsRef = useRef([]);
 
+    // Memoize sparkle positions to prevent teleporting on re-renders
+    // Only regenerate when celebration item changes
+    const sparkleSpecs = useMemo(() => {
+        return Array.from({ length: 12 }, (_, i) => ({
+            size: 10 + Math.random() * 12,
+            left: 5 + Math.random() * 90,
+            top: 5 + Math.random() * 90,
+            animationDuration: 0.8 + Math.random() * 0.8,
+            animationDelay: Math.random() * 2,
+            iconIndex: i % 3,
+            fillIndex: i % 2,
+        }));
+    }, [celebration?.itemTexture, celebration?.itemName]);
+
     const triggerCelebration = useCallback((item) => {
         const rarity = item.item_rarity;
         const theme = RARITY_THEMES[rarity] || RARITY_THEMES.mythic;
@@ -571,23 +585,23 @@ export function PixiMythicCelebration({ currentUserId }) {
                             overflow: 'hidden'
                         }}>
                             {/* Sparkle decorations */}
-                            {[...Array(12)].map((_, i) => {
+                            {sparkleSpecs.map((spec, i) => {
                                 const icons = isInsane ? [Crown, Star, Crown] : [Sparkles, Diamond, Sparkles];
                                 const colorsArr = [theme.primary, theme.accent, theme.secondary];
-                                const Icon = icons[i % 3];
+                                const Icon = icons[spec.iconIndex];
                                 return (
                                     <Icon
                                         key={i}
-                                        size={10 + Math.random() * 12}
-                                        color={colorsArr[i % 3]}
-                                        fill={i % 2 === 0 ? colorsArr[i % 3] : 'none'}
+                                        size={spec.size}
+                                        color={colorsArr[spec.iconIndex]}
+                                        fill={spec.fillIndex === 0 ? colorsArr[spec.iconIndex] : 'none'}
                                         style={{
                                             position: 'absolute',
-                                            left: `${5 + Math.random() * 90}%`,
-                                            top: `${5 + Math.random() * 90}%`,
+                                            left: `${spec.left}%`,
+                                            top: `${spec.top}%`,
                                             opacity: 0.4,
-                                            animation: `sparkle ${0.8 + Math.random() * 0.8}s ease-in-out infinite`,
-                                            animationDelay: `${Math.random() * 2}s`
+                                            animation: `sparkle ${spec.animationDuration}s ease-in-out infinite`,
+                                            animationDelay: `${spec.animationDelay}s`
                                         }}
                                     />
                                 );

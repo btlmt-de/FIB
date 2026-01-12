@@ -47,48 +47,50 @@ function lerpColor(c1, c2, t) {
 // ============================================
 
 const imageCache = new Map();
-const loadingImages = new Set();
+const inFlightPromises = new Map();
 
 function loadImage(src) {
+    // Return cached image if available
     if (imageCache.has(src)) {
         return Promise.resolve(imageCache.get(src));
     }
 
-    if (loadingImages.has(src)) {
-        return new Promise((resolve) => {
-            const checkLoaded = setInterval(() => {
-                if (imageCache.has(src)) {
-                    clearInterval(checkLoaded);
-                    resolve(imageCache.get(src));
-                }
-            }, 50);
-        });
+    // Return in-flight promise if already loading
+    if (inFlightPromises.has(src)) {
+        return inFlightPromises.get(src);
     }
 
-    loadingImages.add(src);
-
-    return new Promise((resolve) => {
+    // Create new loading promise
+    const loadPromise = new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
             imageCache.set(src, img);
-            loadingImages.delete(src);
+            inFlightPromises.delete(src);
             resolve(img);
         };
         img.onerror = () => {
-            loadingImages.delete(src);
             // Try fallback
             const fallback = new Image();
             fallback.crossOrigin = 'anonymous';
             fallback.onload = () => {
                 imageCache.set(src, fallback);
+                inFlightPromises.delete(src);
                 resolve(fallback);
             };
-            fallback.onerror = () => resolve(null);
+            fallback.onerror = () => {
+                // Cache null to prevent repeated attempts
+                imageCache.set(src, null);
+                inFlightPromises.delete(src);
+                resolve(null);
+            };
             fallback.src = `${IMAGE_BASE_URL}/barrier.png`;
         };
         img.src = src;
     });
+
+    inFlightPromises.set(src, loadPromise);
+    return loadPromise;
 }
 
 // ============================================
@@ -359,7 +361,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.font = 'bold 8px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : '◆';
+        const iconChar = isInsane ? 'â™•' : isMythic ? 'âœ¦' : isLegendary ? 'â˜…' : 'â—†';
         ctx.fillText(iconChar, badgeX, badgeY + BADGE_SIZE/2);
     }
 
@@ -391,7 +393,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('✓', checkX, checkY);
+        ctx.fillText('âœ“', checkX, checkY);
     }
 
     ctx.restore();
@@ -472,30 +474,57 @@ export function CanvasCollectionGrid({
         return () => observer.disconnect();
     }, []);
 
-    // Animation loop
+    // Canvas sizing effect - only runs when dimensions change
+    const lastSizeRef = useRef({ width: 0, height: 0, dpr: 1 });
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        const width = containerWidth;
+        const height = containerHeight;
+
+        // Only resize if dimensions actually changed
+        if (lastSizeRef.current.width !== width ||
+            lastSizeRef.current.height !== height ||
+            lastSizeRef.current.dpr !== dpr) {
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            lastSizeRef.current = { width, height, dpr };
+        }
+    }, [containerWidth, containerHeight]);
+
+    // Animation loop - only clears and draws, no resizing
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
+        let lastTime = performance.now();
 
-        const render = () => {
-            timeRef.current += 0.016;
+        const render = (timestamp) => {
+            // Use real delta time
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            timeRef.current += dt;
             const time = timeRef.current;
 
             const width = containerWidth;
             const height = containerHeight;
 
-            // Set canvas size
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            canvas.style.width = `${width}px`;
-            canvas.style.height = `${height}px`;
-            ctx.scale(dpr, dpr);
-
-            // Clear
-            ctx.clearRect(0, 0, width, height);
+            // Clear (use identity transform for clearing, then restore scale)
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             // Calculate visible range (account for padding)
             const { cols, cellSize } = layout;
@@ -525,7 +554,7 @@ export function CanvasCollectionGrid({
             animationRef.current = requestAnimationFrame(render);
         };
 
-        render();
+        animationRef.current = requestAnimationFrame(render);
 
         return () => {
             if (animationRef.current) {
@@ -629,7 +658,7 @@ export function CanvasCollectionGrid({
                     color: COLORS.textMuted,
                     zIndex: 2,
                 }}>
-                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>ðŸ”</div>
                     <div>No items found</div>
                 </div>
             )}
