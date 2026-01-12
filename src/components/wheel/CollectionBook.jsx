@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { COLORS, IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, MYTHIC_ITEM, TEAM_MEMBERS, RARE_MEMBERS, API_BASE_URL } from '../../config/constants.js';
-import { formatChance, getMinecraftHeadUrl } from '../../utils/helpers.js';
-import { X, Sparkles, Star, Diamond, Check, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { COLORS, IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, RARE_MEMBERS, API_BASE_URL } from '../../config/constants.js';
+import { formatChance, getItemImageUrl } from '../../utils/helpers.js';
+import { X, Sparkles, Star, Diamond, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { CanvasCollectionGrid } from './CanvasCollectionGrid.jsx';
 
 // Insane color constant
 
@@ -17,20 +18,8 @@ function ItemDetailModal({ item, details, onClose }) {
     const rarityColor = isInsane ? COLORS.insane : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
     const rarityLabel = isInsane ? 'INSANE' : isMythic ? 'MYTHIC' : isLegendary ? 'LEGENDARY' : isRare ? 'RARE' : 'COMMON';
 
-    function getItemImageUrl() {
-        if (item.imageUrl) return item.imageUrl;
-        if (item.type === 'insane' && !item.username) {
-            const insane = INSANE_ITEMS.find(i => i.texture === item.texture);
-            if (insane) return insane.imageUrl;
-        }
-        if (item.type === 'mythic' && !item.username) {
-            const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
-            if (mythic) return mythic.imageUrl;
-            return MYTHIC_ITEM.imageUrl;
-        }
-        if (item.username) return getMinecraftHeadUrl(item.username);
-        return `${IMAGE_BASE_URL}/${item.texture}.png`;
-    }
+    // Use the imported getItemImageUrl helper
+    const itemImageUrl = getItemImageUrl(item);
 
     function formatDate(dateStr) {
         if (!dateStr) return 'No data available';
@@ -116,7 +105,7 @@ function ItemDetailModal({ item, details, onClose }) {
                         boxShadow: isSpecialType ? `0 0 20px ${rarityColor}33` : 'none'
                     }}>
                         <img
-                            src={getItemImageUrl()}
+                            src={itemImageUrl}
                             alt={item.name}
                             style={{
                                 width: '64px', height: '64px',
@@ -329,20 +318,7 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
         });
     }, [allItemsWithSpecial, collection, filter, search]);
 
-    function getItemImageUrl(item) {
-        if (item.imageUrl) return item.imageUrl;
-        if (item.type === 'insane' && !item.username) {
-            const insane = INSANE_ITEMS.find(i => i.texture === item.texture);
-            if (insane) return insane.imageUrl;
-        }
-        if (item.type === 'mythic' && !item.username) {
-            const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
-            if (mythic) return mythic.imageUrl;
-            return MYTHIC_ITEM.imageUrl;
-        }
-        if (item.username) return getMinecraftHeadUrl(item.username);
-        return `${IMAGE_BASE_URL}/${item.texture}.png`;
-    }
+    // getItemImageUrl is imported from helpers.js
 
     const filterButtons = [
         { id: 'all', label: 'All' },
@@ -508,137 +484,14 @@ export function CollectionBook({ collection, collectionDetails, stats, allItems,
                     />
                 </div>
 
-                {/* Items Grid */}
-                <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
-                    <style>{`
-                        @keyframes itemGlow {
-                            0%, 100% { transform: scale(1); }
-                            50% { transform: scale(1.02); }
-                        }
-                        @keyframes mythicPulse {
-                            0%, 100% { filter: drop-shadow(0 0 8px ${COLORS.aqua}88); }
-                            50% { filter: drop-shadow(0 0 16px ${COLORS.aqua}cc); }
-                        }
-                        .collection-item {
-                            transition: all 0.2s ease;
-                        }
-                        .collection-item:hover {
-                            transform: translateY(-4px);
-                        }
-                    `}</style>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '8px' }}>
-                        {sortedItems.map((item, idx) => {
-                            const count = collection[item.texture] || 0;
-                            const isCollected = count > 0;
-                            const isInsane = item.type === 'insane';
-                            const isMythic = item.type === 'mythic';
-                            const isLegendary = item.type === 'legendary';
-                            const isRare = item.type === 'rare';
-                            const isSpecialType = isInsane || isMythic || isLegendary || isRare;
-
-                            return (
-                                <div
-                                    key={idx}
-                                    className="collection-item"
-                                    onClick={() => setSelectedItem(item)}
-                                    style={{
-                                        position: 'relative',
-                                        aspectRatio: '1',
-                                        background: isInsane
-                                            ? (isCollected ? `linear-gradient(135deg, ${COLORS.insane}33, #FFF5B022, ${COLORS.insane}22)` : COLORS.bg)
-                                            : isMythic
-                                                ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}22, ${COLORS.gold}22)` : COLORS.bg)
-                                                : isLegendary
-                                                    ? (isCollected ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}22)` : COLORS.bg)
-                                                    : isRare
-                                                        ? (isCollected ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}22)` : COLORS.bg)
-                                                        : (isCollected ? COLORS.bgLight : COLORS.bg),
-                                        border: `2px solid ${
-                                            isInsane ? (isCollected ? COLORS.insane : COLORS.insane + '44')
-                                                : isMythic ? (isCollected ? COLORS.aqua : COLORS.aqua + '44')
-                                                    : isLegendary ? (isCollected ? COLORS.purple : COLORS.purple + '44')
-                                                        : isRare ? (isCollected ? COLORS.red : COLORS.red + '44')
-                                                            : (isCollected ? COLORS.gold + '66' : COLORS.border)
-                                        }`,
-                                        borderRadius: '10px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s ease',
-                                        cursor: 'pointer',
-                                        boxShadow: isInsane && isCollected
-                                            ? `0 0 20px ${COLORS.insane}66, 0 0 40px ${COLORS.insane}33, inset 0 0 12px ${COLORS.insane}22`
-                                            : isMythic && isCollected
-                                                ? `0 0 20px ${COLORS.aqua}66, 0 0 40px ${COLORS.aqua}33, inset 0 0 12px ${COLORS.aqua}22`
-                                                : isLegendary && isCollected
-                                                    ? `0 0 16px ${COLORS.purple}55, inset 0 0 10px ${COLORS.purple}22`
-                                                    : isRare && isCollected
-                                                        ? `0 0 14px ${COLORS.red}55, inset 0 0 8px ${COLORS.red}22`
-                                                        : isCollected
-                                                            ? `0 0 8px ${COLORS.gold}33`
-                                                            : 'none',
-                                        animation: (isInsane || isMythic) && isCollected ? 'mythicPulse 3s ease-in-out infinite' : 'none'
-                                    }}
-                                    onMouseEnter={e => {
-                                        if (isCollected) {
-                                            e.currentTarget.style.transform = 'translateY(-4px)';
-                                        }
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                    }}
-                                >
-                                    {/* Special badge */}
-                                    {isSpecialType && (
-                                        <div style={{
-                                            position: 'absolute', top: '-4px', right: '-4px',
-                                            background: isInsane
-                                                ? (isCollected ? `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0, ${COLORS.insane})` : COLORS.bgLighter)
-                                                : isMythic
-                                                    ? (isCollected ? `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})` : COLORS.bgLighter)
-                                                    : isLegendary
-                                                        ? (isCollected ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})` : COLORS.bgLighter)
-                                                        : (isCollected ? COLORS.red : COLORS.bgLighter),
-                                            color: isInsane && isCollected ? '#1a1a1a' : isCollected ? '#fff' : COLORS.textMuted,
-                                            fontSize: '8px', width: '14px', height: '14px', borderRadius: '50%',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            border: `1px solid ${isInsane ? (isCollected ? COLORS.insane : COLORS.border) : isMythic ? (isCollected ? COLORS.aqua : COLORS.border) : isLegendary ? (isCollected ? COLORS.purple : COLORS.border) : (isCollected ? COLORS.red : COLORS.border)}`,
-                                            zIndex: 2
-                                        }}>
-                                            {isInsane ? <Crown size={8} /> : isMythic ? <Sparkles size={8} /> : isLegendary ? <Star size={8} /> : <Diamond size={8} />}
-                                        </div>
-                                    )}
-
-                                    <img src={getItemImageUrl(item)} alt={item.name}
-                                         loading="lazy"
-                                         style={{
-                                             width: '70%', height: '70%',
-                                             imageRendering: (item.username) ? 'auto' : 'pixelated',
-                                             borderRadius: (item.username) ? '4px' : '0',
-                                             opacity: isCollected ? 1 : 0.2,
-                                             filter: isCollected ? 'none' : 'grayscale(100%)',
-                                             transition: 'all 0.15s'
-                                         }}
-                                         onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                    />
-
-                                    {count > 1 && (
-                                        <div style={{
-                                            position: 'absolute', bottom: '2px', right: '2px',
-                                            background: isInsane ? COLORS.insane : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold,
-                                            color: isInsane ? '#1a1a1a' : '#fff', fontSize: '10px', fontWeight: '700',
-                                            padding: '1px 5px', borderRadius: '4px', minWidth: '18px', textAlign: 'center'
-                                        }}>x{count}</div>
-                                    )}
-
-                                    {isCollected && count === 1 && !isSpecialType && (
-                                        <div style={{ position: 'absolute', bottom: '2px', right: '2px', color: COLORS.green, fontSize: '12px' }}><Check size={12} /></div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    {sortedItems.length === 0 && <div style={{ textAlign: 'center', padding: '48px', color: COLORS.textMuted }}><div style={{ marginBottom: '12px' }}><Search size={48} /></div><div>No items found</div></div>}
+                {/* Items Grid - Canvas-based with virtual scrolling */}
+                <div style={{ flex: 1, overflow: 'hidden', padding: '16px 24px' }}>
+                    <CanvasCollectionGrid
+                        items={sortedItems}
+                        collection={collection}
+                        onItemClick={setSelectedItem}
+                        containerHeight={400}
+                    />
                 </div>
             </div>
 

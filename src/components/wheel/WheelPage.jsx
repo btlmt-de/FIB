@@ -13,13 +13,14 @@ import { AdminPanel } from './AdminPanel';
 import { Achievements } from './Achievements';
 import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
-import { MythicCelebration } from './MythicCelebration';
+import { PixiMythicCelebration as MythicCelebration } from './PixiMythicCelebration';
 import { RecursionOverlay } from './RecursionOverlay';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
 import { LiveChat } from './LiveChat';
 import { SoundButton, SoundSettingsPanel } from './SoundSettings';
+import { CanvasCosmicBackground } from './CanvasCosmicBackground.jsx';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -28,118 +29,10 @@ import {
 } from 'lucide-react';
 
 // ============================================
-// COSMIC BACKGROUND COMPONENT
+// PERFORMANCE TOGGLE: Canvas vs DOM background
+// Set to true to use GPU-accelerated canvas stars
+// Set to false to use original DOM-based stars
 // ============================================
-const CosmicBackground = () => {
-    // Generate static positions for stars and orbs
-    const stars = useMemo(() =>
-        Array.from({ length: 50 }, (_, i) => ({
-            id: i,
-            left: Math.random() * 100,
-            top: Math.random() * 100,
-            size: Math.random() * 2 + 1,
-            delay: Math.random() * 5,
-            duration: Math.random() * 3 + 2
-        })), []
-    );
-
-    const orbs = useMemo(() => [
-        { id: 1, color: COLORS.gold, size: 300, left: '10%', top: '20%', delay: 0 },
-        { id: 2, color: COLORS.purple, size: 250, left: '80%', top: '60%', delay: 2 },
-        { id: 3, color: COLORS.aqua, size: 200, left: '60%', top: '10%', delay: 4 },
-        { id: 4, color: COLORS.orange, size: 180, left: '20%', top: '70%', delay: 1 },
-    ], []);
-
-    return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            overflow: 'hidden',
-            pointerEvents: 'none',
-            zIndex: 0
-        }}>
-            {/* Base gradient */}
-            <div style={{
-                position: 'absolute',
-                inset: 0,
-                background: `
-                    radial-gradient(ellipse at 20% 20%, ${COLORS.purple}15 0%, transparent 50%),
-                    radial-gradient(ellipse at 80% 80%, ${COLORS.gold}10 0%, transparent 50%),
-                    radial-gradient(ellipse at 50% 50%, ${COLORS.bgLight} 0%, ${COLORS.bg} 100%)
-                `,
-            }} />
-
-            {/* Animated mesh gradient overlay */}
-            <div style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundImage: `
-                    radial-gradient(circle at 30% 30%, ${COLORS.aqua}08 0%, transparent 40%),
-                    radial-gradient(circle at 70% 70%, ${COLORS.purple}08 0%, transparent 40%)
-                `,
-                backgroundSize: '200% 200%',
-                animation: 'meshGradient 20s ease infinite',
-            }} />
-
-            {/* Floating ambient orbs */}
-            {orbs.map(orb => (
-                <div
-                    key={orb.id}
-                    style={{
-                        position: 'absolute',
-                        left: orb.left,
-                        top: orb.top,
-                        width: orb.size,
-                        height: orb.size,
-                        borderRadius: '50%',
-                        background: `radial-gradient(circle, ${orb.color}20 0%, ${orb.color}05 40%, transparent 70%)`,
-                        filter: 'blur(40px)',
-                        animation: `ambientFloat ${15 + orb.delay}s ease-in-out infinite`,
-                        animationDelay: `${orb.delay}s`,
-                    }}
-                />
-            ))}
-
-            {/* Star field */}
-            {stars.map(star => (
-                <div
-                    key={star.id}
-                    style={{
-                        position: 'absolute',
-                        left: `${star.left}%`,
-                        top: `${star.top}%`,
-                        width: star.size,
-                        height: star.size,
-                        borderRadius: '50%',
-                        background: '#ffffff',
-                        boxShadow: `0 0 ${star.size * 2}px ${star.size}px rgba(255,255,255,0.3)`,
-                        animation: `starTwinkle ${star.duration}s ease-in-out infinite`,
-                        animationDelay: `${star.delay}s`,
-                    }}
-                />
-            ))}
-
-            {/* Subtle noise texture overlay */}
-            <div style={{
-                position: 'absolute',
-                inset: 0,
-                opacity: 0.03,
-                background: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-            }} />
-
-            {/* Vignette */}
-            <div style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.4) 100%)',
-            }} />
-        </div>
-    );
-};
-
 // ============================================
 // ENHANCED LOADING SCREEN
 // ============================================
@@ -154,7 +47,7 @@ const CosmicLoader = () => (
         gap: '24px'
     }}>
         <AnimationStyles />
-        <CosmicBackground />
+        <CanvasCosmicBackground />
         <div style={{
             position: 'relative',
             width: '80px',
@@ -597,7 +490,7 @@ function WheelOfFortunePage({ onBack }) {
             boxSizing: 'border-box',
         }}>
             <AnimationStyles />
-            <CosmicBackground />
+            <CanvasCosmicBackground />
 
             {/* Back Button - Fixed position in corner */}
             <button

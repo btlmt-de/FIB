@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
-import {
-    Crown, Sparkles, Star, Diamond, ChevronDown, ChevronUp, Zap, X,
-    Calculator, BarChart3, Info, AlertTriangle, Scale,
-    Gift, Shuffle, Repeat, Layers, Database, Server
-} from 'lucide-react';
+import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
 import { OddsInfoModal } from './OddsInfoModal.jsx';
 import { EnhancedWheelIdleState } from './EnhancedWheelIdleState.jsx';
-import { EnhancedSpinningStrip } from './EnhancedSpinningStrip.jsx';
+import { CanvasSpinningStrip, preloadItemImages } from './CanvasSpinningStrip.jsx';
+import { CanvasResultItem } from './CanvasResultItem.jsx';
+import { CanvasBonusStrip } from './CanvasBonusStrip.jsx';
+
 import {
     COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
     ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
@@ -35,10 +34,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [strip, setStrip] = useState([]);
     const [result, setResult] = useState(null);
     const [isNewItem, setIsNewItem] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [spinProgress, setSpinProgress] = useState(0); // 0-1 for Phase 2 effects
+    const [imagesPreloaded, setImagesPreloaded] = useState(false); // Track if images are ready
+    const [preloadProgress, setPreloadProgress] = useState(0); // 0-100 percentage
+    // Use ref for canvas offset to avoid re-renders during animation
+    const canvasOffsetRef = useRef(0);
     const animationRef = useRef(null);
+    // Track last spin progress to avoid redundant setState calls
+    const lastSpinProgressRef = useRef(-1);
 
     // Mobile-specific dimensions - taller strip with more items visible
     const MOBILE_STRIP_HEIGHT = 260;
@@ -54,13 +59,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [tripleStrips, setTripleStrips] = useState([[], [], [], [], []]);
     const [tripleResults, setTripleResults] = useState([null, null, null, null, null]);
     const [tripleNewItems, setTripleNewItems] = useState([false, false, false, false, false]);
+    // Use refs for triple offsets to avoid re-renders during animation
     const tripleAnimationRefs = useRef([null, null, null, null, null]);
     const tripleStripRefs = useRef([null, null, null, null, null]);
     const tripleOffsetRefs = useRef([0, 0, 0, 0, 0]);
 
     // Bonus wheel state - using horizontal strip like main wheel
     const [bonusStrip, setBonusStrip] = useState([]);
-    const [bonusOffset, setBonusOffset] = useState(0);
+    const bonusOffsetRef = useRef(0); // Use ref instead of state
     const [selectedEvent, setSelectedEvent] = useState(null);
     const bonusWheelRef = useRef(null);
 
@@ -120,6 +126,36 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Preload ALL item images on mount so they're ready for first spin
+    useEffect(() => {
+        if (allItems.length === 0) return;
+
+        let isMounted = true;
+        setImagesPreloaded(false);
+        setPreloadProgress(0);
+
+        preloadItemImages(allItems, (loaded, total) => {
+            if (isMounted) {
+                setPreloadProgress(Math.round((loaded / total) * 100));
+            }
+        }).then(() => {
+            if (isMounted) {
+                setImagesPreloaded(true);
+            }
+        }).catch((err) => {
+            console.error('Failed to preload images:', err);
+            // Set ready state anyway so user can spin (images will load on demand)
+            if (isMounted) {
+                setImagesPreloaded(true);
+                setPreloadProgress(100);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [allItems]);
 
     // Spacebar to spin/respin
     useEffect(() => {
@@ -288,6 +324,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Keep refs updated for keyboard handler
     respinRef.current = respin;
 
+    // Helper to update spin progress only when value changes
+    const updateSpinProgress = (value) => {
+        if (lastSpinProgressRef.current !== value) {
+            lastSpinProgressRef.current = value;
+            setSpinProgress(value);
+        }
+    };
+
     // Core spin logic - extracted so respin can call it directly
     async function performSpin() {
         if (!user || allItems.length === 0) return;
@@ -304,7 +348,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         try {
             setState('spinning');
-            setSpinProgress(0); // Reset progress for Phase 2 effects
+            updateSpinProgress(0); // Reset progress for Phase 2 effects
 
             // Start soundtrack when spinning begins
             if (!isMusicPlaying) {
@@ -317,6 +361,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const placeholderStrip = buildStrip(placeholderItem);
             setStrip(placeholderStrip);
             offsetRef.current = 0;
+            canvasOffsetRef.current = 0;
 
             // Pre-calculate animation parameters (use larger items on mobile)
             const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
@@ -433,21 +478,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                 // Update spin progress for Phase 2 visual effects (throttled updates)
                 // Only update at key thresholds to avoid excessive re-renders
-                if (progress < 0.1) setSpinProgress(0);
-                else if (progress >= 0.5 && progress < 0.55) setSpinProgress(0.5);
-                else if (progress >= 0.7 && progress < 0.75) setSpinProgress(0.7);
-                else if (progress >= 0.9) setSpinProgress(0.95);
+                if (progress < 0.1) updateSpinProgress(0);
+                else if (progress >= 0.5 && progress < 0.55) updateSpinProgress(0.5);
+                else if (progress >= 0.7 && progress < 0.75) updateSpinProgress(0.7);
+                else if (progress >= 0.9) updateSpinProgress(0.95);
 
-                // Direct DOM manipulation - no React re-render
-                // Use transform for GPU acceleration on both mobile and desktop
-                if (stripRef.current) {
-                    if (isMobile) {
-                        const yOffset = (MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current;
-                        stripRef.current.style.transform = `translate(-50%, ${yOffset}px)`;
-                    } else {
-                        stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
-                    }
-                }
+                // Canvas strip reads directly from canvasOffsetRef - no setState needed!
+                canvasOffsetRef.current = offsetRef.current;
 
                 if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
@@ -558,7 +595,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             }
         }
         setBonusStrip(newStrip);
-        setBonusOffset(0);
+        bonusOffsetRef.current = 0;
 
         // Animate the strip
         const targetOffset = BONUS_FINAL_INDEX * BONUS_ITEM_WIDTH;
@@ -572,7 +609,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             const progress = Math.min(elapsed / duration, 1);
             // Ease out quartic for nice deceleration
             const eased = 1 - Math.pow(1 - progress, 4);
-            setBonusOffset(eased * finalOffset);
+            bonusOffsetRef.current = eased * finalOffset;
 
             if (progress < 1) {
                 bonusWheelRef.current = requestAnimationFrame(animateStrip);
@@ -629,6 +666,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
             offsetRef.current = 0;
+            canvasOffsetRef.current = 0;
 
             const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
             const targetOffset = FINAL_INDEX * itemWidth;
@@ -655,16 +693,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 const eased = 1 - Math.pow(1 - progress, 4);
                 offsetRef.current = eased * finalOffset;
 
-                // Direct DOM manipulation for smooth animation
-                // Use transform for GPU acceleration on both mobile and desktop
-                if (stripRef.current) {
-                    if (isMobile) {
-                        const yOffset = (MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2) - offsetRef.current;
-                        stripRef.current.style.transform = `translate(-50%, ${yOffset}px)`;
-                    } else {
-                        stripRef.current.style.transform = `translateX(calc(50% - ${offsetRef.current}px - ${ITEM_WIDTH / 2}px))`;
-                    }
-                }
+                // Canvas strip reads directly from canvasOffsetRef - no setState needed!
+                canvasOffsetRef.current = offsetRef.current;
 
                 if (progress < 1 && !animationCancelledRef.current) {
                     animationRef.current = requestAnimationFrame(animate);
@@ -787,19 +817,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         const progress = Math.min(elapsed / spinDuration, 1);
                         const eased = 1 - Math.pow(1 - progress, 4);
 
+                        // Canvas strips read directly from tripleOffsetRefs - no setState needed!
                         tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
-
-                        // Direct DOM manipulation - no React re-render
-                        if (tripleStripRefs.current[rowIndex]) {
-                            if (isMobile) {
-                                // Mobile uses top positioning with transform for smooth animation
-                                tripleStripRefs.current[rowIndex].style.transform =
-                                    `translateY(-${tripleOffsetRefs.current[rowIndex]}px)`;
-                            } else {
-                                tripleStripRefs.current[rowIndex].style.transform =
-                                    `translateX(calc(50% - ${tripleOffsetRefs.current[rowIndex]}px - ${tripleItemWidth / 2}px))`;
-                            }
-                        }
 
                         if (progress < 1) {
                             tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
@@ -927,17 +946,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         const elapsed = timestamp - startTime;
                         const progress = Math.min(elapsed / spinDuration, 1);
                         const eased = 1 - Math.pow(1 - progress, 4);
-                        tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
 
-                        const stripEl = tripleStripRefs.current[rowIndex];
-                        if (stripEl) {
-                            if (isMobile) {
-                                // Use transform for smoother animation, matching the initial position
-                                stripEl.style.transform = `translateY(-${tripleOffsetRefs.current[rowIndex]}px)`;
-                            } else {
-                                stripEl.style.transform = `translateX(calc(50% - ${tripleOffsetRefs.current[rowIndex]}px - ${tripleItemWidth / 2}px))`;
-                            }
-                        }
+                        // Canvas strips read directly from tripleOffsetRefs - no setState needed!
+                        tripleOffsetRefs.current[rowIndex] = eased * finalOffset;
 
                         if (progress < 1) {
                             tripleAnimationRefs.current[rowIndex] = requestAnimationFrame(animate);
@@ -974,6 +985,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         setState('idle');
         setResult(null);
         offsetRef.current = 0;
+        canvasOffsetRef.current = 0;
         setStrip([]);
         setIsNewItem(false);
         setTripleStrips([[], [], [], [], []]);
@@ -982,7 +994,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         setTripleNewItems([false, false, false, false, false]);
         setSelectedEvent(null);
         setBonusStrip([]);
-        setBonusOffset(0);
+        bonusOffsetRef.current = 0;
         setLuckyResult(null);
         setIsLuckyNew(false);
     };
@@ -1127,25 +1139,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Compute recursion effects flag - must be before any early returns
     const showSpinRecursionEffects = state === 'spinning' ? currentSpinIsRecursionRef.current : (recursionActive && recursionSpinsRemaining > 0);
 
-    // Generate Matrix code particles for recursion spinning - must be before any early returns
-    const matrixParticles = React.useMemo(() => {
-        if (!showSpinRecursionEffects || state !== 'spinning') return [];
-        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF';
-        return Array.from({ length: 20 }, (_, i) => ({
-            id: i,
-            char: chars[Math.floor(Math.random() * chars.length)],
-            left: Math.random() * 100,
-            delay: Math.random() * 2,
-            duration: 2 + Math.random() * 2,
-            size: 10 + Math.random() * 8,
-        }));
-    }, [showSpinRecursionEffects, state]);
-
 
     // Idle state - show clickable wheel with enhanced cosmic visuals
     if (state === 'idle') {
         return (
-            <>
+            <div style={{ position: 'relative' }}>
                 <EnhancedWheelIdleState
                     user={user}
                     allItems={allItems}
@@ -1156,6 +1154,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     onSpin={spin}
                     onShowOddsInfo={() => setShowOddsInfo(true)}
                     isMobile={isMobile}
+                    isLoading={!imagesPreloaded}
+                    loadingProgress={preloadProgress}
                 />
 
                 {/* Odds Info Modal */}
@@ -1167,7 +1167,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         isMobile={isMobile}
                     />
                 )}
-            </>
+            </div>
         );
     }
 
@@ -1182,52 +1182,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             padding: isMobile ? '8px 12px' : '16px 20px',
             position: 'relative',
         }}>
-            {/* Matrix Code Rain during recursion spinning */}
-            {showSpinRecursionEffects && state === 'spinning' && (
-                <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    overflow: 'hidden',
-                    pointerEvents: 'none',
-                    zIndex: 0,
-                    borderRadius: '20px',
-                }}>
-                    {matrixParticles.map(p => (
-                        <span
-                            key={p.id}
-                            style={{
-                                position: 'absolute',
-                                left: `${p.left}%`,
-                                top: '-20px',
-                                color: COLORS.recursion,
-                                fontSize: `${p.size}px`,
-                                fontFamily: 'monospace',
-                                textShadow: `0 0 10px ${COLORS.recursion}, 0 0 20px ${COLORS.recursion}`,
-                                animation: `matrixParticleFloat ${p.duration}s linear ${p.delay}s infinite`,
-                                opacity: 0,
-                            }}
-                        >
-                            {p.char}
-                        </span>
-                    ))}
-                </div>
-            )}
-
-            {/* Scanning line effect during recursion spin */}
-            {showSpinRecursionEffects && state === 'spinning' && (
-                <div style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    height: '4px',
-                    background: `linear-gradient(90deg, transparent, ${COLORS.recursion}88, ${COLORS.recursion}, ${COLORS.recursion}88, transparent)`,
-                    boxShadow: `0 0 20px ${COLORS.recursion}, 0 0 40px ${COLORS.recursion}66`,
-                    animation: 'cyberpunkScan 1.5s linear infinite',
-                    zIndex: 10,
-                    pointerEvents: 'none',
-                }} />
-            )}
-
             {/* Odds Info Modal */}
             {showOddsInfo && (
                 <OddsInfoModal
@@ -1722,43 +1676,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 )}
 
                                 {/* Item Strip */}
-                                <div
-                                    ref={stripRef}
-                                    style={{
-                                        position: isMobile ? 'absolute' : 'relative',
-                                        display: 'flex',
-                                        flexDirection: isMobile ? 'column' : 'row',
-                                        alignItems: 'center',
-                                        willChange: 'transform',
-                                        zIndex: 2,
-                                        ...(isMobile ? {
-                                            left: '50%',
-                                            transform: `translate(-50%, ${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2)}px)`,
-                                            top: 0,
-                                        } : {
-                                            height: '100%',
-                                            transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
-                                        })
-                                    }}
-                                >
-                                    {strip.map((item, idx) => {
-                                        const isWinningItem = idx === FINAL_INDEX && (state === 'result' || state === 'event');
-                                        const isSpinning = state === 'spinning';
-                                        const stripItemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
-                                        return (
-                                            <div key={idx} style={{
-                                                width: `${stripItemWidth}px`, height: `${stripItemWidth}px`, flexShrink: 0,
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                contain: 'layout style paint',
-                                                ...(isMobile
-                                                    ? { borderBottom: `1px solid ${showSpinRecursionEffects ? COLORS.recursion + '33' : COLORS.border + '33'}` }
-                                                    : { borderRight: `1px solid ${showSpinRecursionEffects ? COLORS.recursion + '33' : COLORS.border + '33'}` })
-                                            }}>
-                                                {renderItemBox(item, idx, isWinningItem, isMobile ? 60 : 52, isSpinning)}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                <CanvasSpinningStrip
+                                    items={strip}
+                                    offsetRef={canvasOffsetRef}
+                                    isMobile={isMobile}
+                                    isSpinning={state === 'spinning'}
+                                    isResult={state === 'result' || state === 'event'}
+                                    spinProgress={spinProgress}
+                                    isRecursion={showSpinRecursionEffects}
+                                    stripWidth={isMobile ? MOBILE_STRIP_WIDTH : undefined}
+                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : 100}
+                                    finalIndex={FINAL_INDEX}
+                                />
                             </div>
                         </div>
 
@@ -1995,111 +1924,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     alignItems: 'center', justifyContent: 'center', gap: isMobile ? '10px' : '24px',
                                     position: 'relative', zIndex: 2
                                 }}>
-                                    {/* Item container with glow */}
-                                    <div style={{ position: 'relative', animation: 'itemBoxReveal 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s both' }}>
-                                        {/* Pulsing glow ring */}
-                                        <div style={{
-                                            position: 'absolute', top: isMobile ? '-6px' : '-10px', left: isMobile ? '-6px' : '-10px', right: isMobile ? '-6px' : '-10px', bottom: isMobile ? '-6px' : '-10px',
-                                            borderRadius: '16px',
-                                            background: isInsaneItem(result)
-                                                ? `radial-gradient(circle, ${COLORS.insane}55 0%, #FFF5B033 50%, transparent 70%)`
-                                                : isMythicItem(result)
-                                                    ? `radial-gradient(circle, ${COLORS.aqua}44 0%, ${COLORS.purple}22 50%, transparent 70%)`
-                                                    : `radial-gradient(circle, ${isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}33 0%, transparent 70%)`,
-                                            animation: isInsaneItem(result) ? 'insanePulse 1s ease-in-out infinite' : 'pulseGlow 1.5s ease-in-out infinite'
-                                        }} />
-
-                                        <div style={{
-                                            width: '80px', height: '80px',
-                                            background: isInsaneItem(result)
-                                                ? `linear-gradient(135deg, ${COLORS.insane}44, #FFF5B044, ${COLORS.insane}44)`
-                                                : isMythicItem(result)
-                                                    ? `linear-gradient(135deg, ${COLORS.aqua}33, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                                    : isSpecialItem(result)
-                                                        ? `linear-gradient(135deg, ${COLORS.purple}33, ${COLORS.gold}33)`
-                                                        : isRareItem(result)
-                                                            ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33)`
-                                                            : COLORS.bgLight,
-                                            borderRadius: '12px',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            border: `3px solid ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`,
-                                            boxShadow: isInsaneItem(result)
-                                                ? `0 0 40px ${COLORS.insane}88, 0 0 80px ${COLORS.insane}55, 0 0 120px #FFF5B033`
-                                                : isMythicItem(result)
-                                                    ? `0 0 30px ${COLORS.aqua}66, 0 0 60px ${COLORS.purple}44, 0 0 90px ${COLORS.gold}22`
-                                                    : isSpecialItem(result)
-                                                        ? `0 0 30px ${COLORS.purple}66, 0 0 60px ${COLORS.purple}33, 0 0 90px ${COLORS.gold}22`
-                                                        : isRareItem(result)
-                                                            ? `0 0 30px ${COLORS.red}66, 0 0 60px ${COLORS.red}33, 0 0 90px ${COLORS.orange}22`
-                                                            : `0 0 30px ${COLORS.gold}44, 0 0 60px ${COLORS.gold}22, inset 0 0 20px ${COLORS.gold}11`,
-                                            position: 'relative',
-                                            overflow: 'hidden',
-                                            animation: isInsaneItem(result) ? 'insaneGlow 0.8s ease-in-out infinite' : isMythicItem(result) ? 'mythicGlow 1s ease-in-out infinite' : isSpecialItem(result) ? 'specialGlow 1.5s ease-in-out infinite' : isRareItem(result) ? 'rareGlow 1.5s ease-in-out infinite' : 'none'
-                                        }}>
-                                            {/* Multiple subtle shine sweeps */}
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: 0, left: 0,
-                                                width: '30px', height: '100%',
-                                                backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
-                                                animation: 'subtleShineSweep 2.5s ease-in-out 0.5s infinite',
-                                                pointerEvents: 'none',
-                                            }} />
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: 0, left: 0,
-                                                width: '20px', height: '100%',
-                                                backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)',
-                                                animation: 'subtleShineSweep 2.5s ease-in-out 1.5s infinite',
-                                                pointerEvents: 'none',
-                                            }} />
-
-                                            <img
-                                                src={getItemImageUrl(result)}
-                                                alt={result.name}
-                                                style={{
-                                                    width: '56px', height: '56px',
-                                                    imageRendering: (isInsaneItem(result) || isSpecialItem(result) || isRareItem(result) || result.username) ? 'auto' : 'pixelated',
-                                                    borderRadius: (isInsaneItem(result) || isSpecialItem(result) || isRareItem(result) || result.username) ? '6px' : '0',
-                                                    animation: 'itemBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both',
-                                                    filter: `drop-shadow(0 0 8px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : 'rgba(255, 170, 0, 0.5)'})`
-                                                }}
-                                                onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                            />
-                                        </div>
-
-                                        {/* Sparkle effects - MORE for insane */}
-                                        {[...Array(isInsaneItem(result) ? 12 : isMythicItem(result) ? 8 : 4)].map((_, i) => (
-                                            <div key={i} style={{
-                                                position: 'absolute', width: '8px', height: '8px',
-                                                top: ['0%', '10%', '80%', '70%', '20%', '60%', '40%', '90%', '15%', '75%', '30%', '85%'][i],
-                                                left: ['10%', '85%', '5%', '90%', '0%', '95%', '100%', '50%', '92%', '8%', '98%', '2%'][i],
-                                                animation: `sparkle ${isInsaneItem(result) ? '0.8s' : '1s'} ease-in-out ${i * 0.1 + 0.4}s infinite`
-                                            }}>
-                                                <div style={{
-                                                    width: '100%', height: '2px',
-                                                    background: isInsaneItem(result)
-                                                        ? (i % 4 === 0 ? COLORS.insane : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
-                                                        : isMythicItem(result)
-                                                            ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                                            : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
-                                                    position: 'absolute', top: '50%', left: '0', transform: 'translateY(-50%)',
-                                                    borderRadius: '1px',
-                                                    boxShadow: `0 0 4px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
-                                                }} />
-                                                <div style={{
-                                                    width: '2px', height: '100%',
-                                                    background: isInsaneItem(result)
-                                                        ? (i % 4 === 0 ? COLORS.insane : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
-                                                        : isMythicItem(result)
-                                                            ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                                            : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
-                                                    position: 'absolute', top: '0', left: '50%', transform: 'translateX(-50%)',
-                                                    borderRadius: '1px',
-                                                    boxShadow: `0 0 4px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}`
-                                                }} />
-                                            </div>
-                                        ))}
+                                    {/* Item container with Canvas-based glow */}
+                                    <div style={{
+                                        position: 'relative',
+                                        animation: 'itemBoxReveal 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s both',
+                                        width: '80px',
+                                        height: '80px',
+                                    }}>
+                                        <CanvasResultItem
+                                            item={result}
+                                            size={80}
+                                            isRecursionSpin={resultWasRecursionSpin}
+                                            showAnimation={true}
+                                        />
                                     </div>
 
                                     {/* Name and drop rate - staggered fade */}
@@ -2555,103 +2392,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 <div style={{
                                     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                                     background: `linear-gradient(90deg, #12100c 0%, transparent 20%, transparent 80%, #12100c 100%)`,
-                                    zIndex: 5, pointerEvents: 'none'
+                                    zIndex: 7, pointerEvents: 'none'
                                 }} />
 
                                 {/* Event Strip */}
-                                <div style={{
-                                    position: 'relative',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    height: '100%',
-                                    transform: `translateX(calc(50% - ${bonusOffset}px - 80px))`,
-                                    zIndex: 6,
-                                }}>
-                                    {bonusStrip.map((event, idx) => {
-                                        const isLucky = event.id === 'lucky_spin';
-                                        const isTriple = event.id === 'triple_spin';
-                                        const isTripleLucky = event.id === 'triple_lucky_spin';
-                                        const eventColor = isTripleLucky ? COLORS.gold : isLucky ? COLORS.green : COLORS.orange;
-                                        const BONUS_FINAL_INDEX = bonusStrip.length - 5;
-                                        const isSelected = state === 'bonusResult' && idx === BONUS_FINAL_INDEX;
-
-                                        return (
-                                            <div key={idx} style={{
-                                                width: '160px', height: '100%', flexShrink: 0,
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                position: 'relative',
-                                                zIndex: isSelected ? 6 : 1,
-                                                background: isTripleLucky
-                                                    ? `linear-gradient(180deg, ${COLORS.gold}18 0%, ${COLORS.green}12 50%, ${COLORS.gold}15 100%)`
-                                                    : isLucky
-                                                        ? `linear-gradient(180deg, ${COLORS.green}15 0%, ${COLORS.aqua}08 50%, ${COLORS.green}12 100%)`
-                                                        : `linear-gradient(180deg, ${COLORS.orange}15 0%, ${COLORS.red}08 50%, ${COLORS.orange}12 100%)`
-                                            }}>
-                                                {/* Separator */}
-                                                <div style={{
-                                                    position: 'absolute',
-                                                    top: '10%', bottom: '10%', right: 0,
-                                                    width: '1px',
-                                                    backgroundImage: `linear-gradient(180deg, transparent, ${COLORS.gold}50, transparent)`,
-                                                }} />
-
-                                                {/* Selected highlight */}
-                                                {isSelected && (
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        inset: '6px',
-                                                        border: `2px solid ${eventColor}`,
-                                                        borderRadius: '8px',
-                                                        boxShadow: `0 0 20px ${eventColor}50, inset 0 0 15px ${eventColor}20`,
-                                                        zIndex: 7,
-                                                    }} />
-                                                )}
-
-                                                {/* Event content */}
-                                                <div style={{
-                                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                                                    padding: '8px',
-                                                }}>
-                                                    {/* Icon container */}
-                                                    <div style={{
-                                                        width: isMobile ? '36px' : '44px',
-                                                        height: isMobile ? '36px' : '44px',
-                                                        borderRadius: '10px',
-                                                        background: `${eventColor}20`,
-                                                        border: `1px solid ${eventColor}40`,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        boxShadow: `0 0 12px ${eventColor}30`,
-                                                    }}>
-                                                        {isTripleLucky ? (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                                                <Sparkles size={isMobile ? 14 : 16} style={{ color: COLORS.gold }} />
-                                                                <Zap size={isMobile ? 14 : 16} style={{ color: COLORS.green }} />
-                                                            </div>
-                                                        ) : isLucky ? (
-                                                            <Zap size={isMobile ? 20 : 24} style={{ color: COLORS.green, filter: `drop-shadow(0 0 4px ${COLORS.green})` }} />
-                                                        ) : (
-                                                            <Sparkles size={isMobile ? 20 : 24} style={{ color: COLORS.orange, filter: `drop-shadow(0 0 4px ${COLORS.orange})` }} />
-                                                        )}
-                                                    </div>
-                                                    <span style={{
-                                                        fontSize: isMobile ? '11px' : '12px',
-                                                        fontWeight: '700',
-                                                        color: eventColor,
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.5px',
-                                                        textShadow: `0 0 10px ${eventColor}66`,
-                                                        textAlign: 'center',
-                                                        lineHeight: '1.2',
-                                                    }}>
-                                                        {event.name}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                <CanvasBonusStrip
+                                    events={bonusStrip}
+                                    offsetRef={bonusOffsetRef}
+                                    isMobile={isMobile}
+                                    isSpinning={state === 'bonusWheel'}
+                                    isResult={state === 'bonusResult'}
+                                    finalIndex={bonusStrip.length - 5}
+                                />
                             </div>
                         </div>
 
@@ -2887,39 +2639,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 }} />
 
                                 {/* Item Strip */}
-                                <div
-                                    ref={stripRef}
-                                    style={{
-                                        position: isMobile ? 'absolute' : 'relative',
-                                        display: 'flex',
-                                        flexDirection: isMobile ? 'column' : 'row',
-                                        alignItems: 'center',
-                                        willChange: 'transform',
-                                        zIndex: 6,
-                                        ...(isMobile ? {
-                                            left: '50%', marginLeft: `-${MOBILE_ITEM_WIDTH / 2}px`,
-                                            top: `${(MOBILE_STRIP_HEIGHT / 2) - (MOBILE_ITEM_WIDTH / 2)}px`
-                                        } : {
-                                            height: '100%',
-                                            transform: `translateX(calc(50% - ${ITEM_WIDTH / 2}px))`
-                                        })
-                                    }}>
-                                    {strip.map((item, idx) => {
-                                        const stripItemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
-                                        const isWinningItem = idx === FINAL_INDEX && state === 'luckyResult';
-                                        return (
-                                            <div key={idx} style={{
-                                                width: `${stripItemWidth}px`, height: `${stripItemWidth}px`, flexShrink: 0,
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                position: 'relative',
-                                                ...(isMobile
-                                                    ? { borderBottom: `1px solid ${COLORS.green}33` }
-                                                    : { borderRight: `1px solid ${COLORS.green}33` })
-                                            }}>
-                                                {renderItemBox(item, idx, isWinningItem, isMobile ? 60 : 52)}
-                                            </div>
-                                        )})}
-                                </div>
+                                <CanvasSpinningStrip
+                                    items={strip}
+                                    offsetRef={canvasOffsetRef}
+                                    isMobile={isMobile}
+                                    isSpinning={state === 'luckySpinning'}
+                                    isResult={state === 'luckyResult'}
+                                    spinProgress={spinProgress}
+                                    isRecursion={false}
+                                    stripWidth={isMobile ? MOBILE_STRIP_WIDTH : undefined}
+                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : 100}
+                                    finalIndex={FINAL_INDEX}
+                                    accentColor={COLORS.green}
+                                    isLuckySpin={true}
+                                />
                             </div>
                         </div>
 
@@ -3074,75 +2807,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                     </div>
                                                 )}
 
-                                                {/* Item image container */}
-                                                <div style={{ position: 'relative' }}>
-                                                    {/* Animated ring for high rarity */}
-                                                    {isHighRarity && (
-                                                        <div style={{
-                                                            position: 'absolute',
-                                                            inset: '-8px',
-                                                            borderRadius: '50%',
-                                                            border: `2px solid ${itemColor}40`,
-                                                            animation: 'pulse 2s ease-in-out infinite',
-                                                        }} />
-                                                    )}
-                                                    {isHighRarity && (
-                                                        <div style={{
-                                                            position: 'absolute',
-                                                            inset: '-16px',
-                                                            borderRadius: '50%',
-                                                            border: `1px solid ${itemColor}20`,
-                                                            animation: 'pulse 2s ease-in-out infinite 0.5s',
-                                                        }} />
-                                                    )}
-
-                                                    {/* Main item box */}
-                                                    <div style={{
-                                                        width: isMobile ? '90px' : '110px',
-                                                        height: isMobile ? '90px' : '110px',
-                                                        background: isInsane
-                                                            ? `linear-gradient(135deg, ${COLORS.insane}40, #FFF5B033, ${COLORS.insane}40)`
-                                                            : isMythic
-                                                                ? `linear-gradient(135deg, ${COLORS.aqua}35, ${COLORS.purple}30, ${COLORS.gold}35)`
-                                                                : isSpecial
-                                                                    ? `linear-gradient(135deg, ${COLORS.purple}35, ${COLORS.gold}30)`
-                                                                    : isRare
-                                                                        ? `linear-gradient(135deg, ${COLORS.red}35, ${COLORS.orange}30)`
-                                                                        : `linear-gradient(145deg, ${COLORS.green}25, ${COLORS.aqua}15)`,
-                                                        borderRadius: '16px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        border: `2px solid ${itemColor}60`,
-                                                        boxShadow: `0 0 30px ${itemColor}40, inset 0 0 25px rgba(0,0,0,0.25)`,
-                                                        position: 'relative',
-                                                        overflow: 'hidden',
-                                                        animation: isHighRarity ? 'float 3s ease-in-out infinite' : 'none',
-                                                    }}>
-                                                        {/* Shimmer effect */}
-                                                        {isHighRarity && (
-                                                            <div style={{
-                                                                position: 'absolute',
-                                                                inset: 0,
-                                                                backgroundImage: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.2) 50%, transparent 60%)',
-                                                                backgroundSize: '200% 100%',
-                                                                animation: 'shimmer 2s ease-in-out infinite',
-                                                                pointerEvents: 'none',
-                                                            }} />
-                                                        )}
-                                                        <img
-                                                            src={getItemImageUrl(luckyResult)}
-                                                            alt={luckyResult.name}
-                                                            style={{
-                                                                width: isMobile ? '64px' : '80px',
-                                                                height: isMobile ? '64px' : '80px',
-                                                                imageRendering: (isSpecial || isRare || luckyResult.username) ? 'auto' : 'pixelated',
-                                                                borderRadius: (isSpecial || isRare || luckyResult.username) ? '8px' : '0',
-                                                                filter: isHighRarity ? `drop-shadow(0 0 8px ${itemColor}80)` : 'none',
-                                                            }}
-                                                            onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                                        />
-                                                    </div>
+                                                {/* Item image container with Canvas glow */}
+                                                <div style={{
+                                                    position: 'relative',
+                                                    width: isMobile ? '90px' : '110px',
+                                                    height: isMobile ? '90px' : '110px',
+                                                }}>
+                                                    <CanvasResultItem
+                                                        item={luckyResult}
+                                                        size={isMobile ? 90 : 110}
+                                                        isRecursionSpin={false}
+                                                        isLuckySpin={true}
+                                                        showAnimation={true}
+                                                    />
                                                 </div>
 
                                                 {/* Item name */}
@@ -3338,38 +3015,22 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                                 : `linear-gradient(180deg, #14120f 0%, transparent 20%, transparent 80%, #14120f 100%)`,
                                                             zIndex: 5, pointerEvents: 'none'
                                                         }} />
-                                                        {/* Item Strip - vertical */}
-                                                        <div
-                                                            ref={el => tripleStripRefs.current[rowIndex] = el}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                alignItems: 'center',
-                                                                left: '50%',
-                                                                marginLeft: `-${TRIPLE_ITEM_WIDTH_MOBILE / 2}px`,
-                                                                top: `${(STRIP_HEIGHT_MOBILE / 2) - (TRIPLE_ITEM_WIDTH_MOBILE / 2)}px`,
-                                                                willChange: 'transform'
-                                                            }}
-                                                        >
-                                                            {(tripleStrips[rowIndex] || []).map((item, idx) => {
-                                                                const isWinning = idx === FINAL_INDEX && (state === 'tripleResult' || state === 'tripleLuckyResult');
-                                                                return (
-                                                                    <div key={idx} style={{
-                                                                        width: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
-                                                                        height: `${TRIPLE_ITEM_WIDTH_MOBILE}px`,
-                                                                        flexShrink: 0,
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        position: 'relative',
-                                                                        borderBottom: `1px solid ${accentColor}22`
-                                                                    }}>
-                                                                        {renderItemBox(item, idx, isWinning, isTripleLucky ? 48 : 40)}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                        {/* Item Strip */}
+                                                        <CanvasSpinningStrip
+                                                            items={tripleStrips[rowIndex] || []}
+                                                            offsetRef={{ get current() { return tripleOffsetRefs.current[rowIndex] || 0; } }}
+                                                            isMobile={true}
+                                                            isSpinning={state === 'tripleSpinning' || state === 'tripleLuckySpinning'}
+                                                            isResult={state === 'tripleResult' || state === 'tripleLuckyResult'}
+                                                            spinProgress={0}
+                                                            isRecursion={false}
+                                                            stripWidth={TRIPLE_ITEM_WIDTH_MOBILE}
+                                                            stripHeight={STRIP_HEIGHT_MOBILE}
+                                                            finalIndex={FINAL_INDEX}
+                                                            accentColor={isTripleLucky ? COLORS.green : COLORS.gold}
+                                                            itemWidthOverride={TRIPLE_ITEM_WIDTH_MOBILE}
+                                                            isLuckySpin={isTripleLucky}
+                                                        />
                                                     </div>
                                                 );
                                             })}
@@ -3434,35 +3095,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             zIndex: 5, pointerEvents: 'none'
                                                         }} />
                                                         {/* Item Strip */}
-                                                        <div
-                                                            ref={el => tripleStripRefs.current[rowIndex] = el}
-                                                            style={{
-                                                                position: 'relative',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                height: '100%',
-                                                                transform: `translateX(calc(50% - ${TRIPLE_ITEM_WIDTH / 2}px))`,
-                                                                willChange: 'transform'
-                                                            }}
-                                                        >
-                                                            {(tripleStrips[rowIndex] || []).map((item, idx) => {
-                                                                const isWinning = idx === FINAL_INDEX && (state === 'tripleResult' || state === 'tripleLuckyResult');
-                                                                return (
-                                                                    <div key={idx} style={{
-                                                                        width: `${TRIPLE_ITEM_WIDTH}px`,
-                                                                        height: `${TRIPLE_ITEM_WIDTH}px`,
-                                                                        flexShrink: 0,
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        position: 'relative',
-                                                                        borderRight: `1px solid ${accentColor}22`
-                                                                    }}>
-                                                                        {renderItemBox(item, idx, isWinning, isTripleLucky ? 60 : 52)}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
+                                                        <CanvasSpinningStrip
+                                                            items={tripleStrips[rowIndex] || []}
+                                                            offsetRef={{ get current() { return tripleOffsetRefs.current[rowIndex] || 0; } }}
+                                                            isMobile={false}
+                                                            isSpinning={state === 'tripleSpinning' || state === 'tripleLuckySpinning'}
+                                                            isResult={state === 'tripleResult' || state === 'tripleLuckyResult'}
+                                                            spinProgress={0}
+                                                            isRecursion={false}
+                                                            stripHeight={TRIPLE_ITEM_WIDTH}
+                                                            finalIndex={FINAL_INDEX}
+                                                            accentColor={isTripleLucky ? COLORS.green : COLORS.gold}
+                                                            itemWidthOverride={TRIPLE_ITEM_WIDTH}
+                                                            isLuckySpin={isTripleLucky}
+                                                        />
                                                     </div>
                                                 );
                                             })}
@@ -3646,46 +3292,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         }} />
                                                     )}
 
-                                                    {/* Item image container */}
-                                                    <div style={{ position: 'relative' }}>
-                                                        {/* Glow ring for high rarity */}
-                                                        {isHighRarity && (
-                                                            <div style={{
-                                                                position: 'absolute',
-                                                                inset: '-6px',
-                                                                borderRadius: '14px',
-                                                                border: `1px solid ${itemColor}30`,
-                                                                animation: 'pulse 2s ease-in-out infinite',
-                                                            }} />
-                                                        )}
-                                                        <div style={{
-                                                            width: isMobile ? '56px' : '70px',
-                                                            height: isMobile ? '56px' : '70px',
-                                                            background: isHighRarity
-                                                                ? `linear-gradient(135deg, ${itemColor}30, ${itemColor}15)`
-                                                                : `linear-gradient(135deg, ${itemColor}20, ${itemColor}08)`,
-                                                            borderRadius: '12px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            border: `2px solid ${itemColor}${isHighRarity ? '60' : '40'}`,
-                                                            boxShadow: `0 0 ${isHighRarity ? '20px' : '12px'} ${itemColor}${isHighRarity ? '30' : '15'}, inset 0 0 12px rgba(0,0,0,0.15)`,
-                                                            position: 'relative',
-                                                            zIndex: 1,
-                                                        }}>
-                                                            <img
-                                                                src={getItemImageUrl(item)}
-                                                                alt={item.name}
-                                                                style={{
-                                                                    width: isMobile ? '42px' : '54px',
-                                                                    height: isMobile ? '42px' : '54px',
-                                                                    imageRendering: (isSpecial || isRare || item.username) ? 'auto' : 'pixelated',
-                                                                    borderRadius: (isSpecial || isRare || item.username) ? '6px' : '0',
-                                                                    filter: isHighRarity ? `drop-shadow(0 0 6px ${itemColor}80)` : 'none',
-                                                                }}
-                                                                onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                                            />
-                                                        </div>
+                                                    {/* Item image container with Canvas glow */}
+                                                    <div style={{
+                                                        position: 'relative',
+                                                        width: isMobile ? '56px' : '70px',
+                                                        height: isMobile ? '56px' : '70px',
+                                                        zIndex: 1,
+                                                    }}>
+                                                        <CanvasResultItem
+                                                            item={item}
+                                                            size={isMobile ? 56 : 70}
+                                                            isRecursionSpin={false}
+                                                            isLuckySpin={isTripleLucky}
+                                                            showAnimation={true}
+                                                        />
                                                     </div>
 
                                                     {/* Item name */}
