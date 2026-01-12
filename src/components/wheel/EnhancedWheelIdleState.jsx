@@ -279,39 +279,42 @@ export function EnhancedWheelIdleState({
             {/* Text Content */}
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
                 {/* Main CTA Text or Loading Bar */}
-                {isLoading ? (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '6px',
-                        marginBottom: isMobile ? '4px' : '8px',
-                    }}>
+                {isLoading ? (() => {
+                    const clampedProgress = Math.min(100, Math.max(0, loadingProgress));
+                    return (
                         <div style={{
-                            color: COLORS.gold,
-                            fontSize: isMobile ? '13px' : '14px',
-                            fontWeight: 600,
-                        }}>
-                            Loading items... {Math.min(100, Math.max(0, loadingProgress))}%
-                        </div>
-                        <div style={{
-                            width: isMobile ? '140px' : '180px',
-                            height: '6px',
-                            background: 'rgba(255,255,255,0.1)',
-                            borderRadius: '3px',
-                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '6px',
+                            marginBottom: isMobile ? '4px' : '8px',
                         }}>
                             <div style={{
-                                width: `${Math.min(100, Math.max(0, loadingProgress))}%`,
-                                height: '100%',
-                                background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
+                                color: COLORS.gold,
+                                fontSize: isMobile ? '13px' : '14px',
+                                fontWeight: 600,
+                            }}>
+                                Loading items... {clampedProgress}%
+                            </div>
+                            <div style={{
+                                width: isMobile ? '140px' : '180px',
+                                height: '6px',
+                                background: 'rgba(255,255,255,0.1)',
                                 borderRadius: '3px',
-                                transition: 'width 0.15s ease-out',
-                                boxShadow: `0 0 8px ${COLORS.gold}66`,
-                            }} />
+                                overflow: 'hidden',
+                            }}>
+                                <div style={{
+                                    width: `${clampedProgress}%`,
+                                    height: '100%',
+                                    background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
+                                    borderRadius: '3px',
+                                    transition: 'width 0.15s ease-out',
+                                    boxShadow: `0 0 8px ${COLORS.gold}66`,
+                                }} />
+                            </div>
                         </div>
-                    </div>
-                ) : (
+                    );
+                })() : (
                     <div style={{
                         color: showRecursionEffects ? COLORS.recursion : COLORS.gold,
                         fontSize: isMobile ? '15px' : '18px',

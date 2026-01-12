@@ -30,6 +30,23 @@ const RARITY_COLORS = {
 // ============================================
 
 const imageCache = new Map();
+let barrierImage = null; // Shared fallback image
+
+// Load the barrier/fallback image
+function loadBarrierImage() {
+    if (barrierImage) return Promise.resolve(barrierImage);
+    if (typeof Image === 'undefined') return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            barrierImage = img;
+            resolve(img);
+        };
+        img.onerror = () => resolve(null);
+        img.src = 'https://mc-items.s3.us-east-1.amazonaws.com/barrier.png';
+    });
+}
 
 function loadImage(src) {
     if (imageCache.has(src)) {
@@ -50,9 +67,11 @@ function loadImage(src) {
             resolve(img);
         };
         img.onerror = () => {
-            // Cache the failed state to prevent repeated load attempts
-            imageCache.set(src, null);
-            resolve(null);
+            // Load fallback barrier image instead of caching null
+            loadBarrierImage().then(fallback => {
+                imageCache.set(src, fallback);
+                resolve(fallback);
+            });
         };
         img.src = src;
     });

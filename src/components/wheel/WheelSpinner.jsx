@@ -349,7 +349,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         try {
             setState('spinning');
             updateSpinProgress(0); // Reset progress for Phase 2 effects
-            lastSpinProgressRef.current = 0;
 
             // Start soundtrack when spinning begins
             if (!isMusicPlaying) {

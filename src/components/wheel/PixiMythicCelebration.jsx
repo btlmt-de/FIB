@@ -41,9 +41,9 @@ function hexToRgb(hex) {
     if (!hex) return { r: 255, g: 255, b: 255 };
     const cleanHex = hex.replace('#', '');
     return {
-        r: parseInt(cleanHex.substr(0, 2), 16),
-        g: parseInt(cleanHex.substr(2, 2), 16),
-        b: parseInt(cleanHex.substr(4, 2), 16)
+        r: parseInt(cleanHex.substring(0, 2), 16),
+        g: parseInt(cleanHex.substring(2, 4), 16),
+        b: parseInt(cleanHex.substring(4, 6), 16)
     };
 }
 
@@ -128,6 +128,24 @@ function CanvasConfetti({ active, colors, count }) {
     const timeRef = useRef(0);
     const initializedRef = useRef(false);
     const lastColorsRef = useRef(null);
+    // SSR-safe dimensions state
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    // Initialize dimensions on mount and handle resize
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const updateDimensions = () => {
+            setDimensions({
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+        };
+
+        updateDimensions();
+        window.addEventListener('resize', updateDimensions);
+        return () => window.removeEventListener('resize', updateDimensions);
+    }, []);
 
     useEffect(() => {
         // Check if colors changed - need to reinitialize particles
@@ -194,40 +212,13 @@ function CanvasConfetti({ active, colors, count }) {
         };
     }, [active]);
 
-    // Handle resize with debounce for performance
-    useEffect(() => {
-        let resizeTimeout;
-
-        const handleResize = () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                if (canvasRef.current) {
-                    canvasRef.current.width = window.innerWidth;
-                    canvasRef.current.height = window.innerHeight;
-                }
-            }, 100); // 100ms debounce
-        };
-
-        // Initial size
-        if (canvasRef.current) {
-            canvasRef.current.width = window.innerWidth;
-            canvasRef.current.height = window.innerHeight;
-        }
-
-        window.addEventListener('resize', handleResize);
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            clearTimeout(resizeTimeout);
-        };
-    }, []);
-
     if (!active && particlesRef.current.length === 0) return null;
 
     return (
         <canvas
             ref={canvasRef}
-            width={window.innerWidth}
-            height={window.innerHeight}
+            width={dimensions.width || 1}
+            height={dimensions.height || 1}
             style={{
                 position: 'fixed',
                 inset: 0,
@@ -246,6 +237,24 @@ function CanvasBackgroundPulse({ active, colors }) {
     const canvasRef = useRef(null);
     const animationRef = useRef(null);
     const timeRef = useRef(0);
+    // SSR-safe dimensions state
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+    // Initialize dimensions on mount and handle resize
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const updateDimensions = () => {
+            setDimensions({
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+        };
+
+        updateDimensions();
+        window.addEventListener('resize', updateDimensions);
+        return () => window.removeEventListener('resize', updateDimensions);
+    }, []);
 
     useEffect(() => {
         if (!active || !canvasRef.current) {
@@ -293,40 +302,13 @@ function CanvasBackgroundPulse({ active, colors }) {
         };
     }, [active, colors]);
 
-    // Handle resize with debounce for performance
-    useEffect(() => {
-        let resizeTimeout;
-
-        const handleResize = () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                if (canvasRef.current) {
-                    canvasRef.current.width = window.innerWidth;
-                    canvasRef.current.height = window.innerHeight;
-                }
-            }, 100); // 100ms debounce
-        };
-
-        // Initial size
-        if (canvasRef.current) {
-            canvasRef.current.width = window.innerWidth;
-            canvasRef.current.height = window.innerHeight;
-        }
-
-        window.addEventListener('resize', handleResize);
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            clearTimeout(resizeTimeout);
-        };
-    }, []);
-
     if (!active) return null;
 
     return (
         <canvas
             ref={canvasRef}
-            width={window.innerWidth}
-            height={window.innerHeight}
+            width={dimensions.width || 1}
+            height={dimensions.height || 1}
             style={{
                 position: 'fixed',
                 inset: 0,

@@ -361,7 +361,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.font = 'bold 8px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const iconChar = isInsane ? 'â™•' : isMythic ? 'âœ¦' : isLegendary ? 'â˜…' : 'â—†';
+        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : '◆';
         ctx.fillText(iconChar, badgeX, badgeY + BADGE_SIZE/2);
     }
 
@@ -393,7 +393,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('âœ“', checkX, checkY);
+        ctx.fillText('✓', checkX, checkY);
     }
 
     ctx.restore();
@@ -456,7 +456,9 @@ export function CanvasCollectionGrid({
             return loadImage(src).then(img => {
                 if (img) imagesRef.current.set(src, img);
             });
-        }));
+        })).catch(err => {
+            console.warn('Failed to preload some collection images:', err);
+        });
     }, [items, layout, scrollTop, containerHeight]);
 
     // Measure container
@@ -567,11 +569,10 @@ export function CanvasCollectionGrid({
         setScrollTop(e.target.scrollTop);
     }, []);
 
-    // Handle mouse move for hover
-    const handleMouseMove = useCallback((e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left - GRID_PADDING;
-        const y = e.clientY - rect.top;
+    // Helper to get item index at a point (shared by mouse move and click)
+    const getItemIndexAtPoint = useCallback((clientX, clientY, rect) => {
+        const x = clientX - rect.left - GRID_PADDING;
+        const y = clientY - rect.top;
 
         const { cols, cellSize } = layout;
         const col = Math.floor(x / cellSize);
@@ -579,29 +580,29 @@ export function CanvasCollectionGrid({
         const idx = row * cols + col;
 
         if (idx >= 0 && idx < items.length && col >= 0 && col < cols && row >= 0) {
-            setHoveredIndex(idx);
-        } else {
-            setHoveredIndex(-1);
+            return idx;
         }
+        return -1;
     }, [layout, scrollTop, items.length]);
+
+    // Handle mouse move for hover
+    const handleMouseMove = useCallback((e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
+        setHoveredIndex(idx);
+    }, [getItemIndexAtPoint]);
 
     // Handle click
     const handleClick = useCallback((e) => {
         if (!onItemClick) return;
 
         const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left - GRID_PADDING;
-        const y = e.clientY - rect.top;
+        const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
 
-        const { cols, cellSize } = layout;
-        const col = Math.floor(x / cellSize);
-        const row = Math.floor((y + scrollTop - GRID_PADDING) / cellSize);
-        const idx = row * cols + col;
-
-        if (idx >= 0 && idx < items.length && col >= 0 && col < cols && row >= 0) {
+        if (idx >= 0) {
             onItemClick(items[idx]);
         }
-    }, [layout, scrollTop, items, onItemClick]);
+    }, [getItemIndexAtPoint, items, onItemClick]);
 
     return (
         <div

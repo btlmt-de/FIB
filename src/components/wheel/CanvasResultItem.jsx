@@ -55,7 +55,7 @@ function loadImage(src) {
 
     return new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        // Note: crossOrigin not needed since we only draw, never read pixels
         img.onload = () => {
             imageCache.set(src, img);
             resolve(img);
@@ -63,7 +63,6 @@ function loadImage(src) {
         img.onerror = () => {
             // Try fallback
             const fallback = new Image();
-            fallback.crossOrigin = 'anonymous';
             fallback.onload = () => {
                 imageCache.set(src, fallback);
                 resolve(fallback);
@@ -73,6 +72,29 @@ function loadImage(src) {
         };
         img.src = src;
     });
+}
+
+// ============================================
+// ROUNDED RECT HELPER - Browser Compatibility
+// ============================================
+
+function drawRoundedRectPath(ctx, x, y, w, h, r) {
+    // Feature detect and use native roundRect if available
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, w, h, r);
+    } else {
+        // Manual path construction fallback for older browsers
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
 }
 
 // ============================================
@@ -394,7 +416,7 @@ export function CanvasResultItem({
             const radius = 12;
 
             ctx.beginPath();
-            ctx.roundRect(boxX, boxY, size, size, radius);
+            drawRoundedRectPath(ctx, boxX, boxY, size, size, radius);
 
             // Background gradient
             const bgGradient = ctx.createLinearGradient(boxX, boxY, boxX + size, boxY + size);
@@ -494,7 +516,7 @@ export function CanvasResultItem({
             // ============================================
             ctx.save();
             ctx.beginPath();
-            ctx.roundRect(boxX, boxY, size, size, radius);
+            drawRoundedRectPath(ctx, boxX, boxY, size, size, radius);
             ctx.clip();
 
             // Draw 2 sweeps at different phases with variable speed
