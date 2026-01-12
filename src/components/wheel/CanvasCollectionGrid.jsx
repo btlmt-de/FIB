@@ -43,15 +43,35 @@ function lerpColor(c1, c2, t) {
 }
 
 // ============================================
-// IMAGE CACHE
+// IMAGE CACHE (LRU with max size)
 // ============================================
 
+const MAX_CACHE_SIZE = 500; // Maximum cached images
 const imageCache = new Map();
 const inFlightPromises = new Map();
 
-function loadImage(src) {
-    // Return cached image if available
+// LRU cache helper - move entry to end (most recently used)
+function touchCache(src) {
     if (imageCache.has(src)) {
+        const value = imageCache.get(src);
+        imageCache.delete(src);
+        imageCache.set(src, value);
+    }
+}
+
+// Evict oldest entries if cache exceeds max size
+function evictIfNeeded() {
+    while (imageCache.size > MAX_CACHE_SIZE) {
+        // Map iterates in insertion order, so first key is oldest
+        const oldestKey = imageCache.keys().next().value;
+        imageCache.delete(oldestKey);
+    }
+}
+
+function loadImage(src) {
+    // Return cached image if available (and mark as recently used)
+    if (imageCache.has(src)) {
+        touchCache(src);
         return Promise.resolve(imageCache.get(src));
     }
 
@@ -63,24 +83,26 @@ function loadImage(src) {
     // Create new loading promise
     const loadPromise = new Promise((resolve) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        // Note: crossOrigin not needed since we only draw, never read pixels
         img.onload = () => {
             imageCache.set(src, img);
+            evictIfNeeded();
             inFlightPromises.delete(src);
             resolve(img);
         };
         img.onerror = () => {
             // Try fallback
             const fallback = new Image();
-            fallback.crossOrigin = 'anonymous';
             fallback.onload = () => {
                 imageCache.set(src, fallback);
+                evictIfNeeded();
                 inFlightPromises.delete(src);
                 resolve(fallback);
             };
             fallback.onerror = () => {
                 // Cache null to prevent repeated attempts
                 imageCache.set(src, null);
+                evictIfNeeded();
                 inFlightPromises.delete(src);
                 resolve(null);
             };
@@ -326,7 +348,11 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         // Apply grayscale and opacity for uncollected
         if (!isCollected) {
             ctx.globalAlpha = 0.2;
-            ctx.filter = 'grayscale(100%)';
+            // Feature detect ctx.filter (not supported in Safari)
+            if ('filter' in ctx) {
+                ctx.filter = 'grayscale(100%)';
+            }
+            // Safari fallback: globalAlpha alone provides visual distinction
         }
 
         // Pixelated for Minecraft items, smooth for player heads
@@ -335,6 +361,10 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.imageSmoothingQuality = useSmooth ? 'high' : 'low';
 
         ctx.drawImage(img, imgX, imgY, imgSize, imgSize);
+
+        // Reset filter and alpha (restore handles this, but be explicit)
+        ctx.filter = 'none';
+        ctx.globalAlpha = 1;
         ctx.restore();
     } else {
         // Placeholder while loading
