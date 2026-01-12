@@ -187,7 +187,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     // 1. ANIMATED GLOW (drawn as radial gradients BEHIND the box)
     // This runs ALWAYS for special items, not just during spin
     // ============================================
-    if (isSpecialType && !isMobileDevice) {
+    if (isSpecialType) {
         const glowSize = boxSize * 1.8; // Glow extends well beyond box
         const glowX = centerX - glowSize / 2;
         const glowY = centerY - glowSize / 2;
@@ -382,7 +382,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     ctx.stroke();
 
     // Add glow to border for special items
-    if (isSpecialType && !isMobileDevice) {
+    if (isSpecialType) {
         ctx.shadowColor = borderColor;
         ctx.shadowBlur = 8;
         ctx.stroke();
@@ -796,6 +796,7 @@ export function CanvasSpinningStrip({
 
         const dpr = window.devicePixelRatio || 1;
         let lastTimestamp = performance.now();
+        let frameCount = 0;
 
         // Set canvas size with DPR
         canvas.width = width * dpr;
@@ -805,6 +806,15 @@ export function CanvasSpinningStrip({
         ctx.scale(dpr, dpr);
 
         const render = (timestamp) => {
+            // Mobile throttling: 30fps when idle, 60fps when spinning
+            const { isSpinning } = propsRef.current;
+            frameCount++;
+            if (isMobile && !isSpinning && frameCount % 2 !== 0) {
+                // Skip every other frame on mobile when not spinning
+                animationRef.current = requestAnimationFrame(render);
+                return;
+            }
+
             // Use actual delta time for frame-rate independence
             const dt = (timestamp - lastTimestamp) / 1000;
             lastTimestamp = timestamp;

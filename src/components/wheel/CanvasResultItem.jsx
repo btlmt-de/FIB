@@ -188,8 +188,17 @@ export function CanvasResultItem({
 
         const dpr = window.devicePixelRatio || 1;
         let lastTimestamp = performance.now();
+        let frameCount = 0;
+        const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 600;
 
         const render = (timestamp) => {
+            // Mobile throttling: 30fps to save battery (but keep 60fps for special items)
+            frameCount++;
+            if (isMobileDevice && !isSpecialType && frameCount % 2 !== 0) {
+                animationRef.current = requestAnimationFrame(render);
+                return;
+            }
+
             // Ensure correct transform (in case sizing effect ran)
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
