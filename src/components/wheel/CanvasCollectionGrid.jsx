@@ -417,7 +417,6 @@ export function CanvasCollectionGrid({
     const [scrollTop, setScrollTop] = useState(0);
     const [containerWidth, setContainerWidth] = useState(400);
     const [hoveredIndex, setHoveredIndex] = useState(-1);
-    const [imagesLoaded, setImagesLoaded] = useState(false);
 
     // Calculate grid layout
     const layout = useMemo(() => {
@@ -457,7 +456,7 @@ export function CanvasCollectionGrid({
             return loadImage(src).then(img => {
                 if (img) imagesRef.current.set(src, img);
             });
-        })).then(() => setImagesLoaded(true));
+        }));
     }, [items, layout, scrollTop, containerHeight]);
 
     // Measure container

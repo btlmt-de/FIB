@@ -127,11 +127,19 @@ function CanvasConfetti({ active, colors, count }) {
     const animationRef = useRef(null);
     const timeRef = useRef(0);
     const initializedRef = useRef(false);
+    const lastColorsRef = useRef(null);
 
     useEffect(() => {
-        if (active && !initializedRef.current) {
+        // Check if colors changed - need to reinitialize particles
+        const colorsChanged = lastColorsRef.current && colors !== lastColorsRef.current;
+        lastColorsRef.current = colors;
+
+        if (active && (!initializedRef.current || colorsChanged)) {
+            // Clear old particles first
+            particlesRef.current = [];
+
             initializedRef.current = true;
-            const screenWidth = window.innerWidth;
+            const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
 
             particlesRef.current = Array.from({ length: count }, (_, i) => {
                 const color = colors[i % colors.length];
@@ -186,18 +194,31 @@ function CanvasConfetti({ active, colors, count }) {
         };
     }, [active]);
 
-    // Handle resize
+    // Handle resize with debounce for performance
     useEffect(() => {
+        let resizeTimeout;
+
         const handleResize = () => {
-            if (canvasRef.current) {
-                canvasRef.current.width = window.innerWidth;
-                canvasRef.current.height = window.innerHeight;
-            }
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (canvasRef.current) {
+                    canvasRef.current.width = window.innerWidth;
+                    canvasRef.current.height = window.innerHeight;
+                }
+            }, 100); // 100ms debounce
         };
 
-        handleResize();
+        // Initial size
+        if (canvasRef.current) {
+            canvasRef.current.width = window.innerWidth;
+            canvasRef.current.height = window.innerHeight;
+        }
+
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            clearTimeout(resizeTimeout);
+        };
     }, []);
 
     if (!active && particlesRef.current.length === 0) return null;
@@ -272,18 +293,31 @@ function CanvasBackgroundPulse({ active, colors }) {
         };
     }, [active, colors]);
 
-    // Handle resize
+    // Handle resize with debounce for performance
     useEffect(() => {
+        let resizeTimeout;
+
         const handleResize = () => {
-            if (canvasRef.current) {
-                canvasRef.current.width = window.innerWidth;
-                canvasRef.current.height = window.innerHeight;
-            }
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (canvasRef.current) {
+                    canvasRef.current.width = window.innerWidth;
+                    canvasRef.current.height = window.innerHeight;
+                }
+            }, 100); // 100ms debounce
         };
 
-        handleResize();
+        // Initial size
+        if (canvasRef.current) {
+            canvasRef.current.width = window.innerWidth;
+            canvasRef.current.height = window.innerHeight;
+        }
+
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            clearTimeout(resizeTimeout);
+        };
     }, []);
 
     if (!active) return null;
@@ -333,6 +367,10 @@ export function PixiMythicCelebration({ currentUserId }) {
     }, [celebration?.itemTexture, celebration?.itemName]);
 
     const triggerCelebration = useCallback((item) => {
+        // Clear any pending timeouts from previous celebrations
+        pendingCelebrationsRef.current.forEach(id => clearTimeout(id));
+        pendingCelebrationsRef.current = [];
+
         const rarity = item.item_rarity;
         const theme = RARITY_THEMES[rarity] || RARITY_THEMES.mythic;
         const isCurrentUser = currentUserId != null && item.user_id === currentUserId;

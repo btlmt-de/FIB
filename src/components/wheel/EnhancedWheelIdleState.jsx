@@ -292,7 +292,7 @@ export function EnhancedWheelIdleState({
                             fontSize: isMobile ? '13px' : '14px',
                             fontWeight: 600,
                         }}>
-                            Loading items... {loadingProgress}%
+                            Loading items... {Math.min(100, Math.max(0, loadingProgress))}%
                         </div>
                         <div style={{
                             width: isMobile ? '140px' : '180px',
@@ -302,7 +302,7 @@ export function EnhancedWheelIdleState({
                             overflow: 'hidden',
                         }}>
                             <div style={{
-                                width: `${loadingProgress}%`,
+                                width: `${Math.min(100, Math.max(0, loadingProgress))}%`,
                                 height: '100%',
                                 background: `linear-gradient(90deg, ${COLORS.gold}, ${COLORS.orange})`,
                                 borderRadius: '3px',
@@ -324,7 +324,7 @@ export function EnhancedWheelIdleState({
                         animation: showRecursionEffects ? 'recursionTextGlitch 2s ease-in-out infinite' : 'none',
                     }}>
                         {!user ? 'Login to spin!'
-                            : allItems.length === 0 ? 'Loading items...'
+                            : allItems.length === 0 ? 'Fetching item pool...'
                                 : showRecursionEffects
                                     ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
                                     : isMobile ? 'Tap to spin!' : 'Click to spin!'}
@@ -380,7 +380,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        Ã¢Å¡Â Ã¯Â¸Â {error}
+                        ⚠️ {error}
                     </div>
                 )}
 

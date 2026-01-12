@@ -34,7 +34,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [strip, setStrip] = useState([]);
     const [result, setResult] = useState(null);
     const [isNewItem, setIsNewItem] = useState(false);
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [spinProgress, setSpinProgress] = useState(0); // 0-1 for Phase 2 effects
     const [imagesPreloaded, setImagesPreloaded] = useState(false); // Track if images are ready
@@ -42,6 +42,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Use ref for canvas offset to avoid re-renders during animation
     const canvasOffsetRef = useRef(0);
     const animationRef = useRef(null);
+    // Track last spin progress to avoid redundant setState calls
+    const lastSpinProgressRef = useRef(-1);
 
     // Mobile-specific dimensions - taller strip with more items visible
     const MOBILE_STRIP_HEIGHT = 260;
@@ -129,14 +131,30 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     useEffect(() => {
         if (allItems.length === 0) return;
 
+        let isMounted = true;
         setImagesPreloaded(false);
         setPreloadProgress(0);
 
         preloadItemImages(allItems, (loaded, total) => {
-            setPreloadProgress(Math.round((loaded / total) * 100));
+            if (isMounted) {
+                setPreloadProgress(Math.round((loaded / total) * 100));
+            }
         }).then(() => {
-            setImagesPreloaded(true);
+            if (isMounted) {
+                setImagesPreloaded(true);
+            }
+        }).catch((err) => {
+            console.error('Failed to preload images:', err);
+            // Set ready state anyway so user can spin (images will load on demand)
+            if (isMounted) {
+                setImagesPreloaded(true);
+                setPreloadProgress(100);
+            }
         });
+
+        return () => {
+            isMounted = false;
+        };
     }, [allItems]);
 
     // Spacebar to spin/respin
@@ -306,6 +324,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Keep refs updated for keyboard handler
     respinRef.current = respin;
 
+    // Helper to update spin progress only when value changes
+    const updateSpinProgress = (value) => {
+        if (lastSpinProgressRef.current !== value) {
+            lastSpinProgressRef.current = value;
+            setSpinProgress(value);
+        }
+    };
+
     // Core spin logic - extracted so respin can call it directly
     async function performSpin() {
         if (!user || allItems.length === 0) return;
@@ -322,7 +348,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         try {
             setState('spinning');
-            setSpinProgress(0); // Reset progress for Phase 2 effects
+            updateSpinProgress(0); // Reset progress for Phase 2 effects
+            lastSpinProgressRef.current = 0;
 
             // Start soundtrack when spinning begins
             if (!isMusicPlaying) {
@@ -452,10 +479,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                 // Update spin progress for Phase 2 visual effects (throttled updates)
                 // Only update at key thresholds to avoid excessive re-renders
-                if (progress < 0.1) setSpinProgress(0);
-                else if (progress >= 0.5 && progress < 0.55) setSpinProgress(0.5);
-                else if (progress >= 0.7 && progress < 0.75) setSpinProgress(0.7);
-                else if (progress >= 0.9) setSpinProgress(0.95);
+                if (progress < 0.1) updateSpinProgress(0);
+                else if (progress >= 0.5 && progress < 0.55) updateSpinProgress(0.5);
+                else if (progress >= 0.7 && progress < 0.75) updateSpinProgress(0.7);
+                else if (progress >= 0.9) updateSpinProgress(0.95);
 
                 // Canvas strip reads directly from canvasOffsetRef - no setState needed!
                 canvasOffsetRef.current = offsetRef.current;
@@ -1367,7 +1394,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     fontWeight: '600',
                                     textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
                                 }}>
-                                {state === 'spinning' ? (showSpinRecursionEffects ? 'âš¡ Lucky Spinning...' : 'Spinning...') :
+                                {state === 'spinning' ? (showSpinRecursionEffects ? '⚡ Lucky Spinning...' : 'Spinning...') :
                                     state === 'recursion' ? 'RECURSION!' :
                                         state === 'event' ? 'BONUS EVENT!' :
                                             state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
@@ -2312,7 +2339,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'âœ¨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2704,7 +2731,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         textShadow: `0 0 20px ${COLORS.green}60`,
                                         animation: 'pulse 2s ease-in-out infinite',
                                     }}>
-                                        âœ¦ Lucky Win âœ¦
+                                        ✦ Lucky Win ✦
                                     </span>
                                 </div>
 
@@ -2819,7 +2846,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>â˜… NEW TO COLLECTION â˜…</span>
+                                                    }}>★ NEW TO COLLECTION ★</span>
                                                 )}
                                             </div>
                                         );
@@ -3165,7 +3192,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             textShadow: `0 0 20px ${accentColor}60`,
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            {isTripleLucky ? 'âœ¦ Triple Lucky Results âœ¦' : 'âœ¦ 5x Spin Results âœ¦'}
+                                            {isTripleLucky ? '✦ Triple Lucky Results ✦' : '✦ 5x Spin Results ✦'}
                                         </span>
                                     </div>
 
@@ -3330,7 +3357,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>â˜… NEW</span>
+                                                        }}>★ NEW</span>
                                                     )}
                                                 </div>
                                             );

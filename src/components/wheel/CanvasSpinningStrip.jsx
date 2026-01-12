@@ -36,6 +36,12 @@ function loadImage(src) {
         return Promise.resolve(imageCache.get(src));
     }
 
+    // SSR/non-browser guard - Image constructor not available
+    if (typeof Image === 'undefined') {
+        imageCache.set(src, null);
+        return Promise.resolve(null);
+    }
+
     return new Promise((resolve) => {
         const img = new Image();
         // Note: crossOrigin not needed since we only draw, never read pixels
@@ -693,13 +699,25 @@ export function CanvasSpinningStrip({
             }
         };
 
-        // Use ResizeObserver for more accurate sizing
-        const resizeObserver = new ResizeObserver(updateWidth);
-        resizeObserver.observe(containerRef.current);
+        // Use ResizeObserver if available, fall back to window resize
+        let resizeObserver = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(updateWidth);
+            resizeObserver.observe(containerRef.current);
+        } else {
+            // Fallback for older browsers
+            window.addEventListener('resize', updateWidth);
+        }
 
         updateWidth();
 
-        return () => resizeObserver.disconnect();
+        return () => {
+            if (resizeObserver) {
+                resizeObserver.disconnect();
+            } else {
+                window.removeEventListener('resize', updateWidth);
+            }
+        };
     }, [isMobile]);
 
     // Pre-load all item images - use cache immediately, load missing incrementally
@@ -752,7 +770,13 @@ export function CanvasSpinningStrip({
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.warn('CanvasSpinningStrip: Could not get 2d context');
+            return;
+        }
+
         const dpr = window.devicePixelRatio || 1;
+        let lastTimestamp = performance.now();
 
         // Set canvas size with DPR
         canvas.width = width * dpr;
@@ -761,8 +785,11 @@ export function CanvasSpinningStrip({
         canvas.style.height = `${height}px`;
         ctx.scale(dpr, dpr);
 
-        const render = () => {
-            timeRef.current += 0.016;
+        const render = (timestamp) => {
+            // Use actual delta time for frame-rate independence
+            const dt = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+            timeRef.current += dt;
             const time = timeRef.current;
 
             // Get current prop values from ref (so animation has latest values)
@@ -772,6 +799,9 @@ export function CanvasSpinningStrip({
             const motionIntensity = isSpinning ? Math.max(0, 1 - spinProgress * 1.5) : 0;
             const accentColor = accentOverride || (isRecursion ? COLORS.recursion : COLORS.gold);
             const bgColor = accentOverride ? '#0a150a' : (isRecursion ? COLORS.recursionDark : COLORS.bg);
+
+            // Pre-compute hexToRgb once per frame instead of per-item
+            const accentRgb = hexToRgb(accentColor);
 
             // Clear
             ctx.clearRect(0, 0, width, height);
@@ -904,9 +934,9 @@ export function CanvasSpinningStrip({
                 const centerY = height / 2;
                 const lineGlow = ctx.createLinearGradient(0, centerY - 20, 0, centerY + 20);
                 lineGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                lineGlow.addColorStop(0.4, `rgba(${hexToRgb(accentColor).r}, ${hexToRgb(accentColor).g}, ${hexToRgb(accentColor).b}, ${centerGlowAlpha * 0.3})`);
-                lineGlow.addColorStop(0.5, `rgba(${hexToRgb(accentColor).r}, ${hexToRgb(accentColor).g}, ${hexToRgb(accentColor).b}, ${centerGlowAlpha})`);
-                lineGlow.addColorStop(0.6, `rgba(${hexToRgb(accentColor).r}, ${hexToRgb(accentColor).g}, ${hexToRgb(accentColor).b}, ${centerGlowAlpha * 0.3})`);
+                lineGlow.addColorStop(0.4, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha * 0.3})`);
+                lineGlow.addColorStop(0.5, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha})`);
+                lineGlow.addColorStop(0.6, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha * 0.3})`);
                 lineGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
                 ctx.fillStyle = lineGlow;
                 ctx.fillRect(0, centerY - 20, width, 40);
@@ -915,9 +945,9 @@ export function CanvasSpinningStrip({
                 const centerX = width / 2;
                 const lineGlow = ctx.createLinearGradient(centerX - 25, 0, centerX + 25, 0);
                 lineGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                lineGlow.addColorStop(0.4, `rgba(${hexToRgb(accentColor).r}, ${hexToRgb(accentColor).g}, ${hexToRgb(accentColor).b}, ${centerGlowAlpha * 0.3})`);
-                lineGlow.addColorStop(0.5, `rgba(${hexToRgb(accentColor).r}, ${hexToRgb(accentColor).g}, ${hexToRgb(accentColor).b}, ${centerGlowAlpha})`);
-                lineGlow.addColorStop(0.6, `rgba(${hexToRgb(accentColor).r}, ${hexToRgb(accentColor).g}, ${hexToRgb(accentColor).b}, ${centerGlowAlpha * 0.3})`);
+                lineGlow.addColorStop(0.4, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha * 0.3})`);
+                lineGlow.addColorStop(0.5, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha})`);
+                lineGlow.addColorStop(0.6, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha * 0.3})`);
                 lineGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
                 ctx.fillStyle = lineGlow;
                 ctx.fillRect(centerX - 25, 0, 50, height);

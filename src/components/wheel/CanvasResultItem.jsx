@@ -180,12 +180,14 @@ export function CanvasResultItem({
         };
     }, [item]);
 
-    // Main render loop
+    // Canvas sizing effect - only runs when size changes
     useEffect(() => {
         const canvas = canvasRef.current;
-        if (!canvas || !item) return;
+        if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
         const dpr = window.devicePixelRatio || 1;
 
         // Set canvas size with DPR
@@ -193,11 +195,32 @@ export function CanvasResultItem({
         canvas.height = canvasSize * dpr;
         canvas.style.width = `${canvasSize}px`;
         canvas.style.height = `${canvasSize}px`;
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }, [canvasSize]);
 
-        const render = () => {
+    // Main render loop
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !item) return;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.warn('CanvasResultItem: Could not get 2d context');
+            return;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        let lastTimestamp = performance.now();
+
+        const render = (timestamp) => {
+            // Ensure correct transform (in case sizing effect ran)
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
             if (showAnimation) {
-                timeRef.current += 0.016;
+                // Use actual delta time for frame-rate independence
+                const dt = (timestamp - lastTimestamp) / 1000;
+                lastTimestamp = timestamp;
+                timeRef.current += dt;
             }
             const time = timeRef.current;
 
@@ -603,7 +626,7 @@ export function CanvasResultItem({
             }
         };
 
-        render();
+        animationRef.current = requestAnimationFrame(render);
 
         return () => {
             if (animationRef.current) {
