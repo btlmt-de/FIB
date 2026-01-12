@@ -807,9 +807,9 @@ export function CanvasSpinningStrip({
 
         const render = (timestamp) => {
             // Mobile throttling: 30fps when idle, 60fps when spinning
-            const { isSpinning } = propsRef.current;
+            const { isSpinning: isCurrentlySpinning } = propsRef.current;
             frameCount++;
-            if (isMobile && !isSpinning && frameCount % 2 !== 0) {
+            if (isMobile && !isCurrentlySpinning && frameCount % 2 !== 0) {
                 // Skip every other frame on mobile when not spinning
                 animationRef.current = requestAnimationFrame(render);
                 return;
