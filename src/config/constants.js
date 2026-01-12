@@ -26,7 +26,7 @@ export const COLORS = {
 };
 
 export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-export const WHEEL_TEXTURE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
+export const WHEEL_TEXTURE_URL = '/wheel.png';
 export const ITEM_WIDTH = 80;
 export const SPIN_DURATION = 4000;
 export const STRIP_LENGTH = 80;
@@ -39,7 +39,7 @@ export const TEAM_MEMBERS = [
     { name: 'CH0RD', username: 'CH0RD', chance: 0.0004, rarity: 'legendary' },
     { name: 'stupxd', username: 'stupxd', chance: 0.0005, rarity: 'legendary' },
     { name: 'Wandering Trader', username: null, chance: 0.00005, rarity: 'legendary', imageUrl: '/wandering_trader.png' },
-    { name: 'ChromaRGBDirt', username: null, chance: 0.0002, rarity: 'legendary', imageUrl: '/rgbdirt.gif' },
+    { name: 'ChromaRGBDirt', username: null, chance: 0.0002, rarity: 'legendary', imageUrl: '/chromargbdirt.gif' },
 ];
 
 export const RARE_MEMBERS = [

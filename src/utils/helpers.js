@@ -180,6 +180,27 @@ export function getItemImageUrl(item) {
         }
     }
 
+    // Direct texture checks for special items with local images
+    // These items don't have usernames and use custom images in /public
+    // Check all possible texture name variations
+    if (texture === 'wandering_trader' || texture === 'special_wandering_trader' || texture === 'legendary_wandering_trader') {
+        return '/wandering_trader.png';
+    }
+    if (texture === 'chromargbdirt' || texture === 'special_chromargbdirt' || texture === 'legendary_chromargbdirt') {
+        return '/chromargbdirt.gif';
+    }
+    if (texture === 'jimbo' || texture === 'mythic_jimbo') {
+        return '/jimbo.png';
+    }
+    if (texture === 'recursion' || texture === 'wheel') {
+        return '/wheel.png';
+    }
+
+    // Check if item has image_url field from database (overrides default construction)
+    if (item.image_url) {
+        return item.image_url;
+    }
+
     // Player heads (legendaries and rares with usernames)
     if (item.username) {
         return getMinecraftHeadUrl(item.username);
@@ -206,7 +227,7 @@ export function getItemImageUrl(item) {
 
     // Recursion items use wheel texture
     if (type === 'recursion' || texture === 'recursion') {
-        return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png';
+        return '/wheel.png';
     }
 
     // Regular items

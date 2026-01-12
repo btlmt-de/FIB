@@ -5,7 +5,7 @@
 // Features: Matrix code rain, glitch effects, progress bar
 // Shows for entire event duration for all users
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { COLORS, WHEEL_TEXTURE_URL } from '../../config/constants.js';
 import { getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { useActivity } from '../../context/ActivityContext.jsx';
@@ -13,46 +13,120 @@ import { useSound } from '../../context/SoundContext.jsx';
 import { Zap, Sparkles, X, Terminal, Cpu } from 'lucide-react';
 
 // Matrix characters for code rain
-const MATRIX_CHARS = 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロワヲンヴ0123456789ABCDEF';
+const MATRIX_CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
 
-// Matrix Code Rain Column Component
-function MatrixColumn({ index, height, speed, hasSpins }) {
-    const chars = useMemo(() => {
-        const length = Math.floor(Math.random() * 15) + 8;
-        return Array.from({ length }, () =>
+// ============================================
+// Lightweight CSS-based Matrix Rain
+// CSS animations are GPU-accelerated, much faster than Canvas fillText
+// ============================================
+const MatrixColumn = memo(function MatrixColumn({ index, speed, opacity }) {
+    const chars = useRef(
+        Array.from({ length: 8 + Math.floor(Math.random() * 8) }, () =>
             MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)]
-        );
-    }, []);
+        )
+    ).current;
 
-    const delay = useMemo(() => Math.random() * 5, []);
-    const opacity = hasSpins ? (0.3 + Math.random() * 0.4) : 0.15;
+    const delay = useRef(Math.random() * 5).current;
 
     return (
         <div style={{
             position: 'absolute',
-            left: `${index * 20}px`,
-            top: '-100%',
+            left: `${index * 30}px`, // Wider spacing = fewer columns
+            top: '-200px',
             display: 'flex',
             flexDirection: 'column',
             animation: `matrixFall ${speed}s linear ${delay}s infinite`,
             opacity,
+            willChange: 'transform',
             pointerEvents: 'none',
         }}>
             {chars.map((char, i) => (
                 <span key={i} style={{
-                    color: i === 0 ? '#fff' : COLORS.recursion,
+                    color: i === 0 ? '#aaffaa' : '#00ff00',
                     fontSize: '14px',
                     fontFamily: 'monospace',
-                    textShadow: i === 0
-                        ? `0 0 10px #fff, 0 0 20px ${COLORS.recursion}`
-                        : `0 0 5px ${COLORS.recursion}`,
-                    opacity: i === 0 ? 1 : Math.max(0.1, 1 - (i * 0.08)),
+                    opacity: i === 0 ? 1 : Math.max(0.2, 1 - (i * 0.12)),
                     lineHeight: '18px',
                 }}>
                     {char}
                 </span>
             ))}
         </div>
+    );
+});
+
+function MatrixRainBackground({ hasSpins, isVisible }) {
+    const columns = useMemo(() => {
+        const width = typeof window !== 'undefined' ? window.innerWidth : 1200;
+        const count = Math.ceil(width / 30); // Fewer columns with wider spacing
+        return Array.from({ length: count }, (_, i) => ({
+            index: i,
+            speed: 4 + Math.random() * 4,
+            opacity: hasSpins ? (0.3 + Math.random() * 0.3) : 0.15,
+        }));
+    }, [hasSpins]);
+
+    return (
+        <>
+            {/* Matrix fall animation */}
+            <style>{`
+                @keyframes matrixFall {
+                    0% { transform: translateY(0); }
+                    100% { transform: translateY(calc(100vh + 400px)); }
+                }
+            `}</style>
+
+            {/* Matrix columns container */}
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                overflow: 'hidden',
+                pointerEvents: 'none',
+                zIndex: 9997,
+                opacity: isVisible ? 0.6 : 0,
+                transition: 'opacity 0.5s ease',
+            }}>
+                {columns.map((col) => (
+                    <MatrixColumn
+                        key={col.index}
+                        index={col.index}
+                        speed={col.speed}
+                        opacity={col.opacity}
+                    />
+                ))}
+            </div>
+
+            {/* CRT Scanlines - simple CSS */}
+            {isVisible && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.02) 2px, rgba(0,255,0,0.02) 4px)',
+                    pointerEvents: 'none',
+                    zIndex: 9998,
+                }} />
+            )}
+
+            {/* Edge Glow */}
+            {isVisible && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    boxShadow: 'inset 0 0 100px rgba(0,255,0,0.08), inset 0 0 200px rgba(0,255,0,0.04)',
+                    pointerEvents: 'none',
+                    zIndex: 9998,
+                }} />
+            )}
+        </>
     );
 }
 
@@ -70,15 +144,6 @@ export function RecursionOverlay() {
     const stopRecursionSoundtrackRef = useRef(stopRecursionSoundtrack);
 
     const timerIntervalRef = useRef(null);
-
-    // Generate matrix columns
-    const matrixColumns = useMemo(() => {
-        const count = Math.ceil((typeof window !== 'undefined' ? window.innerWidth : 1200) / 20);
-        return Array.from({ length: count }, (_, i) => ({
-            index: i,
-            speed: 3 + Math.random() * 4,
-        }));
-    }, []);
 
     // Keep refs in sync with latest values
     useEffect(() => {
@@ -193,11 +258,6 @@ export function RecursionOverlay() {
         <>
             {/* Enhanced CSS Animations */}
             <style>{`
-                @keyframes matrixFall {
-                    0% { transform: translateY(-100%); }
-                    100% { transform: translateY(calc(100vh + 100%)); }
-                }
-                
                 @keyframes systemBreach {
                     0% { 
                         clip-path: inset(0 100% 0 0);
@@ -340,61 +400,8 @@ export function RecursionOverlay() {
                 }
             `}</style>
 
-            {/* Matrix Code Rain Background - Full Screen */}
-            {hasSpins && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    overflow: 'hidden',
-                    pointerEvents: 'none',
-                    zIndex: 9997,
-                    opacity: 0.6,
-                }}>
-                    {matrixColumns.map((col) => (
-                        <MatrixColumn
-                            key={col.index}
-                            index={col.index}
-                            speed={col.speed}
-                            hasSpins={hasSpins}
-                        />
-                    ))}
-                </div>
-            )}
-
-            {/* CRT Scanline Overlay */}
-            {hasSpins && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.02) 2px, rgba(0,255,0,0.02) 4px)',
-                    pointerEvents: 'none',
-                    zIndex: 9998,
-                    opacity: isVisible ? 1 : 0,
-                    transition: 'opacity 0.5s ease-out',
-                }} />
-            )}
-
-            {/* Edge Glow Effect */}
-            {hasSpins && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    boxShadow: `inset 0 0 100px ${COLORS.recursion}22, inset 0 0 200px ${COLORS.recursion}11`,
-                    pointerEvents: 'none',
-                    zIndex: 9998,
-                    opacity: isVisible ? 1 : 0,
-                    transition: 'opacity 0.5s ease-out',
-                }} />
-            )}
+            {/* Matrix Rain + CRT Scanlines + Edge Glow - All Canvas-based */}
+            {hasSpins && <MatrixRainBackground hasSpins={hasSpins} isVisible={isVisible} />}
 
             {/* Top Banner */}
             <div style={{

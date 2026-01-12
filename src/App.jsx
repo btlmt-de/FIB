@@ -27,6 +27,9 @@ export default function App() {
         if (hash === 'structures') return 'structures';
         if (hash === 'commands') return 'commands';
         if (hash === 'wheel') return 'wheel';
+        if (hash === 'pixi-test') return 'pixi-test';
+        if (hash === 'wheel-demo') return 'wheel-demo';
+        if (hash === 'celebration-demo') return 'celebration-demo';
         return 'home';
     };
 
