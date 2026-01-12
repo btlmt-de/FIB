@@ -332,7 +332,9 @@ export function PixiMythicCelebration({ currentUserId }) {
     const [confettiActive, setConfettiActive] = useState(false);
     const [shakeScreen, setShakeScreen] = useState(false);
     const processedItemsRef = useRef(new Set());
-    const pendingCelebrationsRef = useRef([]);
+    // Separate timeout refs to avoid orphaning timeouts
+    const delayTimeoutsRef = useRef([]);     // For newItems effect delay timeouts
+    const sequenceTimeoutsRef = useRef([]);  // For triggerCelebration sequence timeouts
 
     // Memoize sparkle positions to prevent teleporting on re-renders
     // Only regenerate when celebration item changes
@@ -349,9 +351,9 @@ export function PixiMythicCelebration({ currentUserId }) {
     }, [celebration?.itemTexture, celebration?.itemName]);
 
     const triggerCelebration = useCallback((item) => {
-        // Clear any pending timeouts from previous celebrations
-        pendingCelebrationsRef.current.forEach(id => clearTimeout(id));
-        pendingCelebrationsRef.current = [];
+        // Clear only sequence timeouts from previous celebrations (not delay timeouts)
+        sequenceTimeoutsRef.current.forEach(id => clearTimeout(id));
+        sequenceTimeoutsRef.current = [];
 
         const rarity = item.item_rarity;
         const theme = RARITY_THEMES[rarity] || RARITY_THEMES.mythic;
@@ -363,7 +365,7 @@ export function PixiMythicCelebration({ currentUserId }) {
 
         const trackTimeout = (callback, delay) => {
             const id = setTimeout(callback, delay);
-            pendingCelebrationsRef.current.push(id);
+            sequenceTimeoutsRef.current.push(id);
             return id;
         };
 
@@ -409,8 +411,11 @@ export function PixiMythicCelebration({ currentUserId }) {
 
     useEffect(() => {
         return () => {
-            pendingCelebrationsRef.current.forEach(id => clearTimeout(id));
-            pendingCelebrationsRef.current = [];
+            // Clear all timeouts on unmount
+            delayTimeoutsRef.current.forEach(id => clearTimeout(id));
+            sequenceTimeoutsRef.current.forEach(id => clearTimeout(id));
+            delayTimeoutsRef.current = [];
+            sequenceTimeoutsRef.current = [];
         };
     }, []);
 
@@ -461,7 +466,7 @@ export function PixiMythicCelebration({ currentUserId }) {
                 triggerCelebration(specialItem);
             }, delay);
 
-            pendingCelebrationsRef.current.push(timeoutId);
+            delayTimeoutsRef.current.push(timeoutId);
         }
     }, [newItems, serverTime, triggerCelebration, currentUserId]);
 
@@ -650,7 +655,7 @@ export function PixiMythicCelebration({ currentUserId }) {
                                         objectFit: 'contain',
                                         filter: 'drop-shadow(0 0 15px rgba(255,255,255,0.7))'
                                     }}
-                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://mc-items.s3.us-east-1.amazonaws.com/barrier.png'; }}
                                 />
                                 <IconComponent
                                     size={28}

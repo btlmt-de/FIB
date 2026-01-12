@@ -94,6 +94,29 @@ function loadImage(src) {
 }
 
 // ============================================
+// ROUNDED RECT HELPER - Browser Compatibility
+// ============================================
+
+function drawRoundedRectPath(ctx, x, y, w, h, r) {
+    // Feature detect and use native roundRect if available
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, w, h, r);
+    } else {
+        // Manual path construction fallback for older browsers
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+}
+
+// ============================================
 // ITEM RENDERER
 // ============================================
 
@@ -176,7 +199,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
     // 2. BACKGROUND (subtle - let the border shine)
     // ============================================
     ctx.beginPath();
-    ctx.roundRect(x, y, size, size, radius);
+    drawRoundedRectPath(ctx, x, y, size, size, radius);
 
     if (isCollected) {
         // Create subtle gradient background
@@ -209,7 +232,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
     // 3. ANIMATED BORDER (the star of the show!)
     // ============================================
     ctx.beginPath();
-    ctx.roundRect(x, y, size, size, radius);
+    drawRoundedRectPath(ctx, x, y, size, size, radius);
 
     let borderColor;
     let animatedBorderColor = null;
@@ -377,7 +400,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         const badgeY = y + size - COUNT_BADGE_HEIGHT - 2;
 
         ctx.beginPath();
-        ctx.roundRect(badgeX, badgeY, badgeWidth, COUNT_BADGE_HEIGHT, 4);
+        drawRoundedRectPath(ctx, badgeX, badgeY, badgeWidth, COUNT_BADGE_HEIGHT, 4);
         ctx.fillStyle = rarityColor;
         ctx.fill();
 
@@ -414,11 +437,17 @@ export function CanvasCollectionGrid({
     const animationRef = useRef(null);
     const imagesRef = useRef(new Map());
     const timeRef = useRef(0);
-    const [scrollTop, setScrollTop] = useState(0);
-    const [containerWidth, setContainerWidth] = useState(400);
-    const [hoveredIndex, setHoveredIndex] = useState(-1);
 
-    // Calculate grid layout
+    // Use refs for fast-changing values to avoid RAF effect teardown
+    const scrollTopRef = useRef(0);
+    const containerWidthRef = useRef(400);
+    const hoveredIndexRef = useRef(-1);
+
+    // State for values that need to trigger re-renders (layout calculation)
+    const [containerWidth, setContainerWidth] = useState(400);
+    const [scrollTop, setScrollTop] = useState(0);
+
+    // Calculate grid layout (needs state for useMemo)
     const layout = useMemo(() => {
         const cellSize = ITEM_SIZE + ITEM_GAP;
         // Account for padding on both sides
@@ -429,6 +458,12 @@ export function CanvasCollectionGrid({
         const totalHeight = rows * cellSize + (GRID_PADDING * 2);
         return { cols, rows, cellSize, totalHeight };
     }, [containerWidth, items.length]);
+
+    // Keep layout ref in sync for RAF
+    const layoutRef = useRef(layout);
+    useEffect(() => {
+        layoutRef.current = layout;
+    }, [layout]);
 
     // Load visible images
     useEffect(() => {
@@ -461,18 +496,36 @@ export function CanvasCollectionGrid({
         });
     }, [items, layout, scrollTop, containerHeight]);
 
-    // Measure container
+    // Measure container with ResizeObserver feature check
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const observer = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                setContainerWidth(entry.contentRect.width);
-            }
-        });
+        const updateWidth = (width) => {
+            containerWidthRef.current = width;
+            setContainerWidth(width);
+        };
 
-        observer.observe(containerRef.current);
-        return () => observer.disconnect();
+        // Feature detect ResizeObserver
+        if (typeof ResizeObserver !== 'undefined') {
+            const observer = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                    updateWidth(entry.contentRect.width);
+                }
+            });
+
+            observer.observe(containerRef.current);
+            return () => observer.disconnect();
+        } else {
+            // Fallback to window resize
+            const handleResize = () => {
+                if (containerRef.current) {
+                    updateWidth(containerRef.current.getBoundingClientRect().width);
+                }
+            };
+            handleResize();
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+        }
     }, []);
 
     // Canvas sizing effect - only runs when dimensions change
@@ -503,12 +556,24 @@ export function CanvasCollectionGrid({
         }
     }, [containerWidth, containerHeight]);
 
-    // Animation loop - only clears and draws, no resizing
+    // Keep items and collection refs in sync for RAF
+    const itemsRef = useRef(items);
+    const collectionRef = useRef(collection);
+    useEffect(() => {
+        itemsRef.current = items;
+    }, [items]);
+    useEffect(() => {
+        collectionRef.current = collection;
+    }, [collection]);
+
+    // Animation loop - reads from refs for stable effect
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
         let lastTime = performance.now();
 
         const render = (timestamp) => {
@@ -518,7 +583,13 @@ export function CanvasCollectionGrid({
             timeRef.current += dt;
             const time = timeRef.current;
 
-            const width = containerWidth;
+            // Read from refs for latest values
+            const currentItems = itemsRef.current;
+            const currentCollection = collectionRef.current;
+            const currentLayout = layoutRef.current;
+            const currentScrollTop = scrollTopRef.current;
+            const currentHoveredIndex = hoveredIndexRef.current;
+            const width = containerWidthRef.current;
             const height = containerHeight;
 
             // Clear (use identity transform for clearing, then restore scale)
@@ -528,25 +599,25 @@ export function CanvasCollectionGrid({
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             // Calculate visible range (account for padding)
-            const { cols, cellSize } = layout;
-            const adjustedScrollTop = Math.max(0, scrollTop - GRID_PADDING);
+            const { cols, cellSize, rows } = currentLayout;
+            const adjustedScrollTop = Math.max(0, currentScrollTop - GRID_PADDING);
             const startRow = Math.floor(adjustedScrollTop / cellSize);
             const visibleRows = Math.ceil(height / cellSize) + 2;
-            const endRow = Math.min(startRow + visibleRows, layout.rows);
+            const endRow = Math.min(startRow + visibleRows, rows);
 
             // Draw visible items
             for (let row = startRow; row < endRow; row++) {
                 for (let col = 0; col < cols; col++) {
                     const idx = row * cols + col;
-                    if (idx >= items.length) continue;
+                    if (idx >= currentItems.length) continue;
 
-                    const item = items[idx];
+                    const item = currentItems[idx];
                     // Add padding offset to positions
                     const x = GRID_PADDING + col * cellSize;
-                    const y = GRID_PADDING + row * cellSize - scrollTop;
-                    const count = collection[item.texture] || 0;
+                    const y = GRID_PADDING + row * cellSize - currentScrollTop;
+                    const count = currentCollection[item.texture] || 0;
                     const isCollected = count > 0;
-                    const isHovered = idx === hoveredIndex;
+                    const isHovered = idx === currentHoveredIndex;
 
                     drawItem(ctx, item, x, y, ITEM_SIZE, isCollected, count, imagesRef.current, time, isHovered);
                 }
@@ -562,11 +633,13 @@ export function CanvasCollectionGrid({
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [items, collection, layout, scrollTop, containerWidth, containerHeight, hoveredIndex]);
+    }, [containerHeight]); // Stable deps - containerHeight is a prop
 
-    // Handle scroll
+    // Handle scroll - update both ref (for RAF) and state (for image loading effect)
     const handleScroll = useCallback((e) => {
-        setScrollTop(e.target.scrollTop);
+        const newScrollTop = e.target.scrollTop;
+        scrollTopRef.current = newScrollTop;
+        setScrollTop(newScrollTop);
     }, []);
 
     // Helper to get item index at a point (shared by mouse move and click)
@@ -574,23 +647,28 @@ export function CanvasCollectionGrid({
         const x = clientX - rect.left - GRID_PADDING;
         const y = clientY - rect.top;
 
-        const { cols, cellSize } = layout;
+        const { cols, cellSize } = layoutRef.current;
         const col = Math.floor(x / cellSize);
-        const row = Math.floor((y + scrollTop - GRID_PADDING) / cellSize);
+        const row = Math.floor((y + scrollTopRef.current - GRID_PADDING) / cellSize);
         const idx = row * cols + col;
 
-        if (idx >= 0 && idx < items.length && col >= 0 && col < cols && row >= 0) {
+        if (idx >= 0 && idx < itemsRef.current.length && col >= 0 && col < cols && row >= 0) {
             return idx;
         }
         return -1;
-    }, [layout, scrollTop, items.length]);
+    }, []); // Stable - reads from refs
 
-    // Handle mouse move for hover
+    // Handle mouse move for hover - only update ref (no state needed)
     const handleMouseMove = useCallback((e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
-        setHoveredIndex(idx);
+        hoveredIndexRef.current = idx;
     }, [getItemIndexAtPoint]);
+
+    // Handle mouse leave
+    const handleMouseLeave = useCallback(() => {
+        hoveredIndexRef.current = -1;
+    }, []);
 
     // Handle click
     const handleClick = useCallback((e) => {
@@ -600,9 +678,9 @@ export function CanvasCollectionGrid({
         const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
 
         if (idx >= 0) {
-            onItemClick(items[idx]);
+            onItemClick(itemsRef.current[idx]);
         }
-    }, [getItemIndexAtPoint, items, onItemClick]);
+    }, [getItemIndexAtPoint, onItemClick]);
 
     return (
         <div
@@ -630,7 +708,7 @@ export function CanvasCollectionGrid({
                 onScroll={handleScroll}
                 onClick={handleClick}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setHoveredIndex(-1)}
+                onMouseLeave={handleMouseLeave}
                 style={{
                     position: 'absolute',
                     top: 0,
@@ -639,7 +717,7 @@ export function CanvasCollectionGrid({
                     bottom: 0,
                     overflowY: 'auto',
                     overflowX: 'hidden',
-                    cursor: hoveredIndex >= 0 ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     zIndex: 1,
                 }}
             >
@@ -658,7 +736,7 @@ export function CanvasCollectionGrid({
                     color: COLORS.textMuted,
                     zIndex: 2,
                 }}>
-                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>ðŸ”</div>
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
                     <div>No items found</div>
                 </div>
             )}
