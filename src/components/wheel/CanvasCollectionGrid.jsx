@@ -605,8 +605,17 @@ export function CanvasCollectionGrid({
         if (!ctx) return;
 
         let lastTime = performance.now();
+        let frameCount = 0;
+        const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 600;
 
         const render = (timestamp) => {
+            // Mobile throttling: 30fps to save battery
+            frameCount++;
+            if (isMobileDevice && frameCount % 2 !== 0) {
+                animationRef.current = requestAnimationFrame(render);
+                return;
+            }
+
             // Use real delta time
             const dt = (timestamp - lastTime) / 1000;
             lastTime = timestamp;
