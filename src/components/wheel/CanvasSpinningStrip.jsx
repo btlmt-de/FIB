@@ -396,12 +396,13 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     const img = images.get(imgSrc);
 
     if (img) {
-        // Image scale - smaller = more visible padding/glow
-        let imgScale = 0.65; // Default: 65% of box
-        if (isEvent) imgScale = 0.90;
-        else if (isRecursionType) imgScale = 0.72;
-        else if (isInsane || isMythic) imgScale = 0.68;
-        else if (isSpecial || isRare) imgScale = 0.68;
+        // Image scale - larger values fill more of the box
+        let imgScale = 0.75; // Default: 82% of box
+        if (item.username) imgScale = 0.7; // Player heads - keep smaller
+        else if (isEvent) imgScale = 1.7;
+        else if (isRecursionType) imgScale = 0.88;
+        else if (isInsane || isMythic) imgScale = 0.85;
+        else if (isSpecial || isRare) imgScale = 0.85;
 
         const imgSize = boxSize * imgScale;
         const imgX = boxX + (boxSize - imgSize) / 2;
