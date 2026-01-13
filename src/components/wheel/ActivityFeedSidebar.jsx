@@ -138,7 +138,6 @@ export function ActivityFeedSidebar() {
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            backdropFilter: 'blur(12px)',
             position: 'relative'
         }}>
             <style>{`
@@ -202,7 +201,7 @@ export function ActivityFeedSidebar() {
                     width: '50%',
                     height: '100%',
                     backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
-                    animation: 'shimmerSweep 8s ease-in-out infinite',
+                    animation: 'none',
                     pointerEvents: 'none',
                 }} />
 
@@ -249,7 +248,7 @@ export function ActivityFeedSidebar() {
                                 gap: '5px',
                                 marginTop: '2px'
                             }}>
-                                <Radio size={10} color={COLORS.green} style={{ animation: 'liveIndicator 2s ease-in-out infinite' }} />
+                                <Radio size={10} color={COLORS.green} style={{ animation: 'none' }} />
                                 Real-time feed
                             </div>
                         </div>
@@ -335,7 +334,7 @@ export function ActivityFeedSidebar() {
                                 background: `linear-gradient(90deg, ${COLORS.bgLighter}40 0%, ${COLORS.bgLighter}60 50%, ${COLORS.bgLighter}40 100%)`,
                                 backgroundSize: '200% 100%',
                                 borderRadius: '10px',
-                                animation: 'pulse 1.5s infinite'
+                                animation: 'none'
                             }} />
                         ))}
                     </div>
@@ -396,7 +395,7 @@ export function ActivityFeedSidebar() {
                                         bottom: 0,
                                         backgroundImage: `linear-gradient(90deg, transparent 0%, ${rarityColor}10 50%, transparent 100%)`,
                                         backgroundSize: '200% 100%',
-                                        animation: 'insaneShimmer 3s ease-in-out infinite',
+                                        animation: 'none',
                                         pointerEvents: 'none'
                                     }} />
                                 )}
@@ -411,7 +410,7 @@ export function ActivityFeedSidebar() {
                                         bottom: 0,
                                         backgroundImage: `linear-gradient(90deg, transparent 0%, ${rarityColor}08 50%, transparent 100%)`,
                                         backgroundSize: '200% 100%',
-                                        animation: 'mythicShimmer 4s ease-in-out infinite',
+                                        animation: 'none',
                                         pointerEvents: 'none'
                                     }} />
                                 )}

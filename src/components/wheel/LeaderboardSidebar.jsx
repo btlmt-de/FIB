@@ -161,7 +161,6 @@ export function LeaderboardSidebar({ onOpenFull }) {
                 border: `1px solid ${COLORS.border}`,
                 display: 'flex',
                 flexDirection: 'column',
-                backdropFilter: 'blur(12px)',
                 boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 60px ${COLORS.accent}08, inset 0 1px 0 rgba(255,255,255,0.05)`,
                 position: 'relative',
                 overflow: 'hidden'
@@ -186,7 +185,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
                         width: '50%',
                         height: '100%',
                         backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
-                        animation: 'shimmerSweep 8s ease-in-out infinite',
+                        animation: 'none',
                         pointerEvents: 'none',
                     }} />
 
@@ -413,7 +412,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                     backgroundSize: '200% 100%',
                                     borderRadius: '10px',
                                     margin: '0 8px',
-                                    animation: 'pulse 1.5s infinite'
+                                    animation: 'none'
                                 }} />
                             ))}
                         </div>
