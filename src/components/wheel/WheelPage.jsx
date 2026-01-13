@@ -60,7 +60,7 @@ const CosmicLoader = () => (
                 border: `3px solid ${COLORS.border}`,
                 borderTopColor: COLORS.gold,
                 borderRadius: '50%',
-                animation: 'cosmicSpin 1s linear infinite',
+                animation: 'none',
             }} />
             {/* Inner ring */}
             <div style={{
@@ -69,7 +69,7 @@ const CosmicLoader = () => (
                 border: `3px solid ${COLORS.border}`,
                 borderTopColor: COLORS.purple,
                 borderRadius: '50%',
-                animation: 'cosmicSpin 0.8s linear infinite reverse',
+                animation: 'none',
             }} />
             {/* Core */}
             <div style={{
@@ -77,7 +77,7 @@ const CosmicLoader = () => (
                 inset: '20px',
                 background: `radial-gradient(circle, ${COLORS.gold}44 0%, transparent 70%)`,
                 borderRadius: '50%',
-                animation: 'auraPulse 1.5s ease-in-out infinite',
+                animation: 'none',
             }} />
         </div>
         <div style={{
@@ -85,7 +85,7 @@ const CosmicLoader = () => (
             fontSize: '14px',
             letterSpacing: '2px',
             textTransform: 'uppercase',
-            animation: 'subtlePulse 2s ease-in-out infinite',
+            animation: 'none',
         }}>
             Loading
         </div>
@@ -129,7 +129,6 @@ function NavButton({ onClick, icon, label, highlight = false }) {
                     boxShadow: isHovered
                         ? '0 8px 24px rgba(0, 0, 0, 0.2)'
                         : '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    backdropFilter: 'blur(8px)',
                 }}
             >
                 {icon}
@@ -185,7 +184,6 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
             right: 0,
             bottom: 0,
             background: 'rgba(0,0,0,0.85)',
-            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -214,7 +212,7 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
                     justifyContent: 'center',
                     margin: '0 auto 24px',
                     boxShadow: `0 0 30px ${COLORS.gold}33`,
-                    animation: 'auraPulse 2s ease-in-out infinite',
+                    animation: 'none',
                 }}>
                     <PartyPopper size={32} color={COLORS.gold} />
                 </div>
@@ -518,7 +516,6 @@ function WheelOfFortunePage({ onBack }) {
                     zIndex: 100,
                     background: 'rgba(20, 20, 25, 0.8)',
                     border: `1px solid ${COLORS.border}`,
-                    backdropFilter: 'blur(8px)',
                     cursor: 'pointer',
                 }}
                 onMouseEnter={e => {
@@ -589,7 +586,7 @@ function WheelOfFortunePage({ onBack }) {
                             backgroundClip: 'text',
                             color: 'transparent',
                             letterSpacing: '-2px',
-                            animation: 'headerTextShimmer 8s linear infinite',
+                            animation: 'none',
                             lineHeight: 1.1,
                         }}>
                             Wheel of Fortune
@@ -688,7 +685,6 @@ function WheelOfFortunePage({ onBack }) {
                                 background: 'rgba(255, 255, 255, 0.03)',
                                 borderRadius: '32px',
                                 border: `1px solid ${COLORS.border}`,
-                                backdropFilter: 'blur(12px)',
                                 boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)',
                             }}>
                                 {/* Clickable avatar + name section */}
@@ -908,7 +904,6 @@ function WheelOfFortunePage({ onBack }) {
                             margin: '0 auto 16px',
                             flexWrap: 'wrap',
                             border: '1px solid rgba(255, 255, 255, 0.04)',
-                            backdropFilter: 'blur(8px)',
                             animation: 'sectionFadeIn 0.6s ease-out 0.4s both',
                         }}>
                             <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={20} />} label="Collection" />
@@ -958,7 +953,7 @@ function WheelOfFortunePage({ onBack }) {
                             color: `${COLORS.textMuted}88`,
                             letterSpacing: '0.3px',
                         }}>
-                            Collect them all • Good luck spinning!
+                            Collect them all â€¢ Good luck spinning!
                         </p>
                     </div>
                 </div>
@@ -1090,7 +1085,6 @@ function WheelOfFortunePage({ onBack }) {
                     right: 0,
                     bottom: 0,
                     background: 'rgba(0,0,0,0.85)',
-                    backdropFilter: 'blur(8px)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

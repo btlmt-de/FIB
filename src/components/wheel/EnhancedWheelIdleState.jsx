@@ -16,7 +16,7 @@ const OrbitalRing = ({ size, duration, reverse = false, delay = 0, color, opacit
         border: `1px solid ${color}`,
         borderRadius: '50%',
         opacity,
-        animation: `${reverse ? 'orbitalSpinReverse' : 'orbitalSpin'} ${duration}s linear infinite`,
+        animation: 'none',
         animationDelay: `${delay}s`,
         pointerEvents: 'none',
     }} />
@@ -45,7 +45,7 @@ const FloatingParticle = ({ index, color, isRecursion }) => {
             background: color,
             boxShadow: `0 0 ${size * 2}px ${color}`,
             transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
-            animation: `cosmicFloat ${duration}s ease-in-out infinite`,
+            animation: 'none',
             animationDelay: `${delay}s`,
             pointerEvents: 'none',
         };
@@ -102,7 +102,7 @@ const KeyboardHint = () => (
             fontWeight: '600',
             fontFamily: 'monospace',
             color: COLORS.textMuted,
-            animation: 'keyGlow 2s ease-in-out infinite',
+            animation: 'none',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
         }}>
             SPACE
@@ -166,9 +166,9 @@ export function EnhancedWheelIdleState({
                         ? `radial-gradient(circle, ${COLORS.recursion}40 0%, ${COLORS.recursion}15 40%, transparent 70%)`
                         : `radial-gradient(circle, ${COLORS.gold}25 0%, ${COLORS.orange}10 40%, transparent 70%)`,
                     borderRadius: '50%',
-                    animation: 'auraPulse 3s ease-in-out infinite',
+                    animation: 'none',
                     pointerEvents: 'none',
-                    filter: 'blur(20px)',
+                    // filter: 'blur(20px)', // removed for GPU performance
                 }} />
 
                 {/* Secondary Aura Ring */}
@@ -183,7 +183,7 @@ export function EnhancedWheelIdleState({
                         : `radial-gradient(circle, transparent 60%, ${COLORS.gold}10 80%, transparent 100%)`,
                     borderRadius: '50%',
                     transform: 'translate(-50%, -50%)',
-                    animation: 'auraPulse 2s ease-in-out infinite reverse',
+                    animation: 'none',
                     pointerEvents: 'none',
                 }} />
 
@@ -240,16 +240,9 @@ export function EnhancedWheelIdleState({
                         opacity: (isDisabled && !isLoading) ? 0.5 : 1,
                         transform: isHovered && !isDisabled ? 'scale(1.08)' : 'scale(1)',
                         transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        filter: showRecursionEffects
-                            ? `drop-shadow(0 0 25px ${COLORS.recursion}) drop-shadow(0 0 50px ${COLORS.recursion}66)`
-                            : isHovered
-                                ? `drop-shadow(0 0 30px ${COLORS.gold}88) drop-shadow(0 0 60px ${COLORS.gold}44)`
-                                : `drop-shadow(0 0 20px ${COLORS.gold}66) drop-shadow(0 0 40px ${COLORS.gold}33)`,
-                        animation: showRecursionEffects
-                            ? 'matrixGlitch 3s ease-in-out infinite'
-                            : isDisabled
-                                ? 'none'
-                                : 'wheelBreathing 4s ease-in-out infinite',
+                        // Simplified filter for GPU performance (was multiple drop-shadows)
+                        filter: 'none',
+                        animation: 'none',
                     }}
                 >
                     <img
@@ -269,7 +262,7 @@ export function EnhancedWheelIdleState({
                             inset: '-20px',
                             borderRadius: '50%',
                             border: `2px solid ${showRecursionEffects ? COLORS.recursion : COLORS.gold}44`,
-                            animation: 'spinReady 1.5s ease-out infinite',
+                            animation: 'none',
                             pointerEvents: 'none',
                         }} />
                     )}
@@ -324,12 +317,12 @@ export function EnhancedWheelIdleState({
                             ? `0 0 20px ${COLORS.recursion}`
                             : `0 0 20px ${COLORS.gold}44`,
                         letterSpacing: showRecursionEffects ? '2px' : '0.5px',
-                        animation: showRecursionEffects ? 'recursionTextGlitch 2s ease-in-out infinite' : 'none',
+                        animation: 'none',
                     }}>
                         {!user ? 'Login to spin!'
                             : allItems.length === 0 ? 'Fetching item pool...'
                                 : showRecursionEffects
-                                    ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
+                                    ? `âš¡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! âš¡`
                                     : isMobile ? 'Tap to spin!' : 'Click to spin!'}
                     </div>
                 )}
@@ -383,7 +376,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        ⚠️ {error}
+                        âš ï¸ {error}
                     </div>
                 )}
 
@@ -403,7 +396,7 @@ export function EnhancedWheelIdleState({
                         alignItems: 'center',
                         gap: '8px',
                         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                        backdropFilter: 'blur(8px)',
+                        // backdropFilter removed for GPU performance
                     }}
                     onMouseEnter={e => {
                         e.currentTarget.style.borderColor = COLORS.aqua;

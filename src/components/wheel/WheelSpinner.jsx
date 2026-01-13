@@ -1247,7 +1247,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             ? `0 8px 40px rgba(0,0,0,0.6), 0 0 100px ${COLORS.recursion}20, inset 0 0 60px ${COLORS.recursion}08, inset 0 1px 0 ${COLORS.recursion}40`
                             : `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${COLORS.gold}08, inset 0 1px 0 rgba(255,255,255,0.08)`,
                         overflow: 'hidden',
-                        backdropFilter: 'blur(20px)',
                         zIndex: 1,
                         animation: showSpinRecursionEffects && state === 'spinning' ? 'matrixFlicker 0.5s infinite' : 'none',
                     }}>
@@ -1393,7 +1392,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     fontWeight: '600',
                                     textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
                                 }}>
-                                {state === 'spinning' ? (showSpinRecursionEffects ? '⚡ Lucky Spinning...' : 'Spinning...') :
+                                {state === 'spinning' ? (showSpinRecursionEffects ? 'âš¡ Lucky Spinning...' : 'Spinning...') :
                                     state === 'recursion' ? 'RECURSION!' :
                                         state === 'event' ? 'BONUS EVENT!' :
                                             state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
@@ -2338,7 +2337,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'âœ¨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2730,7 +2729,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         textShadow: `0 0 20px ${COLORS.green}60`,
                                         animation: 'pulse 2s ease-in-out infinite',
                                     }}>
-                                        ✦ Lucky Win ✦
+                                        âœ¦ Lucky Win âœ¦
                                     </span>
                                 </div>
 
@@ -2845,7 +2844,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>★ NEW TO COLLECTION ★</span>
+                                                    }}>â˜… NEW TO COLLECTION â˜…</span>
                                                 )}
                                             </div>
                                         );
@@ -3191,7 +3190,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             textShadow: `0 0 20px ${accentColor}60`,
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            {isTripleLucky ? '✦ Triple Lucky Results ✦' : '✦ 5x Spin Results ✦'}
+                                            {isTripleLucky ? 'âœ¦ Triple Lucky Results âœ¦' : 'âœ¦ 5x Spin Results âœ¦'}
                                         </span>
                                     </div>
 
@@ -3356,7 +3355,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>★ NEW</span>
+                                                        }}>â˜… NEW</span>
                                                     )}
                                                 </div>
                                             );
