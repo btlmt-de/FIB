@@ -322,7 +322,7 @@ export function EnhancedWheelIdleState({
                         {!user ? 'Login to spin!'
                             : allItems.length === 0 ? 'Fetching item pool...'
                                 : showRecursionEffects
-                                    ? `âš¡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! âš¡`
+                                    ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
                                     : isMobile ? 'Tap to spin!' : 'Click to spin!'}
                     </div>
                 )}
@@ -376,7 +376,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        âš ï¸ {error}
+                        ⚠️ {error}
                     </div>
                 )}
 

@@ -1392,7 +1392,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     fontWeight: '600',
                                     textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
                                 }}>
-                                {state === 'spinning' ? (showSpinRecursionEffects ? 'âš¡ Lucky Spinning...' : 'Spinning...') :
+                                {state === 'spinning' ? (showSpinRecursionEffects ? 'Lucky Spinning...' : 'Spinning...') :
                                     state === 'recursion' ? 'RECURSION!' :
                                         state === 'event' ? 'BONUS EVENT!' :
                                             state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :

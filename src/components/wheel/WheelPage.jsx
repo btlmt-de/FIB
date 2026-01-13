@@ -953,7 +953,7 @@ function WheelOfFortunePage({ onBack }) {
                             color: `${COLORS.textMuted}88`,
                             letterSpacing: '0.3px',
                         }}>
-                            Collect them all â€¢ Good luck spinning!
+                            Collect them all • Good luck spinning!
                         </p>
                     </div>
                 </div>
