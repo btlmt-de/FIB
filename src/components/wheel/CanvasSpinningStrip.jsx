@@ -132,7 +132,7 @@ function drawRoundedRectPath(ctx, x, y, w, h, r) {
 // CANVAS ITEM RENDERER - Full Detail Version
 // ============================================
 
-function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEffects, images, time, isMobileDevice, isLuckySpin = false) {
+function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEffects, images, time, isMobileDevice, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false) {
     if (!item) return;
 
     const isInsane = isInsaneItem(item);
@@ -142,10 +142,18 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
 
-    // For lucky spins, common items should use green styling
+    // Check if this item's rarity is boosted by Gold Rush
+    const itemRarity = isInsane ? 'insane' : isMythic ? 'mythic' : isSpecial ? 'legendary' : isRare ? 'rare' : null;
+    const isGoldRushBoosted = goldRushBoostedRarity && itemRarity === goldRushBoostedRarity;
+
+    // For lucky spins, common items should use green styling (recursion) or gold styling (KOTW)
     const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isRare && !isEvent && !isRecursionType;
 
     const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent || isRecursionType || isLuckyCommon;
+
+    // KOTW theme colors
+    const KOTW_CRIMSON = '#F43F5E';
+    const KOTW_GOLD = '#F59E0B';
 
     // Box dimensions - smaller box = more room for glow
     const boxRatio = isMobileDevice ? 0.82 : 0.70;
@@ -181,6 +189,76 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         ctx.translate(centerX, centerY);
         ctx.scale(pulse, pulse);
         ctx.translate(-centerX, -centerY);
+    }
+
+    // ============================================
+    // GOLD RUSH INDICATOR - Golden shimmer for boosted items
+    // ============================================
+    if (isGoldRushBoosted) {
+        // Outer golden glow
+        const glowSize = boxSize * 2.5;
+        const glowX = centerX - glowSize / 2;
+        const glowY = centerY - glowSize / 2;
+
+        // Animated golden pulse
+        const phase = (time % 1.0) / 1.0;
+        const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
+        const intensity = 0.6 + pulse * 0.4;
+
+        const gradient = ctx.createRadialGradient(
+            centerX, centerY, 0,
+            centerX, centerY, glowSize / 2
+        );
+        gradient.addColorStop(0, `rgba(255, 215, 0, ${intensity * 0.8})`);
+        gradient.addColorStop(0.3, `rgba(255, 170, 0, ${intensity * 0.5})`);
+        gradient.addColorStop(0.6, `rgba(255, 140, 0, ${intensity * 0.2})`);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(glowX, glowY, glowSize, glowSize);
+
+        // Draw golden sparkle particles
+        const sparkleCount = 6;
+        for (let i = 0; i < sparkleCount; i++) {
+            const angle = (time * 2 + i * (Math.PI * 2 / sparkleCount)) % (Math.PI * 2);
+            const distance = boxSize * 0.6 + Math.sin(time * 3 + i) * 5;
+            const sparkleX = centerX + Math.cos(angle) * distance;
+            const sparkleY = centerY + Math.sin(angle) * distance;
+            const sparkleSize = 2 + Math.sin(time * 5 + i * 2) * 1;
+
+            ctx.fillStyle = `rgba(255, 255, 200, ${0.6 + pulse * 0.4})`;
+            ctx.beginPath();
+            ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // ============================================
+    // KOTW LUCKY SPIN GLOW - Crimson glow for ALL items
+    // ============================================
+    if (isKotwLucky && !isSpecialType && !isGoldRushBoosted) {
+        const glowSize = boxSize * 1.5;
+        const glowX = centerX - glowSize / 2;
+        const glowY = centerY - glowSize / 2;
+
+        // Animated crimson pulse
+        const phase = (time % 2.0) / 2.0;
+        const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
+        const intensity = 0.35 + pulse * 0.25;
+
+        // Crimson glow
+        const kotwCrimsonRgb = hexToRgb(KOTW_CRIMSON);
+
+        const gradient = ctx.createRadialGradient(
+            centerX, centerY, 0,
+            centerX, centerY, glowSize / 2
+        );
+        gradient.addColorStop(0, `rgba(${kotwCrimsonRgb.r}, ${kotwCrimsonRgb.g}, ${kotwCrimsonRgb.b}, ${intensity * 0.6})`);
+        gradient.addColorStop(0.5, `rgba(${kotwCrimsonRgb.r}, ${kotwCrimsonRgb.g}, ${kotwCrimsonRgb.b}, ${intensity * 0.3})`);
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(glowX, glowY, glowSize, glowSize);
     }
 
     // ============================================
@@ -261,14 +339,20 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
             glowColor1 = lerpColor(COLORS.gold, '#FFFF66', pulse);
             glowColor2 = hexToRgb(COLORS.gold);
         } else if (isLuckyCommon) {
-            // 2.25s cycle - green pulses for lucky spin common items
+            // 2.25s cycle - for lucky spin common items
             const phase = (time % 2.25) / 2.25;
             const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
             intensity = 0.5 + pulse * 0.3;
 
-            // Green -> Bright lime -> Green
-            glowColor1 = lerpColor(COLORS.green, '#88FF88', pulse);
-            glowColor2 = hexToRgb(COLORS.green);
+            if (isKotwLucky) {
+                // Crimson -> Bright pink -> Crimson (KOTW theme)
+                glowColor1 = lerpColor(KOTW_CRIMSON, '#FF6B8A', pulse);
+                glowColor2 = hexToRgb(KOTW_CRIMSON);
+            } else {
+                // Green -> Bright lime -> Green (Recursion theme)
+                glowColor1 = lerpColor(COLORS.green, '#88FF88', pulse);
+                glowColor2 = hexToRgb(COLORS.green);
+            }
         }
 
         // Draw multiple glow layers using radial gradients
@@ -306,9 +390,15 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     if (isSpecialType) {
         // Darker, more transparent background for special items
         const bgAlpha = 0.85;
-        // Use green-tinted background for lucky spin common items
+        // Use themed background for lucky spin common items
         if (isLuckyCommon) {
-            ctx.fillStyle = `rgba(10, 21, 10, ${bgAlpha})`;
+            if (isKotwLucky) {
+                // Slate-tinted for KOTW
+                ctx.fillStyle = `rgba(15, 23, 42, ${bgAlpha})`;
+            } else {
+                // Green-tinted for recursion
+                ctx.fillStyle = `rgba(10, 21, 10, ${bgAlpha})`;
+            }
         } else {
             ctx.fillStyle = showRecursionEffects
                 ? `rgba(10, 21, 10, ${bgAlpha})`
@@ -316,6 +406,9 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         }
     } else if (showRecursionEffects) {
         ctx.fillStyle = COLORS.recursionDark || '#0a150a';
+    } else if (isKotwLucky) {
+        // Slate background for KOTW lucky spins
+        ctx.fillStyle = '#0F172A';
     } else {
         ctx.fillStyle = COLORS.bgLight || '#252542';
     }
@@ -352,9 +445,14 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
             innerGradient.addColorStop(0, `${COLORS.red}20`);
             innerGradient.addColorStop(1, `${COLORS.red}10`);
         } else if (isLuckyCommon) {
-            // Green gradient for lucky spin common items
-            innerGradient.addColorStop(0, `${COLORS.green}20`);
-            innerGradient.addColorStop(1, `${COLORS.green}10`);
+            // Crimson/Green gradient for lucky spin common items
+            if (isKotwLucky) {
+                innerGradient.addColorStop(0, `${KOTW_CRIMSON}20`);
+                innerGradient.addColorStop(1, `${KOTW_CRIMSON}10`);
+            } else {
+                innerGradient.addColorStop(0, `${COLORS.green}20`);
+                innerGradient.addColorStop(1, `${COLORS.green}10`);
+            }
         }
 
         ctx.fillStyle = innerGradient;
@@ -370,21 +468,32 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
             borderColor = COLORS.gold;
         } else if (showRecursionEffects) {
             borderColor = `${COLORS.recursion}66`;
+        } else if (isKotwLucky) {
+            // KOTW lucky spins get crimson/gold animated border
+            const phase = (time % 2.0) / 2.0;
+            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
+            const kotwBorderColor = lerpColor(KOTW_CRIMSON, KOTW_GOLD, pulse);
+            borderColor = `rgb(${kotwBorderColor.r}, ${kotwBorderColor.g}, ${kotwBorderColor.b})`;
         } else {
             borderColor = COLORS.border;
         }
     }
 
+    // Gold rush boosted items get golden border
+    if (isGoldRushBoosted) {
+        borderColor = '#FFD700';
+    }
+
     ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = isGoldRushBoosted ? 3 : (isKotwLucky && !isSpecialType) ? 2.5 : 2;
     ctx.beginPath();
     drawRoundedRectPath(ctx, boxX, boxY, boxSize, boxSize, radius);
     ctx.stroke();
 
-    // Add glow to border for special items
-    if (isSpecialType) {
-        ctx.shadowColor = borderColor;
-        ctx.shadowBlur = 8;
+    // Add glow to border for special items, gold rush boosted, or KOTW lucky
+    if (isSpecialType || isGoldRushBoosted || isKotwLucky) {
+        ctx.shadowColor = isKotwLucky && !isSpecialType && !isGoldRushBoosted ? KOTW_CRIMSON : borderColor;
+        ctx.shadowBlur = isGoldRushBoosted ? 12 : (isKotwLucky && !isSpecialType) ? 10 : 8;
         ctx.stroke();
         ctx.shadowBlur = 0;
     }
@@ -397,9 +506,9 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
 
     if (img) {
         // Image scale - larger values fill more of the box
-        let imgScale = 0.75; // Default: 82% of box
-        if (item.username) imgScale = 0.7; // Player heads - keep smaller
-        else if (isEvent) imgScale = 1.7;
+        let imgScale = 0.82; // Default: 82% of box
+        if (item.username) imgScale = 0.68; // Player heads - keep smaller
+        else if (isEvent) imgScale = 0.92;
         else if (isRecursionType) imgScale = 0.88;
         else if (isInsane || isMythic) imgScale = 0.85;
         else if (isSpecial || isRare) imgScale = 0.85;
@@ -682,9 +791,11 @@ export function CanvasSpinningStrip({
                                         stripHeight,
                                         finalIndex = 72,
                                         onClick,
-                                        accentColor = null, // Optional override for accent color (e.g., green for Lucky Spin)
+                                        accentColor = null, // Optional override for accent color (e.g., gold for KOTW Lucky Spin)
+                                        themeType = null, // 'recursion' or 'kotw' - determines background colors
                                         itemWidthOverride = null, // Optional override for item width (e.g., 90 for Triple Lucky desktop)
                                         isLuckySpin = false, // For Lucky Spin / Triple Lucky - common items use green
+                                        goldRushBoostedRarity = null, // Rarity being boosted during Gold Rush event
                                     }) {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -696,8 +807,8 @@ export function CanvasSpinningStrip({
 
     // Refs for props that change during animation (so render loop always has current values)
     // Note: offset is read from offsetRef if provided, otherwise from offsetProp
-    const propsRef = useRef({ isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, isLuckySpin });
-    propsRef.current = { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, isLuckySpin };
+    const propsRef = useRef({ isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, themeType, isLuckySpin, goldRushBoostedRarity });
+    propsRef.current = { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, themeType, isLuckySpin, goldRushBoostedRarity };
 
     // Helper to get current offset - reads from ref if provided, otherwise uses prop value
     const getOffset = () => offsetRef ? offsetRef.current : offsetProp;
@@ -824,11 +935,23 @@ export function CanvasSpinningStrip({
 
             // Get current prop values from ref (so animation has latest values)
             // Note: offset comes from offsetRef or offsetProp, not propsRef
-            const { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor: accentOverride, isLuckySpin } = propsRef.current;
+            const { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor: accentOverride, themeType, isLuckySpin, goldRushBoostedRarity } = propsRef.current;
+
             const offset = getOffset();
             const motionIntensity = isSpinning ? Math.max(0, 1 - spinProgress * 1.5) : 0;
-            const accentColor = accentOverride || (isRecursion ? COLORS.recursion : COLORS.gold);
-            const bgColor = accentOverride ? '#0a150a' : (isRecursion ? COLORS.recursionDark : COLORS.bg);
+
+            // Determine theme colors based on themeType or isRecursion
+            const isKotwTheme = themeType === 'kotw';
+            const isRecursionTheme = isRecursion || themeType === 'recursion';
+
+            // KOTW: Slate background (#1E293B), Crimson/Gold accents
+            // Recursion: Dark green background, Matrix green accents
+            const KOTW_SLATE = '#1E293B';
+            const KOTW_SLATE_DARK = '#0F172A';
+            const KOTW_GOLD = '#F59E0B';
+
+            const accentColor = accentOverride || (isRecursionTheme ? COLORS.recursion : COLORS.gold);
+            const bgColor = isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
 
             // Pre-compute hexToRgb once per frame instead of per-item
             const accentRgb = hexToRgb(accentColor);
@@ -837,17 +960,25 @@ export function CanvasSpinningStrip({
             ctx.clearRect(0, 0, width, height);
 
             // Background
-            if (isRecursion || accentOverride) {
-                // Green/custom themed background
+            if (isRecursionTheme || isKotwTheme) {
+                // Themed background
                 const bgGradient = ctx.createLinearGradient(
                     isMobile ? 0 : 0,
                     isMobile ? 0 : 0,
                     isMobile ? 0 : width,
                     isMobile ? height : 0
                 );
-                bgGradient.addColorStop(0, bgColor);
-                bgGradient.addColorStop(0.5, accentOverride ? '#0f1a0f' : '#0a1a0a');
-                bgGradient.addColorStop(1, bgColor);
+                if (isKotwTheme) {
+                    // KOTW: Slate gradient
+                    bgGradient.addColorStop(0, KOTW_SLATE_DARK);
+                    bgGradient.addColorStop(0.5, KOTW_SLATE);
+                    bgGradient.addColorStop(1, KOTW_SLATE_DARK);
+                } else {
+                    // Recursion: Green gradient
+                    bgGradient.addColorStop(0, bgColor);
+                    bgGradient.addColorStop(0.5, '#0a1a0a');
+                    bgGradient.addColorStop(1, bgColor);
+                }
                 ctx.fillStyle = bgGradient;
             } else {
                 const bgGradient = ctx.createLinearGradient(
@@ -863,8 +994,8 @@ export function CanvasSpinningStrip({
             }
             ctx.fillRect(0, 0, width, height);
 
-            // Recursion scanlines
-            if (isRecursion) {
+            // Recursion scanlines (only for matrix theme, not KOTW)
+            if (isRecursionTheme && !isKotwTheme) {
                 drawScanlines(ctx, width, height, time);
             }
 
@@ -882,7 +1013,7 @@ export function CanvasSpinningStrip({
                     // Only draw visible items
                     if (itemY > -itemWidth && itemY < height + itemWidth) {
                         const isWinning = idx === finalIndex && isResult;
-                        drawItem(ctx, item, itemCenterX, itemY, itemWidth, isWinning, isSpinning, isRecursion, imagesRef.current, time, isMobile, isLuckySpin);
+                        drawItem(ctx, item, itemCenterX, itemY, itemWidth, isWinning, isSpinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isMobile, isLuckySpin, goldRushBoostedRarity, isKotwTheme);
 
                         // Separator line - use accentColor
                         ctx.strokeStyle = `${accentColor}33`;
@@ -904,7 +1035,7 @@ export function CanvasSpinningStrip({
                     // Only draw visible items
                     if (itemX > -itemWidth && itemX < width + itemWidth) {
                         const isWinning = idx === finalIndex && isResult;
-                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isSpinning, isRecursion, imagesRef.current, time, isMobile, isLuckySpin);
+                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isSpinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isMobile, isLuckySpin, goldRushBoostedRarity, isKotwTheme);
 
                         // Separator line - use accentColor
                         ctx.strokeStyle = `${accentColor}33`;

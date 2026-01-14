@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { COLORS, API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
-import { ActivityProvider } from '../../context/ActivityContext';
+import { ActivityProvider, useActivity } from '../../context/ActivityContext';
 import { SoundProvider } from '../../context/SoundContext.jsx';
 import { AnimationStyles } from './AnimationStyles';
 import { WheelSpinner } from './WheelSpinner';
@@ -15,6 +15,9 @@ import { UserProfile } from './UserProfile';
 import { LiveActivityToast } from './LiveActivityToast';
 import { PixiMythicCelebration as MythicCelebration } from './PixiMythicCelebration';
 import { RecursionOverlay } from './RecursionOverlay';
+import GoldRushBanner from './GoldRushBanner';
+import KingOfWheelBanner from './KingOfWheelBanner';
+import EventSelectionWheel from './EventSelectionWheel';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
 import { NotificationBell, NotificationCenter } from './NotificationCenter';
@@ -312,12 +315,15 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
 // ============================================
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
+    const { kotwWinner } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     const [collection, setCollection] = useState({});
     const [collectionDetails, setCollectionDetails] = useState({});
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ totalSpins: 0, mythicCount: 0, legendaryCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 });
+    const [kotwLuckySpins, setKotwLuckySpins] = useState(0); // KOTW winner lucky spins
+    const kotwLuckySpinsRef = useRef(0); // Ref for immediate access (bypasses React batching)
     const [loading, setLoading] = useState(true);
 
     const [showUsernameModal, setShowUsernameModal] = useState(false);
@@ -337,6 +343,25 @@ function WheelOfFortunePage({ onBack }) {
     // Mobile activity feed modal state
     const [showMobileActivity, setShowMobileActivity] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+
+    // Detect when current user wins KOTW and update lucky spins immediately
+    // Use a ref to track if we've already processed this winner event
+    const processedKotwWinnerRef = useRef(null);
+    useEffect(() => {
+        if (kotwWinner?.winner && user?.id && kotwWinner.winner.userId === user.id) {
+            // Only process if this is a new winner event (different eventId or timestamp)
+            const winnerKey = `${kotwWinner.eventId}-${kotwWinner.winner.userId}`;
+            if (processedKotwWinnerRef.current !== winnerKey) {
+                processedKotwWinnerRef.current = winnerKey;
+                const spinsAwarded = kotwWinner.winner.luckySpinsAwarded || 0;
+                console.log('[WheelPage] Current user won KOTW! Awarding', spinsAwarded, 'lucky spins');
+                // Update ref IMMEDIATELY (bypasses React batching)
+                kotwLuckySpinsRef.current = spinsAwarded;
+                // Also update state for re-render
+                setKotwLuckySpins(spinsAwarded);
+            }
+        }
+    }, [kotwWinner, user?.id]);
 
     // Check for mobile on mount and resize
     useEffect(() => {
@@ -373,6 +398,10 @@ function WheelOfFortunePage({ onBack }) {
                 eventTriggers: data.eventTriggers || 0,
                 totalDuplicates: data.totalDuplicates || 0
             });
+            // Set KOTW lucky spins from collection response
+            const serverKotwSpins = data.kotwLuckySpins || 0;
+            kotwLuckySpinsRef.current = serverKotwSpins;
+            setKotwLuckySpins(serverKotwSpins);
         } catch (err) {
             console.error('Failed to fetch collection:', err);
         }
@@ -411,6 +440,12 @@ function WheelOfFortunePage({ onBack }) {
             fetchUnreadCount();
         }
     }, [user]);
+
+    // Handler to update KOTW lucky spins (updates both ref and state)
+    const handleKotwLuckySpinsUpdate = useCallback((newCount) => {
+        kotwLuckySpinsRef.current = newCount;
+        setKotwLuckySpins(newCount);
+    }, []);
 
     const handleSpinComplete = useCallback((spinResult) => {
         if (!spinResult?.result) return;
@@ -887,6 +922,9 @@ function WheelOfFortunePage({ onBack }) {
                             user={user}
                             dynamicItems={dynamicItems}
                             wheelSize={180}
+                            kotwLuckySpins={kotwLuckySpins}
+                            kotwLuckySpinsRef={kotwLuckySpinsRef}
+                            onKotwLuckySpinsUpdate={handleKotwLuckySpinsUpdate}
                         />
                     </div>
 
@@ -953,7 +991,7 @@ function WheelOfFortunePage({ onBack }) {
                             color: `${COLORS.textMuted}88`,
                             letterSpacing: '0.3px',
                         }}>
-                            Collect them all • Good luck spinning!
+                            Collect them all â€¢ Good luck spinning!
                         </p>
                     </div>
                 </div>
@@ -1056,6 +1094,13 @@ function WheelOfFortunePage({ onBack }) {
 
             {/* Recursion Overlay */}
             <RecursionOverlay currentUserId={user?.id} />
+
+            {/* Gold Rush Banner */}
+            <GoldRushBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
+
+            {/* King of the Wheel Banner */}
+            <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} />
+            <EventSelectionWheel isMobile={isMobile} isAdmin={user?.isAdmin} />
 
             {/* Notification Center */}
             {showNotifications && (
