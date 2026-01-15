@@ -120,6 +120,7 @@ export function EnhancedWheelIdleState({
                                            totalItemCount,
                                            recursionActive,
                                            recursionSpinsRemaining,
+                                           kotwLuckySpins = 0,
                                            error,
                                            onSpin,
                                            onShowOddsInfo,
@@ -130,9 +131,21 @@ export function EnhancedWheelIdleState({
     const [isHovered, setIsHovered] = useState(false);
     const isDisabled = !user || allItems.length === 0 || isLoading;
     const showRecursionEffects = recursionActive && recursionSpinsRemaining > 0;
+    const showKotwLuckyEffects = kotwLuckySpins > 0 && !showRecursionEffects;
+    const showAnyLuckyEffects = showRecursionEffects || showKotwLuckyEffects;
+
+    // KOTW Theme colors - crimson/gold royal aesthetic
+    const KOTW_CRIMSON = '#F43F5E';
+    const KOTW_GOLD = '#F59E0B';
+    const KOTW_SLATE = '#1E293B';
+
+    // Get the lucky accent color (recursion = matrix green, KOTW = gold)
+    const luckyAccentColor = showRecursionEffects ? COLORS.recursion : KOTW_GOLD;
+    // Get the primary color (recursion = matrix green, KOTW = crimson)
+    const luckyPrimaryColor = showRecursionEffects ? COLORS.recursion : KOTW_CRIMSON;
 
     // Particle colors based on state
-    const particleColor = showRecursionEffects ? COLORS.recursion : COLORS.gold;
+    const particleColor = showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_GOLD : COLORS.gold;
 
     return (
         <div style={{
@@ -160,11 +173,13 @@ export function EnhancedWheelIdleState({
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: showRecursionEffects ? (isMobile ? '200px' : '280px') : (isMobile ? '190px' : '260px'),
-                    height: showRecursionEffects ? (isMobile ? '200px' : '280px') : (isMobile ? '190px' : '260px'),
+                    width: showAnyLuckyEffects ? (isMobile ? '200px' : '280px') : (isMobile ? '190px' : '260px'),
+                    height: showAnyLuckyEffects ? (isMobile ? '200px' : '280px') : (isMobile ? '190px' : '260px'),
                     background: showRecursionEffects
                         ? `radial-gradient(circle, ${COLORS.recursion}40 0%, ${COLORS.recursion}15 40%, transparent 70%)`
-                        : `radial-gradient(circle, ${COLORS.gold}25 0%, ${COLORS.orange}10 40%, transparent 70%)`,
+                        : showKotwLuckyEffects
+                            ? `radial-gradient(circle, ${KOTW_CRIMSON}30 0%, ${KOTW_GOLD}15 30%, transparent 70%)`
+                            : `radial-gradient(circle, ${COLORS.gold}25 0%, ${COLORS.orange}10 40%, transparent 70%)`,
                     borderRadius: '50%',
                     animation: 'none',
                     pointerEvents: 'none',
@@ -180,7 +195,9 @@ export function EnhancedWheelIdleState({
                     height: isMobile ? '150px' : '200px',
                     background: showRecursionEffects
                         ? `radial-gradient(circle, transparent 60%, ${COLORS.recursion}15 80%, transparent 100%)`
-                        : `radial-gradient(circle, transparent 60%, ${COLORS.gold}10 80%, transparent 100%)`,
+                        : showKotwLuckyEffects
+                            ? `radial-gradient(circle, transparent 60%, ${KOTW_CRIMSON}12 70%, ${KOTW_GOLD}10 85%, transparent 100%)`
+                            : `radial-gradient(circle, transparent 60%, ${COLORS.gold}10 80%, transparent 100%)`,
                     borderRadius: '50%',
                     transform: 'translate(-50%, -50%)',
                     animation: 'none',
@@ -193,7 +210,7 @@ export function EnhancedWheelIdleState({
                         <OrbitalRing
                             size="220px"
                             duration={12}
-                            color={showRecursionEffects ? COLORS.recursion : COLORS.gold}
+                            color={showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}
                             opacity={0.2}
                         />
                         <OrbitalRing
@@ -201,14 +218,14 @@ export function EnhancedWheelIdleState({
                             duration={18}
                             reverse
                             delay={2}
-                            color={showRecursionEffects ? COLORS.recursion : COLORS.purple}
+                            color={showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_GOLD : COLORS.purple}
                             opacity={0.15}
                         />
                         <OrbitalRing
                             size="300px"
                             duration={24}
                             delay={4}
-                            color={showRecursionEffects ? COLORS.recursion : COLORS.aqua}
+                            color={showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_CRIMSON : COLORS.aqua}
                             opacity={0.1}
                         />
                     </>
@@ -220,7 +237,7 @@ export function EnhancedWheelIdleState({
                         key={i}
                         index={i}
                         color={particleColor}
-                        isRecursion={showRecursionEffects}
+                        isRecursion={showAnyLuckyEffects}
                     />
                 ))}
 
@@ -261,7 +278,7 @@ export function EnhancedWheelIdleState({
                             position: 'absolute',
                             inset: '-20px',
                             borderRadius: '50%',
-                            border: `2px solid ${showRecursionEffects ? COLORS.recursion : COLORS.gold}44`,
+                            border: `2px solid ${showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}44`,
                             animation: 'none',
                             pointerEvents: 'none',
                         }} />
@@ -309,21 +326,33 @@ export function EnhancedWheelIdleState({
                     );
                 })() : (
                     <div style={{
-                        color: showRecursionEffects ? COLORS.recursion : COLORS.gold,
+                        color: showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? '#F8FAFC' : COLORS.gold,
                         fontSize: isMobile ? '15px' : '18px',
                         fontWeight: '700',
                         marginBottom: isMobile ? '4px' : '8px',
                         textShadow: showRecursionEffects
                             ? `0 0 20px ${COLORS.recursion}`
-                            : `0 0 20px ${COLORS.gold}44`,
-                        letterSpacing: showRecursionEffects ? '2px' : '0.5px',
+                            : showKotwLuckyEffects
+                                ? `0 0 15px ${KOTW_CRIMSON}88`
+                                : `0 0 20px ${COLORS.gold}44`,
+                        letterSpacing: showAnyLuckyEffects ? '2px' : '0.5px',
                         animation: 'none',
                     }}>
                         {!user ? 'Login to spin!'
                             : allItems.length === 0 ? 'Fetching item pool...'
                                 : showRecursionEffects
-                                    ? `⚡ ${recursionSpinsRemaining} LUCKY SPIN${recursionSpinsRemaining !== 1 ? 'S' : ''}! ⚡`
-                                    : isMobile ? 'Tap to spin!' : 'Click to spin!'}
+                                    ? (
+                                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                            <Zap size={isMobile ? 16 : 18} /> {recursionSpinsRemaining} LUCKY SPIN{recursionSpinsRemaining !== 1 ? 'S' : ''}! <Zap size={isMobile ? 16 : 18} />
+                                        </span>
+                                    )
+                                    : showKotwLuckyEffects
+                                        ? (
+                                            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                <Crown size={isMobile ? 16 : 18} /> {kotwLuckySpins} Event Lucky Spin{kotwLuckySpins !== 1 ? 's' : ''}!
+                                            </span>
+                                        )
+                                        : isMobile ? 'Tap to spin!' : 'Click to spin!'}
                     </div>
                 )}
 
@@ -340,13 +369,30 @@ export function EnhancedWheelIdleState({
                         }}>
                             Equal chance for ALL items!
                         </span>
+                    ) : showKotwLuckyEffects ? (
+                        <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                        }}>
+                            <span style={{ color: KOTW_GOLD, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}><Sparkles size={14} /> Equal odds!</span>
+                            <span style={{
+                                color: KOTW_CRIMSON,
+                                fontSize: isMobile ? '9px' : '10px',
+                                fontWeight: '700',
+                                background: `${KOTW_CRIMSON}22`,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                            }}>KING OF THE WHEEL</span>
+                        </span>
                     ) : allItems.length > 0 && (
                         <span>Win one of <strong style={{ color: COLORS.text }}>{totalItemCount}</strong> items!</span>
                     )}
                 </div>
 
                 {/* Rarity Indicators */}
-                {!showRecursionEffects && allItems.length > 0 && !isMobile && (
+                {!showAnyLuckyEffects && allItems.length > 0 && !isMobile && (
                     <div style={{
                         display: 'flex',
                         justifyContent: 'center',

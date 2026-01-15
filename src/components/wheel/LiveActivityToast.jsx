@@ -405,6 +405,31 @@ export function LiveActivityToast() {
                                     </span>
                                 </div>
                             )}
+                            {/* Gold Rush Banner */}
+                            {toast.is_gold_rush === 1 && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    marginTop: '6px',
+                                    padding: '4px 8px',
+                                    background: 'linear-gradient(135deg, #FFD70022, #FFD70015)',
+                                    border: '1px solid #FFD70044',
+                                    borderRadius: '6px',
+                                    width: 'fit-content'
+                                }}>
+                                    <span style={{
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        color: '#FFD700',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        textShadow: '0 0 8px #FFD70044'
+                                    }}>
+                                        Gold Rush
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );

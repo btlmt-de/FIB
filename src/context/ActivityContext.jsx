@@ -16,11 +16,28 @@ export function ActivityProvider({ children }) {
     const [newItems, setNewItems] = useState([]);
     const [initialized, setInitialized] = useState(false);
     const [recursionStatus, setRecursionStatus] = useState({ active: false });
+    const [globalEventStatus, setGlobalEventStatus] = useState({ active: false, milestone: null });
+
+    // King of the Wheel state
+    const [kotwLeaderboard, setKotwLeaderboard] = useState([]);
+    const [kotwUserStats, setKotwUserStats] = useState(null);
+    const [kotwWinner, setKotwWinner] = useState(null);
+    const [kotwSpinPending, setKotwSpinPending] = useState(false); // Track if user is mid-spin
+    const [eventSelection, setEventSelection] = useState(null); // For event selection animation
+
+    // First Blood state
+    const [firstBloodWinner, setFirstBloodWinner] = useState(null);
 
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     const lastIdRef = useRef(null);
     const initializedRef = useRef(false);
+
+    // Timeout refs for SSE handler cleanup
+    const eventSelectionTimeoutRef = useRef(null);
+    const kotwWinnerTimeoutRef = useRef(null);
+    const firstBloodTimeoutRef = useRef(null);
+    const firstBloodClearTimeoutRef = useRef(null);
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -39,6 +56,17 @@ export function ActivityProvider({ children }) {
             setRecursionStatus(data);
         } catch (e) {
             console.error('[ActivityContext] Failed to fetch recursion status:', e);
+        }
+    }, []);
+
+    // Fetch global event status
+    const fetchGlobalEventStatus = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
+            const data = await res.json();
+            setGlobalEventStatus(data);
+        } catch (e) {
+            console.error('[ActivityContext] Failed to fetch global event status:', e);
         }
     }, []);
 
@@ -111,6 +139,7 @@ export function ActivityProvider({ children }) {
     // SSE connection - runs once on mount
     useEffect(() => {
         fetchActivity();
+        fetchGlobalEventStatus();
 
         const connectSSE = () => {
             if (eventSourceRef.current?.readyState === EventSource.OPEN) return;
@@ -128,6 +157,106 @@ export function ActivityProvider({ children }) {
                             case 'recursion_wakeup':
                                 console.log('[SSE] Recursion wake-up received');
                                 fetchRecursionStatus();
+                                break;
+
+                            case 'global_event_status':
+                            case 'global_event_countdown':
+                            case 'global_event_start':
+                                console.log('[SSE] Global event update:', data.type, data);
+                                setGlobalEventStatus(prev => {
+                                    // Determine active/pending based on event type
+                                    let active = prev.active;
+                                    let pending = prev.pending;
+
+                                    if (data.type === 'global_event_countdown') {
+                                        active = false;
+                                        pending = true;
+                                    } else if (data.type === 'global_event_start') {
+                                        active = true;
+                                        pending = false;
+                                    } else if (data.active !== undefined) {
+                                        active = data.active;
+                                        pending = data.pending || false;
+                                    }
+
+                                    return {
+                                        ...prev,
+                                        active,
+                                        pending,
+                                        type: data.eventType || (data.boostedRarity ? 'gold_rush' : prev.type),
+                                        data: data.boostedRarity ? { boostedRarity: data.boostedRarity, multiplier: data.multiplier } : prev.data,
+                                        activatesAt: data.activatesAt || prev.activatesAt,
+                                        expiresAt: data.expiresAt || prev.expiresAt,
+                                        milestone: data.milestone || prev.milestone,
+                                    };
+                                });
+                                break;
+
+                            case 'global_event_end':
+                                console.log('[SSE] Global event ended:', data);
+                                setGlobalEventStatus({ active: false, pending: false, type: null, data: null, milestone: null });
+                                // Clear KOTW state if it was a KOTW event
+                                setKotwLeaderboard([]);
+                                setKotwUserStats(null);
+                                // Fetch fresh milestone data
+                                fetchGlobalEventStatus();
+                                break;
+
+                            case 'event_selection':
+                                console.log('[SSE] Event selection started:', data);
+                                // Clear any existing timeout
+                                if (eventSelectionTimeoutRef.current) {
+                                    clearTimeout(eventSelectionTimeoutRef.current);
+                                }
+                                setEventSelection(data);
+                                // Clear selection after animation completes
+                                eventSelectionTimeoutRef.current = setTimeout(() => {
+                                    setEventSelection(null);
+                                    eventSelectionTimeoutRef.current = null;
+                                }, data.selectionDuration + 1000);
+                                break;
+
+                            case 'kotw_leaderboard':
+                                console.log('[SSE] KOTW leaderboard update:', data);
+                                setKotwLeaderboard(data.leaderboard || []);
+                                break;
+
+                            case 'kotw_winner':
+                                console.log('[SSE] KOTW winner announced:', data);
+                                // Clear any existing timeout
+                                if (kotwWinnerTimeoutRef.current) {
+                                    clearTimeout(kotwWinnerTimeoutRef.current);
+                                }
+                                setKotwWinner(data);
+                                // Clear leaderboard after winner announcement
+                                kotwWinnerTimeoutRef.current = setTimeout(() => {
+                                    setKotwWinner(null);
+                                    setKotwLeaderboard([]);
+                                    setKotwUserStats(null);
+                                    kotwWinnerTimeoutRef.current = null;
+                                }, 30000); // Keep winner visible for 30 seconds
+                                break;
+
+                            case 'first_blood_result':
+                                console.log('[SSE] First Blood result:', data);
+                                // Clear any existing timeouts
+                                if (firstBloodTimeoutRef.current) {
+                                    clearTimeout(firstBloodTimeoutRef.current);
+                                }
+                                if (firstBloodClearTimeoutRef.current) {
+                                    clearTimeout(firstBloodClearTimeoutRef.current);
+                                }
+                                // Delay showing winner to allow spin animation to complete first
+                                // Spin animations take ~4-5 seconds, so wait before showing winner
+                                firstBloodTimeoutRef.current = setTimeout(() => {
+                                    setFirstBloodWinner(data);
+                                    firstBloodTimeoutRef.current = null;
+                                    // Clear winner after display period
+                                    firstBloodClearTimeoutRef.current = setTimeout(() => {
+                                        setFirstBloodWinner(null);
+                                        firstBloodClearTimeoutRef.current = null;
+                                    }, 8000); // Show winner for 8 seconds before clearing
+                                }, 5000); // Wait for spin animation to complete
                                 break;
 
                             case 'activity':
@@ -229,6 +358,7 @@ export function ActivityProvider({ children }) {
             isVisibleRef.current = !document.hidden;
             if (!document.hidden) {
                 fetchActivity();
+                fetchGlobalEventStatus();
                 if (eventSourceRef.current?.readyState !== EventSource.OPEN) {
                     connectSSE();
                 }
@@ -243,8 +373,25 @@ export function ActivityProvider({ children }) {
                 eventSourceRef.current.close();
                 eventSourceRef.current = null;
             }
+            // Clean up any pending timeouts
+            if (eventSelectionTimeoutRef.current) {
+                clearTimeout(eventSelectionTimeoutRef.current);
+                eventSelectionTimeoutRef.current = null;
+            }
+            if (kotwWinnerTimeoutRef.current) {
+                clearTimeout(kotwWinnerTimeoutRef.current);
+                kotwWinnerTimeoutRef.current = null;
+            }
+            if (firstBloodTimeoutRef.current) {
+                clearTimeout(firstBloodTimeoutRef.current);
+                firstBloodTimeoutRef.current = null;
+            }
+            if (firstBloodClearTimeoutRef.current) {
+                clearTimeout(firstBloodClearTimeoutRef.current);
+                firstBloodClearTimeoutRef.current = null;
+            }
         };
-    }, [fetchActivity, fetchRecursionStatus]);
+    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus]);
 
     const clearNewItems = useCallback(() => {
         setNewItems([]);
@@ -254,6 +401,21 @@ export function ActivityProvider({ children }) {
         setRecursionStatus(status);
     }, []);
 
+    const updateGlobalEventStatus = useCallback((status) => {
+        setGlobalEventStatus(status);
+    }, []);
+
+    // Mark that user has started spinning (points should not update visually yet)
+    const markKotwSpinStart = useCallback(() => {
+        setKotwSpinPending(true);
+    }, []);
+
+    // Update user stats AND clear pending flag (called when animation completes)
+    const updateKotwUserStats = useCallback((stats) => {
+        setKotwUserStats(stats);
+        setKotwSpinPending(false);
+    }, []);
+
     const value = {
         feed,
         serverTime,
@@ -261,7 +423,20 @@ export function ActivityProvider({ children }) {
         clearNewItems,
         initialized,
         recursionStatus,
-        updateRecursionStatus
+        updateRecursionStatus,
+        globalEventStatus,
+        updateGlobalEventStatus,
+        // King of the Wheel
+        kotwLeaderboard,
+        kotwUserStats,
+        kotwWinner,
+        kotwSpinPending,
+        markKotwSpinStart,
+        updateKotwUserStats,
+        // Event Selection
+        eventSelection,
+        // First Blood
+        firstBloodWinner,
     };
 
     return (

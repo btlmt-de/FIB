@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { COLORS, API_BASE_URL } from '../../config/constants.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useActivity } from '../../context/ActivityContext.jsx';
 import { UserProfile } from './UserProfile.jsx';
 import {
     Trophy, RefreshCw, ExternalLink, Crown, Medal, Award,
-    Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap
+    Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info
 } from 'lucide-react';
+
+// KOTW Colors - Crimson Obsidian theme (aggressive/competitive)
+const KOTW_BG = '#1E293B';        // Cool Slate Grey
+const KOTW_BG_DARK = '#0F172A';   // Dark Graphite (depth)
+const KOTW_PRIMARY = '#F43F5E';   // Vivid Crimson/Blood Orange
+const KOTW_TEXT = '#F8FAFC';      // Ice White
+const KOTW_GOLD = '#F59E0B';      // Gold for 1st place
+const KOTW_SILVER = '#94A3B8';    // Silver for 2nd
+const KOTW_BRONZE = '#D97706';    // Bronze for 3rd
 
 // Helper to get Discord avatar URL
 function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
@@ -30,8 +40,52 @@ export function LeaderboardSidebar({ onOpenFull }) {
     const [lastUpdated, setLastUpdated] = useState(null);
     const [activeTab, setActiveTab] = useState('collection');
     const [selectedUser, setSelectedUser] = useState(null);
+    const [showKotwMode, setShowKotwMode] = useState(false);
     const intervalRef = useRef(null);
     const { user } = useAuth();
+    const { globalEventStatus, kotwLeaderboard, kotwUserStats, kotwSpinPending } = useActivity();
+
+    // Auto-enable KOTW mode when event is active, auto-disable when it ends
+    const isKotwActive = globalEventStatus?.type === 'king_of_wheel' &&
+        (globalEventStatus?.active || globalEventStatus?.pending);
+
+    // KOTW timer state for real-time updates
+    const [kotwRemainingTime, setKotwRemainingTime] = useState(0);
+    const [pendingCountdownTime, setPendingCountdownTime] = useState(0);
+
+    useEffect(() => {
+        if (isKotwActive && !showKotwMode) {
+            setShowKotwMode(true);
+        } else if (!isKotwActive && showKotwMode) {
+            // Auto-disable KOTW mode after event ends (with delay to show final results)
+            const timeout = setTimeout(() => {
+                setShowKotwMode(false);
+            }, 8000); // 8 seconds to see final standings
+            return () => clearTimeout(timeout);
+        }
+    }, [isKotwActive, showKotwMode]);
+
+    // Update KOTW timer every second (both active and pending countdown)
+    useEffect(() => {
+        if (!isKotwActive || !showKotwMode) return;
+
+        const updateTimer = () => {
+            // Update active event remaining time
+            if (globalEventStatus?.expiresAt) {
+                setKotwRemainingTime(Math.max(0, globalEventStatus.expiresAt - Date.now()));
+            }
+            // Update pending countdown time
+            if (globalEventStatus?.pending && globalEventStatus?.activatesAt) {
+                setPendingCountdownTime(Math.max(0, globalEventStatus.activatesAt - Date.now()));
+            } else {
+                setPendingCountdownTime(0);
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [isKotwActive, showKotwMode, globalEventStatus?.expiresAt, globalEventStatus?.activatesAt, globalEventStatus?.pending]);
 
     const loadLeaderboard = useCallback(async () => {
         try {
@@ -151,6 +205,373 @@ export function LeaderboardSidebar({ onOpenFull }) {
         );
     };
 
+    // Format time for KOTW timer
+    const formatKotwTime = (ms) => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    // Render KOTW Leaderboard overlay
+    const renderKotwLeaderboard = () => {
+        const remainingTime = kotwRemainingTime;
+        const isPending = globalEventStatus?.pending;
+        const countdownTime = pendingCountdownTime;
+
+        const rankColors = [KOTW_GOLD, KOTW_SILVER, KOTW_BRONZE];
+        const RankIcons = [Crown, Trophy, Medal];
+
+        return (
+            <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: `linear-gradient(180deg, ${KOTW_BG} 0%, ${KOTW_BG_DARK} 50%, ${KOTW_BG}ee 100%)`,
+                borderRadius: '16px',
+                zIndex: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+            }}>
+                {/* KOTW Header */}
+                <div style={{
+                    padding: '16px 18px',
+                    borderBottom: `2px solid ${KOTW_PRIMARY}`,
+                    background: `linear-gradient(180deg, ${KOTW_PRIMARY}18 0%, transparent 100%)`,
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '10px',
+                                background: `linear-gradient(135deg, ${KOTW_PRIMARY}30, ${KOTW_BG_DARK})`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: `1px solid ${KOTW_PRIMARY}50`,
+                            }}>
+                                <Crown size={20} color={KOTW_PRIMARY} />
+                            </div>
+                            <div>
+                                <h3 style={{
+                                    margin: 0,
+                                    color: KOTW_TEXT,
+                                    fontSize: '15px',
+                                    fontWeight: '700',
+                                }}>
+                                    King of the Wheel
+                                </h3>
+                                <div style={{
+                                    fontSize: '11px',
+                                    color: KOTW_PRIMARY,
+                                }}>
+                                    {isPending ? 'Starting soon...' : 'Competition active'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Timer / Toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {isPending ? (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '6px 12px',
+                                    background: `${KOTW_PRIMARY}33`,
+                                    borderRadius: '8px',
+                                    border: `1px solid ${KOTW_PRIMARY}`,
+                                }}>
+                                    <Swords size={14} color={KOTW_PRIMARY} />
+                                    <span style={{
+                                        fontSize: '16px',
+                                        fontWeight: 700,
+                                        color: KOTW_PRIMARY,
+                                    }}>
+                                        {Math.ceil(countdownTime / 1000)}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '6px 12px',
+                                    background: remainingTime < 60000 ? 'rgba(255,68,68,0.2)' : `${KOTW_PRIMARY}22`,
+                                    borderRadius: '8px',
+                                    border: `1px solid ${remainingTime < 60000 ? '#ff4444' : KOTW_PRIMARY}66`,
+                                }}>
+                                    <Timer size={14} color={remainingTime < 60000 ? '#ff4444' : KOTW_PRIMARY} />
+                                    <span style={{
+                                        fontSize: '14px',
+                                        fontWeight: 700,
+                                        color: remainingTime < 60000 ? '#ff4444' : KOTW_PRIMARY,
+                                        fontFamily: 'monospace',
+                                    }}>
+                                        {formatKotwTime(remainingTime)}
+                                    </span>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => setShowKotwMode(false)}
+                                style={{
+                                    background: `${COLORS.bgLighter}60`,
+                                    border: `1px solid ${COLORS.border}`,
+                                    color: COLORS.textMuted,
+                                    cursor: 'pointer',
+                                    padding: '7px',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                }}
+                                title="Show normal leaderboard"
+                            >
+                                <Trophy size={14} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* User's stats */}
+                    {kotwUserStats && kotwUserStats.points > 0 && (
+                        <div style={{
+                            marginTop: '12px',
+                            padding: '10px 14px',
+                            background: KOTW_BG_DARK,
+                            borderRadius: '10px',
+                            border: `1px solid ${KOTW_PRIMARY}44`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ color: KOTW_SILVER, fontSize: '12px' }}>Your score:</span>
+                                <span style={{
+                                    fontSize: '20px',
+                                    fontWeight: 900,
+                                    color: KOTW_PRIMARY,
+                                    fontFamily: 'monospace',
+                                }}>
+                                    {kotwUserStats.points}
+                                </span>
+                                <span style={{ color: KOTW_SILVER, fontSize: '12px' }}>pts</span>
+                            </div>
+                            {kotwUserStats.rank && (
+                                <div style={{
+                                    padding: '4px 10px',
+                                    background: kotwUserStats.rank <= 3 ? `${rankColors[kotwUserStats.rank - 1]}33` : `${KOTW_PRIMARY}33`,
+                                    borderRadius: '6px',
+                                    border: `1px solid ${kotwUserStats.rank <= 3 ? rankColors[kotwUserStats.rank - 1] : KOTW_PRIMARY}66`,
+                                }}>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        fontWeight: 700,
+                                        color: kotwUserStats.rank <= 3 ? rankColors[kotwUserStats.rank - 1] : KOTW_TEXT,
+                                    }}>
+                                        #{kotwUserStats.rank}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Leaderboard List */}
+                <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '12px',
+                }}>
+                    {(!kotwLeaderboard || kotwLeaderboard.length === 0) ? (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            color: KOTW_PRIMARY,
+                            gap: '12px',
+                        }}>
+                            <Swords size={40} style={{ opacity: 0.6 }} />
+                            <span style={{ fontSize: '14px', color: KOTW_TEXT, opacity: 0.8 }}>
+                                {isPending ? 'Competition starting soon...' : 'Spin to earn points!'}
+                            </span>
+                            <span style={{ fontSize: '12px', color: KOTW_SILVER, opacity: 0.6 }}>
+                                Rarer items = more points
+                            </span>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {kotwLeaderboard.map((entry, index) => {
+                                const RankIcon = RankIcons[index] || Award;
+                                const rankColor = rankColors[index] || KOTW_SILVER;
+                                const isCurrentUser = entry.userId === user?.id;
+
+                                return (
+                                    <div
+                                        key={entry.userId}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px',
+                                            padding: '12px 14px',
+                                            background: isCurrentUser
+                                                ? `linear-gradient(135deg, ${KOTW_PRIMARY}25, ${KOTW_BG_DARK})`
+                                                : KOTW_BG_DARK,
+                                            borderRadius: '10px',
+                                            border: isCurrentUser
+                                                ? `2px solid ${KOTW_PRIMARY}88`
+                                                : `1px solid ${KOTW_BG}`,
+                                        }}
+                                    >
+                                        {/* Rank */}
+                                        <div style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '8px',
+                                            background: index < 3
+                                                ? `linear-gradient(135deg, ${rankColor}40, ${rankColor}20)`
+                                                : KOTW_BG,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            border: `1px solid ${index < 3 ? rankColor : KOTW_BG}60`,
+                                        }}>
+                                            {index < 3 ? (
+                                                <RankIcon size={16} color={rankColor} />
+                                            ) : (
+                                                <span style={{
+                                                    fontSize: '12px',
+                                                    fontWeight: 700,
+                                                    color: KOTW_SILVER,
+                                                }}>
+                                                    {index + 1}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Name */}
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                fontSize: '14px',
+                                                fontWeight: isCurrentUser ? 700 : 600,
+                                                color: isCurrentUser ? KOTW_PRIMARY : KOTW_TEXT,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}>
+                                                {entry.username}
+                                                {isCurrentUser && ' (You)'}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '11px',
+                                                color: KOTW_SILVER,
+                                            }}>
+                                                {entry.spins} spin{entry.spins !== 1 ? 's' : ''}
+                                            </div>
+                                        </div>
+
+                                        {/* Points */}
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{
+                                                fontSize: '18px',
+                                                fontWeight: 900,
+                                                color: index < 3 ? rankColor : KOTW_TEXT,
+                                                fontFamily: 'monospace',
+                                            }}>
+                                                {/* For current user while spinning, show confirmed value to prevent premature updates */}
+                                                {isCurrentUser && kotwSpinPending
+                                                    ? (kotwUserStats?.points || 0)
+                                                    : entry.points}
+                                            </div>
+                                            <div style={{
+                                                fontSize: '10px',
+                                                color: KOTW_SILVER,
+                                            }}>
+                                                pts
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer hint */}
+                <div style={{
+                    padding: '10px 16px',
+                    borderTop: `1px solid ${KOTW_PRIMARY}44`,
+                    background: KOTW_BG_DARK,
+                    fontSize: '11px',
+                    color: KOTW_TEXT,
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                }}>
+                    <style>{`
+                        .kotw-lucky-info:hover .kotw-lucky-tooltip {
+                            opacity: 1 !important;
+                            visibility: visible !important;
+                        }
+                    `}</style>
+                    <Trophy size={14} color={KOTW_GOLD} /> Winner earns Lucky Spins based on score!
+                    <span style={{ position: 'relative', display: 'inline-flex' }} className="kotw-lucky-info">
+                        <Info size={12} color="#94A3B8" style={{ cursor: 'help' }} />
+                        <span className="kotw-lucky-tooltip" style={{
+                            position: 'absolute',
+                            bottom: '100%',
+                            right: 0,
+                            marginBottom: '8px',
+                            padding: '10px 14px',
+                            background: '#1E293B',
+                            border: `1px solid ${KOTW_PRIMARY}44`,
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                            whiteSpace: 'nowrap',
+                            fontSize: '11px',
+                            color: '#E2E8F0',
+                            zIndex: 1000,
+                            opacity: 0,
+                            visibility: 'hidden',
+                            transition: 'opacity 0.2s, visibility 0.2s',
+                            pointerEvents: 'none',
+                            textAlign: 'left',
+                        }}>
+                            <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
+                            <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
+                                log₂(points ÷ 50 + 1) × 4
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
+                                <span>50pts → <strong style={{ color: '#22C55E' }}>4</strong></span>
+                                <span>500pts → <strong style={{ color: '#22C55E' }}>13</strong></span>
+                                <span>3000pts → <strong style={{ color: '#22C55E' }}>23</strong></span>
+                            </div>
+                            {/* Tooltip arrow */}
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '-6px',
+                                right: '8px',
+                                width: 0,
+                                height: 0,
+                                borderLeft: '6px solid transparent',
+                                borderRight: '6px solid transparent',
+                                borderTop: `6px solid ${KOTW_PRIMARY}44`,
+                            }} />
+                        </span>
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <>
             <div style={{
@@ -168,6 +589,9 @@ export function LeaderboardSidebar({ onOpenFull }) {
                 {/* Corner accents */}
                 <div style={{ position: 'absolute', top: '8px', left: '8px', width: '16px', height: '16px', borderTop: `2px solid ${COLORS.accent}40`, borderLeft: `2px solid ${COLORS.accent}40`, borderRadius: '4px 0 0 0', zIndex: 5 }} />
                 <div style={{ position: 'absolute', top: '8px', right: '8px', width: '16px', height: '16px', borderTop: `2px solid ${COLORS.accent}40`, borderRight: `2px solid ${COLORS.accent}40`, borderRadius: '0 4px 0 0', zIndex: 5 }} />
+
+                {/* KOTW Overlay */}
+                {showKotwMode && isKotwActive && renderKotwLeaderboard()}
 
                 {/* Header */}
                 <div style={{
@@ -231,6 +655,26 @@ export function LeaderboardSidebar({ onOpenFull }) {
                             </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {/* KOTW Toggle Button */}
+                            {isKotwActive && !showKotwMode && (
+                                <button
+                                    onClick={() => setShowKotwMode(true)}
+                                    style={{
+                                        background: `linear-gradient(135deg, ${KOTW_PRIMARY}40, ${KOTW_BG_DARK})`,
+                                        border: `1px solid ${KOTW_PRIMARY}80`,
+                                        color: KOTW_PRIMARY,
+                                        cursor: 'pointer',
+                                        padding: '7px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        borderRadius: '8px',
+                                        animation: 'pulse 2s ease-in-out infinite',
+                                    }}
+                                    title="View KOTW Competition"
+                                >
+                                    <Crown size={14} />
+                                </button>
+                            )}
                             <button
                                 onClick={loadLeaderboard}
                                 style={{

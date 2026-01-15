@@ -611,6 +611,22 @@ export const AnimationStyles = () => (
             }
         }
         
+        /* Crimson/Gold pulse during KOTW lucky spin */
+        @keyframes kotwSpinPulse {
+            0%, 100% {
+                box-shadow: 0 0 30px #F43F5E66, 0 0 60px #F59E0B33;
+            }
+            25% {
+                box-shadow: 0 0 50px #F43F5E88, 0 0 80px #F59E0B44, 0 0 100px #F43F5E33;
+            }
+            50% {
+                box-shadow: 0 0 40px #F59E0B77, 0 0 70px #F43F5E44;
+            }
+            75% {
+                box-shadow: 0 0 60px #F43F5E99, 0 0 90px #F59E0B55, 0 0 120px #F43F5E44;
+            }
+        }
+        
         /* Matrix code particle float */
         /* Screen tear effect */
         /* Data corruption glitch */
@@ -677,6 +693,48 @@ export const AnimationStyles = () => (
             }
         }
         
+        /* KOTW result reveal animation - crimson/gold royal theme */
+        @keyframes kotwReveal {
+            0% { 
+                opacity: 0;
+                transform: scale(0.8) translateY(20px);
+                filter: blur(10px) brightness(2);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1.1) translateY(-5px);
+                filter: blur(0) brightness(1.5);
+            }
+            50% {
+                transform: scale(0.95) translateY(2px);
+                filter: brightness(1);
+            }
+            70% {
+                transform: scale(1.02) translateY(-2px);
+            }
+            100% { 
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                filter: blur(0) brightness(1);
+            }
+        }
+        
+        /* KOTW result container glow effect - crimson/gold */
+        @keyframes kotwResultContainer {
+            0% {
+                background-position: 0% 0%;
+                box-shadow: 0 0 30px #F43F5E44, 0 0 50px #F59E0B22, inset 0 0 40px #F43F5E11;
+            }
+            50% {
+                background-position: 100% 100%;
+                box-shadow: 0 0 50px #F43F5E66, 0 0 80px #F59E0B44, inset 0 0 60px #F43F5E22;
+            }
+            100% {
+                background-position: 0% 0%;
+                box-shadow: 0 0 30px #F43F5E44, 0 0 50px #F59E0B22, inset 0 0 40px #F43F5E11;
+            }
+        }
+        
         /* Hex code float effect */
         @keyframes hexFloat {
             0%, 100% {
@@ -686,6 +744,18 @@ export const AnimationStyles = () => (
             50% {
                 transform: translateY(-15px) rotate(180deg);
                 opacity: 0.8;
+            }
+        }
+
+        /* KOTW Lucky Spins Badge pulse - crimson/gold royal theme */
+        @keyframes kotwBadgePulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 20px rgba(244, 63, 94, 0.25), inset 0 1px 0 rgba(248, 250, 252, 0.1);
+            }
+            50% {
+                transform: scale(1.02);
+                box-shadow: 0 4px 30px rgba(244, 63, 94, 0.4), 0 0 15px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(248, 250, 252, 0.15);
             }
         }
     `}</style>

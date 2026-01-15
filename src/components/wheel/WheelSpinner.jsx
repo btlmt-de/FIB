@@ -20,12 +20,17 @@ import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 
 
-function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems }) {
+function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
     // Get recursion status from ActivityContext - no separate polling!
-    const { recursionStatus, updateRecursionStatus } = useActivity();
+    const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart } = useActivity();
+
+    // Get Gold Rush boosted rarity if event is active
+    const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
+        ? globalEventStatus.data?.boostedRarity
+        : null;
 
     // Get sound functions
     const { startSoundtrack, stopSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
@@ -82,9 +87,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // This persists during result display even after user runs out of spins
     const [resultWasRecursionSpin, setResultWasRecursionSpin] = useState(false);
 
+    // Track if the CURRENT RESULT was from a KOTW lucky spin
+    const [resultWasKotwLuckySpin, setResultWasKotwLuckySpin] = useState(false);
+
+    // Track if current spin is using KOTW lucky (set at spin start, cleared at idle)
+    const [currentSpinIsKotwLucky, setCurrentSpinIsKotwLucky] = useState(false);
+
     // Track if the CURRENT spin animation is a recursion lucky spin
     // This prevents visual effects from changing mid-animation when spinsRemaining updates
     const currentSpinIsRecursionRef = useRef(false);
+
+    // Track if the CURRENT spin animation is a KOTW lucky spin
+    const currentSpinIsKotwLuckyRef = useRef(false);
 
     // Pending spin flag for instant respin
     const pendingSpinRef = useRef(false);
@@ -100,6 +114,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     // AbortController for cancelling in-flight API requests
     const abortControllerRef = useRef(null);
+
+    // Pending KOTW result to apply after animation completes
+    const pendingKotwResultRef = useRef(null);
 
     // Error state for server unavailability
     const [error, setError] = useState(null);
@@ -316,6 +333,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         setIsNewItem(false);
         setTripleResults([null, null, null, null, null]);
         setTripleNewItems([false, false, false, false, false]);
+        // Note: don't reset currentSpinIsKotwLucky here - performSpin will set it correctly
 
         // Directly perform spin (bypass idle check)
         performSpin();
@@ -346,9 +364,33 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // This ensures visual effects stay consistent during the animation
         currentSpinIsRecursionRef.current = recursionActive && recursionSpinsRemaining > 0;
 
+        // Track if this spin will use a KOTW lucky spin (if not already using recursion)
+        // Use ref to get latest value (props can be stale due to React batching)
+        // Also require KOTW event to be active to prevent styling when event is inactive
+        const currentKotwSpins = kotwLuckySpinsRef?.current ?? kotwLuckySpins;
+        const isKotwEventActive = globalEventStatus?.type === 'king_of_wheel' && globalEventStatus?.active;
+        const willUseKotwLucky = !currentSpinIsRecursionRef.current && currentKotwSpins > 0 && isKotwEventActive;
+        currentSpinIsKotwLuckyRef.current = willUseKotwLucky;
+
+        // Set state for KOTW spin - this triggers re-render with correct styling
+        setCurrentSpinIsKotwLucky(willUseKotwLucky);
+
+        // Helper to flush KOTW pending state on any exit path
+        const flushKotwPending = () => {
+            if (isKotwEventActive && kotwUserStats) {
+                // Clear any stale pending result to prevent future spins from crashing
+                updateKotwUserStats?.({ ...kotwUserStats, pending: null });
+            }
+        };
+
         try {
             setState('spinning');
             updateSpinProgress(0); // Reset progress for Phase 2 effects
+
+            // Mark KOTW spin as pending to prevent premature point display
+            if (globalEventStatus?.type === 'king_of_wheel' && globalEventStatus?.active) {
+                markKotwSpinStart();
+            }
 
             // Start soundtrack when spinning begins
             if (!isMusicPlaying) {
@@ -411,6 +453,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         setResult(null);
                         setIsNewItem(false);
                         setState('idle');
+                        flushKotwPending();
                         return null;
                     }
 
@@ -422,9 +465,26 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     // This persists in the result view even after user runs out of spins
                     setResultWasRecursionSpin(spinResult.isRecursionSpin || false);
 
+                    // Track if this specific spin was a KOTW lucky spin
+                    setResultWasKotwLuckySpin(spinResult.isKotwLuckySpin || false);
+
                     // Update recursion state in ActivityContext from spin result
                     if (spinResult.recursionStatus) {
                         updateRecursionStatus(spinResult.recursionStatus);
+                    }
+
+                    // Update KOTW lucky spins count (decremented by server if used)
+                    if (spinResult.kotwLuckySpinsRemaining !== undefined && onKotwLuckySpinsUpdate) {
+                        onKotwLuckySpinsUpdate(spinResult.kotwLuckySpinsRemaining);
+                    }
+
+                    // Store KOTW result to apply after animation completes
+                    if (spinResult.kotwResult) {
+                        pendingKotwResultRef.current = {
+                            points: spinResult.kotwResult.totalPoints,
+                            rank: spinResult.kotwResult.rank,
+                            pointsEarned: spinResult.kotwResult.pointsEarned,
+                        };
                     }
 
                     // Mark spin time only after successful response
@@ -497,6 +557,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         // If result is null (e.g., abort), reset to idle
                         if (result === null) {
                             setState('idle');
+                            flushKotwPending();
                             return;
                         }
 
@@ -504,6 +565,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             // RECURSION triggered! Show special result state
                             setState('recursion');
                             playRecursionSound();
+                            // Apply pending KOTW result now that animation is complete
+                            if (pendingKotwResultRef.current) {
+                                updateKotwUserStats(pendingKotwResultRef.current);
+                                pendingKotwResultRef.current = null;
+                            }
                             if (onSpinComplete) onSpinComplete(result);
                         } else if (result.isEvent) {
                             setState('event');
@@ -514,6 +580,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             // Play sound based on item rarity
                             if (result.result?.type) {
                                 playRaritySound(result.result.type);
+                            }
+                            // Apply pending KOTW result now that animation is complete
+                            if (pendingKotwResultRef.current) {
+                                updateKotwUserStats(pendingKotwResultRef.current);
+                                pendingKotwResultRef.current = null;
                             }
                             if (onSpinComplete) onSpinComplete(result);
                         }
@@ -532,6 +603,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         setResult(null);
                         setIsNewItem(false);
                         setState('idle');
+                        flushKotwPending();
                     });
                 }
             };
@@ -548,6 +620,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setResult(null);
             setIsNewItem(false);
             setState('idle');
+            flushKotwPending();
         }
     }
 
@@ -1137,7 +1210,31 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     };
 
     // Compute recursion effects flag - must be before any early returns
-    const showSpinRecursionEffects = state === 'spinning' ? currentSpinIsRecursionRef.current : (recursionActive && recursionSpinsRemaining > 0);
+    // Use ref during spinning/result to persist styling even after spin count decreases
+    const showSpinRecursionEffects = (state === 'spinning' || state === 'result')
+        ? currentSpinIsRecursionRef.current
+        : (recursionActive && recursionSpinsRemaining > 0);
+
+    // Compute KOTW lucky effects flag
+    // Use state variable which is set at spin start for immediate effect
+    const showSpinKotwLuckyEffects = (state === 'spinning' || state === 'result')
+        ? currentSpinIsKotwLucky
+        : (!showSpinRecursionEffects && kotwLuckySpins > 0);
+
+    // Combined flag for any lucky spin effects (for shared logic like equal odds)
+    const showAnySpinLuckyEffects = showSpinRecursionEffects || showSpinKotwLuckyEffects;
+
+    // KOTW Lucky uses crimson/gold theme (distinct from Recursion's matrix green)
+    // Recursion: Matrix green (#00ff00) - tech/digital aesthetic
+    // KOTW Lucky: Crimson (#F43F5E) + Gold (#F59E0B) + Slate (#1E293B) - royal aesthetic
+    const KOTW_CRIMSON = '#F43F5E';
+    const KOTW_GOLD = '#F59E0B';
+    const KOTW_SLATE = '#1E293B';
+    const KOTW_SLATE_DARK = '#0F172A';
+
+    // Get accent color for glow effects
+    const spinLuckyColor = showSpinRecursionEffects ? COLORS.recursion : KOTW_CRIMSON;
+    const spinLuckyAccent = showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD;
 
 
     // Idle state - show clickable wheel with enhanced cosmic visuals
@@ -1150,6 +1247,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     totalItemCount={totalItemCount}
                     recursionActive={recursionActive}
                     recursionSpinsRemaining={recursionSpinsRemaining}
+                    kotwLuckySpins={kotwLuckySpins}
                     error={error}
                     onSpin={spin}
                     onShowOddsInfo={() => setShowOddsInfo(true)}
@@ -1182,6 +1280,69 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             padding: isMobile ? '8px 12px' : '16px 20px',
             position: 'relative',
         }}>
+            {/* Event Lucky Spins Badge - Persistent across all states - crimson theme */}
+            {kotwLuckySpins > 0 && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: isMobile ? '8px 14px' : '10px 18px',
+                    marginBottom: isMobile ? '8px' : '12px',
+                    background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
+                    border: '2px solid #F43F5E60',
+                    borderRadius: '14px',
+                    boxShadow: '0 4px 20px rgba(244, 63, 94, 0.25), inset 0 1px 0 rgba(248, 250, 252, 0.1)',
+                    animation: 'kotwBadgePulse 2s ease-in-out infinite',
+                }}>
+                    {/* Crown icon */}
+                    <Crown
+                        size={isMobile ? 16 : 18}
+                        color="#F43F5E"
+                        style={{ filter: 'drop-shadow(0 0 4px #F43F5E)' }}
+                    />
+
+                    {/* Lucky spin count */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                    }}>
+                        <span style={{
+                            color: KOTW_GOLD,
+                            fontSize: isMobile ? '14px' : '16px',
+                            fontWeight: '700',
+                            textShadow: `0 0 10px ${KOTW_GOLD}88`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                        }}>
+                            <Sparkles size={isMobile ? 14 : 16} color={KOTW_GOLD} /> {kotwLuckySpins}
+                        </span>
+                        <span style={{
+                            color: '#F8FAFC',
+                            fontSize: isMobile ? '12px' : '14px',
+                            fontWeight: '600',
+                        }}>
+                            Lucky Spin{kotwLuckySpins !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+
+                    {/* Event label */}
+                    <span style={{
+                        fontSize: isMobile ? '9px' : '10px',
+                        color: '#F43F5E',
+                        fontWeight: '700',
+                        background: '#F43F5E22',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        letterSpacing: '0.5px',
+                    }}>
+                        EVENT
+                    </span>
+                </div>
+            )}
+
             {/* Odds Info Modal */}
             {showOddsInfo && (
                 <OddsInfoModal
@@ -1199,18 +1360,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     maxWidth: isMobile ? `${MOBILE_CARD_WIDTH}px` : '100%',
                     position: 'relative',
                 }}>
-                    {/* Outer glow ring - animated - ENHANCED for recursion */}
+                    {/* Outer glow ring - animated - ENHANCED for lucky spins */}
                     <div style={{
                         position: 'absolute',
-                        inset: showSpinRecursionEffects && state === 'spinning' ? '-4px' : '-2px',
+                        inset: showAnySpinLuckyEffects && state === 'spinning' ? '-4px' : '-2px',
                         borderRadius: '22px',
                         backgroundImage: showSpinRecursionEffects
-                            ? `linear-gradient(135deg, ${COLORS.recursion}70 0%, ${COLORS.recursionDark}40 25%, transparent 40%, transparent 60%, ${COLORS.recursionDark}40 75%, ${COLORS.recursion}70 100%)`
-                            : state === 'spinning'
-                                ? `linear-gradient(135deg, ${COLORS.gold}40 0%, transparent 40%, transparent 60%, ${COLORS.gold}40 100%)`
-                                : `linear-gradient(135deg, ${COLORS.gold}25 0%, transparent 40%, transparent 60%, ${COLORS.gold}25 100%)`,
+                            ? `linear-gradient(135deg, ${COLORS.recursion}70 0%, ${COLORS.recursion}40 25%, transparent 40%, transparent 60%, ${COLORS.recursion}40 75%, ${COLORS.recursion}70 100%)`
+                            : showSpinKotwLuckyEffects
+                                ? `linear-gradient(135deg, ${KOTW_CRIMSON}70 0%, ${KOTW_GOLD}50 25%, transparent 40%, transparent 60%, ${KOTW_GOLD}50 75%, ${KOTW_CRIMSON}70 100%)`
+                                : state === 'spinning'
+                                    ? `linear-gradient(135deg, ${COLORS.gold}40 0%, transparent 40%, transparent 60%, ${COLORS.gold}40 100%)`
+                                    : `linear-gradient(135deg, ${COLORS.gold}25 0%, transparent 40%, transparent 60%, ${COLORS.gold}25 100%)`,
                         backgroundSize: '200% 200%',
-                        animation: showSpinRecursionEffects && state === 'spinning'
+                        animation: showAnySpinLuckyEffects && state === 'spinning'
                             ? 'borderGlowSpin 1.5s linear infinite'
                             : state === 'spinning'
                                 ? 'borderGlowSpin 3s linear infinite'
@@ -1220,14 +1383,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         transition: 'inset 0.3s ease',
                     }} />
 
-                    {/* Additional pulsing glow for recursion */}
-                    {showSpinRecursionEffects && state === 'spinning' && (
+                    {/* Additional pulsing glow for lucky spins */}
+                    {showAnySpinLuckyEffects && state === 'spinning' && (
                         <div style={{
                             position: 'absolute',
                             inset: '-8px',
                             borderRadius: '26px',
-                            boxShadow: `0 0 40px ${COLORS.recursion}44, 0 0 80px ${COLORS.recursion}22`,
-                            animation: 'recursionSpinPulse 1s ease-in-out infinite',
+                            boxShadow: showSpinRecursionEffects
+                                ? `0 0 40px ${COLORS.recursion}44, 0 0 80px ${COLORS.recursion}22`
+                                : `0 0 40px ${KOTW_CRIMSON}44, 0 0 80px ${KOTW_GOLD}33`,
+                            animation: showSpinRecursionEffects
+                                ? 'recursionSpinPulse 1s ease-in-out infinite'
+                                : 'kotwSpinPulse 1s ease-in-out infinite',
                             zIndex: -1,
                             pointerEvents: 'none',
                         }} />
@@ -1238,30 +1405,47 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         position: 'relative',
                         background: showSpinRecursionEffects
                             ? `linear-gradient(180deg, rgba(10,25,10,0.95) 0%, rgba(5,18,5,0.98) 100%)`
-                            : `linear-gradient(180deg, rgba(28,28,32,0.92) 0%, rgba(22,22,26,0.95) 100%)`,
+                            : showSpinKotwLuckyEffects
+                                ? `linear-gradient(180deg, ${KOTW_SLATE}f2 0%, ${KOTW_SLATE_DARK}fa 100%)`
+                                : `linear-gradient(180deg, rgba(28,28,32,0.92) 0%, rgba(22,22,26,0.95) 100%)`,
                         borderRadius: '20px',
                         border: showSpinRecursionEffects
                             ? `2px solid ${COLORS.recursion}50`
-                            : `1px solid rgba(255,255,255,0.1)`,
+                            : showSpinKotwLuckyEffects
+                                ? `2px solid ${KOTW_CRIMSON}60`
+                                : `1px solid rgba(255,255,255,0.1)`,
                         boxShadow: showSpinRecursionEffects
                             ? `0 8px 40px rgba(0,0,0,0.6), 0 0 100px ${COLORS.recursion}20, inset 0 0 60px ${COLORS.recursion}08, inset 0 1px 0 ${COLORS.recursion}40`
-                            : `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${COLORS.gold}08, inset 0 1px 0 rgba(255,255,255,0.08)`,
+                            : showSpinKotwLuckyEffects
+                                ? `0 8px 40px rgba(0,0,0,0.6), 0 0 80px ${KOTW_CRIMSON}25, 0 0 40px ${KOTW_GOLD}15, inset 0 1px 0 rgba(248,250,252,0.1)`
+                                : `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${COLORS.gold}08, inset 0 1px 0 rgba(255,255,255,0.08)`,
                         overflow: 'hidden',
                         zIndex: 1,
                         animation: showSpinRecursionEffects && state === 'spinning' ? 'matrixFlicker 0.5s infinite' : 'none',
                     }}>
-                        {/* Matrix scanlines overlay for recursion */}
+                        {/* Matrix scanlines overlay - Recursion only */}
                         {showSpinRecursionEffects && (
                             <div style={{
                                 position: 'absolute',
                                 inset: 0,
-                                background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,255,0,0.03) 2px, rgba(0,255,0,0.03) 4px)',
+                                background: `repeating-linear-gradient(0deg, transparent 0px, transparent 2px, ${COLORS.recursion}05 2px, ${COLORS.recursion}05 4px)`,
                                 pointerEvents: 'none',
                                 zIndex: 20,
                             }} />
                         )}
 
-                        {/* Data stream effect for recursion spinning */}
+                        {/* KOTW Royal shimmer overlay */}
+                        {showSpinKotwLuckyEffects && (
+                            <div style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: `linear-gradient(135deg, ${KOTW_CRIMSON}08 0%, transparent 30%, transparent 70%, ${KOTW_GOLD}08 100%)`,
+                                pointerEvents: 'none',
+                                zIndex: 20,
+                            }} />
+                        )}
+
+                        {/* Data stream effect for Recursion spinning */}
                         {showSpinRecursionEffects && state === 'spinning' && (
                             <div style={{
                                 position: 'absolute',
@@ -1282,7 +1466,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 left: '-100%',
                                 width: '50%',
                                 height: '100%',
-                                backgroundImage: `linear-gradient(90deg, transparent, ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}15, transparent)`,
+                                backgroundImage: showSpinRecursionEffects
+                                    ? `linear-gradient(90deg, transparent, ${COLORS.recursion}15, transparent)`
+                                    : showSpinKotwLuckyEffects
+                                        ? `linear-gradient(90deg, transparent, ${KOTW_CRIMSON}15, ${KOTW_GOLD}10, transparent)`
+                                        : `linear-gradient(90deg, transparent, ${COLORS.gold}15, transparent)`,
                                 transform: 'skewX(-20deg)',
                                 animation: 'cardShimmerOnce 0.8s ease-out forwards',
                                 pointerEvents: 'none',
@@ -1299,7 +1487,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             height: '1px',
                             background: showSpinRecursionEffects
                                 ? `linear-gradient(90deg, transparent, ${COLORS.recursion}60 50%, transparent)`
-                                : `linear-gradient(90deg, transparent, ${COLORS.gold}40 50%, transparent)`,
+                                : showSpinKotwLuckyEffects
+                                    ? `linear-gradient(90deg, transparent, ${KOTW_CRIMSON}60 30%, ${KOTW_GOLD}60 70%, transparent)`
+                                    : `linear-gradient(90deg, transparent, ${COLORS.gold}40 50%, transparent)`,
                             zIndex: 5,
                         }} />
 
@@ -1310,8 +1500,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             left: '10px',
                             width: '20px',
                             height: '20px',
-                            borderTop: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
-                            borderLeft: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
+                            borderTop: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
+                            borderLeft: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
                             borderRadius: '6px 0 0 0',
                             zIndex: 5,
                         }} />
@@ -1321,8 +1511,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             right: '10px',
                             width: '20px',
                             height: '20px',
-                            borderTop: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
-                            borderRight: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
+                            borderTop: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
+                            borderRight: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
                             borderRadius: '0 6px 0 0',
                             zIndex: 5,
                         }} />
@@ -1332,8 +1522,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             left: '10px',
                             width: '20px',
                             height: '20px',
-                            borderBottom: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
-                            borderLeft: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
+                            borderBottom: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
+                            borderLeft: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
                             borderRadius: '0 0 0 6px',
                             zIndex: 5,
                         }} />
@@ -1343,8 +1533,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             right: '10px',
                             width: '20px',
                             height: '20px',
-                            borderBottom: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
-                            borderRight: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}60`,
+                            borderBottom: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
+                            borderRight: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
                             borderRadius: '0 0 6px 0',
                             zIndex: 5,
                         }} />
@@ -1360,7 +1550,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 height: '150px',
                                 background: showSpinRecursionEffects
                                     ? `radial-gradient(ellipse, ${COLORS.recursion}28 0%, transparent 70%)`
-                                    : `radial-gradient(ellipse, ${COLORS.gold}25 0%, transparent 70%)`,
+                                    : showSpinKotwLuckyEffects
+                                        ? `radial-gradient(ellipse, ${KOTW_CRIMSON}20 0%, ${KOTW_GOLD}15 30%, transparent 70%)`
+                                        : `radial-gradient(ellipse, ${COLORS.gold}25 0%, transparent 70%)`,
                                 pointerEvents: 'none',
                                 animation: 'glowPulse 1.5s ease-in-out infinite',
                             }} />
@@ -1374,7 +1566,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             padding: '16px 20px',
                             borderBottom: showSpinRecursionEffects
                                 ? `1px solid ${COLORS.recursion}30`
-                                : '1px solid rgba(255,255,255,0.08)',
+                                : showSpinKotwLuckyEffects
+                                    ? `1px solid ${KOTW_CRIMSON}40`
+                                    : '1px solid rgba(255,255,255,0.08)',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <img
@@ -1383,16 +1577,33 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     style={{
                                         width: '32px', height: 'auto', imageRendering: 'pixelated',
                                         animation: (state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning') ? 'wheelSpin 0.5s linear infinite' : 'none',
-                                        filter: showSpinRecursionEffects ? `drop-shadow(0 0 8px ${COLORS.recursion})` : 'none',
+                                        filter: showSpinRecursionEffects
+                                            ? `drop-shadow(0 0 8px ${COLORS.recursion})`
+                                            : showSpinKotwLuckyEffects
+                                                ? `drop-shadow(0 0 6px ${KOTW_CRIMSON}) drop-shadow(0 0 4px ${KOTW_GOLD})`
+                                                : 'none',
                                     }}
                                 />
                                 <span style={{
-                                    color: state === 'recursion' ? COLORS.recursion : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.green : showSpinRecursionEffects ? COLORS.recursion : COLORS.gold,
+                                    color: state === 'recursion' ? COLORS.recursion
+                                        : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange
+                                            : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.green
+                                                : showSpinRecursionEffects ? COLORS.recursion
+                                                    : showSpinKotwLuckyEffects ? '#F8FAFC'
+                                                        : COLORS.gold,
                                     fontSize: '18px',
                                     fontWeight: '600',
-                                    textShadow: showSpinRecursionEffects ? `0 0 10px ${COLORS.recursion}` : 'none',
+                                    textShadow: showSpinRecursionEffects
+                                        ? `0 0 10px ${COLORS.recursion}`
+                                        : showSpinKotwLuckyEffects
+                                            ? `0 0 8px ${KOTW_CRIMSON}88`
+                                            : 'none',
                                 }}>
-                                {state === 'spinning' ? (showSpinRecursionEffects ? 'Lucky Spinning...' : 'Spinning...') :
+                                {state === 'spinning' ? (
+                                        showSpinRecursionEffects ? 'Lucky Spinning...'
+                                            : showSpinKotwLuckyEffects ? 'Event Lucky Spin...'
+                                                : 'Spinning...'
+                                    ) :
                                     state === 'recursion' ? 'RECURSION!' :
                                         state === 'event' ? 'BONUS EVENT!' :
                                             state === 'bonusWheel' ? 'Spinning Bonus Wheel...' :
@@ -1466,27 +1677,33 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     borderRadius: '10px',
                                     background: showSpinRecursionEffects
                                         ? `linear-gradient(${isMobile ? '0deg' : '90deg'}, #0a150a 0%, #0f1a0f 50%, #0a150a 100%)`
-                                        : `linear-gradient(${isMobile ? '0deg' : '90deg'}, #14141a 0%, #1a1a22 50%, #14141a 100%)`,
+                                        : showSpinKotwLuckyEffects
+                                            ? `linear-gradient(${isMobile ? '0deg' : '90deg'}, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 50%, ${KOTW_SLATE_DARK} 100%)`
+                                            : `linear-gradient(${isMobile ? '0deg' : '90deg'}, #14141a 0%, #1a1a22 50%, #14141a 100%)`,
                                     border: showSpinRecursionEffects
                                         ? `1px solid ${COLORS.recursion}40`
-                                        : state === 'result'
-                                            ? `1px solid ${COLORS.gold}30`
-                                            : '1px solid rgba(255,255,255,0.06)',
+                                        : showSpinKotwLuckyEffects
+                                            ? `1px solid ${KOTW_CRIMSON}50`
+                                            : state === 'result'
+                                                ? `1px solid ${COLORS.gold}30`
+                                                : '1px solid rgba(255,255,255,0.06)',
                                     margin: isMobile ? '0 auto' : '0',
                                     boxShadow: showSpinRecursionEffects
                                         ? `inset 0 0 40px ${COLORS.recursion}15, inset 0 2px 8px rgba(0,0,0,0.4)`
-                                        : state === 'spinning'
-                                            ? `inset 0 0 30px rgba(0,0,0,0.4), inset 0 0 50px ${COLORS.gold}06`
-                                            : `inset 0 0 25px rgba(0,0,0,0.3)`,
+                                        : showSpinKotwLuckyEffects
+                                            ? `inset 0 0 30px ${KOTW_CRIMSON}10, inset 0 0 20px ${KOTW_GOLD}08, inset 0 2px 8px rgba(0,0,0,0.4)`
+                                            : state === 'spinning'
+                                                ? `inset 0 0 30px rgba(0,0,0,0.4), inset 0 0 50px ${COLORS.gold}06`
+                                                : `inset 0 0 25px rgba(0,0,0,0.3)`,
                                     cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
                                 }}>
 
-                                {/* Recursion scanlines overlay */}
+                                {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
                                     <div style={{
                                         position: 'absolute',
                                         top: 0, left: 0, right: 0, bottom: 0,
-                                        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.05) 2px, rgba(0,255,0,0.05) 4px)',
+                                        background: `repeating-linear-gradient(0deg, transparent, transparent 2px, ${COLORS.recursion}08 2px, ${COLORS.recursion}08 4px)`,
                                         zIndex: 6,
                                         pointerEvents: 'none',
                                         animation: 'matrixFlicker 0.1s infinite',
@@ -1503,19 +1720,25 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)',
                                         width: '3px'
                                     }),
-                                    backgroundImage: `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}, transparent)`,
+                                    backgroundImage: showSpinRecursionEffects
+                                        ? `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${COLORS.recursion}, transparent)`
+                                        : showSpinKotwLuckyEffects
+                                            ? `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${KOTW_GOLD}, transparent)`
+                                            : `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${COLORS.gold}, transparent)`,
                                     zIndex: 10,
                                     boxShadow: showSpinRecursionEffects
                                         ? `0 0 12px ${COLORS.recursion}, 0 0 24px ${COLORS.recursion}88`
-                                        : `0 0 12px ${COLORS.gold}, 0 0 24px ${COLORS.gold}88`,
+                                        : showSpinKotwLuckyEffects
+                                            ? `0 0 12px ${KOTW_GOLD}, 0 0 24px ${KOTW_GOLD}88`
+                                            : `0 0 12px ${COLORS.gold}, 0 0 24px ${COLORS.gold}88`,
                                     animation: state === 'spinning' && spinProgress > 0.7 ? 'centerLinePulse 0.3s ease-in-out infinite' : 'none',
                                     transition: 'all 0.3s ease-out',
                                 }} />
 
                                 {/* Pointer - Enhanced with heartbeat during slowdown */}
-                                {showSpinRecursionEffects ? (
+                                {showAnySpinLuckyEffects ? (
                                     <>
-                                        {/* Top Bracket for recursion */}
+                                        {/* Top Bracket for lucky spins */}
                                         <div style={{
                                             position: 'absolute',
                                             ...(isMobile ? {
@@ -1524,7 +1747,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 top: '-6px', left: '50%', transform: 'translateX(-50%)',
                                             }),
                                             zIndex: 11,
-                                            filter: `drop-shadow(0 0 8px ${COLORS.recursion}) drop-shadow(0 0 16px ${COLORS.recursion}88)`,
+                                            filter: showSpinRecursionEffects
+                                                ? `drop-shadow(0 0 8px ${COLORS.recursion}) drop-shadow(0 0 16px ${COLORS.recursion}88)`
+                                                : `drop-shadow(0 0 8px ${KOTW_GOLD}) drop-shadow(0 0 12px ${KOTW_CRIMSON}66)`,
                                             animation: state === 'spinning' && spinProgress > 0.7
                                                 ? (isMobile ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite' : 'indicatorHeartbeat 0.4s ease-in-out infinite')
                                                 : 'none',
@@ -1533,24 +1758,24 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 ...(isMobile ? {
                                                     width: '10px',
                                                     height: '24px',
-                                                    borderTop: `3px solid ${COLORS.recursion}`,
-                                                    borderBottom: `3px solid ${COLORS.recursion}`,
-                                                    borderLeft: `3px solid ${COLORS.recursion}`,
+                                                    borderTop: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderBottom: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderLeft: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
                                                     borderRight: 'none',
                                                     borderRadius: '4px 0 0 4px',
                                                 } : {
                                                     width: '24px',
                                                     height: '10px',
-                                                    borderLeft: `3px solid ${COLORS.recursion}`,
-                                                    borderRight: `3px solid ${COLORS.recursion}`,
-                                                    borderTop: `3px solid ${COLORS.recursion}`,
+                                                    borderLeft: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderRight: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderTop: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
                                                     borderBottom: 'none',
                                                     borderRadius: '4px 4px 0 0',
                                                 }),
-                                                background: `${COLORS.recursion}11`,
+                                                background: showSpinRecursionEffects ? `${COLORS.recursion}11` : `${KOTW_GOLD}11`,
                                             }} />
                                         </div>
-                                        {/* Bottom Bracket for recursion */}
+                                        {/* Bottom Bracket for lucky spins */}
                                         <div style={{
                                             position: 'absolute',
                                             ...(isMobile ? {
@@ -1559,7 +1784,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 bottom: '-6px', left: '50%', transform: 'translateX(-50%)',
                                             }),
                                             zIndex: 11,
-                                            filter: `drop-shadow(0 0 8px ${COLORS.recursion}) drop-shadow(0 0 16px ${COLORS.recursion}88)`,
+                                            filter: showSpinRecursionEffects
+                                                ? `drop-shadow(0 0 8px ${COLORS.recursion}) drop-shadow(0 0 16px ${COLORS.recursion}88)`
+                                                : `drop-shadow(0 0 8px ${KOTW_GOLD}) drop-shadow(0 0 12px ${KOTW_CRIMSON}66)`,
                                             animation: state === 'spinning' && spinProgress > 0.7
                                                 ? (isMobile ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite' : 'indicatorHeartbeat 0.4s ease-in-out infinite')
                                                 : 'none',
@@ -1568,21 +1795,21 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 ...(isMobile ? {
                                                     width: '10px',
                                                     height: '24px',
-                                                    borderTop: `3px solid ${COLORS.recursion}`,
-                                                    borderBottom: `3px solid ${COLORS.recursion}`,
-                                                    borderRight: `3px solid ${COLORS.recursion}`,
+                                                    borderTop: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderBottom: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderRight: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
                                                     borderLeft: 'none',
                                                     borderRadius: '0 4px 4px 0',
                                                 } : {
                                                     width: '24px',
                                                     height: '10px',
-                                                    borderLeft: `3px solid ${COLORS.recursion}`,
-                                                    borderRight: `3px solid ${COLORS.recursion}`,
-                                                    borderBottom: `3px solid ${COLORS.recursion}`,
+                                                    borderLeft: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderRight: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
+                                                    borderBottom: `3px solid ${showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD}`,
                                                     borderTop: 'none',
                                                     borderRadius: '0 0 4px 4px',
                                                 }),
-                                                background: `${COLORS.recursion}11`,
+                                                background: showSpinRecursionEffects ? `${COLORS.recursion}11` : `${KOTW_GOLD}11`,
                                             }} />
                                         </div>
                                     </>
@@ -1632,8 +1859,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 <div style={{
                                     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                                     background: isMobile
-                                        ? `linear-gradient(180deg, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 0%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg}dd 5%, transparent 18%, transparent 82%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg}dd 95%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 100%)`
-                                        : `linear-gradient(90deg, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 0%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg}dd 5%, transparent 15%, transparent 85%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg}dd 95%, ${showSpinRecursionEffects ? COLORS.recursionDark : COLORS.bg} 100%)`,
+                                        ? `linear-gradient(180deg, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 0%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 5%, transparent 18%, transparent 82%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 95%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 100%)`
+                                        : `linear-gradient(90deg, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 0%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 5%, transparent 15%, transparent 85%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 95%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 100%)`,
                                     zIndex: 5, pointerEvents: 'none'
                                 }} />
 
@@ -1654,7 +1881,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             top: '50%', left: '50%',
                                             width: isMobile ? '100px' : '60px',
                                             height: isMobile ? '100px' : '60px',
-                                            border: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}`,
+                                            border: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}`,
                                             borderRadius: '50%',
                                             animation: 'resultShockwaveRing 0.6s ease-out forwards',
                                             pointerEvents: 'none',
@@ -1665,7 +1892,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             top: '50%', left: '50%',
                                             width: isMobile ? '100px' : '60px',
                                             height: isMobile ? '100px' : '60px',
-                                            border: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : COLORS.gold}66`,
+                                            border: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}66`,
                                             borderRadius: '50%',
                                             animation: 'resultShockwaveRing 0.6s ease-out 0.1s forwards',
                                             pointerEvents: 'none',
@@ -1683,9 +1910,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     isResult={state === 'result' || state === 'event'}
                                     spinProgress={spinProgress}
                                     isRecursion={showSpinRecursionEffects}
+                                    themeType={showSpinKotwLuckyEffects ? 'kotw' : null}
+                                    accentColor={showSpinKotwLuckyEffects ? KOTW_GOLD : null}
                                     stripWidth={isMobile ? MOBILE_STRIP_WIDTH : undefined}
                                     stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : 100}
                                     finalIndex={FINAL_INDEX}
+                                    goldRushBoostedRarity={goldRushBoostedRarity}
+                                    isLuckySpin={showAnySpinLuckyEffects}
                                 />
                             </div>
                         </div>
@@ -1696,24 +1927,30 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 padding: isMobile ? '16px 12px' : '24px 20px',
                                 borderTop: resultWasRecursionSpin
                                     ? `2px solid ${COLORS.recursion}50`
-                                    : `1px solid rgba(255,255,255,0.08)`,
+                                    : resultWasKotwLuckySpin
+                                        ? `2px solid ${KOTW_CRIMSON}50`
+                                        : `1px solid rgba(255,255,255,0.08)`,
                                 background: resultWasRecursionSpin
                                     ? `radial-gradient(ellipse at 50% 0%, ${COLORS.recursion}22 0%, transparent 50%), linear-gradient(180deg, rgba(0,20,0,0.3) 0%, transparent 100%)`
-                                    : isInsaneItem(result)
-                                        ? `radial-gradient(ellipse at 50% 0%, ${COLORS.insane}20 0%, transparent 60%)`
-                                        : isMythicItem(result)
-                                            ? `radial-gradient(ellipse at 50% 0%, ${COLORS.aqua}15 0%, transparent 60%)`
-                                            : isSpecialItem(result)
-                                                ? `radial-gradient(ellipse at 50% 0%, ${COLORS.purple}18 0%, transparent 60%)`
-                                                : isRareItem(result)
-                                                    ? `radial-gradient(ellipse at 50% 0%, ${COLORS.red}15 0%, transparent 60%)`
-                                                    : `radial-gradient(ellipse at 50% 0%, ${COLORS.gold}10 0%, transparent 60%)`,
+                                    : resultWasKotwLuckySpin
+                                        ? `radial-gradient(ellipse at 50% 0%, ${KOTW_CRIMSON}18 0%, ${KOTW_GOLD}08 30%, transparent 60%)`
+                                        : isInsaneItem(result)
+                                            ? `radial-gradient(ellipse at 50% 0%, ${COLORS.insane}20 0%, transparent 60%)`
+                                            : isMythicItem(result)
+                                                ? `radial-gradient(ellipse at 50% 0%, ${COLORS.aqua}15 0%, transparent 60%)`
+                                                : isSpecialItem(result)
+                                                    ? `radial-gradient(ellipse at 50% 0%, ${COLORS.purple}18 0%, transparent 60%)`
+                                                    : isRareItem(result)
+                                                        ? `radial-gradient(ellipse at 50% 0%, ${COLORS.red}15 0%, transparent 60%)`
+                                                        : `radial-gradient(ellipse at 50% 0%, ${COLORS.gold}10 0%, transparent 60%)`,
                                 textAlign: 'center',
                                 position: 'relative',
                                 overflow: 'hidden',
                                 animation: resultWasRecursionSpin
                                     ? 'recursionReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                                    : 'resultContainerSmooth 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                                    : resultWasKotwLuckySpin
+                                        ? 'kotwReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                                        : 'resultContainerSmooth 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                             }}>
 
                                 {/* Animated background aurora - subtle moving gradient */}
@@ -1722,17 +1959,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     inset: 0,
                                     backgroundImage: resultWasRecursionSpin
                                         ? `linear-gradient(135deg, ${COLORS.recursion}0c 0%, transparent 30%, ${COLORS.recursion}08 50%, transparent 70%, ${COLORS.recursion}06 100%)`
-                                        : isInsaneItem(result)
-                                            ? `linear-gradient(135deg, ${COLORS.insane}0a 0%, transparent 30%, #FFF5B008 50%, transparent 70%, ${COLORS.insane}06 100%)`
-                                            : isMythicItem(result)
-                                                ? `linear-gradient(135deg, ${COLORS.aqua}08 0%, transparent 40%, ${COLORS.purple}06 60%, transparent 100%)`
-                                                : isSpecialItem(result)
-                                                    ? `linear-gradient(135deg, ${COLORS.purple}08 0%, transparent 50%, ${COLORS.gold}05 100%)`
-                                                    : isRareItem(result)
-                                                        ? `linear-gradient(135deg, ${COLORS.red}08 0%, transparent 50%, ${COLORS.orange}05 100%)`
-                                                        : `linear-gradient(135deg, ${COLORS.gold}05 0%, transparent 50%, ${COLORS.gold}03 100%)`,
+                                        : resultWasKotwLuckySpin
+                                            ? `linear-gradient(135deg, ${KOTW_CRIMSON}0a 0%, transparent 30%, ${KOTW_GOLD}08 50%, transparent 70%, ${KOTW_CRIMSON}06 100%)`
+                                            : isInsaneItem(result)
+                                                ? `linear-gradient(135deg, ${COLORS.insane}0a 0%, transparent 30%, #FFF5B008 50%, transparent 70%, ${COLORS.insane}06 100%)`
+                                                : isMythicItem(result)
+                                                    ? `linear-gradient(135deg, ${COLORS.aqua}08 0%, transparent 40%, ${COLORS.purple}06 60%, transparent 100%)`
+                                                    : isSpecialItem(result)
+                                                        ? `linear-gradient(135deg, ${COLORS.purple}08 0%, transparent 50%, ${COLORS.gold}05 100%)`
+                                                        : isRareItem(result)
+                                                            ? `linear-gradient(135deg, ${COLORS.red}08 0%, transparent 50%, ${COLORS.orange}05 100%)`
+                                                            : `linear-gradient(135deg, ${COLORS.gold}05 0%, transparent 50%, ${COLORS.gold}03 100%)`,
                                     backgroundSize: '200% 200%',
-                                    animation: resultWasRecursionSpin ? 'matrixResultContainer 3s ease-in-out infinite' : (isInsaneItem(result) || isMythicItem(result)) ? 'auroraShift 4s ease-in-out infinite' : 'none',
+                                    animation: resultWasRecursionSpin ? 'matrixResultContainer 3s ease-in-out infinite' : resultWasKotwLuckySpin ? 'kotwResultContainer 3s ease-in-out infinite' : (isInsaneItem(result) || isMythicItem(result)) ? 'auroraShift 4s ease-in-out infinite' : 'none',
                                     pointerEvents: 'none',
                                     zIndex: 0,
                                 }} />
@@ -1812,6 +2051,30 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         letterSpacing: '1px',
                                     }}>
                                         <Zap size={12} /> LUCKY SPIN
+                                    </div>
+                                )}
+
+                                {/* Event Lucky Spin badge */}
+                                {resultWasKotwLuckySpin && !resultWasRecursionSpin && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '10px',
+                                        right: '10px',
+                                        backgroundImage: `linear-gradient(135deg, ${KOTW_CRIMSON} 0%, ${KOTW_GOLD} 100%)`,
+                                        color: '#fff',
+                                        fontSize: '11px',
+                                        fontWeight: '900',
+                                        padding: '5px 12px',
+                                        borderRadius: '4px',
+                                        boxShadow: `0 0 15px ${KOTW_CRIMSON}88, 0 0 25px ${KOTW_GOLD}44, 0 2px 8px rgba(0,0,0,0.3)`,
+                                        zIndex: 10,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        animation: 'textFadeUp 0.4s ease-out 0.3s both',
+                                        letterSpacing: '1px',
+                                    }}>
+                                        <Crown size={12} /> EVENT REWARD
                                     </div>
                                 )}
 
@@ -1969,17 +2232,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                 border: `1px solid ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}44`,
                                                 animation: 'textFadeUp 0.4s ease-out 0.45s both',
                                             }}>
-                                    {resultWasRecursionSpin && result.equalChance
+                                    {(resultWasRecursionSpin || resultWasKotwLuckySpin) && result.equalChance
                                         ? `${formatChance(result.equalChance)}% (equal chance)`
                                         : `${formatChance(result.chance)}% drop rate`
                                     }
                                 </span>
-                                        ) : resultWasRecursionSpin && result.equalChance ? (
+                                        ) : (resultWasRecursionSpin || resultWasKotwLuckySpin) && result.equalChance ? (
                                             <span style={{
                                                 fontSize: '11px',
-                                                color: COLORS.recursion,
+                                                color: resultWasKotwLuckySpin ? KOTW_GOLD : COLORS.recursion,
                                                 fontWeight: '600',
-                                                background: `${COLORS.recursion}22`,
+                                                background: resultWasKotwLuckySpin ? `${KOTW_GOLD}22` : `${COLORS.recursion}22`,
                                                 padding: '2px 8px',
                                                 borderRadius: '4px',
                                                 marginTop: '4px',
@@ -2337,7 +2600,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'âœ¨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2844,7 +3107,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>★ NEW TO COLLECTION ★</span>
+                                                    }}>✦ NEW TO COLLECTION ✦</span>
                                                 )}
                                             </div>
                                         );
@@ -3029,6 +3292,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             accentColor={isTripleLucky ? COLORS.green : COLORS.gold}
                                                             itemWidthOverride={TRIPLE_ITEM_WIDTH_MOBILE}
                                                             isLuckySpin={isTripleLucky}
+                                                            goldRushBoostedRarity={isTripleLucky ? null : goldRushBoostedRarity}
                                                         />
                                                     </div>
                                                 );
@@ -3107,6 +3371,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             accentColor={isTripleLucky ? COLORS.green : COLORS.gold}
                                                             itemWidthOverride={TRIPLE_ITEM_WIDTH}
                                                             isLuckySpin={isTripleLucky}
+                                                            goldRushBoostedRarity={isTripleLucky ? null : goldRushBoostedRarity}
                                                         />
                                                     </div>
                                                 );
@@ -3355,7 +3620,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>★ NEW</span>
+                                                        }}>✦ NEW</span>
                                                     )}
                                                 </div>
                                             );
@@ -3382,6 +3647,9 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
         prevProps.allItems === nextProps.allItems &&
         prevProps.dynamicItems === nextProps.dynamicItems &&
         prevProps.onSpinComplete === nextProps.onSpinComplete &&
-        prevProps.collection === nextProps.collection
+        prevProps.collection === nextProps.collection &&
+        prevProps.kotwLuckySpins === nextProps.kotwLuckySpins &&
+        prevProps.kotwLuckySpinsRef === nextProps.kotwLuckySpinsRef &&
+        prevProps.onKotwLuckySpinsUpdate === nextProps.onKotwLuckySpinsUpdate
     );
 });

@@ -11,6 +11,9 @@ const SOUND_FILES = {
     spin: '/sounds/spin.wav',
     soundtrack: '/sounds/soundtrack.wav',
     recursionSoundtrack: '/sounds/recursion_soundtrack.wav',
+    kotwSoundtrack: '/sounds/KOTW.mp3',
+    goldRushSoundtrack: '/sounds/gold.mp3',
+    firstBloodSoundtrack: '/sounds/blood.mp3',
     recursion: '/sounds/recursion.wav',
     insane: '/sounds/sfxinsane.wav',
     mythic: '/sounds/sfxmythic.wav',
@@ -27,6 +30,9 @@ const DEFAULT_SETTINGS = {
     // Individual sound toggles
     soundtrackEnabled: true,
     recursionSoundtrackEnabled: true,
+    kotwSoundtrackEnabled: true,
+    goldRushSoundtrackEnabled: true,
+    firstBloodSoundtrackEnabled: true,
     recursionEnabled: true,
     insaneEnabled: true,
     mythicEnabled: true,
@@ -60,6 +66,9 @@ export function SoundProvider({ children }) {
     const [settings, setSettings] = useState(loadSettings);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isRecursionPlaying, setIsRecursionPlaying] = useState(false);
+    const [isKotwPlaying, setIsKotwPlaying] = useState(false);
+    const [isGoldRushPlaying, setIsGoldRushPlaying] = useState(false);
+    const [isFirstBloodPlaying, setIsFirstBloodPlaying] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
     const [previewingSound, setPreviewingSound] = useState(null); // Track which sound is previewing
 
@@ -67,6 +76,9 @@ export function SoundProvider({ children }) {
     const spinRef = useRef(null);
     const soundtrackRef = useRef(null);
     const recursionSoundtrackRef = useRef(null);
+    const kotwSoundtrackRef = useRef(null);
+    const goldRushSoundtrackRef = useRef(null);
+    const firstBloodSoundtrackRef = useRef(null);
     const sfxRefs = useRef({
         recursion: null,
         insane: null,
@@ -105,6 +117,27 @@ export function SoundProvider({ children }) {
         recursionSoundtrack.onerror = () => console.warn('[Sound] Recursion soundtrack file not found - add recursion_soundtrack.wav to /public/sounds/');
         recursionSoundtrackRef.current = recursionSoundtrack;
 
+        // Create KOTW soundtrack audio element
+        const kotwSoundtrack = new Audio(SOUND_FILES.kotwSoundtrack);
+        kotwSoundtrack.loop = true;
+        kotwSoundtrack.preload = 'auto';
+        kotwSoundtrack.onerror = () => console.warn('[Sound] KOTW soundtrack file not found - add KOTW.mp3 to /public/sounds/');
+        kotwSoundtrackRef.current = kotwSoundtrack;
+
+        // Create Gold Rush soundtrack audio element
+        const goldRushSoundtrack = new Audio(SOUND_FILES.goldRushSoundtrack);
+        goldRushSoundtrack.loop = true;
+        goldRushSoundtrack.preload = 'auto';
+        goldRushSoundtrack.onerror = () => console.warn('[Sound] Gold Rush soundtrack file not found - add gold.mp3 to /public/sounds/');
+        goldRushSoundtrackRef.current = goldRushSoundtrack;
+
+        // Create First Blood soundtrack audio element
+        const firstBloodSoundtrack = new Audio(SOUND_FILES.firstBloodSoundtrack);
+        firstBloodSoundtrack.loop = true;
+        firstBloodSoundtrack.preload = 'auto';
+        firstBloodSoundtrack.onerror = () => console.warn('[Sound] First Blood soundtrack file not found - add blood.mp3 to /public/sounds/');
+        firstBloodSoundtrackRef.current = firstBloodSoundtrack;
+
         // Create SFX audio elements
         Object.keys(sfxRefs.current).forEach(key => {
             const audio = new Audio(SOUND_FILES[key]);
@@ -128,6 +161,18 @@ export function SoundProvider({ children }) {
             if (recursionSoundtrackRef.current) {
                 recursionSoundtrackRef.current.pause();
                 recursionSoundtrackRef.current = null;
+            }
+            if (kotwSoundtrackRef.current) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current = null;
+            }
+            if (goldRushSoundtrackRef.current) {
+                goldRushSoundtrackRef.current.pause();
+                goldRushSoundtrackRef.current = null;
+            }
+            if (firstBloodSoundtrackRef.current) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current = null;
             }
             Object.keys(sfxRefs.current).forEach(key => {
                 if (sfxRefs.current[key]) {
@@ -161,6 +206,36 @@ export function SoundProvider({ children }) {
             recursionSoundtrackRef.current.volume = effectiveVolume;
         }
     }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.recursionSoundtrackEnabled]);
+
+    // Update KOTW soundtrack volume when settings change (real-time)
+    useEffect(() => {
+        if (kotwSoundtrackRef.current) {
+            const effectiveVolume = settings.enabled && settings.kotwSoundtrackEnabled
+                ? settings.masterVolume * settings.musicVolume
+                : 0;
+            kotwSoundtrackRef.current.volume = effectiveVolume;
+        }
+    }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.kotwSoundtrackEnabled]);
+
+    // Update Gold Rush soundtrack volume when settings change (real-time)
+    useEffect(() => {
+        if (goldRushSoundtrackRef.current) {
+            const effectiveVolume = settings.enabled && settings.goldRushSoundtrackEnabled
+                ? settings.masterVolume * settings.musicVolume
+                : 0;
+            goldRushSoundtrackRef.current.volume = effectiveVolume;
+        }
+    }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.goldRushSoundtrackEnabled]);
+
+    // Update First Blood soundtrack volume when settings change (real-time)
+    useEffect(() => {
+        if (firstBloodSoundtrackRef.current) {
+            const effectiveVolume = settings.enabled && settings.firstBloodSoundtrackEnabled
+                ? settings.masterVolume * settings.musicVolume
+                : 0;
+            firstBloodSoundtrackRef.current.volume = effectiveVolume;
+        }
+    }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.firstBloodSoundtrackEnabled]);
 
     // Update SFX volumes in real-time (for any currently playing sounds including preview)
     useEffect(() => {
@@ -209,9 +284,12 @@ export function SoundProvider({ children }) {
     const startSoundtrack = useCallback(async () => {
         if (!settings.enabled || !settings.soundtrackEnabled) return;
 
-        // If already playing or recursion is active, don't start
+        // If already playing or event soundtrack is active, don't start
         if (isPlaying) return;
         if (isRecursionPlaying) return;
+        if (isKotwPlaying) return;
+        if (isGoldRushPlaying) return;
+        if (isFirstBloodPlaying) return;
 
         const effectiveVolume = settings.masterVolume * settings.musicVolume;
 
@@ -221,10 +299,22 @@ export function SoundProvider({ children }) {
                 spinRef.current.volume = effectiveVolume;
                 spinRef.current.currentTime = 0;
 
-                // When spin.wav ends, start the looping soundtrack (unless recursion started)
+                // When spin.wav ends, start the looping soundtrack (unless event soundtrack started)
                 spinRef.current.onended = () => {
                     // Check if recursion started during spin.wav - if so, don't start soundtrack
                     if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                        return;
+                    }
+                    // Check if KOTW started during spin.wav - if so, don't start soundtrack
+                    if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                        return;
+                    }
+                    // Check if Gold Rush started during spin.wav - if so, don't start soundtrack
+                    if (goldRushSoundtrackRef.current && !goldRushSoundtrackRef.current.paused) {
+                        return;
+                    }
+                    // Check if First Blood started during spin.wav - if so, don't start soundtrack
+                    if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
                         return;
                     }
                     if (soundtrackRef.current && !soundtrackRef.current.error) {
@@ -263,7 +353,7 @@ export function SoundProvider({ children }) {
                 // Silently fail
             }
         }
-    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying]);
+    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying]);
 
     // Stop soundtrack (stops both spin and soundtrack)
     const stopSoundtrack = useCallback(() => {
@@ -302,15 +392,36 @@ export function SoundProvider({ children }) {
             recursionSoundtrackRef.current.volume = effectiveVolume;
             recursionSoundtrackRef.current.currentTime = 0;
 
-            // Stop spin.wav if playing
-            if (spinRef.current && !spinRef.current.paused) {
+            // Stop spin.wav if playing and clear its callback
+            if (spinRef.current) {
                 spinRef.current.pause();
-                spinRef.current.onended = null; // Remove the callback so it doesn't start soundtrack
+                spinRef.current.onended = null;
             }
 
             // Pause main soundtrack if playing (don't reset position so we can resume)
             if (soundtrackRef.current && !soundtrackRef.current.paused) {
                 soundtrackRef.current.pause();
+            }
+
+            // Stop KOTW soundtrack if playing
+            if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current.currentTime = 0;
+                setIsKotwPlaying(false);
+            }
+
+            // Stop Gold Rush soundtrack if playing
+            if (goldRushSoundtrackRef.current && !goldRushSoundtrackRef.current.paused) {
+                goldRushSoundtrackRef.current.pause();
+                goldRushSoundtrackRef.current.currentTime = 0;
+                setIsGoldRushPlaying(false);
+            }
+
+            // Stop First Blood soundtrack if playing
+            if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current.currentTime = 0;
+                setIsFirstBloodPlaying(false);
             }
 
             await recursionSoundtrackRef.current.play();
@@ -328,16 +439,226 @@ export function SoundProvider({ children }) {
             recursionSoundtrackRef.current.currentTime = 0;
             setIsRecursionPlaying(false);
 
-            // Resume main soundtrack if it was playing before recursion
-            if (isPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            // Resume main soundtrack if it was playing before recursion (and no other event soundtrack is active)
+            if (isPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
-    // Stop any currently previewing SFX
+    // Start KOTW soundtrack
+    const startKotwSoundtrack = useCallback(async () => {
+        if (!kotwSoundtrackRef.current) return;
+        if (!settings.enabled || !settings.kotwSoundtrackEnabled) return;
+        if (kotwSoundtrackRef.current.error) return;
+
+        // Don't restart if already playing
+        if (isKotwPlaying) return;
+
+        try {
+            const effectiveVolume = settings.masterVolume * settings.musicVolume;
+            kotwSoundtrackRef.current.volume = effectiveVolume;
+            kotwSoundtrackRef.current.currentTime = 0;
+
+            // Stop spin.wav if playing and clear its callback
+            if (spinRef.current) {
+                spinRef.current.pause();
+                spinRef.current.onended = null;
+            }
+
+            // Pause main soundtrack if playing (don't reset position so we can resume)
+            if (soundtrackRef.current && !soundtrackRef.current.paused) {
+                soundtrackRef.current.pause();
+            }
+
+            // Stop recursion soundtrack if playing
+            if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                recursionSoundtrackRef.current.pause();
+                recursionSoundtrackRef.current.currentTime = 0;
+                setIsRecursionPlaying(false);
+            }
+
+            // Stop Gold Rush soundtrack if playing
+            if (goldRushSoundtrackRef.current && !goldRushSoundtrackRef.current.paused) {
+                goldRushSoundtrackRef.current.pause();
+                goldRushSoundtrackRef.current.currentTime = 0;
+                setIsGoldRushPlaying(false);
+            }
+
+            // Stop First Blood soundtrack if playing
+            if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current.currentTime = 0;
+                setIsFirstBloodPlaying(false);
+            }
+
+            await kotwSoundtrackRef.current.play();
+            setIsKotwPlaying(true);
+            setHasInteracted(true);
+        } catch (e) {
+            // Silently fail
+        }
+    }, [settings.enabled, settings.kotwSoundtrackEnabled, settings.masterVolume, settings.musicVolume, isKotwPlaying]);
+
+    // Stop KOTW soundtrack
+    const stopKotwSoundtrack = useCallback(() => {
+        if (kotwSoundtrackRef.current) {
+            kotwSoundtrackRef.current.pause();
+            kotwSoundtrackRef.current.currentTime = 0;
+            setIsKotwPlaying(false);
+
+            // Resume main soundtrack if it was playing before KOTW (and no other event soundtrack is active)
+            if (isPlaying && !isRecursionPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+                const effectiveVolume = settings.masterVolume * settings.musicVolume;
+                soundtrackRef.current.volume = effectiveVolume;
+                soundtrackRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPlaying, isRecursionPlaying, isGoldRushPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+
+    // Start Gold Rush soundtrack
+    const startGoldRushSoundtrack = useCallback(async () => {
+        if (!goldRushSoundtrackRef.current) return;
+        if (!settings.enabled || !settings.goldRushSoundtrackEnabled) return;
+        if (goldRushSoundtrackRef.current.error) return;
+
+        // Don't restart if already playing
+        if (isGoldRushPlaying) return;
+
+        try {
+            const effectiveVolume = settings.masterVolume * settings.musicVolume;
+            goldRushSoundtrackRef.current.volume = effectiveVolume;
+            goldRushSoundtrackRef.current.currentTime = 0;
+
+            // Stop spin.wav if playing and clear its callback
+            if (spinRef.current) {
+                spinRef.current.pause();
+                spinRef.current.onended = null;
+            }
+
+            // Pause main soundtrack if playing (don't reset position so we can resume)
+            if (soundtrackRef.current && !soundtrackRef.current.paused) {
+                soundtrackRef.current.pause();
+            }
+
+            // Stop recursion soundtrack if playing
+            if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                recursionSoundtrackRef.current.pause();
+                recursionSoundtrackRef.current.currentTime = 0;
+                setIsRecursionPlaying(false);
+            }
+
+            // Stop KOTW soundtrack if playing
+            if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current.currentTime = 0;
+                setIsKotwPlaying(false);
+            }
+
+            // Stop First Blood soundtrack if playing
+            if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current.currentTime = 0;
+                setIsFirstBloodPlaying(false);
+            }
+
+            await goldRushSoundtrackRef.current.play();
+            setIsGoldRushPlaying(true);
+            setHasInteracted(true);
+        } catch (e) {
+            // Silently fail
+        }
+    }, [settings.enabled, settings.goldRushSoundtrackEnabled, settings.masterVolume, settings.musicVolume, isGoldRushPlaying]);
+
+    // Stop Gold Rush soundtrack
+    const stopGoldRushSoundtrack = useCallback(() => {
+        if (goldRushSoundtrackRef.current) {
+            goldRushSoundtrackRef.current.pause();
+            goldRushSoundtrackRef.current.currentTime = 0;
+            setIsGoldRushPlaying(false);
+
+            // Resume main soundtrack if it was playing before Gold Rush (and no other event soundtrack is active)
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+                const effectiveVolume = settings.masterVolume * settings.musicVolume;
+                soundtrackRef.current.volume = effectiveVolume;
+                soundtrackRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+
+    // Start First Blood soundtrack
+    const startFirstBloodSoundtrack = useCallback(async () => {
+        if (!firstBloodSoundtrackRef.current) return;
+        if (!settings.enabled || !settings.firstBloodSoundtrackEnabled) return;
+        if (firstBloodSoundtrackRef.current.error) return;
+
+        // Don't restart if already playing
+        if (isFirstBloodPlaying) return;
+
+        try {
+            const effectiveVolume = settings.masterVolume * settings.musicVolume;
+            firstBloodSoundtrackRef.current.volume = effectiveVolume;
+            firstBloodSoundtrackRef.current.currentTime = 0;
+
+            // Stop spin.wav if playing and clear its callback
+            if (spinRef.current) {
+                spinRef.current.pause();
+                spinRef.current.onended = null;
+            }
+
+            // Pause main soundtrack if playing (don't reset position so we can resume)
+            if (soundtrackRef.current && !soundtrackRef.current.paused) {
+                soundtrackRef.current.pause();
+            }
+
+            // Stop recursion soundtrack if playing
+            if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                recursionSoundtrackRef.current.pause();
+                recursionSoundtrackRef.current.currentTime = 0;
+                setIsRecursionPlaying(false);
+            }
+
+            // Stop KOTW soundtrack if playing
+            if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current.currentTime = 0;
+                setIsKotwPlaying(false);
+            }
+
+            // Stop Gold Rush soundtrack if playing
+            if (goldRushSoundtrackRef.current && !goldRushSoundtrackRef.current.paused) {
+                goldRushSoundtrackRef.current.pause();
+                goldRushSoundtrackRef.current.currentTime = 0;
+                setIsGoldRushPlaying(false);
+            }
+
+            await firstBloodSoundtrackRef.current.play();
+            setIsFirstBloodPlaying(true);
+            setHasInteracted(true);
+        } catch (e) {
+            // Silently fail
+        }
+    }, [settings.enabled, settings.firstBloodSoundtrackEnabled, settings.masterVolume, settings.musicVolume, isFirstBloodPlaying]);
+
+    // Stop First Blood soundtrack
+    const stopFirstBloodSoundtrack = useCallback(() => {
+        if (firstBloodSoundtrackRef.current) {
+            firstBloodSoundtrackRef.current.pause();
+            firstBloodSoundtrackRef.current.currentTime = 0;
+            setIsFirstBloodPlaying(false);
+
+            // Resume main soundtrack if it was playing before First Blood (and no other event soundtrack is active)
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+                const effectiveVolume = settings.masterVolume * settings.musicVolume;
+                soundtrackRef.current.volume = effectiveVolume;
+                soundtrackRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+
+    // Stop any currently previewing sound
     const stopPreview = useCallback(() => {
         // Clear any pending timeout
         if (previewTimeoutRef.current) {
@@ -347,15 +668,25 @@ export function SoundProvider({ children }) {
 
         if (previewingRef.current) {
             previewingRef.current.pause();
-            previewingRef.current.loop = false;
             previewingRef.current.currentTime = 0;
+
+            // Only disable loop for SFX - soundtracks should keep looping
+            const isSoundtrack = previewingRef.current === soundtrackRef.current ||
+                previewingRef.current === recursionSoundtrackRef.current ||
+                previewingRef.current === kotwSoundtrackRef.current ||
+                previewingRef.current === goldRushSoundtrackRef.current ||
+                previewingRef.current === firstBloodSoundtrackRef.current;
+            if (!isSoundtrack) {
+                previewingRef.current.loop = false;
+            }
+
             previewingRef.current = null;
         }
         setPreviewingSound(null);
     }, []);
 
     // Preview a specific sound (for settings panel)
-    // Click once to play (loops for SFX), click again to stop
+    // Click once to play (loops until stopped), click again to stop
     const previewSound = useCallback(async (soundName) => {
         // If already previewing this sound, stop it (toggle off)
         if (previewingSound === soundName) {
@@ -372,6 +703,12 @@ export function SoundProvider({ children }) {
             audio = soundtrackRef.current;
         } else if (soundName === 'recursionSoundtrack') {
             audio = recursionSoundtrackRef.current;
+        } else if (soundName === 'kotwSoundtrack') {
+            audio = kotwSoundtrackRef.current;
+        } else if (soundName === 'goldRushSoundtrack') {
+            audio = goldRushSoundtrackRef.current;
+        } else if (soundName === 'firstBloodSoundtrack') {
+            audio = firstBloodSoundtrackRef.current;
         } else {
             audio = sfxRefs.current[soundName];
         }
@@ -383,46 +720,33 @@ export function SoundProvider({ children }) {
 
         try {
             // Use appropriate volume
-            const effectiveVolume = (soundName === 'soundtrack' || soundName === 'recursionSoundtrack')
+            const effectiveVolume = ['soundtrack', 'recursionSoundtrack', 'kotwSoundtrack', 'goldRushSoundtrack', 'firstBloodSoundtrack'].includes(soundName)
                 ? settings.masterVolume * settings.musicVolume
                 : settings.masterVolume * settings.sfxVolume;
 
             audio.volume = Math.max(0.1, effectiveVolume); // Minimum 10% for preview
             audio.currentTime = 0;
 
-            const isSfx = !['soundtrack', 'recursionSoundtrack'].includes(soundName);
-
-            // For SFX, enable looping during preview so user can adjust volume
-            if (isSfx) {
-                audio.loop = true;
-                previewingRef.current = audio;
-            }
+            // Enable looping for preview so user can adjust volume, click again to stop
+            audio.loop = true;
+            previewingRef.current = audio;
 
             await audio.play();
             setHasInteracted(true);
             setPreviewingSound(soundName);
 
-            // Auto-stop after timeout (10 seconds for SFX, 5 for soundtracks)
-            const timeout = isSfx ? 10000 : 5000;
+            // Auto-stop after 30 seconds as a safety measure
             previewTimeoutRef.current = setTimeout(() => {
-                if (isSfx && previewingRef.current === audio) {
+                if (previewingRef.current === audio) {
                     stopPreview();
-                } else if (!isSfx) {
-                    // For soundtracks, check if not already playing via main controls
-                    const isMainPlaying = soundName === 'soundtrack' ? isPlaying : isRecursionPlaying;
-                    if (!isMainPlaying && audio && !audio.paused) {
-                        audio.pause();
-                        audio.currentTime = 0;
-                        setPreviewingSound(null);
-                    }
                 }
-            }, timeout);
+            }, 30000);
 
         } catch (e) {
             // Silently fail
             setPreviewingSound(null);
         }
-    }, [settings.masterVolume, settings.musicVolume, settings.sfxVolume, isPlaying, isRecursionPlaying, stopPreview, previewingSound]);
+    }, [settings.masterVolume, settings.musicVolume, settings.sfxVolume, stopPreview, previewingSound]);
 
     // Play a sound effect
     const playSfx = useCallback((soundName) => {
@@ -497,6 +821,18 @@ export function SoundProvider({ children }) {
                     recursionSoundtrackRef.current.pause();
                     setIsRecursionPlaying(false);
                 }
+                if (kotwSoundtrackRef.current) {
+                    kotwSoundtrackRef.current.pause();
+                    setIsKotwPlaying(false);
+                }
+                if (goldRushSoundtrackRef.current) {
+                    goldRushSoundtrackRef.current.pause();
+                    setIsGoldRushPlaying(false);
+                }
+                if (firstBloodSoundtrackRef.current) {
+                    firstBloodSoundtrackRef.current.pause();
+                    setIsFirstBloodPlaying(false);
+                }
                 stopPreview();
             }
             return { ...prev, enabled: newEnabled };
@@ -515,6 +851,9 @@ export function SoundProvider({ children }) {
         resetToDefaults,
         isPlaying,
         isRecursionPlaying,
+        isKotwPlaying,
+        isGoldRushPlaying,
+        isFirstBloodPlaying,
         hasInteracted,
         audioLoaded,
         startSoundtrack,
@@ -522,6 +861,12 @@ export function SoundProvider({ children }) {
         toggleSoundtrack,
         startRecursionSoundtrack,
         stopRecursionSoundtrack,
+        startKotwSoundtrack,
+        stopKotwSoundtrack,
+        startGoldRushSoundtrack,
+        stopGoldRushSoundtrack,
+        startFirstBloodSoundtrack,
+        stopFirstBloodSoundtrack,
         playSfx,
         playRaritySound,
         playRecursionSound,
