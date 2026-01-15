@@ -25,7 +25,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const { spinDuration } = useWheelConfig();
 
     // Get recursion status from ActivityContext - no separate polling!
-    const { recursionStatus, updateRecursionStatus, globalEventStatus, updateKotwUserStats, markKotwSpinStart } = useActivity();
+    const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart } = useActivity();
 
     // Get Gold Rush boosted rarity if event is active
     const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
@@ -377,8 +377,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Helper to flush KOTW pending state on any exit path
         const flushKotwPending = () => {
-            if (isKotwEventActive) {
-                updateKotwUserStats?.(kotwUserStats);
+            if (isKotwEventActive && kotwUserStats) {
+                // Clear any stale pending result to prevent future spins from crashing
+                updateKotwUserStats?.({ ...kotwUserStats, pending: null });
             }
         };
 
@@ -2599,7 +2600,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'âœ¨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2991,7 +2992,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         textShadow: `0 0 20px ${COLORS.green}60`,
                                         animation: 'pulse 2s ease-in-out infinite',
                                     }}>
-                                        âœ¦ Lucky Win âœ¦
+                                        ✦ Lucky Win ✦
                                     </span>
                                 </div>
 
@@ -3106,7 +3107,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>âœ¦ NEW TO COLLECTION âœ¦</span>
+                                                    }}>✦ NEW TO COLLECTION ✦</span>
                                                 )}
                                             </div>
                                         );
@@ -3454,7 +3455,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             textShadow: `0 0 20px ${accentColor}60`,
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            {isTripleLucky ? 'âœ¦ Triple Lucky Results âœ¦' : 'âœ¦ 5x Spin Results âœ¦'}
+                                            {isTripleLucky ? '✦ Triple Lucky Results ✦' : '✦ 5x Spin Results ✦'}
                                         </span>
                                     </div>
 
@@ -3619,7 +3620,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>âœ¦ NEW</span>
+                                                        }}>✦ NEW</span>
                                                     )}
                                                 </div>
                                             );

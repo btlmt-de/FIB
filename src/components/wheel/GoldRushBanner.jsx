@@ -489,12 +489,19 @@ function GoldRushBanner({
             // Only count if it matches the boosted rarity
             if (latestActivity.item_rarity !== boostedRarity) return;
 
-            // Parse the activity timestamp
+            // Parse the activity timestamp - try parsing first, only normalize if needed
             let createdAtStr = latestActivity.created_at;
-            if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
+            let activityTime = Date.parse(createdAtStr);
+
+            // If parsing failed, try normalizing the timestamp
+            if (isNaN(activityTime)) {
+                // Check if there's already a timezone indicator (Z, +offset, or -offset after time portion)
+                const hasTimezone = /Z|[+-]\d{2}:?\d{2}$/.test(createdAtStr) || createdAtStr.includes('+');
+                if (!hasTimezone) {
+                    createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
+                }
+                activityTime = new Date(createdAtStr).getTime();
             }
-            const activityTime = new Date(createdAtStr).getTime();
 
             // Only count drops that happened AFTER this event started
             if (activityTime < eventStartTimeRef.current) return;
@@ -926,7 +933,7 @@ function GoldRushBanner({
                                         color: rarityConfig.color,
                                         textShadow: `0 0 8px ${rarityConfig.color}`,
                                     }}>
-                                        {rarityConfig.name} Ã—{multiplier}
+                                        {rarityConfig.name} ×{multiplier}
                                     </span>
                                 </div>
                             )}
