@@ -547,7 +547,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
                         }}>
                             <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
                             <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
-                                log₁₀(points ÷ 50 + 1) × 4
+                                log₂(points ÷ 50 + 1) × 4
                             </div>
                             <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
                                 <span>50pts → <strong style={{ color: '#22C55E' }}>4</strong></span>

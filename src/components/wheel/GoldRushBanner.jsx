@@ -503,6 +503,9 @@ function GoldRushBanner({
                 activityTime = new Date(createdAtStr).getTime();
             }
 
+            // Bail out if timestamp is still invalid after normalization
+            if (isNaN(activityTime)) return;
+
             // Only count drops that happened AFTER this event started
             if (activityTime < eventStartTimeRef.current) return;
 
