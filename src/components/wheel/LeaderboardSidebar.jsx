@@ -42,12 +42,16 @@ export function LeaderboardSidebar({ onOpenFull }) {
     const [selectedUser, setSelectedUser] = useState(null);
     const [showKotwMode, setShowKotwMode] = useState(false);
     const intervalRef = useRef(null);
+    const kotwExpiryTimeoutRef = useRef(null); // Track expiry-based hide timeout
     const { user } = useAuth();
     const { globalEventStatus, kotwLeaderboard, kotwUserStats, kotwSpinPending } = useActivity();
 
     // Auto-enable KOTW mode when event is active, auto-disable when it ends
+    // Also check expiresAt as a fallback in case SSE event_end is missed
+    const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt;
     const isKotwActive = globalEventStatus?.type === 'king_of_wheel' &&
-        (globalEventStatus?.active || globalEventStatus?.pending);
+        (globalEventStatus?.active || globalEventStatus?.pending) &&
+        !eventExpired;
 
     // KOTW timer state for real-time updates
     const [kotwRemainingTime, setKotwRemainingTime] = useState(0);
@@ -67,12 +71,29 @@ export function LeaderboardSidebar({ onOpenFull }) {
 
     // Update KOTW timer every second (both active and pending countdown)
     useEffect(() => {
-        if (!isKotwActive || !showKotwMode) return;
+        if (!isKotwActive || !showKotwMode) {
+            // Clear expiry timeout if event is no longer active
+            if (kotwExpiryTimeoutRef.current) {
+                clearTimeout(kotwExpiryTimeoutRef.current);
+                kotwExpiryTimeoutRef.current = null;
+            }
+            return;
+        }
 
         const updateTimer = () => {
             // Update active event remaining time
             if (globalEventStatus?.expiresAt) {
-                setKotwRemainingTime(Math.max(0, globalEventStatus.expiresAt - Date.now()));
+                const remaining = Math.max(0, globalEventStatus.expiresAt - Date.now());
+                setKotwRemainingTime(remaining);
+
+                // Fallback: if timer hits 0, force hide the overlay after a brief delay
+                // This handles the case where SSE global_event_end is missed
+                if (remaining === 0 && !kotwExpiryTimeoutRef.current) {
+                    kotwExpiryTimeoutRef.current = setTimeout(() => {
+                        kotwExpiryTimeoutRef.current = null;
+                        setShowKotwMode(false);
+                    }, 8000); // Same delay as normal end to show final standings
+                }
             }
             // Update pending countdown time
             if (globalEventStatus?.pending && globalEventStatus?.activatesAt) {
@@ -84,7 +105,10 @@ export function LeaderboardSidebar({ onOpenFull }) {
 
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            // Don't clear kotwExpiryTimeoutRef here - let it complete its task
+        };
     }, [isKotwActive, showKotwMode, globalEventStatus?.expiresAt, globalEventStatus?.activatesAt, globalEventStatus?.pending]);
 
     const loadLeaderboard = useCallback(async () => {
