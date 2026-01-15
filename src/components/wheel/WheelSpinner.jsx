@@ -1273,7 +1273,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             padding: isMobile ? '8px 12px' : '16px 20px',
             position: 'relative',
         }}>
-            {/* KOTW Lucky Spins Badge - Persistent across all states - KOTW crimson theme */}
+            {/* Event Lucky Spins Badge - Persistent across all states - crimson theme */}
             {kotwLuckySpins > 0 && (
                 <div style={{
                     display: 'flex',
@@ -1321,7 +1321,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         </span>
                     </div>
 
-                    {/* KOTW label */}
+                    {/* Event label */}
                     <span style={{
                         fontSize: isMobile ? '9px' : '10px',
                         color: '#F43F5E',
@@ -1331,7 +1331,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         borderRadius: '4px',
                         letterSpacing: '0.5px',
                     }}>
-                        KOTW
+                        EVENT
                     </span>
                 </div>
             )}
@@ -1594,7 +1594,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 }}>
                                 {state === 'spinning' ? (
                                         showSpinRecursionEffects ? 'Lucky Spinning...'
-                                            : showSpinKotwLuckyEffects ? 'KOTW Lucky Spin...'
+                                            : showSpinKotwLuckyEffects ? 'Event Lucky Spin...'
                                                 : 'Spinning...'
                                     ) :
                                     state === 'recursion' ? 'RECURSION!' :
@@ -2047,7 +2047,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     </div>
                                 )}
 
-                                {/* KOTW Lucky Spin badge */}
+                                {/* Event Lucky Spin badge */}
                                 {resultWasKotwLuckySpin && !resultWasRecursionSpin && (
                                     <div style={{
                                         position: 'absolute',
@@ -2067,7 +2067,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         animation: 'textFadeUp 0.4s ease-out 0.3s both',
                                         letterSpacing: '1px',
                                     }}>
-                                        <Crown size={12} /> KOTW REWARD
+                                        <Crown size={12} /> EVENT REWARD
                                     </div>
                                 )}
 
@@ -2593,7 +2593,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'Ã¢Å“Â¨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2985,7 +2985,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         textShadow: `0 0 20px ${COLORS.green}60`,
                                         animation: 'pulse 2s ease-in-out infinite',
                                     }}>
-                                        Ã¢Å“Â¦ Lucky Win Ã¢Å“Â¦
+                                        ✦ Lucky Win ✦
                                     </span>
                                 </div>
 
@@ -3100,7 +3100,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>Ã¢Ëœâ€¦ NEW TO COLLECTION Ã¢Ëœâ€¦</span>
+                                                    }}>✦ NEW TO COLLECTION ✦</span>
                                                 )}
                                             </div>
                                         );
@@ -3448,7 +3448,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             textShadow: `0 0 20px ${accentColor}60`,
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            {isTripleLucky ? 'Ã¢Å“Â¦ Triple Lucky Results Ã¢Å“Â¦' : 'Ã¢Å“Â¦ 5x Spin Results Ã¢Å“Â¦'}
+                                            {isTripleLucky ? '✦ Triple Lucky Results ✦' : '✦ 5x Spin Results ✦'}
                                         </span>
                                     </div>
 
@@ -3613,7 +3613,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>Ã¢Ëœâ€¦ NEW</span>
+                                                        }}>✦ NEW</span>
                                                     )}
                                                 </div>
                                             );

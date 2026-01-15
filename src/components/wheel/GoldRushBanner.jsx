@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { COLORS, API_BASE_URL } from '../../config/constants.js';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
-import { Crown, Sparkles, Star, Diamond, X, Timer, FlaskConical, Coins, TrendingUp } from 'lucide-react';
+import { Crown, Sparkles, Star, Diamond, X, Timer, FlaskConical, Coins, TrendingUp, Crosshair } from 'lucide-react';
 
 // ============================================
 // CONSTANTS
@@ -425,22 +425,24 @@ function GoldRushBanner({
                             isAdmin = false,
                         }) {
     const { globalEventStatus, updateGlobalEventStatus, feed } = useActivity();
-    const { playSound } = useSound();
+    const { playSound, startGoldRushSoundtrack, stopGoldRushSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [countdownTime, setCountdownTime] = useState(0);
     const [initialCountdownDuration, setInitialCountdownDuration] = useState(5);
     const [isVisible, setIsVisible] = useState(false);
-    const [showTestMenu, setShowTestMenu] = useState(false);
     const [isStripSpinning, setIsStripSpinning] = useState(false);
     const [showStrip, setShowStrip] = useState(false);
     const [stripFadingOut, setStripFadingOut] = useState(false);
     const [goldDropCount, setGoldDropCount] = useState(0);
 
     const hasPlayedSoundRef = useRef(false);
+    const hasSoundtrackStartedRef = useRef(false);
     const wasActiveRef = useRef(false);
     const wasPendingRef = useRef(false);
     const lastActivityIdRef = useRef(null);
+    const eventStartTimeRef = useRef(null);
+    const pendingDropTimeoutsRef = useRef([]);
 
     // Only respond to gold_rush events, not other event types
     const isGoldRush = globalEventStatus?.type === 'gold_rush';
@@ -450,26 +452,70 @@ function GoldRushBanner({
     const multiplier = globalEventStatus?.data?.multiplier || 2;
     const rarityConfig = boostedRarity ? RARITY_CONFIG[boostedRarity] : null;
 
-    // Track gold drops from activity feed
+    // Start/stop Gold Rush soundtrack when event starts/ends
     useEffect(() => {
-        if (!isActive || !feed?.length) return;
+        if (isActive && !hasSoundtrackStartedRef.current) {
+            startGoldRushSoundtrack?.();
+            hasSoundtrackStartedRef.current = true;
+            // Record when this event started for filtering drops
+            eventStartTimeRef.current = globalEventStatus?.activatesAt || Date.now();
+        }
+        if (!isActive && !isPending && hasSoundtrackStartedRef.current) {
+            stopGoldRushSoundtrack?.();
+            hasSoundtrackStartedRef.current = false;
+        }
+    }, [isActive, isPending, startGoldRushSoundtrack, stopGoldRushSoundtrack, globalEventStatus?.activatesAt]);
 
-        // Count new drops that match the boosted rarity
+    // Track gold drops from activity feed
+    // Only count drops that happened AFTER the event started, with delay for spin animation
+    useEffect(() => {
+        if (!isActive || !feed?.length || !eventStartTimeRef.current) return;
+
         const latestActivity = feed[0];
         if (latestActivity && latestActivity.id !== lastActivityIdRef.current) {
-            if (latestActivity.rarity === boostedRarity) {
-                setGoldDropCount(prev => prev + 1);
-            }
             lastActivityIdRef.current = latestActivity.id;
+
+            // Only count if it matches the boosted rarity
+            if (latestActivity.item_rarity !== boostedRarity) return;
+
+            // Parse the activity timestamp
+            let createdAtStr = latestActivity.created_at;
+            if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
+                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
+            }
+            const activityTime = new Date(createdAtStr).getTime();
+
+            // Only count drops that happened AFTER this event started
+            if (activityTime < eventStartTimeRef.current) return;
+
+            // Delay increment by 4.5s to match when user sees result (spin animation duration)
+            const timeoutId = setTimeout(() => {
+                setGoldDropCount(prev => prev + 1);
+                // Remove from pending list
+                pendingDropTimeoutsRef.current = pendingDropTimeoutsRef.current.filter(id => id !== timeoutId);
+            }, 4500);
+            pendingDropTimeoutsRef.current.push(timeoutId);
         }
     }, [feed, isActive, boostedRarity]);
 
-    // Reset drop count when event starts
+    // Reset drop count and clear pending timeouts when event starts
     useEffect(() => {
         if (isPending && !wasPendingRef.current) {
             setGoldDropCount(0);
+            lastActivityIdRef.current = null;
+            eventStartTimeRef.current = null;
+            // Clear any pending drop timeouts from previous event
+            pendingDropTimeoutsRef.current.forEach(id => clearTimeout(id));
+            pendingDropTimeoutsRef.current = [];
         }
     }, [isPending]);
+
+    // Cleanup pending timeouts on unmount
+    useEffect(() => {
+        return () => {
+            pendingDropTimeoutsRef.current.forEach(id => clearTimeout(id));
+        };
+    }, []);
 
     // Handle visibility and animations
     useEffect(() => {
@@ -565,13 +611,16 @@ function GoldRushBanner({
                 hasPlayedSoundRef.current = false;
                 wasActiveRef.current = false;
                 wasPendingRef.current = false;
+                // Stop soundtrack - SSE might not arrive in time
+                // Don't reset hasSoundtrackStartedRef to prevent restart race condition
+                stopGoldRushSoundtrack?.();
             }
         };
 
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [isActive, globalEventStatus?.expiresAt, isVisible]);
+    }, [isActive, globalEventStatus?.expiresAt, isVisible, stopGoldRushSoundtrack]);
 
     // Admin test functions
     const triggerTestEvent = useCallback(async (rarity = null) => {
@@ -599,7 +648,6 @@ function GoldRushBanner({
             console.error('[GoldRush] Trigger error:', e);
             alert('Failed to trigger event');
         }
-        setShowTestMenu(false);
     }, [updateGlobalEventStatus]);
 
     const endTestEvent = useCallback(async () => {
@@ -612,7 +660,6 @@ function GoldRushBanner({
         } catch (e) {
             console.error('[GoldRush] End error:', e);
         }
-        setShowTestMenu(false);
     }, [updateGlobalEventStatus]);
 
     // Trigger King of the Wheel event
@@ -639,23 +686,33 @@ function GoldRushBanner({
             console.error('[KOTW] Trigger error:', e);
             alert('Failed to trigger KOTW event');
         }
-        setShowTestMenu(false);
     }, [updateGlobalEventStatus]);
 
-    // Keyboard shortcut
-    useEffect(() => {
-        if (!isAdmin) return;
-
-        const handleKeyDown = (e) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'G') {
-                e.preventDefault();
-                setShowTestMenu(prev => !prev);
+    // Trigger First Blood event
+    const triggerFirstBloodEvent = useCallback(async () => {
+        try {
+            console.log('[FirstBlood] Triggering First Blood event');
+            const res = await fetch(`${API_BASE_URL}/api/admin/global-event/trigger`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventType: 'first_blood',
+                    duration: 2, // 2 minutes for testing
+                }),
+            });
+            const data = await res.json();
+            console.log('[FirstBlood] API response:', data);
+            if (data.error) {
+                alert(`Failed: ${data.error}`);
+            } else if (data.event) {
+                updateGlobalEventStatus?.(data.event);
             }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isAdmin]);
+        } catch (e) {
+            console.error('[FirstBlood] Trigger error:', e);
+            alert('Failed to trigger First Blood event');
+        }
+    }, [updateGlobalEventStatus]);
 
     // Format time
     const formatTime = (ms) => {
@@ -673,172 +730,8 @@ function GoldRushBanner({
     const isLowTime = remainingTime > 0 && remainingTime < 60000;
     const isCriticalTime = remainingTime > 0 && remainingTime < 30000;
 
-    // Admin test menu (always available via Ctrl+Shift+G)
-    const renderTestMenu = () => (
-        <div style={{
-            position: 'fixed',
-            top: isVisible ? (isMobile ? '80px' : '90px') : '20px',
-            right: '16px',
-            background: COLORS.surface,
-            border: `2px solid ${GOLD_COLOR}`,
-            borderRadius: '12px',
-            padding: '16px',
-            zIndex: 10001,
-            boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 20px ${GOLD_COLOR}33`,
-            minWidth: '200px',
-        }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '12px',
-                paddingBottom: '8px',
-                borderBottom: `1px solid ${COLORS.border}`,
-            }}>
-                <FlaskConical size={18} color={GOLD_COLOR} />
-                <span style={{ color: COLORS.text, fontWeight: 600 }}>Global Events Test</span>
-                <button
-                    onClick={() => setShowTestMenu(false)}
-                    style={{
-                        marginLeft: 'auto',
-                        background: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        color: COLORS.textMuted,
-                    }}
-                >
-                    <X size={16} />
-                </button>
-            </div>
-
-            {/* King of the Wheel Section */}
-            <div style={{ marginBottom: '12px' }}>
-                <div style={{
-                    fontSize: '11px',
-                    color: COLORS.textMuted,
-                    marginBottom: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                }}>
-                    King of the Wheel
-                </div>
-                <button
-                    onClick={triggerKotwEvent}
-                    style={{
-                        width: '100%',
-                        padding: '10px 16px',
-                        background: 'linear-gradient(135deg, #F43F5E33, #0F172A)',
-                        border: '1px solid #F43F5E66',
-                        borderRadius: '8px',
-                        color: '#F43F5E',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}
-                >
-                    <Crown size={16} />
-                    Start Competition (2min)
-                </button>
-            </div>
-
-            {/* Gold Rush Section */}
-            <div style={{
-                fontSize: '11px',
-                color: COLORS.textMuted,
-                marginBottom: '6px',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-            }}>
-                Gold Rush
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <button
-                    onClick={() => triggerTestEvent(null)}
-                    style={{
-                        padding: '10px 16px',
-                        background: `linear-gradient(135deg, ${GOLD_COLOR}33, ${GOLD_DARK}22)`,
-                        border: `1px solid ${GOLD_COLOR}66`,
-                        borderRadius: '8px',
-                        color: GOLD_COLOR,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}
-                >
-                    <Coins size={16} />
-                    Random Rarity (2min)
-                </button>
-
-                {Object.entries(RARITY_CONFIG).map(([rarity, config]) => {
-                    const Icon = config.icon;
-                    return (
-                        <button
-                            key={rarity}
-                            onClick={() => triggerTestEvent(rarity)}
-                            style={{
-                                padding: '8px 12px',
-                                background: `${config.color}22`,
-                                border: `1px solid ${config.color}66`,
-                                borderRadius: '6px',
-                                color: config.color,
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                fontSize: '13px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                            }}
-                        >
-                            <Icon size={14} />
-                            {config.name} (2x)
-                        </button>
-                    );
-                })}
-
-                {(isActive || isPending || globalEventStatus?.active || globalEventStatus?.pending) && (
-                    <button
-                        onClick={endTestEvent}
-                        style={{
-                            padding: '8px 12px',
-                            background: `${COLORS.red}22`,
-                            border: `1px solid ${COLORS.red}66`,
-                            borderRadius: '6px',
-                            color: COLORS.red,
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            marginTop: '8px',
-                        }}
-                    >
-                        End Event
-                    </button>
-                )}
-            </div>
-
-            <div style={{
-                marginTop: '12px',
-                paddingTop: '8px',
-                borderTop: `1px solid ${COLORS.border}`,
-                fontSize: '11px',
-                color: COLORS.textMuted,
-            }}>
-                Press Ctrl+Shift+G to close
-            </div>
-        </div>
-    );
-
-    // If no event and no admin menu, render nothing
-    if (!isVisible && !showTestMenu) return null;
-
-    // Admin-only: render just the test menu when no event is active
-    if (!isVisible && showTestMenu && isAdmin) {
-        return renderTestMenu();
-    }
+    // If no event, render nothing
+    if (!isVisible) return null;
 
     const RarityIcon = rarityConfig?.icon || Sparkles;
     const countdownSecs = Math.ceil(countdownTime / 1000);
@@ -1091,9 +984,6 @@ function GoldRushBanner({
                     </div>
                 </div>
             </div>
-
-            {/* Admin Test Menu */}
-            {isAdmin && showTestMenu && renderTestMenu()}
         </>
     );
 }

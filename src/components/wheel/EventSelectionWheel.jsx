@@ -5,7 +5,7 @@
 // Shows when a milestone triggers an event selection
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, Sparkles, Zap, Trophy } from 'lucide-react';
+import { Crown, Sparkles, Zap, Trophy, Crosshair } from 'lucide-react';
 import { COLORS } from '../../config/constants.js';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
@@ -25,6 +25,13 @@ const EVENT_CONFIG = {
         color: '#F43F5E',
         bgGradient: 'linear-gradient(135deg, #F43F5E 0%, #BE123C 100%)',
         description: 'Compete for Lucky Spins!',
+    },
+    first_blood: {
+        name: 'FIRST BLOOD',
+        icon: Crosshair,
+        color: '#DC2626',
+        bgGradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
+        description: 'First special drop wins!',
     },
 };
 
@@ -51,7 +58,7 @@ function buildEventStrip(availableEvents, selectedEvent, stripLength = 30) {
     return strip;
 }
 
-function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
+function EventSelectionWheel({ isMobile = false }) {
     const { eventSelection } = useActivity();
     const { playSound } = useSound();
 
@@ -60,7 +67,6 @@ function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
     const [offset, setOffset] = useState(0);
     const [phase, setPhase] = useState('idle'); // 'idle', 'spinning', 'landing', 'result'
     const [resultEvent, setResultEvent] = useState(null);
-    const [testSelection, setTestSelection] = useState(null); // For testing
 
     const animationRef = useRef(null);
     const startTimeRef = useRef(null);
@@ -69,32 +75,12 @@ function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
     const STRIP_LENGTH = 30;
     const FINAL_INDEX = STRIP_LENGTH - 1;
 
-    // Use either real eventSelection or test selection
-    const activeSelection = eventSelection || testSelection;
-
-    // Test trigger function
-    const triggerTest = () => {
-        const events = ['gold_rush', 'king_of_wheel'];
-        const selected = events[Math.floor(Math.random() * events.length)];
-        setTestSelection({
-            selectedEvent: selected,
-            availableEvents: events,
-            selectionDuration: 4000,
-            triggeredAtSpin: 'test',
-        });
-
-        // Clear test selection after animation
-        setTimeout(() => {
-            setTestSelection(null);
-        }, 6000);
-    };
-
     // Start animation when eventSelection is received
     useEffect(() => {
-        if (activeSelection && activeSelection.selectedEvent) {
+        if (eventSelection && eventSelection.selectedEvent) {
             const newStrip = buildEventStrip(
-                activeSelection.availableEvents || ['gold_rush', 'king_of_wheel'],
-                activeSelection.selectedEvent,
+                eventSelection.availableEvents || ['gold_rush', 'king_of_wheel'],
+                eventSelection.selectedEvent,
                 STRIP_LENGTH
             );
             setStrip(newStrip);
@@ -109,7 +95,7 @@ function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
             // We want to land on FINAL_INDEX (the last item in the strip)
             // The strip starts with item 0 centered, so we need to move FINAL_INDEX items
             const totalDistance = FINAL_INDEX * ITEM_WIDTH;
-            const duration = activeSelection.selectionDuration || 4000;
+            const duration = eventSelection.selectionDuration || 4000;
 
             const animate = () => {
                 const elapsed = Date.now() - startTimeRef.current;
@@ -125,7 +111,7 @@ function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
                 } else {
                     // Animation complete
                     setPhase('result');
-                    setResultEvent(activeSelection.selectedEvent);
+                    setResultEvent(eventSelection.selectedEvent);
                     playSound?.('event_start');
                 }
             };
@@ -138,7 +124,7 @@ function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [activeSelection, playSound, ITEM_WIDTH]);
+    }, [eventSelection, playSound, ITEM_WIDTH]);
 
     // Hide after result is shown
     useEffect(() => {
@@ -151,32 +137,6 @@ function EventSelectionWheel({ isMobile = false, isAdmin = false }) {
             return () => clearTimeout(timeout);
         }
     }, [phase]);
-
-    // Admin test button (always visible when admin)
-    if (isAdmin && !isVisible) {
-        return (
-            <button
-                onClick={triggerTest}
-                style={{
-                    position: 'fixed',
-                    top: isMobile ? '180px' : '190px',
-                    right: '20px',
-                    zIndex: 999,
-                    background: '#F59E0B',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                }}
-            >
-                <Zap size={16} color="#fff" />
-                <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>Test Event</span>
-            </button>
-        );
-    }
 
     if (!isVisible || strip.length === 0) return null;
 

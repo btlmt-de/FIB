@@ -349,7 +349,7 @@ export function EnhancedWheelIdleState({
                                     : showKotwLuckyEffects
                                         ? (
                                             <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                                <Crown size={isMobile ? 16 : 18} /> {kotwLuckySpins} KOTW Lucky Spin{kotwLuckySpins !== 1 ? 's' : ''}!
+                                                <Crown size={isMobile ? 16 : 18} /> {kotwLuckySpins} Event Lucky Spin{kotwLuckySpins !== 1 ? 's' : ''}!
                                             </span>
                                         )
                                         : isMobile ? 'Tap to spin!' : 'Click to spin!'}
@@ -422,7 +422,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        âš ï¸ {error}
+                        Ã¢Å¡Â Ã¯Â¸Â {error}
                     </div>
                 )}
 

@@ -17,6 +17,7 @@ import { PixiMythicCelebration as MythicCelebration } from './PixiMythicCelebrat
 import { RecursionOverlay } from './RecursionOverlay';
 import GoldRushBanner from './GoldRushBanner';
 import KingOfWheelBanner from './KingOfWheelBanner';
+import FirstBloodBanner from './FirstBloodBanner';
 import EventSelectionWheel from './EventSelectionWheel';
 import { ActivityFeedSidebar } from './ActivityFeedSidebar';
 import { LeaderboardSidebar } from './LeaderboardSidebar';
@@ -315,7 +316,7 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
 // ============================================
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
-    const { kotwWinner } = useActivity();
+    const { kotwWinner, firstBloodWinner } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     const [collection, setCollection] = useState({});
@@ -362,6 +363,24 @@ function WheelOfFortunePage({ onBack }) {
             }
         }
     }, [kotwWinner, user?.id]);
+
+    // Detect when current user wins First Blood and update lucky spins immediately
+    // First Blood shares the same lucky spins pool as KOTW
+    const processedFirstBloodWinnerRef = useRef(null);
+    useEffect(() => {
+        if (firstBloodWinner?.winner && user?.id && firstBloodWinner.winner.userId === user.id) {
+            // Only process if this is a new winner event
+            const winnerKey = `${firstBloodWinner.eventId}-${firstBloodWinner.winner.userId}`;
+            if (processedFirstBloodWinnerRef.current !== winnerKey) {
+                processedFirstBloodWinnerRef.current = winnerKey;
+                const spinsAwarded = firstBloodWinner.winner.luckySpinsAwarded || 0;
+                console.log('[WheelPage] Current user won First Blood! Awarding', spinsAwarded, 'lucky spins');
+                // Add to the existing lucky spins pool (shared with KOTW)
+                kotwLuckySpinsRef.current = (kotwLuckySpinsRef.current || 0) + spinsAwarded;
+                setKotwLuckySpins(prev => (prev || 0) + spinsAwarded);
+            }
+        }
+    }, [firstBloodWinner, user?.id]);
 
     // Check for mobile on mount and resize
     useEffect(() => {
@@ -991,7 +1010,7 @@ function WheelOfFortunePage({ onBack }) {
                             color: `${COLORS.textMuted}88`,
                             letterSpacing: '0.3px',
                         }}>
-                            Collect them all â€¢ Good luck spinning!
+                            Collect them all — Good luck spinning!
                         </p>
                     </div>
                 </div>
@@ -1100,7 +1119,11 @@ function WheelOfFortunePage({ onBack }) {
 
             {/* King of the Wheel Banner */}
             <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} />
-            <EventSelectionWheel isMobile={isMobile} isAdmin={user?.isAdmin} />
+
+            {/* First Blood Banner */}
+            <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
+
+            <EventSelectionWheel isMobile={isMobile} />
 
             {/* Notification Center */}
             {showNotifications && (

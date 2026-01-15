@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { COLORS, IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, RARE_MEMBERS, API_BASE_URL } from '../../config/constants.js';
 import { formatChance, getItemImageUrl } from '../../utils/helpers.js';
-import { X, Sparkles, Star, Diamond, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { X, Sparkles, Star, Diamond, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3, Coins } from 'lucide-react';
 import { CanvasCollectionGrid } from './CanvasCollectionGrid.jsx';
 
 // Insane color constant
@@ -199,6 +199,21 @@ function ItemDetailModal({ item, details, onClose }) {
                                     gap: '4px'
                                 }}>
                                     <Sparkles size={12} /> Lucky
+                                </span>
+                            )}
+                            {(details?.is_gold_rush === 1 || details?.isGoldRush === true) && (
+                                <span title="Obtained during Gold Rush event" style={{
+                                    fontSize: '11px',
+                                    background: '#FFD70033',
+                                    color: '#FFD700',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}>
+                                    <Coins size={12} /> Rush
                                 </span>
                             )}
                             <span style={{

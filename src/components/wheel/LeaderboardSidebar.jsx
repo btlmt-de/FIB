@@ -45,7 +45,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
     const { user } = useAuth();
     const { globalEventStatus, kotwLeaderboard, kotwUserStats, kotwSpinPending } = useActivity();
 
-    // Auto-enable KOTW mode when event is active
+    // Auto-enable KOTW mode when event is active, auto-disable when it ends
     const isKotwActive = globalEventStatus?.type === 'king_of_wheel' &&
         (globalEventStatus?.active || globalEventStatus?.pending);
 
@@ -55,8 +55,14 @@ export function LeaderboardSidebar({ onOpenFull }) {
     useEffect(() => {
         if (isKotwActive && !showKotwMode) {
             setShowKotwMode(true);
+        } else if (!isKotwActive && showKotwMode) {
+            // Auto-disable KOTW mode after event ends (with delay to show final results)
+            const timeout = setTimeout(() => {
+                setShowKotwMode(false);
+            }, 8000); // 8 seconds to see final standings
+            return () => clearTimeout(timeout);
         }
-    }, [isKotwActive]);
+    }, [isKotwActive, showKotwMode]);
 
     // Update KOTW timer every second
     useEffect(() => {
@@ -535,12 +541,12 @@ export function LeaderboardSidebar({ onOpenFull }) {
                         }}>
                             <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
                             <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
-                                log₂(points ÷ 50 + 1) × 4
+                                logâ‚‚(points Ã· 50 + 1) Ã— 4
                             </div>
                             <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
-                                <span>50pts → <strong style={{ color: '#22C55E' }}>4</strong></span>
-                                <span>500pts → <strong style={{ color: '#22C55E' }}>13</strong></span>
-                                <span>3000pts → <strong style={{ color: '#22C55E' }}>23</strong></span>
+                                <span>50pts â†’ <strong style={{ color: '#22C55E' }}>4</strong></span>
+                                <span>500pts â†’ <strong style={{ color: '#22C55E' }}>13</strong></span>
+                                <span>3000pts â†’ <strong style={{ color: '#22C55E' }}>23</strong></span>
                             </div>
                             {/* Tooltip arrow */}
                             <div style={{

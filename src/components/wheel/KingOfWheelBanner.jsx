@@ -53,6 +53,10 @@ function FloatingCrowns({ isMobile }) {
                     0%, 100% { transform: translateY(0) rotate(-5deg); opacity: 0.25; }
                     50% { transform: translateY(-8px) rotate(5deg); opacity: 0.4; }
                 }
+                .lucky-spin-info:hover .lucky-spin-tooltip {
+                    opacity: 1 !important;
+                    visibility: visible !important;
+                }
             `}</style>
             {decorations.map((item, index) => {
                 const { Icon, left, right, size, delay, color, top } = item;
@@ -408,44 +412,64 @@ function KingOfWheelBanner({
                                currentUserId = null,
                            }) {
     const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner } = useActivity();
-    const { playSound } = useSound();
+    const { playSfx, startKotwSoundtrack, stopKotwSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [countdownTime, setCountdownTime] = useState(0);
-    const [showTestMenu, setShowTestMenu] = useState(false);
     const [showWinnerInBanner, setShowWinnerInBanner] = useState(false);
 
     const hasPlayedSoundRef = useRef(false);
     const wasActiveRef = useRef(false);
     const wasPendingRef = useRef(false);
     const winnerTimeoutRef = useRef(null);
-    const hasShownWinnerRef = useRef(false); // Track if we've already shown winner for this event
-    const lastEventIdRef = useRef(null); // Track which event we're showing
 
     const isKotw = globalEventStatus?.type === 'king_of_wheel';
     const isActive = isKotw && globalEventStatus?.active;
     const isPending = isKotw && globalEventStatus?.pending;
 
-    // Reset hasShownWinner when a new event starts
+    // Check if we've already shown this winner (persisted in localStorage)
+    const getShownWinnerId = () => {
+        try {
+            return localStorage.getItem('kotw-shown-winner-id');
+        } catch {
+            return null;
+        }
+    };
+
+    const setShownWinnerId = (id) => {
+        try {
+            if (id) {
+                localStorage.setItem('kotw-shown-winner-id', id);
+            } else {
+                localStorage.removeItem('kotw-shown-winner-id');
+            }
+        } catch {
+            // Ignore localStorage errors
+        }
+    };
+
+    // Clear shown winner when a new event starts (using activatesAt as unique ID)
     useEffect(() => {
-        const currentEventId = globalEventStatus?.activatesAt;
-        if (currentEventId && currentEventId !== lastEventIdRef.current) {
-            // New event started, reset the flag
-            hasShownWinnerRef.current = false;
-            lastEventIdRef.current = currentEventId;
+        const currentEventId = globalEventStatus?.activatesAt?.toString();
+        const shownWinnerId = getShownWinnerId();
+
+        // If this is a new event (different activatesAt), clear the shown winner flag
+        if (currentEventId && shownWinnerId && !shownWinnerId.startsWith(currentEventId)) {
+            setShownWinnerId(null);
         }
     }, [globalEventStatus?.activatesAt]);
 
-    // Play sound when event starts
+    // Start/stop KOTW soundtrack when event starts/ends
     useEffect(() => {
         if (isActive && !hasPlayedSoundRef.current) {
-            playSound?.('event_start');
+            startKotwSoundtrack?.();
             hasPlayedSoundRef.current = true;
         }
-        if (!isActive && !isPending) {
+        if (!isActive && !isPending && hasPlayedSoundRef.current) {
+            stopKotwSoundtrack?.();
             hasPlayedSoundRef.current = false;
         }
-    }, [isActive, isPending, playSound]);
+    }, [isActive, isPending, startKotwSoundtrack, stopKotwSoundtrack]);
 
     // Show winner in banner when winner is announced
     useEffect(() => {
@@ -455,15 +479,22 @@ function KingOfWheelBanner({
             winnerTimeoutRef.current = null;
         }
 
-        if (kotwWinner?.winner && !hasShownWinnerRef.current) {
-            hasShownWinnerRef.current = true; // Mark that we've shown the winner
-            setShowWinnerInBanner(true);
-            playSound?.('mythic'); // Play big win sound
+        if (kotwWinner?.winner) {
+            // Use eventId if available, otherwise use timestamp (fallback)
+            const eventId = kotwWinner.eventId || Date.now();
+            const winnerId = `${eventId}-${kotwWinner.winner.userId}`;
+            const alreadyShown = getShownWinnerId() === winnerId;
 
-            // Hide banner after 6 seconds
-            winnerTimeoutRef.current = setTimeout(() => {
-                setShowWinnerInBanner(false);
-            }, 6000);
+            if (!alreadyShown) {
+                setShownWinnerId(winnerId);
+                setShowWinnerInBanner(true);
+                playSfx?.('mythic'); // Play big win sound
+
+                // Hide banner after 6 seconds
+                winnerTimeoutRef.current = setTimeout(() => {
+                    setShowWinnerInBanner(false);
+                }, 6000);
+            }
         }
 
         return () => {
@@ -471,11 +502,14 @@ function KingOfWheelBanner({
                 clearTimeout(winnerTimeoutRef.current);
             }
         };
-    }, [kotwWinner, playSound]);
+    }, [kotwWinner, playSfx]);
 
     // Determine if banner should be visible
-    // Once we've shown the winner, don't show the banner again until a new event
-    const shouldShowBanner = hasShownWinnerRef.current
+    const shownWinnerId = getShownWinnerId();
+    const currentEventId = kotwWinner?.eventId?.toString() || '';
+    const hasShownWinner = shownWinnerId && currentEventId && shownWinnerId.startsWith(currentEventId);
+
+    const shouldShowBanner = hasShownWinner
         ? showWinnerInBanner
         : (isPending || isActive);
 
@@ -536,7 +570,6 @@ function KingOfWheelBanner({
             console.error('[KOTW] Trigger error:', e);
             alert('Failed to trigger event');
         }
-        setShowTestMenu(false);
     }, [updateGlobalEventStatus]);
 
     const endTestEvent = useCallback(async () => {
@@ -549,7 +582,6 @@ function KingOfWheelBanner({
         } catch (e) {
             console.error('[KOTW] End error:', e);
         }
-        setShowTestMenu(false);
     }, [updateGlobalEventStatus]);
 
     const formatTime = (ms) => {
@@ -562,77 +594,11 @@ function KingOfWheelBanner({
     const countdownSecs = Math.ceil(countdownTime / 1000);
     const isCriticalTime = remainingTime > 0 && remainingTime < 60000;
 
-    // Don't render if not visible (unless admin menu)
-    if (!shouldShowBanner && !showTestMenu) return null;
-
-    // Admin test menu only
-    if (!shouldShowBanner && showTestMenu && isAdmin) {
-        return (
-            <div style={{
-                position: 'fixed',
-                top: '100px',
-                right: '20px',
-                zIndex: 1000,
-                background: '#1a1a2e',
-                padding: '16px',
-                borderRadius: '12px',
-                border: `2px solid ${KOTW_PRIMARY}`,
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ color: KOTW_PRIMARY, fontWeight: 700 }}>KOTW Test</span>
-                    <button onClick={() => setShowTestMenu(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                        <X size={18} color="#888" />
-                    </button>
-                </div>
-                <button
-                    onClick={triggerTestEvent}
-                    style={{
-                        width: '100%',
-                        padding: '10px',
-                        background: KOTW_PRIMARY,
-                        border: 'none',
-                        borderRadius: '8px',
-                        color: '#fff',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                    }}
-                >
-                    <Trophy size={16} /> Start KOTW (2min)
-                </button>
-            </div>
-        );
-    }
+    // Don't render if not visible
+    if (!shouldShowBanner) return null;
 
     return (
         <>
-            {/* Admin toggle button */}
-            {isAdmin && !shouldShowBanner && (
-                <button
-                    onClick={() => setShowTestMenu(true)}
-                    style={{
-                        position: 'fixed',
-                        top: isMobile ? '140px' : '150px',
-                        right: '20px',
-                        zIndex: 999,
-                        background: KOTW_PRIMARY,
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '8px 12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                    }}
-                >
-                    <Crown size={16} color="#fff" />
-                    <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>KOTW</span>
-                </button>
-            )}
-
             {/* Banner - only render when should show */}
             {shouldShowBanner && (
                 <div style={{
@@ -671,7 +637,7 @@ function KingOfWheelBanner({
                         background: `linear-gradient(180deg, ${KOTW_BG} 0%, ${KOTW_BG_DARK} 50%, ${KOTW_BG} 100%)`,
                         padding: isMobile ? '12px 12px 14px 12px' : '18px 32px 20px 32px',
                         borderBottom: `2px solid ${KOTW_PRIMARY}`,
-                        overflow: 'hidden',
+                        overflow: 'visible',
                         position: 'relative',
                     }}>
                         {/* Floating decorations */}
@@ -912,10 +878,10 @@ function KingOfWheelBanner({
                                                         <Info size={12} color="#94A3B8" style={{ cursor: 'help' }} />
                                                         <span className="lucky-spin-tooltip" style={{
                                                             position: 'absolute',
-                                                            bottom: '100%',
+                                                            top: '100%',
                                                             left: '50%',
                                                             transform: 'translateX(-50%)',
-                                                            marginBottom: '8px',
+                                                            marginTop: '8px',
                                                             padding: '10px 14px',
                                                             background: '#1E293B',
                                                             border: `1px solid ${KOTW_PRIMARY}44`,
@@ -932,24 +898,25 @@ function KingOfWheelBanner({
                                                         }}>
                                                             <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
                                                             <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
-                                                                log₂(points ÷ 50 + 1) × 4
+                                                                6 + (pts ÷ (pts + 500)) × 18
                                                             </div>
                                                             <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
-                                                                <span>50pts → <strong style={{ color: '#22C55E' }}>4</strong></span>
-                                                                <span>500pts → <strong style={{ color: '#22C55E' }}>13</strong></span>
-                                                                <span>3000pts → <strong style={{ color: '#22C55E' }}>23</strong></span>
+                                                                <span>50pts → <strong style={{ color: '#22C55E' }}>8</strong></span>
+                                                                <span>350pts → <strong style={{ color: '#22C55E' }}>13</strong></span>
+                                                                <span>700pts → <strong style={{ color: '#22C55E' }}>17</strong></span>
+                                                                <span>1400pts → <strong style={{ color: '#22C55E' }}>19</strong></span>
                                                             </div>
-                                                            {/* Tooltip arrow */}
+                                                            {/* Tooltip arrow pointing up */}
                                                             <div style={{
                                                                 position: 'absolute',
-                                                                bottom: '-6px',
+                                                                top: '-6px',
                                                                 left: '50%',
                                                                 transform: 'translateX(-50%)',
                                                                 width: 0,
                                                                 height: 0,
                                                                 borderLeft: '6px solid transparent',
                                                                 borderRight: '6px solid transparent',
-                                                                borderTop: `6px solid ${KOTW_PRIMARY}44`,
+                                                                borderBottom: `6px solid ${KOTW_PRIMARY}44`,
                                                             }} />
                                                         </span>
                                                     </span>
@@ -963,29 +930,6 @@ function KingOfWheelBanner({
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* Admin End Button */}
-            {isAdmin && isActive && (
-                <button
-                    onClick={endTestEvent}
-                    style={{
-                        position: 'fixed',
-                        top: isMobile ? '90px' : '100px',
-                        right: '20px',
-                        zIndex: 101,
-                        background: '#ff4444',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '6px 12px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        color: '#fff',
-                        fontWeight: 700,
-                    }}
-                >
-                    End KOTW
-                </button>
             )}
         </>
     );

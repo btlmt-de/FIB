@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet } from 'lucide-react';
 import { useSound } from '../../context/SoundContext';
 import { COLORS } from '../../config/constants';
 
@@ -471,6 +471,114 @@ export function SoundSettingsPanel({ onClose }) {
                                 />
                             </div>
 
+                            {/* KOTW Soundtrack row */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    background: '#F43F5E15',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#F43F5E',
+                                    flexShrink: 0,
+                                }}>
+                                    <Swords size={16} />
+                                </div>
+                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
+                                    King of the Wheel
+                                </span>
+                                <PreviewButton
+                                    onClick={() => previewSound('kotwSoundtrack')}
+                                    disabled={!settings.enabled}
+                                    isActive={previewingSound === 'kotwSoundtrack'}
+                                />
+                                <ToggleSwitch
+                                    checked={settings.kotwSoundtrackEnabled}
+                                    onChange={(v) => updateSetting('kotwSoundtrackEnabled', v)}
+                                    disabled={!settings.enabled}
+                                    color="#F43F5E"
+                                    ariaLabel="Toggle KOTW music"
+                                />
+                            </div>
+
+                            {/* Gold Rush Soundtrack row */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    background: `${COLORS.insane}15`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: COLORS.insane,
+                                    flexShrink: 0,
+                                }}>
+                                    <Coins size={16} />
+                                </div>
+                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
+                                    Gold Rush
+                                </span>
+                                <PreviewButton
+                                    onClick={() => previewSound('goldRushSoundtrack')}
+                                    disabled={!settings.enabled}
+                                    isActive={previewingSound === 'goldRushSoundtrack'}
+                                />
+                                <ToggleSwitch
+                                    checked={settings.goldRushSoundtrackEnabled}
+                                    onChange={(v) => updateSetting('goldRushSoundtrackEnabled', v)}
+                                    disabled={!settings.enabled}
+                                    color={COLORS.insane}
+                                    ariaLabel="Toggle Gold Rush music"
+                                />
+                            </div>
+
+                            {/* First Blood Soundtrack row */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    background: '#DC262615',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#DC2626',
+                                    flexShrink: 0,
+                                }}>
+                                    <Droplet size={16} />
+                                </div>
+                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
+                                    First Blood
+                                </span>
+                                <PreviewButton
+                                    onClick={() => previewSound('firstBloodSoundtrack')}
+                                    disabled={!settings.enabled}
+                                    isActive={previewingSound === 'firstBloodSoundtrack'}
+                                />
+                                <ToggleSwitch
+                                    checked={settings.firstBloodSoundtrackEnabled}
+                                    onChange={(v) => updateSetting('firstBloodSoundtrackEnabled', v)}
+                                    disabled={!settings.enabled}
+                                    color="#DC2626"
+                                    ariaLabel="Toggle First Blood music"
+                                />
+                            </div>
+
                             {/* Music volume */}
                             <div style={{
                                 display: 'flex',
@@ -481,7 +589,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 <VolumeSlider
                                     value={settings.musicVolume}
                                     onChange={(v) => updateSetting('musicVolume', v)}
-                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled)}
+                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.goldRushSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled)}
                                     color={COLORS.accent}
                                     ariaLabel="Music volume"
                                 />

@@ -25,6 +25,9 @@ export function ActivityProvider({ children }) {
     const [kotwSpinPending, setKotwSpinPending] = useState(false); // Track if user is mid-spin
     const [eventSelection, setEventSelection] = useState(null); // For event selection animation
 
+    // First Blood state
+    const [firstBloodWinner, setFirstBloodWinner] = useState(null);
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     const lastIdRef = useRef(null);
@@ -218,6 +221,19 @@ export function ActivityProvider({ children }) {
                                 }, 30000); // Keep winner visible for 30 seconds
                                 break;
 
+                            case 'first_blood_result':
+                                console.log('[SSE] First Blood result:', data);
+                                // Delay showing winner to allow spin animation to complete first
+                                // Spin animations take ~4-5 seconds, so wait before showing winner
+                                setTimeout(() => {
+                                    setFirstBloodWinner(data);
+                                    // Clear winner after display period
+                                    setTimeout(() => {
+                                        setFirstBloodWinner(null);
+                                    }, 8000); // Show winner for 8 seconds before clearing
+                                }, 5000); // Wait for spin animation to complete
+                                break;
+
                             case 'activity':
                                 if (data.item && data.item.id) {
                                     // Update serverTime from SSE message if provided and valid
@@ -377,6 +393,8 @@ export function ActivityProvider({ children }) {
         updateKotwUserStats,
         // Event Selection
         eventSelection,
+        // First Blood
+        firstBloodWinner,
     };
 
     return (

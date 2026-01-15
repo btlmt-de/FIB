@@ -507,6 +507,26 @@ export function ActivityFeedSidebar() {
                                                 Lucky
                                             </span>
                                         )}
+                                        {item.is_gold_rush === 1 && (
+                                            <span style={{
+                                                fontSize: '9px',
+                                                background: 'linear-gradient(135deg, #FFD70033, #FFD70022)',
+                                                color: '#FFD700',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                                fontWeight: '700',
+                                                flexShrink: 0,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                border: '1px solid #FFD70033',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.3px',
+                                                textShadow: '0 0 6px #FFD70044'
+                                            }}>
+                                                Rush
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
