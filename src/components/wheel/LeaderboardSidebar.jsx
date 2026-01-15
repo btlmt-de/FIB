@@ -51,6 +51,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
 
     // KOTW timer state for real-time updates
     const [kotwRemainingTime, setKotwRemainingTime] = useState(0);
+    const [pendingCountdownTime, setPendingCountdownTime] = useState(0);
 
     useEffect(() => {
         if (isKotwActive && !showKotwMode) {
@@ -64,20 +65,27 @@ export function LeaderboardSidebar({ onOpenFull }) {
         }
     }, [isKotwActive, showKotwMode]);
 
-    // Update KOTW timer every second
+    // Update KOTW timer every second (both active and pending countdown)
     useEffect(() => {
         if (!isKotwActive || !showKotwMode) return;
 
         const updateTimer = () => {
+            // Update active event remaining time
             if (globalEventStatus?.expiresAt) {
                 setKotwRemainingTime(Math.max(0, globalEventStatus.expiresAt - Date.now()));
+            }
+            // Update pending countdown time
+            if (globalEventStatus?.pending && globalEventStatus?.activatesAt) {
+                setPendingCountdownTime(Math.max(0, globalEventStatus.activatesAt - Date.now()));
+            } else {
+                setPendingCountdownTime(0);
             }
         };
 
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [isKotwActive, showKotwMode, globalEventStatus?.expiresAt]);
+    }, [isKotwActive, showKotwMode, globalEventStatus?.expiresAt, globalEventStatus?.activatesAt, globalEventStatus?.pending]);
 
     const loadLeaderboard = useCallback(async () => {
         try {
@@ -209,9 +217,7 @@ export function LeaderboardSidebar({ onOpenFull }) {
     const renderKotwLeaderboard = () => {
         const remainingTime = kotwRemainingTime;
         const isPending = globalEventStatus?.pending;
-        const countdownTime = isPending && globalEventStatus?.activatesAt
-            ? Math.max(0, globalEventStatus.activatesAt - Date.now())
-            : 0;
+        const countdownTime = pendingCountdownTime;
 
         const rankColors = [KOTW_GOLD, KOTW_SILVER, KOTW_BRONZE];
         const RankIcons = [Crown, Trophy, Medal];
@@ -541,12 +547,12 @@ export function LeaderboardSidebar({ onOpenFull }) {
                         }}>
                             <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
                             <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
-                                logâ‚‚(points Ã· 50 + 1) Ã— 4
+                                logÃ¢â€šâ€š(points ÃƒÂ· 50 + 1) Ãƒâ€” 4
                             </div>
                             <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
-                                <span>50pts â†’ <strong style={{ color: '#22C55E' }}>4</strong></span>
-                                <span>500pts â†’ <strong style={{ color: '#22C55E' }}>13</strong></span>
-                                <span>3000pts â†’ <strong style={{ color: '#22C55E' }}>23</strong></span>
+                                <span>50pts Ã¢â€ â€™ <strong style={{ color: '#22C55E' }}>4</strong></span>
+                                <span>500pts Ã¢â€ â€™ <strong style={{ color: '#22C55E' }}>13</strong></span>
+                                <span>3000pts Ã¢â€ â€™ <strong style={{ color: '#22C55E' }}>23</strong></span>
                             </div>
                             {/* Tooltip arrow */}
                             <div style={{

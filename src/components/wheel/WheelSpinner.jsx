@@ -32,13 +32,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         ? globalEventStatus.data?.boostedRarity
         : null;
 
-    // Debug log when gold rush becomes active
-    useEffect(() => {
-        if (goldRushBoostedRarity) {
-            console.log('[WheelSpinner] Gold Rush ACTIVE - boosting:', goldRushBoostedRarity);
-        }
-    }, [goldRushBoostedRarity]);
-
     // Get sound functions
     const { startSoundtrack, stopSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
 
@@ -373,12 +366,21 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Track if this spin will use a KOTW lucky spin (if not already using recursion)
         // Use ref to get latest value (props can be stale due to React batching)
+        // Also require KOTW event to be active to prevent styling when event is inactive
         const currentKotwSpins = kotwLuckySpinsRef?.current ?? kotwLuckySpins;
-        const willUseKotwLucky = !currentSpinIsRecursionRef.current && currentKotwSpins > 0;
+        const isKotwEventActive = globalEventStatus?.type === 'king_of_wheel' && globalEventStatus?.active;
+        const willUseKotwLucky = !currentSpinIsRecursionRef.current && currentKotwSpins > 0 && isKotwEventActive;
         currentSpinIsKotwLuckyRef.current = willUseKotwLucky;
 
         // Set state for KOTW spin - this triggers re-render with correct styling
         setCurrentSpinIsKotwLucky(willUseKotwLucky);
+
+        // Helper to flush KOTW pending state on any exit path
+        const flushKotwPending = () => {
+            if (isKotwEventActive) {
+                updateKotwUserStats?.(kotwUserStats);
+            }
+        };
 
         try {
             setState('spinning');
@@ -450,6 +452,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         setResult(null);
                         setIsNewItem(false);
                         setState('idle');
+                        flushKotwPending();
                         return null;
                     }
 
@@ -553,6 +556,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         // If result is null (e.g., abort), reset to idle
                         if (result === null) {
                             setState('idle');
+                            flushKotwPending();
                             return;
                         }
 
@@ -598,6 +602,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         setResult(null);
                         setIsNewItem(false);
                         setState('idle');
+                        flushKotwPending();
                     });
                 }
             };
@@ -614,6 +619,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setResult(null);
             setIsNewItem(false);
             setState('idle');
+            flushKotwPending();
         }
     }
 
@@ -2593,7 +2599,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 fontWeight: '500',
                                 animation: state === 'bonusWheel' ? 'pulse 1.5s ease-in-out infinite' : 'none',
                             }}>
-                                {state === 'bonusWheel' ? 'Selecting your bonus...' : '✨ Bonus selected!'}
+                                {state === 'bonusWheel' ? 'Selecting your bonus...' : 'âœ¨ Bonus selected!'}
                             </span>
                         </div>
 
@@ -2985,7 +2991,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         textShadow: `0 0 20px ${COLORS.green}60`,
                                         animation: 'pulse 2s ease-in-out infinite',
                                     }}>
-                                        ✦ Lucky Win ✦
+                                        âœ¦ Lucky Win âœ¦
                                     </span>
                                 </div>
 
@@ -3100,7 +3106,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         boxShadow: `0 0 15px ${COLORS.green}50`,
                                                         animation: 'pulse 1.5s ease-in-out infinite',
                                                         letterSpacing: '1px',
-                                                    }}>✦ NEW TO COLLECTION ✦</span>
+                                                    }}>âœ¦ NEW TO COLLECTION âœ¦</span>
                                                 )}
                                             </div>
                                         );
@@ -3448,7 +3454,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             textShadow: `0 0 20px ${accentColor}60`,
                                             animation: 'pulse 2s ease-in-out infinite',
                                         }}>
-                                            {isTripleLucky ? '✦ Triple Lucky Results ✦' : '✦ 5x Spin Results ✦'}
+                                            {isTripleLucky ? 'âœ¦ Triple Lucky Results âœ¦' : 'âœ¦ 5x Spin Results âœ¦'}
                                         </span>
                                     </div>
 
@@ -3613,7 +3619,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                             letterSpacing: '0.5px',
                                                             position: 'relative',
                                                             zIndex: 1,
-                                                        }}>✦ NEW</span>
+                                                        }}>âœ¦ NEW</span>
                                                     )}
                                                 </div>
                                             );
@@ -3640,6 +3646,9 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
         prevProps.allItems === nextProps.allItems &&
         prevProps.dynamicItems === nextProps.dynamicItems &&
         prevProps.onSpinComplete === nextProps.onSpinComplete &&
-        prevProps.collection === nextProps.collection
+        prevProps.collection === nextProps.collection &&
+        prevProps.kotwLuckySpins === nextProps.kotwLuckySpins &&
+        prevProps.kotwLuckySpinsRef === nextProps.kotwLuckySpinsRef &&
+        prevProps.onKotwLuckySpinsUpdate === nextProps.onKotwLuckySpinsUpdate
     );
 });

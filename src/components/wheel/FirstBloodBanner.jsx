@@ -92,7 +92,7 @@ function FloatingTargets({ isMobile }) {
 // ============================================
 function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
     const { globalEventStatus, updateGlobalEventStatus, firstBloodWinner } = useActivity();
-    const { playSound, startFirstBloodSoundtrack, stopFirstBloodSoundtrack } = useSound();
+    const { playSfx, startFirstBloodSoundtrack, stopFirstBloodSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [countdownTime, setCountdownTime] = useState(0);
@@ -127,7 +127,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
         if (firstBloodWinner?.winner) {
             console.log('[FirstBlood] Winner received, showing in banner');
             setShowWinnerInBanner(true);
-            playSound?.('event_win');
+            playSfx?.('event_win');
 
             // Clear any existing timeout
             if (winnerDisplayTimeoutRef.current) {
@@ -157,7 +157,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
                 clearTimeout(winnerDisplayTimeoutRef.current);
             }
         };
-    }, [firstBloodWinner, playSound, stopFirstBloodSoundtrack]);
+    }, [firstBloodWinner, playSfx, stopFirstBloodSoundtrack]);
 
     // Handle visibility and sound
     useEffect(() => {
@@ -169,7 +169,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
             console.log('[FirstBlood] Event now ACTIVE - race begins!');
             setIsVisible(true);
             if (!hasPlayedSoundRef.current) {
-                playSound?.('event_start');
+                playSfx?.('event_start');
                 hasPlayedSoundRef.current = true;
             }
             wasActiveRef.current = true;
@@ -187,7 +187,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
             wasActiveRef.current = false;
             wasPendingRef.current = false;
         }
-    }, [isActive, isPending, playSound, showWinnerInBanner, stopFirstBloodSoundtrack]);
+    }, [isActive, isPending, playSfx, showWinnerInBanner, stopFirstBloodSoundtrack]);
 
     // Countdown timer for pending phase
     useEffect(() => {

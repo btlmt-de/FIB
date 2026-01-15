@@ -33,6 +33,12 @@ export function ActivityProvider({ children }) {
     const lastIdRef = useRef(null);
     const initializedRef = useRef(false);
 
+    // Timeout refs for SSE handler cleanup
+    const eventSelectionTimeoutRef = useRef(null);
+    const kotwWinnerTimeoutRef = useRef(null);
+    const firstBloodTimeoutRef = useRef(null);
+    const firstBloodClearTimeoutRef = useRef(null);
+
     // Keep refs in sync with state
     useEffect(() => {
         lastIdRef.current = lastId;
@@ -198,10 +204,15 @@ export function ActivityProvider({ children }) {
 
                             case 'event_selection':
                                 console.log('[SSE] Event selection started:', data);
+                                // Clear any existing timeout
+                                if (eventSelectionTimeoutRef.current) {
+                                    clearTimeout(eventSelectionTimeoutRef.current);
+                                }
                                 setEventSelection(data);
                                 // Clear selection after animation completes
-                                setTimeout(() => {
+                                eventSelectionTimeoutRef.current = setTimeout(() => {
                                     setEventSelection(null);
+                                    eventSelectionTimeoutRef.current = null;
                                 }, data.selectionDuration + 1000);
                                 break;
 
@@ -212,24 +223,38 @@ export function ActivityProvider({ children }) {
 
                             case 'kotw_winner':
                                 console.log('[SSE] KOTW winner announced:', data);
+                                // Clear any existing timeout
+                                if (kotwWinnerTimeoutRef.current) {
+                                    clearTimeout(kotwWinnerTimeoutRef.current);
+                                }
                                 setKotwWinner(data);
                                 // Clear leaderboard after winner announcement
-                                setTimeout(() => {
+                                kotwWinnerTimeoutRef.current = setTimeout(() => {
                                     setKotwWinner(null);
                                     setKotwLeaderboard([]);
                                     setKotwUserStats(null);
+                                    kotwWinnerTimeoutRef.current = null;
                                 }, 30000); // Keep winner visible for 30 seconds
                                 break;
 
                             case 'first_blood_result':
                                 console.log('[SSE] First Blood result:', data);
+                                // Clear any existing timeouts
+                                if (firstBloodTimeoutRef.current) {
+                                    clearTimeout(firstBloodTimeoutRef.current);
+                                }
+                                if (firstBloodClearTimeoutRef.current) {
+                                    clearTimeout(firstBloodClearTimeoutRef.current);
+                                }
                                 // Delay showing winner to allow spin animation to complete first
                                 // Spin animations take ~4-5 seconds, so wait before showing winner
-                                setTimeout(() => {
+                                firstBloodTimeoutRef.current = setTimeout(() => {
                                     setFirstBloodWinner(data);
+                                    firstBloodTimeoutRef.current = null;
                                     // Clear winner after display period
-                                    setTimeout(() => {
+                                    firstBloodClearTimeoutRef.current = setTimeout(() => {
                                         setFirstBloodWinner(null);
+                                        firstBloodClearTimeoutRef.current = null;
                                     }, 8000); // Show winner for 8 seconds before clearing
                                 }, 5000); // Wait for spin animation to complete
                                 break;
@@ -347,6 +372,23 @@ export function ActivityProvider({ children }) {
             if (eventSourceRef.current) {
                 eventSourceRef.current.close();
                 eventSourceRef.current = null;
+            }
+            // Clean up any pending timeouts
+            if (eventSelectionTimeoutRef.current) {
+                clearTimeout(eventSelectionTimeoutRef.current);
+                eventSelectionTimeoutRef.current = null;
+            }
+            if (kotwWinnerTimeoutRef.current) {
+                clearTimeout(kotwWinnerTimeoutRef.current);
+                kotwWinnerTimeoutRef.current = null;
+            }
+            if (firstBloodTimeoutRef.current) {
+                clearTimeout(firstBloodTimeoutRef.current);
+                firstBloodTimeoutRef.current = null;
+            }
+            if (firstBloodClearTimeoutRef.current) {
+                clearTimeout(firstBloodClearTimeoutRef.current);
+                firstBloodClearTimeoutRef.current = null;
             }
         };
     }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus]);

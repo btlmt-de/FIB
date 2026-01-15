@@ -422,7 +422,7 @@ export function EnhancedWheelIdleState({
                         fontWeight: '500',
                         animation: 'slideUp 0.3s ease-out',
                     }}>
-                        Ã¢Å¡Â Ã¯Â¸Â {error}
+                        ⚠️ {error}
                     </div>
                 )}
 

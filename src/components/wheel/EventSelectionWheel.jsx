@@ -60,7 +60,7 @@ function buildEventStrip(availableEvents, selectedEvent, stripLength = 30) {
 
 function EventSelectionWheel({ isMobile = false }) {
     const { eventSelection } = useActivity();
-    const { playSound } = useSound();
+    const { playSfx } = useSound();
 
     const [isVisible, setIsVisible] = useState(false);
     const [strip, setStrip] = useState([]);
@@ -71,13 +71,15 @@ function EventSelectionWheel({ isMobile = false }) {
     const animationRef = useRef(null);
     const startTimeRef = useRef(null);
 
-    const ITEM_WIDTH = isMobile ? 140 : 180;
     const STRIP_LENGTH = 30;
     const FINAL_INDEX = STRIP_LENGTH - 1;
 
     // Start animation when eventSelection is received
     useEffect(() => {
         if (eventSelection && eventSelection.selectedEvent) {
+            // Capture item width at animation start to prevent resize mid-spin
+            const itemWidth = isMobile ? 140 : 180;
+
             const newStrip = buildEventStrip(
                 eventSelection.availableEvents || ['gold_rush', 'king_of_wheel'],
                 eventSelection.selectedEvent,
@@ -89,12 +91,12 @@ function EventSelectionWheel({ isMobile = false }) {
             setOffset(0);
             startTimeRef.current = Date.now();
 
-            playSound?.('spin_start');
+            playSfx?.('spin_start');
 
             // Calculate total distance to travel
             // We want to land on FINAL_INDEX (the last item in the strip)
             // The strip starts with item 0 centered, so we need to move FINAL_INDEX items
-            const totalDistance = FINAL_INDEX * ITEM_WIDTH;
+            const totalDistance = FINAL_INDEX * itemWidth;
             const duration = eventSelection.selectionDuration || 4000;
 
             const animate = () => {
@@ -112,7 +114,7 @@ function EventSelectionWheel({ isMobile = false }) {
                     // Animation complete
                     setPhase('result');
                     setResultEvent(eventSelection.selectedEvent);
-                    playSound?.('event_start');
+                    playSfx?.('event_start');
                 }
             };
 
@@ -124,7 +126,7 @@ function EventSelectionWheel({ isMobile = false }) {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [eventSelection, playSound, ITEM_WIDTH]);
+    }, [eventSelection, playSfx]);
 
     // Hide after result is shown
     useEffect(() => {
@@ -140,6 +142,8 @@ function EventSelectionWheel({ isMobile = false }) {
 
     if (!isVisible || strip.length === 0) return null;
 
+    // Item width for rendering (can update with resize)
+    const ITEM_WIDTH = isMobile ? 140 : 180;
     const config = resultEvent ? EVENT_CONFIG[resultEvent] : null;
 
     return (

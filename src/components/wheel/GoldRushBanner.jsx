@@ -438,6 +438,7 @@ function GoldRushBanner({
 
     const hasPlayedSoundRef = useRef(false);
     const hasSoundtrackStartedRef = useRef(false);
+    const lastEventStartTimeRef = useRef(null); // Track which event we started soundtrack for
     const wasActiveRef = useRef(false);
     const wasPendingRef = useRef(false);
     const lastActivityIdRef = useRef(null);
@@ -454,15 +455,25 @@ function GoldRushBanner({
 
     // Start/stop Gold Rush soundtrack when event starts/ends
     useEffect(() => {
+        const currentEventStart = globalEventStatus?.activatesAt;
+
+        // Check if this is a new event (different start time than last tracked)
+        if (isActive && lastEventStartTimeRef.current !== currentEventStart) {
+            // New event detected - reset soundtrack state
+            hasSoundtrackStartedRef.current = false;
+            lastEventStartTimeRef.current = currentEventStart;
+        }
+
         if (isActive && !hasSoundtrackStartedRef.current) {
             startGoldRushSoundtrack?.();
             hasSoundtrackStartedRef.current = true;
             // Record when this event started for filtering drops
-            eventStartTimeRef.current = globalEventStatus?.activatesAt || Date.now();
+            eventStartTimeRef.current = currentEventStart || Date.now();
         }
         if (!isActive && !isPending && hasSoundtrackStartedRef.current) {
             stopGoldRushSoundtrack?.();
             hasSoundtrackStartedRef.current = false;
+            lastEventStartTimeRef.current = null;
         }
     }, [isActive, isPending, startGoldRushSoundtrack, stopGoldRushSoundtrack, globalEventStatus?.activatesAt]);
 
@@ -611,9 +622,10 @@ function GoldRushBanner({
                 hasPlayedSoundRef.current = false;
                 wasActiveRef.current = false;
                 wasPendingRef.current = false;
-                // Stop soundtrack - SSE might not arrive in time
-                // Don't reset hasSoundtrackStartedRef to prevent restart race condition
+                // Stop soundtrack and reset event identity tracking
+                // This allows new events to properly start their soundtrack
                 stopGoldRushSoundtrack?.();
+                lastEventStartTimeRef.current = null;
             }
         };
 
@@ -914,7 +926,7 @@ function GoldRushBanner({
                                         color: rarityConfig.color,
                                         textShadow: `0 0 8px ${rarityConfig.color}`,
                                     }}>
-                                        {rarityConfig.name} ×{multiplier}
+                                        {rarityConfig.name} Ã—{multiplier}
                                     </span>
                                 </div>
                             )}
