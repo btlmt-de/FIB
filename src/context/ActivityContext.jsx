@@ -64,6 +64,19 @@ export function ActivityProvider({ children }) {
         try {
             const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
             const data = await res.json();
+
+            // Apply clock sync if serverTime is provided
+            if (data.serverTime && (data.activatesAt || data.expiresAt)) {
+                const clockOffset = data.serverTime - Date.now();
+                console.log('[Fetch] Clock offset:', clockOffset, 'ms');
+                if (data.activatesAt) {
+                    data.activatesAt = data.activatesAt - clockOffset;
+                }
+                if (data.expiresAt) {
+                    data.expiresAt = data.expiresAt - clockOffset;
+                }
+            }
+
             setGlobalEventStatus(data);
         } catch (e) {
             console.error('[ActivityContext] Failed to fetch global event status:', e);
@@ -179,14 +192,30 @@ export function ActivityProvider({ children }) {
                                         pending = data.pending || false;
                                     }
 
+                                    // Calculate clock offset and adjust timestamps for clock skew
+                                    // This ensures countdown/timer displays correctly even if client/server clocks differ
+                                    let adjustedActivatesAt = data.activatesAt || prev.activatesAt;
+                                    let adjustedExpiresAt = data.expiresAt || prev.expiresAt;
+
+                                    if (data.serverTime && (data.activatesAt || data.expiresAt)) {
+                                        const clockOffset = data.serverTime - Date.now();
+                                        console.log('[SSE] Clock offset:', clockOffset, 'ms');
+                                        if (data.activatesAt) {
+                                            adjustedActivatesAt = data.activatesAt - clockOffset;
+                                        }
+                                        if (data.expiresAt) {
+                                            adjustedExpiresAt = data.expiresAt - clockOffset;
+                                        }
+                                    }
+
                                     return {
                                         ...prev,
                                         active,
                                         pending,
                                         type: data.eventType || (data.boostedRarity ? 'gold_rush' : prev.type),
                                         data: data.boostedRarity ? { boostedRarity: data.boostedRarity, multiplier: data.multiplier } : prev.data,
-                                        activatesAt: data.activatesAt || prev.activatesAt,
-                                        expiresAt: data.expiresAt || prev.expiresAt,
+                                        activatesAt: adjustedActivatesAt,
+                                        expiresAt: adjustedExpiresAt,
                                         milestone: data.milestone || prev.milestone,
                                     };
                                 });

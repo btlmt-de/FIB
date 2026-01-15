@@ -448,14 +448,37 @@ function KingOfWheelBanner({
         }
     };
 
+    // Track when the event ended (to prevent banner reappearing after kotwWinner clears)
+    const getEventEndedAt = () => {
+        try {
+            const val = localStorage.getItem('kotw-event-ended-at');
+            return val ? parseInt(val, 10) : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const setEventEndedAt = (timestamp) => {
+        try {
+            if (timestamp) {
+                localStorage.setItem('kotw-event-ended-at', timestamp.toString());
+            } else {
+                localStorage.removeItem('kotw-event-ended-at');
+            }
+        } catch {
+            // Ignore localStorage errors
+        }
+    };
+
     // Clear shown winner when a new event starts (using activatesAt as unique ID)
     useEffect(() => {
         const currentEventId = globalEventStatus?.activatesAt?.toString();
         const shownWinnerId = getShownWinnerId();
 
-        // If this is a new event (different activatesAt), clear the shown winner flag
+        // If this is a new event (different activatesAt), clear the shown winner flag and ended timestamp
         if (currentEventId && shownWinnerId && !shownWinnerId.startsWith(currentEventId)) {
             setShownWinnerId(null);
+            setEventEndedAt(null);
         }
     }, [globalEventStatus?.activatesAt]);
 
@@ -471,7 +494,7 @@ function KingOfWheelBanner({
         }
     }, [isActive, isPending, startKotwSoundtrack, stopKotwSoundtrack]);
 
-    // Show winner in banner when winner is announced
+    // Show winner in banner when winner is announced (or hide if no winner)
     useEffect(() => {
         // Clear any existing timeout
         if (winnerTimeoutRef.current) {
@@ -488,6 +511,8 @@ function KingOfWheelBanner({
             if (!alreadyShown) {
                 setShownWinnerId(winnerId);
                 setShowWinnerInBanner(true);
+                // Track when this event ended (to prevent banner reappearing)
+                setEventEndedAt(Date.now());
                 playSfx?.('mythic'); // Play big win sound
 
                 // Hide banner after 6 seconds
@@ -495,6 +520,10 @@ function KingOfWheelBanner({
                     setShowWinnerInBanner(false);
                 }, 6000);
             }
+        } else if (kotwWinner && !kotwWinner.winner) {
+            // No winner (event ended without anyone winning)
+            // Track that the event ended to prevent banner reappearing
+            setEventEndedAt(Date.now());
         }
 
         return () => {
@@ -509,9 +538,18 @@ function KingOfWheelBanner({
     const currentEventId = kotwWinner?.eventId?.toString() || '';
     const hasShownWinner = shownWinnerId && currentEventId && shownWinnerId.startsWith(currentEventId);
 
+    // Check if we've recently ended an event (prevents banner reappearing when kotwWinner clears)
+    const eventEndedAt = getEventEndedAt();
+    const recentlyEnded = eventEndedAt && (Date.now() - eventEndedAt < 60000); // Within 60 seconds of ending
+
+    // Also check if the event has expired based on timestamp (fallback)
+    const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt;
+
     const shouldShowBanner = hasShownWinner
         ? showWinnerInBanner
-        : (isPending || isActive);
+        : (recentlyEnded || eventExpired)
+            ? false  // Don't show if we recently ended an event or it's expired
+            : (isPending || isActive);
 
     // Countdown timer for pending phase
     useEffect(() => {
