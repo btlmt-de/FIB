@@ -350,25 +350,26 @@ export function ViewModeToggle({ value, onChange, options }) {
             ref={containerRef}
             style={{
                 display: 'inline-flex',
-                background: COLORS.bgLighter,
-                borderRadius: '8px',
-                padding: '4px',
+                background: COLORS.bg,
+                borderRadius: '6px',
+                padding: '3px',
                 position: 'relative',
                 border: `1px solid ${COLORS.border}`,
+                height: '38px',
+                boxSizing: 'border-box',
             }}
         >
             {/* Animated sliding indicator */}
             <div
                 style={{
                     position: 'absolute',
-                    top: '4px',
-                    bottom: '4px',
+                    top: '3px',
+                    bottom: '3px',
                     left: indicatorStyle.left,
                     width: indicatorStyle.width,
-                    background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.accentHover} 100%)`,
-                    borderRadius: '6px',
-                    transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: `0 2px 8px ${COLORS.accent}44`,
+                    background: COLORS.accent,
+                    borderRadius: '4px',
+                    transition: 'left 0.2s ease, width 0.2s ease',
                 }}
             />
 
@@ -378,34 +379,35 @@ export function ViewModeToggle({ value, onChange, options }) {
                     ref={el => buttonRefs.current[option.value] = el}
                     onClick={() => onChange(option.value)}
                     style={{
-                        padding: '10px 16px',
+                        padding: '0 14px',
                         background: 'transparent',
                         border: 'none',
-                        borderRadius: '6px',
+                        borderRadius: '4px',
                         color: value === option.value ? '#fff' : COLORS.textMuted,
                         fontSize: '13px',
-                        fontWeight: '600',
+                        fontWeight: '500',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
+                        gap: '6px',
                         position: 'relative',
                         zIndex: 1,
-                        transition: 'color 0.2s',
+                        transition: 'color 0.15s',
+                        height: '100%',
                     }}
                 >
                     {option.icon}
                     {option.label}
                     {option.count !== undefined && (
                         <span style={{
-                            background: value === option.value ? 'rgba(255,255,255,0.2)' : COLORS.bg,
-                            padding: '2px 8px',
-                            borderRadius: '12px',
+                            background: value === option.value ? 'rgba(255,255,255,0.2)' : COLORS.bgLight,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
                             fontSize: '11px',
-                            fontWeight: '700',
-                            minWidth: '24px',
+                            fontWeight: '600',
+                            minWidth: '20px',
                             textAlign: 'center',
-                            transition: 'background 0.2s',
+                            transition: 'background 0.15s',
                         }}>
                             <AnimatedNumber value={option.count} />
                         </span>
@@ -718,14 +720,14 @@ export function SearchInput({
     return (
         <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
             <Search
-                size={18}
+                size={16}
                 style={{
                     position: 'absolute',
-                    left: '14px',
+                    left: '12px',
                     top: '50%',
                     transform: 'translateY(-50%)',
                     color: isFocused ? COLORS.accent : COLORS.textMuted,
-                    transition: 'color 0.2s',
+                    transition: 'color 0.15s',
                     pointerEvents: 'none',
                 }}
             />
@@ -739,14 +741,15 @@ export function SearchInput({
                 onBlur={() => setIsFocused(false)}
                 style={{
                     width: '100%',
-                    padding: '12px 44px 12px 46px',
-                    background: COLORS.bgLighter,
+                    height: '38px',
+                    padding: '0 36px 0 38px',
+                    background: COLORS.bg,
                     border: `1px solid ${isFocused ? COLORS.accent : COLORS.border}`,
-                    borderRadius: '10px',
+                    borderRadius: '6px',
                     color: COLORS.text,
-                    fontSize: '14px',
+                    fontSize: '13px',
                     outline: 'none',
-                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    transition: 'border-color 0.15s',
                     boxSizing: 'border-box',
                     boxShadow: isFocused ? `0 0 0 3px ${COLORS.accent}22` : 'none',
                 }}
@@ -758,14 +761,14 @@ export function SearchInput({
                     onClick={handleClear}
                     style={{
                         position: 'absolute',
-                        right: '10px',
+                        right: '8px',
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        background: COLORS.bg,
+                        background: COLORS.bgLight,
                         border: 'none',
-                        borderRadius: '50%',
-                        width: '22px',
-                        height: '22px',
+                        borderRadius: '4px',
+                        width: '20px',
+                        height: '20px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -779,22 +782,22 @@ export function SearchInput({
                     }}
                     onMouseLeave={e => {
                         e.currentTarget.style.color = COLORS.textMuted;
-                        e.currentTarget.style.background = COLORS.bg;
+                        e.currentTarget.style.background = COLORS.bgLight;
                     }}
                 >
-                    <X size={14} />
+                    <X size={12} />
                 </button>
             ) : showShortcut && !isFocused && (
                 <span style={{
                     position: 'absolute',
-                    right: '12px',
+                    right: '10px',
                     top: '50%',
                     transform: 'translateY(-50%)',
                     color: COLORS.textDim,
-                    fontSize: '11px',
-                    padding: '3px 7px',
-                    background: COLORS.bg,
-                    borderRadius: '4px',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    background: COLORS.bgLight,
+                    borderRadius: '3px',
                     border: `1px solid ${COLORS.border}`,
                     fontFamily: 'monospace',
                     pointerEvents: 'none',
@@ -934,6 +937,20 @@ export function GlobalStyles() {
             }
             ::-webkit-scrollbar-thumb:hover {
                 background: ${COLORS.borderLight};
+            }
+            
+            /* Select dropdown styling */
+            select {
+                font-family: inherit;
+            }
+            select option {
+                background: ${COLORS.bgLight};
+                color: ${COLORS.text};
+                padding: 8px;
+            }
+            select:focus {
+                border-color: ${COLORS.accent} !important;
+                outline: none;
             }
         `}</style>
     );

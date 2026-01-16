@@ -13,6 +13,9 @@ import Package from 'lucide-react/dist/esm/icons/package';
 import PackageX from 'lucide-react/dist/esm/icons/package-x';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Eye from 'lucide-react/dist/esm/icons/eye';
+import X from 'lucide-react/dist/esm/icons/x';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import SearchX from 'lucide-react/dist/esm/icons/search-x';
 import DescriptionEditor from './DescriptionEditor.jsx';
 import GitHistory from './GitHistory.jsx';
 import ItemPoolManager from './ItemPoolManager.jsx';
@@ -677,17 +680,16 @@ function FilterButton({ active, onClick, children, color }) {
         <button
             onClick={onClick}
             style={{
-                background: active ? (color || COLORS.accent) : 'transparent',
+                background: active ? (color || COLORS.accent) : COLORS.bg,
                 color: active ? '#fff' : COLORS.textMuted,
                 border: `1px solid ${active ? (color || COLORS.accent) : COLORS.border}`,
-                padding: '6px 14px',
-                borderRadius: '4px',
+                padding: '6px 12px',
+                borderRadius: '6px',
                 cursor: 'pointer',
                 fontSize: '12px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                transition: 'all 0.15s'
+                fontWeight: '500',
+                transition: 'all 0.15s',
+                whiteSpace: 'nowrap',
             }}
         >
             {children}
@@ -703,6 +705,7 @@ function ForceItemPoolsContent() {
     const [search, setSearch] = useState('');
     const [stateFilter, setStateFilter] = useState('ALL');
     const [tagFilters, setTagFilters] = useState({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
+    const [sortBy, setSortBy] = useState('name'); // 'name' | 'state' | 'hasInfo'
     const [lastUpdated, setLastUpdated] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
     const [editMode, setEditMode] = useState(false);
@@ -946,7 +949,7 @@ function ForceItemPoolsContent() {
     const filteredItems = useMemo(() => {
         let itemsToFilter = viewMode === 'pools' ? items : missingItems;
 
-        return itemsToFilter.filter(item => {
+        let result = itemsToFilter.filter(item => {
             // Search filter
             if (search && !item.displayName.toLowerCase().includes(search.toLowerCase()) &&
                 !item.material.toLowerCase().includes(search.toLowerCase())) {
@@ -977,7 +980,48 @@ function ForceItemPoolsContent() {
 
             return true;
         });
-    }, [items, missingItems, viewMode, search, stateFilter, tagFilters]);
+
+        // Sort the results
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case 'name':
+                    return a.displayName.localeCompare(b.displayName);
+                case 'state': {
+                    const stateOrder = { EARLY: 0, MID: 1, LATE: 2 };
+                    const aOrder = stateOrder[a.state] ?? 3;
+                    const bOrder = stateOrder[b.state] ?? 3;
+                    if (aOrder !== bOrder) return aOrder - bOrder;
+                    return a.displayName.localeCompare(b.displayName);
+                }
+                case 'hasInfo': {
+                    const aHas = a.description?.length > 0 ? 0 : 1;
+                    const bHas = b.description?.length > 0 ? 0 : 1;
+                    if (aHas !== bHas) return aHas - bHas;
+                    return a.displayName.localeCompare(b.displayName);
+                }
+                default:
+                    return 0;
+            }
+        });
+
+        return result;
+    }, [items, missingItems, viewMode, search, stateFilter, tagFilters, sortBy]);
+
+    // Count active filters for feedback
+    const activeFilterCount = useMemo(() => {
+        let count = 0;
+        if (stateFilter !== 'ALL') count++;
+        count += Object.values(tagFilters).filter(Boolean).length;
+        if (search.trim()) count++;
+        return count;
+    }, [stateFilter, tagFilters, search]);
+
+    // Clear all filters helper
+    const clearAllFilters = useCallback(() => {
+        setStateFilter('ALL');
+        setTagFilters({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
+        setSearch('');
+    }, []);
 
     const stats = useMemo(() => ({
         total: items.length,
@@ -1110,70 +1154,113 @@ function ForceItemPoolsContent() {
                     ))}
                 </div>
 
-                {/* Filters */}
+                {/* Filters - Unified Design */}
                 <div style={{
                     background: COLORS.bgLight,
                     border: `1px solid ${COLORS.border}`,
                     borderRadius: '8px',
                     padding: '16px',
-                    marginBottom: '24px'
+                    marginBottom: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
                 }}>
-                    {/* Row 1: View Mode + Search */}
+                    {/* Row 1: View Mode + Search + Sort - all inline */}
                     <div style={{
                         display: 'flex',
-                        alignItems: 'flex-end',
-                        gap: '24px',
-                        marginBottom: '16px',
+                        alignItems: 'center',
+                        gap: '12px',
                         flexWrap: 'wrap'
                     }}>
                         {/* View Mode Toggle */}
-                        <div>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Eye size={12} />
-                                View Mode
-                            </div>
-                            <ViewModeToggle
-                                value={viewMode}
-                                onChange={setViewMode}
-                                options={[
-                                    { value: 'pools', label: 'In Pools', icon: <Package size={14} />, count: stats.total },
-                                    { value: 'missing', label: 'Missing Items', icon: <PackageX size={14} />, count: stats.missing },
-                                ]}
-                            />
-                        </div>
+                        <ViewModeToggle
+                            value={viewMode}
+                            onChange={setViewMode}
+                            options={[
+                                { value: 'pools', label: 'In Pools', icon: <Package size={14} />, count: stats.total },
+                                { value: 'missing', label: 'Missing', icon: <PackageX size={14} />, count: stats.missing },
+                            ]}
+                        />
+
+                        {/* Separator */}
+                        <div style={{ width: '1px', height: '32px', background: COLORS.border }} />
 
                         {/* Search */}
-                        <div style={{ flex: 1, minWidth: '250px' }}>
+                        <div style={{ flex: 1, minWidth: '180px', maxWidth: '320px' }}>
                             <SearchInput
                                 value={search}
                                 onChange={setSearch}
-                                placeholder={viewMode === 'missing' ? "Search missing items..." : "Search items..."}
+                                placeholder={viewMode === 'missing' ? "Search missing..." : "Search items..."}
                                 debounceMs={150}
                             />
+                        </div>
+
+                        {/* Sort Dropdown - styled to match */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            marginLeft: 'auto',
+                        }}>
+                            <span style={{ fontSize: '12px', color: COLORS.textMuted }}>Sort:</span>
+                            <div style={{ position: 'relative' }}>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    style={{
+                                        appearance: 'none',
+                                        background: COLORS.bg,
+                                        border: `1px solid ${COLORS.border}`,
+                                        borderRadius: '6px',
+                                        padding: '8px 32px 8px 12px',
+                                        color: COLORS.text,
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                        minWidth: '130px',
+                                        height: '36px',
+                                    }}
+                                >
+                                    <option value="name">Name (A-Z)</option>
+                                    <option value="state">Game State</option>
+                                    <option value="hasInfo">Has Info First</option>
+                                </select>
+                                <ChevronDown
+                                    size={14}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '10px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        color: COLORS.textMuted,
+                                        pointerEvents: 'none',
+                                    }}
+                                />
+                            </div>
                         </div>
                     </div>
 
                     {loadingMisode && (
-                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '12px' }}>
+                        <div style={{ fontSize: '11px', color: COLORS.textMuted }}>
                             Loading Minecraft item registry...
                         </div>
                     )}
 
-                    {/* Row 2: State Filters + Tag Filters */}
+                    {/* Row 2: Filters - only show for pools view */}
                     {viewMode === 'pools' && (
                         <div style={{
                             display: 'flex',
-                            gap: '32px',
+                            alignItems: 'center',
+                            gap: '12px',
                             flexWrap: 'wrap',
-                            alignItems: 'flex-start'
+                            paddingTop: '12px',
+                            borderTop: `1px solid ${COLORS.border}`,
                         }}>
-                            {/* State Filters */}
-                            <div>
-                                <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Filter size={12} />
-                                    Game State
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {/* State Filter Group */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '12px', color: COLORS.textMuted, whiteSpace: 'nowrap' }}>State:</span>
+                                <div style={{ display: 'flex', gap: '4px' }}>
                                     {['ALL', 'EARLY', 'MID', 'LATE'].map(state => (
                                         <FilterButton
                                             key={state}
@@ -1181,19 +1268,20 @@ function ForceItemPoolsContent() {
                                             onClick={() => setStateFilter(state)}
                                             color={state === 'ALL' ? COLORS.accent : COLORS[state.toLowerCase()]}
                                         >
-                                            {state} {state !== 'ALL' && `(${stats[state.toLowerCase()]})`}
+                                            {state === 'ALL' ? 'All' : state.charAt(0) + state.slice(1).toLowerCase()}
+                                            {state !== 'ALL' && ` (${stats[state.toLowerCase()]})`}
                                         </FilterButton>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Tag Filters */}
-                            <div>
-                                <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Filter size={12} />
-                                    Item Tags
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {/* Separator */}
+                            <div style={{ width: '1px', height: '28px', background: COLORS.border }} />
+
+                            {/* Tag Filter Group */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '12px', color: COLORS.textMuted, whiteSpace: 'nowrap' }}>Tags:</span>
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                     {['NETHER', 'END', 'EXTREME', 'DESCRIPTION'].map(tag => (
                                         <FilterButton
                                             key={tag}
@@ -1201,11 +1289,46 @@ function ForceItemPoolsContent() {
                                             onClick={() => toggleTag(tag)}
                                             color={COLORS[tag.toLowerCase()]}
                                         >
-                                            {tag === 'DESCRIPTION' ? 'HAS INFO' : tag} ({stats[tag.toLowerCase()]})
+                                            {tag === 'DESCRIPTION' ? 'Has Info' : tag.charAt(0) + tag.slice(1).toLowerCase()}
+                                            {` (${stats[tag.toLowerCase()]})`}
                                         </FilterButton>
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Clear Filters - only show when filters active */}
+                            {activeFilterCount > 0 && (
+                                <>
+                                    <div style={{ flex: 1 }} />
+                                    <button
+                                        onClick={clearAllFilters}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            padding: '6px 10px',
+                                            fontSize: '12px',
+                                            color: COLORS.textMuted,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            borderRadius: '4px',
+                                            transition: 'all 0.15s',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = COLORS.bg;
+                                            e.currentTarget.style.color = COLORS.text;
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'none';
+                                            e.currentTarget.style.color = COLORS.textMuted;
+                                        }}
+                                    >
+                                        <X size={14} />
+                                        Clear filters
+                                    </button>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1221,19 +1344,49 @@ function ForceItemPoolsContent() {
                     flexWrap: 'wrap',
                     gap: '12px'
                 }}>
-                    <div>
-                        Showing {filteredItems.length} of {viewMode === 'pools' ? stats.total : stats.missing} items
-                        {viewMode === 'missing' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {filteredItems.length === 0 && activeFilterCount > 0 ? (
+                            <>
+                                <SearchX size={16} style={{ color: COLORS.warning }} />
+                                <span style={{ color: COLORS.warning }}>
+                                    No items match your filters
+                                </span>
+                                <button
+                                    onClick={clearAllFilters}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: COLORS.accent,
+                                        cursor: 'pointer',
+                                        fontSize: '13px',
+                                        textDecoration: 'underline',
+                                        padding: '0',
+                                    }}
+                                >
+                                    Clear filters
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                Showing {filteredItems.length} of {viewMode === 'pools' ? stats.total : stats.missing} items
+                                {activeFilterCount > 0 && (
+                                    <span style={{ color: COLORS.textMuted }}>
+                                        ({activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active)
+                                    </span>
+                                )}
+                            </>
+                        )}
+                        {viewMode === 'missing' && filteredItems.length > 0 && (
                             <span style={{ color: COLORS.textMuted, marginLeft: '8px' }}>
                                 <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Items not yet added to any pool
                             </span>
                         )}
-                        {viewMode === 'pools' && stats.description > 0 && !editMode && (
+                        {viewMode === 'pools' && stats.description > 0 && !editMode && filteredItems.length > 0 && (
                             <span style={{ color: COLORS.description, marginLeft: '8px' }}>
                               <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Click items with <Info size={14} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }} /> for details
                             </span>
                         )}
-                        {viewMode === 'pools' && editMode && (
+                        {viewMode === 'pools' && editMode && filteredItems.length > 0 && (
                             <span style={{ color: COLORS.accent, marginLeft: '8px' }}>
                               <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Click any item to edit its description
                             </span>

@@ -577,8 +577,12 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
         setSaveStatus({ type: 'info', message: 'Verifying GitHub access...' });
 
         try {
-            // Get user info
-            const user = await getAuthenticatedUser(token);
+            // Parallelize independent API calls (react-best-practices rule 1.4)
+            const [user, canPush, branchList] = await Promise.all([
+                getAuthenticatedUser(token),
+                checkRepoAccess(token),
+                fetchBranches(token),
+            ]);
 
             // Check allowlist if configured
             if (ALLOWED_USERS.length > 0 && !ALLOWED_USERS.includes(user.login)) {
@@ -586,13 +590,11 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
             }
 
             // Check repo write access
-            const canPush = await checkRepoAccess(token);
             if (!canPush) {
                 throw new Error(`User @${user.login} does not have write access to ${REPO_OWNER}/${REPO_NAME}`);
             }
 
-            // Fetch available branches
-            const branchList = await fetchBranches(token);
+            // Set branches
             setBranches(branchList);
 
             // Validate that selected branch exists, fall back to default if not
