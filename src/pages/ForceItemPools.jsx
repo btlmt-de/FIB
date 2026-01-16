@@ -4,7 +4,6 @@ import Info from 'lucide-react/dist/esm/icons/info';
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import History from 'lucide-react/dist/esm/icons/history';
-import Heart from 'lucide-react/dist/esm/icons/heart';
 import Filter from 'lucide-react/dist/esm/icons/filter';
 import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
 import Pencil from 'lucide-react/dist/esm/icons/pencil';
@@ -390,12 +389,6 @@ async function fetchMisodeItems(forceRefresh = false) {
         console.error('Error fetching Misode data:', e);
         return [];
     }
-}
-
-// Find items that are in Misode but not in our pools
-function findMissingItems(poolItems, allMinecraftItems) {
-    const poolSet = new Set(poolItems.map(item => item.material));
-    return allMinecraftItems.filter(material => !poolSet.has(material));
 }
 
 function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
@@ -1040,23 +1033,6 @@ function ForceItemPoolsContent() {
         setTagFilters(prev => ({ ...prev, [tag]: !prev[tag] }));
     };
 
-    if (loading) {
-        return (
-            <div style={{
-                minHeight: '100vh',
-                background: COLORS.bg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: "'Minecraft', 'Courier New', monospace"
-            }}>
-                <div style={{ color: COLORS.text, fontSize: '18px' }}>
-                    Loading item pools...
-                </div>
-            </div>
-        );
-    }
-
     if (error) {
         return (
             <div style={{
@@ -1627,7 +1603,7 @@ function ForceItemPoolsContent() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with <Heart size={14} fill="#FF5555" style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }} />
+                        Made with ❤️
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios

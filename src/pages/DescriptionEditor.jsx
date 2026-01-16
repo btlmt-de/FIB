@@ -239,6 +239,16 @@ function FormattedLine({ text }) {
     );
 }
 
+// Decode base64 to UTF-8 properly (atob alone corrupts non-ASCII characters)
+function decodeBase64UTF8(base64String) {
+    const binaryString = atob(base64String);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+}
+
 // GitHub API helper functions
 async function getAuthenticatedUser(token) {
     const response = await fetch(`${GITHUB_API}/user`, {
@@ -697,7 +707,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
 
         try {
             const fileData = await getFileContent(githubToken, selectedBranch);
-            const currentContent = decodeURIComponent(escape(atob(fileData.content)));
+            const currentContent = decodeBase64UTF8(fileData.content);
 
             setSaveStatus({ type: 'info', message: 'Updating description...' });
             const newContent = updateDescriptionInConfig(currentContent, item.material, cleanedLines);
@@ -780,7 +790,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
 
         try {
             const fileData = await getFileContent(githubToken, selectedBranch);
-            const currentContent = decodeURIComponent(escape(atob(fileData.content)));
+            const currentContent = decodeBase64UTF8(fileData.content);
 
             setSaveStatus({ type: 'info', message: 'Removing description...' });
             const newContent = deleteDescriptionFromConfig(currentContent, item.material);

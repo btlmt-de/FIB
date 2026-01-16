@@ -694,7 +694,14 @@ export function SearchInput({
     // Keyboard shortcut: "/" to focus
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+            // Ignore if focus is on any text input element
+            const active = document.activeElement;
+            if (!active) return;
+            if (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable) {
+                return;
+            }
+
+            if (e.key === '/') {
                 e.preventDefault();
                 inputRef.current?.focus();
             }

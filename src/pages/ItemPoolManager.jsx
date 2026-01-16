@@ -122,10 +122,16 @@ async function getFileContent(token, branch) {
     );
     if (!response.ok) throw new Error('Failed to fetch file');
     const data = await response.json();
-    return {
-        content: atob(data.content),
-        sha: data.sha
-    };
+
+    // Decode base64 to UTF-8 properly (atob alone corrupts non-ASCII characters)
+    const binaryString = atob(data.content);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    const content = new TextDecoder('utf-8').decode(bytes);
+
+    return { content, sha: data.sha };
 }
 
 async function createBranch(token, newBranchName, baseBranch) {
