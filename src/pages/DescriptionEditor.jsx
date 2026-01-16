@@ -1,4 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import Check from 'lucide-react/dist/esm/icons/check';
+import Copy from 'lucide-react/dist/esm/icons/copy';
+import ArrowUp from 'lucide-react/dist/esm/icons/arrow-up';
+import ArrowDown from 'lucide-react/dist/esm/icons/arrow-down';
+import Clipboard from 'lucide-react/dist/esm/icons/clipboard';
+import BookOpen from 'lucide-react/dist/esm/icons/book-open';
+import Save from 'lucide-react/dist/esm/icons/save';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
+import X from 'lucide-react/dist/esm/icons/x';
 
 // Minecraft color codes mapping
 const MC_COLORS = {
@@ -469,9 +481,9 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
     };
 
     const [lines, setLines] = useState(getInitialLines);
-    const [githubToken, setGithubToken] = useState(getStoredToken() || '');
-    const [githubUser, setGithubUser] = useState(getStoredUser());
-    const [showTokenInput, setShowTokenInput] = useState(!getStoredToken());
+    const [githubToken, setGithubToken] = useState(() => getStoredToken() || '');
+    const [githubUser, setGithubUser] = useState(() => getStoredUser());
+    const [showTokenInput, setShowTokenInput] = useState(() => !getStoredToken());
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -480,7 +492,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
     const [verifyingToken, setVerifyingToken] = useState(false);
     const [hasAccess, setHasAccess] = useState(null);
     const [branches, setBranches] = useState([DEFAULT_BRANCH]);
-    const [selectedBranch, setSelectedBranch] = useState(getStoredBranch());
+    const [selectedBranch, setSelectedBranch] = useState(() => getStoredBranch());
     const [hasDraft, setHasDraft] = useState(!!existingDraft);
     const [draftTimestamp, setDraftTimestamp] = useState(existingDraft?.timestamp || null);
 
@@ -541,7 +553,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
         if (existingDraft) {
             setSaveStatus({
                 type: 'info',
-                message: `📋 Draft restored from ${new Date(existingDraft.timestamp).toLocaleString()}`
+                message: `Draft restored from ${new Date(existingDraft.timestamp).toLocaleString()}`
             });
             // Auto-clear after 3 seconds
             setTimeout(() => setSaveStatus(null), 3000);
@@ -1021,7 +1033,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                     e.currentTarget.style.color = COLORS.textMuted;
                                 }}
                             >
-                                📖 Wiki
+                                <BookOpen size={14} /> Wiki
                             </a>
                         </h2>
                         <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1038,7 +1050,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                     color: '#FFAA00',
                                     fontSize: '11px'
                                 }}>
-                                    💾 Draft saved {draftTimestamp && `• ${new Date(draftTimestamp).toLocaleTimeString()}`}
+                                    <Save size={14} style={{ marginRight: '4px' }} /> Draft saved {draftTimestamp && ` · ${new Date(draftTimestamp).toLocaleTimeString()}`}
                                     <button
                                         onClick={handleDiscardDraft}
                                         style={{
@@ -1068,7 +1080,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                             padding: '4px 8px'
                         }}
                     >
-                        ×
+                        <X size={18} />
                     </button>
                 </div>
 
@@ -1132,7 +1144,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                     transition: 'all 0.15s'
                                 }}
                             >
-                                <span>📋</span>
+                                <Clipboard size={14} />
                                 <span>{showReference ? 'Hide Reference Panel' : 'Show Reference Panel'}</span>
                             </button>
                         </div>
@@ -1197,7 +1209,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                                 fontSize: '11px'
                                             }}
                                         >
-                                            ↑
+                                            <ArrowUp size={14} />
                                         </button>
                                         <button
                                             onClick={() => moveLine(index, 1)}
@@ -1214,7 +1226,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                                 fontSize: '11px'
                                             }}
                                         >
-                                            ↓
+                                            <ArrowDown size={14} />
                                         </button>
                                         <button
                                             onClick={() => {
@@ -1237,7 +1249,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                                 transition: 'all 0.15s'
                                             }}
                                         >
-                                            {copiedIndex === index ? '✓' : '⧉'}
+                                            {copiedIndex === index ? <Check size={14} /> : <Copy size={14} />}
                                         </button>
                                         <button
                                             onClick={() => removeLine(index)}
@@ -1254,7 +1266,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                                 fontSize: '11px'
                                             }}
                                         >
-                                            ×
+                                            <X size={16} />
                                         </button>
                                     </div>
                                 </div>
@@ -1377,7 +1389,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                 marginBottom: '10px'
                             }}>
                                 <div style={{ fontSize: '11px', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                    📋 Reference
+                                    <Clipboard size={14} /> Reference
                                 </div>
                                 <button
                                     onClick={() => setShowReference(false)}
@@ -1390,7 +1402,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         padding: '0 4px'
                                     }}
                                 >
-                                    ×
+                                    <X size={18} />
                                 </button>
                             </div>
 
@@ -1588,7 +1600,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                     rel="noopener noreferrer"
                                     style={{ color: COLORS.accent }}
                                 >
-                                    Create a new token →
+                                    Create a new token <ExternalLink size={12} style={{ display: 'inline', marginLeft: '4px' }} />
                                 </a>
                                 {' '}(requires <code style={{ background: COLORS.bgLighter, padding: '1px 4px', borderRadius: '2px' }}>repo</code> scope)
                             </div>
@@ -1606,7 +1618,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                     )}
                                     <div>
                                         <div style={{ color: COLORS.success, fontSize: '13px' }}>
-                                            ✓ Authenticated as <strong>@{githubUser.login}</strong>
+                                            <span style={{ display: 'flex', alignItems: 'center' }}><Check size={14} style={{ color: COLORS.success, marginRight: '4px' }} /> Authenticated as <strong>@{githubUser.login}</strong></span>
                                         </div>
                                         <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
                                             Has write access to {REPO_OWNER}/{REPO_NAME}
@@ -1662,7 +1674,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         alignItems: 'center',
                                         gap: '4px'
                                     }}>
-                                        ⚠ Pushing directly to {DEFAULT_BRANCH}
+                                        <AlertTriangle size={14} style={{ marginRight: '4px' }} /> Pushing directly to {DEFAULT_BRANCH}
                                     </span>
                                 )}
                             </div>
@@ -1710,7 +1722,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         transition: 'all 0.15s'
                                     }}
                                 >
-                                    {deleting ? 'Deleting...' : confirmDelete ? 'Confirm Delete' : '🗑 Delete'}
+                                    {deleting ? 'Deleting...' : confirmDelete ? 'Confirm Delete' : <><Trash2 size={14} style={{ marginRight: '4px' }} /> Delete</>}
                                 </button>
                             )}
                         </div>

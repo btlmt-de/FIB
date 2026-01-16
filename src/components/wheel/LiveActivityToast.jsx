@@ -3,27 +3,19 @@ import { COLORS, IMAGE_BASE_URL } from '../../config/constants.js';
 import { getItemImageUrl, getDiscordAvatarUrl } from '../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../context/ActivityContext';
-import * as LucideIcons from 'lucide-react';
 import { Trophy, Sparkles } from 'lucide-react';
+import { AchievementIcon } from '../../utils/achievementIcons.jsx';
 
 // Achievement category colors (matching Achievements.jsx)
-const ACHIEVEMENT_CATEGORY_COLORS = {
-    beginner: COLORS.green,
-    collection: COLORS.purple,
-    spins: COLORS.orange,
-    events: COLORS.gold,
-    duplicates: COLORS.red,
-    special: COLORS.aqua
+    const ACHIEVEMENT_CATEGORY_COLORS = {
+        beginner: COLORS.green,
+        collection: COLORS.purple,
+        spins: COLORS.orange,
+        events: COLORS.gold,
+        duplicates: COLORS.red,
+        special: COLORS.aqua
 };
 
-// Helper to render Lucide icons by name
-function AchievementIcon({ name, size = 16, color, style = {} }) {
-    const IconComponent = LucideIcons[name];
-    if (!IconComponent) {
-        return <Trophy size={size} color={color} style={style} />;
-    }
-    return <IconComponent size={size} color={color} style={style} />;
-}
 
 export function LiveActivityToast() {
     const [toasts, setToasts] = useState([]);

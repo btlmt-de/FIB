@@ -1,12 +1,30 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Check from 'lucide-react/dist/esm/icons/check';
+import Info from 'lucide-react/dist/esm/icons/info';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import History from 'lucide-react/dist/esm/icons/history';
+import Heart from 'lucide-react/dist/esm/icons/heart';
+import Search from 'lucide-react/dist/esm/icons/search';
+import Filter from 'lucide-react/dist/esm/icons/filter';
+import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
+import Pencil from 'lucide-react/dist/esm/icons/pencil';
+import Circle from 'lucide-react/dist/esm/icons/circle';
+import Package from 'lucide-react/dist/esm/icons/package';
+import PackageX from 'lucide-react/dist/esm/icons/package-x';
+import Eye from 'lucide-react/dist/esm/icons/eye';
 import DescriptionEditor from './DescriptionEditor.jsx';
 import GitHistory from './GitHistory.jsx';
+import ItemPoolManager from './ItemPoolManager.jsx';
 
-const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/v3.9.5/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
+const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 const BRANCHES_URL = 'https://api.github.com/repos/btlmt-de/FIB/branches';
+const MISODE_ITEMS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/refs/heads/registries/item/data.json';
 const CACHE_KEY = 'forceitem_pools_cache_v4';
+const MISODE_CACHE_KEY = 'forceitem_misode_cache_v1';
+const MISODE_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour (reduced from 24 hours)
 const LAST_EDIT_KEY = 'forceitem_last_edit';
 const BRANCH_KEY = 'fib_github_branch';
@@ -154,24 +172,31 @@ function FormattedText({ text }) {
 }
 
 // Strip all formatting for plain text
+const STRIP_FORMATTING_REGEX = /&[0-9a-fklmnor]/gi;
 function stripFormatting(text) {
-    return text.replace(/&[0-9a-fklmnor]/gi, '');
+    return text.replace(STRIP_FORMATTING_REGEX, '');
 }
+
+// Hoisted RegExp patterns for parseJavaFile
+const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
+const UNDERSCORE_REGEX = /_/g;
+const WORD_START_REGEX = /\b\w/g;
 
 function parseJavaFile(content) {
     const items = [];
 
-    const registerRegex = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
+    // Reset lastIndex for global regex reuse
+    REGISTER_REGEX.lastIndex = 0;
 
     let match;
-    while ((match = registerRegex.exec(content)) !== null) {
+    while ((match = REGISTER_REGEX.exec(content)) !== null) {
         const [, material, state, tag1, tag2, tag3] = match;
         const tags = [tag1, tag2, tag3].filter(Boolean);
         items.push({
             material,
             state,
             tags,
-            displayName: material.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+            displayName: material.replace(UNDERSCORE_REGEX, ' ').toLowerCase().replace(WORD_START_REGEX, c => c.toUpperCase()),
             description: null
         });
     }
@@ -291,25 +316,112 @@ function invalidateCache() {
     }
 }
 
-function ItemCard({ item, onClick, editMode, onEdit }) {
-    const stateColor = COLORS[item.state.toLowerCase()] || COLORS.text;
+// Misode data caching functions
+function getMisodeCache() {
+    try {
+        const cached = localStorage.getItem(MISODE_CACHE_KEY);
+        if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < MISODE_CACHE_DURATION) {
+                return data;
+            }
+        }
+    } catch (e) {
+        console.error('Misode cache read error:', e);
+    }
+    return null;
+}
+
+function setMisodeCache(data) {
+    try {
+        localStorage.setItem(MISODE_CACHE_KEY, JSON.stringify({
+            data,
+            timestamp: Date.now()
+        }));
+    } catch (e) {
+        console.error('Misode cache write error:', e);
+    }
+}
+
+function clearMisodeCache() {
+    try {
+        localStorage.removeItem(MISODE_CACHE_KEY);
+        console.log('Misode cache cleared');
+    } catch (e) {
+        console.error('Misode cache clear error:', e);
+    }
+}
+
+// Convert minecraft:item_name to ITEM_NAME format
+function minecraftIdToMaterial(minecraftId) {
+    // Remove 'minecraft:' prefix and convert to uppercase
+    return minecraftId.replace('minecraft:', '').toUpperCase();
+}
+
+// Fetch all Minecraft items from Misode's mcmeta
+async function fetchMisodeItems(forceRefresh = false) {
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+        const cached = getMisodeCache();
+        if (cached) {
+            console.log('Using cached Misode data');
+            return cached;
+        }
+    } else {
+        clearMisodeCache();
+    }
+
+    try {
+        const response = await fetch(MISODE_ITEMS_URL);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Misode data: ${response.status}`);
+        }
+        const items = await response.json();
+
+        // Convert to our format (uppercase material names)
+        const materials = items.map(minecraftIdToMaterial);
+
+        // Cache the result
+        setMisodeCache(materials);
+        console.log(`Fetched ${materials.length} items from Misode${forceRefresh ? ' (forced refresh)' : ''}`);
+
+        return materials;
+    } catch (e) {
+        console.error('Error fetching Misode data:', e);
+        return [];
+    }
+}
+
+// Find items that are in Misode but not in our pools
+function findMissingItems(poolItems, allMinecraftItems) {
+    const poolSet = new Set(poolItems.map(item => item.material));
+    return allMinecraftItems.filter(material => !poolSet.has(material));
+}
+
+function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
+    const isMissing = item.isMissing;
+    const stateColor = isMissing ? COLORS.textMuted : (COLORS[item.state?.toLowerCase()] || COLORS.text);
     const hasDescription = item.description && item.description.length > 0;
 
     return (
         <div
             style={{
                 background: COLORS.bgLight,
-                border: `1px solid ${editMode ? COLORS.accent + '44' : hasDescription ? COLORS.description + '44' : COLORS.border}`,
+                border: `1px solid ${editMode && !isMissing ? COLORS.accent + '44' : hasDescription ? COLORS.description + '44' : isMissing ? COLORS.accent + '22' : COLORS.border}`,
                 borderRadius: '4px',
                 padding: '10px 12px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '6px',
-                transition: 'transform 0.15s, box-shadow 0.15s',
-                cursor: editMode || hasDescription ? 'pointer' : 'default',
+                transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s',
+                cursor: isMissing ? 'pointer' : (editMode || hasDescription ? 'pointer' : 'default'),
                 position: 'relative'
             }}
             onClick={() => {
+                if (isMissing && onAddMissing) {
+                    onAddMissing(item.material);
+                    return;
+                }
                 if (editMode) {
                     onEdit(item);
                 } else if (hasDescription) {
@@ -319,13 +431,19 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
             onMouseEnter={e => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
                 e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3)`;
+                if (isMissing) {
+                    e.currentTarget.style.borderColor = COLORS.accent + '66';
+                }
             }}
             onMouseLeave={e => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = 'none';
+                if (isMissing) {
+                    e.currentTarget.style.borderColor = COLORS.accent + '22';
+                }
             }}
         >
-            {editMode && (
+            {editMode && !isMissing && (
                 <div style={{
                     position: 'absolute',
                     top: '6px',
@@ -337,7 +455,7 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
                     fontSize: '10px',
                     fontWeight: '600'
                 }}>
-                    ✔
+                    <Check size={12} />
                 </div>
             )}
             <div style={{
@@ -363,31 +481,41 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
                 }}>
           {item.displayName}
         </span>
-                {hasDescription && (
-                    <span style={{
-                        color: COLORS.description,
-                        fontSize: '14px',
-                        opacity: 0.7
-                    }}>
-            ℹ
-          </span>
+                {!isMissing && hasDescription && (
+                    <Info size={14} style={{ color: COLORS.description, opacity: 0.7 }} />
                 )}
             </div>
 
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-        <span style={{
-            background: stateColor + '22',
-            color: stateColor,
-            padding: '2px 6px',
-            borderRadius: '3px',
-            fontSize: '10px',
-            fontWeight: '600',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-        }}>
-          {item.state}
-        </span>
-                {item.tags.map(tag => (
+                {isMissing && (
+                    <span style={{
+                        background: COLORS.accent + '22',
+                        color: COLORS.accent,
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>
+                        + Click to Add
+                    </span>
+                )}
+                {!isMissing && item.state && (
+                    <span style={{
+                        background: stateColor + '22',
+                        color: stateColor,
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>
+                        {item.state}
+                    </span>
+                )}
+                {!isMissing && item.tags && item.tags.map(tag => (
                     <span key={tag} style={{
                         background: (COLORS[tag.toLowerCase()] || COLORS.accent) + '22',
                         color: COLORS[tag.toLowerCase()] || COLORS.accent,
@@ -398,10 +526,10 @@ function ItemCard({ item, onClick, editMode, onEdit }) {
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px'
                     }}>
-            {tag}
-          </span>
+                        {tag}
+                    </span>
                 ))}
-                {hasDescription && (
+                {!isMissing && hasDescription && (
                     <span style={{
                         background: COLORS.description + '22',
                         color: COLORS.description,
@@ -591,10 +719,17 @@ export default function ForceItemPools() {
     const [selectedItem, setSelectedItem] = useState(null);
     const [editMode, setEditMode] = useState(false);
     const [editItem, setEditItem] = useState(null);
-    const [currentBranch, setCurrentBranch] = useState(getStoredBranch());
-    const [viewBranch, setViewBranch] = useState(getStoredViewBranch());
+    const [currentBranch, setCurrentBranch] = useState(() => getStoredBranch());
+    const [viewBranch, setViewBranch] = useState(() => getStoredViewBranch());
     const [availableBranches, setAvailableBranches] = useState([DEFAULT_BRANCH]);
     const [showHistory, setShowHistory] = useState(false);
+    const [showPoolManager, setShowPoolManager] = useState(false);
+    const [initialPoolItem, setInitialPoolItem] = useState(null); // Pre-selected item for Pool Manager
+
+    // Missing Items View state
+    const [viewMode, setViewMode] = useState('pools'); // 'pools' | 'missing' | 'all'
+    const [allMinecraftItems, setAllMinecraftItems] = useState([]);
+    const [loadingMisode, setLoadingMisode] = useState(false);
 
     // Handle description save from editor
     const handleDescriptionSave = (materialName, newDescription) => {
@@ -764,12 +899,75 @@ export default function ForceItemPools() {
         fetchData();
     }, []);
 
+    // Fetch Misode data for missing items view
+    useEffect(() => {
+        async function loadMisodeData() {
+            setLoadingMisode(true);
+            try {
+                const misodeItems = await fetchMisodeItems();
+                setAllMinecraftItems(misodeItems);
+            } catch (e) {
+                console.error('Failed to load Misode data:', e);
+            } finally {
+                setLoadingMisode(false);
+            }
+        }
+        loadMisodeData();
+    }, []);
+
+    // Handler to refresh Misode data (clears cache and refetches)
+    const handleRefreshMisode = useCallback(async () => {
+        setLoadingMisode(true);
+        try {
+            const misodeItems = await fetchMisodeItems(true); // force refresh
+            setAllMinecraftItems(misodeItems);
+        } catch (e) {
+            console.error('Failed to refresh Misode data:', e);
+        } finally {
+            setLoadingMisode(false);
+        }
+    }, []);
+
+    // Handler to open Pool Manager with a pre-selected item
+    const handleOpenPoolManagerWithItem = useCallback((material) => {
+        setInitialPoolItem(material);
+        setShowPoolManager(true);
+    }, []);
+
+    // Handler to close Pool Manager and reset initial item
+    const handleClosePoolManager = useCallback(() => {
+        setShowPoolManager(false);
+        setInitialPoolItem(null);
+    }, []);
+
+    // Compute missing items
+    const missingItems = useMemo(() => {
+        if (allMinecraftItems.length === 0 || items.length === 0) return [];
+
+        const poolMaterials = new Set(items.map(item => item.material));
+        return allMinecraftItems
+            .filter(material => !poolMaterials.has(material))
+            .map(material => ({
+                material,
+                displayName: material.replace(UNDERSCORE_REGEX, ' ').toLowerCase().replace(WORD_START_REGEX, c => c.toUpperCase()),
+                isMissing: true
+            }));
+    }, [allMinecraftItems, items]);
+
+    // Filter items based on view mode and filters
     const filteredItems = useMemo(() => {
-        return items.filter(item => {
+        let itemsToFilter = viewMode === 'pools' ? items : missingItems;
+
+        return itemsToFilter.filter(item => {
             // Search filter
             if (search && !item.displayName.toLowerCase().includes(search.toLowerCase()) &&
                 !item.material.toLowerCase().includes(search.toLowerCase())) {
                 return false;
+            }
+
+            // For missing items, skip state/tag filters
+            if (item.isMissing) {
+                return true;
             }
 
             // State filter
@@ -791,7 +989,7 @@ export default function ForceItemPools() {
 
             return true;
         });
-    }, [items, search, stateFilter, tagFilters]);
+    }, [items, missingItems, viewMode, search, stateFilter, tagFilters]);
 
     const stats = useMemo(() => ({
         total: items.length,
@@ -802,7 +1000,9 @@ export default function ForceItemPools() {
         end: items.filter(i => i.tags.includes('END')).length,
         extreme: items.filter(i => i.tags.includes('EXTREME')).length,
         description: items.filter(i => i.description && i.description.length > 0).length,
-    }), [items]);
+        missing: missingItems.length,
+        allMinecraft: allMinecraftItems.length,
+    }), [items, missingItems, allMinecraftItems]);
 
     const toggleTag = (tag) => {
         setTagFilters(prev => ({ ...prev, [tag]: !prev[tag] }));
@@ -881,7 +1081,7 @@ export default function ForceItemPools() {
                         ForceItemBattle Item Pools
                     </h1>
                     <p style={{ color: COLORS.textMuted, fontSize: '14px' }}>
-                        Browse all {stats.total} items •
+                        Browse all {stats.total} items <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 6px' }} />
                         {lastUpdated && ` Last updated: ${lastUpdated.toLocaleDateString()}`}
                     </p>
                     <a
@@ -890,7 +1090,7 @@ export default function ForceItemPools() {
                         rel="noopener noreferrer"
                         style={{ color: COLORS.accent, fontSize: '13px', textDecoration: 'none' }}
                     >
-                        View on GitHub →
+                        View on GitHub <ExternalLink size={14} style={{ display: 'inline-block', marginLeft: '4px', verticalAlign: 'middle' }} />
                     </a>
                 </div>
 
@@ -903,12 +1103,12 @@ export default function ForceItemPools() {
                     flexWrap: 'wrap'
                 }}>
                     {[
+                        { label: 'Total MC', value: stats.allMinecraft || '...', color: COLORS.text },
+                        { label: 'In Pools', value: stats.total, color: COLORS.accent },
+                        { label: 'Missing', value: stats.missing, color: COLORS.textMuted },
                         { label: 'Early', value: stats.early, color: COLORS.early },
                         { label: 'Mid', value: stats.mid, color: COLORS.mid },
                         { label: 'Late', value: stats.late, color: COLORS.late },
-                        { label: 'Nether', value: stats.nether, color: COLORS.nether },
-                        { label: 'End', value: stats.end, color: COLORS.end },
-                        { label: 'Extreme', value: stats.extreme, color: COLORS.extreme },
                         { label: 'With Info', value: stats.description, color: COLORS.description },
                     ].map(stat => (
                         <div key={stat.label} style={{ textAlign: 'center' }}>
@@ -930,63 +1130,122 @@ export default function ForceItemPools() {
                     padding: '16px',
                     marginBottom: '24px'
                 }}>
+                    {/* View Mode Toggle */}
+                    <div style={{ marginBottom: '16px' }}>
+                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Eye size={12} />
+                            View Mode
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {[
+                                { key: 'pools', label: 'In Pools', icon: Package, count: stats.total },
+                                { key: 'missing', label: 'Missing Items', icon: PackageX, count: stats.missing },
+                            ].map(mode => (
+                                <button
+                                    key={mode.key}
+                                    onClick={() => setViewMode(mode.key)}
+                                    style={{
+                                        padding: '8px 14px',
+                                        background: viewMode === mode.key ? COLORS.accent + '22' : 'transparent',
+                                        border: `1px solid ${viewMode === mode.key ? COLORS.accent : COLORS.border}`,
+                                        borderRadius: '4px',
+                                        color: viewMode === mode.key ? COLORS.accent : COLORS.textMuted,
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        transition: 'all 0.15s'
+                                    }}
+                                >
+                                    <mode.icon size={14} />
+                                    {mode.label} ({mode.count || '...'})
+                                </button>
+                            ))}
+                        </div>
+                        {loadingMisode && (
+                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginTop: '8px' }}>
+                                Loading Minecraft item registry...
+                            </div>
+                        )}
+                    </div>
+
                     {/* Search */}
-                    <input
-                        type="text"
-                        placeholder="Search items..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            background: COLORS.bgLighter,
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: '4px',
-                            color: COLORS.text,
-                            fontSize: '14px',
-                            marginBottom: '16px',
-                            outline: 'none',
-                            boxSizing: 'border-box'
-                        }}
-                    />
-
-                    {/* State Filters */}
-                    <div style={{ marginBottom: '12px' }}>
-                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Game State
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {['ALL', 'EARLY', 'MID', 'LATE'].map(state => (
-                                <FilterButton
-                                    key={state}
-                                    active={stateFilter === state}
-                                    onClick={() => setStateFilter(state)}
-                                    color={state === 'ALL' ? COLORS.accent : COLORS[state.toLowerCase()]}
-                                >
-                                    {state} {state !== 'ALL' && `(${stats[state.toLowerCase()]})`}
-                                </FilterButton>
-                            ))}
-                        </div>
+                    <div style={{ position: 'relative', marginBottom: '16px' }}>
+                        <Search
+                            size={16}
+                            style={{
+                                position: 'absolute',
+                                left: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: COLORS.textMuted,
+                                pointerEvents: 'none'
+                            }}
+                        />
+                        <input
+                            type="text"
+                            placeholder={viewMode === 'missing' ? "Search missing items..." : "Search items..."}
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '10px 14px 10px 40px',
+                                background: COLORS.bgLighter,
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '4px',
+                                color: COLORS.text,
+                                fontSize: '14px',
+                                outline: 'none',
+                                boxSizing: 'border-box'
+                            }}
+                        />
                     </div>
 
-                    {/* Tag Filters */}
-                    <div>
-                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Item Tags
+                    {/* State Filters - only show for pools view */}
+                    {viewMode === 'pools' && (
+                        <div style={{ marginBottom: '12px' }}>
+                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Filter size={12} />
+                                Game State
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {['ALL', 'EARLY', 'MID', 'LATE'].map(state => (
+                                    <FilterButton
+                                        key={state}
+                                        active={stateFilter === state}
+                                        onClick={() => setStateFilter(state)}
+                                        color={state === 'ALL' ? COLORS.accent : COLORS[state.toLowerCase()]}
+                                    >
+                                        {state} {state !== 'ALL' && `(${stats[state.toLowerCase()]})`}
+                                    </FilterButton>
+                                ))}
+                            </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {['NETHER', 'END', 'EXTREME', 'DESCRIPTION'].map(tag => (
-                                <FilterButton
-                                    key={tag}
-                                    active={tagFilters[tag]}
-                                    onClick={() => toggleTag(tag)}
-                                    color={COLORS[tag.toLowerCase()]}
-                                >
-                                    {tag === 'DESCRIPTION' ? 'HAS INFO' : tag} ({stats[tag.toLowerCase()]})
-                                </FilterButton>
-                            ))}
+                    )}
+
+                    {/* Tag Filters - only show for pools view */}
+                    {viewMode === 'pools' && (
+                        <div>
+                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Filter size={12} />
+                                Item Tags
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {['NETHER', 'END', 'EXTREME', 'DESCRIPTION'].map(tag => (
+                                    <FilterButton
+                                        key={tag}
+                                        active={tagFilters[tag]}
+                                        onClick={() => toggleTag(tag)}
+                                        color={COLORS[tag.toLowerCase()]}
+                                    >
+                                        {tag === 'DESCRIPTION' ? 'HAS INFO' : tag} ({stats[tag.toLowerCase()]})
+                                    </FilterButton>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Results Count */}
@@ -1001,39 +1260,46 @@ export default function ForceItemPools() {
                     gap: '12px'
                 }}>
                     <div>
-                        Showing {filteredItems.length} of {stats.total} items
-                        {stats.description > 0 && !editMode && (
-                            <span style={{ color: COLORS.description, marginLeft: '8px' }}>
-                              • Click items with ℹ for details
+                        Showing {filteredItems.length} of {viewMode === 'pools' ? stats.total : stats.missing} items
+                        {viewMode === 'missing' && (
+                            <span style={{ color: COLORS.textMuted, marginLeft: '8px' }}>
+                                <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Items not yet added to any pool
                             </span>
                         )}
-                        {editMode && (
+                        {viewMode === 'pools' && stats.description > 0 && !editMode && (
+                            <span style={{ color: COLORS.description, marginLeft: '8px' }}>
+                              <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Click items with <Info size={14} style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }} /> for details
+                            </span>
+                        )}
+                        {viewMode === 'pools' && editMode && (
                             <span style={{ color: COLORS.accent, marginLeft: '8px' }}>
-                              • Click any item to edit its description
+                              <Circle size={4} fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }} /> Click any item to edit its description
                             </span>
                         )}
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <button
-                            onClick={() => setEditMode(!editMode)}
-                            style={{
-                                padding: '8px 16px',
-                                background: editMode ? COLORS.accent : 'transparent',
-                                border: `1px solid ${editMode ? COLORS.accent : COLORS.border}`,
-                                borderRadius: '4px',
-                                color: editMode ? '#fff' : COLORS.textMuted,
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                            }}
-                        >
-                            <span>✔</span>
-                            {editMode ? 'Exit Edit Mode' : 'Edit Descriptions'}
-                        </button>
+                        {viewMode === 'pools' && (
+                            <button
+                                onClick={() => setEditMode(!editMode)}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: editMode ? COLORS.accent : 'transparent',
+                                    border: `1px solid ${editMode ? COLORS.accent : COLORS.border}`,
+                                    borderRadius: '4px',
+                                    color: editMode ? '#fff' : COLORS.textMuted,
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                {editMode ? <Check size={14} /> : <Pencil size={14} />}
+                                {editMode ? 'Exit Edit Mode' : 'Edit Descriptions'}
+                            </button>
+                        )}
                         <button
                             onClick={handleRefresh}
                             disabled={loading}
@@ -1054,10 +1320,10 @@ export default function ForceItemPools() {
                                 opacity: loading ? 0.5 : 1
                             }}
                         >
-                            <span style={{
-                                display: 'inline-block',
-                                animation: loading ? 'spin 1s linear infinite' : 'none'
-                            }}>↻</span>
+                            <RefreshCw
+                                size={14}
+                                style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }}
+                            />
                             Refresh
                         </button>
                         <button
@@ -1078,14 +1344,36 @@ export default function ForceItemPools() {
                                 gap: '6px'
                             }}
                         >
-                            <span>📋</span>
+                            <History size={14} />
                             History
+                        </button>
+                        <button
+                            onClick={() => setShowPoolManager(true)}
+                            title="Manage item pools"
+                            style={{
+                                padding: '8px 16px',
+                                background: 'transparent',
+                                border: `1px solid ${COLORS.accent}44`,
+                                borderRadius: '4px',
+                                color: COLORS.accent,
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <Package size={14} />
+                            Manage Pools
                         </button>
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px'
                         }}>
+                            <GitBranch size={14} style={{ color: COLORS.textMuted }} />
                             <span style={{
                                 color: COLORS.textMuted,
                                 fontSize: '11px',
@@ -1135,6 +1423,7 @@ export default function ForceItemPools() {
                             onClick={setSelectedItem}
                             editMode={editMode}
                             onEdit={setEditItem}
+                            onAddMissing={handleOpenPoolManagerWithItem}
                         />
                     ))}
                 </div>
@@ -1209,7 +1498,7 @@ export default function ForceItemPools() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with ❤️
+                        Made with <Heart size={14} fill="#FF5555" style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }} />
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios
@@ -1230,6 +1519,17 @@ export default function ForceItemPools() {
             {/* Git History Modal */}
             {showHistory && (
                 <GitHistory onClose={() => setShowHistory(false)} />
+            )}
+
+            {/* Item Pool Manager Modal */}
+            {showPoolManager && (
+                <ItemPoolManager
+                    onClose={handleClosePoolManager}
+                    items={items}
+                    missingItems={missingItems}
+                    onRefreshMisode={handleRefreshMisode}
+                    initialExpandedItem={initialPoolItem}
+                />
             )}
         </div>
     );
