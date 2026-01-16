@@ -223,12 +223,17 @@ export function ActivityProvider({ children }) {
 
                             case 'global_event_end':
                                 console.log('[SSE] Global event ended:', data);
-                                setGlobalEventStatus({ active: false, pending: false, type: null, data: null, milestone: null });
+                                // Use milestone from broadcast instead of fetching
+                                setGlobalEventStatus({
+                                    active: false,
+                                    pending: false,
+                                    type: null,
+                                    data: null,
+                                    milestone: data.milestone || null
+                                });
                                 // Clear KOTW state if it was a KOTW event
                                 setKotwLeaderboard([]);
                                 setKotwUserStats(null);
-                                // Fetch fresh milestone data
-                                fetchGlobalEventStatus();
                                 break;
 
                             case 'event_selection':
