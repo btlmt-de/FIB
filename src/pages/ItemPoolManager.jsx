@@ -12,6 +12,7 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import { COLORS, useToast, ProgressSteps } from './UIComponents.jsx';
 
 // GitHub API configuration
 const GITHUB_API = 'https://api.github.com';
@@ -29,22 +30,12 @@ const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\
 const BRANCH_NAME_REGEX = /^[a-zA-Z0-9._-]+$/;
 const REGISTER_ALL_ITEMS_REGEX = /private void registerAllItems\(\)\s*\{/;
 
-// Colors matching the app theme
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2',
-    success: '#55FF55',
-    error: '#FF5555',
-    warning: '#FFFF55',
-    early: '#55FF55',
-    mid: '#FFFF55',
-    late: '#FF5555',
-};
+// Progress step definitions (hoisted constant)
+const PROGRESS_STEPS = [
+    { id: 'branch', label: 'Select Branch' },
+    { id: 'changes', label: 'Make Changes' },
+    { id: 'commit', label: 'Commit' },
+];
 
 // Storage functions with lazy initialization support
 function getStoredToken() {
@@ -301,6 +292,9 @@ function modifyJavaFile(content, additions, removals) {
 
 // Main component
 export default function ItemPoolManager({ onClose, items, missingItems, onRefreshMisode, initialExpandedItem }) {
+    // Toast notifications
+    const toast = useToast();
+
     // Lazy state initialization for localStorage (react-best-practices rule 5.5)
     const [token, setToken] = useState(() => getStoredToken() || '');
     const [user, setUser] = useState(() => getStoredUser());
@@ -337,6 +331,25 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     const [commitSuccess, setCommitSuccess] = useState(null);
     const [createPR, setCreatePR] = useState(false);
     const [prUrl, setPrUrl] = useState(null);
+
+    // Calculate current progress step
+    const currentStep = useMemo(() => {
+        if (commitSuccess) return 3; // Completed
+
+        // Inline branch validation logic
+        const isNewBranchValid = newBranchName &&
+            newBranchName.length >= 1 &&
+            !PROTECTED_BRANCHES.has(newBranchName.toLowerCase()) &&
+            BRANCH_NAME_REGEX.test(newBranchName);
+
+        const hasBranch = branchMode === 'existing'
+            ? selectedBranch && !PROTECTED_BRANCHES.has(selectedBranch.toLowerCase())
+            : isNewBranchValid;
+
+        if (!hasBranch) return 0; // Step 1: Select branch
+        if (additions.length === 0 && removals.length === 0) return 1; // Step 2: Make changes
+        return 2; // Step 3: Ready to commit
+    }, [branchMode, selectedBranch, newBranchName, additions.length, removals.length, commitSuccess]);
 
     // Memoized filtered lists (react-best-practices rule 5.2)
     const filteredBranches = useMemo(() => {
@@ -518,6 +531,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             if (branchMode === 'new') {
                 await createBranch(token, newBranchName, baseBranch);
                 branch = newBranchName;
+                toast.info(`Created branch "${newBranchName}"`);
             }
 
             // Get current file content
@@ -529,9 +543,8 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             // Commit
             await commitFile(token, branch, newContent, sha, commitMessage);
 
-            setCommitSuccess(true);
-
             // Create PR if requested
+            let prUrlResult = null;
             if (createPR) {
                 const prTitle = commitMessage.split('\n')[0];
                 const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
@@ -541,8 +554,18 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                 }`;
 
                 const pr = await createPullRequest(token, prTitle, branch, 'main', prBody);
-                setPrUrl(pr.html_url);
+                prUrlResult = pr.html_url;
+                setPrUrl(prUrlResult);
             }
+
+            setCommitSuccess(true);
+
+            // Show success toast
+            toast.success(
+                createPR
+                    ? `Changes committed and PR created!`
+                    : `Changes committed to ${branch}!`
+            );
 
             // Clear changes after successful commit
             setAdditions([]);
@@ -552,6 +575,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         } catch (e) {
             setError(e.message);
             setCommitSuccess(false);
+            toast.error(`Commit failed: ${e.message}`);
         } finally {
             setCommitting(false);
         }
@@ -759,6 +783,9 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                     {/* Main content - only show if authenticated */}
                     {user && (
                         <>
+                            {/* Progress Steps */}
+                            <ProgressSteps steps={PROGRESS_STEPS} currentStep={currentStep} />
+
                             {/* Branch Selection */}
                             <div style={{
                                 background: COLORS.bgLight,

@@ -5,17 +5,32 @@ import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import History from 'lucide-react/dist/esm/icons/history';
 import Heart from 'lucide-react/dist/esm/icons/heart';
-import Search from 'lucide-react/dist/esm/icons/search';
 import Filter from 'lucide-react/dist/esm/icons/filter';
 import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
 import Pencil from 'lucide-react/dist/esm/icons/pencil';
 import Circle from 'lucide-react/dist/esm/icons/circle';
 import Package from 'lucide-react/dist/esm/icons/package';
 import PackageX from 'lucide-react/dist/esm/icons/package-x';
+import Plus from 'lucide-react/dist/esm/icons/plus';
 import Eye from 'lucide-react/dist/esm/icons/eye';
 import DescriptionEditor from './DescriptionEditor.jsx';
 import GitHistory from './GitHistory.jsx';
 import ItemPoolManager from './ItemPoolManager.jsx';
+import {
+    COLORS,
+    ToastProvider,
+    useToast,
+    SkeletonGrid,
+    GlobalStyles,
+    ViewModeToggle,
+    AnimatedNumber,
+    SearchInput,
+    StateBadge,
+    TagBadge,
+    NoResultsEmpty,
+    NoMissingItemsEmpty,
+    FilterChip,
+} from './UIComponents.jsx';
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
@@ -63,30 +78,12 @@ function getConfigUrl(branch) {
     return `${CONFIG_BASE_URL}/${branch}/config.yml`;
 }
 
-// Minecraft color codes mapping
+// Minecraft color codes mapping (for description text parsing)
 const MC_COLORS = {
     '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
     '4': '#AA0000', '5': '#AA00AA', '6': '#FFAA00', '7': '#AAAAAA',
     '8': '#555555', '9': '#5555FF', 'a': '#55FF55', 'b': '#55FFFF',
     'c': '#FF5555', 'd': '#FF55FF', 'e': '#FFFF55', 'f': '#FFFFFF'
-};
-
-// Minecraft-style colors for UI
-const COLORS = {
-    early: '#55FF55',
-    mid: '#FFFF55',
-    late: '#FF5555',
-    nether: '#AA0000',
-    end: '#AA00AA',
-    extreme: '#FF55FF',
-    description: '#55FFFF',
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2'
 };
 
 // Parse Minecraft formatting codes into styled spans
@@ -400,22 +397,23 @@ function findMissingItems(poolItems, allMinecraftItems) {
 
 function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
     const isMissing = item.isMissing;
-    const stateColor = isMissing ? COLORS.textMuted : (COLORS[item.state?.toLowerCase()] || COLORS.text);
     const hasDescription = item.description && item.description.length > 0;
+    const isInteractive = isMissing || editMode || hasDescription;
 
     return (
         <div
+            className="item-card"
             style={{
                 background: COLORS.bgLight,
-                border: `1px solid ${editMode && !isMissing ? COLORS.accent + '44' : hasDescription ? COLORS.description + '44' : isMissing ? COLORS.accent + '22' : COLORS.border}`,
+                border: `1px solid ${editMode && !isMissing ? COLORS.accent + '66' : hasDescription ? COLORS.description + '44' : isMissing ? COLORS.accent + '33' : COLORS.border}`,
                 borderRadius: '4px',
                 padding: '10px 12px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '6px',
                 transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s',
-                cursor: isMissing ? 'pointer' : (editMode || hasDescription ? 'pointer' : 'default'),
-                position: 'relative'
+                cursor: isInteractive ? 'pointer' : 'default',
+                position: 'relative',
             }}
             onClick={() => {
                 if (isMissing && onAddMissing) {
@@ -429,20 +427,16 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
                 }
             }}
             onMouseEnter={e => {
+                if (!isInteractive) return;
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = `0 4px 12px rgba(0,0,0,0.3)`;
-                if (isMissing) {
-                    e.currentTarget.style.borderColor = COLORS.accent + '66';
-                }
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
             }}
             onMouseLeave={e => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = 'none';
-                if (isMissing) {
-                    e.currentTarget.style.borderColor = COLORS.accent + '22';
-                }
             }}
         >
+            {/* Edit mode indicator */}
             {editMode && !isMissing && (
                 <div style={{
                     position: 'absolute',
@@ -453,20 +447,26 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
                     padding: '2px 6px',
                     borderRadius: '3px',
                     fontSize: '10px',
-                    fontWeight: '600'
+                    fontWeight: '600',
                 }}>
-                    <Check size={12} />
+                    <Pencil size={10} />
                 </div>
             )}
+
+            {/* Item header with image and name */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
             }}>
                 <img
                     src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
                     alt={item.displayName}
-                    style={{ width: '32px', height: '32px', imageRendering: 'pixelated' }}
+                    style={{
+                        width: '32px',
+                        height: '32px',
+                        imageRendering: 'pixelated',
+                    }}
                     onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
@@ -477,71 +477,58 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
                     fontSize: '13px',
                     fontWeight: '500',
                     flex: 1,
-                    lineHeight: '1.2'
+                    lineHeight: '1.2',
                 }}>
-          {item.displayName}
-        </span>
+                    {item.displayName}
+                </span>
                 {!isMissing && hasDescription && (
                     <Info size={14} style={{ color: COLORS.description, opacity: 0.7 }} />
                 )}
             </div>
 
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {/* Badges row */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {isMissing && (
                     <span style={{
-                        background: COLORS.accent + '22',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: `${COLORS.accent}22`,
                         color: COLORS.accent,
-                        padding: '2px 6px',
-                        borderRadius: '3px',
+                        padding: '3px 8px',
                         fontSize: '10px',
                         fontWeight: '600',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
+                        letterSpacing: '0.5px',
+                        border: `1px solid ${COLORS.accent}44`,
                     }}>
-                        + Click to Add
+                        <Plus size={10} />
+                        Click to Add
                     </span>
                 )}
                 {!isMissing && item.state && (
-                    <span style={{
-                        background: stateColor + '22',
-                        color: stateColor,
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>
-                        {item.state}
-                    </span>
+                    <StateBadge state={item.state} />
                 )}
                 {!isMissing && item.tags && item.tags.map(tag => (
-                    <span key={tag} style={{
-                        background: (COLORS[tag.toLowerCase()] || COLORS.accent) + '22',
-                        color: COLORS[tag.toLowerCase()] || COLORS.accent,
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>
-                        {tag}
-                    </span>
+                    <TagBadge key={tag} tag={tag} />
                 ))}
                 {!isMissing && hasDescription && (
                     <span style={{
-                        background: COLORS.description + '22',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: `${COLORS.description}22`,
                         color: COLORS.description,
-                        padding: '2px 6px',
-                        borderRadius: '3px',
+                        padding: '3px 8px',
                         fontSize: '10px',
                         fontWeight: '600',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
+                        letterSpacing: '0.3px',
+                        border: `1px solid ${COLORS.description}44`,
                     }}>
-            INFO
-          </span>
+                        <Info size={9} />
+                        Info
+                    </span>
                 )}
             </div>
         </div>
@@ -708,7 +695,8 @@ function FilterButton({ active, onClick, children, color }) {
     );
 }
 
-export default function ForceItemPools() {
+// Inner component with all the logic
+function ForceItemPoolsContent() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -1130,119 +1118,93 @@ export default function ForceItemPools() {
                     padding: '16px',
                     marginBottom: '24px'
                 }}>
-                    {/* View Mode Toggle */}
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Eye size={12} />
-                            View Mode
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {[
-                                { key: 'pools', label: 'In Pools', icon: Package, count: stats.total },
-                                { key: 'missing', label: 'Missing Items', icon: PackageX, count: stats.missing },
-                            ].map(mode => (
-                                <button
-                                    key={mode.key}
-                                    onClick={() => setViewMode(mode.key)}
-                                    style={{
-                                        padding: '8px 14px',
-                                        background: viewMode === mode.key ? COLORS.accent + '22' : 'transparent',
-                                        border: `1px solid ${viewMode === mode.key ? COLORS.accent : COLORS.border}`,
-                                        borderRadius: '4px',
-                                        color: viewMode === mode.key ? COLORS.accent : COLORS.textMuted,
-                                        fontSize: '12px',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        transition: 'all 0.15s'
-                                    }}
-                                >
-                                    <mode.icon size={14} />
-                                    {mode.label} ({mode.count || '...'})
-                                </button>
-                            ))}
-                        </div>
-                        {loadingMisode && (
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginTop: '8px' }}>
-                                Loading Minecraft item registry...
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Search */}
-                    <div style={{ position: 'relative', marginBottom: '16px' }}>
-                        <Search
-                            size={16}
-                            style={{
-                                position: 'absolute',
-                                left: '12px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: COLORS.textMuted,
-                                pointerEvents: 'none'
-                            }}
-                        />
-                        <input
-                            type="text"
-                            placeholder={viewMode === 'missing' ? "Search missing items..." : "Search items..."}
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '10px 14px 10px 40px',
-                                background: COLORS.bgLighter,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '4px',
-                                color: COLORS.text,
-                                fontSize: '14px',
-                                outline: 'none',
-                                boxSizing: 'border-box'
-                            }}
-                        />
-                    </div>
-
-                    {/* State Filters - only show for pools view */}
-                    {viewMode === 'pools' && (
-                        <div style={{ marginBottom: '12px' }}>
+                    {/* Row 1: View Mode + Search */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        gap: '24px',
+                        marginBottom: '16px',
+                        flexWrap: 'wrap'
+                    }}>
+                        {/* View Mode Toggle */}
+                        <div>
                             <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Filter size={12} />
-                                Game State
+                                <Eye size={12} />
+                                View Mode
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                {['ALL', 'EARLY', 'MID', 'LATE'].map(state => (
-                                    <FilterButton
-                                        key={state}
-                                        active={stateFilter === state}
-                                        onClick={() => setStateFilter(state)}
-                                        color={state === 'ALL' ? COLORS.accent : COLORS[state.toLowerCase()]}
-                                    >
-                                        {state} {state !== 'ALL' && `(${stats[state.toLowerCase()]})`}
-                                    </FilterButton>
-                                ))}
-                            </div>
+                            <ViewModeToggle
+                                value={viewMode}
+                                onChange={setViewMode}
+                                options={[
+                                    { value: 'pools', label: 'In Pools', icon: <Package size={14} />, count: stats.total },
+                                    { value: 'missing', label: 'Missing Items', icon: <PackageX size={14} />, count: stats.missing },
+                                ]}
+                            />
+                        </div>
+
+                        {/* Search */}
+                        <div style={{ flex: 1, minWidth: '250px' }}>
+                            <SearchInput
+                                value={search}
+                                onChange={setSearch}
+                                placeholder={viewMode === 'missing' ? "Search missing items..." : "Search items..."}
+                                debounceMs={150}
+                            />
+                        </div>
+                    </div>
+
+                    {loadingMisode && (
+                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '12px' }}>
+                            Loading Minecraft item registry...
                         </div>
                     )}
 
-                    {/* Tag Filters - only show for pools view */}
+                    {/* Row 2: State Filters + Tag Filters */}
                     {viewMode === 'pools' && (
-                        <div>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Filter size={12} />
-                                Item Tags
+                        <div style={{
+                            display: 'flex',
+                            gap: '32px',
+                            flexWrap: 'wrap',
+                            alignItems: 'flex-start'
+                        }}>
+                            {/* State Filters */}
+                            <div>
+                                <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Filter size={12} />
+                                    Game State
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {['ALL', 'EARLY', 'MID', 'LATE'].map(state => (
+                                        <FilterButton
+                                            key={state}
+                                            active={stateFilter === state}
+                                            onClick={() => setStateFilter(state)}
+                                            color={state === 'ALL' ? COLORS.accent : COLORS[state.toLowerCase()]}
+                                        >
+                                            {state} {state !== 'ALL' && `(${stats[state.toLowerCase()]})`}
+                                        </FilterButton>
+                                    ))}
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                {['NETHER', 'END', 'EXTREME', 'DESCRIPTION'].map(tag => (
-                                    <FilterButton
-                                        key={tag}
-                                        active={tagFilters[tag]}
-                                        onClick={() => toggleTag(tag)}
-                                        color={COLORS[tag.toLowerCase()]}
-                                    >
-                                        {tag === 'DESCRIPTION' ? 'HAS INFO' : tag} ({stats[tag.toLowerCase()]})
-                                    </FilterButton>
-                                ))}
+
+                            {/* Tag Filters */}
+                            <div>
+                                <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Filter size={12} />
+                                    Item Tags
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {['NETHER', 'END', 'EXTREME', 'DESCRIPTION'].map(tag => (
+                                        <FilterButton
+                                            key={tag}
+                                            active={tagFilters[tag]}
+                                            onClick={() => toggleTag(tag)}
+                                            color={COLORS[tag.toLowerCase()]}
+                                        >
+                                            {tag === 'DESCRIPTION' ? 'HAS INFO' : tag} ({stats[tag.toLowerCase()]})
+                                        </FilterButton>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1411,31 +1373,45 @@ export default function ForceItemPools() {
                 </div>
 
                 {/* Item Grid */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                    gap: '12px'
-                }}>
-                    {filteredItems.map(item => (
-                        <ItemCard
-                            key={item.material}
-                            item={item}
-                            onClick={setSelectedItem}
-                            editMode={editMode}
-                            onEdit={setEditItem}
-                            onAddMissing={handleOpenPoolManagerWithItem}
-                        />
-                    ))}
-                </div>
-
-                {filteredItems.length === 0 && (
+                {loading ? (
+                    <SkeletonGrid count={12} />
+                ) : (
                     <div style={{
-                        textAlign: 'center',
-                        padding: '48px',
-                        color: COLORS.textMuted
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                        gap: '12px'
                     }}>
-                        No items match your filters
+                        {filteredItems.map(item => (
+                            <ItemCard
+                                key={item.material}
+                                item={item}
+                                onClick={setSelectedItem}
+                                editMode={editMode}
+                                onEdit={setEditItem}
+                                onAddMissing={handleOpenPoolManagerWithItem}
+                            />
+                        ))}
                     </div>
+                )}
+
+                {/* Empty States */}
+                {filteredItems.length === 0 && !loading && (
+                    search ? (
+                        <NoResultsEmpty
+                            searchTerm={search}
+                            onClear={() => setSearch('')}
+                        />
+                    ) : viewMode === 'missing' && missingItems.length === 0 ? (
+                        <NoMissingItemsEmpty />
+                    ) : (
+                        <NoResultsEmpty
+                            searchTerm=""
+                            onClear={() => {
+                                setStateFilter('ALL');
+                                setTagFilters({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
+                            }}
+                        />
+                    )
                 )}
 
                 {/* Footer */}
@@ -1532,5 +1508,15 @@ export default function ForceItemPools() {
                 />
             )}
         </div>
+    );
+}
+
+// Main export with providers
+export default function ForceItemPools() {
+    return (
+        <ToastProvider>
+            <GlobalStyles />
+            <ForceItemPoolsContent />
+        </ToastProvider>
     );
 }

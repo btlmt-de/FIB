@@ -546,7 +546,14 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
         } else if (githubUser) {
             setHasAccess(true);
             // Fetch branches if we have a stored user
-            fetchBranches(githubToken).then(b => setBranches(b));
+            fetchBranches(githubToken).then(branchList => {
+                setBranches(branchList);
+                // Validate that selected branch exists, fall back to default if not
+                if (!branchList.includes(selectedBranch)) {
+                    console.warn(`Branch "${selectedBranch}" not found, falling back to ${DEFAULT_BRANCH}`);
+                    setSelectedBranch(DEFAULT_BRANCH);
+                }
+            });
         }
 
         // Show notification if draft was restored
@@ -587,6 +594,12 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
             // Fetch available branches
             const branchList = await fetchBranches(token);
             setBranches(branchList);
+
+            // Validate that selected branch exists, fall back to default if not
+            if (!branchList.includes(selectedBranch)) {
+                console.warn(`Branch "${selectedBranch}" not found, falling back to ${DEFAULT_BRANCH}`);
+                setSelectedBranch(DEFAULT_BRANCH);
+            }
 
             setGithubUser(user);
             setHasAccess(true);
