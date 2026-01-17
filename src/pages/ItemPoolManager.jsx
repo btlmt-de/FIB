@@ -751,6 +751,29 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                                     {verifying ? 'Verifying...' : 'Authenticate'}
                                 </button>
                             </div>
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                marginTop: '10px',
+                                fontSize: '13px',
+                                color: COLORS.textMuted,
+                                cursor: 'pointer',
+                                userSelect: 'none',
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={() => setRememberMe(!rememberMe)}
+                                    style={{
+                                        width: '14px',
+                                        height: '14px',
+                                        accentColor: COLORS.accent,
+                                        cursor: 'pointer',
+                                    }}
+                                />
+                                Remember me for this session (8 hours)
+                            </label>
                             <div style={{ fontSize: '12px', color: COLORS.textMuted, marginTop: '8px' }}>
                                 <a
                                     href={`https://github.com/settings/tokens/new?description=FIB%20Item%20Pool%20Manager&scopes=repo`}
