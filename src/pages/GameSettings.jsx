@@ -749,12 +749,29 @@ function CategoryOverview({ onSelectCategory, enabledSettings }) {
 export default function GameSettings() {
     const [selectedCategory, setSelectedCategory] = useState(null);
 
-    // Initialize with default settings
+    // Initialize with default settings, auto-resolving dependencies
     const [enabledSettings, setEnabledSettings] = useState(() => {
         const defaults = new Set();
+
+        // Helper to recursively add a setting and its dependencies
+        const addWithDependencies = (id) => {
+            if (defaults.has(id)) return;
+            defaults.add(id);
+
+            const setting = SETTINGS_MAP.get(id);
+            if (setting?.requires) {
+                const deps = Array.isArray(setting.requires)
+                    ? setting.requires
+                    : [setting.requires];
+                deps.forEach(depId => addWithDependencies(depId));
+            }
+        };
+
+        // Add all default-enabled settings with their dependencies
         SETTINGS.forEach(s => {
-            if (s.default) defaults.add(s.id);
+            if (s.default) addWithDependencies(s.id);
         });
+
         return defaults;
     });
 
