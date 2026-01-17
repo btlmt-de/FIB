@@ -343,7 +343,7 @@ export function ViewModeToggle({ value, onChange, options }) {
                 width: buttonRect.width,
             });
         }
-    }, [value]);
+    }, [value, options]);
 
     return (
         <div

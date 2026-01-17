@@ -4,6 +4,7 @@ import Info from 'lucide-react/dist/esm/icons/info';
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import History from 'lucide-react/dist/esm/icons/history';
+import Heart from 'lucide-react/dist/esm/icons/heart';
 import Filter from 'lucide-react/dist/esm/icons/filter';
 import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
 import Pencil from 'lucide-react/dist/esm/icons/pencil';
@@ -1000,14 +1001,18 @@ function ForceItemPoolsContent() {
         return result;
     }, [items, missingItems, viewMode, search, stateFilter, tagFilters, sortBy]);
 
-    // Count active filters for feedback
+    // Count active filters for feedback (state/tag only relevant in pools view)
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        if (stateFilter !== 'ALL') count++;
-        count += Object.values(tagFilters).filter(Boolean).length;
+        // Only count state/tag filters when in pools view
+        if (viewMode === 'pools') {
+            if (stateFilter !== 'ALL') count++;
+            count += Object.values(tagFilters).filter(Boolean).length;
+        }
+        // Always count search
         if (search.trim()) count++;
         return count;
-    }, [stateFilter, tagFilters, search]);
+    }, [stateFilter, tagFilters, search, viewMode]);
 
     // Clear all filters helper
     const clearAllFilters = useCallback(() => {
@@ -1525,12 +1530,31 @@ function ForceItemPoolsContent() {
 
                 {/* Empty States */}
                 {filteredItems.length === 0 && !loading && (
-                    search ? (
+                    // Show loading indicator while fetching Minecraft registry for missing view
+                    viewMode === 'missing' && loadingMisode ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '60px 20px',
+                            color: COLORS.textMuted,
+                        }}>
+                            <RefreshCw
+                                size={32}
+                                style={{
+                                    animation: 'spin 1s linear infinite',
+                                    marginBottom: '16px',
+                                    opacity: 0.5,
+                                }}
+                            />
+                            <div style={{ fontSize: '14px' }}>
+                                Loading Minecraft item registry...
+                            </div>
+                        </div>
+                    ) : search ? (
                         <NoResultsEmpty
                             searchTerm={search}
                             onClear={() => setSearch('')}
                         />
-                    ) : viewMode === 'missing' && missingItems.length === 0 ? (
+                    ) : viewMode === 'missing' && missingItems.length === 0 && !loadingMisode ? (
                         <NoMissingItemsEmpty />
                     ) : (
                         <NoResultsEmpty
@@ -1603,7 +1627,7 @@ function ForceItemPoolsContent() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with ❤️
+                        Made with <Heart size={14} fill="#FF5555" style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }} />
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios

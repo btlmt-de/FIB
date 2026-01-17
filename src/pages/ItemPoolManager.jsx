@@ -21,9 +21,11 @@ const REPO_NAME = 'ForceItemBattle';
 const FILE_PATH = 'src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const PROTECTED_BRANCHES = new Set(['main', 'master']); // O(1) lookups
 
-// LocalStorage keys
+// Storage keys (sessionStorage only, not localStorage for security)
 const TOKEN_KEY = 'fib_github_token';
+const TOKEN_EXPIRY_KEY = 'fib_github_token_expiry';
 const USER_KEY = 'fib_github_user';
+const TOKEN_EXPIRY_HOURS = 8; // Token expires after 8 hours
 
 // Hoisted regex patterns (react-best-practices rule 7.9)
 const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
@@ -37,46 +39,105 @@ const PROGRESS_STEPS = [
     { id: 'commit', label: 'Commit' },
 ];
 
-// Storage functions with lazy initialization support
+// In-memory token storage (default, most secure)
+let inMemoryToken = null;
+let inMemoryUser = null;
+
+// Storage functions with optional "remember me" using sessionStorage
 function getStoredToken() {
+    // First check in-memory (always preferred)
+    if (inMemoryToken) {
+        return inMemoryToken;
+    }
+
+    // Fall back to sessionStorage if user opted to remember
     try {
-        return localStorage.getItem(TOKEN_KEY);
+        const token = sessionStorage.getItem(TOKEN_KEY);
+        const expiry = sessionStorage.getItem(TOKEN_EXPIRY_KEY);
+
+        if (token && expiry) {
+            // Check if token has expired
+            if (Date.now() > parseInt(expiry, 10)) {
+                // Token expired, clear it
+                clearStoredAuth();
+                return null;
+            }
+            return token;
+        }
+        return null;
     } catch {
         return null;
     }
 }
 
-function setStoredToken(token) {
-    try {
-        if (token) {
-            localStorage.setItem(TOKEN_KEY, token);
-        } else {
-            localStorage.removeItem(TOKEN_KEY);
+function setStoredToken(token, remember = false) {
+    // Always store in memory
+    inMemoryToken = token;
+
+    if (!token) {
+        // Clear everything
+        inMemoryToken = null;
+        try {
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+        } catch {}
+        return;
+    }
+
+    // Only persist to sessionStorage if remember=true
+    if (remember) {
+        try {
+            const expiry = Date.now() + (TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
+            sessionStorage.setItem(TOKEN_KEY, token);
+            sessionStorage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
+        } catch {
+            // Ignore storage errors, token still in memory
         }
-    } catch {
-        // Ignore storage errors
     }
 }
 
 function getStoredUser() {
+    // First check in-memory
+    if (inMemoryUser) {
+        return inMemoryUser;
+    }
+
     try {
-        const user = localStorage.getItem(USER_KEY);
+        const user = sessionStorage.getItem(USER_KEY);
         return user ? JSON.parse(user) : null;
     } catch {
         return null;
     }
 }
 
-function setStoredUser(user) {
-    try {
-        if (user) {
-            localStorage.setItem(USER_KEY, JSON.stringify(user));
-        } else {
-            localStorage.removeItem(USER_KEY);
-        }
-    } catch {
-        // Ignore storage errors
+function setStoredUser(user, remember = false) {
+    // Always store in memory
+    inMemoryUser = user;
+
+    if (!user) {
+        inMemoryUser = null;
+        try {
+            sessionStorage.removeItem(USER_KEY);
+        } catch {}
+        return;
     }
+
+    // Only persist to sessionStorage if remember=true
+    if (remember) {
+        try {
+            sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+        } catch {}
+    }
+}
+
+function clearStoredAuth() {
+    inMemoryToken = null;
+    inMemoryUser = null;
+    try {
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+        sessionStorage.removeItem(USER_KEY);
+    } catch {}
 }
 
 // GitHub API functions
@@ -301,10 +362,11 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     // Toast notifications
     const toast = useToast();
 
-    // Lazy state initialization for localStorage (react-best-practices rule 5.5)
+    // Lazy state initialization for sessionStorage (react-best-practices rule 5.5)
     const [token, setToken] = useState(() => getStoredToken() || '');
     const [user, setUser] = useState(() => getStoredUser());
     const [showTokenInput, setShowTokenInput] = useState(() => !getStoredToken());
+    const [rememberMe, setRememberMe] = useState(false);
 
     // UI state
     const [verifying, setVerifying] = useState(false);
@@ -453,8 +515,8 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         try {
             const verifiedUser = await verifyTokenAndAccess(token);
             setUser(verifiedUser);
-            setStoredToken(token);
-            setStoredUser(verifiedUser);
+            setStoredToken(token, rememberMe);
+            setStoredUser(verifiedUser, rememberMe);
             setShowTokenInput(false);
         } catch (e) {
             setError(e.message);
@@ -466,10 +528,10 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     const handleLogout = () => {
         setUser(null);
         setToken('');
-        setStoredToken(null);
-        setStoredUser(null);
+        clearStoredAuth();
         setShowTokenInput(true);
         setBranches([]);
+        setRememberMe(false);
     };
 
     // Expand item for configuration (toggle behavior)
@@ -549,34 +611,31 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             // Commit
             await commitFile(token, branch, newContent, sha, commitMessage);
 
-            // Create PR if requested
-            let prUrlResult = null;
-            if (createPR) {
-                const prTitle = commitMessage.split('\n')[0];
-                const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
-                    additions.map(a => `- ${a.material} → ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
-                }\n\n### Removed Items (${removals.length})\n${
-                    removals.map(r => `- ${r.material}`).join('\n') || 'None'
-                }`;
-
-                const pr = await createPullRequest(token, prTitle, branch, 'main', prBody);
-                prUrlResult = pr.html_url;
-                setPrUrl(prUrlResult);
-            }
-
+            // Commit succeeded - mark success and clear changes immediately
             setCommitSuccess(true);
-
-            // Show success toast
-            toast.success(
-                createPR
-                    ? `Changes committed and PR created!`
-                    : `Changes committed to ${branch}!`
-            );
-
-            // Clear changes after successful commit
             setAdditions([]);
             setRemovals([]);
             setCommitMessage('');
+            toast.success(`Changes committed to ${branch}!`);
+
+            // Create PR if requested (separate try/catch so PR failure doesn't mark commit as failed)
+            if (createPR) {
+                try {
+                    const prTitle = commitMessage.split('\n')[0];
+                    const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
+                        additions.map(a => `- ${a.material} → ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
+                    }\n\n### Removed Items (${removals.length})\n${
+                        removals.map(r => `- ${r.material}`).join('\n') || 'None'
+                    }`;
+
+                    const pr = await createPullRequest(token, prTitle, branch, 'main', prBody);
+                    setPrUrl(pr.html_url);
+                    toast.success('Pull request created!');
+                } catch (prError) {
+                    // PR failed but commit succeeded - don't revert commit success
+                    toast.error(`PR creation failed: ${prError.message}`);
+                }
+            }
 
         } catch (e) {
             setError(e.message);
