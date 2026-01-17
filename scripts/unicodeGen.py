@@ -61,6 +61,17 @@ def generate_default_json(materials: list[str]) -> dict:
     providers = []
     unicode_index = 0
 
+    # Tab banner FIRST - always \ue000
+    providers.append({
+        "type": "bitmap",
+        "file": "minecraft:fib/tab.png",
+        "height": 106,
+        "ascent": 66,
+        "chars": [int_to_unicode_char(unicode_index)]
+    })
+    unicode_index += 1
+
+    # Materials start at \ue001
     for material in materials:
         filename = material.lower()
 
@@ -83,14 +94,6 @@ def generate_default_json(materials: list[str]) -> dict:
             "chars": [int_to_unicode_char(unicode_index)]
         })
         unicode_index += 1
-
-    providers.append({
-        "type": "bitmap",
-        "file": "minecraft:fib/tab.png",
-        "height": 106,
-        "ascent": 66,
-        "chars": [int_to_unicode_char(unicode_index)]
-    })
 
     return {"providers": providers}
 
