@@ -611,6 +611,14 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             // Commit
             await commitFile(token, branch, newContent, sha, commitMessage);
 
+            // Capture PR data before clearing state (needed if createPR is true)
+            const prTitle = commitMessage.split('\n')[0];
+            const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
+                additions.map(a => `- ${a.material} → ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
+            }\n\n### Removed Items (${removals.length})\n${
+                removals.map(r => `- ${r.material}`).join('\n') || 'None'
+            }`;
+
             // Commit succeeded - mark success and clear changes immediately
             setCommitSuccess(true);
             setAdditions([]);
@@ -621,13 +629,6 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             // Create PR if requested (separate try/catch so PR failure doesn't mark commit as failed)
             if (createPR) {
                 try {
-                    const prTitle = commitMessage.split('\n')[0];
-                    const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
-                        additions.map(a => `- ${a.material} → ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
-                    }\n\n### Removed Items (${removals.length})\n${
-                        removals.map(r => `- ${r.material}`).join('\n') || 'None'
-                    }`;
-
                     const pr = await createPullRequest(token, prTitle, branch, 'main', prBody);
                     setPrUrl(pr.html_url);
                     toast.success('Pull request created!');
