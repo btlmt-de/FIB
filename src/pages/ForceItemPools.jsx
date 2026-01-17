@@ -669,10 +669,11 @@ function Modal({ item, onClose }) {
     );
 }
 
-function FilterButton({ active, onClick, children, color }) {
+function FilterButton({ active, onClick, children, color, title }) {
     return (
         <button
             onClick={onClick}
+            title={title}
             style={{
                 background: active ? (color || COLORS.accent) : COLORS.bg,
                 color: active ? '#fff' : COLORS.textMuted,
@@ -715,6 +716,38 @@ function ForceItemPoolsContent() {
     const [viewMode, setViewMode] = useState('pools'); // 'pools' | 'missing' | 'all'
     const [allMinecraftItems, setAllMinecraftItems] = useState([]);
     const [loadingMisode, setLoadingMisode] = useState(false);
+
+    // Parse URL params on mount to set initial filters
+    // Note: With hash-based routing, params are in the hash (e.g. #pools?state=LATE)
+    useEffect(() => {
+        const hash = window.location.hash; // e.g. "#pools?state=LATE"
+        const queryIndex = hash.indexOf('?');
+        if (queryIndex === -1) return;
+
+        const queryString = hash.slice(queryIndex + 1);
+        const params = new URLSearchParams(queryString);
+
+        // Handle state filter (EARLY, MID, LATE)
+        const stateParam = params.get('state');
+        if (stateParam && ['ALL', 'EARLY', 'MID', 'LATE'].includes(stateParam.toUpperCase())) {
+            setStateFilter(stateParam.toUpperCase());
+        }
+
+        // Handle tag filters (NETHER, END, EXTREME)
+        const tagParam = params.get('tag');
+        if (tagParam) {
+            const tags = tagParam.toUpperCase().split(',');
+            setTagFilters(prev => {
+                const next = { ...prev };
+                tags.forEach(tag => {
+                    if (tag in next) {
+                        next[tag] = true;
+                    }
+                });
+                return next;
+            });
+        }
+    }, []);
 
     // Handle description save from editor
     const handleDescriptionSave = (materialName, newDescription) => {
@@ -1176,6 +1209,88 @@ function ForceItemPoolsContent() {
                             />
                         </div>
 
+                        {/* Dynamic Pools Info */}
+                        {viewMode === 'pools' && (
+                            <>
+                                <div style={{ width: '1px', height: '32px', background: COLORS.border }} />
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '16px',
+                                    background: COLORS.bg,
+                                    padding: '8px 14px',
+                                    borderRadius: '6px',
+                                    border: `1px solid ${COLORS.border}`
+                                }}>
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: '600',
+                                        color: COLORS.text,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px'
+                                    }}>
+                                        Dynamic Pools
+                                    </span>
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '12px',
+                                        fontSize: '13px'
+                                    }}>
+                                        <span style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <span style={{
+                                                width: '8px',
+                                                height: '8px',
+                                                borderRadius: '2px',
+                                                background: COLORS.early
+                                            }} />
+                                            <span style={{ color: COLORS.text }}>Early</span>
+                                            <span style={{ color: COLORS.textMuted }}>0%</span>
+                                        </span>
+                                        <span style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <span style={{
+                                                width: '8px',
+                                                height: '8px',
+                                                borderRadius: '2px',
+                                                background: COLORS.mid
+                                            }} />
+                                            <span style={{ color: COLORS.text }}>Mid</span>
+                                            <span style={{ color: COLORS.textMuted }}>11%</span>
+                                        </span>
+                                        <span style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px'
+                                        }}>
+                                            <span style={{
+                                                width: '8px',
+                                                height: '8px',
+                                                borderRadius: '2px',
+                                                background: COLORS.late
+                                            }} />
+                                            <span style={{ color: COLORS.text }}>Late</span>
+                                            <span style={{ color: COLORS.textMuted }}>29%</span>
+                                        </span>
+                                    </div>
+                                    <span style={{
+                                        fontSize: '11px',
+                                        color: COLORS.textMuted,
+                                        borderLeft: `1px solid ${COLORS.border}`,
+                                        paddingLeft: '12px'
+                                    }}>
+                                        45min game: 0 / 5 / 13 min
+                                    </span>
+                                </div>
+                            </>
+                        )}
+
                         {/* Sort Dropdown - styled to match */}
                         <div style={{
                             display: 'flex',
@@ -1627,7 +1742,7 @@ function ForceItemPoolsContent() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with ❤️
+                        Made with â¤ï¸
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios

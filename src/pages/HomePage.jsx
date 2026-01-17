@@ -70,7 +70,6 @@ const SPECIAL_THANKS = [
 ];
 
 const FUTURE_PAGES = [
-    { name: 'Game Settings', description: 'Configuration options' },
     { name: 'Tips & Tricks', description: 'Pro strategies' },
     { name: 'Stats', description: 'Player statistics' }
 ];

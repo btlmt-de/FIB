@@ -330,7 +330,8 @@ export function ViewModeToggle({ value, onChange, options }) {
     const containerRef = useRef(null);
     const buttonRefs = useRef({});
 
-    useEffect(() => {
+    // Calculate indicator position
+    const updateIndicator = useCallback(() => {
         const activeButton = buttonRefs.current[value];
         const container = containerRef.current;
 
@@ -343,7 +344,17 @@ export function ViewModeToggle({ value, onChange, options }) {
                 width: buttonRect.width,
             });
         }
-    }, [value, options]);
+    }, [value]);
+
+    useEffect(() => {
+        // Initial calculation
+        updateIndicator();
+
+        // Recalculate after a short delay to handle font loading, etc.
+        const timeoutId = setTimeout(updateIndicator, 50);
+
+        return () => clearTimeout(timeoutId);
+    }, [value, options, updateIndicator]);
 
     return (
         <div

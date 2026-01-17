@@ -7,6 +7,7 @@ const NAV_ITEMS = [
     { id: 'pools', label: 'Item Pools' },
     { id: 'structures', label: 'Custom Content' },
     { id: 'commands', label: 'Commands' },
+    { id: 'settings', label: 'Settings' },
     { id: 'changelog', label: 'Changelog' },
     { id: 'wheel', label: '🎰 Wheel', special: true }
 ];
