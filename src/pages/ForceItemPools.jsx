@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Check from 'lucide-react/dist/esm/icons/check';
 import Info from 'lucide-react/dist/esm/icons/info';
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
@@ -669,6 +669,87 @@ function Modal({ item, onClose }) {
     );
 }
 
+// Styled info tooltip with hover state
+function InfoTooltip({ children, content }) {
+    const [isVisible, setIsVisible] = useState(false);
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const [isPositioned, setIsPositioned] = useState(false);
+    const triggerRef = useRef(null);
+    const tooltipRef = useRef(null);
+
+    const updatePosition = useCallback(() => {
+        if (triggerRef.current && tooltipRef.current) {
+            const triggerRect = triggerRef.current.getBoundingClientRect();
+            const tooltipRect = tooltipRef.current.getBoundingClientRect();
+
+            // Position below the trigger, centered
+            let left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
+            let top = triggerRect.bottom + 8;
+
+            // Keep within viewport
+            if (left < 10) left = 10;
+            if (left + tooltipRect.width > window.innerWidth - 10) {
+                left = window.innerWidth - tooltipRect.width - 10;
+            }
+
+            setPosition({ top, left });
+            setIsPositioned(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isVisible) {
+            // Use requestAnimationFrame to ensure tooltip is rendered before measuring
+            const raf = requestAnimationFrame(() => {
+                updatePosition();
+            });
+            window.addEventListener('scroll', updatePosition);
+            window.addEventListener('resize', updatePosition);
+            return () => {
+                cancelAnimationFrame(raf);
+                window.removeEventListener('scroll', updatePosition);
+                window.removeEventListener('resize', updatePosition);
+                setIsPositioned(false);
+            };
+        }
+    }, [isVisible, updatePosition]);
+
+    return (
+        <>
+            <div
+                ref={triggerRef}
+                onMouseEnter={() => setIsVisible(true)}
+                onMouseLeave={() => setIsVisible(false)}
+                style={{ display: 'inline-flex' }}
+            >
+                {children}
+            </div>
+            {isVisible && (
+                <div
+                    ref={tooltipRef}
+                    style={{
+                        position: 'fixed',
+                        top: position.top,
+                        left: position.left,
+                        zIndex: 10000,
+                        background: COLORS.bgLighter,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: '8px',
+                        padding: '16px 18px',
+                        maxWidth: '360px',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                        opacity: isPositioned ? 1 : 0,
+                        transform: isPositioned ? 'translateY(0)' : 'translateY(-4px)',
+                        transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
+                    }}
+                >
+                    {content}
+                </div>
+            )}
+        </>
+    );
+}
+
 function FilterButton({ active, onClick, children, color, title }) {
     return (
         <button
@@ -1209,33 +1290,112 @@ function ForceItemPoolsContent() {
                             />
                         </div>
 
-                        {/* Dynamic Pools Info */}
+                        {/* Unlock Timing Info */}
                         {viewMode === 'pools' && (
                             <>
                                 <div style={{ width: '1px', height: '32px', background: COLORS.border }} />
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '16px',
-                                    background: COLORS.bg,
-                                    padding: '8px 14px',
-                                    borderRadius: '6px',
-                                    border: `1px solid ${COLORS.border}`
-                                }}>
+                                <InfoTooltip
+                                    content={
+                                        <div>
+                                            <div style={{
+                                                fontSize: '14px',
+                                                fontWeight: '600',
+                                                color: COLORS.text,
+                                                marginBottom: '10px'
+                                            }}>
+                                                Dynamic Item Pools
+                                            </div>
+                                            <p style={{
+                                                fontSize: '13px',
+                                                color: COLORS.textMuted,
+                                                margin: '0 0 12px 0',
+                                                lineHeight: '1.5'
+                                            }}>
+                                                Items unlock progressively as the game progresses, preventing players from getting late-game items too early.
+                                            </p>
+                                            <div style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '8px',
+                                                marginBottom: '12px'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{
+                                                        width: '10px',
+                                                        height: '10px',
+                                                        borderRadius: '2px',
+                                                        background: COLORS.early
+                                                    }} />
+                                                    <span style={{ fontSize: '13px', color: COLORS.text }}>
+                                                        <strong style={{ color: COLORS.early }}>Early</strong> - Available from the start (0%)
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{
+                                                        width: '10px',
+                                                        height: '10px',
+                                                        borderRadius: '2px',
+                                                        background: COLORS.mid
+                                                    }} />
+                                                    <span style={{ fontSize: '13px', color: COLORS.text }}>
+                                                        <strong style={{ color: COLORS.mid }}>Mid</strong> - Unlocks after 11% of game time
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{
+                                                        width: '10px',
+                                                        height: '10px',
+                                                        borderRadius: '2px',
+                                                        background: COLORS.late
+                                                    }} />
+                                                    <span style={{ fontSize: '13px', color: COLORS.text }}>
+                                                        <strong style={{ color: COLORS.late }}>Late</strong> - Unlocks after 29% of game time
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div style={{
+                                                fontSize: '12px',
+                                                color: COLORS.textMuted,
+                                                background: COLORS.bg,
+                                                padding: '8px 10px',
+                                                borderRadius: '4px',
+                                                borderLeft: `3px solid ${COLORS.accent}`
+                                            }}>
+                                                <strong style={{ color: COLORS.text }}>Example:</strong> In a 45-minute game, Early items are available immediately, Mid items unlock at ~5 min, and Late items at ~13 min.
+                                            </div>
+                                        </div>
+                                    }
+                                >
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '16px',
+                                            background: COLORS.bg,
+                                            padding: '8px 14px',
+                                            borderRadius: '6px',
+                                            border: `1px solid ${COLORS.border}`,
+                                            cursor: 'help'
+                                        }}
+                                    >
                                     <span style={{
                                         fontSize: '12px',
                                         fontWeight: '600',
                                         color: COLORS.text,
                                         textTransform: 'uppercase',
-                                        letterSpacing: '0.5px'
-                                    }}>
-                                        Dynamic Pools
-                                    </span>
-                                    <div style={{
+                                        letterSpacing: '0.5px',
                                         display: 'flex',
-                                        gap: '12px',
-                                        fontSize: '13px'
+                                        alignItems: 'center',
+                                        gap: '5px'
                                     }}>
+                                        Unlocks At
+                                        <Info size={13} color={COLORS.textMuted} />
+                                    </span>
+                                        <div style={{
+                                            display: 'flex',
+                                            gap: '12px',
+                                            fontSize: '13px'
+                                        }}>
                                         <span style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -1250,11 +1410,11 @@ function ForceItemPoolsContent() {
                                             <span style={{ color: COLORS.text }}>Early</span>
                                             <span style={{ color: COLORS.textMuted }}>0%</span>
                                         </span>
-                                        <span style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px'
-                                        }}>
+                                            <span style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}>
                                             <span style={{
                                                 width: '8px',
                                                 height: '8px',
@@ -1264,11 +1424,11 @@ function ForceItemPoolsContent() {
                                             <span style={{ color: COLORS.text }}>Mid</span>
                                             <span style={{ color: COLORS.textMuted }}>11%</span>
                                         </span>
-                                        <span style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px'
-                                        }}>
+                                            <span style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}>
                                             <span style={{
                                                 width: '8px',
                                                 height: '8px',
@@ -1278,16 +1438,17 @@ function ForceItemPoolsContent() {
                                             <span style={{ color: COLORS.text }}>Late</span>
                                             <span style={{ color: COLORS.textMuted }}>29%</span>
                                         </span>
-                                    </div>
-                                    <span style={{
-                                        fontSize: '11px',
-                                        color: COLORS.textMuted,
-                                        borderLeft: `1px solid ${COLORS.border}`,
-                                        paddingLeft: '12px'
-                                    }}>
+                                        </div>
+                                        <span style={{
+                                            fontSize: '11px',
+                                            color: COLORS.textMuted,
+                                            borderLeft: `1px solid ${COLORS.border}`,
+                                            paddingLeft: '12px'
+                                        }}>
                                         45min game: 0 / 5 / 13 min
                                     </span>
-                                </div>
+                                    </div>
+                                </InfoTooltip>
                             </>
                         )}
 
