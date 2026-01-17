@@ -732,8 +732,7 @@ export function AdminPanel({ onClose, allItems }) {
         if (tab === 'pending') fetchPending();
         if (tab === 'users') fetchUsers();
         if (tab === 'special') {
-            fetchSpecialItems();
-            fetchPoolStats();
+            Promise.all([fetchSpecialItems(), fetchPoolStats()]);
         }
         if (tab === 'notifications') fetchNotifications();
     }, [tab]);

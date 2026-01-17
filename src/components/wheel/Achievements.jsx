@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { COLORS, API_BASE_URL } from '../../config/constants.js';
-import * as LucideIcons from 'lucide-react';
-import { X, Trophy, Lock, Check, Star, Sparkles, Zap, Target, Award } from 'lucide-react';
-
-// Helper to render Lucide icons by name
-function AchievementIcon({ name, size = 16, color, style = {} }) {
-    const IconComponent = LucideIcons[name];
-    if (!IconComponent) {
-        return <Award size={size} color={color} style={style} />;
-    }
-    return <IconComponent size={size} color={color} style={style} />;
-}
+import { X, Trophy, Lock, Check, Star, Sparkles, Zap, Target, Award, HelpCircle } from 'lucide-react';
+import { AchievementIcon } from '../../utils/achievementIcons.jsx';
 
 // Achievement category icons
 const CATEGORY_ICONS = {
@@ -351,7 +342,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                                                 border: `1px solid ${isUnlocked ? (isCensored ? COLORS.purple : categoryColor) : COLORS.border}`
                                             }}>
                                                 {isHidden ? (
-                                                    <LucideIcons.HelpCircle size={20} color={isCensored && isUnlocked ? COLORS.purple : COLORS.textMuted} />
+                                                    <HelpCircle size={20} color={isCensored && isUnlocked ? COLORS.purple : COLORS.textMuted} />
                                                 ) : (
                                                     <AchievementIcon
                                                         name={achievement.icon}

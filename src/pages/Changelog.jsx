@@ -18,13 +18,13 @@ const COLORS = {
 const CHANGELOG = [
     {
         version: '3.9.5',
-        date: '26th December 2025',
+        date: '16th January 2026',
         type: 'feature',
         title: 'Item List Overhaul v2',
         description: 'Refactored the item list & Quality of Life improvements',
         changes: [
-            'Added a website to better view the current item pools',
-            'Added an editor to add / edit item descriptions more easily'
+            'Improved readability and maintainability of the item list',
+            'Added some missing items',
         ]
     },
     {

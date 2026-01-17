@@ -4,24 +4,13 @@ import { getMinecraftHeadUrl } from '../../utils/helpers.js';
 import { Achievements } from './Achievements.jsx';
 import { LuckInfoModal } from './LuckInfoModal.jsx';
 import { CollectionBook } from './CollectionBook.jsx';
-import * as LucideIcons from 'lucide-react';
 import {
     X, User, Trophy, Sparkles, Star, Diamond, Zap, Target,
     TrendingUp, Calendar, BarChart3, Crown, Flame, Clock,
     ChevronRight, Award, Edit3, Percent, HelpCircle, Plus, Check,
     Package, Settings, Image, BookOpen
 } from 'lucide-react';
-
-// Insane color - bright gold
-
-// Helper to render Lucide icons by name
-function AchievementIcon({ name, size = 16, color, style = {} }) {
-    const IconComponent = LucideIcons[name];
-    if (!IconComponent) {
-        return <Award size={size} color={color} style={style} />;
-    }
-    return <IconComponent size={size} color={color} style={style} />;
-}
+import { AchievementIcon } from '../../utils/achievementIcons.jsx';
 
 export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [profile, setProfile] = useState(null);
