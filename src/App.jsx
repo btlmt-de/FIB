@@ -8,6 +8,7 @@ import Changelog from './pages/Changelog';
 import Imprint from './pages/Imprint';
 import CustomStructures from './pages/CustomStructures';
 import Commands from './pages/Commands';
+import GameSettings from './pages/GameSettings';
 
 // Components
 import Navigation from './components/common/Navigation';
@@ -26,6 +27,7 @@ export default function App() {
         if (hash === 'imprint') return 'imprint';
         if (hash === 'structures') return 'structures';
         if (hash === 'commands') return 'commands';
+        if (hash === 'settings') return 'settings';
         if (hash === 'wheel') return 'wheel';
         if (hash === 'pixi-test') return 'pixi-test';
         if (hash === 'wheel-demo') return 'wheel-demo';
@@ -87,6 +89,10 @@ export default function App() {
 
             {currentPage === 'commands' && (
                 <Commands />
+            )}
+
+            {currentPage === 'settings' && (
+                <GameSettings />
             )}
         </div>
     );
