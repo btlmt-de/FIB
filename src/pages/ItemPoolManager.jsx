@@ -21,11 +21,11 @@ const REPO_NAME = 'ForceItemBattle';
 const FILE_PATH = 'src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const PROTECTED_BRANCHES = new Set(['main', 'master']); // O(1) lookups
 
-// Storage keys (sessionStorage only, not localStorage for security)
+// Storage keys (localStorage with expiry for "remember me")
 const TOKEN_KEY = 'fib_github_token';
 const TOKEN_EXPIRY_KEY = 'fib_github_token_expiry';
 const USER_KEY = 'fib_github_user';
-const TOKEN_EXPIRY_HOURS = 8; // Token expires after 8 hours
+const TOKEN_EXPIRY_DAYS = 60; // Token expires after 60 days
 
 // Hoisted regex patterns (react-best-practices rule 7.9)
 const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
@@ -43,17 +43,17 @@ const PROGRESS_STEPS = [
 let inMemoryToken = null;
 let inMemoryUser = null;
 
-// Storage functions with optional "remember me" using sessionStorage
+// Storage functions with optional "remember me" using localStorage
 function getStoredToken() {
     // First check in-memory (always preferred)
     if (inMemoryToken) {
         return inMemoryToken;
     }
 
-    // Fall back to sessionStorage if user opted to remember
+    // Fall back to localStorage if user opted to remember
     try {
-        const token = sessionStorage.getItem(TOKEN_KEY);
-        const expiry = sessionStorage.getItem(TOKEN_EXPIRY_KEY);
+        const token = localStorage.getItem(TOKEN_KEY);
+        const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
 
         if (token && expiry) {
             // Check if token has expired
@@ -78,18 +78,18 @@ function setStoredToken(token, remember = false) {
         // Clear everything
         inMemoryToken = null;
         try {
-            sessionStorage.removeItem(TOKEN_KEY);
-            sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(TOKEN_EXPIRY_KEY);
         } catch {}
         return;
     }
 
-    // Only persist to sessionStorage if remember=true
+    // Only persist to localStorage if remember=true
     if (remember) {
         try {
-            const expiry = Date.now() + (TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
-            sessionStorage.setItem(TOKEN_KEY, token);
-            sessionStorage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
+            const expiry = Date.now() + (TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+            localStorage.setItem(TOKEN_KEY, token);
+            localStorage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
         } catch {
             // Ignore storage errors, token still in memory
         }
@@ -103,7 +103,7 @@ function getStoredUser() {
     }
 
     try {
-        const user = sessionStorage.getItem(USER_KEY);
+        const user = localStorage.getItem(USER_KEY);
         return user ? JSON.parse(user) : null;
     } catch {
         return null;
@@ -117,15 +117,15 @@ function setStoredUser(user, remember = false) {
     if (!user) {
         inMemoryUser = null;
         try {
-            sessionStorage.removeItem(USER_KEY);
+            localStorage.removeItem(USER_KEY);
         } catch {}
         return;
     }
 
-    // Only persist to sessionStorage if remember=true
+    // Only persist to localStorage if remember=true
     if (remember) {
         try {
-            sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
         } catch {}
     }
 }
@@ -134,9 +134,9 @@ function clearStoredAuth() {
     inMemoryToken = null;
     inMemoryUser = null;
     try {
-        sessionStorage.removeItem(TOKEN_KEY);
-        sessionStorage.removeItem(TOKEN_EXPIRY_KEY);
-        sessionStorage.removeItem(USER_KEY);
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        localStorage.removeItem(USER_KEY);
     } catch {}
 }
 
@@ -362,7 +362,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     // Toast notifications
     const toast = useToast();
 
-    // Lazy state initialization for sessionStorage (react-best-practices rule 5.5)
+    // Lazy state initialization for localStorage (react-best-practices rule 5.5)
     const [token, setToken] = useState(() => getStoredToken() || '');
     const [user, setUser] = useState(() => getStoredUser());
     const [showTokenInput, setShowTokenInput] = useState(() => !getStoredToken());
@@ -772,7 +772,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                                         cursor: 'pointer',
                                     }}
                                 />
-                                Remember me for this session (8 hours)
+                                Remember me
                             </label>
                             <div style={{ fontSize: '12px', color: COLORS.textMuted, marginTop: '8px' }}>
                                 <a
