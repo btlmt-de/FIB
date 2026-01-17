@@ -419,6 +419,14 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         return 2; // Step 3: Ready to commit
     }, [branchMode, selectedBranch, newBranchName, additions.length, removals.length, commitSuccess]);
 
+    // Reset commitSuccess when user starts making new changes (so UI recalculates correctly)
+    useEffect(() => {
+        if (commitSuccess && (additions.length > 0 || removals.length > 0 || commitMessage)) {
+            setCommitSuccess(null);
+            setPrUrl(null);
+        }
+    }, [additions.length, removals.length, commitMessage, branchMode, selectedBranch, newBranchName]);
+
     // Memoized filtered lists (react-best-practices rule 5.2)
     const filteredBranches = useMemo(() => {
         if (!branchSearch) return branches;
@@ -508,14 +516,16 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
 
     // Handlers
     const handleAuthenticate = async () => {
-        if (!token.trim()) return;
+        const trimmedToken = token.trim();
+        if (!trimmedToken) return;
         setVerifying(true);
         setError(null);
 
         try {
-            const verifiedUser = await verifyTokenAndAccess(token);
+            const verifiedUser = await verifyTokenAndAccess(trimmedToken);
             setUser(verifiedUser);
-            setStoredToken(token, rememberMe);
+            setToken(trimmedToken); // Update state to trimmed version
+            setStoredToken(trimmedToken, rememberMe);
             setStoredUser(verifiedUser, rememberMe);
             setShowTokenInput(false);
         } catch (e) {
