@@ -1627,7 +1627,7 @@ function ForceItemPoolsContent() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with <Heart size={14} fill="#FF5555" style={{ display: 'inline-block', verticalAlign: 'middle', margin: '0 4px' }} />
+                        Made with ❤️
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios
