@@ -10,6 +10,7 @@ import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
 import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import X from 'lucide-react/dist/esm/icons/x';
 
 // Minecraft color codes mapping
@@ -626,6 +627,24 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
             setSaveStatus({ type: 'error', message: error.message });
         } finally {
             setVerifyingToken(false);
+        }
+    };
+
+    // Refresh branches handler
+    const handleRefreshBranches = async () => {
+        if (!githubToken) return;
+        setSaveStatus({ type: 'info', message: 'Refreshing branches...' });
+        try {
+            const branchList = await fetchBranches(githubToken);
+            setBranches(branchList);
+            // Re-validate selected branch exists
+            if (!branchList.includes(selectedBranch)) {
+                setSelectedBranch(DEFAULT_BRANCH);
+            }
+            setSaveStatus({ type: 'success', message: `Found ${branchList.length} branches` });
+            setTimeout(() => setSaveStatus(null), 2000);
+        } catch (error) {
+            setSaveStatus({ type: 'error', message: 'Failed to refresh branches: ' + error.message });
         }
     };
 
@@ -1691,6 +1710,24 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         </option>
                                     ))}
                                 </select>
+                                <button
+                                    onClick={handleRefreshBranches}
+                                    title="Refresh branch list"
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: COLORS.textMuted,
+                                        cursor: 'pointer',
+                                        padding: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        borderRadius: '4px'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = COLORS.bgLighter}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                >
+                                    <RefreshCw size={14} />
+                                </button>
                                 {selectedBranch === DEFAULT_BRANCH && (
                                     <span style={{
                                         color: COLORS.warning,
