@@ -36,7 +36,7 @@ def int_to_unicode_char(n: int) -> str:
 def generate_unicode_items(materials: list[str]) -> list[dict]:
     """Generate unicodeItems.json content"""
     items = []
-    unicode_index = 0
+    unicode_index = 1
 
     for material in materials:
         # Normal entry (for bossbar)
