@@ -16,9 +16,11 @@ import Eye from 'lucide-react/dist/esm/icons/eye';
 import X from 'lucide-react/dist/esm/icons/x';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import SearchX from 'lucide-react/dist/esm/icons/search-x';
+import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
 import DescriptionEditor from './DescriptionEditor.jsx';
 import GitHistory from './GitHistory.jsx';
 import ItemPoolManager from './ItemPoolManager.jsx';
+import StatisticsDashboard from './StatisticsDashboard.jsx';
 import {
     COLORS,
     ToastProvider,
@@ -352,47 +354,49 @@ function clearMisodeCache() {
     }
 }
 
-// Convert minecraft:item_name to ITEM_NAME format
-function minecraftIdToMaterial(minecraftId) {
-    // Remove 'minecraft:' prefix and convert to uppercase
-    return minecraftId.replace('minecraft:', '').toUpperCase();
-}
-
-// Fetch all Minecraft items from Misode's mcmeta
+// Fetch all Minecraft items from Misode's mcmeta registry
 async function fetchMisodeItems(forceRefresh = false) {
-    // Check cache first (unless forcing refresh)
-    if (!forceRefresh) {
-        const cached = getMisodeCache();
-        if (cached) {
-            console.log('Using cached Misode data');
-            return cached;
-        }
-    } else {
+    // Clear cache if force refresh requested
+    if (forceRefresh) {
         clearMisodeCache();
+    }
+
+    // Check cache first
+    const cached = getMisodeCache();
+    if (cached) {
+        console.log('Using cached Misode items data');
+        return cached;
     }
 
     try {
         const response = await fetch(MISODE_ITEMS_URL);
         if (!response.ok) {
-            throw new Error(`Failed to fetch Misode data: ${response.status}`);
+            throw new Error(`Failed to fetch Misode items: ${response.status}`);
         }
-        const items = await response.json();
 
-        // Convert to our format (uppercase material names)
-        const materials = items.map(minecraftIdToMaterial);
+        const rawItems = await response.json();
+
+        // Convert lowercase item names to uppercase (to match pool format)
+        // Filter out non-obtainable items like "air"
+        const excludedItems = new Set(['air', 'light', 'debug_stick', 'command_block', 'chain_command_block', 'repeating_command_block', 'command_block_minecart', 'structure_block', 'structure_void', 'jigsaw', 'barrier', 'petrified_oak_slab', 'player_head', 'knowledge_book']);
+
+        const items = rawItems
+            .filter(item => !excludedItems.has(item))
+            .map(item => item.toUpperCase());
 
         // Cache the result
-        setMisodeCache(materials);
-        console.log(`Fetched ${materials.length} items from Misode${forceRefresh ? ' (forced refresh)' : ''}`);
+        setMisodeCache(items);
+        console.log(`Fetched ${items.length} items from Misode registry`);
 
-        return materials;
+        return items;
     } catch (e) {
-        console.error('Error fetching Misode data:', e);
+        console.error('Error fetching Misode items:', e);
         return [];
     }
 }
 
-function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
+
+function ItemCard({ item, onClick, editMode, onEdit, onAddMissing, isSelected, onToggleSelect }) {
     const isMissing = item.isMissing;
     const hasDescription = item.description && item.description.length > 0;
     const isInteractive = isMissing || editMode || hasDescription;
@@ -401,20 +405,20 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
         <div
             className="item-card"
             style={{
-                background: COLORS.bgLight,
-                border: `1px solid ${editMode && !isMissing ? COLORS.accent + '66' : hasDescription ? COLORS.description + '44' : isMissing ? COLORS.accent + '33' : COLORS.border}`,
+                background: isSelected ? `${COLORS.accent}11` : COLORS.bgLight,
+                border: `1px solid ${isSelected ? COLORS.accent : editMode && !isMissing ? COLORS.accent + '66' : hasDescription ? COLORS.description + '44' : isMissing ? COLORS.accent + '33' : COLORS.border}`,
                 borderRadius: '4px',
                 padding: '10px 12px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '6px',
-                transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s',
+                transition: 'transform 0.15s, box-shadow 0.15s, border-color 0.15s, background 0.15s',
                 cursor: isInteractive ? 'pointer' : 'default',
                 position: 'relative',
             }}
             onClick={() => {
-                if (isMissing && onAddMissing) {
-                    onAddMissing(item.material);
+                if (isMissing && onToggleSelect) {
+                    onToggleSelect(item.material);
                     return;
                 }
                 if (editMode) {
@@ -433,6 +437,26 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
                 e.currentTarget.style.boxShadow = 'none';
             }}
         >
+            {/* Selection checkbox for missing items */}
+            {isMissing && (
+                <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '4px',
+                    border: `2px solid ${isSelected ? COLORS.accent : COLORS.border}`,
+                    background: isSelected ? COLORS.accent : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s'
+                }}>
+                    {isSelected && <Check size={12} style={{ color: '#fff' }} />}
+                </div>
+            )}
+
             {/* Edit mode indicator */}
             {editMode && !isMissing && (
                 <div style={{
@@ -490,7 +514,7 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
-                        background: `${COLORS.accent}22`,
+                        background: isSelected ? `${COLORS.accent}33` : `${COLORS.accent}22`,
                         color: COLORS.accent,
                         padding: '3px 8px',
                         fontSize: '10px',
@@ -499,8 +523,8 @@ function ItemCard({ item, onClick, editMode, onEdit, onAddMissing }) {
                         letterSpacing: '0.5px',
                         border: `1px solid ${COLORS.accent}44`,
                     }}>
-                        <Plus size={10} />
-                        Click to Add
+                        {isSelected ? <Check size={10} /> : <Plus size={10} />}
+                        {isSelected ? 'Selected' : 'Click to Select'}
                     </span>
                 )}
                 {!isMissing && item.state && (
@@ -791,12 +815,15 @@ function ForceItemPoolsContent() {
     const [availableBranches, setAvailableBranches] = useState([DEFAULT_BRANCH]);
     const [showHistory, setShowHistory] = useState(false);
     const [showPoolManager, setShowPoolManager] = useState(false);
+    const [showStatistics, setShowStatistics] = useState(false);
     const [initialPoolItem, setInitialPoolItem] = useState(null); // Pre-selected item for Pool Manager
+    const [initialPoolItems, setInitialPoolItems] = useState([]); // Multiple pre-selected items for Pool Manager
 
     // Missing Items View state
     const [viewMode, setViewMode] = useState('pools'); // 'pools' | 'missing' | 'all'
     const [allMinecraftItems, setAllMinecraftItems] = useState([]);
     const [loadingMisode, setLoadingMisode] = useState(false);
+    const [selectedMissingItems, setSelectedMissingItems] = useState(new Set()); // Multi-select for missing items
 
     // Parse URL params on mount to set initial filters
     // Note: With hash-based routing, params are in the hash (e.g. #pools?state=LATE)
@@ -843,13 +870,26 @@ function ForceItemPoolsContent() {
         invalidateCache();
     };
 
-    // Manual refresh function
+    // Manual refresh function - refreshes both branches and data
     const handleRefresh = async () => {
         invalidateCache();
         setLoading(true);
         setError(null);
 
         try {
+            // Refresh branches first
+            const branchesResponse = await fetch(BRANCHES_URL + '?t=' + Date.now());
+            if (branchesResponse.ok) {
+                const branchesData = await branchesResponse.json();
+                const branchNames = branchesData.map(b => b.name);
+                setAvailableBranches(branchNames.length > 0 ? branchNames : [DEFAULT_BRANCH]);
+                // Re-validate selected branch
+                if (!branchNames.includes(viewBranch)) {
+                    setViewBranch(DEFAULT_BRANCH);
+                }
+            }
+
+            // Then refresh data
             const [javaResponse, configResponse] = await Promise.all([
                 fetch(GITHUB_RAW_URL),
                 fetch(getConfigUrl(viewBranch) + '?t=' + Date.now()) // Cache bust
@@ -1027,16 +1067,45 @@ function ForceItemPoolsContent() {
         }
     }, []);
 
-    // Handler to open Pool Manager with a pre-selected item
+    // Handler to toggle selection of a missing item
+    const handleToggleMissingItem = useCallback((material) => {
+        setSelectedMissingItems(prev => {
+            const next = new Set(prev);
+            if (next.has(material)) {
+                next.delete(material);
+            } else {
+                next.add(material);
+            }
+            return next;
+        });
+    }, []);
+
+    // Handler to clear all selected missing items
+    const handleClearSelectedMissing = useCallback(() => {
+        setSelectedMissingItems(new Set());
+    }, []);
+
+    // Handler to open Pool Manager with a pre-selected item (single click)
     const handleOpenPoolManagerWithItem = useCallback((material) => {
         setInitialPoolItem(material);
+        setInitialPoolItems([]);
         setShowPoolManager(true);
     }, []);
 
-    // Handler to close Pool Manager and reset initial item
+    // Handler to open Pool Manager with multiple pre-selected items
+    const handleOpenPoolManagerWithSelectedItems = useCallback(() => {
+        if (selectedMissingItems.size === 0) return;
+        setInitialPoolItems(Array.from(selectedMissingItems));
+        setInitialPoolItem(null);
+        setShowPoolManager(true);
+    }, [selectedMissingItems]);
+
+    // Handler to close Pool Manager and reset initial items
     const handleClosePoolManager = useCallback(() => {
         setShowPoolManager(false);
         setInitialPoolItem(null);
+        setInitialPoolItems([]);
+        setSelectedMissingItems(new Set()); // Clear selections after closing
     }, []);
 
     // Compute missing items
@@ -1247,6 +1316,38 @@ function ForceItemPoolsContent() {
                             </div>
                         </div>
                     ))}
+
+                    {/* Statistics Button */}
+                    <div style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                        <button
+                            onClick={() => setShowStatistics(true)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 16px',
+                                background: COLORS.bgLight,
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '6px',
+                                color: COLORS.text,
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = COLORS.accent;
+                                e.currentTarget.style.color = COLORS.accent;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = COLORS.border;
+                                e.currentTarget.style.color = COLORS.text;
+                            }}
+                        >
+                            <BarChart3 size={16} />
+                            Statistics
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filters - Unified Design */}
@@ -1782,6 +1883,67 @@ function ForceItemPoolsContent() {
                     </div>
                 </div>
 
+                {/* Floating Selection Bar */}
+                {selectedMissingItems.size > 0 && viewMode === 'missing' && (
+                    <div style={{
+                        position: 'fixed',
+                        bottom: '24px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: COLORS.bg,
+                        border: `2px solid ${COLORS.accent}`,
+                        borderRadius: '12px',
+                        padding: '12px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                        zIndex: 100,
+                        animation: 'slideUp 0.2s ease-out'
+                    }}>
+                        <span style={{ color: COLORS.text, fontSize: '14px', fontWeight: '600' }}>
+                            {selectedMissingItems.size} item{selectedMissingItems.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <button
+                            onClick={handleClearSelectedMissing}
+                            style={{
+                                background: 'none',
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '6px',
+                                padding: '8px 14px',
+                                color: COLORS.textMuted,
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <X size={14} />
+                            Clear
+                        </button>
+                        <button
+                            onClick={handleOpenPoolManagerWithSelectedItems}
+                            style={{
+                                background: COLORS.accent,
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '8px 16px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            <Plus size={14} />
+                            Add to Pool
+                        </button>
+                    </div>
+                )}
+
                 {/* Item Grid */}
                 {loading ? (
                     <SkeletonGrid count={12} />
@@ -1789,7 +1951,8 @@ function ForceItemPoolsContent() {
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                        gap: '12px'
+                        gap: '12px',
+                        paddingBottom: selectedMissingItems.size > 0 ? '80px' : '0' // Add padding for floating bar
                     }}>
                         {filteredItems.map(item => (
                             <ItemCard
@@ -1799,6 +1962,8 @@ function ForceItemPoolsContent() {
                                 editMode={editMode}
                                 onEdit={setEditItem}
                                 onAddMissing={handleOpenPoolManagerWithItem}
+                                isSelected={selectedMissingItems.has(item.material)}
+                                onToggleSelect={handleToggleMissingItem}
                             />
                         ))}
                     </div>
@@ -1903,7 +2068,7 @@ function ForceItemPoolsContent() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with ❤️
+                        Made with love
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios
@@ -1934,6 +2099,16 @@ function ForceItemPoolsContent() {
                     missingItems={missingItems}
                     onRefreshMisode={handleRefreshMisode}
                     initialExpandedItem={initialPoolItem}
+                    initialExpandedItems={initialPoolItems}
+                />
+            )}
+
+            {/* Statistics Dashboard Modal */}
+            {showStatistics && (
+                <StatisticsDashboard
+                    items={items}
+                    missingItems={missingItems}
+                    onClose={() => setShowStatistics(false)}
                 />
             )}
         </div>

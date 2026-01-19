@@ -358,7 +358,7 @@ function modifyJavaFile(content, additions, removals) {
 }
 
 // Main component
-export default function ItemPoolManager({ onClose, items, missingItems, onRefreshMisode, initialExpandedItem }) {
+export default function ItemPoolManager({ onClose, items, missingItems, onRefreshMisode, initialExpandedItem, initialExpandedItems = [] }) {
     // Toast notifications
     const toast = useToast();
 
@@ -387,8 +387,18 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     const [addSearch, setAddSearch] = useState('');
     const [removeSearch, setRemoveSearch] = useState('');
 
+    // Queue of items to configure (from multi-select) - each with individual config
+    const [queuedItems, setQueuedItems] = useState(() =>
+        (initialExpandedItems || []).map(material => ({
+            material,
+            state: 'EARLY',
+            tags: { NETHER: false, END: false, EXTREME: false },
+            expanded: false
+        }))
+    );
+
     // Per-item configuration state (improved UX)
-    // Initialize with initialExpandedItem if provided
+    // Initialize with initialExpandedItem if provided (for single item click)
     const [expandedItem, setExpandedItem] = useState(initialExpandedItem || null);
     const [configState, setConfigState] = useState('EARLY');
     const [configTags, setConfigTags] = useState({ NETHER: false, END: false, EXTREME: false });
@@ -434,22 +444,28 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         return branches.filter(b => b.name.toLowerCase().includes(search));
     }, [branches, branchSearch]);
 
+    // Set for O(1) lookup of queued items
+    const queuedMaterials = useMemo(() => new Set(queuedItems.map(q => q.material)), [queuedItems]);
+
     const filteredMissingItems = useMemo(() => {
         let filtered;
         if (!addSearch) {
-            filtered = missingItems.slice(0, 50);
+            filtered = missingItems
+                .filter(item => !queuedMaterials.has(item.material))
+                .slice(0, 50);
         } else {
             const search = addSearch.toLowerCase();
             filtered = missingItems
                 .filter(item =>
-                    item.material.toLowerCase().includes(search) ||
-                    item.displayName.toLowerCase().includes(search)
+                    !queuedMaterials.has(item.material) &&
+                    (item.material.toLowerCase().includes(search) ||
+                        item.displayName.toLowerCase().includes(search))
                 )
                 .slice(0, 50);
         }
 
         // If there's an expanded item, make sure it's at the top of the list
-        if (expandedItem) {
+        if (expandedItem && !queuedMaterials.has(expandedItem)) {
             const expandedIndex = filtered.findIndex(item => item.material === expandedItem);
             if (expandedIndex > 0) {
                 // Move to front
@@ -465,7 +481,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         }
 
         return filtered;
-    }, [missingItems, addSearch, expandedItem]);
+    }, [missingItems, addSearch, expandedItem, queuedMaterials]);
 
     const filteredPoolItems = useMemo(() => {
         if (!removeSearch) return items.slice(0, 50);
@@ -544,6 +560,26 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         setRememberMe(false);
     };
 
+    // Refresh branches handler
+    const handleRefreshBranches = async () => {
+        if (!token) return;
+        setLoadingBranches(true);
+        setError(null);
+        try {
+            const data = await fetchBranches(token);
+            setBranches(data);
+            // Re-validate selected branch exists
+            if (selectedBranch && !data.find(b => b.name === selectedBranch)) {
+                const nonProtected = data.find(b => !PROTECTED_BRANCHES.has(b.name.toLowerCase()));
+                if (nonProtected) setSelectedBranch(nonProtected.name);
+            }
+        } catch (e) {
+            setError('Failed to refresh branches: ' + e.message);
+        } finally {
+            setLoadingBranches(false);
+        }
+    };
+
     // Expand item for configuration (toggle behavior)
     const handleExpandItem = (item) => {
         if (additionMaterials.has(item.material)) return;
@@ -595,6 +631,57 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         setRemovals([]);
     };
 
+    // Add all queued items with their individual configurations
+    const handleAddAllQueued = () => {
+        if (queuedItems.length === 0) return;
+        const newAdditions = queuedItems.map(item => ({
+            material: item.material,
+            state: item.state,
+            tags: Object.entries(item.tags).filter(([, v]) => v).map(([k]) => k)
+        }));
+        setAdditions(prev => [...prev, ...newAdditions]);
+        setQueuedItems([]);
+        // Auto-generate commit message
+        if (!commitMessage) {
+            setCommitMessage(`Add ${newAdditions.length} item${newAdditions.length !== 1 ? 's' : ''} to pool`);
+        }
+    };
+
+    // Toggle expand state of a queued item
+    const handleToggleQueuedExpand = (material) => {
+        setQueuedItems(prev => prev.map(item =>
+            item.material === material
+                ? { ...item, expanded: !item.expanded }
+                : { ...item, expanded: false } // collapse others
+        ));
+    };
+
+    // Update state for a queued item
+    const handleQueuedStateChange = (material, newState) => {
+        setQueuedItems(prev => prev.map(item =>
+            item.material === material ? { ...item, state: newState } : item
+        ));
+    };
+
+    // Toggle tag for a queued item
+    const handleQueuedTagToggle = (material, tag) => {
+        setQueuedItems(prev => prev.map(item =>
+            item.material === material
+                ? { ...item, tags: { ...item.tags, [tag]: !item.tags[tag] } }
+                : item
+        ));
+    };
+
+    // Remove item from queue
+    const handleRemoveFromQueue = (material) => {
+        setQueuedItems(prev => prev.filter(item => item.material !== material));
+    };
+
+    // Clear entire queue
+    const handleClearQueue = () => {
+        setQueuedItems([]);
+    };
+
     const handleCommit = async () => {
         if (!canCommit) return;
         setCommitting(true);
@@ -624,7 +711,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             // Capture PR data before clearing state (needed if createPR is true)
             const prTitle = commitMessage.split('\n')[0];
             const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
-                additions.map(a => `- ${a.material} → ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
+                additions.map(a => `- ${a.material} -> ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
             }\n\n### Removed Items (${removals.length})\n${
                 removals.map(r => `- ${r.material}`).join('\n') || 'None'
             }`;
@@ -893,9 +980,31 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                                 padding: '16px',
                                 marginBottom: '16px'
                             }}>
-                                <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <GitBranch size={14} />
-                                    Target Branch
+                                <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <GitBranch size={14} />
+                                        Target Branch
+                                    </div>
+                                    <button
+                                        onClick={handleRefreshBranches}
+                                        disabled={loadingBranches}
+                                        title="Refresh branch list"
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: COLORS.textMuted,
+                                            cursor: loadingBranches ? 'not-allowed' : 'pointer',
+                                            padding: '4px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontSize: '11px',
+                                            opacity: loadingBranches ? 0.5 : 1
+                                        }}
+                                    >
+                                        <RefreshCw size={14} style={{ animation: loadingBranches ? 'spin 1s linear infinite' : 'none' }} />
+                                        Refresh
+                                    </button>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
@@ -1025,6 +1134,188 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                                 )}
                             </div>
 
+                            {/* Queued Items Section - show when items were selected from Missing view */}
+                            {queuedItems.length > 0 && (
+                                <div style={{
+                                    background: `${COLORS.accent}11`,
+                                    border: `1px solid ${COLORS.accent}44`,
+                                    borderRadius: '6px',
+                                    padding: '16px',
+                                    marginBottom: '16px'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                        <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <Plus size={14} style={{ color: COLORS.accent }} />
+                                            Configure Selected Items ({queuedItems.length})
+                                        </div>
+                                        <button
+                                            onClick={handleClearQueue}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: COLORS.textMuted,
+                                                fontSize: '12px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            <Trash2 size={12} /> Clear All
+                                        </button>
+                                    </div>
+
+                                    <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '12px' }}>
+                                        Click each item to configure its state and tags individually
+                                    </div>
+
+                                    {/* Queued items list with individual config */}
+                                    <div style={{ maxHeight: '300px', overflow: 'auto', marginBottom: '12px' }}>
+                                        {queuedItems.map(queuedItem => {
+                                            const item = missingItems.find(i => i.material === queuedItem.material);
+                                            const displayName = item?.displayName || queuedItem.material.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                                            const isExpanded = queuedItem.expanded;
+                                            const activeTags = Object.entries(queuedItem.tags).filter(([,v]) => v).map(([k]) => k);
+
+                                            return (
+                                                <div key={queuedItem.material} style={{
+                                                    background: isExpanded ? COLORS.bgLighter : 'transparent',
+                                                    borderRadius: '4px',
+                                                    marginBottom: '4px',
+                                                    border: `1px solid ${isExpanded ? COLORS.accent + '44' : COLORS.border}`
+                                                }}>
+                                                    {/* Item header - click to expand */}
+                                                    <div
+                                                        onClick={() => handleToggleQueuedExpand(queuedItem.material)}
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'space-between',
+                                                            padding: '8px 10px',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                                            <span style={{ color: COLORS.text, fontSize: '12px', fontWeight: '500' }}>{displayName}</span>
+                                                            <span style={{
+                                                                color: COLORS[queuedItem.state.toLowerCase()],
+                                                                fontSize: '10px',
+                                                                fontWeight: '600',
+                                                                padding: '2px 6px',
+                                                                background: COLORS[queuedItem.state.toLowerCase()] + '22',
+                                                                borderRadius: '3px'
+                                                            }}>
+                                                                {queuedItem.state}
+                                                            </span>
+                                                            {activeTags.map(tag => (
+                                                                <span key={tag} style={{
+                                                                    color: COLORS[tag.toLowerCase()],
+                                                                    fontSize: '9px',
+                                                                    fontWeight: '600',
+                                                                    padding: '2px 5px',
+                                                                    background: COLORS[tag.toLowerCase()] + '22',
+                                                                    borderRadius: '3px'
+                                                                }}>
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <span style={{ color: COLORS.textMuted, fontSize: '10px' }}>
+                                                                {isExpanded ? 'collapse' : 'configure'}
+                                                            </span>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleRemoveFromQueue(queuedItem.material); }}
+                                                                style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '2px' }}
+                                                            >
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expanded config panel */}
+                                                    {isExpanded && (
+                                                        <div style={{
+                                                            padding: '10px',
+                                                            borderTop: `1px solid ${COLORS.border}`,
+                                                            display: 'flex',
+                                                            gap: '16px',
+                                                            flexWrap: 'wrap'
+                                                        }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>State:</span>
+                                                                {['EARLY', 'MID', 'LATE'].map(state => (
+                                                                    <button
+                                                                        key={state}
+                                                                        onClick={() => handleQueuedStateChange(queuedItem.material, state)}
+                                                                        style={{
+                                                                            padding: '4px 10px',
+                                                                            background: queuedItem.state === state ? COLORS[state.toLowerCase()] + '33' : 'transparent',
+                                                                            border: `1px solid ${queuedItem.state === state ? COLORS[state.toLowerCase()] : COLORS.border}`,
+                                                                            borderRadius: '3px',
+                                                                            color: queuedItem.state === state ? COLORS[state.toLowerCase()] : COLORS.textMuted,
+                                                                            fontSize: '11px',
+                                                                            fontWeight: '600',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        {state}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>Tags:</span>
+                                                                {['NETHER', 'END', 'EXTREME'].map(tag => (
+                                                                    <button
+                                                                        key={tag}
+                                                                        onClick={() => handleQueuedTagToggle(queuedItem.material, tag)}
+                                                                        style={{
+                                                                            padding: '4px 8px',
+                                                                            background: queuedItem.tags[tag] ? COLORS[tag.toLowerCase()] + '33' : 'transparent',
+                                                                            border: `1px solid ${queuedItem.tags[tag] ? COLORS[tag.toLowerCase()] : COLORS.border}`,
+                                                                            borderRadius: '3px',
+                                                                            color: queuedItem.tags[tag] ? COLORS[tag.toLowerCase()] : COLORS.textMuted,
+                                                                            fontSize: '10px',
+                                                                            fontWeight: '600',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        {tag}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Add all button */}
+                                    <button
+                                        onClick={handleAddAllQueued}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            background: COLORS.accent,
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            color: '#fff',
+                                            fontSize: '13px',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '6px'
+                                        }}
+                                    >
+                                        <Check size={14} />
+                                        Add All {queuedItems.length} Item{queuedItems.length !== 1 ? 's' : ''} to Pending Changes
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Add Items Section */}
                             <div style={{
                                 background: COLORS.bgLight,
@@ -1117,7 +1408,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                                                         </span>
                                                     ) : (
                                                         <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                                            {isExpanded ? 'Configure ▲' : 'Click to add ▼'}
+                                                            {isExpanded ? 'Configure' : 'Click to add'}
                                                         </span>
                                                     )}
                                                 </div>
@@ -1360,7 +1651,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <Plus size={14} style={{ color: COLORS.success }} />
                                                     <span style={{ color: COLORS.text, fontSize: '13px' }}>{item.material}</span>
-                                                    <span style={{ color: COLORS[item.state.toLowerCase()], fontSize: '11px' }}>→ {item.state}</span>
+                                                    <span style={{ color: COLORS[item.state.toLowerCase()], fontSize: '11px' }}>&rarr; {item.state}</span>
                                                     {item.tags.length > 0 && (
                                                         <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>({item.tags.join(', ')})</span>
                                                     )}
