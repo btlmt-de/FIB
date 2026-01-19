@@ -1094,7 +1094,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                     color: '#FFAA00',
                                     fontSize: '11px'
                                 }}>
-                                    <Save size={14} style={{ marginRight: '4px' }} /> Draft saved {draftTimestamp && ` Â· ${new Date(draftTimestamp).toLocaleTimeString()}`}
+                                    <Save size={14} style={{ marginRight: '4px' }} /> Draft saved {draftTimestamp && ` · ${new Date(draftTimestamp).toLocaleTimeString()}`}
                                     <button
                                         onClick={handleDiscardDraft}
                                         style={{

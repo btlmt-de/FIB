@@ -577,10 +577,21 @@ let itemTagsPromise = null;
 // Load item tags (call this early in the app)
 function loadItemTags() {
     if (itemTagsPromise) return itemTagsPromise;
-    itemTagsPromise = fetchItemTags().then(tags => {
-        resolvedItemTags = tags;
-        return tags;
-    });
+    itemTagsPromise = fetchItemTags()
+        .then(tags => {
+            if (!tags) {
+                itemTagsPromise = null;
+                resolvedItemTags = null;
+                return null;
+            }
+            resolvedItemTags = tags;
+            return tags;
+        })
+        .catch(err => {
+            itemTagsPromise = null;
+            resolvedItemTags = null;
+            throw err;
+        });
     return itemTagsPromise;
 }
 
@@ -962,7 +973,7 @@ function StatisticsDashboard({ items, missingItems, onClose }) {
                             <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
                                 <div>
                                     <div style={{ fontSize: '24px', fontWeight: '700', color: COLORS.accent }}>
-                                        {((total / (total + totalMissing)) * 100).toFixed(1)}%
+                                        {((total + totalMissing) > 0 ? (total / (total + totalMissing)) * 100 : 0).toFixed(1)}%
                                     </div>
                                     <div style={{ fontSize: '10px', color: COLORS.textMuted, textTransform: 'uppercase' }}>
                                         In Pool

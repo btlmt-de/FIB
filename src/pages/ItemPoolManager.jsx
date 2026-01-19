@@ -634,11 +634,17 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     // Add all queued items with their individual configurations
     const handleAddAllQueued = () => {
         if (queuedItems.length === 0) return;
-        const newAdditions = queuedItems.map(item => ({
+        const newAdditions = queuedItems
+            .filter(item => !additionMaterials.has(item.material))
+            .map(item => ({
             material: item.material,
             state: item.state,
             tags: Object.entries(item.tags).filter(([, v]) => v).map(([k]) => k)
         }));
+        if (newAdditions.length === 0) {
+            setQueuedItems([]);
+            return;
+        }
         setAdditions(prev => [...prev, ...newAdditions]);
         setQueuedItems([]);
         // Auto-generate commit message
