@@ -377,7 +377,8 @@ async function fetchMisodeItems(forceRefresh = false) {
         const rawItems = await response.json();
 
         // Convert lowercase item names to uppercase (to match pool format)
-        const items = rawItems.map(item => item.toUpperCase());
+        const items = rawItems
+            .map(item => item.toUpperCase());
 
         // Cache the result
         setMisodeCache(items);
@@ -874,12 +875,14 @@ function ForceItemPoolsContent() {
         try {
             // Refresh branches first
             const branchesResponse = await fetch(BRANCHES_URL + '?t=' + Date.now());
+            let effectiveBranch = viewBranch;
             if (branchesResponse.ok) {
                 const branchesData = await branchesResponse.json();
                 const branchNames = branchesData.map(b => b.name);
                 setAvailableBranches(branchNames.length > 0 ? branchNames : [DEFAULT_BRANCH]);
                 // Re-validate selected branch
                 if (!branchNames.includes(viewBranch)) {
+                    effectiveBranch = DEFAULT_BRANCH;
                     setViewBranch(DEFAULT_BRANCH);
                 }
             }
@@ -887,7 +890,7 @@ function ForceItemPoolsContent() {
             // Then refresh data
             const [javaResponse, configResponse] = await Promise.all([
                 fetch(GITHUB_RAW_URL),
-                fetch(getConfigUrl(viewBranch) + '?t=' + Date.now()) // Cache bust
+                fetch(getConfigUrl(effectiveBranch) + '?t=' + Date.now()) // Cache bust
             ]);
 
             if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
@@ -907,7 +910,7 @@ function ForceItemPoolsContent() {
             }
 
             const cacheData = { items: parsedItems, timestamp: Date.now() };
-            setCache(cacheData, viewBranch);
+            setCache(cacheData, effectiveBranch);
             setItems(parsedItems);
             setLastUpdated(new Date());
         } catch (e) {
@@ -2063,7 +2066,7 @@ function ForceItemPoolsContent() {
                         </a>
                     </div>
                     <p style={{ margin: 0 }}>
-                        Made with ❤️
+                        Made with love
                     </p>
                     <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
                         Not affiliated with Mojang Studios
