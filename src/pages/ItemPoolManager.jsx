@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 // Direct imports for bundle optimization (react-best-practices rule 2.1)
 import X from 'lucide-react/dist/esm/icons/x';
-import Check from 'lucide-react/dist/esm/icons/check';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Minus from 'lucide-react/dist/esm/icons/minus';
 import Search from 'lucide-react/dist/esm/icons/search';
@@ -12,122 +11,90 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
+import Settings from 'lucide-react/dist/esm/icons/settings';
+import Package from 'lucide-react/dist/esm/icons/package';
 import { COLORS, useToast, ProgressSteps } from './UIComponents.jsx';
+
+// Image URL for Minecraft items
+const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+
+// GitHub token creation URL
+const GITHUB_TOKEN_URL = 'https://github.com/settings/tokens/new?description=FIB%20Item%20Pool%20Manager&scopes=repo';
 
 // GitHub API configuration
 const GITHUB_API = 'https://api.github.com';
 const REPO_OWNER = 'McPlayHDnet';
 const REPO_NAME = 'ForceItemBattle';
 const FILE_PATH = 'src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
-const PROTECTED_BRANCHES = new Set(['main', 'master']); // O(1) lookups
+const PROTECTED_BRANCHES = new Set(['main', 'master']);
 
-// Storage keys (localStorage with expiry for "remember me")
+// Storage keys
 const TOKEN_KEY = 'fib_github_token';
 const TOKEN_EXPIRY_KEY = 'fib_github_token_expiry';
 const USER_KEY = 'fib_github_user';
-const TOKEN_EXPIRY_DAYS = 60; // Token expires after 60 days
+const TOKEN_EXPIRY_DAYS = 60;
 
 // Hoisted regex patterns (react-best-practices rule 7.9)
 const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
 const BRANCH_NAME_REGEX = /^[a-zA-Z0-9._-]+$/;
 const REGISTER_ALL_ITEMS_REGEX = /private void registerAllItems\(\)\s*\{/;
 
-// Progress step definitions (hoisted constant)
+// State options
+const STATES = ['EARLY', 'MID', 'LATE'];
+const TAGS = ['NETHER', 'END', 'EXTREME'];
+
+// Progress step definitions
 const PROGRESS_STEPS = [
     { id: 'branch', label: 'Select Branch' },
     { id: 'changes', label: 'Make Changes' },
     { id: 'commit', label: 'Commit' },
 ];
 
-// In-memory token storage (default, most secure)
+// In-memory token storage
 let inMemoryToken = null;
 let inMemoryUser = null;
 
-// Storage functions with optional "remember me" using localStorage
+// Storage functions
 function getStoredToken() {
-    // First check in-memory (always preferred)
-    if (inMemoryToken) {
-        return inMemoryToken;
-    }
-
-    // Fall back to localStorage if user opted to remember
+    if (inMemoryToken) return inMemoryToken;
     try {
         const token = localStorage.getItem(TOKEN_KEY);
         const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
-
-        if (token && expiry) {
-            // Check if token has expired
-            if (Date.now() > parseInt(expiry, 10)) {
-                // Token expired, clear it
-                clearStoredAuth();
-                return null;
-            }
-            return token;
-        }
+        if (token && expiry && Date.now() <= parseInt(expiry, 10)) return token;
+        clearStoredAuth();
         return null;
-    } catch {
-        return null;
-    }
+    } catch { return null; }
 }
 
 function setStoredToken(token, remember = false) {
-    // Always store in memory
     inMemoryToken = token;
-
     if (!token) {
-        // Clear everything
         inMemoryToken = null;
-        try {
-            localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        } catch {}
+        try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_EXPIRY_KEY); } catch {}
         return;
     }
-
-    // Only persist to localStorage if remember=true
     if (remember) {
         try {
-            const expiry = Date.now() + (TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
             localStorage.setItem(TOKEN_KEY, token);
-            localStorage.setItem(TOKEN_EXPIRY_KEY, expiry.toString());
-        } catch {
-            // Ignore storage errors, token still in memory
-        }
+            localStorage.setItem(TOKEN_EXPIRY_KEY, (Date.now() + TOKEN_EXPIRY_DAYS * 86400000).toString());
+        } catch {}
     }
 }
 
 function getStoredUser() {
-    // First check in-memory
-    if (inMemoryUser) {
-        return inMemoryUser;
-    }
-
+    if (inMemoryUser) return inMemoryUser;
     try {
         const user = localStorage.getItem(USER_KEY);
         return user ? JSON.parse(user) : null;
-    } catch {
-        return null;
-    }
+    } catch { return null; }
 }
 
 function setStoredUser(user, remember = false) {
-    // Always store in memory
     inMemoryUser = user;
-
-    if (!user) {
-        inMemoryUser = null;
-        try {
-            localStorage.removeItem(USER_KEY);
-        } catch {}
-        return;
-    }
-
-    // Only persist to localStorage if remember=true
-    if (remember) {
-        try {
-            localStorage.setItem(USER_KEY, JSON.stringify(user));
-        } catch {}
-    }
+    if (!user) { inMemoryUser = null; try { localStorage.removeItem(USER_KEY); } catch {} return; }
+    if (remember) { try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {} }
 }
 
 function clearStoredAuth() {
@@ -142,83 +109,41 @@ function clearStoredAuth() {
 
 // GitHub API functions
 async function verifyTokenAndAccess(token) {
-    // Verify token and get user
-    const userResponse = await fetch(`${GITHUB_API}/user`, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!userResponse.ok) {
-        throw new Error('Invalid token');
-    }
+    const userResponse = await fetch(`${GITHUB_API}/user`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!userResponse.ok) throw new Error('Invalid token');
     const user = await userResponse.json();
-
-    // Check repo access
-    const repoResponse = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}`, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!repoResponse.ok) {
-        throw new Error('Cannot access repository');
-    }
+    const repoResponse = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!repoResponse.ok) throw new Error('Cannot access repository');
     const repo = await repoResponse.json();
-
-    if (!repo.permissions?.push) {
-        throw new Error('No write access to repository');
-    }
-
+    if (!repo.permissions?.push) throw new Error('No write access to repository');
     return user;
 }
 
 async function fetchBranches(token) {
-    const response = await fetch(
-        `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/branches?per_page=100`,
-        { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const response = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/branches?per_page=100`, { headers: { Authorization: `Bearer ${token}` } });
     if (!response.ok) throw new Error('Failed to fetch branches');
     return response.json();
 }
 
 async function getFileContent(token, branch) {
-    const response = await fetch(
-        `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${branch}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const response = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${branch}`, { headers: { Authorization: `Bearer ${token}` } });
     if (!response.ok) throw new Error('Failed to fetch file');
     const data = await response.json();
-
-    // Decode base64 to UTF-8 properly (atob alone corrupts non-ASCII characters)
     const binaryString = atob(data.content);
     const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    const content = new TextDecoder('utf-8').decode(bytes);
-
-    return { content, sha: data.sha };
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    return { content: new TextDecoder('utf-8').decode(bytes), sha: data.sha };
 }
 
 async function createBranch(token, newBranchName, baseBranch) {
-    // Get the SHA of the base branch
-    const refResponse = await fetch(
-        `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/git/refs/heads/${baseBranch}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const refResponse = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/git/refs/heads/${baseBranch}`, { headers: { Authorization: `Bearer ${token}` } });
     if (!refResponse.ok) throw new Error('Failed to get base branch');
     const refData = await refResponse.json();
-
-    // Create new branch
-    const createResponse = await fetch(
-        `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/git/refs`,
-        {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                ref: `refs/heads/${newBranchName}`,
-                sha: refData.object.sha
-            })
-        }
-    );
+    const createResponse = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/git/refs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: `refs/heads/${newBranchName}`, sha: refData.object.sha })
+    });
     if (!createResponse.ok) {
         const error = await createResponse.json();
         throw new Error(error.message || 'Failed to create branch');
@@ -227,22 +152,11 @@ async function createBranch(token, newBranchName, baseBranch) {
 }
 
 async function commitFile(token, branch, content, sha, message) {
-    const response = await fetch(
-        `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,
-        {
-            method: 'PUT',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                message,
-                content: btoa(unescape(encodeURIComponent(content))),
-                sha,
-                branch
-            })
-        }
-    );
+    const response = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha, branch })
+    });
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to commit');
@@ -251,17 +165,11 @@ async function commitFile(token, branch, content, sha, message) {
 }
 
 async function createPullRequest(token, title, head, base, body) {
-    const response = await fetch(
-        `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/pulls`,
-        {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ title, head, base, body })
-        }
-    );
+    const response = await fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/pulls`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, head, base, body })
+    });
     if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Failed to create PR');
@@ -269,139 +177,207 @@ async function createPullRequest(token, title, head, base, body) {
     return response.json();
 }
 
-// Java file modification functions
+// Java file modification
 function parseExistingItems(content) {
     const items = [];
-    REGISTER_REGEX.lastIndex = 0; // Reset for reuse
-
+    REGISTER_REGEX.lastIndex = 0;
     let match;
     while ((match = REGISTER_REGEX.exec(content)) !== null) {
         const [fullMatch, material, state, tag1, tag2, tag3] = match;
-        items.push({
-            material,
-            state,
-            tags: [tag1, tag2, tag3].filter(Boolean),
-            line: fullMatch
-        });
+        items.push({ material, state, tags: [tag1, tag2, tag3].filter(Boolean), line: fullMatch });
     }
     return items;
 }
 
 function generateRegisterLine(material, state, tags = []) {
-    if (tags.length === 0) {
-        return `        register(Material.${material}, State.${state});`;
-    }
-    const tagArgs = tags.map(t => `ItemTag.${t}`).join(', ');
-    return `        register(Material.${material}, State.${state}, ${tagArgs});`;
+    if (tags.length === 0) return `        register(Material.${material}, State.${state});`;
+    return `        register(Material.${material}, State.${state}, ${tags.map(t => `ItemTag.${t}`).join(', ')});`;
 }
 
 function modifyJavaFile(content, additions, removals) {
-    // Parse existing items
     const existingItems = parseExistingItems(content);
     const existingMaterials = new Set(existingItems.map(i => i.material));
-
-    // Create removal set for O(1) lookup
     const removalSet = new Set(removals.map(r => r.material));
 
-    // Find the registerAllItems method
     const methodMatch = content.match(REGISTER_ALL_ITEMS_REGEX);
-    if (!methodMatch) {
-        throw new Error('Could not find registerAllItems() method');
-    }
+    if (!methodMatch) throw new Error('Could not find registerAllItems() method');
 
-    // Find the closing brace of the method (track brace depth)
     const methodStart = methodMatch.index + methodMatch[0].length;
-    let braceDepth = 1;
-    let methodEnd = methodStart;
-
+    let braceDepth = 1, methodEnd = methodStart;
     for (let i = methodStart; i < content.length; i++) {
         if (content[i] === '{') braceDepth++;
         if (content[i] === '}') braceDepth--;
-        if (braceDepth === 0) {
-            methodEnd = i;
-            break;
-        }
+        if (braceDepth === 0) { methodEnd = i; break; }
     }
 
-    // Extract method body
     const beforeMethod = content.substring(0, methodStart);
     const afterMethod = content.substring(methodEnd);
-
-    // Get all items (existing minus removals plus additions)
     const finalItems = [];
 
-    // Add existing items that aren't being removed
     for (const item of existingItems) {
-        if (!removalSet.has(item.material)) {
-            finalItems.push(item);
-        }
+        if (!removalSet.has(item.material)) finalItems.push(item);
     }
-
-    // Add new items
     for (const addition of additions) {
-        if (!existingMaterials.has(addition.material)) {
+        if (!existingMaterials.has(addition.material) || removalSet.has(addition.material)) {
             finalItems.push(addition);
         }
     }
 
-    // Sort alphabetically by material name
     finalItems.sort((a, b) => a.material.localeCompare(b.material));
-
-    // Generate new method body
-    const newLines = finalItems.map(item =>
-        generateRegisterLine(item.material, item.state, item.tags)
-    );
-
-    const newMethodBody = '\n' + newLines.join('\n') + '\n    ';
-
+    const newMethodBody = '\n' + finalItems.map(item => generateRegisterLine(item.material, item.state, item.tags)).join('\n') + '\n    ';
     return beforeMethod + newMethodBody + afterMethod;
 }
 
+// Inline State Dropdown Component
+function StateDropdown({ value, onChange, disabled }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handleClick);
+        return () => document.removeEventListener('mousedown', handleClick);
+    }, [open]);
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <button
+                onClick={(e) => { e.stopPropagation(); if (!disabled) setOpen(!open); }}
+                disabled={disabled}
+                style={{
+                    padding: '3px 8px',
+                    background: COLORS[value.toLowerCase()] + '22',
+                    border: `1px solid ${COLORS[value.toLowerCase()]}44`,
+                    borderRadius: '4px',
+                    color: COLORS[value.toLowerCase()],
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: disabled ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    opacity: disabled ? 0.6 : 1
+                }}
+            >
+                {value}
+                {!disabled && <ChevronDown size={10} />}
+            </button>
+            {open && (
+                <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '2px',
+                    background: COLORS.bg,
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: '4px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    zIndex: 100,
+                    minWidth: '80px',
+                    overflow: 'hidden'
+                }}>
+                    {STATES.map(state => (
+                        <button
+                            key={state}
+                            onClick={(e) => { e.stopPropagation(); onChange(state); setOpen(false); }}
+                            style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '6px 10px',
+                                background: value === state ? COLORS[state.toLowerCase()] + '22' : 'transparent',
+                                border: 'none',
+                                color: COLORS[state.toLowerCase()],
+                                fontSize: '11px',
+                                fontWeight: value === state ? '600' : '400',
+                                cursor: 'pointer',
+                                textAlign: 'left'
+                            }}
+                        >
+                            {state}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Tag Toggle Pills
+function TagPills({ tags, onChange, disabled, small }) {
+    return (
+        <div style={{ display: 'flex', gap: '4px' }}>
+            {TAGS.map(tag => {
+                const active = tags.includes(tag);
+                return (
+                    <button
+                        key={tag}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (disabled) return;
+                            onChange(active ? tags.filter(t => t !== tag) : [...tags, tag]);
+                        }}
+                        disabled={disabled}
+                        style={{
+                            padding: small ? '2px 5px' : '3px 6px',
+                            background: active ? COLORS[tag.toLowerCase()] + '33' : 'transparent',
+                            border: `1px solid ${active ? COLORS[tag.toLowerCase()] : COLORS.border}`,
+                            borderRadius: '3px',
+                            color: active ? COLORS[tag.toLowerCase()] : COLORS.textMuted,
+                            fontSize: small ? '9px' : '10px',
+                            fontWeight: active ? '600' : '400',
+                            cursor: disabled ? 'default' : 'pointer',
+                            opacity: disabled ? 0.6 : 1
+                        }}
+                    >
+                        {tag}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 // Main component
-export default function ItemPoolManager({ onClose, items, missingItems, onRefreshMisode, initialExpandedItem, initialExpandedItems = [] }) {
-    // Toast notifications
+export default function ItemPoolManager({ onClose, items = [], missingItems = [], onRefreshMisode, initialExpandedItem, initialExpandedItems = [] }) {
     const toast = useToast();
 
-    // Lazy state initialization for localStorage (react-best-practices rule 5.5)
+    // Auth state
     const [token, setToken] = useState(() => getStoredToken() || '');
     const [user, setUser] = useState(() => getStoredUser());
     const [showTokenInput, setShowTokenInput] = useState(() => !getStoredToken());
     const [rememberMe, setRememberMe] = useState(false);
-
-    // UI state
     const [verifying, setVerifying] = useState(false);
     const [error, setError] = useState(null);
+
+    // Branch state
     const [branches, setBranches] = useState([]);
     const [loadingBranches, setLoadingBranches] = useState(false);
-
-    // Branch selection
-    const [branchMode, setBranchMode] = useState('existing'); // 'existing' | 'new'
+    const [branchMode, setBranchMode] = useState('existing');
     const [selectedBranch, setSelectedBranch] = useState('');
     const [newBranchName, setNewBranchName] = useState('');
     const [baseBranch, setBaseBranch] = useState('main');
-    const [branchSearch, setBranchSearch] = useState('');
 
-    // Item changes
-    const [additions, setAdditions] = useState([]); // [{material, state, tags}]
-    const [removals, setRemovals] = useState([]); // [{material}]
-    const [addSearch, setAddSearch] = useState('');
-    const [removeSearch, setRemoveSearch] = useState('');
+    // Tab state
+    const [activeTab, setActiveTab] = useState('add'); // 'add' | 'manage'
 
-    // Queue of items to configure (from multi-select) - each with individual config
-    const [queuedItems, setQueuedItems] = useState(() =>
-        (initialExpandedItems || []).map(material => ({
-            material,
-            state: 'EARLY',
-            tags: { NETHER: false, END: false, EXTREME: false },
-            expanded: false
-        }))
-    );
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
 
-    // Per-item configuration state (improved UX)
-    // Initialize with initialExpandedItem if provided (for single item click)
-    const [expandedItem, setExpandedItem] = useState(initialExpandedItem || null);
-    const [configState, setConfigState] = useState('EARLY');
-    const [configTags, setConfigTags] = useState({ NETHER: false, END: false, EXTREME: false });
+    // Changes state - unified for both additions and modifications
+    const [pendingChanges, setPendingChanges] = useState(() => {
+        // Initialize with any pre-selected items
+        const initial = [];
+        if (initialExpandedItem) {
+            initial.push({ material: initialExpandedItem, type: 'add', state: 'EARLY', tags: [] });
+        }
+        initialExpandedItems.forEach(material => {
+            if (!initial.find(c => c.material === material)) {
+                initial.push({ material, type: 'add', state: 'EARLY', tags: [] });
+            }
+        });
+        return initial;
+    });
 
     // Commit state
     const [commitMessage, setCommitMessage] = useState('');
@@ -410,109 +386,46 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
     const [createPR, setCreatePR] = useState(false);
     const [prUrl, setPrUrl] = useState(null);
 
+    // Footer state
+    const [footerExpanded, setFooterExpanded] = useState(false);
+
+    // Derived state
+    const targetBranch = branchMode === 'new' ? newBranchName : selectedBranch;
+    const isValidBranch = targetBranch && !PROTECTED_BRANCHES.has(targetBranch.toLowerCase()) &&
+        (branchMode === 'existing' || BRANCH_NAME_REGEX.test(newBranchName));
+    const canCommit = isValidBranch && pendingChanges.length > 0 && commitMessage.trim().length > 0;
+
     // Calculate current progress step
     const currentStep = useMemo(() => {
         if (commitSuccess) return 3; // Completed
-
-        // Inline branch validation logic
-        const isNewBranchValid = newBranchName &&
-            newBranchName.length >= 1 &&
-            !PROTECTED_BRANCHES.has(newBranchName.toLowerCase()) &&
-            BRANCH_NAME_REGEX.test(newBranchName);
-
-        const hasBranch = branchMode === 'existing'
-            ? selectedBranch && !PROTECTED_BRANCHES.has(selectedBranch.toLowerCase())
-            : isNewBranchValid;
-
-        if (!hasBranch) return 0; // Step 1: Select branch
-        if (additions.length === 0 && removals.length === 0) return 1; // Step 2: Make changes
+        if (!isValidBranch) return 0; // Step 1: Select branch
+        if (pendingChanges.length === 0) return 1; // Step 2: Make changes
         return 2; // Step 3: Ready to commit
-    }, [branchMode, selectedBranch, newBranchName, additions.length, removals.length, commitSuccess]);
+    }, [isValidBranch, pendingChanges.length, commitSuccess]);
 
-    // Reset commitSuccess when user starts making new changes (so UI recalculates correctly)
-    useEffect(() => {
-        if (commitSuccess && (additions.length > 0 || removals.length > 0 || commitMessage)) {
-            setCommitSuccess(null);
-            setPrUrl(null);
-        }
-    }, [additions.length, removals.length, commitMessage, branchMode, selectedBranch, newBranchName]);
+    // Memoized sets for O(1) lookups
+    const changeMaterials = useMemo(() => new Set(pendingChanges.map(c => c.material)), [pendingChanges]);
 
-    // Memoized filtered lists (react-best-practices rule 5.2)
-    const filteredBranches = useMemo(() => {
-        if (!branchSearch) return branches;
-        const search = branchSearch.toLowerCase();
-        return branches.filter(b => b.name.toLowerCase().includes(search));
-    }, [branches, branchSearch]);
+    // Filtered items based on search and active tab
+    const filteredItems = useMemo(() => {
+        const source = activeTab === 'add' ? missingItems : items;
+        const query = searchQuery.toLowerCase();
+        let filtered = source;
 
-    // Set for O(1) lookup of queued items
-    const queuedMaterials = useMemo(() => new Set(queuedItems.map(q => q.material)), [queuedItems]);
-
-    const filteredMissingItems = useMemo(() => {
-        let filtered;
-        if (!addSearch) {
-            filtered = missingItems
-                .filter(item => !queuedMaterials.has(item.material))
-                .slice(0, 50);
-        } else {
-            const search = addSearch.toLowerCase();
-            filtered = missingItems
-                .filter(item =>
-                    !queuedMaterials.has(item.material) &&
-                    (item.material.toLowerCase().includes(search) ||
-                        item.displayName.toLowerCase().includes(search))
-                )
-                .slice(0, 50);
+        if (query) {
+            filtered = source.filter(item =>
+                item.material.toLowerCase().includes(query) ||
+                item.displayName.toLowerCase().includes(query)
+            );
         }
 
-        // If there's an expanded item, make sure it's at the top of the list
-        if (expandedItem && !queuedMaterials.has(expandedItem)) {
-            const expandedIndex = filtered.findIndex(item => item.material === expandedItem);
-            if (expandedIndex > 0) {
-                // Move to front
-                const item = filtered[expandedIndex];
-                filtered = [item, ...filtered.slice(0, expandedIndex), ...filtered.slice(expandedIndex + 1)];
-            } else if (expandedIndex === -1) {
-                // Not in filtered list, find it in full list and add to front
-                const item = missingItems.find(item => item.material === expandedItem);
-                if (item) {
-                    filtered = [item, ...filtered.slice(0, 49)];
-                }
-            }
-        }
+        return filtered.slice(0, 100);
+    }, [activeTab, missingItems, items, searchQuery]);
 
-        return filtered;
-    }, [missingItems, addSearch, expandedItem, queuedMaterials]);
-
-    const filteredPoolItems = useMemo(() => {
-        if (!removeSearch) return items.slice(0, 50);
-        const search = removeSearch.toLowerCase();
-        return items
-            .filter(item =>
-                item.material.toLowerCase().includes(search) ||
-                item.displayName.toLowerCase().includes(search)
-            )
-            .slice(0, 50);
-    }, [items, removeSearch]);
-
-    // Sets for O(1) lookup of pending changes
-    const additionMaterials = useMemo(() =>
-        new Set(additions.map(a => a.material)), [additions]);
-    const removalMaterials = useMemo(() =>
-        new Set(removals.map(r => r.material)), [removals]);
-
-    // Check if branch is valid
-    const isValidBranchName = useCallback((name) => {
-        if (!name || name.length < 1) return false;
-        if (PROTECTED_BRANCHES.has(name.toLowerCase())) return false;
-        return BRANCH_NAME_REGEX.test(name);
-    }, []);
-
-    // Get effective target branch
-    const targetBranch = branchMode === 'new' ? newBranchName : selectedBranch;
-    const canCommit = targetBranch &&
-        !PROTECTED_BRANCHES.has(targetBranch.toLowerCase()) &&
-        (additions.length > 0 || removals.length > 0) &&
-        commitMessage.trim().length > 0;
+    // Change counts
+    const addCount = useMemo(() => pendingChanges.filter(c => c.type === 'add').length, [pendingChanges]);
+    const modifyCount = useMemo(() => pendingChanges.filter(c => c.type === 'modify').length, [pendingChanges]);
+    const removeCount = useMemo(() => pendingChanges.filter(c => c.type === 'remove').length, [pendingChanges]);
 
     // Load branches on auth
     useEffect(() => {
@@ -521,7 +434,6 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
             fetchBranches(token)
                 .then(data => {
                     setBranches(data);
-                    // Select first non-protected branch
                     const nonProtected = data.find(b => !PROTECTED_BRANCHES.has(b.name.toLowerCase()));
                     if (nonProtected) setSelectedBranch(nonProtected.name);
                 })
@@ -530,17 +442,24 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         }
     }, [user, token]);
 
+    // Reset success state when changes occur
+    useEffect(() => {
+        if (commitSuccess && pendingChanges.length > 0) {
+            setCommitSuccess(null);
+            setPrUrl(null);
+        }
+    }, [pendingChanges.length, commitSuccess]);
+
     // Handlers
     const handleAuthenticate = async () => {
         const trimmedToken = token.trim();
         if (!trimmedToken) return;
         setVerifying(true);
         setError(null);
-
         try {
             const verifiedUser = await verifyTokenAndAccess(trimmedToken);
             setUser(verifiedUser);
-            setToken(trimmedToken); // Update state to trimmed version
+            setToken(trimmedToken);
             setStoredToken(trimmedToken, rememberMe);
             setStoredUser(verifiedUser, rememberMe);
             setShowTokenInput(false);
@@ -560,7 +479,6 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         setRememberMe(false);
     };
 
-    // Refresh branches handler
     const handleRefreshBranches = async () => {
         if (!token) return;
         setLoadingBranches(true);
@@ -568,11 +486,11 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         try {
             const data = await fetchBranches(token);
             setBranches(data);
-            // Re-validate selected branch exists
             if (selectedBranch && !data.find(b => b.name === selectedBranch)) {
                 const nonProtected = data.find(b => !PROTECTED_BRANCHES.has(b.name.toLowerCase()));
                 if (nonProtected) setSelectedBranch(nonProtected.name);
             }
+            toast.success('Branches refreshed');
         } catch (e) {
             setError('Failed to refresh branches: ' + e.message);
         } finally {
@@ -580,112 +498,44 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         }
     };
 
-    // Expand item for configuration (toggle behavior)
-    const handleExpandItem = (item) => {
-        if (additionMaterials.has(item.material)) return;
-        // Toggle: if already expanded, collapse; otherwise expand
-        if (expandedItem === item.material) {
-            setExpandedItem(null);
+    const handleAddItem = (item, state = 'EARLY', tags = []) => {
+        if (changeMaterials.has(item.material)) return;
+        setPendingChanges(prev => [...prev, { material: item.material, displayName: item.displayName, type: 'add', state, tags }]);
+    };
+
+    const handleModifyItem = (item, newState, newTags) => {
+        const existingChange = pendingChanges.find(c => c.material === item.material);
+        if (existingChange) {
+            // Update existing change
+            setPendingChanges(prev => prev.map(c =>
+                c.material === item.material ? { ...c, state: newState, tags: newTags } : c
+            ));
         } else {
-            setExpandedItem(item.material);
-            // Reset config to defaults when expanding new item
-            setConfigState('EARLY');
-            setConfigTags({ NETHER: false, END: false, EXTREME: false });
+            // Add new modification
+            setPendingChanges(prev => [...prev, {
+                material: item.material,
+                displayName: item.displayName,
+                type: 'modify',
+                oldState: item.state,
+                state: newState,
+                oldTags: item.tags || [],
+                tags: newTags
+            }]);
         }
-    };
-
-    // Confirm adding item with current configuration
-    const handleConfirmAdd = (item) => {
-        if (additionMaterials.has(item.material)) return;
-        const selectedTags = Object.entries(configTags)
-            .filter(([, v]) => v)
-            .map(([k]) => k);
-        setAdditions(prev => [...prev, {
-            material: item.material,
-            state: configState,
-            tags: selectedTags
-        }]);
-        setExpandedItem(null); // Collapse after adding
-    };
-
-    // Cancel item configuration
-    const handleCancelConfig = () => {
-        setExpandedItem(null);
-    };
-
-    const handleRemoveFromAdditions = (material) => {
-        setAdditions(prev => prev.filter(a => a.material !== material));
     };
 
     const handleRemoveItem = (item) => {
-        if (removalMaterials.has(item.material)) return;
-        setRemovals(prev => [...prev, { material: item.material }]);
+        if (changeMaterials.has(item.material)) return;
+        setPendingChanges(prev => [...prev, { material: item.material, displayName: item.displayName, type: 'remove' }]);
     };
 
-    const handleUndoRemoval = (material) => {
-        setRemovals(prev => prev.filter(r => r.material !== material));
+    const handleUndoChange = (material) => {
+        setPendingChanges(prev => prev.filter(c => c.material !== material));
     };
 
     const handleClearChanges = () => {
-        setAdditions([]);
-        setRemovals([]);
-    };
-
-    // Add all queued items with their individual configurations
-    const handleAddAllQueued = () => {
-        if (queuedItems.length === 0) return;
-        const newAdditions = queuedItems
-            .filter(item => !additionMaterials.has(item.material))
-            .map(item => ({
-            material: item.material,
-            state: item.state,
-            tags: Object.entries(item.tags).filter(([, v]) => v).map(([k]) => k)
-        }));
-        if (newAdditions.length === 0) {
-            setQueuedItems([]);
-            return;
-        }
-        setAdditions(prev => [...prev, ...newAdditions]);
-        setQueuedItems([]);
-        // Auto-generate commit message
-        if (!commitMessage) {
-            setCommitMessage(`Add ${newAdditions.length} item${newAdditions.length !== 1 ? 's' : ''} to pool`);
-        }
-    };
-
-    // Toggle expand state of a queued item
-    const handleToggleQueuedExpand = (material) => {
-        setQueuedItems(prev => prev.map(item =>
-            item.material === material
-                ? { ...item, expanded: !item.expanded }
-                : { ...item, expanded: false } // collapse others
-        ));
-    };
-
-    // Update state for a queued item
-    const handleQueuedStateChange = (material, newState) => {
-        setQueuedItems(prev => prev.map(item =>
-            item.material === material ? { ...item, state: newState } : item
-        ));
-    };
-
-    // Toggle tag for a queued item
-    const handleQueuedTagToggle = (material, tag) => {
-        setQueuedItems(prev => prev.map(item =>
-            item.material === material
-                ? { ...item, tags: { ...item.tags, [tag]: !item.tags[tag] } }
-                : item
-        ));
-    };
-
-    // Remove item from queue
-    const handleRemoveFromQueue = (material) => {
-        setQueuedItems(prev => prev.filter(item => item.material !== material));
-    };
-
-    // Clear entire queue
-    const handleClearQueue = () => {
-        setQueuedItems([]);
+        setPendingChanges([]);
+        setCommitMessage('');
     };
 
     const handleCommit = async () => {
@@ -697,50 +547,52 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
 
         try {
             let branch = targetBranch;
-
-            // Create new branch if needed
             if (branchMode === 'new') {
                 await createBranch(token, newBranchName, baseBranch);
                 branch = newBranchName;
                 toast.info(`Created branch "${newBranchName}"`);
             }
 
-            // Get current file content
             const { content, sha } = await getFileContent(token, branch);
 
-            // Modify the file
-            const newContent = modifyJavaFile(content, additions, removals);
+            // Convert pending changes to additions and removals
+            const additions = pendingChanges
+                .filter(c => c.type === 'add' || c.type === 'modify')
+                .map(c => ({ material: c.material, state: c.state, tags: c.tags }));
+            const removals = pendingChanges
+                .filter(c => c.type === 'remove' || c.type === 'modify')
+                .map(c => ({ material: c.material }));
 
-            // Commit
+            const newContent = modifyJavaFile(content, additions, removals);
             await commitFile(token, branch, newContent, sha, commitMessage);
 
-            // Capture PR data before clearing state (needed if createPR is true)
+            // Build PR body
             const prTitle = commitMessage.split('\n')[0];
-            const prBody = `## Changes\n\n### Added Items (${additions.length})\n${
-                additions.map(a => `- ${a.material} -> ${a.state}${a.tags.length ? ` (${a.tags.join(', ')})` : ''}`).join('\n') || 'None'
-            }\n\n### Removed Items (${removals.length})\n${
-                removals.map(r => `- ${r.material}`).join('\n') || 'None'
-            }`;
+            const sections = [];
+            const adds = pendingChanges.filter(c => c.type === 'add');
+            const mods = pendingChanges.filter(c => c.type === 'modify');
+            const rems = pendingChanges.filter(c => c.type === 'remove');
 
-            // Commit succeeded - mark success and clear changes immediately
+            if (adds.length) sections.push(`### Added (${adds.length})\n${adds.map(c => `- ${c.material} → ${c.state}${c.tags.length ? ` (${c.tags.join(', ')})` : ''}`).join('\n')}`);
+            if (mods.length) sections.push(`### Modified (${mods.length})\n${mods.map(c => `- ${c.material}: ${c.oldState} → ${c.state}`).join('\n')}`);
+            if (rems.length) sections.push(`### Removed (${rems.length})\n${rems.map(c => `- ${c.material}`).join('\n')}`);
+
+            const prBody = `## Changes\n\n${sections.join('\n\n')}`;
+
             setCommitSuccess(true);
-            setAdditions([]);
-            setRemovals([]);
+            setPendingChanges([]);
             setCommitMessage('');
             toast.success(`Changes committed to ${branch}!`);
 
-            // Create PR if requested (separate try/catch so PR failure doesn't mark commit as failed)
             if (createPR) {
                 try {
                     const pr = await createPullRequest(token, prTitle, branch, 'main', prBody);
                     setPrUrl(pr.html_url);
                     toast.success('Pull request created!');
                 } catch (prError) {
-                    // PR failed but commit succeeded - don't revert commit success
                     toast.error(`PR creation failed: ${prError.message}`);
                 }
             }
-
         } catch (e) {
             setError(e.message);
             setCommitSuccess(false);
@@ -754,10 +606,7 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
         <div
             style={{
                 position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+                top: 0, left: 0, right: 0, bottom: 0,
                 background: 'rgba(0,0,0,0.85)',
                 display: 'flex',
                 alignItems: 'center',
@@ -771,13 +620,13 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                 style={{
                     background: COLORS.bg,
                     border: `2px solid ${COLORS.accent}`,
-                    borderRadius: '8px',
+                    borderRadius: '12px',
                     width: '100%',
-                    maxWidth: '800px',
-                    maxHeight: '90vh',
-                    overflow: 'hidden',
+                    maxWidth: '700px',
+                    maxHeight: '85vh',
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    overflow: 'hidden'
                 }}
                 onClick={e => e.stopPropagation()}
             >
@@ -787,1002 +636,697 @@ export default function ItemPoolManager({ onClose, items, missingItems, onRefres
                     borderBottom: `1px solid ${COLORS.border}`,
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center'
+                    alignItems: 'center',
+                    flexShrink: 0
                 }}>
-                    <h2 style={{ margin: 0, color: COLORS.text, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <GitBranch size={20} />
-                        Item Pool Manager
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: COLORS.textMuted,
-                            cursor: 'pointer',
-                            padding: '4px'
-                        }}
-                    >
-                        <X size={20} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <GitBranch size={20} style={{ color: COLORS.accent }} />
+                        <h2 style={{ margin: 0, color: COLORS.text, fontSize: '16px', fontWeight: '600' }}>
+                            Item Pool Manager
+                        </h2>
+                        {user && (
+                            <span style={{ fontSize: '12px', color: COLORS.textMuted }}>
+                                as {user.login}
+                            </span>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {user && (
+                            <button
+                                onClick={handleLogout}
+                                style={{
+                                    padding: '6px 10px',
+                                    background: 'transparent',
+                                    border: `1px solid ${COLORS.border}`,
+                                    borderRadius: '4px',
+                                    color: COLORS.textMuted,
+                                    fontSize: '11px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Logout
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '4px' }}
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Content */}
-                <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-                    {/* Authentication */}
-                    {showTokenInput ? (
-                        <div style={{ marginBottom: '24px' }}>
-                            <div style={{ fontSize: '14px', color: COLORS.text, marginBottom: '12px' }}>
-                                Authenticate with GitHub to manage item pools
+                {/* Auth Section */}
+                {showTokenInput && (
+                    <div style={{ padding: '20px', borderBottom: `1px solid ${COLORS.border}` }}>
+                        <div style={{ marginBottom: '12px', fontSize: '13px', color: COLORS.textMuted }}>
+                            Enter a GitHub Personal Access Token with <code style={{ background: COLORS.bgLighter, padding: '2px 4px', borderRadius: '3px' }}>repo</code> scope.{' '}
+                            <a
+                                href={GITHUB_TOKEN_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: COLORS.accent, textDecoration: 'none' }}
+                            >
+                                Create one here <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
+                            </a>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                            <input
+                                type="password"
+                                placeholder="ghp_xxxxxxxxxxxx"
+                                value={token}
+                                onChange={e => setToken(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAuthenticate()}
+                                style={{
+                                    flex: 1,
+                                    padding: '10px 12px',
+                                    background: COLORS.bgLighter,
+                                    border: `1px solid ${COLORS.border}`,
+                                    borderRadius: '6px',
+                                    color: COLORS.text,
+                                    fontSize: '13px',
+                                    outline: 'none'
+                                }}
+                            />
+                            <button
+                                onClick={handleAuthenticate}
+                                disabled={verifying || !token.trim()}
+                                style={{
+                                    padding: '10px 16px',
+                                    background: COLORS.accent,
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    cursor: verifying ? 'wait' : 'pointer',
+                                    opacity: verifying || !token.trim() ? 0.6 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}
+                            >
+                                {verifying && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                                {verifying ? 'Verifying...' : 'Connect'}
+                            </button>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: COLORS.textMuted, cursor: 'pointer' }}>
+                            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
+                            Remember me for 60 days
+                        </label>
+                        {error && (
+                            <div style={{ marginTop: '10px', padding: '10px', background: COLORS.error + '22', borderRadius: '6px', color: COLORS.error, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <AlertTriangle size={14} /> {error}
                             </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                        )}
+                    </div>
+                )}
+
+                {/* Main Content - only show if authenticated */}
+                {user && (
+                    <>
+                        {/* Progress Indicator */}
+                        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${COLORS.border}` }}>
+                            <ProgressSteps steps={PROGRESS_STEPS} currentStep={currentStep} />
+                        </div>
+
+                        {/* Branch Selector - Compact */}
+                        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.bgLight }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '12px', color: COLORS.textMuted }}>Branch:</span>
+                                    <select
+                                        value={branchMode === 'existing' ? selectedBranch : '__new__'}
+                                        onChange={e => {
+                                            if (e.target.value === '__new__') {
+                                                setBranchMode('new');
+                                            } else {
+                                                setBranchMode('existing');
+                                                setSelectedBranch(e.target.value);
+                                            }
+                                        }}
+                                        style={{
+                                            padding: '6px 10px',
+                                            background: COLORS.bgLighter,
+                                            border: `1px solid ${COLORS.border}`,
+                                            borderRadius: '4px',
+                                            color: COLORS.text,
+                                            fontSize: '12px',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                            minWidth: '150px'
+                                        }}
+                                    >
+                                        {branches.filter(b => !PROTECTED_BRANCHES.has(b.name.toLowerCase())).map(b => (
+                                            <option key={b.name} value={b.name}>{b.name}</option>
+                                        ))}
+                                        <option value="__new__">+ Create new branch...</option>
+                                    </select>
+                                    <button
+                                        onClick={handleRefreshBranches}
+                                        disabled={loadingBranches}
+                                        title="Refresh branches"
+                                        style={{
+                                            padding: '6px',
+                                            background: 'transparent',
+                                            border: `1px solid ${COLORS.border}`,
+                                            borderRadius: '4px',
+                                            color: COLORS.textMuted,
+                                            cursor: loadingBranches ? 'wait' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}
+                                    >
+                                        <RefreshCw size={12} style={{ animation: loadingBranches ? 'spin 1s linear infinite' : 'none' }} />
+                                    </button>
+                                </div>
+                                {branchMode === 'new' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="new-branch-name"
+                                            value={newBranchName}
+                                            onChange={e => setNewBranchName(e.target.value)}
+                                            style={{
+                                                padding: '6px 10px',
+                                                background: COLORS.bgLighter,
+                                                border: `1px solid ${COLORS.border}`,
+                                                borderRadius: '4px',
+                                                color: COLORS.text,
+                                                fontSize: '12px',
+                                                outline: 'none',
+                                                width: '160px'
+                                            }}
+                                        />
+                                        <span style={{ fontSize: '11px', color: COLORS.textMuted }}>from</span>
+                                        <select
+                                            value={baseBranch}
+                                            onChange={e => setBaseBranch(e.target.value)}
+                                            style={{
+                                                padding: '6px 10px',
+                                                background: COLORS.bgLighter,
+                                                border: `1px solid ${COLORS.border}`,
+                                                borderRadius: '4px',
+                                                color: COLORS.text,
+                                                fontSize: '12px',
+                                                outline: 'none',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {branches.map(b => (
+                                                <option key={b.name} value={b.name}>{b.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                {!isValidBranch && targetBranch && (
+                                    <span style={{ fontSize: '11px', color: COLORS.error }}>
+                                        {PROTECTED_BRANCHES.has(targetBranch.toLowerCase()) ? 'Cannot commit to protected branch' : 'Invalid branch name'}
+                                    </span>
+                                )}
+                                {/* Refresh Misode data button */}
+                                {onRefreshMisode && (
+                                    <button
+                                        onClick={onRefreshMisode}
+                                        title="Refresh item data from Misode"
+                                        style={{
+                                            marginLeft: 'auto',
+                                            padding: '5px 10px',
+                                            background: 'transparent',
+                                            border: `1px solid ${COLORS.border}`,
+                                            borderRadius: '4px',
+                                            color: COLORS.textMuted,
+                                            fontSize: '11px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        <RefreshCw size={11} />
+                                        Refresh Items
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div style={{ display: 'flex', borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
+                            <button
+                                onClick={() => { setActiveTab('add'); setSearchQuery(''); }}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px 16px',
+                                    background: activeTab === 'add' ? COLORS.bgLight : 'transparent',
+                                    border: 'none',
+                                    borderBottom: activeTab === 'add' ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+                                    color: activeTab === 'add' ? COLORS.text : COLORS.textMuted,
+                                    fontSize: '13px',
+                                    fontWeight: activeTab === 'add' ? '600' : '400',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                <Plus size={16} />
+                                Add Items
+                                <span style={{
+                                    background: COLORS.bgLighter,
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontSize: '11px',
+                                    color: COLORS.textMuted
+                                }}>
+                                    {missingItems.length}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => { setActiveTab('manage'); setSearchQuery(''); }}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px 16px',
+                                    background: activeTab === 'manage' ? COLORS.bgLight : 'transparent',
+                                    border: 'none',
+                                    borderBottom: activeTab === 'manage' ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+                                    color: activeTab === 'manage' ? COLORS.text : COLORS.textMuted,
+                                    fontSize: '13px',
+                                    fontWeight: activeTab === 'manage' ? '600' : '400',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px'
+                                }}
+                            >
+                                <Settings size={16} />
+                                Manage Pool
+                                <span style={{
+                                    background: COLORS.bgLighter,
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontSize: '11px',
+                                    color: COLORS.textMuted
+                                }}>
+                                    {items.length}
+                                </span>
+                            </button>
+                        </div>
+
+                        {/* Search */}
+                        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${COLORS.border}` }}>
+                            <div style={{ position: 'relative' }}>
+                                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
                                 <input
-                                    type="password"
-                                    placeholder="GitHub Personal Access Token"
-                                    value={token}
-                                    onChange={e => setToken(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleAuthenticate()}
+                                    type="text"
+                                    placeholder={activeTab === 'add' ? 'Search missing items...' : 'Search pool items...'}
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
                                     style={{
-                                        flex: 1,
-                                        padding: '10px 14px',
+                                        width: '100%',
+                                        padding: '10px 12px 10px 36px',
                                         background: COLORS.bgLighter,
                                         border: `1px solid ${COLORS.border}`,
-                                        borderRadius: '4px',
+                                        borderRadius: '6px',
                                         color: COLORS.text,
-                                        fontSize: '14px',
-                                        outline: 'none'
+                                        fontSize: '13px',
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
                                     }}
                                 />
-                                <button
-                                    onClick={handleAuthenticate}
-                                    disabled={verifying || !token.trim()}
-                                    style={{
-                                        padding: '10px 20px',
-                                        background: COLORS.accent,
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        color: '#fff',
-                                        fontSize: '14px',
-                                        cursor: verifying ? 'not-allowed' : 'pointer',
-                                        opacity: verifying || !token.trim() ? 0.6 : 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                    }}
-                                >
-                                    {verifying && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
-                                    {verifying ? 'Verifying...' : 'Authenticate'}
-                                </button>
-                            </div>
-                            <label style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                marginTop: '10px',
-                                fontSize: '13px',
-                                color: COLORS.textMuted,
-                                cursor: 'pointer',
-                                userSelect: 'none',
-                            }}>
-                                <input
-                                    type="checkbox"
-                                    checked={rememberMe}
-                                    onChange={() => setRememberMe(!rememberMe)}
-                                    style={{
-                                        width: '14px',
-                                        height: '14px',
-                                        accentColor: COLORS.accent,
-                                        cursor: 'pointer',
-                                    }}
-                                />
-                                Remember me
-                            </label>
-                            <div style={{ fontSize: '12px', color: COLORS.textMuted, marginTop: '8px' }}>
-                                <a
-                                    href={`https://github.com/settings/tokens/new?description=FIB%20Item%20Pool%20Manager&scopes=repo`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: COLORS.accent, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                    Create a new token <ExternalLink size={12} />
-                                </a>
-                                {' '}(requires <code style={{ background: COLORS.bgLighter, padding: '2px 6px', borderRadius: '3px' }}>repo</code> scope)
                             </div>
                         </div>
-                    ) : user && (
-                        <div style={{ marginBottom: '24px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    {user.avatar_url && (
-                                        <img src={user.avatar_url} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
-                                    )}
-                                    <div>
-                                        <div style={{ color: COLORS.success, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <Check size={14} /> Authenticated as <strong>@{user.login}</strong>
-                                        </div>
-                                        <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                            Write access to {REPO_OWNER}/{REPO_NAME}
-                                        </div>
-                                    </div>
+
+                        {/* Item List */}
+                        <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+                            {filteredItems.length === 0 ? (
+                                <div style={{ padding: '40px 20px', textAlign: 'center', color: COLORS.textMuted }}>
+                                    {searchQuery ? 'No items match your search' : 'No items available'}
                                 </div>
-                                <button
-                                    onClick={handleLogout}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: COLORS.textMuted,
-                                        fontSize: '12px',
-                                        cursor: 'pointer',
-                                        textDecoration: 'underline'
-                                    }}
-                                >
-                                    Sign out
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                            ) : (
+                                filteredItems.map(item => {
+                                    const change = pendingChanges.find(c => c.material === item.material);
+                                    const hasChange = !!change;
 
-                    {/* Error display */}
-                    {error && (
-                        <div style={{
-                            padding: '12px 16px',
-                            background: COLORS.error + '22',
-                            border: `1px solid ${COLORS.error}44`,
-                            borderRadius: '4px',
-                            color: COLORS.error,
-                            fontSize: '13px',
-                            marginBottom: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px'
-                        }}>
-                            <AlertTriangle size={16} />
-                            {error}
-                        </div>
-                    )}
+                                    return (
+                                        <div
+                                            key={item.material}
+                                            style={{
+                                                padding: '10px 20px',
+                                                borderBottom: `1px solid ${COLORS.border}`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '12px',
+                                                background: hasChange
+                                                    ? (change.type === 'add' ? COLORS.success + '08' : change.type === 'remove' ? COLORS.error + '08' : COLORS.accent + '08')
+                                                    : 'transparent'
+                                            }}
+                                        >
+                                            {/* Item Info */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                                                <img
+                                                    src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
+                                                    alt=""
+                                                    style={{
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        imageRendering: 'pixelated',
+                                                        flexShrink: 0,
+                                                        opacity: hasChange && change.type === 'remove' ? 0.4 : 1
+                                                    }}
+                                                    onError={(e) => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                                />
+                                                <span style={{
+                                                    color: hasChange && change.type === 'remove' ? COLORS.textMuted : COLORS.text,
+                                                    fontSize: '13px',
+                                                    textDecoration: hasChange && change.type === 'remove' ? 'line-through' : 'none',
+                                                    whiteSpace: 'nowrap',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis'
+                                                }}>
+                                                    {item.displayName}
+                                                </span>
 
-                    {/* Success display */}
-                    {commitSuccess && (
+                                                {/* Show current state for pool items */}
+                                                {activeTab === 'manage' && !hasChange && (
+                                                    <>
+                                                        <StateDropdown
+                                                            value={item.state}
+                                                            onChange={(newState) => handleModifyItem(item, newState, item.tags || [])}
+                                                            disabled={false}
+                                                        />
+                                                        <TagPills
+                                                            tags={item.tags || []}
+                                                            onChange={(newTags) => handleModifyItem(item, item.state, newTags)}
+                                                            disabled={false}
+                                                            small
+                                                        />
+                                                    </>
+                                                )}
+
+                                                {/* Show pending state for items with changes */}
+                                                {hasChange && change.type !== 'remove' && (
+                                                    <>
+                                                        <StateDropdown
+                                                            value={change.state}
+                                                            onChange={(newState) => setPendingChanges(prev => prev.map(c =>
+                                                                c.material === item.material ? { ...c, state: newState } : c
+                                                            ))}
+                                                            disabled={false}
+                                                        />
+                                                        <TagPills
+                                                            tags={change.tags}
+                                                            onChange={(newTags) => setPendingChanges(prev => prev.map(c =>
+                                                                c.material === item.material ? { ...c, tags: newTags } : c
+                                                            ))}
+                                                            disabled={false}
+                                                            small
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                                {hasChange ? (
+                                                    <button
+                                                        onClick={() => handleUndoChange(item.material)}
+                                                        style={{
+                                                            padding: '5px 10px',
+                                                            background: 'transparent',
+                                                            border: `1px solid ${COLORS.border}`,
+                                                            borderRadius: '4px',
+                                                            color: COLORS.textMuted,
+                                                            fontSize: '11px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}
+                                                    >
+                                                        <X size={12} />
+                                                        Undo
+                                                    </button>
+                                                ) : activeTab === 'add' ? (
+                                                    <button
+                                                        onClick={() => handleAddItem(item)}
+                                                        style={{
+                                                            padding: '5px 10px',
+                                                            background: COLORS.success + '22',
+                                                            border: `1px solid ${COLORS.success}44`,
+                                                            borderRadius: '4px',
+                                                            color: COLORS.success,
+                                                            fontSize: '11px',
+                                                            fontWeight: '600',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}
+                                                    >
+                                                        <Plus size={12} />
+                                                        Add
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleRemoveItem(item)}
+                                                        style={{
+                                                            padding: '5px 10px',
+                                                            background: COLORS.error + '22',
+                                                            border: `1px solid ${COLORS.error}44`,
+                                                            borderRadius: '4px',
+                                                            color: COLORS.error,
+                                                            fontSize: '11px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}
+                                                    >
+                                                        <Minus size={12} />
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Sticky Footer */}
                         <div style={{
-                            padding: '12px 16px',
-                            background: COLORS.success + '22',
-                            border: `1px solid ${COLORS.success}44`,
-                            borderRadius: '4px',
-                            color: COLORS.success,
-                            fontSize: '13px',
-                            marginBottom: '16px'
+                            borderTop: `1px solid ${COLORS.border}`,
+                            background: COLORS.bgLight,
+                            flexShrink: 0
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Check size={16} />
-                                Changes committed successfully!
-                            </div>
-                            {prUrl && (
-                                <div style={{ marginTop: '8px' }}>
+                            {/* Summary Bar */}
+                            <div
+                                style={{
+                                    padding: '12px 20px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    cursor: pendingChanges.length > 0 ? 'pointer' : 'default'
+                                }}
+                                onClick={() => pendingChanges.length > 0 && setFooterExpanded(!footerExpanded)}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    {pendingChanges.length > 0 ? (
+                                        <>
+                                            <Package size={16} style={{ color: COLORS.accent }} />
+                                            <span style={{ fontSize: '13px', color: COLORS.text, fontWeight: '500' }}>
+                                                {pendingChanges.length} change{pendingChanges.length !== 1 ? 's' : ''}
+                                            </span>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                {addCount > 0 && (
+                                                    <span style={{ fontSize: '11px', color: COLORS.success }}>+{addCount} added</span>
+                                                )}
+                                                {modifyCount > 0 && (
+                                                    <span style={{ fontSize: '11px', color: COLORS.accent }}>~{modifyCount} modified</span>
+                                                )}
+                                                {removeCount > 0 && (
+                                                    <span style={{ fontSize: '11px', color: COLORS.error }}>-{removeCount} removed</span>
+                                                )}
+                                            </div>
+                                            {footerExpanded ? <ChevronDown size={14} style={{ color: COLORS.textMuted }} /> : <ChevronUp size={14} style={{ color: COLORS.textMuted }} />}
+                                        </>
+                                    ) : (
+                                        <span style={{ fontSize: '13px', color: COLORS.textMuted }}>
+                                            No pending changes
+                                        </span>
+                                    )}
+                                </div>
+
+                                {commitSuccess && prUrl && (
                                     <a
                                         href={prUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        style={{ color: COLORS.success, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                    >
-                                        <GitPullRequest size={14} />
-                                        View Pull Request <ExternalLink size={12} />
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Main content - only show if authenticated */}
-                    {user && (
-                        <>
-                            {/* Progress Steps */}
-                            <ProgressSteps steps={PROGRESS_STEPS} currentStep={currentStep} />
-
-                            {/* Branch Selection */}
-                            <div style={{
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '6px',
-                                padding: '16px',
-                                marginBottom: '16px'
-                            }}>
-                                <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <GitBranch size={14} />
-                                        Target Branch
-                                    </div>
-                                    <button
-                                        onClick={handleRefreshBranches}
-                                        disabled={loadingBranches}
-                                        title="Refresh branch list"
+                                        onClick={e => e.stopPropagation()}
                                         style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: COLORS.textMuted,
-                                            cursor: loadingBranches ? 'not-allowed' : 'pointer',
-                                            padding: '4px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '4px',
-                                            fontSize: '11px',
-                                            opacity: loadingBranches ? 0.5 : 1
+                                            color: COLORS.accent,
+                                            fontSize: '12px',
+                                            textDecoration: 'none'
                                         }}
                                     >
-                                        <RefreshCw size={14} style={{ animation: loadingBranches ? 'spin 1s linear infinite' : 'none' }} />
-                                        Refresh
+                                        <ExternalLink size={12} />
+                                        View PR
+                                    </a>
+                                )}
+                            </div>
+
+                            {/* Expanded Details */}
+                            {footerExpanded && pendingChanges.length > 0 && (
+                                <div style={{ padding: '0 20px 12px', maxHeight: '150px', overflow: 'auto' }}>
+                                    {pendingChanges.map(change => (
+                                        <div
+                                            key={change.material}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                padding: '6px 0',
+                                                borderBottom: `1px solid ${COLORS.border}`
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                {change.type === 'add' && <Plus size={12} style={{ color: COLORS.success }} />}
+                                                {change.type === 'modify' && <RefreshCw size={12} style={{ color: COLORS.accent }} />}
+                                                {change.type === 'remove' && <Minus size={12} style={{ color: COLORS.error }} />}
+                                                <img
+                                                    src={`${IMAGE_BASE_URL}/${change.material.toLowerCase()}.png`}
+                                                    alt=""
+                                                    style={{
+                                                        width: '16px',
+                                                        height: '16px',
+                                                        imageRendering: 'pixelated',
+                                                        opacity: change.type === 'remove' ? 0.4 : 1
+                                                    }}
+                                                    onError={(e) => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                                />
+                                                <span style={{
+                                                    fontSize: '12px',
+                                                    color: change.type === 'remove' ? COLORS.textMuted : COLORS.text,
+                                                    textDecoration: change.type === 'remove' ? 'line-through' : 'none'
+                                                }}>
+                                                    {change.displayName || change.material}
+                                                </span>
+                                                {change.type !== 'remove' && (
+                                                    <>
+                                                        {change.type === 'modify' && (
+                                                            <span style={{ fontSize: '10px', color: COLORS.textMuted }}>{change.oldState} →</span>
+                                                        )}
+                                                        <span style={{ fontSize: '10px', color: COLORS[change.state.toLowerCase()], fontWeight: '600' }}>
+                                                            {change.state}
+                                                        </span>
+                                                        {change.tags.length > 0 && (
+                                                            <span style={{ fontSize: '10px', color: COLORS.textMuted }}>
+                                                                ({change.tags.join(', ')})
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => handleUndoChange(change.material)}
+                                                style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '2px' }}
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={handleClearChanges}
+                                        style={{
+                                            marginTop: '8px',
+                                            padding: '4px 8px',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: COLORS.textMuted,
+                                            fontSize: '11px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        <Trash2 size={10} />
+                                        Clear all
                                     </button>
                                 </div>
+                            )}
 
-                                <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: COLORS.text, fontSize: '13px', cursor: 'pointer' }}>
-                                        <input
-                                            type="radio"
-                                            checked={branchMode === 'existing'}
-                                            onChange={() => setBranchMode('existing')}
-                                        />
-                                        Select existing branch
-                                    </label>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: COLORS.text, fontSize: '13px', cursor: 'pointer' }}>
-                                        <input
-                                            type="radio"
-                                            checked={branchMode === 'new'}
-                                            onChange={() => setBranchMode('new')}
-                                        />
-                                        Create new branch
-                                    </label>
-                                </div>
-
-                                {branchMode === 'existing' ? (
-                                    <div>
-                                        <div style={{ position: 'relative', marginBottom: '8px' }}>
-                                            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
+                            {/* Commit Section */}
+                            {pendingChanges.length > 0 && (
+                                <div style={{ padding: '12px 20px', borderTop: `1px solid ${COLORS.border}` }}>
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                                        <div style={{ flex: 1 }}>
                                             <input
                                                 type="text"
-                                                placeholder="Search branches..."
-                                                value={branchSearch}
-                                                onChange={e => setBranchSearch(e.target.value)}
+                                                placeholder="Commit message..."
+                                                value={commitMessage}
+                                                onChange={e => setCommitMessage(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && canCommit && handleCommit()}
                                                 style={{
                                                     width: '100%',
-                                                    padding: '8px 12px 8px 32px',
+                                                    padding: '10px 12px',
                                                     background: COLORS.bgLighter,
                                                     border: `1px solid ${COLORS.border}`,
-                                                    borderRadius: '4px',
+                                                    borderRadius: '6px',
                                                     color: COLORS.text,
                                                     fontSize: '13px',
                                                     outline: 'none',
                                                     boxSizing: 'border-box'
                                                 }}
                                             />
-                                        </div>
-                                        <div style={{ maxHeight: '120px', overflow: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: '4px' }}>
-                                            {loadingBranches ? (
-                                                <div style={{ padding: '12px', color: COLORS.textMuted, fontSize: '13px', textAlign: 'center' }}>
-                                                    Loading branches...
-                                                </div>
-                                            ) : filteredBranches.length === 0 ? (
-                                                <div style={{ padding: '12px', color: COLORS.textMuted, fontSize: '13px', textAlign: 'center' }}>
-                                                    No branches found
-                                                </div>
-                                            ) : filteredBranches.map(branch => (
-                                                <div
-                                                    key={branch.name}
-                                                    onClick={() => !PROTECTED_BRANCHES.has(branch.name.toLowerCase()) && setSelectedBranch(branch.name)}
-                                                    style={{
-                                                        padding: '8px 12px',
-                                                        background: selectedBranch === branch.name ? COLORS.accent + '22' : 'transparent',
-                                                        color: PROTECTED_BRANCHES.has(branch.name.toLowerCase()) ? COLORS.textMuted : COLORS.text,
-                                                        fontSize: '13px',
-                                                        cursor: PROTECTED_BRANCHES.has(branch.name.toLowerCase()) ? 'not-allowed' : 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'space-between',
-                                                        borderBottom: `1px solid ${COLORS.border}`
-                                                    }}
-                                                >
-                                                    <span>{branch.name}</span>
-                                                    {PROTECTED_BRANCHES.has(branch.name.toLowerCase()) && (
-                                                        <span style={{ fontSize: '10px', color: COLORS.warning, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <AlertTriangle size={10} /> Protected
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div>
-                                        <input
-                                            type="text"
-                                            placeholder="new-branch-name"
-                                            value={newBranchName}
-                                            onChange={e => setNewBranchName(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '-'))}
-                                            style={{
-                                                width: '100%',
-                                                padding: '8px 12px',
-                                                background: COLORS.bgLighter,
-                                                border: `1px solid ${isValidBranchName(newBranchName) || !newBranchName ? COLORS.border : COLORS.error}`,
-                                                borderRadius: '4px',
-                                                color: COLORS.text,
-                                                fontSize: '13px',
-                                                outline: 'none',
-                                                boxSizing: 'border-box',
-                                                marginBottom: '8px'
-                                            }}
-                                        />
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>Base:</span>
-                                            <select
-                                                value={baseBranch}
-                                                onChange={e => setBaseBranch(e.target.value)}
-                                                style={{
-                                                    padding: '6px 10px',
-                                                    background: COLORS.bgLighter,
-                                                    border: `1px solid ${COLORS.border}`,
-                                                    borderRadius: '4px',
-                                                    color: COLORS.text,
-                                                    fontSize: '12px',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                {branches.map(b => (
-                                                    <option key={b.name} value={b.name}>{b.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {targetBranch && PROTECTED_BRANCHES.has(targetBranch.toLowerCase()) && (
-                                    <div style={{ marginTop: '8px', color: COLORS.warning, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <AlertTriangle size={12} />
-                                        Protected branches cannot be modified directly
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Queued Items Section - show when items were selected from Missing view */}
-                            {queuedItems.length > 0 && (
-                                <div style={{
-                                    background: `${COLORS.accent}11`,
-                                    border: `1px solid ${COLORS.accent}44`,
-                                    borderRadius: '6px',
-                                    padding: '16px',
-                                    marginBottom: '16px'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                        <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <Plus size={14} style={{ color: COLORS.accent }} />
-                                            Configure Selected Items ({queuedItems.length})
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', fontSize: '11px', color: COLORS.textMuted, cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={createPR} onChange={e => setCreatePR(e.target.checked)} />
+                                                <GitPullRequest size={12} />
+                                                Create PR to main
+                                            </label>
                                         </div>
                                         <button
-                                            onClick={handleClearQueue}
+                                            onClick={handleCommit}
+                                            disabled={!canCommit || committing}
                                             style={{
-                                                background: 'none',
+                                                padding: '10px 20px',
+                                                background: canCommit && !committing ? COLORS.accent : COLORS.bgLighter,
                                                 border: 'none',
-                                                color: COLORS.textMuted,
-                                                fontSize: '12px',
-                                                cursor: 'pointer',
+                                                borderRadius: '6px',
+                                                color: '#fff',
+                                                fontSize: '13px',
+                                                fontWeight: '600',
+                                                cursor: canCommit && !committing ? 'pointer' : 'not-allowed',
+                                                opacity: canCommit && !committing ? 1 : 0.6,
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                gap: '4px'
+                                                gap: '6px',
+                                                whiteSpace: 'nowrap'
                                             }}
                                         >
-                                            <Trash2 size={12} /> Clear All
+                                            {committing && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                                            {committing ? 'Committing...' : 'Commit & Push'}
                                         </button>
                                     </div>
-
-                                    <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '12px' }}>
-                                        Click each item to configure its state and tags individually
-                                    </div>
-
-                                    {/* Queued items list with individual config */}
-                                    <div style={{ maxHeight: '300px', overflow: 'auto', marginBottom: '12px' }}>
-                                        {queuedItems.map(queuedItem => {
-                                            const item = missingItems.find(i => i.material === queuedItem.material);
-                                            const displayName = item?.displayName || queuedItem.material.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-                                            const isExpanded = queuedItem.expanded;
-                                            const activeTags = Object.entries(queuedItem.tags).filter(([,v]) => v).map(([k]) => k);
-
-                                            return (
-                                                <div key={queuedItem.material} style={{
-                                                    background: isExpanded ? COLORS.bgLighter : 'transparent',
-                                                    borderRadius: '4px',
-                                                    marginBottom: '4px',
-                                                    border: `1px solid ${isExpanded ? COLORS.accent + '44' : COLORS.border}`
-                                                }}>
-                                                    {/* Item header - click to expand */}
-                                                    <div
-                                                        onClick={() => handleToggleQueuedExpand(queuedItem.material)}
-                                                        style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'space-between',
-                                                            padding: '8px 10px',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                                                            <span style={{ color: COLORS.text, fontSize: '12px', fontWeight: '500' }}>{displayName}</span>
-                                                            <span style={{
-                                                                color: COLORS[queuedItem.state.toLowerCase()],
-                                                                fontSize: '10px',
-                                                                fontWeight: '600',
-                                                                padding: '2px 6px',
-                                                                background: COLORS[queuedItem.state.toLowerCase()] + '22',
-                                                                borderRadius: '3px'
-                                                            }}>
-                                                                {queuedItem.state}
-                                                            </span>
-                                                            {activeTags.map(tag => (
-                                                                <span key={tag} style={{
-                                                                    color: COLORS[tag.toLowerCase()],
-                                                                    fontSize: '9px',
-                                                                    fontWeight: '600',
-                                                                    padding: '2px 5px',
-                                                                    background: COLORS[tag.toLowerCase()] + '22',
-                                                                    borderRadius: '3px'
-                                                                }}>
-                                                                    {tag}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <span style={{ color: COLORS.textMuted, fontSize: '10px' }}>
-                                                                {isExpanded ? 'collapse' : 'configure'}
-                                                            </span>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleRemoveFromQueue(queuedItem.material); }}
-                                                                style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '2px' }}
-                                                            >
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Expanded config panel */}
-                                                    {isExpanded && (
-                                                        <div style={{
-                                                            padding: '10px',
-                                                            borderTop: `1px solid ${COLORS.border}`,
-                                                            display: 'flex',
-                                                            gap: '16px',
-                                                            flexWrap: 'wrap'
-                                                        }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>State:</span>
-                                                                {['EARLY', 'MID', 'LATE'].map(state => (
-                                                                    <button
-                                                                        key={state}
-                                                                        onClick={() => handleQueuedStateChange(queuedItem.material, state)}
-                                                                        style={{
-                                                                            padding: '4px 10px',
-                                                                            background: queuedItem.state === state ? COLORS[state.toLowerCase()] + '33' : 'transparent',
-                                                                            border: `1px solid ${queuedItem.state === state ? COLORS[state.toLowerCase()] : COLORS.border}`,
-                                                                            borderRadius: '3px',
-                                                                            color: queuedItem.state === state ? COLORS[state.toLowerCase()] : COLORS.textMuted,
-                                                                            fontSize: '11px',
-                                                                            fontWeight: '600',
-                                                                            cursor: 'pointer'
-                                                                        }}
-                                                                    >
-                                                                        {state}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>Tags:</span>
-                                                                {['NETHER', 'END', 'EXTREME'].map(tag => (
-                                                                    <button
-                                                                        key={tag}
-                                                                        onClick={() => handleQueuedTagToggle(queuedItem.material, tag)}
-                                                                        style={{
-                                                                            padding: '4px 8px',
-                                                                            background: queuedItem.tags[tag] ? COLORS[tag.toLowerCase()] + '33' : 'transparent',
-                                                                            border: `1px solid ${queuedItem.tags[tag] ? COLORS[tag.toLowerCase()] : COLORS.border}`,
-                                                                            borderRadius: '3px',
-                                                                            color: queuedItem.tags[tag] ? COLORS[tag.toLowerCase()] : COLORS.textMuted,
-                                                                            fontSize: '10px',
-                                                                            fontWeight: '600',
-                                                                            cursor: 'pointer'
-                                                                        }}
-                                                                    >
-                                                                        {tag}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Add all button */}
-                                    <button
-                                        onClick={handleAddAllQueued}
-                                        style={{
-                                            width: '100%',
-                                            padding: '10px',
-                                            background: COLORS.accent,
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            color: '#fff',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '6px'
-                                        }}
-                                    >
-                                        <Check size={14} />
-                                        Add All {queuedItems.length} Item{queuedItems.length !== 1 ? 's' : ''} to Pending Changes
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Add Items Section */}
-                            <div style={{
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '6px',
-                                padding: '16px',
-                                marginBottom: '16px'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                    <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <Plus size={14} />
-                                        Add Items ({missingItems.length} missing)
-                                    </div>
-                                    {onRefreshMisode && (
-                                        <button
-                                            onClick={onRefreshMisode}
-                                            title="Refresh Minecraft item list (clears cache)"
-                                            style={{
-                                                padding: '4px 8px',
-                                                background: 'transparent',
-                                                border: `1px solid ${COLORS.border}`,
-                                                borderRadius: '3px',
-                                                color: COLORS.textMuted,
-                                                fontSize: '11px',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px'
-                                            }}
-                                        >
-                                            <RefreshCw size={12} />
-                                            Refresh Items
-                                        </button>
+                                    {error && (
+                                        <div style={{ marginTop: '10px', padding: '8px 10px', background: COLORS.error + '22', borderRadius: '4px', color: COLORS.error, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <AlertTriangle size={12} /> {error}
+                                        </div>
                                     )}
                                 </div>
-
-                                <div style={{ position: 'relative', marginBottom: '12px' }}>
-                                    <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search missing items..."
-                                        value={addSearch}
-                                        onChange={e => setAddSearch(e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px 12px 8px 32px',
-                                            background: COLORS.bgLighter,
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.text,
-                                            fontSize: '13px',
-                                            outline: 'none',
-                                            boxSizing: 'border-box'
-                                        }}
-                                    />
-                                </div>
-
-                                <div style={{ maxHeight: '200px', overflow: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: '4px' }}>
-                                    {filteredMissingItems.length === 0 ? (
-                                        <div style={{ padding: '12px', color: COLORS.textMuted, fontSize: '13px', textAlign: 'center' }}>
-                                            {addSearch ? 'No items match your search' : 'No missing items'}
-                                        </div>
-                                    ) : filteredMissingItems.map(item => {
-                                        const isExpanded = expandedItem === item.material;
-                                        const isAdded = additionMaterials.has(item.material);
-
-                                        return (
-                                            <div
-                                                key={item.material}
-                                                style={{
-                                                    borderBottom: `1px solid ${COLORS.border}`,
-                                                    background: isAdded ? COLORS.success + '11' : isExpanded ? COLORS.accent + '11' : 'transparent'
-                                                }}
-                                            >
-                                                {/* Item row */}
-                                                <div
-                                                    style={{
-                                                        padding: '8px 12px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'space-between',
-                                                        cursor: isAdded ? 'default' : 'pointer'
-                                                    }}
-                                                    onClick={() => !isAdded && handleExpandItem(item)}
-                                                >
-                                                    <span style={{ color: COLORS.text, fontSize: '13px' }}>{item.displayName}</span>
-                                                    {isAdded ? (
-                                                        <span style={{ color: COLORS.success, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <Check size={12} /> Added
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                                            {isExpanded ? 'Configure' : 'Click to add'}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Expanded configuration panel */}
-                                                {isExpanded && !isAdded && (
-                                                    <div style={{
-                                                        padding: '12px',
-                                                        background: COLORS.bgLighter,
-                                                        borderTop: `1px solid ${COLORS.border}`
-                                                    }}>
-                                                        {/* State selection */}
-                                                        <div style={{ marginBottom: '10px' }}>
-                                                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                                Difficulty State
-                                                            </div>
-                                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                                {['EARLY', 'MID', 'LATE'].map(state => (
-                                                                    <button
-                                                                        key={state}
-                                                                        onClick={(e) => { e.stopPropagation(); setConfigState(state); }}
-                                                                        style={{
-                                                                            padding: '6px 12px',
-                                                                            background: configState === state ? COLORS[state.toLowerCase()] + '33' : 'transparent',
-                                                                            border: `1px solid ${configState === state ? COLORS[state.toLowerCase()] : COLORS.border}`,
-                                                                            borderRadius: '4px',
-                                                                            color: COLORS[state.toLowerCase()],
-                                                                            fontSize: '12px',
-                                                                            fontWeight: configState === state ? '600' : '400',
-                                                                            cursor: 'pointer',
-                                                                            transition: 'all 0.15s'
-                                                                        }}
-                                                                    >
-                                                                        {state}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Tags selection */}
-                                                        <div style={{ marginBottom: '12px' }}>
-                                                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                                Tags (optional)
-                                                            </div>
-                                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                                                {['NETHER', 'END', 'EXTREME'].map(tag => (
-                                                                    <label
-                                                                        key={tag}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        style={{
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '6px',
-                                                                            padding: '5px 10px',
-                                                                            background: configTags[tag] ? COLORS.accent + '22' : 'transparent',
-                                                                            border: `1px solid ${configTags[tag] ? COLORS.accent : COLORS.border}`,
-                                                                            borderRadius: '4px',
-                                                                            color: configTags[tag] ? COLORS.accent : COLORS.textMuted,
-                                                                            fontSize: '11px',
-                                                                            cursor: 'pointer',
-                                                                            transition: 'all 0.15s'
-                                                                        }}
-                                                                    >
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={configTags[tag]}
-                                                                            onChange={e => setConfigTags(prev => ({ ...prev, [tag]: e.target.checked }))}
-                                                                            style={{ display: 'none' }}
-                                                                        />
-                                                                        {configTags[tag] && <Check size={10} />}
-                                                                        {tag}
-                                                                    </label>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Action buttons */}
-                                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleCancelConfig(); }}
-                                                                style={{
-                                                                    padding: '6px 12px',
-                                                                    background: 'transparent',
-                                                                    border: `1px solid ${COLORS.border}`,
-                                                                    borderRadius: '4px',
-                                                                    color: COLORS.textMuted,
-                                                                    fontSize: '12px',
-                                                                    cursor: 'pointer'
-                                                                }}
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleConfirmAdd(item); }}
-                                                                style={{
-                                                                    padding: '6px 12px',
-                                                                    background: COLORS.success + '22',
-                                                                    border: `1px solid ${COLORS.success}44`,
-                                                                    borderRadius: '4px',
-                                                                    color: COLORS.success,
-                                                                    fontSize: '12px',
-                                                                    fontWeight: '600',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px'
-                                                                }}
-                                                            >
-                                                                <Plus size={12} />
-                                                                Add as {configState}
-                                                                {Object.values(configTags).some(v => v) && (
-                                                                    <span style={{ opacity: 0.7 }}>
-                                                                        + {Object.entries(configTags).filter(([,v]) => v).map(([k]) => k).join(', ')}
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Remove Items Section */}
-                            <div style={{
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '6px',
-                                padding: '16px',
-                                marginBottom: '16px'
-                            }}>
-                                <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Minus size={14} />
-                                    Remove Items ({items.length} in pool)
-                                </div>
-
-                                <div style={{ position: 'relative', marginBottom: '12px' }}>
-                                    <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
-                                    <input
-                                        type="text"
-                                        placeholder="Search pool items..."
-                                        value={removeSearch}
-                                        onChange={e => setRemoveSearch(e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px 12px 8px 32px',
-                                            background: COLORS.bgLighter,
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.text,
-                                            fontSize: '13px',
-                                            outline: 'none',
-                                            boxSizing: 'border-box'
-                                        }}
-                                    />
-                                </div>
-
-                                <div style={{ maxHeight: '150px', overflow: 'auto', border: `1px solid ${COLORS.border}`, borderRadius: '4px' }}>
-                                    {filteredPoolItems.length === 0 ? (
-                                        <div style={{ padding: '12px', color: COLORS.textMuted, fontSize: '13px', textAlign: 'center' }}>
-                                            {removeSearch ? 'No items match your search' : 'No items in pool'}
-                                        </div>
-                                    ) : filteredPoolItems.map(item => (
-                                        <div
-                                            key={item.material}
-                                            style={{
-                                                padding: '8px 12px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                borderBottom: `1px solid ${COLORS.border}`,
-                                                background: removalMaterials.has(item.material) ? COLORS.error + '11' : 'transparent'
-                                            }}
-                                        >
-                                            <div>
-                                                <span style={{ color: COLORS.text, fontSize: '13px' }}>{item.displayName}</span>
-                                                <span style={{ color: COLORS[item.state?.toLowerCase()] || COLORS.textMuted, fontSize: '11px', marginLeft: '8px' }}>
-                                                    ({item.state})
-                                                </span>
-                                            </div>
-                                            <button
-                                                onClick={() => handleRemoveItem(item)}
-                                                disabled={removalMaterials.has(item.material)}
-                                                style={{
-                                                    padding: '4px 8px',
-                                                    background: removalMaterials.has(item.material) ? COLORS.error + '44' : COLORS.error + '22',
-                                                    border: 'none',
-                                                    borderRadius: '3px',
-                                                    color: COLORS.error,
-                                                    fontSize: '11px',
-                                                    cursor: removalMaterials.has(item.material) ? 'default' : 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px'
-                                                }}
-                                            >
-                                                {removalMaterials.has(item.material) ? <Check size={12} /> : <Minus size={12} />}
-                                                {removalMaterials.has(item.material) ? 'Marked' : 'Remove'}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Pending Changes */}
-                            {(additions.length > 0 || removals.length > 0) && (
-                                <div style={{
-                                    background: COLORS.bgLight,
-                                    border: `1px solid ${COLORS.accent}44`,
-                                    borderRadius: '6px',
-                                    padding: '16px',
-                                    marginBottom: '16px'
-                                }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                        <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text }}>
-                                            Pending Changes ({additions.length + removals.length})
-                                        </div>
-                                        <button
-                                            onClick={handleClearChanges}
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                color: COLORS.textMuted,
-                                                fontSize: '12px',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px'
-                                            }}
-                                        >
-                                            <Trash2 size={12} /> Clear
-                                        </button>
-                                    </div>
-
-                                    <div style={{ maxHeight: '120px', overflow: 'auto' }}>
-                                        {additions.map(item => (
-                                            <div key={item.material} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${COLORS.border}` }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Plus size={14} style={{ color: COLORS.success }} />
-                                                    <span style={{ color: COLORS.text, fontSize: '13px' }}>{item.material}</span>
-                                                    <span style={{ color: COLORS[item.state.toLowerCase()], fontSize: '11px' }}>&rarr; {item.state}</span>
-                                                    {item.tags.length > 0 && (
-                                                        <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>({item.tags.join(', ')})</span>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    onClick={() => handleRemoveFromAdditions(item.material)}
-                                                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '2px' }}
-                                                >
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        {removals.map(item => (
-                                            <div key={item.material} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${COLORS.border}` }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <Minus size={14} style={{ color: COLORS.error }} />
-                                                    <span style={{ color: COLORS.text, fontSize: '13px', textDecoration: 'line-through' }}>{item.material}</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleUndoRemoval(item.material)}
-                                                    style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '2px' }}
-                                                >
-                                                    <RefreshCw size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             )}
-
-                            {/* Commit Section */}
-                            <div style={{
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '6px',
-                                padding: '16px'
-                            }}>
-                                <div style={{ fontSize: '13px', fontWeight: '600', color: COLORS.text, marginBottom: '12px' }}>
-                                    Commit Message
-                                </div>
-                                <textarea
-                                    placeholder="Describe your changes..."
-                                    value={commitMessage}
-                                    onChange={e => setCommitMessage(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 12px',
-                                        background: COLORS.bgLighter,
-                                        border: `1px solid ${COLORS.border}`,
-                                        borderRadius: '4px',
-                                        color: COLORS.text,
-                                        fontSize: '13px',
-                                        outline: 'none',
-                                        resize: 'vertical',
-                                        minHeight: '60px',
-                                        boxSizing: 'border-box',
-                                        fontFamily: 'inherit'
-                                    }}
-                                />
-
-                                <div style={{ marginTop: '12px' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: COLORS.text, fontSize: '13px', cursor: 'pointer' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={createPR}
-                                            onChange={e => setCreatePR(e.target.checked)}
-                                        />
-                                        <GitPullRequest size={14} />
-                                        Create Pull Request to main after commit
-                                    </label>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Footer */}
-                {user && (
-                    <div style={{
-                        padding: '16px 20px',
-                        borderTop: `1px solid ${COLORS.border}`,
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        gap: '12px'
-                    }}>
-                        <button
-                            onClick={onClose}
-                            style={{
-                                padding: '10px 20px',
-                                background: COLORS.bgLighter,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '4px',
-                                color: COLORS.text,
-                                fontSize: '14px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleCommit}
-                            disabled={!canCommit || committing}
-                            style={{
-                                padding: '10px 20px',
-                                background: canCommit && !committing ? COLORS.accent : COLORS.bgLighter,
-                                border: 'none',
-                                borderRadius: '4px',
-                                color: '#fff',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                cursor: canCommit && !committing ? 'pointer' : 'not-allowed',
-                                opacity: canCommit && !committing ? 1 : 0.6,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}
-                        >
-                            {committing && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
-                            {committing ? 'Committing...' : 'Commit & Push'}
-                        </button>
-                    </div>
+                        </div>
+                    </>
                 )}
             </div>
 
-            {/* CSS for spinner animation */}
             <style>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
