@@ -231,19 +231,37 @@ function modifyJavaFile(content, additions, removals) {
 // Inline State Dropdown Component
 function StateDropdown({ value, onChange, disabled }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef(null);
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef(null);
 
     useEffect(() => {
         if (!open) return;
-        const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        const handleClick = (e) => {
+            if (buttonRef.current && !buttonRef.current.contains(e.target)) setOpen(false);
+        };
+        const handleScroll = () => setOpen(false);
         document.addEventListener('mousedown', handleClick);
-        return () => document.removeEventListener('mousedown', handleClick);
+        document.addEventListener('scroll', handleScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            document.removeEventListener('scroll', handleScroll, true);
+        };
     }, [open]);
 
+    const handleOpen = (e) => {
+        e.stopPropagation();
+        if (disabled) return;
+        if (!open && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPosition({ top: rect.bottom + 2, left: rect.left });
+        }
+        setOpen(!open);
+    };
+
     return (
-        <div ref={ref} style={{ position: 'relative' }}>
+        <div ref={buttonRef} style={{ position: 'relative' }}>
             <button
-                onClick={(e) => { e.stopPropagation(); if (!disabled) setOpen(!open); }}
+                onClick={handleOpen}
                 disabled={disabled}
                 style={{
                     padding: '3px 8px',
@@ -265,15 +283,14 @@ function StateDropdown({ value, onChange, disabled }) {
             </button>
             {open && (
                 <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '2px',
+                    position: 'fixed',
+                    top: position.top,
+                    left: position.left,
                     background: COLORS.bg,
                     border: `1px solid ${COLORS.border}`,
                     borderRadius: '4px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    zIndex: 100,
+                    zIndex: 9999,
                     minWidth: '80px',
                     overflow: 'hidden'
                 }}>
