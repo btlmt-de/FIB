@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 // Direct imports for bundle optimization (react-best-practices rule 2.1)
 import X from 'lucide-react/dist/esm/icons/x';
-import Check from 'lucide-react/dist/esm/icons/check';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Minus from 'lucide-react/dist/esm/icons/minus';
 import Search from 'lucide-react/dist/esm/icons/search';
@@ -340,7 +339,7 @@ function TagPills({ tags, onChange, disabled, small }) {
 }
 
 // Main component
-export default function ItemPoolManager({ onClose, items, missingItems, onRefreshMisode, initialExpandedItem, initialExpandedItems = [] }) {
+export default function ItemPoolManager({ onClose, items = [], missingItems = [], onRefreshMisode, initialExpandedItem, initialExpandedItems = [] }) {
     const toast = useToast();
 
     // Auth state
