@@ -17,18 +17,31 @@ import WheelOfFortune from './components/wheel/WheelOfFortune';
 // Config
 import { COLORS } from './config/constants';
 
+// Route lookup map
+const ROUTE_MAP = {
+    'pools': 'pools',
+    'how-to-play': 'how-to-play',
+    'changelog': 'changelog',
+    'imprint': 'imprint',
+    'structures': 'structures',
+    'commands': 'commands',
+    'settings': 'settings',
+    'wheel': 'wheel',
+    'pixi-test': 'pixi-test',
+    'wheel-demo': 'wheel-demo',
+    'celebration-demo': 'celebration-demo',
+};
+
 export default function App() {
+    // Simple routing based on pathname
     const getPageFromPath = () => {
-        const path = window.location.pathname.slice(1); // Remove leading /
-        if (path === 'pools') return 'pools';
-        if (path === 'how-to-play') return 'how-to-play';
-        if (path === 'changelog') return 'changelog';
-        if (path === 'imprint') return 'imprint';
-        if (path === 'structures') return 'structures';
-        if (path === 'commands') return 'commands';
-        if (path === 'settings') return 'settings';
-        if (path === 'wheel') return 'wheel';
-        return 'home';
+        // Normalize: trim leading/trailing slashes, lowercase, remove query params
+        const normalized = window.location.pathname
+            .replace(/^\/+|\/+$/g, '')  // Trim slashes
+            .split('?')[0]               // Remove query params
+            .toLowerCase();
+
+        return ROUTE_MAP[normalized] || 'home';
     };
 
     const [currentPage, setCurrentPage] = useState(getPageFromPath());
