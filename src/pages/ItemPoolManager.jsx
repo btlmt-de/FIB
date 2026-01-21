@@ -15,7 +15,7 @@ import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import Package from 'lucide-react/dist/esm/icons/package';
-import { COLORS, useToast, ProgressSteps } from './UIComponents.jsx';
+import { COLORS, useToast, ProgressSteps } from '../components/common/UIComponents.jsx';
 
 // Image URL for Minecraft items
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';

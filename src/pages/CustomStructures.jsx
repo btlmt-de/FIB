@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Footer from "../components/common/Footer.jsx";
 
 const COLORS = {
     bg: '#1a1a2e',
@@ -1222,8 +1223,8 @@ export default function CustomStructures() {
                         </Paragraph>
                         <Paragraph>
                             Below the portal is a hidden room with a chest. There's a <Highlight color={COLORS.gold}>50% chance</Highlight> it
-                            contains a <a href="#wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> - a special item
-                            that grants one random item when used. Try your luck on the <a href="#wheel" style={{ color: COLORS.gold }}>Wheel page</a>!
+                            contains a <a href="wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> - a special item
+                            that grants one random item when used. Try your luck on the <a href="wheel" style={{ color: COLORS.gold }}>Wheel page</a>!
                         </Paragraph>
                     </Section>
 
@@ -1235,102 +1236,13 @@ export default function CustomStructures() {
                         </Paragraph>
                         <Paragraph>
                             All trades are vanilla items but cost only <Highlight color={COLORS.green}>1 Emerald</Highlight> each.
-                            Additionally, the trader sells a <a href="#wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> for
+                            Additionally, the trader sells a <a href="wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> for
                             1 Emerald (limited to one per player per trader).
                         </Paragraph>
 
                     </Section>
                 </div>
-
-                {/* Footer */}
-                <div style={{
-                    textAlign: 'center',
-                    padding: '48px 20px 40px',
-                    borderTop: `1px solid ${COLORS.border}44`,
-                    color: COLORS.textMuted,
-                    fontSize: '13px'
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        gap: '24px',
-                        marginBottom: '20px'
-                    }}>
-                        <a
-                            href="https://github.com/McPlayHDnet/ForceItemBattle"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                color: COLORS.textMuted,
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 14px',
-                                borderRadius: '6px'
-                            }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.color = COLORS.text;
-                                e.currentTarget.style.background = `${COLORS.border}44`;
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.color = COLORS.textMuted;
-                                e.currentTarget.style.background = 'transparent';
-                            }}
-                        >
-                            GitHub
-                        </a>
-                        <a
-                            href="https://mcplayhd.net"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                color: COLORS.textMuted,
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 14px',
-                                borderRadius: '6px'
-                            }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.color = COLORS.text;
-                                e.currentTarget.style.background = `${COLORS.border}44`;
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.color = COLORS.textMuted;
-                                e.currentTarget.style.background = 'transparent';
-                            }}
-                        >
-                            McPlayHD.net
-                        </a>
-                        <a
-                            href="/#imprint"
-                            style={{
-                                color: COLORS.textMuted,
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                transition: 'all 0.3s ease',
-                                padding: '8px 14px',
-                                borderRadius: '6px'
-                            }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.color = COLORS.text;
-                                e.currentTarget.style.background = `${COLORS.border}44`;
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.color = COLORS.textMuted;
-                                e.currentTarget.style.background = 'transparent';
-                            }}
-                        >
-                            Imprint
-                        </a>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
-                        Made with ❤️
-                    </p>
-                    <p style={{ margin: '12px 0 0 0', fontSize: '11px', color: `${COLORS.textMuted}99` }}>
-                        Not affiliated with Mojang Studios
-                    </p>
-                </div>
+                <Footer />
             </div>
         </div>
     );

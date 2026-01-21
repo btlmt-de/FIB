@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
-import { OddsInfoModal } from './OddsInfoModal.jsx';
-import { EnhancedWheelIdleState } from './EnhancedWheelIdleState.jsx';
-import { CanvasSpinningStrip, preloadItemImages } from './CanvasSpinningStrip.jsx';
-import { CanvasResultItem } from './CanvasResultItem.jsx';
-import { CanvasBonusStrip } from './CanvasBonusStrip.jsx';
+import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
+import { EnhancedWheelIdleState } from './canvas/EnhancedWheelIdleState.jsx';
+import { CanvasSpinningStrip, preloadItemImages } from './canvas/CanvasSpinningStrip.jsx';
+import { CanvasResultItem } from './canvas/CanvasResultItem.jsx';
+import { CanvasBonusStrip } from './canvas/CanvasBonusStrip.jsx';
 
 import {
     COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,

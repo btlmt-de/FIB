@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
         let returnUrl = window.location.href;
 
         if (returnUrl.includes('/auth/')) {
-            returnUrl = window.location.origin + '/#wheel';
+            returnUrl = window.location.origin + '/wheel';
         }
 
         try {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
             url.searchParams.delete('auth');
             returnUrl = url.toString();
         } catch (e) {
-            returnUrl = window.location.origin + '/#wheel';
+            returnUrl = window.location.origin + '/wheel';
         }
 
         const returnTo = encodeURIComponent(returnUrl);
