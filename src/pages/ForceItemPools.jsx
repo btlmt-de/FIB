@@ -35,7 +35,8 @@ import {
     NoResultsEmpty,
     NoMissingItemsEmpty,
     FilterChip,
-} from './UIComponents.jsx';
+} from '../components/common/UIComponents.jsx';
+import Footer from "../components/common/Footer.jsx";
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
@@ -2005,73 +2006,7 @@ function ForceItemPoolsContent() {
                         />
                     )
                 )}
-
-                {/* Footer */}
-                <div style={{
-                    textAlign: 'center',
-                    marginTop: '48px',
-                    padding: '32px 20px',
-                    borderTop: `1px solid ${COLORS.border}`,
-                    color: COLORS.textMuted,
-                    fontSize: '13px'
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        gap: '24px',
-                        marginBottom: '20px'
-                    }}>
-                        <a
-                            href="https://github.com/McPlayHDnet/ForceItemBattle"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                color: COLORS.textMuted,
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                transition: 'color 0.15s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                            onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
-                        >
-                            GitHub
-                        </a>
-                        <a
-                            href="https://mcplayhd.net"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                color: COLORS.textMuted,
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                transition: 'color 0.15s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                            onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
-                        >
-                            McPlayHD.net
-                        </a>
-                        <a
-                            href="/#imprint"
-                            style={{
-                                color: COLORS.textMuted,
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                transition: 'color 0.15s'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.color = COLORS.text}
-                            onMouseLeave={e => e.currentTarget.style.color = COLORS.textMuted}
-                        >
-                            Imprint
-                        </a>
-                    </div>
-                    <p style={{ margin: 0 }}>
-                        Made with ❤️
-                    </p>
-                    <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
-                        Not affiliated with Mojang Studios
-                    </p>
-                </div>
+                <Footer />
             </div>
 
             {/* Description Editor Modal */}

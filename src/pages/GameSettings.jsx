@@ -33,6 +33,7 @@ import {
     Unlock
 } from 'lucide-react';
 import { COLORS } from '../config/constants';
+import Footer from "../components/common/Footer.jsx";
 
 // Setting definitions
 const SETTINGS = [
@@ -166,7 +167,7 @@ const SETTINGS = [
         default: false,
         requires: 'nether',
         unlocks: ['extreme'],
-        link: { text: 'View Late items', href: '/#pools?state=LATE' }
+        link: { text: 'View Late items', href: '/pools?state=LATE' }
     },
     {
         id: 'nether',
@@ -177,7 +178,7 @@ const SETTINGS = [
         disabledText: 'Nether disabled, nether items excluded',
         default: true,
         unlocks: ['hard', 'end'],
-        link: { text: 'View Nether items', href: '/#pools?tag=NETHER' }
+        link: { text: 'View Nether items', href: '/pools?tag=NETHER' }
     },
     {
         id: 'end',
@@ -189,7 +190,7 @@ const SETTINGS = [
         default: true,
         requires: 'nether',
         unlocks: ['extreme'],
-        link: { text: 'View End items', href: '/#pools?tag=END' }
+        link: { text: 'View End items', href: '/pools?tag=END' }
     },
     {
         id: 'extreme',
@@ -200,7 +201,7 @@ const SETTINGS = [
         disabledText: 'Only reasonably obtainable items',
         default: false,
         requires: ['nether', 'end', 'hard'],
-        link: { text: 'View Extreme items', href: '/#pools?tag=EXTREME' }
+        link: { text: 'View Extreme items', href: '/pools?tag=EXTREME' }
     },
 
     // Progression
@@ -871,96 +872,7 @@ export default function GameSettings() {
                     />
                 )}
             </div>
-
-            {/* Footer */}
-            <div style={{
-                textAlign: 'center',
-                padding: '48px 20px 40px',
-                borderTop: `1px solid ${COLORS.border}44`,
-                color: COLORS.textMuted,
-                fontSize: '13px'
-            }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '24px',
-                    marginBottom: '20px'
-                }}>
-                    <a
-                        href="https://github.com/McPlayHDnet/ForceItemBattle"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                            color: COLORS.textMuted,
-                            textDecoration: 'none',
-                            fontSize: '13px',
-                            transition: 'all 0.3s ease',
-                            padding: '8px 14px',
-                            borderRadius: '6px'
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.color = COLORS.text;
-                            e.currentTarget.style.background = `${COLORS.border}44`;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.color = COLORS.textMuted;
-                            e.currentTarget.style.background = 'transparent';
-                        }}
-                    >
-                        GitHub
-                    </a>
-                    <a
-                        href="https://mcplayhd.net"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                            color: COLORS.textMuted,
-                            textDecoration: 'none',
-                            fontSize: '13px',
-                            transition: 'all 0.3s ease',
-                            padding: '8px 14px',
-                            borderRadius: '6px'
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.color = COLORS.text;
-                            e.currentTarget.style.background = `${COLORS.border}44`;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.color = COLORS.textMuted;
-                            e.currentTarget.style.background = 'transparent';
-                        }}
-                    >
-                        McPlayHD.net
-                    </a>
-                    <a
-                        href="/#imprint"
-                        style={{
-                            color: COLORS.textMuted,
-                            textDecoration: 'none',
-                            fontSize: '13px',
-                            transition: 'all 0.3s ease',
-                            padding: '8px 14px',
-                            borderRadius: '6px'
-                        }}
-                        onMouseEnter={e => {
-                            e.currentTarget.style.color = COLORS.text;
-                            e.currentTarget.style.background = `${COLORS.border}44`;
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.color = COLORS.textMuted;
-                            e.currentTarget.style.background = 'transparent';
-                        }}
-                    >
-                        Imprint
-                    </a>
-                </div>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: '500' }}>
-                    Made with ❤️
-                </p>
-                <p style={{ margin: '12px 0 0 0', fontSize: '11px', color: `${COLORS.textMuted}99` }}>
-                    Not affiliated with Mojang Studios
-                </p>
-            </div>
+            <Footer />
         </div>
     );
 }

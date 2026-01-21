@@ -3,7 +3,7 @@ import X from 'lucide-react/dist/esm/icons/x';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import { COLORS } from './UIComponents.jsx';
+import { COLORS } from '../components/common/UIComponents.jsx';
 
 // Constants for fetching official Minecraft item tags
 const MISODE_ITEM_TAGS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.json';

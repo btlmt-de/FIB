@@ -3,28 +3,28 @@ import { COLORS, API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/c
 import { useAuth, AuthProvider } from '../../context/AuthContext';
 import { ActivityProvider, useActivity } from '../../context/ActivityContext';
 import { SoundProvider } from '../../context/SoundContext.jsx';
-import { AnimationStyles } from './AnimationStyles';
+import { AnimationStyles } from './effects/AnimationStyles.jsx';
 import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal } from './modals';
-import { Leaderboard } from './Leaderboard';
-import { CollectionBook } from './CollectionBook';
-import { SpinHistory } from './SpinHistory';
-import { AdminPanel } from './AdminPanel';
-import { Achievements } from './Achievements';
-import { UserProfile } from './UserProfile';
-import { LiveActivityToast } from './LiveActivityToast';
-import { PixiMythicCelebration as MythicCelebration } from './PixiMythicCelebration';
-import { RecursionOverlay } from './RecursionOverlay';
-import GoldRushBanner from './GoldRushBanner';
-import KingOfWheelBanner from './KingOfWheelBanner';
-import FirstBloodBanner from './FirstBloodBanner';
-import EventSelectionWheel from './EventSelectionWheel';
-import { ActivityFeedSidebar } from './ActivityFeedSidebar';
-import { LeaderboardSidebar } from './LeaderboardSidebar';
-import { NotificationBell, NotificationCenter } from './NotificationCenter';
-import { LiveChat } from './LiveChat';
-import { SoundButton, SoundSettingsPanel } from './SoundSettings';
-import { CanvasCosmicBackground } from './CanvasCosmicBackground.jsx';
+import { Leaderboard } from './features/Leaderboard.jsx';
+import { CollectionBook } from './features/CollectionBook.jsx';
+import { SpinHistory } from './modals/SpinHistory.jsx';
+import { AdminPanel } from './admin/AdminPanel.jsx';
+import { Achievements } from './features/Achievements.jsx';
+import { UserProfile } from './features/UserProfile.jsx';
+import { LiveActivityToast } from './sidebars/LiveActivityToast.jsx';
+import { PixiMythicCelebration as MythicCelebration } from './effects/PixiMythicCelebration.jsx';
+import { RecursionOverlay } from './effects/RecursionOverlay.jsx';
+import GoldRushBanner from './effects/GoldRushBanner.jsx';
+import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
+import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
+import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
+import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
+import { LeaderboardSidebar } from './sidebars/LeaderboardSidebar.jsx';
+import { NotificationBell, NotificationCenter } from './modals/NotificationCenter.jsx';
+import { LiveChat } from './features/LiveChat.jsx';
+import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
+import { CanvasCosmicBackground } from './canvas/CanvasCosmicBackground.jsx';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
