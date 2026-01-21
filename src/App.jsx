@@ -18,35 +18,32 @@ import WheelOfFortune from './components/wheel/WheelOfFortune';
 import { COLORS } from './config/constants';
 
 export default function App() {
-    // Simple routing based on hash
-    const getPageFromHash = () => {
-        const hash = window.location.hash.slice(1).split('?')[0]; // Remove query params
-        if (hash === 'pools') return 'pools';
-        if (hash === 'how-to-play') return 'how-to-play';
-        if (hash === 'changelog') return 'changelog';
-        if (hash === 'imprint') return 'imprint';
-        if (hash === 'structures') return 'structures';
-        if (hash === 'commands') return 'commands';
-        if (hash === 'settings') return 'settings';
-        if (hash === 'wheel') return 'wheel';
-        if (hash === 'pixi-test') return 'pixi-test';
-        if (hash === 'wheel-demo') return 'wheel-demo';
-        if (hash === 'celebration-demo') return 'celebration-demo';
+    const getPageFromPath = () => {
+        const path = window.location.pathname.slice(1); // Remove leading /
+        if (path === 'pools') return 'pools';
+        if (path === 'how-to-play') return 'how-to-play';
+        if (path === 'changelog') return 'changelog';
+        if (path === 'imprint') return 'imprint';
+        if (path === 'structures') return 'structures';
+        if (path === 'commands') return 'commands';
+        if (path === 'settings') return 'settings';
+        if (path === 'wheel') return 'wheel';
         return 'home';
     };
 
-    const [currentPage, setCurrentPage] = useState(getPageFromHash());
+    const [currentPage, setCurrentPage] = useState(getPageFromPath());
 
     useEffect(() => {
-        const handleHashChange = () => {
-            setCurrentPage(getPageFromHash());
+        const handlePopState = () => {
+            setCurrentPage(getPageFromPath());
         };
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
     const navigate = (page) => {
-        window.location.hash = page === 'home' ? '' : page;
+        const path = page === 'home' ? '/' : `/${page}`;
+        window.history.pushState({}, '', path);
         setCurrentPage(page);
         window.scrollTo(0, 0);
     };
