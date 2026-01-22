@@ -69,8 +69,8 @@ const generateMockMatches = () => {
             }
         }
 
-        // Sort teams by score and assign placements (use toSorted for immutability)
-        const sortedTeams = teams.toSorted((a, b) => b.score - a.score);
+        // Sort teams by score and assign placements (use slice().sort() for immutability)
+        const sortedTeams = teams.slice().sort((a, b) => b.score - a.score);
         sortedTeams.forEach((team, idx) => {
             team.placement = idx + 1;
         });
@@ -86,8 +86,8 @@ const generateMockMatches = () => {
         });
     }
 
-    // Use toSorted for immutability
-    return matches.toSorted((a, b) => new Date(b.date) - new Date(a.date));
+    // Use slice().sort() for immutability
+    return matches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
 };
 
 const generateMockTeamItems = (foundCount, skippedCount) => {
@@ -454,7 +454,7 @@ function InventoryGrid({ items, formatDuration }) {
                             transition: 'all 0.2s ease',
                         }}
                     >
-                        â† Prev
+                        ← Prev
                     </button>
                     <span style={{ color: COLORS.text, fontSize: '13px' }}>
                         Page {currentPage + 1} of {totalPages}
@@ -474,7 +474,7 @@ function InventoryGrid({ items, formatDuration }) {
                             transition: 'all 0.2s ease',
                         }}
                     >
-                        Next â†’
+                        Next →
                     </button>
                 </div>
             )}

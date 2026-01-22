@@ -17,6 +17,12 @@ import { STATS_COLORS as COLORS, MC_FONT, formatNumber, formatDistance, formatTi
 import { StatCard, CanvasRankBadge, CanvasWinRateRing, CanvasRarityChart, TopItemsCard } from './StatsComponents.jsx';
 
 export function StatsView({ entity, stats }) {
+    // Memoize win percentage calculation - must be called before early returns (Rules of Hooks)
+    const winPercentage = useMemo(() => {
+        if (!stats || stats.gamesPlayed === 0) return 0;
+        return ((stats.gamesWon / stats.gamesPlayed) * 100).toFixed(1);
+    }, [stats?.gamesWon, stats?.gamesPlayed]);
+
     if (!entity || !stats) {
         return (
             <div style={{
@@ -59,12 +65,6 @@ export function StatsView({ entity, stats }) {
             </div>
         );
     }
-
-    // Memoize win percentage calculation
-    const winPercentage = useMemo(() => {
-        if (!stats || stats.gamesPlayed === 0) return 0;
-        return ((stats.gamesWon / stats.gamesPlayed) * 100).toFixed(1);
-    }, [stats?.gamesWon, stats?.gamesPlayed]);
 
     return (
         <div style={{

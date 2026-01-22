@@ -190,7 +190,7 @@ function EntitySlot({ entity, stats, side, onSelect }) {
                 fontSize: '13px',
                 marginBottom: '12px',
             }}>
-                Rank #{stats?.rank || '—'}
+                Rank #{stats?.rank || '–'}
             </div>
             <button
                 onClick={onSelect}
@@ -276,8 +276,8 @@ export function StatsComparison({ entity1, stats1, entity2, stats2, onSelectEnti
                     />
                     <ComparisonStatRow
                         label="Win Rate"
-                        value1={`${((stats1.gamesWon / stats1.gamesPlayed) * 100).toFixed(1)}%`}
-                        value2={`${((stats2.gamesWon / stats2.gamesPlayed) * 100).toFixed(1)}%`}
+                        value1={`${stats1.gamesPlayed === 0 ? '0.0' : ((stats1.gamesWon / stats1.gamesPlayed) * 100).toFixed(1)}%`}
+                        value2={`${stats2.gamesPlayed === 0 ? '0.0' : ((stats2.gamesWon / stats2.gamesPlayed) * 100).toFixed(1)}%`}
                         icon={<Award size={14} />}
                     />
                     <ComparisonStatRow

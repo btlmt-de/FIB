@@ -351,7 +351,7 @@ export default function HomePage({ onNavigate }) {
                     </h3>
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(5, 1fr)',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                         gap: '16px',
                         maxWidth: '850px',
                         margin: '0 auto 48px'
@@ -386,7 +386,7 @@ export default function HomePage({ onNavigate }) {
                         </div>
                     </div>
                 </div>
-            < Footer />
+                <Footer />
             </div>
         </div>
     );

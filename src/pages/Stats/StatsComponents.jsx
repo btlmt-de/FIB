@@ -890,7 +890,7 @@ export function TopItemsCard({ items }) {
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                {items.map((item, idx) => (
+                {items.slice(0, TOP_ITEMS_MEDALS.length).map((item, idx) => (
                     <div
                         key={item.name}
                         style={{

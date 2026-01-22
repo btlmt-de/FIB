@@ -106,29 +106,29 @@ export const generateMockLeaderboard = (sortBy) => {
         };
     });
 
-    // Use toSorted() for immutability - doesn't mutate original array
+    // Use slice().sort() for immutability - doesn't mutate original array
     let sortedPlayers;
     switch (sortBy) {
         case 'gamesWon':
-            sortedPlayers = players.toSorted((a, b) => b.gamesWon - a.gamesWon);
+            sortedPlayers = players.slice().sort((a, b) => b.gamesWon - a.gamesWon);
             break;
         case 'totalItems':
-            sortedPlayers = players.toSorted((a, b) => b.totalItems - a.totalItems);
+            sortedPlayers = players.slice().sort((a, b) => b.totalItems - a.totalItems);
             break;
         case 'winRate':
-            sortedPlayers = players.toSorted((a, b) => parseFloat(b.winRate) - parseFloat(a.winRate));
+            sortedPlayers = players.slice().sort((a, b) => parseFloat(b.winRate) - parseFloat(a.winRate));
             break;
         case 'highestScore':
-            sortedPlayers = players.toSorted((a, b) => b.highestScore - a.highestScore);
+            sortedPlayers = players.slice().sort((a, b) => b.highestScore - a.highestScore);
             break;
         case 'highestB2BStreak':
-            sortedPlayers = players.toSorted((a, b) => b.highestB2BStreak - a.highestB2BStreak);
+            sortedPlayers = players.slice().sort((a, b) => b.highestB2BStreak - a.highestB2BStreak);
             break;
         case 'distanceTravelled':
-            sortedPlayers = players.toSorted((a, b) => b.distanceTravelled - a.distanceTravelled);
+            sortedPlayers = players.slice().sort((a, b) => b.distanceTravelled - a.distanceTravelled);
             break;
         default:
-            sortedPlayers = players.toSorted((a, b) => b.gamesWon - a.gamesWon);
+            sortedPlayers = players.slice().sort((a, b) => b.gamesWon - a.gamesWon);
     }
 
     return sortedPlayers.map((p, idx) => ({ ...p, rank: idx + 1 }));
@@ -164,8 +164,8 @@ export const generateMockMatchHistory = () => {
         });
     }
 
-    // Use toSorted() for immutability
-    return matches.toSorted((a, b) => new Date(b.date) - new Date(a.date));
+    // Use slice().sort() for immutability
+    return matches.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
 };
 
 // ============================================================================
