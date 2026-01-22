@@ -216,7 +216,7 @@ function SpecialThanksCard({ username, description, color, type, link }) {
                     transition: 'all 0.3s ease',
                     display: 'flex',
                     alignItems: 'center'
-                }}>→</span>
+                }}>â†’</span>
             )}
         </div>
     );
@@ -237,7 +237,7 @@ function SpecialThanksCard({ username, description, color, type, link }) {
     return content;
 }
 
-export default function HomePage({ onNavigate }) {
+export default function HomePage() {
     return (
         <div style={{
             minHeight: '100vh',

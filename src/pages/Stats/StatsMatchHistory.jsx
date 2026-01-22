@@ -396,6 +396,12 @@ function InventoryGrid({ items, formatDuration }) {
     const totalPages = Math.ceil(items.length / totalSlots);
     const [currentPage, setCurrentPage] = useState(0);
 
+    // Clamp currentPage when items change to avoid out-of-range pages
+    useEffect(() => {
+        const maxPage = Math.max(0, Math.ceil(items.length / totalSlots) - 1);
+        setCurrentPage((prev) => Math.min(prev, maxPage));
+    }, [items, totalSlots]);
+
     const startIdx = currentPage * totalSlots;
     const currentSlots = [];
     for (let i = 0; i < totalSlots; i++) {
@@ -834,10 +840,21 @@ function MatchDetailView({ match, onBack, onSelectTeam }) {
                     const isTopThree = team.placement <= 3;
                     const placementStyle = placementColors[team.placement];
 
+                    const handleTeamRowKeyDown = (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onSelectTeam(team);
+                        }
+                    };
+
                     return (
                         <div
                             key={team.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Select team ${teamName}`}
                             onClick={() => onSelectTeam(team)}
+                            onKeyDown={handleTeamRowKeyDown}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -976,6 +993,9 @@ export function StatsMatchHistory({ entity }) {
     useEffect(() => {
         // TODO: Replace with API call
         setMatches(generateMockMatches());
+        // Reset UI state when entity changes to avoid stale selections
+        setSelectedMatch(null);
+        setSelectedTeam(null);
     }, [entity]);
 
     // If viewing team details
@@ -1046,10 +1066,21 @@ export function StatsMatchHistory({ entity }) {
                     const winner = match.teams[0];
                     const winnerName = winner.players.map(p => p.name).join(' & ');
 
+                    const handleMatchRowKeyDown = (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedMatch(match);
+                        }
+                    };
+
                     return (
                         <div
                             key={match.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Select match ${match.id}, won by ${winnerName}`}
                             onClick={() => setSelectedMatch(match)}
+                            onKeyDown={handleMatchRowKeyDown}
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
