@@ -35,8 +35,8 @@ import {
     NoResultsEmpty,
     NoMissingItemsEmpty,
     FilterChip,
-} from '../components/common/UIComponents.jsx';
-import Footer from "../components/common/Footer.jsx";
+} from '../../components/common/UIComponents.jsx';
+import Footer from "../../components/common/Footer.jsx";
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';

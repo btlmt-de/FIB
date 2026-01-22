@@ -5,6 +5,7 @@ const NAV_ITEMS = [
     { id: 'home', label: 'Home' },
     { id: 'how-to-play', label: 'How to Play' },
     { id: 'pools', label: 'Item Pools' },
+    { id: 'stats', label: 'Stats' },
     { id: 'structures', label: 'Custom Content' },
     { id: 'commands', label: 'Commands' },
     { id: 'settings', label: 'Settings' },

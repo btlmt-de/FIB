@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 
 // Pages
 import HomePage from './pages/HomePage';
-import ForceItemPools from './pages/ForceItemPools';
+import ForceItemPools from './pages/ItemPools/ForceItemPools.jsx';
 import HowToPlay from './pages/HowToPlay';
 import Changelog from './pages/Changelog';
 import Imprint from './pages/Imprint';
 import CustomStructures from './pages/CustomStructures';
 import Commands from './pages/Commands';
 import GameSettings from './pages/GameSettings';
+import Stats from './pages/Stats/Stats.jsx';
 
 // Components
 import Navigation from './components/common/Navigation';
@@ -27,9 +28,7 @@ const ROUTE_MAP = {
     'commands': 'commands',
     'settings': 'settings',
     'wheel': 'wheel',
-    'pixi-test': 'pixi-test',
-    'wheel-demo': 'wheel-demo',
-    'celebration-demo': 'celebration-demo',
+    'stats': 'stats',
 };
 
 export default function App() {
@@ -99,6 +98,10 @@ export default function App() {
 
             {currentPage === 'commands' && (
                 <Commands />
+            )}
+
+            {currentPage === 'stats' && (
+                <Stats />
             )}
 
             {currentPage === 'settings' && (
