@@ -70,11 +70,6 @@ const SPECIAL_THANKS = [
     }
 ];
 
-const FUTURE_PAGES = [
-    { name: 'Tips & Tricks', description: 'Pro strategies' },
-    { name: 'Stats', description: 'Player statistics' }
-];
-
 function CreatorCard({ username, role, color }) {
     return (
         <div style={{
@@ -242,64 +237,7 @@ function SpecialThanksCard({ username, description, color, type, link }) {
     return content;
 }
 
-function ComingSoonCard({ name, description }) {
-    return (
-        <div style={{
-            background: `linear-gradient(135deg, ${COLORS.bgLight}77 0%, ${COLORS.bgLighter}44 100%)`,
-            border: `1px solid ${COLORS.gold}33`,
-            borderRadius: '10px',
-            padding: '16px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '14px',
-            opacity: 0.75,
-            position: 'relative',
-            overflow: 'hidden',
-            transition: 'all 0.3s ease',
-            cursor: 'default'
-        }}
-             onMouseEnter={e => {
-                 e.currentTarget.style.opacity = '1';
-                 e.currentTarget.style.borderColor = COLORS.gold;
-                 e.currentTarget.style.boxShadow = `0 8px 20px ${COLORS.gold}22, inset 0 1px 0 ${COLORS.gold}11`;
-                 e.currentTarget.style.background = `linear-gradient(135deg, ${COLORS.bgLighter}88 0%, #353560 100%)`;
-             }}
-             onMouseLeave={e => {
-                 e.currentTarget.style.opacity = '0.75';
-                 e.currentTarget.style.borderColor = `${COLORS.gold}33`;
-                 e.currentTarget.style.boxShadow = 'none';
-                 e.currentTarget.style.background = `linear-gradient(135deg, ${COLORS.bgLight}77 0%, ${COLORS.bgLighter}44 100%)`;
-             }}>
-            <div style={{ flex: 1 }}>
-                <div style={{ color: COLORS.text, fontSize: '14px', fontWeight: '600', letterSpacing: '0.2px' }}>
-                    {name}
-                </div>
-                <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '3px' }}>
-                    {description}
-                </div>
-            </div>
-            <span style={{
-                background: COLORS.gold + '33',
-                color: COLORS.gold,
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: '700',
-                textTransform: 'uppercase',
-                letterSpacing: '0.7px',
-                border: `1px solid ${COLORS.gold}55`,
-                whiteSpace: 'nowrap',
-                transition: 'all 0.3s ease',
-                textShadow: `0 0 6px ${COLORS.gold}44`
-            }}>
-                Coming Soon
-            </span>
-        </div>
-    );
-}
-
-export default function HomePage({ onNavigate }) {
+export default function HomePage() {
     return (
         <div style={{
             minHeight: '100vh',
@@ -394,78 +332,62 @@ export default function HomePage({ onNavigate }) {
                     </div>
                 </div>
 
-                {/* Content Grid */}
+                {/* Creators Section */}
                 <div style={{
-                    maxWidth: '1200px',
+                    maxWidth: '900px',
                     margin: '0 auto',
                     padding: '64px 20px',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-                    gap: '40px'
                 }}>
-                    {/* Coming Soon Section */}
-                    <div>
-                        <h3 style={{
-                            color: COLORS.text,
-                            fontSize: '20px',
-                            fontWeight: '600',
-                            marginBottom: '24px',
-                            letterSpacing: '0.5px',
-                            textTransform: 'uppercase'
-                        }}>
-                            Coming Soon
-                        </h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {FUTURE_PAGES.map((page, idx) => (
-                                <ComingSoonCard key={idx} {...page} />
-                            ))}
-                        </div>
+                    <h3 style={{
+                        color: COLORS.text,
+                        fontSize: '20px',
+                        fontWeight: '600',
+                        marginBottom: '32px',
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase',
+                        textAlign: 'center'
+                    }}>
+                        Created By
+                    </h3>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                        gap: '16px',
+                        maxWidth: '850px',
+                        margin: '0 auto 48px'
+                    }}>
+                        {CREATORS.map((creator, idx) => (
+                            <CreatorCard key={idx} {...creator} />
+                        ))}
                     </div>
 
-                    {/* Creators Section */}
-                    <div>
-                        <h3 style={{
-                            color: COLORS.text,
-                            fontSize: '20px',
+                    {/* Special Thanks */}
+                    <div style={{
+                        paddingTop: '32px',
+                        borderTop: `1px solid ${COLORS.border}44`,
+                        maxWidth: '600px',
+                        margin: '0 auto'
+                    }}>
+                        <h4 style={{
+                            color: COLORS.textMuted,
+                            fontSize: '13px',
                             fontWeight: '600',
-                            marginBottom: '24px',
-                            letterSpacing: '0.5px',
-                            textTransform: 'uppercase'
+                            marginBottom: '20px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.8px',
+                            textAlign: 'center'
                         }}>
-                            Created By
-                        </h3>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                            gap: '16px'
-                        }}>
-                            {CREATORS.map((creator, idx) => (
-                                <CreatorCard key={idx} {...creator} />
+                            Special Thanks
+                        </h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {SPECIAL_THANKS.map((person, idx) => (
+                                <SpecialThanksCard key={idx} {...person} />
                             ))}
-                        </div>
-
-                        {/* Special Thanks */}
-                        <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: `1px solid ${COLORS.border}44` }}>
-                            <h4 style={{
-                                color: COLORS.textMuted,
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                marginBottom: '16px',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.8px'
-                            }}>
-                                Special Thanks
-                            </h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {SPECIAL_THANKS.map((person, idx) => (
-                                    <SpecialThanksCard key={idx} {...person} />
-                                ))}
-                            </div>
                         </div>
                     </div>
                 </div>
+                <Footer />
             </div>
-            <Footer />
         </div>
     );
 }
