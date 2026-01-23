@@ -1,9 +1,182 @@
 import React from 'react';
 import { COLORS } from '../config/constants';
 import Footer from "../components/common/Footer.jsx";
+import Swords from 'lucide-react/dist/esm/icons/swords';
+import Zap from 'lucide-react/dist/esm/icons/zap';
+import Link from 'lucide-react/dist/esm/icons/link';
+import Layers from 'lucide-react/dist/esm/icons/layers';
+import Puzzle from 'lucide-react/dist/esm/icons/puzzle';
+import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles';
 
 // Minecraft head API
 const getHeadUrl = (username) => `https://mc-heads.net/avatar/${username}/100`;
+
+// Hoisted static values
+const DOT_OPACITIES = [0.4, 0.7, 1, 0.7, 0.4];
+
+// Section Divider component with different styles
+function SectionDivider({ style = 'diamond', color = COLORS.gold, label }) {
+    // Style 1: Diamond shape in center
+    if (style === 'diamond') {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '16px',
+                margin: '48px 0',
+            }}>
+                <div style={{
+                    flex: 1,
+                    maxWidth: '200px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, transparent, ${color}66)`,
+                }} />
+                <div style={{
+                    width: '10px',
+                    height: '10px',
+                    background: color,
+                    transform: 'rotate(45deg)',
+                    boxShadow: `0 0 12px ${color}66`,
+                }} />
+                <div style={{
+                    flex: 1,
+                    maxWidth: '200px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, ${color}66, transparent)`,
+                }} />
+            </div>
+        );
+    }
+
+    // Style 2: Icon in center (Sparkles)
+    if (style === 'icon') {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '20px',
+                margin: '48px 0',
+            }}>
+                <div style={{
+                    flex: 1,
+                    maxWidth: '180px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, transparent, ${color}55)`,
+                }} />
+                <Sparkles size={20} style={{ color: color, filter: `drop-shadow(0 0 8px ${color}66)` }} />
+                <div style={{
+                    flex: 1,
+                    maxWidth: '180px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, ${color}55, transparent)`,
+                }} />
+            </div>
+        );
+    }
+
+    // Style 3: Triple dots (pixel-like)
+    if (style === 'dots') {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                margin: '48px 0',
+            }}>
+                <div style={{
+                    flex: 1,
+                    maxWidth: '160px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, transparent, ${color}44)`,
+                }} />
+                {DOT_OPACITIES.map((opacity, i) => (
+                    <div key={i} style={{
+                        width: '6px',
+                        height: '6px',
+                        background: color,
+                        opacity: opacity,
+                        borderRadius: '1px',
+                    }} />
+                ))}
+                <div style={{
+                    flex: 1,
+                    maxWidth: '160px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, ${color}44, transparent)`,
+                }} />
+            </div>
+        );
+    }
+
+    // Style 4: With label text
+    if (style === 'labeled' && label) {
+        const isLarge = label === 'Created By' || label === 'Features';
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '24px',
+                margin: '56px 0',
+            }}>
+                <div style={{
+                    flex: 1,
+                    maxWidth: '200px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, transparent, ${COLORS.border})`,
+                }} />
+                <span style={{
+                    color: isLarge ? COLORS.text : COLORS.textMuted,
+                    fontSize: isLarge ? '18px' : '11px',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: isLarge ? '3px' : '2px',
+                }}>
+                    {label}
+                </span>
+                <div style={{
+                    flex: 1,
+                    maxWidth: '200px',
+                    height: '1px',
+                    background: `linear-gradient(90deg, ${COLORS.border}, transparent)`,
+                }} />
+            </div>
+        );
+    }
+
+    // Style 5: Glow bar
+    if (style === 'glow') {
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                margin: '48px 0',
+            }}>
+                <div style={{
+                    width: '120px',
+                    height: '2px',
+                    background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+                    boxShadow: `0 0 20px ${color}66, 0 0 40px ${color}33`,
+                    borderRadius: '2px',
+                }} />
+            </div>
+        );
+    }
+
+    // Default: simple gradient line (longer)
+    return (
+        <div style={{
+            width: '120px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+            margin: '48px auto',
+        }} />
+    );
+}
 
 const CREATORS = [
     {
@@ -57,6 +230,96 @@ const SPECIAL_THANKS = [
     }
 ];
 
+const FEATURES = [
+    {
+        icon: Swords,
+        title: 'ForceItemBattle',
+        description: 'The classic mode - race against time, whoever collects the most items wins',
+        color: COLORS.red
+    },
+    {
+        icon: Zap,
+        title: 'RunBattle',
+        description: 'Only the first player to find the item scores - speed is everything',
+        color: COLORS.gold
+    },
+    {
+        icon: Link,
+        title: 'ForceChain',
+        description: 'See your current item and the next one - how are you planning?',
+        color: COLORS.aqua
+    },
+    {
+        icon: Layers,
+        title: 'Dynamic Item Pools',
+        description: 'Carefully balanced item categories ranging from Easy to Extreme difficulty',
+        color: COLORS.purple
+    },
+    {
+        icon: Puzzle,
+        title: 'Custom Structures',
+        description: 'Unique buildings and loot locations designed for FIB gameplay',
+        color: COLORS.green
+    }
+];
+
+function FeatureCard({ icon: Icon, title, description, color }) {
+    return (
+        <div style={{
+            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`,
+            border: `1px solid ${color}22`,
+            borderRadius: '12px',
+            padding: '24px',
+            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            cursor: 'default',
+            position: 'relative',
+            overflow: 'hidden'
+        }}
+             onMouseEnter={e => {
+                 e.currentTarget.style.transform = 'translateY(-6px)';
+                 e.currentTarget.style.boxShadow = `0 16px 32px ${color}33, inset 0 1px 0 ${color}22`;
+                 e.currentTarget.style.borderColor = `${color}55`;
+             }}
+             onMouseLeave={e => {
+                 e.currentTarget.style.transform = 'translateY(0)';
+                 e.currentTarget.style.boxShadow = 'none';
+                 e.currentTarget.style.borderColor = `${color}22`;
+             }}
+        >
+            <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '10px',
+                background: `${color}15`,
+                border: `1px solid ${color}33`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '16px',
+                boxShadow: `0 0 20px ${color}22`,
+            }}>
+                <Icon size={24} style={{ color: color }} />
+            </div>
+            <h3 style={{
+                color: COLORS.text,
+                fontSize: '16px',
+                fontWeight: '600',
+                margin: '0 0 8px 0',
+            }}>
+                {title}
+            </h3>
+            <p style={{
+                color: COLORS.textMuted,
+                fontSize: '13px',
+                lineHeight: '1.6',
+                margin: 0,
+            }}>
+                {description}
+            </p>
+        </div>
+    );
+}
+
 function CreatorCard({ username, role, color }) {
     return (
         <div style={{
@@ -101,7 +364,6 @@ function CreatorCard({ username, role, color }) {
                     style={{
                         width: '100%',
                         height: '100%',
-                        imageRendering: 'pixelated'
                     }}
                 />
             </div>
@@ -134,39 +396,34 @@ function SpecialThanksCard({ username, description, color, type, link }) {
 
     const content = (
         <div style={{
-            background: `linear-gradient(90deg, ${COLORS.bgLight}88 0%, ${COLORS.bgLight}33 100%)`,
-            border: `1px solid ${color}33`,
-            borderRadius: '10px',
-            padding: '16px 18px',
             display: 'flex',
             alignItems: 'center',
-            gap: '14px',
-            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            gap: '12px',
+            padding: '12px 16px',
+            background: COLORS.bgLight,
+            borderRadius: '8px',
+            border: `1px solid ${COLORS.border}`,
+            transition: 'all 0.15s ease-out',
             cursor: link ? 'pointer' : 'default',
-            position: 'relative',
-            overflow: 'hidden'
         }}
              onMouseEnter={e => {
-                 e.currentTarget.style.transform = link ? 'translateX(4px)' : 'none';
-                 e.currentTarget.style.boxShadow = `0 8px 20px ${color}33, inset 0 1px 0 ${color}22`;
-                 e.currentTarget.style.borderColor = color;
-                 e.currentTarget.style.background = `linear-gradient(90deg, ${COLORS.bgLighter}aa 0%, ${COLORS.bgLight}44 100%)`;
+                 if (link) {
+                     e.currentTarget.style.borderColor = COLORS.gold;
+                     e.currentTarget.style.background = COLORS.bgLighter;
+                 }
              }}
              onMouseLeave={e => {
-                 e.currentTarget.style.transform = 'translateX(0)';
-                 e.currentTarget.style.boxShadow = 'none';
-                 e.currentTarget.style.borderColor = `${color}33`;
-                 e.currentTarget.style.background = `linear-gradient(90deg, ${COLORS.bgLight}88 0%, ${COLORS.bgLight}33 100%)`;
+                 e.currentTarget.style.borderColor = COLORS.border;
+                 e.currentTarget.style.background = COLORS.bgLight;
              }}
         >
             <div style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: type === 'github' ? '50%' : '8px',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
                 overflow: 'hidden',
-                border: `2px solid ${color}`,
+                border: `2px solid ${COLORS.border}`,
                 flexShrink: 0,
-                boxShadow: `0 0 12px ${color}44`
             }}>
                 <img
                     src={avatarUrl}
@@ -174,36 +431,27 @@ function SpecialThanksCard({ username, description, color, type, link }) {
                     style={{
                         width: '100%',
                         height: '100%',
-                        imageRendering: type === 'minecraft' ? 'pixelated' : 'auto'
                     }}
                 />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                    color: color,
+                    color: COLORS.text,
                     fontSize: '14px',
                     fontWeight: '600',
-                    letterSpacing: '0.3px'
                 }}>
                     {username}
                 </div>
                 <div style={{
                     color: COLORS.textMuted,
                     fontSize: '12px',
-                    marginTop: '3px',
-                    lineHeight: '1.3'
+                    marginTop: '2px',
                 }}>
                     {description}
                 </div>
             </div>
             {link && (
-                <span style={{
-                    color: COLORS.textMuted,
-                    fontSize: '16px',
-                    transition: 'all 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center'
-                }}>→</span>
+                <ArrowRight size={16} style={{ color: COLORS.textMuted, flexShrink: 0 }} />
             )}
         </div>
     );
@@ -237,9 +485,8 @@ export default function HomePage() {
             <div style={{ position: 'relative', zIndex: 1 }}>
                 {/* Hero Section */}
                 <div style={{
-                    padding: '80px 20px',
+                    padding: '80px 20px 48px',
                     textAlign: 'center',
-                    borderBottom: `1px solid ${COLORS.border}44`
                 }}>
                     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                         {/* Banner */}
@@ -250,7 +497,6 @@ export default function HomePage() {
                                 maxWidth: '100%',
                                 height: 'auto',
                                 marginBottom: '56px',
-                                imageRendering: 'pixelated',
                                 filter: 'drop-shadow(0 8px 32px rgba(255, 170, 0, 0.2))',
                                 transition: 'filter 0.3s ease'
                             }}
@@ -281,18 +527,12 @@ export default function HomePage() {
                             The goal: collect as many items as you can before time runs out.
                         </p>
 
-                        <div style={{
-                            width: '60px',
-                            height: '3px',
-                            background: `linear-gradient(90deg, transparent, ${COLORS.gold}, transparent)`,
-                            margin: '40px auto'
-                        }} />
+                        <SectionDivider color={COLORS.gold} />
 
                         <div style={{
                             display: 'grid',
                             gridTemplateColumns: '1fr',
                             gap: '16px',
-                            marginTop: '40px'
                         }}>
                             <p style={{
                                 fontSize: '15px',
@@ -319,23 +559,46 @@ export default function HomePage() {
                     </div>
                 </div>
 
+                <SectionDivider style="labeled" label="Features" />
+
+                {/* Features Section */}
+                <div style={{
+                    maxWidth: '1100px',
+                    margin: '0 auto',
+                    padding: '0 20px 48px',
+                }}>
+                    <style>{`
+                        .features-grid {
+                            display: grid;
+                            grid-template-columns: repeat(2, 1fr);
+                            gap: 16px;
+                        }
+                        @media (min-width: 600px) {
+                            .features-grid {
+                                grid-template-columns: repeat(3, 1fr);
+                            }
+                        }
+                        @media (min-width: 1000px) {
+                            .features-grid {
+                                grid-template-columns: repeat(5, 1fr);
+                            }
+                        }
+                    `}</style>
+                    <div className="features-grid">
+                        {FEATURES.map((feature, idx) => (
+                            <FeatureCard key={idx} {...feature} />
+                        ))}
+                    </div>
+                </div>
+
+                <SectionDivider style="labeled" label="Created By" />
+
                 {/* Creators Section */}
                 <div style={{
                     maxWidth: '900px',
                     margin: '0 auto',
-                    padding: '64px 20px',
+                    padding: '0 20px 64px',
                 }}>
-                    <h3 style={{
-                        color: COLORS.text,
-                        fontSize: '20px',
-                        fontWeight: '600',
-                        marginBottom: '32px',
-                        letterSpacing: '0.5px',
-                        textTransform: 'uppercase',
-                        textAlign: 'center'
-                    }}>
-                        Created By
-                    </h3>
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -348,25 +611,14 @@ export default function HomePage() {
                         ))}
                     </div>
 
+                    <SectionDivider style="labeled" label="Special Thanks" />
+
                     {/* Special Thanks */}
                     <div style={{
-                        paddingTop: '32px',
-                        borderTop: `1px solid ${COLORS.border}44`,
-                        maxWidth: '600px',
+                        maxWidth: '500px',
                         margin: '0 auto'
                     }}>
-                        <h4 style={{
-                            color: COLORS.textMuted,
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            marginBottom: '20px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.8px',
-                            textAlign: 'center'
-                        }}>
-                            Special Thanks
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {SPECIAL_THANKS.map((person, idx) => (
                                 <SpecialThanksCard key={idx} {...person} />
                             ))}
