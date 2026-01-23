@@ -323,7 +323,7 @@ export default function HowToPlay() {
                                         }}
                                         onClick={e => e.stopPropagation()}
                                     >
-                                        Browse â†’
+                                        Browse →
                                     </a>
                                 }
                             />
@@ -375,7 +375,7 @@ export default function HowToPlay() {
                             color: COLORS.text,
                             lineHeight: '1.6'
                         }}>
-                            For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soonâ„¢</span>
+                            For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soon™</span>
                         </div>
 
                         <SectionLabel>How to Join</SectionLabel>
