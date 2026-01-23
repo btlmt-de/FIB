@@ -317,7 +317,7 @@ export default function HowToPlay() {
                                 description="Item descriptions for /info"
                                 extra={
                                     <a
-                                        href="/#pools"
+                                        href="/pools"
                                         style={{
                                             color: COLORS.accent,
                                             textDecoration: 'none',
