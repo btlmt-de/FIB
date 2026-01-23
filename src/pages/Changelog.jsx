@@ -1,20 +1,6 @@
 import React from 'react';
+import { COLORS } from '../config/constants';
 import Footer from "../components/common/Footer.jsx";
-
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2',
-    gold: '#FFAA00',
-    aqua: '#55FFFF',
-    green: '#55FF55',
-    red: '#FF5555',
-    purple: '#AA00AA'
-};
 
 const CHANGELOG = [
     {

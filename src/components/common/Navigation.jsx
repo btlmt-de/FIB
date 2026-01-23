@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Menu, X } from 'lucide-react';
 import { COLORS } from '../../config/constants';
 
 const NAV_ITEMS = [
@@ -10,7 +11,7 @@ const NAV_ITEMS = [
     { id: 'commands', label: 'Commands' },
     { id: 'settings', label: 'Settings' },
     { id: 'changelog', label: 'Changelog' },
-    { id: 'wheel', label: '🎰 Wheel', special: true }
+    { id: 'wheel', label: 'Wheel', special: true }
 ];
 
 export default function Navigation({ currentPage, onNavigate }) {
@@ -112,12 +113,14 @@ export default function Navigation({ currentPage, onNavigate }) {
                             background: 'transparent',
                             border: 'none',
                             color: COLORS.text,
-                            fontSize: '24px',
                             cursor: 'pointer',
-                            padding: '8px'
+                            padding: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                         }}
                     >
-                        {mobileMenuOpen ? '✕' : '☰'}
+                        {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 )}
             </div>

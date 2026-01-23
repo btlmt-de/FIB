@@ -17,6 +17,7 @@ export const COLORS = {
     gold: '#FFAA00',
     aqua: '#55FFFF',
     green: '#55FF55',
+    yellow: '#FFFF55',
     purple: '#AA00AA',
     red: '#FF5555',
     orange: '#FF8800',
