@@ -7,112 +7,13 @@ import Link from 'lucide-react/dist/esm/icons/link';
 import Layers from 'lucide-react/dist/esm/icons/layers';
 import Puzzle from 'lucide-react/dist/esm/icons/puzzle';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles';
 
 // Minecraft head API
 const getHeadUrl = (username) => `https://mc-heads.net/avatar/${username}/100`;
 
-// Hoisted static values
-const DOT_OPACITIES = [0.4, 0.7, 1, 0.7, 0.4];
-
-// Section Divider component with different styles
-function SectionDivider({ style = 'diamond', color = COLORS.gold, label }) {
-    // Style 1: Diamond shape in center
-    if (style === 'diamond') {
-        return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '16px',
-                margin: '48px 0',
-            }}>
-                <div style={{
-                    flex: 1,
-                    maxWidth: '200px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, transparent, ${color}66)`,
-                }} />
-                <div style={{
-                    width: '10px',
-                    height: '10px',
-                    background: color,
-                    transform: 'rotate(45deg)',
-                    boxShadow: `0 0 12px ${color}66`,
-                }} />
-                <div style={{
-                    flex: 1,
-                    maxWidth: '200px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, ${color}66, transparent)`,
-                }} />
-            </div>
-        );
-    }
-
-    // Style 2: Icon in center (Sparkles)
-    if (style === 'icon') {
-        return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '20px',
-                margin: '48px 0',
-            }}>
-                <div style={{
-                    flex: 1,
-                    maxWidth: '180px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, transparent, ${color}55)`,
-                }} />
-                <Sparkles size={20} style={{ color: color, filter: `drop-shadow(0 0 8px ${color}66)` }} />
-                <div style={{
-                    flex: 1,
-                    maxWidth: '180px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, ${color}55, transparent)`,
-                }} />
-            </div>
-        );
-    }
-
-    // Style 3: Triple dots (pixel-like)
-    if (style === 'dots') {
-        return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                margin: '48px 0',
-            }}>
-                <div style={{
-                    flex: 1,
-                    maxWidth: '160px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, transparent, ${color}44)`,
-                }} />
-                {DOT_OPACITIES.map((opacity, i) => (
-                    <div key={i} style={{
-                        width: '6px',
-                        height: '6px',
-                        background: color,
-                        opacity: opacity,
-                        borderRadius: '1px',
-                    }} />
-                ))}
-                <div style={{
-                    flex: 1,
-                    maxWidth: '160px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, ${color}44, transparent)`,
-                }} />
-            </div>
-        );
-    }
-
-    // Style 4: With label text
+// Section Divider component
+function SectionDivider({ style, color = COLORS.gold, label }) {
+    // Labeled style with text
     if (style === 'labeled' && label) {
         const isLarge = label === 'Created By' || label === 'Features';
         return (
@@ -148,26 +49,7 @@ function SectionDivider({ style = 'diamond', color = COLORS.gold, label }) {
         );
     }
 
-    // Style 5: Glow bar
-    if (style === 'glow') {
-        return (
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                margin: '48px 0',
-            }}>
-                <div style={{
-                    width: '120px',
-                    height: '2px',
-                    background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
-                    boxShadow: `0 0 20px ${color}66, 0 0 40px ${color}33`,
-                    borderRadius: '2px',
-                }} />
-            </div>
-        );
-    }
-
-    // Default: simple gradient line (longer)
+    // Default: simple gradient line
     return (
         <div style={{
             width: '120px',
@@ -234,19 +116,19 @@ const FEATURES = [
     {
         icon: Swords,
         title: 'ForceItemBattle',
-        description: 'The classic mode - race against time, whoever collects the most items wins',
+        description: 'The classic mode — race against time with jokers, whoever collects the most items wins',
         color: COLORS.red
     },
     {
         icon: Zap,
         title: 'RunBattle',
-        description: 'Only the first player to find the item scores - speed is everything',
+        description: 'Only the first player to find the item scores — speed is everything',
         color: COLORS.gold
     },
     {
         icon: Link,
         title: 'ForceChain',
-        description: 'See your current item and the next one - how are you planning?',
+        description: 'See your current item and the next one — plan ahead and chain your collections',
         color: COLORS.aqua
     },
     {
@@ -394,6 +276,24 @@ function SpecialThanksCard({ username, description, color, type, link }) {
         ? `https://github.com/${username}.png?size=100`
         : getHeadUrl(username);
 
+    const handleInteractionStart = (e) => {
+        if (link) {
+            const target = e.currentTarget.tagName === 'A'
+                ? e.currentTarget.firstChild
+                : e.currentTarget;
+            target.style.borderColor = COLORS.gold;
+            target.style.background = COLORS.bgLighter;
+        }
+    };
+
+    const handleInteractionEnd = (e) => {
+        const target = e.currentTarget.tagName === 'A'
+            ? e.currentTarget.firstChild
+            : e.currentTarget;
+        target.style.borderColor = COLORS.border;
+        target.style.background = COLORS.bgLight;
+    };
+
     const content = (
         <div style={{
             display: 'flex',
@@ -406,16 +306,8 @@ function SpecialThanksCard({ username, description, color, type, link }) {
             transition: 'all 0.15s ease-out',
             cursor: link ? 'pointer' : 'default',
         }}
-             onMouseEnter={e => {
-                 if (link) {
-                     e.currentTarget.style.borderColor = COLORS.gold;
-                     e.currentTarget.style.background = COLORS.bgLighter;
-                 }
-             }}
-             onMouseLeave={e => {
-                 e.currentTarget.style.borderColor = COLORS.border;
-                 e.currentTarget.style.background = COLORS.bgLight;
-             }}
+             onMouseEnter={handleInteractionStart}
+             onMouseLeave={handleInteractionEnd}
         >
             <div style={{
                 width: '36px',
@@ -462,7 +354,13 @@ function SpecialThanksCard({ username, description, color, type, link }) {
                 href={link}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ textDecoration: 'none' }}
+                style={{
+                    textDecoration: 'none',
+                    borderRadius: '8px',
+                    outline: 'none',
+                }}
+                onFocus={handleInteractionStart}
+                onBlur={handleInteractionEnd}
             >
                 {content}
             </a>

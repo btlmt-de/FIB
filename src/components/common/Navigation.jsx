@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { COLORS } from '../../config/constants';
+import { COLORS, IMAGE_BASE_URL } from '../../config/constants';
 import Home from 'lucide-react/dist/esm/icons/home';
 import BookOpen from 'lucide-react/dist/esm/icons/book-open';
 import Layers from 'lucide-react/dist/esm/icons/layers';
@@ -13,8 +13,6 @@ import Menu from 'lucide-react/dist/esm/icons/menu';
 import X from 'lucide-react/dist/esm/icons/x';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import unicodeItems from '../../../unicodeItems.json';
-
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
 // Get random item for logo (computed once at module load, same as favicon)
 const mainItems = unicodeItems
@@ -315,6 +313,9 @@ export default function Navigation({ currentPage, onNavigate }) {
                             <div style={{ flex: 1 }} />
                             <button
                                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                                aria-expanded={mobileMenuOpen}
+                                aria-controls="mobile-menu-panel"
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -357,6 +358,9 @@ export default function Navigation({ currentPage, onNavigate }) {
             {isMobile && (
                 <div
                     ref={menuRef}
+                    id="mobile-menu-panel"
+                    aria-hidden={!mobileMenuOpen}
+                    tabIndex={mobileMenuOpen ? 0 : -1}
                     style={{
                         position: 'fixed',
                         top: '56px',
@@ -370,6 +374,7 @@ export default function Navigation({ currentPage, onNavigate }) {
                         transition: 'transform 0.2s ease-out',
                         zIndex: 100,
                         overflowY: 'auto',
+                        pointerEvents: mobileMenuOpen ? 'auto' : 'none',
                     }}
                 >
                     <div style={{ padding: '12px 8px' }}>
