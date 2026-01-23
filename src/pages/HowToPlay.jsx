@@ -1,19 +1,7 @@
 import React from 'react';
 import { Server, Users, ExternalLink, Download, Package, FileText } from 'lucide-react';
+import { COLORS } from '../config/constants';
 import Footer from "../components/common/Footer.jsx";
-
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2',
-    gold: '#FFAA00',
-    aqua: '#55FFFF',
-    green: '#55FF55'
-};
 
 function OptionCard({ icon: Icon, title, description, children, recommended, accentColor }) {
     const [isHovered, setIsHovered] = React.useState(false);
@@ -221,6 +209,15 @@ function SectionLabel({ children }) {
 }
 
 export default function HowToPlay() {
+    const [isDesktop, setIsDesktop] = React.useState(false);
+
+    React.useEffect(() => {
+        const checkDesktop = () => setIsDesktop(window.innerWidth >= 900);
+        checkDesktop();
+        window.addEventListener('resize', checkDesktop);
+        return () => window.removeEventListener('resize', checkDesktop);
+    }, []);
+
     return (
         <div style={{
             minHeight: '100vh',
@@ -317,7 +314,7 @@ export default function HowToPlay() {
                                 description="Item descriptions for /info"
                                 extra={
                                     <a
-                                        href="/pools"
+                                        href="/#pools"
                                         style={{
                                             color: COLORS.accent,
                                             textDecoration: 'none',
@@ -326,7 +323,7 @@ export default function HowToPlay() {
                                         }}
                                         onClick={e => e.stopPropagation()}
                                     >
-                                        Browse →
+                                        Browse â†’
                                     </a>
                                 }
                             />
@@ -340,7 +337,7 @@ export default function HowToPlay() {
                         top: '50%',
                         transform: 'translate(-50%, -50%)',
                         zIndex: 10,
-                        display: 'none' // Will be shown via media query alternative
+                        display: isDesktop ? 'block' : 'none'
                     }}>
                         <div style={{
                             width: '48px',
@@ -378,7 +375,7 @@ export default function HowToPlay() {
                             color: COLORS.text,
                             lineHeight: '1.6'
                         }}>
-                            For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soon™</span>
+                            For now, we recommend <strong>Option 1</strong> (hosting your own game). We're planning a wider release with regularly hosted games on our server in the future. <span style={{ color: COLORS.textMuted }}>soonâ„¢</span>
                         </div>
 
                         <SectionLabel>How to Join</SectionLabel>

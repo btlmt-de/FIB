@@ -1,13 +1,6 @@
 import React from 'react';
-
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2'
-};
+import { COLORS } from '../config/constants';
+import Footer from "../components/common/Footer.jsx";
 
 export default function Imprint() {
     return (
@@ -78,22 +71,7 @@ export default function Imprint() {
                     </a>
                 </div>
             </div>
-
-            {/* Footer */}
-            <div style={{
-                textAlign: 'center',
-                padding: '32px 20px',
-                borderTop: `1px solid ${COLORS.border}`,
-                color: COLORS.textMuted,
-                fontSize: '13px'
-            }}>
-                <p style={{ margin: 0 }}>
-                    Made with ❤️
-                </p>
-                <p style={{ margin: '8px 0 0 0', fontSize: '11px' }}>
-                    Not affiliated with Mojang Studios
-                </p>
-            </div>
+            <Footer />
         </div>
     );
 }
