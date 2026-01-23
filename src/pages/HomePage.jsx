@@ -116,19 +116,19 @@ const FEATURES = [
     {
         icon: Swords,
         title: 'ForceItemBattle',
-        description: 'The classic mode — race against time with jokers, whoever collects the most items wins',
+        description: 'The classic mode - race against time, whoever collects the most items wins',
         color: COLORS.red
     },
     {
         icon: Zap,
         title: 'RunBattle',
-        description: 'Only the first player to find the item scores — speed is everything',
+        description: 'Only the first player to find the item scores - speed is everything',
         color: COLORS.gold
     },
     {
         icon: Link,
         title: 'ForceChain',
-        description: 'See your current item and the next one — plan ahead and chain your collections',
+        description: 'See your current item and the next one - how are you planning?',
         color: COLORS.aqua
     },
     {
