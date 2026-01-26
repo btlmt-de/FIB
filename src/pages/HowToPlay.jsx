@@ -1,5 +1,5 @@
 import React from 'react';
-import { Server, Users, ExternalLink, Download, Package, FileText } from 'lucide-react';
+import { Server, Users, ExternalLink, Download, Package, FileText, Shield } from 'lucide-react';
 import { COLORS } from '../config/constants';
 import Footer from "../components/common/Footer.jsx";
 
@@ -397,6 +397,55 @@ export default function HowToPlay() {
                             <StepItem number="2" title="Link your Minecraft account to Discord" />
                             <StepItem number="3" title="Open a support ticket and ask about FIB" />
                         </div>
+
+                        {/* Rules Link */}
+                        <a
+                            href="/rules"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '12px 14px',
+                                background: COLORS.bg,
+                                border: `1px solid ${COLORS.border}`,
+                                borderRadius: '8px',
+                                textDecoration: 'none',
+                                marginBottom: '16px',
+                                transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.borderColor = COLORS.gold;
+                                e.currentTarget.style.background = `${COLORS.gold}11`;
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.borderColor = COLORS.border;
+                                e.currentTarget.style.background = COLORS.bg;
+                            }}
+                        >
+                            <Shield size={18} color={COLORS.gold} />
+                            <div style={{ flex: 1 }}>
+                                <div style={{
+                                    color: COLORS.text,
+                                    fontSize: '14px',
+                                    fontWeight: '600'
+                                }}>
+                                    Game Rules
+                                </div>
+                                <div style={{
+                                    color: COLORS.textMuted,
+                                    fontSize: '12px'
+                                }}>
+                                    Review the rules before joining
+                                </div>
+                            </div>
+                            <span style={{
+                                color: COLORS.gold,
+                                fontSize: '13px',
+                                fontWeight: '500'
+                            }}>
+                                View →
+                            </span>
+                        </a>
 
                         <div style={{
                             padding: '14px 16px',
