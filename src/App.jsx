@@ -6,6 +6,7 @@ import ForceItemPools from './pages/ItemPools/ForceItemPools.jsx';
 import HowToPlay from './pages/HowToPlay';
 import Changelog from './pages/Changelog';
 import Imprint from './pages/Imprint';
+import Rules from './pages/Rules';
 import CustomStructures from './pages/CustomStructures';
 import Commands from './pages/Commands';
 import GameSettings from './pages/GameSettings';
@@ -24,6 +25,7 @@ const ROUTE_MAP = {
     'how-to-play': 'how-to-play',
     'changelog': 'changelog',
     'imprint': 'imprint',
+    'rules': 'rules',
     'structures': 'structures',
     'commands': 'commands',
     'settings': 'settings',
@@ -86,6 +88,10 @@ export default function App() {
 
             {currentPage === 'imprint' && (
                 <Imprint />
+            )}
+
+            {currentPage === 'rules' && (
+                <Rules />
             )}
 
             {currentPage === 'pools' && (
