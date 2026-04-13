@@ -25,18 +25,23 @@ def main():
         os.system("pip install Pillow --break-system-packages -q")
         from PIL import Image
 
-    api_url = "https://api.github.com/repos/Owen1212055/mc-assets/contents/item-assets"
-    print(f"Fetching asset list from {api_url}...")
-    items = fetch_json(api_url)
+    tree_url = "https://api.github.com/repos/Owen1212055/mc-assets/git/trees/main?recursive=1"
+    print(f"Fetching full asset tree...")
+    tree = fetch_json(tree_url)
 
-    pngs = [item for item in items if item["name"].endswith(".png")]
+    pngs = [
+        item for item in tree["tree"]
+        if item["path"].startswith("item-assets/") and item["path"].endswith(".png")
+    ]
     print(f"Found {len(pngs)} PNG files")
 
+    raw_base = "https://raw.githubusercontent.com/Owen1212055/mc-assets/main/"
+
     for i, item in enumerate(pngs, 1):
-        original_name = item["name"]
+        original_name = Path(item["path"]).name
         new_name = original_name.lower()
         dest_path = output_dir / new_name
-        download_url = item["download_url"]
+        download_url = raw_base + item["path"]
 
         print(f"[{i}/{len(pngs)}] {original_name} -> {new_name}")
 
