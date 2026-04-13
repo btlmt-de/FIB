@@ -1,0 +1,54 @@
+name: MC Assets Sync
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Pillow
+        run: pip install Pillow --break-system-packages -q
+
+      - name: Sync MC assets
+        run: |
+          python scripts/syncMcAssets.py \
+            ForceItemBattle/assets/minecraft/textures/fib
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            CHANGED=$(git diff --staged --name-only | wc -l)
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "changed_count=$CHANGED" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push to sync branch
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git checkout -B mc-assets-sync
+          git commit -m "Sync MC assets (${{ steps.changes.outputs.changed_count }} files changed)"
+          git push origin mc-assets-sync --force
+
+      - name: No changes found
+        if: steps.changes.outputs.has_changes == 'false'
+        run: echo "No changes detected, fib/ is already up to date."
