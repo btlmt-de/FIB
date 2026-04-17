@@ -2,6 +2,24 @@ name: MC Assets Sync
 
 on:
   workflow_dispatch:
+    inputs:
+      mc_version:
+        description: 'Minecraft version (e.g. 1.21.4)'
+        required: true
+      resource_pack_format:
+        description: 'Resource pack max_format'
+        required: true
+      data_pack_format:
+        description: 'Datapack max_format'
+        required: true
+      new_mc_version:
+        description: 'Is this a new MC version? (resets build to 1.0)'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write
@@ -28,6 +46,14 @@ jobs:
           python scripts/syncMcAssets.py \
             ForceItemBattle/assets/minecraft/textures/fib
 
+      - name: Update pack.mcmeta versions
+        run: |
+          python scripts/updatePackMeta.py \
+            "${{ inputs.mc_version }}" \
+            "${{ inputs.resource_pack_format }}" \
+            "${{ inputs.data_pack_format }}" \
+            "${{ inputs.new_mc_version }}"
+
       - name: Check for changes
         id: changes
         run: |
@@ -46,9 +72,9 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git checkout -B mc-assets-sync
-          git commit -m "Sync MC assets (${{ steps.changes.outputs.changed_count }} files changed)"
+          git commit -m "Sync MC assets (${{ steps.changes.outputs.changed_count }} files changed) [${{ inputs.mc_version }}]"
           git push origin mc-assets-sync --force
 
       - name: No changes found
         if: steps.changes.outputs.has_changes == 'false'
-        run: echo "No changes detected, fib/ is already up to date."
+        run: echo "No changes detected, everything is already up to date."
