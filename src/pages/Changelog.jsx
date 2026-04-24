@@ -4,6 +4,17 @@ import Footer from "../components/common/Footer.jsx";
 
 const CHANGELOG = [
     {
+        version: '3.9.6',
+        date: '18th April 2026',
+        type: 'update',
+        title: 'Tiny Takeover',
+        description: 'Added full 26.1.2 support',
+        changes: [
+            'Added the golden dandelion',
+            'Changed nametag from mid to early pool and adjusted its description',
+        ]
+    },
+    {
         version: '3.9.5',
         date: '16th January 2026',
         type: 'feature',
