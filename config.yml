@@ -1939,3 +1939,9 @@ descriptions:
     - "&7Ocean Ruins - Loot Chance:"
     - "&eBig Ruins Chest &7- &c1.1%"
     - "&eSmall Ruins Chest &7- &c1.1%"
+  PRISMARINE_SHARD:
+    - "&b&lPrismarine Shard &7| &6Item Information"
+    - "&7"
+    - "&7Mob-Drop: &aGuardians"
+    - "&7Structure: &aOcean Monument"
+    - "&7A &aprismarine shard &7is an item obtained by defeating &aguardians &7or &aelder guardians"
