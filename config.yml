@@ -1945,3 +1945,11 @@ descriptions:
     - "&7Mob-Drop: &aGuardians"
     - "&7Structure: &aOcean Monument"
     - "&7A &aprismarine shard &7is an item obtained by defeating &aguardians &7or &aelder guardians"
+  POISONOUS_POTATO:
+    - "&b&lPoisonous Potato &7| &6Item Information"
+    - "&7"
+    - "&7Structure: &aShipwreck"
+    - "&7Shipwreck - Loot Chance:"
+    - "&eSupply Chest &7- &a42.1%"
+    - ""
+    - "&7The &apoisonous potato &7has a &a2% chance &7to drop from fully grown potato crops."
