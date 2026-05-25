@@ -604,7 +604,7 @@ export default function HomePage() {
                             BastiGHG
                         </a>. This is the{' '}
                         <strong style={{ color: 'var(--text-mid)', fontWeight: 600 }}>McPlayHD.net</strong>{' '}
-                        edition — our rules, our balance, our world.
+                        edition - with our own rules, balancing, and unique twists.
                     </p>
                 </div>
             </section>
