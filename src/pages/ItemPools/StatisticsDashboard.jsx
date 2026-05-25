@@ -3,7 +3,171 @@ import X from 'lucide-react/dist/esm/icons/x';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import { COLORS } from '../../components/common/UIComponents.jsx';
+import { useToast } from '../../components/common/UIComponents.jsx';
+
+import { COLORS as C } from '../../config/constants';
+
+const SD_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
+  @keyframes sd-in   { from { opacity:0; transform:scale(0.97) translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes sd-spin { to { transform: rotate(360deg); } }
+
+  .sd { font-family: 'Barlow', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .sd-overlay {
+    position: fixed; inset: 0;
+    background: oklch(6% 0.022 255 / 0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .sd-panel {
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 10px;
+    width: 100%; max-width: 1000px; max-height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: sd-in 0.2s cubic-bezier(0.16,1,0.3,1) both;
+  }
+
+  /* Header */
+  .sd-header {
+    padding: 14px 22px; flex-shrink: 0;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sd-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(94% 0.007 255);
+    display: flex; align-items: center; gap: 8px; margin: 0;
+  }
+  .sd-subtitle { font-size: 11.5px; color: oklch(42% 0.013 255); margin-top: 3px; }
+  .sd-close {
+    background: none; border: none; cursor: pointer; padding: 5px;
+    color: oklch(42% 0.013 255); border-radius: 4px;
+    display: flex; align-items: center; transition: color 0.12s;
+  }
+  .sd-close:hover { color: oklch(94% 0.007 255); }
+
+  /* Body */
+  .sd-body { flex: 1; overflow: auto; padding: 20px 22px; }
+
+  /* Section header */
+  .sd-section-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    color: oklch(42% 0.013 255); margin: 0 0 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Top row: 2-col distribution panels */
+  .sd-dist-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 600px) { .sd-dist-row { grid-template-columns: 1fr; } }
+
+  .sd-dist-panel {
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 8px; padding: 16px;
+  }
+
+  /* Distribution bars */
+  .sd-bar-rows { display: flex; flex-direction: column; gap: 9px; }
+  .sd-bar-row { display: flex; align-items: center; gap: 10px; }
+  .sd-bar-label { width: 60px; font-size: 12px; font-weight: 500; color: oklch(74% 0.012 255); flex-shrink: 0; }
+  .sd-bar-track {
+    flex: 1; height: 14px;
+    background: oklch(15.5% 0.025 255);
+    border-radius: 3px; overflow: hidden;
+  }
+  .sd-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.16,1,0.3,1); }
+  .sd-bar-value { width: 80px; font-size: 11.5px; color: oklch(42% 0.013 255); text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+  /* Coverage strip — full-width, inline data */
+  .sd-coverage {
+    background: oklch(18.5% 0.024 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 8px; padding: 13px 18px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+  }
+  .sd-cov-item {
+    display: flex; align-items: baseline; gap: 7px;
+    padding: 0 18px; border-right: 1px solid oklch(30% 0.019 255);
+    flex-shrink: 0;
+  }
+  .sd-cov-item:first-child { padding-left: 0; }
+  .sd-cov-item:last-child { border-right: none; }
+  .sd-cov-num {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .sd-cov-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: oklch(42% 0.013 255); }
+
+  /* Categories section */
+  .sd-cat-panel {
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 8px; padding: 16px;
+  }
+  .sd-cat-list { display: flex; flex-direction: column; }
+
+  .sd-cat-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 6px; cursor: pointer;
+    border-radius: 5px;
+    transition: background 0.1s;
+  }
+  .sd-cat-row:hover { background: oklch(25% 0.021 255); }
+  .sd-cat-chevron {
+    color: oklch(42% 0.013 255); flex-shrink: 0;
+    transition: transform 0.15s ease-out;
+  }
+  .sd-cat-chevron.open { transform: rotate(0deg); }
+  .sd-cat-chevron.closed { transform: rotate(-90deg); }
+  .sd-cat-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .sd-cat-name { width: 130px; font-size: 12.5px; font-weight: 500; color: oklch(88% 0.009 255); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sd-cat-bar-track { flex: 1; height: 14px; background: oklch(15.5% 0.025 255); border-radius: 3px; overflow: hidden; }
+  .sd-cat-bar-fill { height: 100%; border-radius: 3px; opacity: 0.55; }
+  .sd-cat-count { width: 90px; font-size: 11.5px; color: oklch(42% 0.013 255); text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  /* Expanded items grid */
+  .sd-items-grid {
+    margin: 4px 0 6px 26px; padding: 12px;
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 4px; max-height: 280px; overflow: auto;
+  }
+  .sd-item-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 7px; border-radius: 4px;
+    background: oklch(19.5% 0.024 255);
+    font-size: 11.5px;
+  }
+  .sd-item-img { width: 20px; height: 20px; image-rendering: pixelated; flex-shrink: 0; }
+  .sd-item-name { flex: 1; color: oklch(74% 0.012 255); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sd-item-state {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+  }
+
+  /* Loading / error */
+  .sd-load-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: oklch(58% 0.012 255);
+    background: none; font-weight: 400;
+  }
+  .sd-err-badge {
+    font-size: 10px; color: oklch(62% 0.22 25);
+    background: oklch(62% 0.22 25 / 0.10);
+    border: 1px solid oklch(62% 0.22 25 / 0.3);
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .sd-hint { font-size: 11px; color: oklch(42% 0.013 255); font-weight: 400; }
+`;
+
 
 // Constants for fetching official Minecraft item tags
 const MISODE_ITEM_TAGS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.json';
@@ -727,38 +891,25 @@ function categorizeItem(material, tagCategoryMap = null) {
     return 'other';
 }
 
-// Get category info by ID
 function getCategoryInfo(categoryId) {
     const category = CATEGORY_CONFIG.find(c => c.id === categoryId);
-    if (category) {
-        return category;
-    }
-    return { id: 'other', name: 'Other', color: COLORS.textMuted };
+    if (category) return category;
+    return { id: 'other', name: 'Other', color: C.dim };
 }
 
-// Bar component for visualizing distribution (hoisted outside to prevent recreation)
-function DistributionBar({ data, total, showPercentage = true }) {
+// Bar component
+function DistributionBar({ data, total }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="sd-bar-rows">
             {data.map(({ label, value, color }) => {
-                const percentage = total > 0 ? (value / total * 100) : 0;
+                const pct = total > 0 ? (value / total * 100) : 0;
                 return (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '80px', fontSize: '12px', color: COLORS.text, fontWeight: '500' }}>
-                            {label}
+                    <div key={label} className="sd-bar-row">
+                        <span className="sd-bar-label">{label}</span>
+                        <div className="sd-bar-track">
+                            <div className="sd-bar-fill" style={{ width: `${pct}%`, background: color }} />
                         </div>
-                        <div style={{ flex: 1, height: '20px', background: COLORS.bgLighter, borderRadius: '4px', overflow: 'hidden' }}>
-                            <div style={{
-                                width: `${percentage}%`,
-                                height: '100%',
-                                background: color,
-                                borderRadius: '4px',
-                                transition: 'width 0.3s ease'
-                            }} />
-                        </div>
-                        <div style={{ width: '70px', fontSize: '12px', color: COLORS.textMuted, textAlign: 'right' }}>
-                            {value} {showPercentage && `(${percentage.toFixed(1)}%)`}
-                        </div>
+                        <span className="sd-bar-value">{value} ({pct.toFixed(1)}%)</span>
                     </div>
                 );
             })}
@@ -859,351 +1010,142 @@ function StatisticsDashboard({ items, missingItems, onClose }) {
         });
     }, []);
 
+
+    const stateColors = { EARLY: C.early, MID: C.mid, LATE: C.late };
+    const tagColors   = { NETHER: C.nether, END: C.end, EXTREME: C.extreme };
+
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
-        }}
-             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        >
-            <div style={{
-                background: COLORS.bg,
-                borderRadius: '12px',
-                width: '100%',
-                maxWidth: '1000px',
-                maxHeight: '90vh',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
+        <div className="sd sd-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+            <style>{SD_CSS}</style>
+            <div className="sd-panel">
+
                 {/* Header */}
-                <div style={{
-                    padding: '20px 24px',
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <BarChart3 size={24} style={{ color: COLORS.accent }} />
-                        <div>
-                            <h2 style={{ margin: 0, fontSize: '18px', color: COLORS.text }}>Pool Statistics</h2>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: COLORS.textMuted }}>
-                                Distribution analysis of {total} pool items
-                            </p>
-                        </div>
+                <div className="sd-header">
+                    <div>
+                        <h2 className="sd-title">
+                            <BarChart3 size={16} style={{ color: C.amber }} />
+                            Pool Statistics
+                        </h2>
+                        <div className="sd-subtitle">Distribution analysis of {total} pool items</div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: COLORS.textMuted,
-                            cursor: 'pointer',
-                            padding: '8px'
-                        }}
-                    >
-                        <X size={20} />
-                    </button>
+                    <button className="sd-close" onClick={onClose}><X size={18} /></button>
                 </div>
 
-                {/* Content */}
-                <div style={{ padding: '24px', overflow: 'auto', flex: 1 }}>
-                    {/* Top row: State + Tag + Coverage */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                        {/* State Distribution */}
-                        <div style={{
-                            background: COLORS.bgLight,
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: '8px',
-                            padding: '16px'
-                        }}>
-                            <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', color: COLORS.text, fontWeight: '600' }}>
-                                Unlock Timing
-                            </h3>
-                            <DistributionBar
-                                data={[
-                                    { label: 'Early', value: stateStats.EARLY, color: COLORS.early },
-                                    { label: 'Mid', value: stateStats.MID, color: COLORS.mid },
-                                    { label: 'Late', value: stateStats.LATE, color: COLORS.late },
-                                ]}
-                                total={total}
-                            />
-                        </div>
+                {/* Body */}
+                <div className="sd-body">
 
-                        {/* Tag Distribution */}
-                        <div style={{
-                            background: COLORS.bgLight,
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: '8px',
-                            padding: '16px'
-                        }}>
-                            <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', color: COLORS.text, fontWeight: '600' }}>
-                                Special Tags
-                            </h3>
-                            <DistributionBar
-                                data={[
-                                    { label: 'Nether', value: tagStats.NETHER, color: COLORS.nether },
-                                    { label: 'End', value: tagStats.END, color: COLORS.end },
-                                    { label: 'Extreme', value: tagStats.EXTREME, color: COLORS.extreme },
-                                ]}
-                                total={total}
-                            />
-                        </div>
-
-                        {/* Coverage Summary */}
-                        <div style={{
-                            background: COLORS.bgLight,
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: '8px',
-                            padding: '16px'
-                        }}>
-                            <h3 style={{ margin: '0 0 12px 0', fontSize: '13px', color: COLORS.text, fontWeight: '600' }}>
-                                Coverage
-                            </h3>
-                            <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-                                <div>
-                                    <div style={{ fontSize: '24px', fontWeight: '700', color: COLORS.accent }}>
-                                        {((total + totalMissing) > 0 ? (total / (total + totalMissing)) * 100 : 0).toFixed(1)}%
-                                    </div>
-                                    <div style={{ fontSize: '10px', color: COLORS.textMuted, textTransform: 'uppercase' }}>
-                                        In Pool
-                                    </div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '24px', fontWeight: '700', color: COLORS.text }}>
-                                        {total}
-                                    </div>
-                                    <div style={{ fontSize: '10px', color: COLORS.textMuted, textTransform: 'uppercase' }}>
-                                        Pool Items
-                                    </div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '24px', fontWeight: '700', color: COLORS.textMuted }}>
-                                        {totalMissing}
-                                    </div>
-                                    <div style={{ fontSize: '10px', color: COLORS.textMuted, textTransform: 'uppercase' }}>
-                                        Missing
-                                    </div>
-                                </div>
+                    {/* Coverage strip */}
+                    <div className="sd-coverage">
+                        {[
+                            {
+                                num: ((total + totalMissing) > 0 ? (total / (total + totalMissing)) * 100 : 0).toFixed(1) + '%',
+                                label: 'In Pool',
+                                color: C.amber,
+                            },
+                            { num: total,        label: 'Pool Items', color: C.textMid },
+                            { num: totalMissing, label: 'Missing',    color: C.muted    },
+                            { num: stateStats.EARLY, label: 'Early',  color: C.early },
+                            { num: stateStats.MID,   label: 'Mid',    color: C.mid   },
+                            { num: stateStats.LATE,  label: 'Late',   color: C.late  },
+                        ].map(({ num, label, color }) => (
+                            <div key={label} className="sd-cov-item">
+                                <span className="sd-cov-num" style={{ color }}>{num}</span>
+                                <span className="sd-cov-label">{label}</span>
                             </div>
+                        ))}
+                    </div>
+
+                    {/* Distribution panels */}
+                    <div className="sd-dist-row" style={{ marginBottom: 20 }}>
+                        <div className="sd-dist-panel">
+                            <div className="sd-section-title">Unlock Timing</div>
+                            <DistributionBar
+                                data={[
+                                    { label: 'Early', value: stateStats.EARLY, color: C.early },
+                                    { label: 'Mid',   value: stateStats.MID,   color: C.mid   },
+                                    { label: 'Late',  value: stateStats.LATE,  color: C.late  },
+                                ]}
+                                total={total}
+                            />
+                        </div>
+                        <div className="sd-dist-panel">
+                            <div className="sd-section-title">Special Tags</div>
+                            <DistributionBar
+                                data={[
+                                    { label: 'Nether',  value: tagStats.NETHER,  color: C.nether  },
+                                    { label: 'End',     value: tagStats.END,     color: C.end     },
+                                    { label: 'Extreme', value: tagStats.EXTREME, color: C.extreme },
+                                ]}
+                                total={total}
+                            />
                         </div>
                     </div>
 
-                    {/* Categories Section - Full Width */}
-                    <div style={{
-                        background: COLORS.bgLight,
-                        border: `1px solid ${COLORS.border}`,
-                        borderRadius: '8px',
-                        padding: '16px'
-                    }}>
-                        <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', color: COLORS.text, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Categories */}
+                    <div className="sd-cat-panel">
+                        <div className="sd-section-title">
                             Items by Category
-                            {!tagsLoading && !tagsError && (
-                                <span style={{ fontWeight: '400', color: COLORS.textMuted, fontSize: '12px' }}>
-                                    (click to expand)
-                                </span>
-                            )}
                             {tagsLoading ? (
-                                <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite', color: COLORS.textMuted }} />
+                                <span className="sd-load-badge">
+                                    <RefreshCw size={11} style={{ animation: 'sd-spin 1s linear infinite' }} />
+                                    Loading tags...
+                                </span>
                             ) : tagsError ? (
-                                <span style={{
-                                    fontSize: '10px',
-                                    color: '#ef4444',
-                                    background: '#ef444422',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                    fontWeight: '500'
-                                }}>
-                                    Failed to Load
-                                </span>
-                            ) : tagCategoryMap ? (
-                                <span style={{
-                                    fontSize: '10px',
-                                    color: COLORS.accent,
-                                    background: COLORS.accent + '22',
-                                    padding: '2px 6px',
-                                    borderRadius: '4px',
-                                    fontWeight: '500'
-                                }}>
-                                    Official Minecraft Tags
-                                </span>
-                            ) : null}
-                        </h3>
+                                <span className="sd-err-badge">Tag data unavailable</span>
+                            ) : (
+                                <span className="sd-hint">click to expand</span>
+                            )}
+                        </div>
 
-                        {tagsLoading ? (
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '40px 20px',
-                                color: COLORS.textMuted
-                            }}>
-                                <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-                                <div style={{ fontSize: '13px' }}>Loading official Minecraft item tags...</div>
-                            </div>
-                        ) : tagsError ? (
-                            <div style={{
-                                textAlign: 'center',
-                                padding: '40px 20px',
-                                color: COLORS.textMuted
-                            }}>
-                                <X size={24} style={{ marginBottom: '12px', color: '#ef4444' }} />
-                                <div style={{ fontSize: '13px', marginBottom: '8px' }}>
-                                    Failed to load item tags from Minecraft data repository
-                                </div>
-                                <div style={{ fontSize: '11px', opacity: 0.7 }}>
-                                    Category data is unavailable. Please try again later.
-                                </div>
-                            </div>
-                        ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {categoryData.map(({ id, name, count, color, items: catItems }) => {
-                                    const isExpanded = expandedCategories.has(id);
-                                    const percentage = total > 0 ? (count / total * 100) : 0;
-                                    const maxCount = categoryData[0]?.count || 1;
-                                    const barWidth = (count / maxCount * 100);
-
-                                    return (
-                                        <div key={id}>
-                                            {/* Category Row */}
-                                            <div
-                                                onClick={() => toggleCategory(id)}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '8px',
-                                                    padding: '8px 10px',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    background: isExpanded ? COLORS.bgLighter : 'transparent',
-                                                    transition: 'background 0.15s'
-                                                }}
-                                                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = COLORS.bg; }}
-                                                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'transparent'; }}
-                                            >
-                                                <ChevronDown
-                                                    size={14}
-                                                    style={{
-                                                        color: COLORS.textMuted,
-                                                        transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                                                        transition: 'transform 0.15s',
-                                                        flexShrink: 0
-                                                    }}
-                                                />
-                                                <div style={{
-                                                    width: '12px',
-                                                    height: '12px',
-                                                    borderRadius: '2px',
-                                                    background: color,
-                                                    flexShrink: 0
-                                                }} />
-                                                <div style={{
-                                                    width: '140px',
-                                                    fontSize: '12px',
-                                                    color: COLORS.text,
-                                                    fontWeight: '500',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap'
-                                                }}>
-                                                    {name}
-                                                </div>
-                                                <div style={{ flex: 1, height: '16px', background: COLORS.bg, borderRadius: '3px', overflow: 'hidden' }}>
-                                                    <div style={{
-                                                        width: `${barWidth}%`,
-                                                        height: '100%',
-                                                        background: color + '66',
-                                                        borderRadius: '3px'
-                                                    }} />
-                                                </div>
-                                                <div style={{ width: '80px', fontSize: '12px', color: COLORS.textMuted, textAlign: 'right' }}>
-                                                    {count} ({percentage.toFixed(1)}%)
-                                                </div>
+                        <div className="sd-cat-list">
+                            {categoryData.map(({ id, name, color, items: catItems, count }) => {
+                                const isExpanded = expandedCategories.has(id);
+                                const pct = total > 0 ? (count / total * 100) : 0;
+                                return (
+                                    <div key={id}>
+                                        <div className="sd-cat-row" onClick={() => toggleCategory(id)}>
+                                            <ChevronDown
+                                                size={13}
+                                                className={`sd-cat-chevron ${isExpanded ? 'open' : 'closed'}`}
+                                            />
+                                            <div className="sd-cat-dot" style={{ background: color }} />
+                                            <span className="sd-cat-name">{name}</span>
+                                            <div className="sd-cat-bar-track">
+                                                <div className="sd-cat-bar-fill" style={{ width: `${pct}%`, background: color }} />
                                             </div>
-
-                                            {/* Expanded Items List */}
-                                            {isExpanded && (
-                                                <div style={{
-                                                    marginLeft: '34px',
-                                                    marginTop: '4px',
-                                                    marginBottom: '8px',
-                                                    padding: '12px',
-                                                    background: COLORS.bg,
-                                                    borderRadius: '6px',
-                                                    border: `1px solid ${COLORS.border}`
-                                                }}>
-                                                    <div style={{
-                                                        display: 'grid',
-                                                        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                                                        gap: '6px',
-                                                        maxHeight: '300px',
-                                                        overflow: 'auto'
-                                                    }}>
-                                                        {catItems.map(item => (
-                                                            <div
-                                                                key={item.material}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '8px',
-                                                                    padding: '6px 8px',
-                                                                    background: COLORS.bgLight,
-                                                                    borderRadius: '4px',
-                                                                    fontSize: '11px'
-                                                                }}
-                                                            >
-                                                                <img
-                                                                    src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
-                                                                    alt={item.displayName}
-                                                                    style={{
-                                                                        width: '20px',
-                                                                        height: '20px',
-                                                                        imageRendering: 'pixelated',
-                                                                        flexShrink: 0
-                                                                    }}
-                                                                    onError={(e) => {
-                                                                        e.target.onerror = null;
-                                                                        e.target.src = `${IMAGE_BASE_URL}/barrier.png`;
-                                                                    }}
-                                                                />
-                                                                <span style={{
-                                                                    color: COLORS.text,
-                                                                    flex: 1,
-                                                                    overflow: 'hidden',
-                                                                    textOverflow: 'ellipsis',
-                                                                    whiteSpace: 'nowrap'
-                                                                }}>
-                                                                {item.displayName}
-                                                            </span>
-                                                                <span style={{
-                                                                    color: COLORS[item.state?.toLowerCase()] || COLORS.textMuted,
-                                                                    fontSize: '9px',
-                                                                    fontWeight: '600',
-                                                                    padding: '2px 5px',
-                                                                    background: (COLORS[item.state?.toLowerCase()] || COLORS.textMuted) + '22',
-                                                                    borderRadius: '3px',
-                                                                    flexShrink: 0
-                                                                }}>
-                                                                {item.state}
-                                                            </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <span className="sd-cat-count">{count} ({pct.toFixed(1)}%)</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+
+                                        {isExpanded && (
+                                            <div className="sd-items-grid">
+                                                {catItems.map(item => {
+                                                    const stateCol = stateColors[item.state] || C.muted;
+                                                    return (
+                                                        <div key={item.material} className="sd-item-row">
+                                                            <img
+                                                                className="sd-item-img"
+                                                                src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
+                                                                alt={item.displayName}
+                                                                onError={e => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                                            />
+                                                            <span className="sd-item-name">{item.displayName}</span>
+                                                            {item.state && (
+                                                                <span
+                                                                    className="sd-item-state"
+                                                                    style={{ color: stateCol, background: stateCol + '15' }}
+                                                                >
+                                                                    {item.state}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </div>

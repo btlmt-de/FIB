@@ -1,45 +1,164 @@
 import React, { useState, useEffect } from 'react';
+import X from 'lucide-react/dist/esm/icons/x';
+import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
+import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2',
-    success: '#55FF55',
-    error: '#FF5555',
-    warning: '#FFFF55',
-    description: '#55FFFF'
-};
+import { COLORS as C } from '../../config/constants';
 
-// GitHub API configuration
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
+  @keyframes gh-in   { from { opacity:0; transform:scale(0.97) translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes gh-spin { to { transform: rotate(360deg); } }
+
+  .gh { font-family: 'Barlow', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .gh-overlay {
+    position: fixed; inset: 0;
+    background: oklch(6% 0.022 255 / 0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px; box-sizing: border-box;
+  }
+  .gh-panel {
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 10px;
+    width: 100%; max-width: 660px; max-height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: gh-in 0.2s cubic-bezier(0.16,1,0.3,1) both;
+  }
+
+  /* Header */
+  .gh-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .gh-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(94% 0.007 255);
+    display: flex; align-items: center; gap: 8px; margin: 0;
+  }
+  .gh-subtitle { font-size: 11.5px; color: oklch(42% 0.013 255); margin-top: 3px; }
+  .gh-close {
+    background: none; border: none; cursor: pointer; padding: 5px;
+    color: oklch(42% 0.013 255); border-radius: 4px;
+    display: flex; align-items: center;
+    transition: color 0.12s;
+  }
+  .gh-close:hover { color: oklch(94% 0.007 255); }
+
+  /* Tabs */
+  .gh-tabs {
+    display: flex; border-bottom: 1px solid oklch(24% 0.022 255); flex-shrink: 0;
+  }
+  .gh-tab {
+    flex: 1; padding: 10px 16px;
+    background: none; border: none; border-bottom: 2px solid transparent;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(42% 0.013 255); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: color 0.12s;
+  }
+  .gh-tab.active { color: oklch(94% 0.007 255); border-bottom-color: oklch(76% 0.16 68); background: oklch(19% 0.024 255); }
+  .gh-tab:not(.active):hover { color: oklch(74% 0.012 255); }
+  .gh-tab-count {
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-size: 11px; font-weight: 600;
+    background: oklch(24% 0.022 255); border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px; padding: 1px 7px; color: oklch(50% 0.013 255);
+  }
+  .gh-tab.active .gh-tab-count { background: oklch(76% 0.16 68 / 0.12); border-color: oklch(76% 0.16 68 / 0.3); color: oklch(76% 0.16 68); }
+
+  /* Content */
+  .gh-content { flex: 1; overflow-y: auto; padding: 0; min-height: 0; }
+  .gh-meta {
+    padding: 10px 20px; border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px; color: oklch(42% 0.013 255);
+  }
+  .gh-meta a { color: oklch(68% 0.12 200); text-decoration: none; display: flex; align-items: center; gap: 4px; }
+  .gh-meta a:hover { color: oklch(80% 0.12 200); }
+
+  /* Commit rows */
+  .gh-commit {
+    padding: 12px 20px;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: flex-start; gap: 12px;
+    transition: background 0.1s;
+  }
+  .gh-commit:last-child { border-bottom: none; }
+  .gh-commit:hover { background: oklch(19.5% 0.024 255); }
+  .gh-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    flex-shrink: 0; border: 1px solid oklch(30% 0.019 255);
+  }
+  .gh-commit-body { flex: 1; min-width: 0; }
+  .gh-commit-msg { font-size: 13px; color: oklch(88% 0.009 255); margin-bottom: 5px; word-break: break-word; }
+  .gh-commit-meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 11.5px; color: oklch(42% 0.013 255);
+  }
+  .gh-commit-meta .author { font-weight: 600; color: oklch(58% 0.012 255); }
+  .gh-commit-meta .dot { color: oklch(25% 0.011 255); }
+  .gh-commit-meta .sha {
+    font-family: 'Courier New', monospace; font-size: 10.5px;
+    color: oklch(68% 0.12 200); text-decoration: none;
+    background: oklch(68% 0.12 200 / 0.08); padding: 1px 5px; border-radius: 3px;
+  }
+  .gh-commit-meta .sha:hover { background: oklch(68% 0.12 200 / 0.18); }
+
+  /* States */
+  .gh-state {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 8px; padding: 48px 20px;
+    color: oklch(42% 0.013 255); font-size: 13px; text-align: center;
+  }
+  .gh-state-err { color: oklch(62% 0.22 25); }
+  .gh-state sub { display: block; font-size: 11.5px; color: oklch(42% 0.013 255); margin-top: 6px; }
+
+  /* Footer */
+  .gh-footer {
+    padding: 11px 20px; border-top: 1px solid oklch(24% 0.022 255);
+    background: oklch(18.5% 0.024 255);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .gh-footer-src { font-size: 11.5px; color: oklch(42% 0.013 255); }
+  .gh-footer-src code {
+    font-family: 'Courier New', monospace; font-size: 10.5px;
+    color: oklch(68% 0.12 200);
+    background: oklch(68% 0.12 200 / 0.08); padding: 1px 5px; border-radius: 3px;
+  }
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 6px 12px; cursor: pointer;
+    background: none; border: 1px solid oklch(30% 0.019 255); border-radius: 5px;
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(50% 0.013 255); font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .gh-btn:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); }
+`;
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
 const REPO_OWNER = 'btlmt-de';
 const REPO_NAME = 'FIB';
 const ITEMS_REPO_OWNER = 'McPlayHDnet';
 const ITEMS_REPO_NAME = 'ForceItemBattle';
-
 const CONFIG_PATH = 'config.yml';
 const ITEMS_PATH = 'src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 
 async function fetchCommits(repoOwner, repoName, filePath, token = null) {
-    const headers = {
-        'Accept': 'application/vnd.github.v3+json'
-    };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
+    const headers = { 'Accept': 'application/vnd.github.v3+json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const response = await fetch(
         `https://api.github.com/repos/${repoOwner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&per_page=30`,
         { headers }
     );
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch commits: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`Failed to fetch commits: ${response.status}`);
     return response.json();
 }
 
@@ -47,353 +166,154 @@ function formatDate(dateString) {
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now - date;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
+    const diffDays = Math.floor(diffMs / 86400000);
     if (diffDays === 0) {
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        if (diffHours === 0) {
-            const diffMins = Math.floor(diffMs / (1000 * 60));
-            return `${diffMins} minutes ago`;
-        }
-        return `${diffHours} hours ago`;
-    } else if (diffDays === 1) {
-        return 'Yesterday';
-    } else if (diffDays < 7) {
-        return `${diffDays} days ago`;
-    } else {
-        return date.toLocaleDateString();
+        const h = Math.floor(diffMs / 3600000);
+        if (h === 0) return `${Math.floor(diffMs / 60000)}m ago`;
+        return `${h}h ago`;
     }
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
 }
 
-function CommitItem({ commit, repoOwner, repoName }) {
+// ── CommitItem ───────────────────────────────────────────────────────────────
+function CommitItem({ commit }) {
     const { sha, commit: commitData, author, html_url } = commit;
-    const message = commitData.message.split('\n')[0]; // First line only
-    const authorName = commitData.author.name;
-    const authorAvatar = author?.avatar_url;
-    const date = commitData.author.date;
-
+    const message = commitData.message.split('\n')[0];
     return (
-        <div style={{
-            padding: '12px',
-            background: COLORS.bgLight,
-            borderRadius: '6px',
-            marginBottom: '8px',
-            border: `1px solid ${COLORS.border}`
-        }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                {authorAvatar && (
-                    <img
-                        src={authorAvatar}
-                        alt={authorName}
-                        style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            flexShrink: 0
-                        }}
-                    />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                        color: COLORS.text,
-                        fontSize: '13px',
-                        marginBottom: '4px',
-                        wordBreak: 'break-word'
-                    }}>
-                        {message}
-                    </div>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontSize: '11px',
-                        color: COLORS.textMuted,
-                        flexWrap: 'wrap'
-                    }}>
-                        <span style={{ fontWeight: '600' }}>{authorName}</span>
-                        <span>•</span>
-                        <span>{formatDate(date)}</span>
-                        <span>•</span>
-                        <a
-                            href={html_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                color: COLORS.accent,
-                                textDecoration: 'none',
-                                fontFamily: 'monospace'
-                            }}
-                        >
-                            {sha.substring(0, 7)}
-                        </a>
-                    </div>
+        <div className="gh-commit">
+            {author?.avatar_url && (
+                <img src={author.avatar_url} alt={commitData.author.name} className="gh-avatar" />
+            )}
+            <div className="gh-commit-body">
+                <div className="gh-commit-msg">{message}</div>
+                <div className="gh-commit-meta">
+                    <span className="author">{commitData.author.name}</span>
+                    <span className="dot">·</span>
+                    <span>{formatDate(commitData.author.date)}</span>
+                    <span className="dot">·</span>
+                    <a href={html_url} target="_blank" rel="noopener noreferrer" className="sha">
+                        {sha.substring(0, 7)}
+                    </a>
                 </div>
             </div>
         </div>
     );
 }
 
+// ── Main component ───────────────────────────────────────────────────────────
 export default function GitHistory({ onClose }) {
     const [activeTab, setActiveTab] = useState('descriptions');
     const [descriptionCommits, setDescriptionCommits] = useState([]);
     const [itemsCommits, setItemsCommits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    // Get token from localStorage if available (for higher rate limits)
     const token = localStorage.getItem('fib_github_token');
 
     useEffect(() => {
-        async function loadCommits() {
-            setLoading(true);
-            setError(null);
-
+        async function load() {
+            setLoading(true); setError(null);
             try {
-                const [descCommits, itemCommits] = await Promise.all([
+                const [d, i] = await Promise.all([
                     fetchCommits(REPO_OWNER, REPO_NAME, CONFIG_PATH, token),
-                    fetchCommits(ITEMS_REPO_OWNER, ITEMS_REPO_NAME, ITEMS_PATH, token)
+                    fetchCommits(ITEMS_REPO_OWNER, ITEMS_REPO_NAME, ITEMS_PATH, token),
                 ]);
-
-                setDescriptionCommits(descCommits);
-                setItemsCommits(itemCommits);
+                setDescriptionCommits(d);
+                setItemsCommits(i);
             } catch (e) {
                 setError(e.message);
             } finally {
                 setLoading(false);
             }
         }
-
-        loadCommits();
+        load();
     }, [token]);
 
-    const currentCommits = activeTab === 'descriptions' ? descriptionCommits : itemsCommits;
+    const currentCommits   = activeTab === 'descriptions' ? descriptionCommits : itemsCommits;
     const currentRepoOwner = activeTab === 'descriptions' ? REPO_OWNER : ITEMS_REPO_OWNER;
-    const currentRepoName = activeTab === 'descriptions' ? REPO_NAME : ITEMS_REPO_NAME;
+    const currentRepoName  = activeTab === 'descriptions' ? REPO_NAME  : ITEMS_REPO_NAME;
 
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.85)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-            padding: '20px',
-            boxSizing: 'border-box'
-        }}>
-            <div style={{
-                background: COLORS.bg,
-                borderRadius: '12px',
-                width: '100%',
-                maxWidth: '700px',
-                maxHeight: '90vh',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-            }}>
+        <div className="gh gh-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+            <style>{CSS}</style>
+            <div className="gh-panel">
+
                 {/* Header */}
-                <div style={{
-                    padding: '16px 24px',
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
+                <div className="gh-header">
                     <div>
-                        <h2 style={{ margin: 0, color: COLORS.text, fontSize: '18px' }}>
-                            📜 Git History
+                        <h2 className="gh-title">
+                            <GitBranch size={16} style={{ color: C.amber }} />
+                            Git History
                         </h2>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '4px' }}>
-                            Recent changes to item pools and descriptions
-                        </div>
+                        <div className="gh-subtitle">Recent changes to item pools and descriptions</div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: COLORS.textMuted,
-                            fontSize: '24px',
-                            cursor: 'pointer',
-                            padding: '4px 8px'
-                        }}
-                    >
-                        ×
-                    </button>
+                    <button className="gh-close" onClick={onClose}><X size={18} /></button>
                 </div>
 
                 {/* Tabs */}
-                <div style={{
-                    display: 'flex',
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    padding: '0 24px'
-                }}>
-                    <button
-                        onClick={() => setActiveTab('descriptions')}
-                        style={{
-                            padding: '12px 20px',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'descriptions'
-                                ? `2px solid ${COLORS.accent}`
-                                : '2px solid transparent',
-                            color: activeTab === 'descriptions' ? COLORS.text : COLORS.textMuted,
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            marginBottom: '-1px',
-                            transition: 'all 0.15s'
-                        }}
-                    >
-                        📝 Description Changes
-                        <span style={{
-                            marginLeft: '8px',
-                            padding: '2px 6px',
-                            background: COLORS.bgLighter,
-                            borderRadius: '10px',
-                            fontSize: '11px'
-                        }}>
-                            {descriptionCommits.length}
-                        </span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('items')}
-                        style={{
-                            padding: '12px 20px',
-                            background: 'none',
-                            border: 'none',
-                            borderBottom: activeTab === 'items'
-                                ? `2px solid ${COLORS.accent}`
-                                : '2px solid transparent',
-                            color: activeTab === 'items' ? COLORS.text : COLORS.textMuted,
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            marginBottom: '-1px',
-                            transition: 'all 0.15s'
-                        }}
-                    >
-                        📦 Item Pool Changes
-                        <span style={{
-                            marginLeft: '8px',
-                            padding: '2px 6px',
-                            background: COLORS.bgLighter,
-                            borderRadius: '10px',
-                            fontSize: '11px'
-                        }}>
-                            {itemsCommits.length}
-                        </span>
-                    </button>
+                <div className="gh-tabs">
+                    {[
+                        { key: 'descriptions', label: 'Description Changes', count: descriptionCommits.length },
+                        { key: 'items',        label: 'Item Pool Changes',    count: itemsCommits.length },
+                    ].map(tab => (
+                        <button
+                            key={tab.key}
+                            className={`gh-tab${activeTab === tab.key ? ' active' : ''}`}
+                            onClick={() => setActiveTab(tab.key)}
+                        >
+                            {tab.label}
+                            <span className="gh-tab-count">{tab.count}</span>
+                        </button>
+                    ))}
                 </div>
 
                 {/* Content */}
-                <div style={{
-                    padding: '20px 24px',
-                    overflowY: 'auto',
-                    flex: 1
-                }}>
+                <div className="gh-content">
                     {loading ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '40px',
-                            color: COLORS.textMuted
-                        }}>
-                            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
+                        <div className="gh-state">
+                            <RefreshCw size={22} style={{ animation: 'gh-spin 1s linear infinite', opacity: 0.5 }} />
                             Loading commit history...
                         </div>
                     ) : error ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '40px',
-                            color: COLORS.error
-                        }}>
-                            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⚠️</div>
+                        <div className="gh-state gh-state-err">
+                            <AlertTriangle size={22} />
                             {error}
-                            <div style={{
-                                marginTop: '12px',
-                                fontSize: '12px',
-                                color: COLORS.textMuted
-                            }}>
+                            <sub>
                                 GitHub API rate limit may have been exceeded.
                                 {!token && ' Sign in to the editor to increase limits.'}
-                            </div>
+                            </sub>
                         </div>
                     ) : currentCommits.length === 0 ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '40px',
-                            color: COLORS.textMuted
-                        }}>
-                            No commits found
-                        </div>
+                        <div className="gh-state">No commits found.</div>
                     ) : (
                         <>
-                            <div style={{
-                                marginBottom: '12px',
-                                fontSize: '11px',
-                                color: COLORS.textMuted,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}>
-                                <span>
-                                    Showing {currentCommits.length} recent commits
-                                </span>
+                            <div className="gh-meta">
+                                <span>Showing {currentCommits.length} recent commits</span>
                                 <a
                                     href={`https://github.com/${currentRepoOwner}/${currentRepoName}/commits/main/${activeTab === 'descriptions' ? CONFIG_PATH : ITEMS_PATH}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: COLORS.accent, textDecoration: 'none' }}
+                                    target="_blank" rel="noopener noreferrer"
                                 >
-                                    View all on GitHub →
+                                    View all on GitHub <ExternalLink size={11} />
                                 </a>
                             </div>
                             {currentCommits.map(commit => (
-                                <CommitItem
-                                    key={commit.sha}
-                                    commit={commit}
-                                    repoOwner={currentRepoOwner}
-                                    repoName={currentRepoName}
-                                />
+                                <CommitItem key={commit.sha} commit={commit} />
                             ))}
                         </>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div style={{
-                    padding: '12px 24px',
-                    borderTop: `1px solid ${COLORS.border}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <div style={{ fontSize: '11px', color: COLORS.textMuted }}>
-                        {activeTab === 'descriptions' ? (
-                            <>Source: <code style={{ color: COLORS.description }}>{REPO_OWNER}/{REPO_NAME}</code></>
-                        ) : (
-                            <>Source: <code style={{ color: COLORS.description }}>{ITEMS_REPO_OWNER}/{ITEMS_REPO_NAME}</code></>
-                        )}
+                <div className="gh-footer">
+                    <div className="gh-footer-src">
+                        Source: <code>
+                        {activeTab === 'descriptions'
+                            ? `${REPO_OWNER}/${REPO_NAME}`
+                            : `${ITEMS_REPO_OWNER}/${ITEMS_REPO_NAME}`}
+                    </code>
                     </div>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            padding: '8px 16px',
-                            background: COLORS.bgLighter,
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: '4px',
-                            color: COLORS.text,
-                            fontSize: '13px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Close
-                    </button>
+                    <button className="gh-btn" onClick={onClose}>Close</button>
                 </div>
             </div>
         </div>

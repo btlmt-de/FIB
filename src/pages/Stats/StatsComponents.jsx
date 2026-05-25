@@ -1,979 +1,411 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Search from 'lucide-react/dist/esm/icons/search';
-import X from 'lucide-react/dist/esm/icons/x';
-import Users from 'lucide-react/dist/esm/icons/users';
-import User from 'lucide-react/dist/esm/icons/user';
-import Trophy from 'lucide-react/dist/esm/icons/trophy';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import Search       from 'lucide-react/dist/esm/icons/search';
+import X            from 'lucide-react/dist/esm/icons/x';
+import Users        from 'lucide-react/dist/esm/icons/users';
+import User         from 'lucide-react/dist/esm/icons/user';
+import Trophy       from 'lucide-react/dist/esm/icons/trophy';
+import ChevronDown  from 'lucide-react/dist/esm/icons/chevron-down';
 import ArrowLeftRight from 'lucide-react/dist/esm/icons/arrow-left-right';
 
-import { STATS_COLORS as COLORS, MC_FONT, MOCK_PLAYERS, MOCK_TEAMS, PLAYERS_BY_NAME, formatNumber } from './statsUtils.js';
+import { MOCK_PLAYERS, MOCK_TEAMS, PLAYERS_BY_NAME, formatNumber } from './statsUtils.js';
 
-// ============================================================================
-// TAB NAVIGATION
-// ============================================================================
+import { COLORS as C } from '../../config/constants';
+
+
+// ── Tab Navigation ────────────────────────────────────────────────────────────
 
 export function TabNavigation({ tabs, activeTab, onTabChange }) {
     return (
-        <div style={{
-            display: 'flex',
-            gap: '4px',
-            padding: '6px',
-            background: COLORS.bg,
-            borderRadius: '14px',
-            border: `1px solid ${COLORS.border}`,
-            marginBottom: '24px',
-        }}>
+        <div className="st-tabs">
             {tabs.map(tab => (
                 <button
                     key={tab.id}
+                    className={`st-tab${activeTab === tab.id ? ' active' : ''}`}
                     onClick={() => onTabChange(tab.id)}
-                    style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        padding: '12px 20px',
-                        background: activeTab === tab.id
-                            ? `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.accent}CC 100%)`
-                            : 'transparent',
-                        border: 'none',
-                        borderRadius: '10px',
-                        color: activeTab === tab.id ? '#fff' : COLORS.textMuted,
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        position: 'relative',
-                    }}
-                    onMouseEnter={e => {
-                        if (activeTab !== tab.id) {
-                            e.currentTarget.style.background = COLORS.bgLight;
-                            e.currentTarget.style.color = COLORS.text;
-                        }
-                    }}
-                    onMouseLeave={e => {
-                        if (activeTab !== tab.id) {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = COLORS.textMuted;
-                        }
-                    }}
                 >
                     {tab.icon}
-                    <span>{tab.label}</span>
+                    {tab.label}
                 </button>
             ))}
         </div>
     );
 }
 
-// ============================================================================
-// ENTITY SELECTOR
-// ============================================================================
+// ── Entity Selector ───────────────────────────────────────────────────────────
 
 export function EntitySelector({ selectedEntity, onSelect, compareMode, onToggleCompare, selectingFor }) {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [query, setQuery]   = useState('');
+    const [open, setOpen]     = useState(false);
     const [filter, setFilter] = useState('all');
-    const dropdownRef = useRef(null);
+    const dropRef = useRef(null);
     const inputRef = useRef(null);
 
-    // Auto-open dropdown and focus input when selectingFor changes
     useEffect(() => {
-        let timeoutId;
         if (selectingFor) {
-            setIsDropdownOpen(true);
-            // Small delay to ensure DOM is ready
-            timeoutId = setTimeout(() => {
-                inputRef.current?.focus();
-            }, 50);
+            setOpen(true);
+            setTimeout(() => inputRef.current?.focus(), 50);
         }
-        return () => {
-            if (timeoutId) clearTimeout(timeoutId);
-        };
     }, [selectingFor]);
 
     useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-                setIsDropdownOpen(false);
-            }
+        const handler = (e) => {
+            if (dropRef.current && !dropRef.current.contains(e.target)) setOpen(false);
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const filteredResults = useMemo(() => {
-        const query = searchQuery.toLowerCase().trim();
-        const results = [];
-
-        if (filter === 'all' || filter === 'players') {
-            MOCK_PLAYERS.forEach(player => {
-                if (!query || player.name.toLowerCase().includes(query)) {
-                    results.push({ type: 'player', ...player });
-                }
-            });
-        }
-
-        if (filter === 'all' || filter === 'teams') {
-            MOCK_TEAMS.forEach(team => {
-                const teamName = team.players.join(' + ');
-                if (!query || teamName.toLowerCase().includes(query)) {
-                    results.push({ type: 'team', ...team, name: teamName });
-                }
-            });
-        }
-
-        return results;
-    }, [searchQuery, filter]);
+    const results = useMemo(() => {
+        const q = query.toLowerCase().trim();
+        const out = [];
+        if (filter !== 'teams') MOCK_PLAYERS.forEach(p => {
+            if (!q || p.name.toLowerCase().includes(q)) out.push({ type: 'player', ...p });
+        });
+        if (filter !== 'players') MOCK_TEAMS.forEach(t => {
+            const name = t.players.join(' + ');
+            if (!q || name.toLowerCase().includes(q)) out.push({ type: 'team', ...t, name });
+        });
+        return out;
+    }, [query, filter]);
 
     const handleSelect = (entity) => {
         onSelect(entity);
-        setIsDropdownOpen(false);
-        setSearchQuery('');
+        setOpen(false);
+        setQuery('');
     };
 
     return (
-        <div style={{
-            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`,
-            border: selectingFor
-                ? `2px solid ${COLORS.accent}`
-                : `1px solid ${COLORS.border}`,
-            borderRadius: '16px',
-            padding: selectingFor ? '19px 23px' : '20px 24px',
-            marginBottom: '24px',
-            position: 'relative',
-            boxShadow: selectingFor ? `0 0 0 4px ${COLORS.accent}20, 0 0 20px ${COLORS.accent}30` : 'none',
-            transition: 'all 0.2s ease',
-        }}>
-            {/* Selection Mode Indicator */}
+        <div className={`st-selector${selectingFor ? ' selecting' : ''}`}>
             {selectingFor && (
-                <div style={{
-                    marginBottom: '12px',
-                    padding: '10px 14px',
-                    background: `${COLORS.accent}15`,
-                    border: `1px solid ${COLORS.accent}40`,
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                }}>
-                    <Search size={16} color={COLORS.accent} />
-                    <span style={{
-                        color: COLORS.accent,
-                        fontSize: '13px',
-                        fontWeight: '500'
-                    }}>
-                        Select {selectingFor === 'left' ? 'first' : 'second'} entity for comparison
-                    </span>
+                <div className="st-selector-banner">
+                    <Search size={14} />
+                    Select {selectingFor === 'left' ? 'first' : 'second'} entity for comparison
                 </div>
             )}
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-            }}>
-                {/* Search and Filter Row */}
-                <div style={{
-                    display: 'flex',
-                    gap: '12px',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                }}>
-                    {/* Search Input */}
-                    <div
-                        ref={dropdownRef}
-                        style={{
-                            position: 'relative',
-                            flex: '1 1 300px',
-                            minWidth: '200px',
-                        }}
-                    >
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            background: COLORS.bg,
-                            border: `1px solid ${isDropdownOpen ? COLORS.accent : COLORS.border}`,
-                            borderRadius: '10px',
-                            padding: '10px 14px',
-                            gap: '10px',
-                            transition: 'border-color 0.2s, box-shadow 0.2s',
-                            boxShadow: isDropdownOpen ? `0 0 0 3px ${COLORS.accent}20` : 'none',
-                        }}>
-                            <Search size={18} color={COLORS.textMuted} />
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onFocus={() => setIsDropdownOpen(true)}
-                                placeholder={selectingFor
-                                    ? `Search for ${selectingFor === 'left' ? 'first' : 'second'} entity...`
-                                    : "Search players or teams..."}
-                                style={{
-                                    flex: 1,
-                                    background: 'transparent',
-                                    border: 'none',
-                                    outline: 'none',
-                                    color: COLORS.text,
-                                    fontSize: '14px',
-                                }}
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery('')}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        padding: '2px',
-                                        display: 'flex',
-                                    }}
-                                >
-                                    <X size={16} color={COLORS.textMuted} />
-                                </button>
-                            )}
-                            <ChevronDown
-                                size={16}
-                                color={COLORS.textMuted}
-                                style={{
-                                    transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.2s',
-                                }}
-                            />
+            <div className="st-selector-row">
+                {/* Search */}
+                <div ref={dropRef} className="st-search-wrap">
+                    <Search size={14} className="st-search-icon" />
+                    <input
+                        ref={inputRef}
+                        type="text"
+                        className="st-search"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        onFocus={() => setOpen(true)}
+                        placeholder={selectingFor ? `Search for ${selectingFor === 'left' ? 'first' : 'second'} entity...` : 'Search players or teams...'}
+                    />
+                    {query && (
+                        <button className="st-search-clear" onClick={() => setQuery('')}>
+                            <X size={13} />
+                        </button>
+                    )}
+
+                    {open && (
+                        <div className="st-dropdown">
+                            {results.length === 0 ? (
+                                <div className="st-dropdown-empty">No results</div>
+                            ) : results.map(entity => (
+                                <div key={entity.id} className="st-dropdown-item" onClick={() => handleSelect(entity)}>
+                                    {entity.type === 'player' ? (
+                                        <>
+                                            <img src={entity.avatarUrl} alt={entity.name} className="st-dropdown-avatar" />
+                                            <div>
+                                                <div className="st-dropdown-name">{entity.name}</div>
+                                                <div className="st-dropdown-meta"><User size={10} /> {entity.gamesPlayed} games</div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div style={{ display: 'flex' }}>
+                                                {entity.players.map((pName, i) => {
+                                                    const p = PLAYERS_BY_NAME.get(pName);
+                                                    return (
+                                                        <img key={pName} src={p?.avatarUrl || `https://mc-heads.net/avatar/${pName}/100`}
+                                                             alt={pName} className="st-dropdown-avatar"
+                                                             style={{ marginLeft: i > 0 ? -8 : 0, border: '1px solid oklch(26% 0.020 255)' }} />
+                                                    );
+                                                })}
+                                            </div>
+                                            <div>
+                                                <div className="st-dropdown-name">{entity.name}</div>
+                                                <div className="st-dropdown-meta"><Users size={10} /> Team · {entity.gamesPlayed} games</div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            ))}
                         </div>
+                    )}
+                </div>
 
-                        {/* Dropdown */}
-                        {isDropdownOpen && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                right: 0,
-                                marginTop: '8px',
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '10px',
-                                maxHeight: '300px',
-                                overflowY: 'auto',
-                                zIndex: 100,
-                                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                            }}>
-                                {filteredResults.length === 0 ? (
-                                    <div style={{
-                                        padding: '20px',
-                                        textAlign: 'center',
-                                        color: COLORS.textMuted,
-                                        fontSize: '13px',
-                                    }}>
-                                        No results found
-                                    </div>
-                                ) : (
-                                    filteredResults.map((entity) => (
-                                        <div
-                                            key={entity.id}
-                                            onClick={() => handleSelect(entity)}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                padding: '12px 16px',
-                                                cursor: 'pointer',
-                                                borderBottom: `1px solid ${COLORS.border}33`,
-                                                transition: 'background 0.15s',
-                                            }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = COLORS.bgHover}
-                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            {entity.type === 'player' ? (
-                                                <>
-                                                    <img
-                                                        src={entity.avatarUrl}
-                                                        alt={entity.name}
-                                                        style={{
-                                                            width: '32px',
-                                                            height: '32px',
-                                                            borderRadius: '6px',
-                                                            imageRendering: 'pixelated',
-                                                        }}
-                                                    />
-                                                    <div>
-                                                        <div style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                                                            {entity.name}
-                                                        </div>
-                                                        <div style={{
-                                                            color: COLORS.textMuted,
-                                                            fontSize: '11px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px',
-                                                        }}>
-                                                            <User size={10} /> Player
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                        {entity.players.map((playerName, idx) => {
-                                                            const player = PLAYERS_BY_NAME.get(playerName);
-                                                            return (
-                                                                <img
-                                                                    key={playerName}
-                                                                    src={player?.avatarUrl || `https://mc-heads.net/avatar/${playerName}/100`}
-                                                                    alt={playerName}
-                                                                    style={{
-                                                                        width: '28px',
-                                                                        height: '28px',
-                                                                        borderRadius: '6px',
-                                                                        imageRendering: 'pixelated',
-                                                                        marginLeft: idx > 0 ? '-8px' : 0,
-                                                                        border: `2px solid ${COLORS.bgLight}`,
-                                                                    }}
-                                                                />
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    <div>
-                                                        <div style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                                                            {entity.name}
-                                                        </div>
-                                                        <div style={{
-                                                            color: COLORS.textMuted,
-                                                            fontSize: '11px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px',
-                                                        }}>
-                                                            <Users size={10} /> Team · {entity.gamesPlayed} games
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
+                {/* Filter */}
+                <div className="st-filter-row">
+                    {[
+                        { id: 'all',     label: 'All' },
+                        { id: 'players', label: 'Players', icon: <User size={11} /> },
+                        { id: 'teams',   label: 'Teams',   icon: <Users size={11} /> },
+                    ].map(f => (
+                        <button key={f.id} className={`st-filter-btn${filter === f.id ? ' active' : ''}`} onClick={() => setFilter(f.id)}>
+                            {f.icon} {f.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Compare */}
+                <button className={`st-compare-btn${compareMode ? ' active' : ''}`} onClick={onToggleCompare}>
+                    <ArrowLeftRight size={14} /> Compare
+                </button>
+            </div>
+
+            {/* Selected entity */}
+            {selectedEntity && !compareMode && (
+                <div className="st-selected">
+                    {selectedEntity.type === 'player' ? (
+                        <img src={selectedEntity.avatarUrl} alt={selectedEntity.name}
+                             style={{ width: 38, height: 38, borderRadius: 7, imageRendering: 'pixelated', border: '1px solid oklch(30% 0.019 255)', flexShrink: 0 }} />
+                    ) : (
+                        <div style={{ display: 'flex' }}>
+                            {selectedEntity.players.map((pName, i) => {
+                                const p = PLAYERS_BY_NAME.get(pName);
+                                return (
+                                    <img key={pName} src={p?.avatarUrl || `https://mc-heads.net/avatar/${pName}/100`}
+                                         alt={pName} style={{ width: 34, height: 34, borderRadius: 6, imageRendering: 'pixelated', marginLeft: i > 0 ? -8 : 0, border: '1px solid oklch(26% 0.020 255)' }} />
+                                );
+                            })}
+                        </div>
+                    )}
+                    <div>
+                        <div className="st-selected-name">{selectedEntity.name}</div>
+                        <div className="st-selected-meta">
+                            {selectedEntity.type === 'player' ? <><User size={11} /> Individual</> : <><Users size={11} /> Team</>}
+                        </div>
                     </div>
-
-                    {/* Filter Buttons */}
-                    <div style={{
-                        display: 'flex',
-                        gap: '6px',
-                        background: COLORS.bg,
-                        borderRadius: '8px',
-                        padding: '4px',
-                    }}>
-                        {[
-                            { id: 'all', label: 'All' },
-                            { id: 'players', label: 'Players', icon: <User size={12} /> },
-                            { id: 'teams', label: 'Teams', icon: <Users size={12} /> },
-                        ].map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setFilter(f.id)}
-                                style={{
-                                    padding: '6px 12px',
-                                    background: filter === f.id ? COLORS.accent : 'transparent',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    color: filter === f.id ? '#fff' : COLORS.textMuted,
-                                    fontSize: '12px',
-                                    fontWeight: '500',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    transition: 'all 0.15s',
-                                }}
-                            >
-                                {f.icon}
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Compare Toggle */}
-                    <button
-                        onClick={onToggleCompare}
-                        style={{
-                            padding: '10px 16px',
-                            background: compareMode
-                                ? `linear-gradient(135deg, ${COLORS.gold} 0%, ${COLORS.orange} 100%)`
-                                : COLORS.bg,
-                            border: `1px solid ${compareMode ? COLORS.gold : COLORS.border}`,
-                            borderRadius: '8px',
-                            color: compareMode ? '#1a1a1a' : COLORS.textMuted,
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            transition: 'all 0.2s',
-                        }}
-                    >
-                        <ArrowLeftRight size={16} />
-                        Compare
+                    <button className="st-selected-clear" style={{ marginLeft: 'auto' }} onClick={() => onSelect(null)}>
+                        <X size={16} />
                     </button>
                 </div>
-
-                {/* Selected Entity Display */}
-                {selectedEntity && !compareMode && (
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '12px 16px',
-                        background: `linear-gradient(135deg, ${COLORS.accent}15 0%, ${COLORS.accent}05 100%)`,
-                        borderRadius: '10px',
-                        border: `1px solid ${COLORS.accent}30`,
-                    }}>
-                        {selectedEntity.type === 'player' ? (
-                            <>
-                                <img
-                                    src={selectedEntity.avatarUrl}
-                                    alt={selectedEntity.name}
-                                    style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        borderRadius: '8px',
-                                        imageRendering: 'pixelated',
-                                        border: `2px solid ${COLORS.accent}`,
-                                    }}
-                                />
-                                <div>
-                                    <div style={{ color: COLORS.text, fontSize: '16px', fontWeight: '600' }}>
-                                        {selectedEntity.name}
-                                    </div>
-                                    <div style={{ color: COLORS.accent, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <User size={12} /> Individual Stats
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    {selectedEntity.players.map((playerName, idx) => {
-                                        const player = PLAYERS_BY_NAME.get(playerName);
-                                        return (
-                                            <img
-                                                key={playerName}
-                                                src={player?.avatarUrl || `https://mc-heads.net/avatar/${playerName}/100`}
-                                                alt={playerName}
-                                                style={{
-                                                    width: '36px',
-                                                    height: '36px',
-                                                    borderRadius: '8px',
-                                                    imageRendering: 'pixelated',
-                                                    marginLeft: idx > 0 ? '-10px' : 0,
-                                                    border: `2px solid ${COLORS.accent}`,
-                                                }}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                                <div>
-                                    <div style={{ color: COLORS.text, fontSize: '16px', fontWeight: '600' }}>
-                                        {selectedEntity.name}
-                                    </div>
-                                    <div style={{ color: COLORS.accent, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <Users size={12} /> Team Stats · {selectedEntity.gamesPlayed} games together
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                        <button
-                            onClick={() => onSelect(null)}
-                            style={{
-                                marginLeft: 'auto',
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '6px',
-                                borderRadius: '6px',
-                                display: 'flex',
-                                transition: 'background 0.15s',
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.background = COLORS.bgLighter}
-                            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-                        >
-                            <X size={18} color={COLORS.textMuted} />
-                        </button>
-                    </div>
-                )}
-            </div>
+            )}
         </div>
     );
 }
 
-// ============================================================================
-// STAT CARD
-// ============================================================================
+// ── Stat Card ─────────────────────────────────────────────────────────────────
 
-export function StatCard({ icon, label, value, subValue, color, large, delay = 0 }) {
-    const accentColor = color || COLORS.accent;
-
+export function StatCard({ icon, label, value, subValue, color }) {
+    const col = color || 'oklch(65% 0.16 255)';
     return (
-        <div style={{
-            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`,
-            borderRadius: '14px',
-            padding: large ? '24px' : '20px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '16px',
-            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative',
-            overflow: 'hidden',
-            border: `1px solid ${COLORS.border}`,
-            animation: `fadeSlideIn 0.4s ease-out ${delay}ms backwards`,
-        }}
-             onMouseEnter={(e) => {
-                 e.currentTarget.style.transform = 'translateY(-4px)';
-                 e.currentTarget.style.boxShadow = `0 12px 32px ${accentColor}20, 0 0 0 1px ${accentColor}40`;
-                 e.currentTarget.style.borderColor = `${accentColor}50`;
-             }}
-             onMouseLeave={(e) => {
-                 e.currentTarget.style.transform = 'translateY(0)';
-                 e.currentTarget.style.boxShadow = 'none';
-                 e.currentTarget.style.borderColor = COLORS.border;
-             }}
-        >
-            <div style={{
-                width: large ? '56px' : '48px',
-                height: large ? '56px' : '48px',
-                borderRadius: '12px',
-                background: `linear-gradient(135deg, ${accentColor}30 0%, ${accentColor}10 100%)`,
-                border: `1px solid ${accentColor}40`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-            }}>
-                {icon && React.cloneElement(icon, {
-                    size: large ? 26 : 22,
-                    color: accentColor,
-                    strokeWidth: 2,
-                })}
+        <div className="st-card st-in">
+            <div className="st-card-icon" style={{ background: col + '14', border: `1px solid ${col}30` }}>
+                {icon && React.cloneElement(icon, { size: 20, color: col, strokeWidth: 2 })}
             </div>
-
             <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                    color: COLORS.textMuted,
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    marginBottom: '6px',
-                }}>
-                    {label}
-                </div>
-
-                <div style={{
-                    color: COLORS.text,
-                    fontSize: large ? '26px' : '22px',
-                    fontFamily: MC_FONT,
-                    lineHeight: 1.2,
-                    marginBottom: subValue ? '6px' : 0,
-                    textShadow: '2px 2px 0 rgba(0,0,0,0.4)',
-                }}>
-                    {value}
-                </div>
-
-                {subValue && (
-                    <div style={{ color: COLORS.textDim, fontSize: '11px' }}>
-                        {subValue}
-                    </div>
-                )}
+                <div className="st-card-label">{label}</div>
+                <div className="st-card-value">{value}</div>
+                {subValue && <div className="st-card-sub">{subValue}</div>}
             </div>
         </div>
     );
 }
 
-// ============================================================================
-// CANVAS COMPONENTS
-// ============================================================================
+// ── Canvas: Rank Badge ────────────────────────────────────────────────────────
 
-export function CanvasRankBadge({ rank, size = 120 }) {
+export function CanvasRankBadge({ rank, size = 110 }) {
     const canvasRef = useRef(null);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
-
         canvas.width = size * dpr;
         canvas.height = size * dpr;
         ctx.scale(dpr, dpr);
 
-        const centerX = size / 2;
-        const centerY = size / 2;
-        const radius = size * 0.4;
+        const cx = size / 2, cy = size / 2, r = size * 0.38;
 
-        let colors;
-        if (rank === 1) {
-            colors = { primary: '#FFD700', secondary: '#FFA500', glow: 'rgba(255, 215, 0, 0.6)' };
-        } else if (rank === 2) {
-            colors = { primary: '#C0C0C0', secondary: '#A8A8A8', glow: 'rgba(192, 192, 192, 0.5)' };
-        } else if (rank === 3) {
-            colors = { primary: '#CD7F32', secondary: '#B87333', glow: 'rgba(205, 127, 50, 0.5)' };
-        } else if (rank <= 10) {
-            colors = { primary: COLORS.accent, secondary: '#4752C4', glow: 'rgba(88, 101, 242, 0.4)' };
-        } else {
-            colors = { primary: COLORS.bgLighter, secondary: COLORS.bgLight, glow: 'rgba(45, 45, 74, 0.3)' };
-        }
+        const palette = rank === 1 ? { fill: '#FFD700', stroke: '#FFA500', text: '#1a1205' }
+            : rank === 2 ? { fill: '#B8B8B8', stroke: '#909090', text: '#1a1a1a' }
+                : rank === 3 ? { fill: '#CD7F32', stroke: '#A05C1A', text: '#1a1205' }
+                    : rank <= 10 ? { fill: 'oklch(65% 0.16 255)', stroke: 'oklch(50% 0.18 255)', text: '#e0e8ff' }
+                        :              { fill: 'oklch(26% 0.020 255)', stroke: 'oklch(34% 0.016 255)', text: 'oklch(58% 0.012 255)' };
 
         ctx.clearRect(0, 0, size, size);
-
-        // Outer glow
-        const glowGradient = ctx.createRadialGradient(centerX, centerY, radius * 0.5, centerX, centerY, radius * 1.3);
-        glowGradient.addColorStop(0, colors.glow);
-        glowGradient.addColorStop(1, 'transparent');
-        ctx.fillStyle = glowGradient;
-        ctx.fillRect(0, 0, size, size);
-
-        // Hexagon shape
         ctx.beginPath();
-        const points = 6;
-        for (let i = 0; i < points; i++) {
-            const angle = (i * 2 * Math.PI / points) - Math.PI / 2;
-            const x = centerX + radius * Math.cos(angle);
-            const y = centerY + radius * Math.sin(angle);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI / 3) - Math.PI / 2;
+            i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
+                : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
         }
         ctx.closePath();
-
-        const fillGradient = ctx.createLinearGradient(0, 0, size, size);
-        fillGradient.addColorStop(0, colors.primary);
-        fillGradient.addColorStop(1, colors.secondary);
-        ctx.fillStyle = fillGradient;
+        ctx.fillStyle   = palette.fill;
+        ctx.strokeStyle = palette.stroke;
+        ctx.lineWidth   = 2;
         ctx.fill();
-
-        // Inner highlight
-        ctx.beginPath();
-        for (let i = 0; i < points; i++) {
-            const angle = (i * 2 * Math.PI / points) - Math.PI / 2;
-            const x = centerX + radius * 0.85 * Math.cos(angle);
-            const y = centerY + radius * 0.85 * Math.sin(angle);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.closePath();
-        ctx.strokeStyle = `${colors.primary}44`;
-        ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Rank text
-        ctx.fillStyle = rank <= 3 ? '#1a1a1a' : COLORS.text;
-        ctx.font = `bold ${size * 0.28}px ${MC_FONT}`;
-        ctx.textAlign = 'center';
+        ctx.fillStyle    = palette.text;
+        ctx.font         = `800 ${size * 0.26}px 'Barlow Condensed', system-ui, sans-serif`;
+        ctx.textAlign    = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`#${rank}`, centerX, centerY);
-
+        ctx.fillText(`#${rank}`, cx, cy);
     }, [rank, size]);
 
     return <canvas ref={canvasRef} style={{ width: size, height: size }} />;
 }
 
-export function CanvasWinRateRing({ percentage, size = 100 }) {
+// ── Canvas: Win Rate Ring ─────────────────────────────────────────────────────
+
+export function CanvasWinRateRing({ percentage, size = 90 }) {
     const canvasRef = useRef(null);
-    const animatedPercentage = useRef(0);
-    const animationRef = useRef(null);
+    const animRef   = useRef(null);
+    const curPct    = useRef(0);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
-
         canvas.width = size * dpr;
         canvas.height = size * dpr;
         ctx.scale(dpr, dpr);
 
-        const centerX = size / 2;
-        const centerY = size / 2;
-        const radius = size * 0.38;
-        const lineWidth = size * 0.1;
+        const cx = size / 2, cy = size / 2, r = size * 0.38, lw = size * 0.10;
+        const target = percentage;
 
-        const draw = (currentPercent) => {
+        const draw = (pct) => {
             ctx.clearRect(0, 0, size, size);
-
-            // Background ring
             ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-            ctx.strokeStyle = COLORS.border;
-            ctx.lineWidth = lineWidth;
-            ctx.lineCap = 'round';
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.strokeStyle = 'oklch(26% 0.020 255)';
+            ctx.lineWidth = lw;
             ctx.stroke();
 
-            // Progress ring
-            if (currentPercent > 0) {
-                const startAngle = -Math.PI / 2;
-                const endAngle = startAngle + (currentPercent / 100) * 2 * Math.PI;
-
-                const gradient = ctx.createLinearGradient(0, 0, size, size);
-                gradient.addColorStop(0, COLORS.green);
-                gradient.addColorStop(1, COLORS.aqua);
-
+            if (pct > 0) {
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-                ctx.strokeStyle = gradient;
-                ctx.lineWidth = lineWidth;
+                ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (pct / 100) * Math.PI * 2);
+                ctx.strokeStyle = 'oklch(76% 0.16 68)';
+                ctx.lineWidth = lw;
                 ctx.lineCap = 'round';
                 ctx.stroke();
             }
 
-            // Text
-            ctx.fillStyle = COLORS.text;
-            ctx.font = `bold ${size * 0.18}px ${MC_FONT}`;
-            ctx.textAlign = 'center';
+            ctx.fillStyle    = 'oklch(94% 0.007 255)';
+            ctx.font         = `700 ${size * 0.20}px 'Barlow Condensed', system-ui, sans-serif`;
+            ctx.textAlign    = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`${Math.round(currentPercent)}%`, centerX, centerY);
+            ctx.fillText(`${pct.toFixed(0)}%`, cx, cy);
         };
 
-        const startTime = performance.now();
-        const duration = 800;
-        const startValue = animatedPercentage.current;
-
-        const animate = (currentTime) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-
-            animatedPercentage.current = startValue + (percentage - startValue) * eased;
-            draw(animatedPercentage.current);
-
-            if (progress < 1) {
-                animationRef.current = requestAnimationFrame(animate);
+        const animate = () => {
+            if (curPct.current < target) {
+                curPct.current = Math.min(curPct.current + 1.5, target);
+                draw(curPct.current);
+                animRef.current = requestAnimationFrame(animate);
+            } else {
+                draw(target);
             }
         };
-
-        animationRef.current = requestAnimationFrame(animate);
-
-        return () => {
-            if (animationRef.current) cancelAnimationFrame(animationRef.current);
-        };
+        curPct.current = 0;
+        animate();
+        return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
     }, [percentage, size]);
 
     return <canvas ref={canvasRef} style={{ width: size, height: size }} />;
 }
 
-export function CanvasRarityChart({ raritiesFound, width = 340, height = 220 }) {
+// ── Canvas: Rarity Chart ──────────────────────────────────────────────────────
+
+const RARITY_COLORS = {
+    COMMON:        'oklch(58% 0.012 255)',
+    UNCOMMON:      'oklch(64% 0.20 142)',
+    RARE:          'oklch(65% 0.16 255)',
+    EPIC:          'oklch(62% 0.18 300)',
+    LEGENDARY:     'oklch(76% 0.16 68)',
+    EXTRAORDINARY: 'oklch(72% 0.24 150)',
+    RNGESUS:       'oklch(66% 0.24 320)',
+};
+
+export function CanvasRarityChart({ raritiesFound, width = 320, height = 160 }) {
     const canvasRef = useRef(null);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
-
         canvas.width = width * dpr;
         canvas.height = height * dpr;
         ctx.scale(dpr, dpr);
-
         ctx.clearRect(0, 0, width, height);
 
-        const rarities = ['RARE', 'EPIC', 'LEGENDARY', 'RNGESUS', 'EXTRAORDINARY'];
-        const maxValue = Math.max(...Object.values(raritiesFound), 1);
+        const rarities = Object.keys(RARITY_COLORS);
+        const maxVal   = Math.max(1, ...rarities.map(r => raritiesFound[r] || 0));
+        const barH = 16, gap = 6;
+        const labelW = 120, valW = 50;
+        const barMax = width - labelW - valW - 10;
 
-        const barHeight = 32;
-        const barGap = 12;
-        const labelWidth = 130;
-        const valueWidth = 60;
-        const barMaxWidth = width - labelWidth - valueWidth - 10;
+        rarities.forEach((r, i) => {
+            const y   = i * (barH + gap);
+            const val = raritiesFound[r] || 0;
+            const bw  = (val / maxVal) * barMax;
+            const col = RARITY_COLORS[r];
 
-        rarities.forEach((rarity, index) => {
-            const y = index * (barHeight + barGap);
-            const value = raritiesFound[rarity] || 0;
-            const barWidth = (value / maxValue) * barMaxWidth;
-
-            // Label
-            ctx.fillStyle = COLORS.rarities[rarity];
-            ctx.font = `bold 14px ${MC_FONT}`;
-            ctx.textAlign = 'left';
+            ctx.fillStyle    = col;
+            ctx.font         = `600 12px 'Barlow', system-ui, sans-serif`;
+            ctx.textAlign    = 'left';
             ctx.textBaseline = 'middle';
-            ctx.fillText(rarity, 0, y + barHeight / 2);
+            ctx.fillText(r, 0, y + barH / 2);
 
-            // Background bar
-            ctx.fillStyle = COLORS.bgLighter;
-            ctx.beginPath();
-            ctx.roundRect(labelWidth, y, barMaxWidth, barHeight, 6);
-            ctx.fill();
+            ctx.fillStyle = 'oklch(22% 0.022 255)';
+            ctx.beginPath(); ctx.roundRect(labelW, y, barMax, barH, 4); ctx.fill();
 
-            // Value bar
-            if (barWidth > 0) {
-                const gradient = ctx.createLinearGradient(labelWidth, y, labelWidth + barWidth, y);
-                if (rarity === 'EXTRAORDINARY') {
-                    gradient.addColorStop(0, '#73FF00');
-                    gradient.addColorStop(1, '#14C8FF');
-                } else if (rarity === 'RNGESUS') {
-                    gradient.addColorStop(0, '#E41EBC');
-                    gradient.addColorStop(1, '#9A4992');
-                } else {
-                    gradient.addColorStop(0, COLORS.rarities[rarity]);
-                    gradient.addColorStop(1, `${COLORS.rarities[rarity]}BB`);
-                }
-
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.roundRect(labelWidth, y, Math.max(barWidth, 10), barHeight, 6);
-                ctx.fill();
+            if (bw > 0) {
+                ctx.fillStyle = col + 'CC';
+                ctx.beginPath(); ctx.roundRect(labelW, y, Math.max(bw, 8), barH, 4); ctx.fill();
             }
 
-            // Value text
-            ctx.fillStyle = COLORS.text;
-            ctx.font = `bold 13px ${MC_FONT}`;
-            ctx.textAlign = 'right';
-            ctx.fillText(formatNumber(value), width, y + barHeight / 2);
+            ctx.fillStyle    = 'oklch(72% 0.011 255)';
+            ctx.font         = `600 11px 'Barlow', system-ui, sans-serif`;
+            ctx.textAlign    = 'right';
+            ctx.fillText(val.toLocaleString(), width, y + barH / 2);
         });
-
     }, [raritiesFound, width, height]);
 
     return <canvas ref={canvasRef} style={{ width, height }} />;
 }
 
-// ============================================================================
-// TOP ITEMS CARD
-// ============================================================================
+// ── Top Items Card ────────────────────────────────────────────────────────────
 
-// Hoisted outside component to prevent recreation on every render
-const TOP_ITEMS_MEDALS = [
-    { bg: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)', border: '#FFD700', shadow: 'rgba(255, 215, 0, 0.5)' },
-    { bg: 'linear-gradient(135deg, #E8E8E8 0%, #B8B8B8 100%)', border: '#C0C0C0', shadow: 'rgba(192, 192, 192, 0.4)' },
-    { bg: 'linear-gradient(135deg, #CD7F32 0%, #A0522D 100%)', border: '#CD7F32', shadow: 'rgba(205, 127, 50, 0.4)' },
+const IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+
+const MEDAL_COLORS = [
+    { bg: '#FFD700', text: '#1a1205' },
+    { bg: '#B8B8B8', text: '#1a1a1a' },
+    { bg: '#CD7F32', text: '#1a1205' },
 ];
 
-const TOP_ITEMS_IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-
 export function TopItemsCard({ items }) {
-
     return (
-        <div style={{
-            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: '14px',
-            padding: '20px',
-        }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                marginBottom: '20px',
-            }}>
-                <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '10px',
-                    background: `linear-gradient(135deg, ${COLORS.gold}30 0%, ${COLORS.gold}10 100%)`,
-                    border: `1px solid ${COLORS.gold}40`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}>
-                    <Trophy size={20} color={COLORS.gold} />
-                </div>
+        <div className="st-panel">
+            <div className="st-panel-title">
+                <Trophy size={16} style={{ color: 'oklch(76% 0.16 68)', flexShrink: 0 }} />
                 <div>
-                    <div style={{ color: COLORS.text, fontSize: '15px', fontWeight: '600' }}>
-                        Most Found Items
-                    </div>
-                    <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                        Your top 3 collected items
-                    </div>
+                    <div className="st-panel-label">Most Found Items</div>
+                    <div className="st-panel-sub">Your top 3 collected</div>
                 </div>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                {items.slice(0, TOP_ITEMS_MEDALS.length).map((item, idx) => (
-                    <div
-                        key={item.name}
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '10px',
-                            flex: '1 1 0',
-                            minWidth: '80px',
-                            maxWidth: '120px',
-                            padding: '18px 8px',
-                            background: COLORS.bg,
-                            borderRadius: '12px',
-                            border: `1px solid ${COLORS.border}`,
-                            position: 'relative',
-                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.transform = 'translateY(-4px)';
-                            e.currentTarget.style.boxShadow = `0 8px 24px ${TOP_ITEMS_MEDALS[idx].shadow}`;
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
-                    >
-                        <div style={{
-                            position: 'absolute',
-                            top: '-12px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            background: TOP_ITEMS_MEDALS[idx].bg,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '13px',
-                            fontWeight: '700',
-                            fontFamily: MC_FONT,
-                            color: idx === 0 ? '#1a1a1a' : '#fff',
-                            boxShadow: `0 4px 12px ${TOP_ITEMS_MEDALS[idx].shadow}`,
-                            border: `3px solid ${COLORS.bgLight}`,
-                        }}>
+            <div className="st-top-items">
+                {items.slice(0, 3).map((item, idx) => (
+                    <div key={item.name} className="st-top-item">
+                        <div className="st-top-medal" style={{ background: MEDAL_COLORS[idx].bg, color: MEDAL_COLORS[idx].text }}>
                             {idx + 1}
                         </div>
-
-                        <div style={{
-                            width: '56px',
-                            height: '56px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginTop: '8px',
-                        }}>
-                            <img
-                                src={`${TOP_ITEMS_IMAGE_BASE_URL}/${item.texture}.png`}
-                                alt={item.name}
-                                style={{ width: '48px', height: '48px', imageRendering: 'pixelated' }}
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                        </div>
-
-                        <div style={{
-                            color: COLORS.text,
-                            fontSize: '11px',
-                            fontWeight: '500',
-                            textAlign: 'center',
-                            lineHeight: '1.3',
-                            wordBreak: 'break-word',
-                        }}>
-                            {item.name.replace(/_/g, ' ')}
-                        </div>
-
-                        <div style={{
-                            color: TOP_ITEMS_MEDALS[idx].border,
-                            fontSize: '15px',
-                            fontFamily: MC_FONT,
-                            textShadow: `0 0 10px ${TOP_ITEMS_MEDALS[idx].border}80`,
-                        }}>
-                            ×{item.count}
-                        </div>
+                        <img src={`${IMG}/${item.texture}.png`} alt={item.name}
+                             style={{ width: 46, height: 46, imageRendering: 'pixelated', marginTop: 8 }}
+                             onError={e => { e.target.style.display = 'none'; }} />
+                        <span className="st-top-item-name">{item.name.replace(/_/g, ' ')}</span>
+                        <span className="st-top-item-count" style={{ color: MEDAL_COLORS[idx].bg }}>×{item.count}</span>
                     </div>
                 ))}
             </div>

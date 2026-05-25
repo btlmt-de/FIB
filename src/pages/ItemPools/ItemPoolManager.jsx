@@ -15,7 +15,277 @@ import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import ChevronUp from 'lucide-react/dist/esm/icons/chevron-up';
 import Settings from 'lucide-react/dist/esm/icons/settings';
 import Package from 'lucide-react/dist/esm/icons/package';
-import { COLORS, useToast, ProgressSteps } from '../../components/common/UIComponents.jsx';
+import { useToast, ProgressSteps } from '../../components/common/UIComponents.jsx';
+
+import { COLORS as C } from '../../config/constants';
+
+const stateCol  = { EARLY: C.early,  MID: C.mid,    LATE: C.late   };
+const stateColBg= { EARLY: C.greenBg,MID: C.amberBg,LATE: C.redBg  };
+const stateColBd= { EARLY: C.greenBd,MID: C.amberBd,LATE: C.redBd  };
+const tagCol    = { NETHER: C.nether, END: C.end, EXTREME: C.extreme };
+
+const MODAL_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
+  @keyframes ipm-spin { to { transform: rotate(360deg); } }
+  @keyframes ipm-in { from { opacity:0; transform: scale(0.97) translateY(8px); } to { opacity:1; transform: none; } }
+
+  .ipm { font-family: 'Barlow', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .ipm-overlay {
+    position: fixed; inset: 0;
+    background: oklch(6% 0.022 255 / 0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .ipm-panel {
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 10px;
+    width: 100%; max-width: 720px; max-height: 88vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    animation: ipm-in 0.2s cubic-bezier(0.16,1,0.3,1) both;
+  }
+
+  /* Header */
+  .ipm-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .ipm-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 17px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(94% 0.007 255);
+  }
+  .ipm-user-pill {
+    font-size: 11px; font-weight: 600;
+    color: oklch(58% 0.012 255);
+    background: oklch(23% 0.022 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px; padding: 2px 8px;
+  }
+  .ipm-header-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+  /* Generic inputs */
+  .ipm-input {
+    padding: 9px 12px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 6px;
+    color: oklch(94% 0.007 255);
+    font-size: 13px; outline: none;
+    font-family: 'Barlow', system-ui, sans-serif;
+    transition: border-color 0.12s;
+  }
+  .ipm-input:focus { border-color: oklch(44% 0.014 255); }
+  .ipm-input::placeholder { color: oklch(42% 0.013 255); }
+  .ipm-input-pw { flex: 1; }
+
+  /* Buttons */
+  .ipm-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; cursor: pointer;
+    background: none;
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 6px;
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(50% 0.013 255);
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+    white-space: nowrap; font-family: 'Barlow', system-ui, sans-serif;
+    flex-shrink: 0;
+  }
+  .ipm-btn:hover:not(:disabled) { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); }
+  .ipm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ipm-btn-primary {
+    background: oklch(76% 0.16 68); border-color: oklch(76% 0.16 68);
+    color: oklch(14% 0.01 50); font-weight: 700;
+  }
+  .ipm-btn-primary:hover:not(:disabled) { background: oklch(80% 0.16 68); border-color: oklch(80% 0.16 68); color: oklch(10% 0.01 50); }
+  .ipm-btn-primary:disabled { background: oklch(30% 0.019 255); border-color: oklch(30% 0.019 255); color: oklch(42% 0.013 255); opacity: 1; }
+  .ipm-btn-sm { padding: 4px 9px; font-size: 11px; border-radius: 4px; gap: 4px; }
+  .ipm-btn-add { border-color: oklch(62% 0.20 142 / 0.35); color: oklch(62% 0.20 142); }
+  .ipm-btn-add:hover:not(:disabled) { background: oklch(62% 0.20 142 / 0.10); border-color: oklch(62% 0.20 142 / 0.6); color: oklch(62% 0.20 142); }
+  .ipm-btn-remove { border-color: oklch(62% 0.22 25 / 0.35); color: oklch(62% 0.22 25); }
+  .ipm-btn-remove:hover:not(:disabled) { background: oklch(62% 0.22 25 / 0.10); border-color: oklch(62% 0.22 25 / 0.6); color: oklch(62% 0.22 25); }
+  .ipm-btn-icon { padding: 6px; border-radius: 5px; gap: 0; }
+
+  /* Auth section */
+  .ipm-auth { padding: 18px 20px; border-bottom: 1px solid oklch(24% 0.022 255); }
+  .ipm-auth-desc { font-size: 13px; color: oklch(58% 0.012 255); margin-bottom: 12px; line-height: 1.6; }
+  .ipm-auth-desc a { color: oklch(60% 0.09 200); text-decoration: none; }
+  .ipm-auth-desc code {
+    background: oklch(23% 0.022 255); border: 1px solid oklch(30% 0.019 255);
+    padding: 1px 5px; border-radius: 3px; font-size: 12px;
+  }
+  .ipm-auth-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .ipm-remember { display: flex; align-items: center; gap: 6px; font-size: 12px; color: oklch(58% 0.012 255); cursor: pointer; user-select: none; }
+
+  /* Progress */
+  .ipm-progress { padding: 12px 20px; border-bottom: 1px solid oklch(24% 0.022 255); }
+
+  /* Branch bar */
+  .ipm-branch {
+    padding: 10px 20px;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    background: oklch(18.5% 0.024 255);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .ipm-branch-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: oklch(42% 0.013 255); white-space: nowrap; }
+  .ipm-select {
+    appearance: none;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 5px; padding: 5px 28px 5px 10px;
+    color: oklch(74% 0.012 255);
+    font-size: 12px; font-weight: 500; cursor: pointer; outline: none;
+    font-family: 'Barlow', system-ui, sans-serif;
+  }
+  .ipm-select-wrap { position: relative; }
+  .ipm-select-arrow { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); pointer-events: none; color: oklch(42% 0.013 255); }
+  .ipm-branch-sep { font-size: 11px; color: oklch(42% 0.013 255); }
+  .ipm-branch-error { font-size: 11px; color: oklch(62% 0.22 25); }
+
+  /* Tabs */
+  .ipm-tabs { display: flex; border-bottom: 1px solid oklch(24% 0.022 255); flex-shrink: 0; }
+  .ipm-tab {
+    flex: 1; padding: 11px 16px;
+    background: none; border: none;
+    border-bottom: 2px solid transparent;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(42% 0.013 255);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: color 0.12s;
+  }
+  .ipm-tab.active { color: oklch(94% 0.007 255); border-bottom-color: oklch(76% 0.16 68); background: oklch(19% 0.024 255); }
+  .ipm-tab:not(.active):hover { color: oklch(74% 0.012 255); }
+  .ipm-tab-count {
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-size: 11px; font-weight: 600;
+    background: oklch(24% 0.022 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px; padding: 1px 7px;
+    color: oklch(50% 0.013 255);
+  }
+  .ipm-tab.active .ipm-tab-count { background: oklch(76% 0.16 68 / 0.12); border-color: oklch(76% 0.16 68 / 0.3); color: oklch(76% 0.16 68); }
+
+  /* Search */
+  .ipm-search-bar { padding: 10px 20px; border-bottom: 1px solid oklch(24% 0.022 255); }
+  .ipm-search-wrap { position: relative; }
+  .ipm-search {
+    width: 100%; box-sizing: border-box;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 6px; padding: 8px 12px 8px 36px;
+    color: oklch(94% 0.007 255); font-size: 13px; outline: none;
+    transition: border-color 0.12s; font-family: 'Barlow', system-ui, sans-serif;
+  }
+  .ipm-search:focus { border-color: oklch(44% 0.014 255); }
+  .ipm-search::placeholder { color: oklch(42% 0.013 255); }
+  .ipm-search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: oklch(42% 0.013 255); }
+
+  /* Item list */
+  .ipm-list { flex: 1; overflow: auto; min-height: 0; }
+  .ipm-empty { padding: 40px 20px; text-align: center; color: oklch(42% 0.013 255); font-size: 13px; }
+  .ipm-row {
+    padding: 9px 20px;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ipm-row-add    { background: oklch(62% 0.20 142 / 0.05); }
+  .ipm-row-remove { background: oklch(62% 0.22 25 / 0.05); }
+  .ipm-row-modify { background: oklch(76% 0.16 68 / 0.05); }
+  .ipm-row-img { width: 28px; height: 28px; image-rendering: pixelated; flex-shrink: 0; }
+  .ipm-row-img.dim { opacity: 0.35; }
+  .ipm-row-name {
+    font-size: 13px; font-weight: 500; color: oklch(88% 0.009 255);
+    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ipm-row-name.struck { text-decoration: line-through; color: oklch(42% 0.013 255); }
+  .ipm-row-controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  /* State dropdown */
+  .ipm-state-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 4px; cursor: pointer;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    border: 1px solid transparent;
+    transition: opacity 0.1s;
+  }
+  .ipm-state-btn:disabled { cursor: default; opacity: 0.6; }
+  .ipm-state-popup {
+    position: fixed; z-index: 9999;
+    background: oklch(23% 0.022 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 6px; overflow: hidden; min-width: 90px;
+    box-shadow: 0 8px 24px oklch(4% 0.019 255 / 0.6);
+  }
+  .ipm-state-opt {
+    display: block; width: 100%;
+    padding: 7px 12px; background: none; border: none;
+    font-size: 11.5px; font-weight: 600; cursor: pointer; text-align: left;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    transition: background 0.1s;
+  }
+  .ipm-state-opt:hover { background: oklch(30% 0.019 255); }
+
+  /* Tag pills */
+  .ipm-tag-btn {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px; border-radius: 3px; cursor: pointer;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    border: 1px solid oklch(30% 0.019 255);
+    background: transparent; color: oklch(42% 0.013 255);
+    transition: all 0.1s;
+  }
+  .ipm-tag-btn:disabled { cursor: default; opacity: 0.5; }
+
+  /* Footer */
+  .ipm-footer { border-top: 1px solid oklch(24% 0.022 255); background: oklch(18.5% 0.024 255); flex-shrink: 0; }
+  .ipm-summary {
+    padding: 11px 20px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .ipm-summary-static { cursor: default; }
+  .ipm-summary-count { font-size: 13px; font-weight: 600; color: oklch(88% 0.009 255); }
+  .ipm-summary-breakdown { display: flex; gap: 10px; }
+  .ipm-chg-add    { font-size: 11px; font-weight: 600; color: oklch(62% 0.20 142); }
+  .ipm-chg-modify { font-size: 11px; font-weight: 600; color: oklch(76% 0.16 68); }
+  .ipm-chg-remove { font-size: 11px; font-weight: 600; color: oklch(62% 0.22 25); }
+  .ipm-summary-empty { font-size: 13px; color: oklch(42% 0.013 255); }
+
+  .ipm-changes-list { padding: 0 20px 10px; max-height: 140px; overflow: auto; }
+  .ipm-change-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; border-bottom: 1px solid oklch(24% 0.022 255);
+    font-size: 12px;
+  }
+  .ipm-change-row:last-child { border-bottom: none; }
+  .ipm-change-name { flex: 1; color: oklch(74% 0.012 255); }
+  .ipm-change-state { font-size: 10px; font-weight: 700; font-family: 'Barlow Condensed', system-ui, sans-serif; text-transform: uppercase; }
+  .ipm-change-arrow { font-size: 10px; color: oklch(42% 0.013 255); }
+
+  .ipm-commit { padding: 12px 20px; border-top: 1px solid oklch(24% 0.022 255); }
+  .ipm-commit-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .ipm-commit-input { flex: 1; }
+  .ipm-pr-label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: oklch(58% 0.012 255); cursor: pointer; user-select: none; }
+
+  /* Error / alert */
+  .ipm-error {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; margin-top: 10px;
+    background: oklch(62% 0.22 25 / 0.10);
+    border: 1px solid oklch(62% 0.22 25 / 0.30);
+    border-radius: 5px;
+    color: oklch(72% 0.18 25); font-size: 12px;
+  }
+`;
+
 
 // Image URL for Minecraft items
 const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
@@ -236,16 +506,11 @@ function StateDropdown({ value, onChange, disabled }) {
 
     useEffect(() => {
         if (!open) return;
-        const handleClick = (e) => {
-            if (buttonRef.current && !buttonRef.current.contains(e.target)) setOpen(false);
-        };
+        const handleClick = (e) => { if (buttonRef.current && !buttonRef.current.contains(e.target)) setOpen(false); };
         const handleScroll = () => setOpen(false);
         document.addEventListener('mousedown', handleClick);
         document.addEventListener('scroll', handleScroll, true);
-        return () => {
-            document.removeEventListener('mousedown', handleClick);
-            document.removeEventListener('scroll', handleScroll, true);
-        };
+        return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('scroll', handleScroll, true); };
     }, [open]);
 
     const handleOpen = (e) => {
@@ -253,67 +518,41 @@ function StateDropdown({ value, onChange, disabled }) {
         if (disabled) return;
         if (!open && buttonRef.current) {
             const rect = buttonRef.current.getBoundingClientRect();
-            setPosition({ top: rect.bottom + 2, left: rect.left });
+            setPosition({ top: rect.bottom + 4, left: rect.left });
         }
         setOpen(!open);
     };
 
+    const col   = stateCol[value]   || C.muted;
+    const colBg = stateColBg[value] || 'transparent';
+    const colBd = stateColBd[value] || C.border;
+
     return (
         <div ref={buttonRef} style={{ position: 'relative' }}>
             <button
+                className="ipm-state-btn"
                 onClick={handleOpen}
                 disabled={disabled}
-                style={{
-                    padding: '3px 8px',
-                    background: COLORS[value.toLowerCase()] + '22',
-                    border: `1px solid ${COLORS[value.toLowerCase()]}44`,
-                    borderRadius: '4px',
-                    color: COLORS[value.toLowerCase()],
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    cursor: disabled ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    opacity: disabled ? 0.6 : 1
-                }}
+                style={{ background: colBg, borderColor: colBd, color: col }}
             >
                 {value}
-                {!disabled && <ChevronDown size={10} />}
+                {!disabled && <ChevronDown size={9} />}
             </button>
             {open && (
-                <div style={{
-                    position: 'fixed',
-                    top: position.top,
-                    left: position.left,
-                    background: COLORS.bg,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '4px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    zIndex: 9999,
-                    minWidth: '80px',
-                    overflow: 'hidden'
-                }}>
-                    {STATES.map(state => (
-                        <button
-                            key={state}
-                            onClick={(e) => { e.stopPropagation(); onChange(state); setOpen(false); }}
-                            style={{
-                                display: 'block',
-                                width: '100%',
-                                padding: '6px 10px',
-                                background: value === state ? COLORS[state.toLowerCase()] + '22' : 'transparent',
-                                border: 'none',
-                                color: COLORS[state.toLowerCase()],
-                                fontSize: '11px',
-                                fontWeight: value === state ? '600' : '400',
-                                cursor: 'pointer',
-                                textAlign: 'left'
-                            }}
-                        >
-                            {state}
-                        </button>
-                    ))}
+                <div className="ipm-state-popup" style={{ top: position.top, left: position.left }}>
+                    {STATES.map(state => {
+                        const sc = stateCol[state] || C.muted;
+                        return (
+                            <button
+                                key={state}
+                                className="ipm-state-opt"
+                                onClick={(e) => { e.stopPropagation(); onChange(state); setOpen(false); }}
+                                style={{ color: sc, background: value === state ? (stateColBg[state] || 'transparent') : undefined }}
+                            >
+                                {state}
+                            </button>
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -321,31 +560,27 @@ function StateDropdown({ value, onChange, disabled }) {
 }
 
 // Tag Toggle Pills
-function TagPills({ tags, onChange, disabled, small }) {
+function TagPills({ tags, onChange, disabled }) {
     return (
         <div style={{ display: 'flex', gap: '4px' }}>
             {TAGS.map(tag => {
                 const active = tags.includes(tag);
+                const col = tagCol[tag] || C.muted;
                 return (
                     <button
                         key={tag}
+                        className="ipm-tag-btn"
                         onClick={(e) => {
                             e.stopPropagation();
                             if (disabled) return;
                             onChange(active ? tags.filter(t => t !== tag) : [...tags, tag]);
                         }}
                         disabled={disabled}
-                        style={{
-                            padding: small ? '2px 5px' : '3px 6px',
-                            background: active ? COLORS[tag.toLowerCase()] + '33' : 'transparent',
-                            border: `1px solid ${active ? COLORS[tag.toLowerCase()] : COLORS.border}`,
-                            borderRadius: '3px',
-                            color: active ? COLORS[tag.toLowerCase()] : COLORS.textMuted,
-                            fontSize: small ? '9px' : '10px',
-                            fontWeight: active ? '600' : '400',
-                            cursor: disabled ? 'default' : 'pointer',
-                            opacity: disabled ? 0.6 : 1
-                        }}
+                        style={active ? {
+                            background: col + '18',
+                            borderColor: col + '55',
+                            color: col,
+                        } : {}}
                     >
                         {tag}
                     </button>
@@ -620,720 +855,360 @@ export default function ItemPoolManager({ onClose, items = [], missingItems = []
     };
 
     return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0, left: 0, right: 0, bottom: 0,
-                background: 'rgba(0,0,0,0.85)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '20px'
-            }}
-            onClick={onClose}
-        >
-            <div
-                style={{
-                    background: COLORS.bg,
-                    border: `2px solid ${COLORS.accent}`,
-                    borderRadius: '12px',
-                    width: '100%',
-                    maxWidth: '700px',
-                    maxHeight: '85vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden'
-                }}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div style={{
-                    padding: '16px 20px',
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexShrink: 0
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <GitBranch size={20} style={{ color: COLORS.accent }} />
-                        <h2 style={{ margin: 0, color: COLORS.text, fontSize: '16px', fontWeight: '600' }}>
-                            Item Pool Manager
-                        </h2>
+        <div className="ipm ipm-overlay" onClick={onClose}>
+            <style>{MODAL_CSS}</style>
+            <div className="ipm-panel" onClick={e => e.stopPropagation()}>
+
+                {/* ── Header ── */}
+                <div className="ipm-header">
+                    <GitBranch size={16} style={{ color: C.amber, flexShrink: 0 }} />
+                    <span className="ipm-title">Item Pool Manager</span>
+                    {user && <span className="ipm-user-pill">{user.login}</span>}
+                    <div className="ipm-header-right">
                         {user && (
-                            <span style={{ fontSize: '12px', color: COLORS.textMuted }}>
-                                as {user.login}
-                            </span>
-                        )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {user && (
-                            <button
-                                onClick={handleLogout}
-                                style={{
-                                    padding: '6px 10px',
-                                    background: 'transparent',
-                                    border: `1px solid ${COLORS.border}`,
-                                    borderRadius: '4px',
-                                    color: COLORS.textMuted,
-                                    fontSize: '11px',
-                                    cursor: 'pointer'
-                                }}
-                            >
+                            <button className="ipm-btn ipm-btn-sm" onClick={handleLogout}>
                                 Logout
                             </button>
                         )}
                         <button
+                            className="ipm-btn ipm-btn-icon"
                             onClick={onClose}
-                            style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '4px' }}
+                            style={{ color: C.dim, border: 'none' }}
                         >
-                            <X size={20} />
+                            <X size={18} />
                         </button>
                     </div>
                 </div>
 
-                {/* Auth Section */}
+                {/* ── Auth Section ── */}
                 {showTokenInput && (
-                    <div style={{ padding: '20px', borderBottom: `1px solid ${COLORS.border}` }}>
-                        <div style={{ marginBottom: '12px', fontSize: '13px', color: COLORS.textMuted }}>
-                            Enter a GitHub Personal Access Token with <code style={{ background: COLORS.bgLighter, padding: '2px 4px', borderRadius: '3px' }}>repo</code> scope.{' '}
-                            <a
-                                href={GITHUB_TOKEN_URL}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: COLORS.accent, textDecoration: 'none' }}
-                            >
+                    <div className="ipm-auth">
+                        <p className="ipm-auth-desc">
+                            Enter a GitHub Personal Access Token with{' '}
+                            <code>repo</code> scope.{' '}
+                            <a href={GITHUB_TOKEN_URL} target="_blank" rel="noopener noreferrer">
                                 Create one here <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
                             </a>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                        </p>
+                        <div className="ipm-auth-row">
                             <input
                                 type="password"
                                 placeholder="ghp_xxxxxxxxxxxx"
                                 value={token}
                                 onChange={e => setToken(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && handleAuthenticate()}
-                                style={{
-                                    flex: 1,
-                                    padding: '10px 12px',
-                                    background: COLORS.bgLighter,
-                                    border: `1px solid ${COLORS.border}`,
-                                    borderRadius: '6px',
-                                    color: COLORS.text,
-                                    fontSize: '13px',
-                                    outline: 'none'
-                                }}
+                                className="ipm-input ipm-input-pw"
                             />
                             <button
                                 onClick={handleAuthenticate}
                                 disabled={verifying || !token.trim()}
-                                style={{
-                                    padding: '10px 16px',
-                                    background: COLORS.accent,
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    color: '#fff',
-                                    fontSize: '13px',
-                                    fontWeight: '600',
-                                    cursor: verifying ? 'wait' : 'pointer',
-                                    opacity: verifying || !token.trim() ? 0.6 : 1,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
+                                className="ipm-btn ipm-btn-primary"
                             >
-                                {verifying && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                                {verifying && <Loader2 size={13} style={{ animation: 'ipm-spin 1s linear infinite' }} />}
                                 {verifying ? 'Verifying...' : 'Connect'}
                             </button>
                         </div>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: COLORS.textMuted, cursor: 'pointer' }}>
+                        <label className="ipm-remember">
                             <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
                             Remember me for 60 days
                         </label>
                         {error && (
-                            <div style={{ marginTop: '10px', padding: '10px', background: COLORS.error + '22', borderRadius: '6px', color: COLORS.error, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <AlertTriangle size={14} /> {error}
+                            <div className="ipm-error">
+                                <AlertTriangle size={13} /> {error}
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* Main Content - only show if authenticated */}
+                {/* ── Authenticated content ── */}
                 {user && (
                     <>
-                        {/* Progress Indicator */}
-                        <div style={{ padding: '16px 20px', borderBottom: `1px solid ${COLORS.border}` }}>
+                        {/* Progress */}
+                        <div className="ipm-progress">
                             <ProgressSteps steps={PROGRESS_STEPS} currentStep={currentStep} />
                         </div>
 
-                        {/* Branch Selector - Compact */}
-                        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${COLORS.border}`, background: COLORS.bgLight }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '12px', color: COLORS.textMuted }}>Branch:</span>
-                                    <select
-                                        value={branchMode === 'existing' ? selectedBranch : '__new__'}
-                                        onChange={e => {
-                                            if (e.target.value === '__new__') {
-                                                setBranchMode('new');
-                                            } else {
-                                                setBranchMode('existing');
-                                                setSelectedBranch(e.target.value);
-                                            }
-                                        }}
-                                        style={{
-                                            padding: '6px 10px',
-                                            background: COLORS.bgLighter,
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.text,
-                                            fontSize: '12px',
-                                            outline: 'none',
-                                            cursor: 'pointer',
-                                            minWidth: '150px'
-                                        }}
-                                    >
-                                        {branches.filter(b => !PROTECTED_BRANCHES.has(b.name.toLowerCase())).map(b => (
-                                            <option key={b.name} value={b.name}>{b.name}</option>
-                                        ))}
-                                        <option value="__new__">+ Create new branch...</option>
-                                    </select>
-                                    <button
-                                        onClick={handleRefreshBranches}
-                                        disabled={loadingBranches}
-                                        title="Refresh branches"
-                                        style={{
-                                            padding: '6px',
-                                            background: 'transparent',
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.textMuted,
-                                            cursor: loadingBranches ? 'wait' : 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}
-                                    >
-                                        <RefreshCw size={12} style={{ animation: loadingBranches ? 'spin 1s linear infinite' : 'none' }} />
-                                    </button>
-                                </div>
-                                {branchMode === 'new' && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <input
-                                            type="text"
-                                            placeholder="new-branch-name"
-                                            value={newBranchName}
-                                            onChange={e => setNewBranchName(e.target.value)}
-                                            style={{
-                                                padding: '6px 10px',
-                                                background: COLORS.bgLighter,
-                                                border: `1px solid ${COLORS.border}`,
-                                                borderRadius: '4px',
-                                                color: COLORS.text,
-                                                fontSize: '12px',
-                                                outline: 'none',
-                                                width: '160px'
-                                            }}
-                                        />
-                                        <span style={{ fontSize: '11px', color: COLORS.textMuted }}>from</span>
-                                        <select
-                                            value={baseBranch}
-                                            onChange={e => setBaseBranch(e.target.value)}
-                                            style={{
-                                                padding: '6px 10px',
-                                                background: COLORS.bgLighter,
-                                                border: `1px solid ${COLORS.border}`,
-                                                borderRadius: '4px',
-                                                color: COLORS.text,
-                                                fontSize: '12px',
-                                                outline: 'none',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
+                        {/* Branch selector */}
+                        <div className="ipm-branch">
+                            <span className="ipm-branch-label">Branch</span>
+                            <div className="ipm-select-wrap">
+                                <select
+                                    className="ipm-select"
+                                    value={branchMode === 'existing' ? selectedBranch : '__new__'}
+                                    onChange={e => {
+                                        if (e.target.value === '__new__') { setBranchMode('new'); }
+                                        else { setBranchMode('existing'); setSelectedBranch(e.target.value); }
+                                    }}
+                                >
+                                    {branches.filter(b => !PROTECTED_BRANCHES.has(b.name.toLowerCase())).map(b => (
+                                        <option key={b.name} value={b.name}>{b.name}</option>
+                                    ))}
+                                    <option value="__new__">+ Create new branch...</option>
+                                </select>
+                                <ChevronDown size={12} className="ipm-select-arrow" />
+                            </div>
+                            <button
+                                className="ipm-btn ipm-btn-sm ipm-btn-icon"
+                                onClick={handleRefreshBranches}
+                                disabled={loadingBranches}
+                                title="Refresh branches"
+                            >
+                                <RefreshCw size={12} style={{ animation: loadingBranches ? 'ipm-spin 1s linear infinite' : 'none' }} />
+                            </button>
+
+                            {branchMode === 'new' && (
+                                <>
+                                    <input
+                                        type="text"
+                                        placeholder="new-branch-name"
+                                        value={newBranchName}
+                                        onChange={e => setNewBranchName(e.target.value)}
+                                        className="ipm-input"
+                                        style={{ width: 160, padding: '5px 10px', fontSize: 12 }}
+                                    />
+                                    <span className="ipm-branch-sep">from</span>
+                                    <div className="ipm-select-wrap">
+                                        <select className="ipm-select" value={baseBranch} onChange={e => setBaseBranch(e.target.value)}>
                                             {branches.map(b => (
                                                 <option key={b.name} value={b.name}>{b.name}</option>
                                             ))}
                                         </select>
+                                        <ChevronDown size={12} className="ipm-select-arrow" />
                                     </div>
-                                )}
-                                {!isValidBranch && targetBranch && (
-                                    <span style={{ fontSize: '11px', color: COLORS.error }}>
-                                        {PROTECTED_BRANCHES.has(targetBranch.toLowerCase()) ? 'Cannot commit to protected branch' : 'Invalid branch name'}
-                                    </span>
-                                )}
-                                {/* Refresh Misode data button */}
-                                {onRefreshMisode && (
-                                    <button
-                                        onClick={onRefreshMisode}
-                                        title="Refresh item data from Misode"
-                                        style={{
-                                            marginLeft: 'auto',
-                                            padding: '5px 10px',
-                                            background: 'transparent',
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.textMuted,
-                                            fontSize: '11px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}
-                                    >
-                                        <RefreshCw size={11} />
-                                        Refresh Items
-                                    </button>
-                                )}
-                            </div>
+                                </>
+                            )}
+
+                            {!isValidBranch && targetBranch && (
+                                <span className="ipm-branch-error">
+                                    {PROTECTED_BRANCHES.has(targetBranch.toLowerCase()) ? 'Cannot commit to protected branch' : 'Invalid branch name'}
+                                </span>
+                            )}
+
+                            {onRefreshMisode && (
+                                <button
+                                    className="ipm-btn ipm-btn-sm"
+                                    onClick={onRefreshMisode}
+                                    style={{ marginLeft: 'auto' }}
+                                >
+                                    <RefreshCw size={11} /> Refresh Items
+                                </button>
+                            )}
                         </div>
 
                         {/* Tabs */}
-                        <div style={{ display: 'flex', borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
-                            <button
-                                onClick={() => { setActiveTab('add'); setSearchQuery(''); }}
-                                style={{
-                                    flex: 1,
-                                    padding: '12px 16px',
-                                    background: activeTab === 'add' ? COLORS.bgLight : 'transparent',
-                                    border: 'none',
-                                    borderBottom: activeTab === 'add' ? `2px solid ${COLORS.accent}` : '2px solid transparent',
-                                    color: activeTab === 'add' ? COLORS.text : COLORS.textMuted,
-                                    fontSize: '13px',
-                                    fontWeight: activeTab === 'add' ? '600' : '400',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px'
-                                }}
-                            >
-                                <Plus size={16} />
-                                Add Items
-                                <span style={{
-                                    background: COLORS.bgLighter,
-                                    padding: '2px 8px',
-                                    borderRadius: '10px',
-                                    fontSize: '11px',
-                                    color: COLORS.textMuted
-                                }}>
-                                    {missingItems.length}
-                                </span>
-                            </button>
-                            <button
-                                onClick={() => { setActiveTab('manage'); setSearchQuery(''); }}
-                                style={{
-                                    flex: 1,
-                                    padding: '12px 16px',
-                                    background: activeTab === 'manage' ? COLORS.bgLight : 'transparent',
-                                    border: 'none',
-                                    borderBottom: activeTab === 'manage' ? `2px solid ${COLORS.accent}` : '2px solid transparent',
-                                    color: activeTab === 'manage' ? COLORS.text : COLORS.textMuted,
-                                    fontSize: '13px',
-                                    fontWeight: activeTab === 'manage' ? '600' : '400',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px'
-                                }}
-                            >
-                                <Settings size={16} />
-                                Manage Pool
-                                <span style={{
-                                    background: COLORS.bgLighter,
-                                    padding: '2px 8px',
-                                    borderRadius: '10px',
-                                    fontSize: '11px',
-                                    color: COLORS.textMuted
-                                }}>
-                                    {items.length}
-                                </span>
-                            </button>
+                        <div className="ipm-tabs">
+                            {[
+                                { key: 'add',    label: 'Add Items',   icon: <Plus size={14} />,    count: missingItems.length },
+                                { key: 'manage', label: 'Manage Pool', icon: <Settings size={14} />, count: items.length },
+                            ].map(tab => (
+                                <button
+                                    key={tab.key}
+                                    className={`ipm-tab${activeTab === tab.key ? ' active' : ''}`}
+                                    onClick={() => { setActiveTab(tab.key); setSearchQuery(''); }}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                    <span className="ipm-tab-count">{tab.count}</span>
+                                </button>
+                            ))}
                         </div>
 
                         {/* Search */}
-                        <div style={{ padding: '12px 20px', borderBottom: `1px solid ${COLORS.border}` }}>
-                            <div style={{ position: 'relative' }}>
-                                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: COLORS.textMuted }} />
+                        <div className="ipm-search-bar">
+                            <div className="ipm-search-wrap">
+                                <Search size={13} className="ipm-search-icon" />
                                 <input
                                     type="text"
+                                    className="ipm-search"
                                     placeholder={activeTab === 'add' ? 'Search missing items...' : 'Search pool items...'}
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 12px 10px 36px',
-                                        background: COLORS.bgLighter,
-                                        border: `1px solid ${COLORS.border}`,
-                                        borderRadius: '6px',
-                                        color: COLORS.text,
-                                        fontSize: '13px',
-                                        outline: 'none',
-                                        boxSizing: 'border-box'
-                                    }}
                                 />
                             </div>
                         </div>
 
                         {/* Item List */}
-                        <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+                        <div className="ipm-list">
                             {filteredItems.length === 0 ? (
-                                <div style={{ padding: '40px 20px', textAlign: 'center', color: COLORS.textMuted }}>
+                                <div className="ipm-empty">
                                     {searchQuery ? 'No items match your search' : 'No items available'}
                                 </div>
-                            ) : (
-                                filteredItems.map(item => {
-                                    const change = pendingChanges.find(c => c.material === item.material);
-                                    const hasChange = !!change;
+                            ) : filteredItems.map(item => {
+                                const change = pendingChanges.find(c => c.material === item.material);
+                                const hasChange = !!change;
+                                const isRemove = hasChange && change.type === 'remove';
 
-                                    return (
-                                        <div
-                                            key={item.material}
-                                            style={{
-                                                padding: '10px 20px',
-                                                borderBottom: `1px solid ${COLORS.border}`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: '12px',
-                                                background: hasChange
-                                                    ? (change.type === 'add' ? COLORS.success + '08' : change.type === 'remove' ? COLORS.error + '08' : COLORS.accent + '08')
-                                                    : 'transparent'
-                                            }}
-                                        >
-                                            {/* Item Info */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                                                <img
-                                                    src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
-                                                    alt=""
-                                                    style={{
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        imageRendering: 'pixelated',
-                                                        flexShrink: 0,
-                                                        opacity: hasChange && change.type === 'remove' ? 0.4 : 1
-                                                    }}
-                                                    onError={(e) => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                let rowClass = 'ipm-row';
+                                if (hasChange) {
+                                    if (change.type === 'add')    rowClass += ' ipm-row-add';
+                                    if (change.type === 'remove') rowClass += ' ipm-row-remove';
+                                    if (change.type === 'modify') rowClass += ' ipm-row-modify';
+                                }
+
+                                return (
+                                    <div key={item.material} className={rowClass}>
+                                        <img
+                                            className={`ipm-row-img${isRemove ? ' dim' : ''}`}
+                                            src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
+                                            alt=""
+                                            onError={e => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                        />
+                                        <span className={`ipm-row-name${isRemove ? ' struck' : ''}`}>
+                                            {item.displayName}
+                                        </span>
+
+                                        {/* State + tags for manage tab or pending changes */}
+                                        {activeTab === 'manage' && !hasChange && (
+                                            <>
+                                                <StateDropdown value={item.state} onChange={ns => handleModifyItem(item, ns, item.tags || [])} disabled={false} />
+                                                <TagPills tags={item.tags || []} onChange={nt => handleModifyItem(item, item.state, nt)} disabled={false} />
+                                            </>
+                                        )}
+                                        {hasChange && !isRemove && (
+                                            <>
+                                                <StateDropdown
+                                                    value={change.state}
+                                                    onChange={ns => setPendingChanges(prev => prev.map(c => c.material === item.material ? { ...c, state: ns } : c))}
+                                                    disabled={false}
                                                 />
-                                                <span style={{
-                                                    color: hasChange && change.type === 'remove' ? COLORS.textMuted : COLORS.text,
-                                                    fontSize: '13px',
-                                                    textDecoration: hasChange && change.type === 'remove' ? 'line-through' : 'none',
-                                                    whiteSpace: 'nowrap',
-                                                    overflow: 'hidden',
-                                                    textOverflow: 'ellipsis'
-                                                }}>
-                                                    {item.displayName}
-                                                </span>
+                                                <TagPills
+                                                    tags={change.tags}
+                                                    onChange={nt => setPendingChanges(prev => prev.map(c => c.material === item.material ? { ...c, tags: nt } : c))}
+                                                    disabled={false}
+                                                />
+                                            </>
+                                        )}
 
-                                                {/* Show current state for pool items */}
-                                                {activeTab === 'manage' && !hasChange && (
-                                                    <>
-                                                        <StateDropdown
-                                                            value={item.state}
-                                                            onChange={(newState) => handleModifyItem(item, newState, item.tags || [])}
-                                                            disabled={false}
-                                                        />
-                                                        <TagPills
-                                                            tags={item.tags || []}
-                                                            onChange={(newTags) => handleModifyItem(item, item.state, newTags)}
-                                                            disabled={false}
-                                                            small
-                                                        />
-                                                    </>
-                                                )}
-
-                                                {/* Show pending state for items with changes */}
-                                                {hasChange && change.type !== 'remove' && (
-                                                    <>
-                                                        <StateDropdown
-                                                            value={change.state}
-                                                            onChange={(newState) => setPendingChanges(prev => prev.map(c =>
-                                                                c.material === item.material ? { ...c, state: newState } : c
-                                                            ))}
-                                                            disabled={false}
-                                                        />
-                                                        <TagPills
-                                                            tags={change.tags}
-                                                            onChange={(newTags) => setPendingChanges(prev => prev.map(c =>
-                                                                c.material === item.material ? { ...c, tags: newTags } : c
-                                                            ))}
-                                                            disabled={false}
-                                                            small
-                                                        />
-                                                    </>
-                                                )}
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                                                {hasChange ? (
-                                                    <button
-                                                        onClick={() => handleUndoChange(item.material)}
-                                                        style={{
-                                                            padding: '5px 10px',
-                                                            background: 'transparent',
-                                                            border: `1px solid ${COLORS.border}`,
-                                                            borderRadius: '4px',
-                                                            color: COLORS.textMuted,
-                                                            fontSize: '11px',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px'
-                                                        }}
-                                                    >
-                                                        <X size={12} />
-                                                        Undo
-                                                    </button>
-                                                ) : activeTab === 'add' ? (
-                                                    <button
-                                                        onClick={() => handleAddItem(item)}
-                                                        style={{
-                                                            padding: '5px 10px',
-                                                            background: COLORS.success + '22',
-                                                            border: `1px solid ${COLORS.success}44`,
-                                                            borderRadius: '4px',
-                                                            color: COLORS.success,
-                                                            fontSize: '11px',
-                                                            fontWeight: '600',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px'
-                                                        }}
-                                                    >
-                                                        <Plus size={12} />
-                                                        Add
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleRemoveItem(item)}
-                                                        style={{
-                                                            padding: '5px 10px',
-                                                            background: COLORS.error + '22',
-                                                            border: `1px solid ${COLORS.error}44`,
-                                                            borderRadius: '4px',
-                                                            color: COLORS.error,
-                                                            fontSize: '11px',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px'
-                                                        }}
-                                                    >
-                                                        <Minus size={12} />
-                                                        Remove
-                                                    </button>
-                                                )}
-                                            </div>
+                                        <div className="ipm-row-controls">
+                                            {hasChange ? (
+                                                <button className="ipm-btn ipm-btn-sm" onClick={() => handleUndoChange(item.material)}>
+                                                    <X size={11} /> Undo
+                                                </button>
+                                            ) : activeTab === 'add' ? (
+                                                <button className="ipm-btn ipm-btn-sm ipm-btn-add" onClick={() => handleAddItem(item)}>
+                                                    <Plus size={11} /> Add
+                                                </button>
+                                            ) : (
+                                                <button className="ipm-btn ipm-btn-sm ipm-btn-remove" onClick={() => handleRemoveItem(item)}>
+                                                    <Minus size={11} /> Remove
+                                                </button>
+                                            )}
                                         </div>
-                                    );
-                                })
-                            )}
+                                    </div>
+                                );
+                            })}
                         </div>
 
-                        {/* Sticky Footer */}
-                        <div style={{
-                            borderTop: `1px solid ${COLORS.border}`,
-                            background: COLORS.bgLight,
-                            flexShrink: 0
-                        }}>
-                            {/* Summary Bar */}
+                        {/* ── Footer ── */}
+                        <div className="ipm-footer">
+                            {/* Summary bar */}
                             <div
-                                style={{
-                                    padding: '12px 20px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: pendingChanges.length > 0 ? 'pointer' : 'default'
-                                }}
+                                className={`ipm-summary${pendingChanges.length === 0 ? ' ipm-summary-static' : ''}`}
                                 onClick={() => pendingChanges.length > 0 && setFooterExpanded(!footerExpanded)}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    {pendingChanges.length > 0 ? (
-                                        <>
-                                            <Package size={16} style={{ color: COLORS.accent }} />
-                                            <span style={{ fontSize: '13px', color: COLORS.text, fontWeight: '500' }}>
-                                                {pendingChanges.length} change{pendingChanges.length !== 1 ? 's' : ''}
-                                            </span>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                {addCount > 0 && (
-                                                    <span style={{ fontSize: '11px', color: COLORS.success }}>+{addCount} added</span>
-                                                )}
-                                                {modifyCount > 0 && (
-                                                    <span style={{ fontSize: '11px', color: COLORS.accent }}>~{modifyCount} modified</span>
-                                                )}
-                                                {removeCount > 0 && (
-                                                    <span style={{ fontSize: '11px', color: COLORS.error }}>-{removeCount} removed</span>
-                                                )}
-                                            </div>
-                                            {footerExpanded ? <ChevronDown size={14} style={{ color: COLORS.textMuted }} /> : <ChevronUp size={14} style={{ color: COLORS.textMuted }} />}
-                                        </>
-                                    ) : (
-                                        <span style={{ fontSize: '13px', color: COLORS.textMuted }}>
-                                            No pending changes
+                                {pendingChanges.length > 0 ? (
+                                    <>
+                                        <Package size={14} style={{ color: C.amber, flexShrink: 0 }} />
+                                        <span className="ipm-summary-count">
+                                            {pendingChanges.length} change{pendingChanges.length !== 1 ? 's' : ''}
                                         </span>
-                                    )}
-                                </div>
-
+                                        <div className="ipm-summary-breakdown">
+                                            {addCount    > 0 && <span className="ipm-chg-add">+{addCount}</span>}
+                                            {modifyCount > 0 && <span className="ipm-chg-modify">~{modifyCount}</span>}
+                                            {removeCount > 0 && <span className="ipm-chg-remove">-{removeCount}</span>}
+                                        </div>
+                                        {footerExpanded
+                                            ? <ChevronDown size={13} style={{ color: C.dim, marginLeft: 'auto' }} />
+                                            : <ChevronUp   size={13} style={{ color: C.dim, marginLeft: 'auto' }} />
+                                        }
+                                    </>
+                                ) : (
+                                    <span className="ipm-summary-empty">No pending changes</span>
+                                )}
                                 {commitSuccess && prUrl && (
                                     <a
-                                        href={prUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                        href={prUrl} target="_blank" rel="noopener noreferrer"
                                         onClick={e => e.stopPropagation()}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            color: COLORS.accent,
-                                            fontSize: '12px',
-                                            textDecoration: 'none'
-                                        }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 4, color: C.amber, fontSize: 12, textDecoration: 'none', marginLeft: 'auto' }}
                                     >
-                                        <ExternalLink size={12} />
-                                        View PR
+                                        <ExternalLink size={12} /> View PR
                                     </a>
                                 )}
                             </div>
 
-                            {/* Expanded Details */}
+                            {/* Expanded change list */}
                             {footerExpanded && pendingChanges.length > 0 && (
-                                <div style={{ padding: '0 20px 12px', maxHeight: '150px', overflow: 'auto' }}>
+                                <div className="ipm-changes-list">
                                     {pendingChanges.map(change => (
-                                        <div
-                                            key={change.material}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                padding: '6px 0',
-                                                borderBottom: `1px solid ${COLORS.border}`
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                {change.type === 'add' && <Plus size={12} style={{ color: COLORS.success }} />}
-                                                {change.type === 'modify' && <RefreshCw size={12} style={{ color: COLORS.accent }} />}
-                                                {change.type === 'remove' && <Minus size={12} style={{ color: COLORS.error }} />}
-                                                <img
-                                                    src={`${IMAGE_BASE_URL}/${change.material.toLowerCase()}.png`}
-                                                    alt=""
-                                                    style={{
-                                                        width: '16px',
-                                                        height: '16px',
-                                                        imageRendering: 'pixelated',
-                                                        opacity: change.type === 'remove' ? 0.4 : 1
-                                                    }}
-                                                    onError={(e) => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                                />
-                                                <span style={{
-                                                    fontSize: '12px',
-                                                    color: change.type === 'remove' ? COLORS.textMuted : COLORS.text,
-                                                    textDecoration: change.type === 'remove' ? 'line-through' : 'none'
-                                                }}>
-                                                    {change.displayName || change.material}
-                                                </span>
-                                                {change.type !== 'remove' && (
-                                                    <>
-                                                        {change.type === 'modify' && (
-                                                            <span style={{ fontSize: '10px', color: COLORS.textMuted }}>{change.oldState} →</span>
-                                                        )}
-                                                        <span style={{ fontSize: '10px', color: COLORS[change.state.toLowerCase()], fontWeight: '600' }}>
-                                                            {change.state}
-                                                        </span>
-                                                        {change.tags.length > 0 && (
-                                                            <span style={{ fontSize: '10px', color: COLORS.textMuted }}>
-                                                                ({change.tags.join(', ')})
-                                                            </span>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
+                                        <div key={change.material} className="ipm-change-row">
+                                            {change.type === 'add'    && <Plus      size={11} style={{ color: C.green,  flexShrink: 0 }} />}
+                                            {change.type === 'modify' && <RefreshCw size={11} style={{ color: C.amber,  flexShrink: 0 }} />}
+                                            {change.type === 'remove' && <Minus     size={11} style={{ color: C.red,    flexShrink: 0 }} />}
+                                            <img
+                                                src={`${IMAGE_BASE_URL}/${change.material.toLowerCase()}.png`}
+                                                alt="" style={{ width: 18, height: 18, imageRendering: 'pixelated', flexShrink: 0 }}
+                                                onError={e => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                            />
+                                            <span className="ipm-change-name">{change.displayName || change.material}</span>
+                                            {change.type !== 'remove' && (
+                                                <>
+                                                    {change.type === 'modify' && (
+                                                        <span className="ipm-change-arrow">{change.oldState} →</span>
+                                                    )}
+                                                    <span className="ipm-change-state" style={{ color: stateCol[change.state] || C.muted }}>
+                                                        {change.state}
+                                                    </span>
+                                                    {change.tags.length > 0 && (
+                                                        <span style={{ fontSize: 10, color: C.dim }}>({change.tags.join(', ')})</span>
+                                                    )}
+                                                </>
+                                            )}
                                             <button
                                                 onClick={() => handleUndoChange(change.material)}
-                                                style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', padding: '2px' }}
+                                                style={{ background: 'none', border: 'none', color: C.dim, cursor: 'pointer', padding: 2, marginLeft: 'auto', flexShrink: 0 }}
                                             >
-                                                <X size={12} />
+                                                <X size={11} />
                                             </button>
                                         </div>
                                     ))}
                                     <button
+                                        className="ipm-btn ipm-btn-sm"
                                         onClick={handleClearChanges}
-                                        style={{
-                                            marginTop: '8px',
-                                            padding: '4px 8px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: COLORS.textMuted,
-                                            fontSize: '11px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}
+                                        style={{ marginTop: 8, color: C.dim }}
                                     >
-                                        <Trash2 size={10} />
-                                        Clear all
+                                        <Trash2 size={10} /> Clear all
                                     </button>
                                 </div>
                             )}
 
-                            {/* Commit Section */}
+                            {/* Commit */}
                             {pendingChanges.length > 0 && (
-                                <div style={{ padding: '12px 20px', borderTop: `1px solid ${COLORS.border}` }}>
-                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <input
-                                                type="text"
-                                                placeholder="Commit message..."
-                                                value={commitMessage}
-                                                onChange={e => setCommitMessage(e.target.value)}
-                                                onKeyDown={e => e.key === 'Enter' && canCommit && handleCommit()}
-                                                style={{
-                                                    width: '100%',
-                                                    padding: '10px 12px',
-                                                    background: COLORS.bgLighter,
-                                                    border: `1px solid ${COLORS.border}`,
-                                                    borderRadius: '6px',
-                                                    color: COLORS.text,
-                                                    fontSize: '13px',
-                                                    outline: 'none',
-                                                    boxSizing: 'border-box'
-                                                }}
-                                            />
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', fontSize: '11px', color: COLORS.textMuted, cursor: 'pointer' }}>
-                                                <input type="checkbox" checked={createPR} onChange={e => setCreatePR(e.target.checked)} />
-                                                <GitPullRequest size={12} />
-                                                Create PR to main
-                                            </label>
-                                        </div>
+                                <div className="ipm-commit">
+                                    <div className="ipm-commit-row">
+                                        <input
+                                            type="text"
+                                            placeholder="Commit message..."
+                                            value={commitMessage}
+                                            onChange={e => setCommitMessage(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && canCommit && handleCommit()}
+                                            className="ipm-input ipm-commit-input"
+                                        />
                                         <button
                                             onClick={handleCommit}
                                             disabled={!canCommit || committing}
-                                            style={{
-                                                padding: '10px 20px',
-                                                background: canCommit && !committing ? COLORS.accent : COLORS.bgLighter,
-                                                border: 'none',
-                                                borderRadius: '6px',
-                                                color: '#fff',
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                cursor: canCommit && !committing ? 'pointer' : 'not-allowed',
-                                                opacity: canCommit && !committing ? 1 : 0.6,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                whiteSpace: 'nowrap'
-                                            }}
+                                            className="ipm-btn ipm-btn-primary"
                                         >
-                                            {committing && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />}
+                                            {committing && <Loader2 size={13} style={{ animation: 'ipm-spin 1s linear infinite' }} />}
                                             {committing ? 'Committing...' : 'Commit & Push'}
                                         </button>
                                     </div>
+                                    <label className="ipm-pr-label">
+                                        <input type="checkbox" checked={createPR} onChange={e => setCreatePR(e.target.checked)} />
+                                        <GitPullRequest size={12} />
+                                        Create PR to main
+                                    </label>
                                     {error && (
-                                        <div style={{ marginTop: '10px', padding: '8px 10px', background: COLORS.error + '22', borderRadius: '4px', color: COLORS.error, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div className="ipm-error">
                                             <AlertTriangle size={12} /> {error}
                                         </div>
                                     )}
@@ -1343,13 +1218,6 @@ export default function ItemPoolManager({ onClose, items = [], missingItems = []
                     </>
                 )}
             </div>
-
-            <style>{`
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }
