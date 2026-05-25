@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { UserProfile } from './UserProfile.jsx';

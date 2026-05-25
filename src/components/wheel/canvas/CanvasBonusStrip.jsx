@@ -5,7 +5,7 @@
 // Shows Lucky Spin, Triple Spin, Triple Lucky events
 
 import React, { useEffect, useRef, useState } from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 
 // ============================================
 // CONSTANTS

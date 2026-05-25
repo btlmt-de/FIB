@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { COLORS, API_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { Bell, X, Check, CheckCheck, ChevronDown } from 'lucide-react';
 import { getNotificationTypeIcon, getNotificationTypeColor } from '../../../utils/notificationHelpers.jsx';
 

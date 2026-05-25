@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { COLORS, API_BASE_URL, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
 import { Achievements } from './Achievements.jsx';
 import { LuckInfoModal } from '../modals/LuckInfoModal.jsx';

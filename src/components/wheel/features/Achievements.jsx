@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { COLORS, API_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { X, Trophy, Lock, Check, Star, Sparkles, Zap, Target, Award, HelpCircle } from 'lucide-react';
 import { AchievementIcon } from '../../../utils/achievementIcons.jsx';
 

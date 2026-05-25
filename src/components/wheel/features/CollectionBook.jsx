@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { COLORS, IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
 import { X, Sparkles, Star, Diamond, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3, Coins } from 'lucide-react';
 import { CanvasCollectionGrid } from '../canvas/CanvasCollectionGrid.jsx';

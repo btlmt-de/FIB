@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLORS, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getItemImageUrl, getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';

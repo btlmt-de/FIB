@@ -504,10 +504,15 @@ function StateDropdown({ value, onChange, disabled }) {
     const [open, setOpen] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
     const buttonRef = useRef(null);
+    const popupRef = useRef(null);
 
     useEffect(() => {
         if (!open) return;
-        const handleClick = (e) => { if (buttonRef.current && !buttonRef.current.contains(e.target)) setOpen(false); };
+        const handleClick = (e) => {
+            const inButton = buttonRef.current?.contains(e.target);
+            const inPopup  = popupRef.current?.contains(e.target);
+            if (!inButton && !inPopup) setOpen(false);
+        };
         const handleScroll = () => setOpen(false);
         document.addEventListener('mousedown', handleClick);
         document.addEventListener('scroll', handleScroll, true);
@@ -540,7 +545,7 @@ function StateDropdown({ value, onChange, disabled }) {
                 {!disabled && <ChevronDown size={9} />}
             </button>
             {open && createPortal(
-                <div className="ipm-state-popup" style={{ top: position.top, left: position.left }}>
+                <div ref={popupRef} className="ipm-state-popup" style={{ top: position.top, left: position.left }}>
                     {STATES.map(state => {
                         const sc = stateCol[state] || C.muted;
                         return (

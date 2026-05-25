@@ -6,7 +6,8 @@
 // Shows for entire event duration for all users
 
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
-import { COLORS, WHEEL_TEXTURE_URL } from '../../../config/constants.js';
+import { WHEEL_TEXTURE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';

@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { Crown, Sparkles, Zap, Trophy, Crosshair } from 'lucide-react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 

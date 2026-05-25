@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { COLORS, API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
+import { API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
+import { COLORS } from './config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
 import { ActivityProvider, useActivity } from '../../context/ActivityContext';
 import { SoundProvider } from '../../context/SoundContext.jsx';

@@ -7,10 +7,11 @@ import { CanvasResultItem } from './canvas/CanvasResultItem.jsx';
 import { CanvasBonusStrip } from './canvas/CanvasBonusStrip.jsx';
 
 import {
-    COLORS, API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
+    API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
     ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
     TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
+import { COLORS } from './config/constants';
 import {
     formatChance, getMinecraftHeadUrl,
     isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem

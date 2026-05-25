@@ -5,7 +5,8 @@
 // Features: rarity selection strip animation, countdown on banner
 
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { COLORS, API_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Crown, Sparkles, Star, Diamond, X, Timer, FlaskConical, Coins, TrendingUp, Crosshair } from 'lucide-react';

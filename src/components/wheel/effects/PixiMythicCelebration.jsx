@@ -5,7 +5,7 @@
 // Maintains identical visual appearance - no PixiJS, just Canvas 2D
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getDiscordAvatarUrl, getItemImageUrl, getMinecraftHeadUrl } from '../../../utils/helpers.js';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';

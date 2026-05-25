@@ -5,7 +5,7 @@
 // OPTIMIZED: Removed orbs entirely, stars at 15fps with capped DPR
 
 import React, { useEffect, useRef, useMemo } from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 
 // ============================================
 // CANVAS STAR FIELD - Low FPS, Low DPR

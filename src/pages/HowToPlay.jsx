@@ -24,7 +24,7 @@ const DOWNLOADS = [
         href:      'https://github.com/McPlayHDnet/ForceItemBattle',
         icon:      Package,
         title:     'ForceItemBattle Plugin',
-        desc:      'The core plugin. Runs on any Paper 1.21+ server.',
+        desc:      'The core plugin. Current support: Paper 26.1.2',
         tag:       'Required',
     },
     {

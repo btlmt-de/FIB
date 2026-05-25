@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { COLORS, API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../../config/constants.js';
+import { API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
 import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Crown, Sparkles, Star, Diamond, Zap, Check } from 'lucide-react';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 
 export const AnimationStyles = () => (
     <style>{`
