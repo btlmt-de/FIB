@@ -5,7 +5,8 @@
 // Only renders visible items, dramatically reducing DOM and improving load time
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { COLORS, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
 
 // ============================================

@@ -5,7 +5,8 @@
 // Renders 80 items on a single canvas for massive performance gains
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { COLORS, ITEM_WIDTH, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { ITEM_WIDTH, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getItemImageUrl, isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 
 // ============================================

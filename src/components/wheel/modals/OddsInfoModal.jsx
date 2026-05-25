@@ -3,7 +3,7 @@
 // ============================================
 
 import React, { useState, useRef } from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import {
     Crown, Sparkles, Star, Diamond, ChevronDown, Zap, X,
     Calculator, BarChart3, Info, AlertTriangle, Scale,

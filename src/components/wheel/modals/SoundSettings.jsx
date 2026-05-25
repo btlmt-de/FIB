@@ -1,7 +1,7 @@
 import React from 'react';
 import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 
 // ============================================
 // Sound Settings Component

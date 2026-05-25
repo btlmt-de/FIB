@@ -369,13 +369,13 @@ const CSS = `
   .fib2-feat:nth-child(2) { padding: 36px 30px 32px; }
   .fib2-feat:hover { background: var(--surf-hov); }
   /* Linked tiles: title shifts amber and arrow appears */
-  .fib2-feat[href]:hover .fib2-feat-name { color: var(--amber); }
+  .fib2-feat[role=link]:hover .fib2-feat-name { color: var(--amber); }
   .fib2-feat-arrow {
     position: absolute; bottom: 18px; right: 20px;
     color: var(--dim); opacity: 0;
     transition: opacity 0.12s ease-out, transform 0.12s ease-out;
   }
-  .fib2-feat[href]:hover .fib2-feat-arrow {
+  .fib2-feat[role=link]:hover .fib2-feat-arrow {
     opacity: 1;
     transform: translate(2px, -2px);
     color: var(--amber);
@@ -604,7 +604,7 @@ export default function HomePage() {
                             BastiGHG
                         </a>. This is the{' '}
                         <strong style={{ color: 'var(--text-mid)', fontWeight: 600 }}>McPlayHD.net</strong>{' '}
-                        edition - with our own rules, balancing, and unique twists.
+                        edition — our rules, our balance, our world.
                     </p>
                 </div>
             </section>
@@ -664,11 +664,13 @@ export default function HomePage() {
                     {FEATURES.map((f, i) => {
                         const Icon = f.icon;
                         const isPrimary = i < 2;
-                        const Tag = f.href ? 'a' : 'div';
+                        const Tag = f.href ? 'div' : 'div';
                         const linkProps = f.href ? {
-                            href: `#${f.href}`,
-                            onClick: (e) => { e.preventDefault(); window.location.hash = f.href; },
+                            role: 'link',
+                            tabIndex: 0,
                             style: { cursor: 'pointer' },
+                            onClick: () => { window.location.href = `/${f.href}`; },
+                            onKeyDown: (e) => { if (e.key === 'Enter') window.location.href = `/${f.href}`; },
                         } : {};
                         return (
                             <Tag key={i} className="fib2-feat fib-item" {...linkProps}>

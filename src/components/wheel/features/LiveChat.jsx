@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLORS, API_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { MessageCircle, Send, X, Minimize2, Maximize2, Trash2, Users, ChevronDown, Reply, AtSign, Move, RotateCcw } from 'lucide-react';
 
 // ============================================

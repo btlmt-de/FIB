@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { COLORS, API_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { UserProfile } from '../features/UserProfile.jsx';

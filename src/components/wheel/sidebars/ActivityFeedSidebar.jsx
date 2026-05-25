@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { Activity, Sparkles, Crown, Radio } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../../utils/rarityHelpers.jsx';

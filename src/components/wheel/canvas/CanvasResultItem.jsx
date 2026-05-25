@@ -5,7 +5,8 @@
 // Matches the glow style from CanvasSpinningStrip
 
 import React, { useEffect, useRef, useState } from 'react';
-import { COLORS, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { getItemImageUrl, isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 
 // ============================================

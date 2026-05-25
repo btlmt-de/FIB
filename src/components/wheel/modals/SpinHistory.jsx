@@ -1,5 +1,6 @@
 import React from 'react';
-import { COLORS, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import { formatTimeAgo, getItemImageUrl } from '../../../utils/helpers.js';
 import { getRarityColor, getRarityBadge } from '../../../utils/rarityHelpers.jsx';
 import { X, ScrollText } from 'lucide-react';

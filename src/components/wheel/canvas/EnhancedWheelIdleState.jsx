@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Sparkles, Info, Zap, Crown, Star, Diamond } from 'lucide-react';
-import { COLORS, WHEEL_TEXTURE_URL } from '../../../config/constants.js';
+import { WHEEL_TEXTURE_URL } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 
 // ============================================
 // ORBITAL RING COMPONENT

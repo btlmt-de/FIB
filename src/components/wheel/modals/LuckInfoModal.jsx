@@ -3,7 +3,7 @@
 // ============================================
 
 import React from 'react';
-import { COLORS } from '../../../config/constants.js';
+import { COLORS } from '../config/constants';
 import {
     X, TrendingUp, Target, Calculator, Award, Info,
     Crown, Sparkles, Star, Diamond, Shuffle
