@@ -1,12 +1,5 @@
 import React from 'react';
-import Swords       from 'lucide-react/dist/esm/icons/swords';
-import Zap          from 'lucide-react/dist/esm/icons/zap';
-import Trophy       from 'lucide-react/dist/esm/icons/trophy';
-import SkipForward  from 'lucide-react/dist/esm/icons/skip-forward';
-import ScanSearch   from 'lucide-react/dist/esm/icons/scan-search';
-import Split        from 'lucide-react/dist/esm/icons/split';
-import Brain        from 'lucide-react/dist/esm/icons/brain';
-import Link         from 'lucide-react/dist/esm/icons/link';
+import { Swords, Zap, Trophy, SkipForward, ScanSearch, Split, Brain, Link } from 'lucide-react';
 import Footer from "../components/common/Footer.jsx";
 
 /* ─────────────────────────────────────
@@ -26,8 +19,6 @@ const Sprite = ({ item, size = 20, dim = false }) => (
 );
 
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
-
   .gp {
     font-family: 'Barlow', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -587,6 +578,12 @@ const BASICS = [
     { icon: SkipForward, color: 'oklch(64% 0.20 142)', title: 'Or use a joker',       desc: 'Stuck on something costly? Spend a joker to skip. You get a limited supply — use them wisely.' },
 ];
 
+/** Returns an oklch color string with the given alpha channel inserted. */
+function getOklchVariant(color, alpha) {
+    // color is e.g. 'oklch(62% 0.22 25)' — insert '/ alpha' before the closing paren
+    return color.replace(')', ` / ${alpha})`);
+}
+
 const MODES = [
     {
         icon: Swords, color: 'oklch(62% 0.22 25)', badge: 'Classic',
@@ -647,9 +644,9 @@ const TIPS = [
         title: 'Master Time Management & Preparation',
         desc: 'There is no single meta strategy, but the strongest players focus on a few fundamentals:',
         bullets: [
-            <><strong style={{ color: 'oklch(80% 0.009 255)', fontWeight: 600 }}>Time management:</strong> decide quickly whether it's worth pursuing an item or skipping it.</>,
-            <><strong style={{ color: 'oklch(80% 0.009 255)', fontWeight: 600 }}>Smart base placement:</strong> build a compact, well-organised base near diverse biomes or cave systems.</>,
-            <><strong style={{ color: 'oklch(80% 0.009 255)', fontWeight: 600 }}>Sorting systems:</strong> keep your inventory and backpack neatly arranged to reduce confusion mid-round.</>,
+            { title: 'Time management',    body: "decide quickly whether it's worth pursuing an item or skipping it." },
+            { title: 'Smart base placement', body: 'build a compact, well-organised base near diverse biomes or cave systems.' },
+            { title: 'Sorting systems',    body: 'keep your inventory and backpack neatly arranged to reduce confusion mid-round.' },
         ],
         note: 'A good setup often matters more than luck. Players who stay organised and adapt fast consistently outperform those wandering around aimlessly.',
     },
@@ -832,9 +829,16 @@ function PoolsSection() {
     const [error, setError]   = React.useState(false);
 
     React.useEffect(() => {
-        fetch(FIB_JAVA_URL)
-            .then(r => { if (!r.ok) throw new Error(); return r.text(); })
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+
+        fetch(FIB_JAVA_URL, { signal: controller.signal })
+            .then(r => {
+                if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
+                return r.text();
+            })
             .then(text => {
+                clearTimeout(timer);
                 const all = parseJavaPool(text);
                 const grouped = { EARLY: [], MID: [], LATE: [] };
                 all.forEach(item => { if (grouped[item.state]) grouped[item.state].push(item); });
@@ -847,7 +851,12 @@ function PoolsSection() {
                 setCounts(cnt);
                 setTiers(preview);
             })
-            .catch(() => setError(true));
+            .catch(err => {
+                clearTimeout(timer);
+                if (err.name !== 'AbortError') setError(true);
+            });
+
+        return () => { clearTimeout(timer); controller.abort(); };
     }, []);
 
     return (
@@ -933,8 +942,8 @@ export default function Gameplay() {
     const [activeMode, setActiveMode] = React.useState(0);
     const mode = MODES[activeMode];
     const mc   = mode.color;
-    const mcBg = mc.replace(')', ' / 0.10)');
-    const mcBd = mc.replace(')', ' / 0.25)');
+    const mcBg = getOklchVariant(mc, 0.10);
+    const mcBd = getOklchVariant(mc, 0.25);
 
     return (
         <div className="gp">
@@ -1017,8 +1026,8 @@ export default function Gameplay() {
                                 {MODES.map((m, i) => {
                                     const isActive = activeMode === i;
                                     const mmc    = m.color;
-                                    const mmcBg  = mmc.replace(')', ' / 0.10)');
-                                    const mmcBd  = mmc.replace(')', ' / 0.25)');
+                                    const mmcBg  = getOklchVariant(mmc, 0.10);
+                                    const mmcBd  = getOklchVariant(mmc, 0.25);
                                     return (
                                         <button
                                             key={i}
@@ -1089,7 +1098,11 @@ export default function Gameplay() {
                                         {t.bullets && (
                                             <ul className="gp-tip-bullets">
                                                 {t.bullets.map((b, bi) => (
-                                                    <li key={bi} className="gp-tip-bullet">{b}</li>
+                                                    <li key={bi} className="gp-tip-bullet">
+                                                        {typeof b === 'string' ? b : (
+                                                            <><strong style={{ color: 'oklch(80% 0.009 255)', fontWeight: 600 }}>{b.title}:</strong> {b.body}</>
+                                                        )}
+                                                    </li>
                                                 ))}
                                             </ul>
                                         )}

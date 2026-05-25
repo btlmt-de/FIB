@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import Footer from "../components/common/Footer.jsx";
 import Swords from 'lucide-react/dist/esm/icons/swords';
 import Zap from 'lucide-react/dist/esm/icons/zap';
@@ -45,7 +45,7 @@ const FEATURES = [
     {
         icon: Layers,
         title: 'Dynamic Item Pools',
-        description: 'Carefully tiered categories from Easy to Extreme, tuned so every match starts somewhat balanced.',
+        description: 'Carefully tiered categories from Easy to Extreme, tuned so every match stays fair regardless of skill level.',
         href: 'pools',
     },
     {
@@ -68,13 +68,13 @@ const FEATURES = [
     {
         icon: Mountain,
         title: 'Custom End Generation',
-        description: 'A purpose-built End dimension for faster travel and sparser terrain, designed for the pace of competitive play.',
+        description: 'A purpose-built End dimension with faster traversal and sparser terrain, designed for the pace of competitive play.',
         href: 'structures',
     },
     {
         icon: ScanLine,
         title: 'Auto Item Detection',
-        description: 'Already carrying the item? It registers automatically — inventory, bundle, or backpack.',
+        description: 'Already carrying the item? It registers automatically — inventory, bundle, or backpack. No fumbling required.',
     },
 ];
 

@@ -7,7 +7,7 @@ import Trophy       from 'lucide-react/dist/esm/icons/trophy';
 import ChevronDown  from 'lucide-react/dist/esm/icons/chevron-down';
 import ArrowLeftRight from 'lucide-react/dist/esm/icons/arrow-left-right';
 
-import { MOCK_PLAYERS, MOCK_TEAMS, PLAYERS_BY_NAME, formatNumber } from './statsUtils.js';
+import { MOCK_PLAYERS, MOCK_TEAMS, PLAYERS_BY_NAME } from './statsUtils.js';
 
 import { COLORS as C } from '../../config/constants';
 
@@ -43,7 +43,8 @@ export function EntitySelector({ selectedEntity, onSelect, compareMode, onToggle
     useEffect(() => {
         if (selectingFor) {
             setOpen(true);
-            setTimeout(() => inputRef.current?.focus(), 50);
+            const timer = setTimeout(() => inputRef.current?.focus(), 50);
+            return () => clearTimeout(timer);
         }
     }, [selectingFor]);
 
@@ -106,7 +107,14 @@ export function EntitySelector({ selectedEntity, onSelect, compareMode, onToggle
                             {results.length === 0 ? (
                                 <div className="st-dropdown-empty">No results</div>
                             ) : results.map(entity => (
-                                <div key={entity.id} className="st-dropdown-item" onClick={() => handleSelect(entity)}>
+                                <div
+                                    key={entity.id}
+                                    className="st-dropdown-item"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => handleSelect(entity)}
+                                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(entity); } }}
+                                >
                                     {entity.type === 'player' ? (
                                         <>
                                             <img src={entity.avatarUrl} alt={entity.name} className="st-dropdown-avatar" />

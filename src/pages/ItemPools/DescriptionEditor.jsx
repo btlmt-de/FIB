@@ -1331,7 +1331,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                             )}
                         </div>
                     </div>
-                    <button className="ed-btn ed-btn-icon" onClick={onClose} style={{ border: 'none', color: C.dim }}>
+                    <button className="ed-btn ed-btn-icon" aria-label="Close" onClick={onClose} style={{ border: 'none', color: C.dim }}>
                         <X size={18} />
                     </button>
                 </div>
@@ -1613,7 +1613,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                         <option key={branch} value={branch}>{branch}</option>
                                     ))}
                                 </select>
-                                <button className="ed-btn ed-btn-icon" onClick={handleRefreshBranches} title="Refresh branches">
+                                <button className="ed-btn ed-btn-icon" aria-label="Refresh branches" onClick={handleRefreshBranches} title="Refresh branches">
                                     <RefreshCw size={13} />
                                 </button>
                                 {selectedBranch === DEFAULT_BRANCH && (

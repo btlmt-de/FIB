@@ -22,6 +22,7 @@ import DescriptionEditor from './DescriptionEditor.jsx';
 import GitHistory from './GitHistory.jsx';
 import ItemPoolManager from './ItemPoolManager.jsx';
 import StatisticsDashboard from './StatisticsDashboard.jsx';
+import { IMAGE_BASE_URL } from '../../config/constants';
 import {
     COLORS,
     ToastProvider,
@@ -41,7 +42,6 @@ import Footer from "../../components/common/Footer.jsx";
 
 const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 const BRANCHES_URL = 'https://api.github.com/repos/btlmt-de/FIB/branches';
 const MISODE_ITEMS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/refs/heads/registries/item/data.json';
 const CACHE_KEY = 'forceitem_pools_cache_v4';
@@ -633,9 +633,9 @@ function FilterButton({ active, onClick, children, color, title }) {
             onClick={onClick}
             title={title}
             style={{
-                background: active ? (color || 'oklch(76% 0.16 68)') + '18' : 'oklch(13% 0.025 255)',
+                background: active ? `oklch(from ${color || 'oklch(76% 0.16 68)'} l c h / 0.09)` : 'oklch(13% 0.025 255)',
                 color: active ? (color || 'oklch(76% 0.16 68)') : 'oklch(50% 0.013 255)',
-                border: `1px solid ${active ? (color || 'oklch(76% 0.16 68)') + '55' : 'oklch(24% 0.022 255)'}`,
+                border: `1px solid ${active ? `oklch(from ${color || 'oklch(76% 0.16 68)'} l c h / 0.33)` : 'oklch(24% 0.022 255)'}`,
                 padding: '5px 10px', borderRadius: '5px', cursor: 'pointer',
                 fontSize: '11.5px', fontWeight: '600', textTransform: 'uppercase',
                 letterSpacing: '0.5px', whiteSpace: 'nowrap',

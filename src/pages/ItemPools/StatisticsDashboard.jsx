@@ -3,8 +3,6 @@ import X from 'lucide-react/dist/esm/icons/x';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import { useToast } from '../../components/common/UIComponents.jsx';
-
 import { COLORS as C } from '../../config/constants';
 
 const SD_CSS = `
@@ -1012,7 +1010,6 @@ function StatisticsDashboard({ items, missingItems, onClose }) {
 
 
     const stateColors = { EARLY: C.early, MID: C.mid, LATE: C.late };
-    const tagColors   = { NETHER: C.nether, END: C.end, EXTREME: C.extreme };
 
     return (
         <div className="sd sd-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>

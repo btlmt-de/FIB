@@ -13,9 +13,7 @@ import X            from 'lucide-react/dist/esm/icons/x';
 import Menu         from 'lucide-react/dist/esm/icons/menu';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
 import unicodeItems from '../../../unicodeItems.json';
-import { COLORS as C } from '../../config/constants';
-
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+import { COLORS as C, IMAGE_BASE_URL } from '../../config/constants';
 
 const mainItems = unicodeItems
     .filter(i => !i.material.endsWith('_tabChat'))

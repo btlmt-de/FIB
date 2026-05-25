@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 // Direct imports for bundle optimization (react-best-practices rule 2.1)
 import X from 'lucide-react/dist/esm/icons/x';
 import Plus from 'lucide-react/dist/esm/icons/plus';
@@ -538,7 +539,7 @@ function StateDropdown({ value, onChange, disabled }) {
                 {value}
                 {!disabled && <ChevronDown size={9} />}
             </button>
-            {open && (
+            {open && createPortal(
                 <div className="ipm-state-popup" style={{ top: position.top, left: position.left }}>
                     {STATES.map(state => {
                         const sc = stateCol[state] || C.muted;
@@ -553,7 +554,8 @@ function StateDropdown({ value, onChange, disabled }) {
                             </button>
                         );
                     })}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
@@ -1051,7 +1053,7 @@ export default function ItemPoolManager({ onClose, items = [], missingItems = []
                                             className={`ipm-row-img${isRemove ? ' dim' : ''}`}
                                             src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
                                             alt=""
-                                            onError={e => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                            onError={e => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
                                         />
                                         <span className={`ipm-row-name${isRemove ? ' struck' : ''}`}>
                                             {item.displayName}
@@ -1147,7 +1149,7 @@ export default function ItemPoolManager({ onClose, items = [], missingItems = []
                                             <img
                                                 src={`${IMAGE_BASE_URL}/${change.material.toLowerCase()}.png`}
                                                 alt="" style={{ width: 18, height: 18, imageRendering: 'pixelated', flexShrink: 0 }}
-                                                onError={e => { e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
+                                                onError={e => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
                                             />
                                             <span className="ipm-change-name">{change.displayName || change.material}</span>
                                             {change.type !== 'remove' && (

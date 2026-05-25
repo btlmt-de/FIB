@@ -497,6 +497,7 @@ const CSS = `
   .htp-jump-dot {
     width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
   }
+  @media (max-width: 760px) {
     .htp-shell { padding: 0 20px; }
     .htp-header { padding: 60px 0 52px; }
     .htp-primary   { padding: 56px 0 64px; }
@@ -551,10 +552,11 @@ export default function HowToPlay() {
                                     : 'oklch(76% 0.16 68)';
                                 return (
                                     <li key={d.num}>
-                                        <a
-                                            href={d.href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                        <div
+                                            role="link"
+                                            tabIndex={0}
+                                            onClick={() => window.open(d.href, '_blank')}
+                                            onKeyDown={e => { if (e.key === 'Enter') window.open(d.href, '_blank'); }}
                                             className={`htp-dl-item${d.required ? ' required' : ''}`}
                                         >
                                             <span className="htp-dl-num">{d.num}</span>
@@ -580,7 +582,7 @@ export default function HowToPlay() {
                                                 {d.tag}
                                             </span>
                                             <ExternalLink size={13} className="htp-dl-ext" />
-                                        </a>
+                                        </div>
                                     </li>
                                 );
                             })}

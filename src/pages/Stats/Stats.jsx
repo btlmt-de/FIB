@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import BarChart3    from 'lucide-react/dist/esm/icons/bar-chart-3';
 import Crown        from 'lucide-react/dist/esm/icons/crown';
 import History      from 'lucide-react/dist/esm/icons/history';
@@ -425,33 +425,26 @@ const TAB_CONFIG = [
 export default function Stats() {
     const [activeTab,       setActiveTab]       = useState('overview');
     const [selectedEntity,  setSelectedEntity]  = useState(null);
-    const [selectedStats,   setSelectedStats]   = useState(null);
     const [compareMode,     setCompareMode]     = useState(false);
     const [compareEntity1,  setCompareEntity1]  = useState(null);
-    const [compareStats1,   setCompareStats1]   = useState(null);
     const [compareEntity2,  setCompareEntity2]  = useState(null);
-    const [compareStats2,   setCompareStats2]   = useState(null);
     const [selectingFor,    setSelectingFor]    = useState(null);
 
     const tabs = useMemo(() => TAB_CONFIG.map(t => ({
         id: t.id, label: t.label, icon: <t.Icon size={15} />,
     })), []);
 
-    useEffect(() => {
-        if (selectedEntity) {
-            setSelectedStats(generateMockStats(selectedEntity.id, selectedEntity.type === 'team'));
-        } else setSelectedStats(null);
-    }, [selectedEntity]);
+    const selectedStats  = useMemo(() =>
+            selectedEntity  ? generateMockStats(selectedEntity.id,  selectedEntity.type  === 'team') : null,
+        [selectedEntity]);
 
-    useEffect(() => {
-        if (compareEntity1) setCompareStats1(generateMockStats(compareEntity1.id, compareEntity1.type === 'team'));
-        else setCompareStats1(null);
-    }, [compareEntity1]);
+    const compareStats1  = useMemo(() =>
+            compareEntity1  ? generateMockStats(compareEntity1.id,  compareEntity1.type  === 'team') : null,
+        [compareEntity1]);
 
-    useEffect(() => {
-        if (compareEntity2) setCompareStats2(generateMockStats(compareEntity2.id, compareEntity2.type === 'team'));
-        else setCompareStats2(null);
-    }, [compareEntity2]);
+    const compareStats2  = useMemo(() =>
+            compareEntity2  ? generateMockStats(compareEntity2.id,  compareEntity2.type  === 'team') : null,
+        [compareEntity2]);
 
     const handleEntitySelect = useCallback((entity) => {
         if (compareMode && selectingFor) {

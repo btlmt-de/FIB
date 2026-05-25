@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Footer from "../components/common/Footer.jsx";
+import { COLORS } from '../config/constants';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-
-import { COLORS } from '../config/constants';
 
 // Map COLORS to the local names used throughout this file
 const COL = {

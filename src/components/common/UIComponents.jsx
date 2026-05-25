@@ -40,17 +40,10 @@ const C = {
     desc:     'oklch(68% 0.12 200)',
 };
 
-// Compatibility alias — consumed by components not yet redesigned
-export const COLORS = {
-    early: C.early, mid: C.mid, late: C.late,
-    nether: C.nether, end: C.end, extreme: C.extreme, description: C.desc,
-    bg: C.bg, bgLight: C.surface, bgLighter: C.raised, bgHover: C.surfHov,
-    text: C.text, textMuted: C.muted, textDim: C.dim,
-    border: C.border, borderLight: C.surfHov,
-    accent: C.amber, accentHover: C.amber,
-    success: C.green, error: C.red, warning: C.warn, info: C.cyan,
-    muted: C.muted,
-};
+// Compatibility alias — re-exported from the canonical tokens module so that
+// components importing COLORS from UIComponents continue to work.
+import { COLORS } from '../../config/constants';
+export { COLORS };
 
 // ============================================================================
 // TOAST NOTIFICATION SYSTEM
@@ -159,6 +152,7 @@ function ToastContainer({ toasts, onRemove }) {
                         </span>
                         <button
                             onClick={() => onRemove(toast.id)}
+                            aria-label="Close notification"
                             style={{
                                 background: 'none', border: 'none',
                                 color: C.dim, cursor: 'pointer',
@@ -329,7 +323,7 @@ export function ViewModeToggle({ value, onChange, options }) {
             {options.map(option => (
                 <button
                     key={option.value}
-                    ref={el => buttonRefs.current[option.value] = el}
+                    ref={el => { buttonRefs.current[option.value] = el; }}
                     onClick={() => onChange(option.value)}
                     style={{
                         padding: '0 14px',
@@ -655,6 +649,7 @@ export function SearchInput({
             {localValue ? (
                 <button
                     onClick={handleClear}
+                    aria-label="Clear search"
                     style={{
                         position: 'absolute', right: 8, top: '50%',
                         transform: 'translateY(-50%)',

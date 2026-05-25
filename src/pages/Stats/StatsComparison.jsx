@@ -17,9 +17,19 @@ import { PLAYERS_BY_NAME, formatNumber, formatDistance, formatTime } from './sta
 
 import { COLORS as C } from '../../config/constants';
 
+/** Convert formatted display values like "1.2K", "3.4M", "500 blocks" to a number for comparison. */
+function parseDisplayValue(val) {
+    const s = String(val).trim();
+    const lower = s.toLowerCase();
+    if (lower.endsWith('b') || lower.includes('block')) return parseFloat(s) * 1e9;
+    if (lower.endsWith('m')) return parseFloat(s) * 1e6;
+    if (lower.endsWith('k')) return parseFloat(s) * 1e3;
+    return parseFloat(s.replace(/[^0-9.]/g, '')) || 0;
+}
+
 function CompRow({ label, value1, value2, icon, higherIsBetter = true }) {
-    const n1 = parseFloat(String(value1).replace(/[^0-9.]/g, '')) || 0;
-    const n2 = parseFloat(String(value2).replace(/[^0-9.]/g, '')) || 0;
+    const n1 = parseDisplayValue(value1);
+    const n2 = parseDisplayValue(value2);
     let winner = 'none';
     if (n1 > n2) winner = higherIsBetter ? 'left'  : 'right';
     if (n2 > n1) winner = higherIsBetter ? 'right' : 'left';
