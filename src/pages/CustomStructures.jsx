@@ -1,1249 +1,820 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Footer from "../components/common/Footer.jsx";
+import { COLORS } from '../config/constants';
 
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2',
-    gold: '#FFAA00',
-    aqua: '#55FFFF',
-    green: '#55FF55',
-    purple: '#AA00AA',
-    red: '#AA0000',
-    orange: '#FF8800'
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+
+// Map COLORS to the local names used throughout this file
+const COL = {
+    amber:  COLORS.accent,
+    green:  COLORS.green,
+    cyan:   COLORS.cyan,
+    purple: COLORS.purple,
+    red:    COLORS.red,
+    orange: COLORS.orange,
+    rare:   COLORS.accent,
 };
 
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+// ── Data ──────────────────────────────────────────────────────────────────────
 
-// Loot table data with item texture names
 const LOOT_TABLES = {
     honey: {
         name: 'Nature Room',
-        color: COLORS.gold,
+        color: COL.amber,
         description: 'A sanctuary filled with floral treasures',
         pools: [
             {
-                rolls: '3-7 rolls',
+                rolls: '3–7 rolls',
                 items: [
-                    { name: 'Pitcher Plant', texture: 'pitcher_plant', chance: '3.23%' },
-                    { name: 'Lilac', texture: 'lilac', chance: '16.13%' },
-                    { name: 'Peony', texture: 'peony', chance: '16.13%' },
-                    { name: 'Sunflower', texture: 'sunflower', chance: '16.13%' },
-                    { name: 'Feather', texture: 'feather', chance: '16.13%' },
-                    { name: 'Oxeye Daisy', texture: 'oxeye_daisy', chance: '16.13%' },
-                    { name: 'Apple', texture: 'apple', chance: '16.13%' }
-                ]
+                    { name: 'Pitcher Plant',  texture: 'pitcher_plant',  chance: '3.23%' },
+                    { name: 'Lilac',          texture: 'lilac',          chance: '16.13%' },
+                    { name: 'Peony',          texture: 'peony',          chance: '16.13%' },
+                    { name: 'Sunflower',      texture: 'sunflower',      chance: '16.13%' },
+                    { name: 'Feather',        texture: 'feather',        chance: '16.13%' },
+                    { name: 'Oxeye Daisy',   texture: 'oxeye_daisy',    chance: '16.13%' },
+                    { name: 'Apple',          texture: 'apple',          chance: '16.13%' },
+                ],
             },
             {
                 rolls: '1 roll (bonus)',
                 items: [
-                    { name: 'Honey Bottle', texture: 'honey_bottle', chance: '2.33%' },
+                    { name: 'Honey Bottle',    texture: 'honey_bottle',    chance: '2.33%' },
                     { name: 'Honeycomb Block', texture: 'honeycomb_block', chance: '2.33%' },
-                    { name: 'Grass Block', texture: 'grass_block', chance: '2.33%' }
-                ]
-            }
-        ]
+                    { name: 'Grass Block',     texture: 'grass_block',     chance: '2.33%' },
+                ],
+            },
+        ],
     },
     legendary: {
         name: 'Storage',
-        color: COLORS.purple,
+        color: COL.purple,
         description: 'The ultimate treasure trove with rare templates',
         pools: [
             {
-                rolls: '5-10 rolls',
+                rolls: '5–10 rolls',
                 items: [
-                    { name: 'Wheat', texture: 'wheat', chance: '10.50%' },
-                    { name: 'Bone Meal', texture: 'bone_meal', chance: '10.50%' },
-                    { name: 'Brick', texture: 'brick', chance: '10.50%' },
-                    { name: 'Glow Berries', texture: 'glow_berries', chance: '10.50%' },
-                    { name: 'Clay Ball', texture: 'clay_ball', chance: '10.50%' },
-                    { name: 'Copper Ingot', texture: 'copper_ingot', chance: '10.50%' },
-                    { name: 'Leather Boots', texture: 'leather_boots', chance: '10.50%', note: 'Lv30 Enchanted' },
-                    { name: 'Egg', texture: 'egg', chance: '10.00%' },
-                    { name: 'Rabbit Hide', texture: 'rabbit_hide', chance: '4.50%' },
-                    { name: 'Slime Ball', texture: 'slime_ball', chance: '4.50%' },
-                    { name: 'Gold Ingot', texture: 'gold_ingot', chance: '3.00%' },
-                    { name: 'Totem of Undying', texture: 'totem_of_undying', chance: '1.00%' },
-                    { name: 'Rabbit Foot', texture: 'rabbit_foot', chance: '1.00%' },
-                    { name: 'Wild Armor Trim', texture: 'wild_armor_trim_smithing_template', chance: '0.50%', legendary: true },
-                    { name: 'Dune Armor Trim', texture: 'dune_armor_trim_smithing_template', chance: '0.50%', legendary: true },
-                    { name: 'Sentry Armor Trim', texture: 'sentry_armor_trim_smithing_template', chance: '0.50%', legendary: true },
-                    { name: 'Netherite Upgrade', texture: 'netherite_upgrade_smithing_template', chance: '0.50%', legendary: true },
-                    { name: 'Snout Armor Trim', texture: 'snout_armor_trim_smithing_template', chance: '0.50%', legendary: true }
-                ]
-            }
-        ]
+                    { name: 'Wheat',            texture: 'wheat',            chance: '10.50%' },
+                    { name: 'Bone Meal',         texture: 'bone_meal',        chance: '10.50%' },
+                    { name: 'Brick',             texture: 'brick',            chance: '10.50%' },
+                    { name: 'Glow Berries',      texture: 'glow_berries',     chance: '10.50%' },
+                    { name: 'Clay Ball',         texture: 'clay_ball',        chance: '10.50%' },
+                    { name: 'Copper Ingot',      texture: 'copper_ingot',     chance: '10.50%' },
+                    { name: 'Leather Boots',     texture: 'leather_boots',    chance: '10.50%', note: 'Lv30 Enchanted' },
+                    { name: 'Egg',               texture: 'egg',              chance: '10.00%' },
+                    { name: 'Rabbit Hide',       texture: 'rabbit_hide',      chance: '4.50%' },
+                    { name: 'Slime Ball',        texture: 'slime_ball',       chance: '4.50%' },
+                    { name: 'Gold Ingot',        texture: 'gold_ingot',       chance: '3.00%' },
+                    { name: 'Totem of Undying',  texture: 'totem_of_undying', chance: '1.00%' },
+                    { name: 'Rabbit Foot',       texture: 'rabbit_foot',      chance: '1.00%' },
+                    { name: 'Wild Armor Trim',   texture: 'wild_armor_trim_smithing_template',    chance: '0.50%', legendary: true },
+                    { name: 'Dune Armor Trim',   texture: 'dune_armor_trim_smithing_template',    chance: '0.50%', legendary: true },
+                    { name: 'Sentry Armor Trim', texture: 'sentry_armor_trim_smithing_template',  chance: '0.50%', legendary: true },
+                    { name: 'Netherite Upgrade', texture: 'netherite_upgrade_smithing_template',  chance: '0.50%', legendary: true },
+                    { name: 'Snout Armor Trim',  texture: 'snout_armor_trim_smithing_template',   chance: '0.50%', legendary: true },
+                ],
+            },
+        ],
     },
     parkour: {
         name: 'Lava Parkour',
-        color: COLORS.aqua,
-        description: 'Complete the challenge for a 10% shot at music',
+        color: COL.cyan,
+        description: 'Complete the challenge for a 10% shot at a music disc',
         pools: [
             {
                 rolls: '1 roll',
-                note: '10% total chance for any music disc',
+                note: '10% total chance for any disc',
                 items: [
-                    { name: 'Music Disc (Pigstep)', texture: 'music_disc_pigstep', chance: '1.67%', legendary: true },
+                    { name: 'Music Disc (Pigstep)',   texture: 'music_disc_pigstep',   chance: '1.67%', legendary: true },
                     { name: 'Music Disc (Otherside)', texture: 'music_disc_otherside', chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Relic)', texture: 'music_disc_relic', chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (13)', texture: 'music_disc_13', chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Cat)', texture: 'music_disc_cat', chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Tears)', texture: 'music_disc_wait', chance: '1.67%', legendary: true }
-                ]
-            }
-        ]
+                    { name: 'Music Disc (Relic)',     texture: 'music_disc_relic',     chance: '1.67%', legendary: true },
+                    { name: 'Music Disc (13)',         texture: 'music_disc_13',        chance: '1.67%', legendary: true },
+                    { name: 'Music Disc (Cat)',        texture: 'music_disc_cat',       chance: '1.67%', legendary: true },
+                    { name: 'Music Disc (Tears)',      texture: 'music_disc_wait',      chance: '1.67%', legendary: true },
+                ],
+            },
+        ],
     },
     treasure: {
         name: 'Treasure Room',
-        color: COLORS.green,
+        color: COL.green,
         description: 'A bounty of resources and rare saplings',
         pools: [
             {
-                rolls: '5-10 rolls',
+                rolls: '5–10 rolls',
                 items: [
-                    { name: 'Iron Ingot', texture: 'iron_ingot', chance: '9.48%', note: '2-3' },
-                    { name: 'Cocoa Beans', texture: 'cocoa_beans', chance: '9.48%', note: '1-3' },
-                    { name: 'Leather', texture: 'leather', chance: '9.48%', note: '1-2' },
-                    { name: 'String', texture: 'string', chance: '9.48%' },
-                    { name: 'Dirt', texture: 'dirt', chance: '9.48%', note: '8-16' },
-                    { name: 'Cobbled Deepslate', texture: 'cobbled_deepslate', chance: '9.48%', note: '4-8' },
-                    { name: 'Coal', texture: 'coal', chance: '9.48%', note: '3-7' },
-                    { name: 'Leather Helmet', texture: 'leather_helmet', chance: '8.02%', note: 'Lv30 Ench' },
-                    { name: 'Ender Pearl', texture: 'ender_pearl', chance: '6.46%' },
-                    { name: 'Diamond', texture: 'diamond', chance: '4.79%' },
-                    { name: 'Golden Apple', texture: 'golden_apple', chance: '4.69%', note: '"Gros Michel"' },
-                    { name: 'Enchanted Book', texture: 'enchanted_book', chance: '3.23%' },
-                    { name: 'Pale Oak Sapling', texture: 'pale_oak_sapling', chance: '1.25%' },
-                    { name: 'Acacia Sapling', texture: 'acacia_sapling', chance: '1.25%' },
-                    { name: 'Jungle Sapling', texture: 'jungle_sapling', chance: '1.25%' },
-                    { name: 'Cherry Sapling', texture: 'cherry_sapling', chance: '1.25%' },
-                    { name: 'Mangrove Propagule', texture: 'mangrove_propagule', chance: '1.25%' },
-                    { name: 'Anvil', texture: 'anvil', chance: '0.10%', legendary: true, note: '"SILK TOUCH BABY"' },
-                    { name: 'Ench. Golden Apple', texture: 'enchanted_golden_apple', chance: '0.10%', legendary: true, note: '"Cavendish"' }
-                ]
-            }
-        ]
-    }
+                    { name: 'Iron Ingot',          texture: 'iron_ingot',          chance: '9.48%',  note: '2–3' },
+                    { name: 'Cocoa Beans',         texture: 'cocoa_beans',         chance: '9.48%',  note: '1–3' },
+                    { name: 'Leather',             texture: 'leather',             chance: '9.48%',  note: '1–2' },
+                    { name: 'String',              texture: 'string',              chance: '9.48%' },
+                    { name: 'Dirt',                texture: 'dirt',                chance: '9.48%',  note: '8–16' },
+                    { name: 'Cobbled Deepslate',   texture: 'cobbled_deepslate',   chance: '9.48%',  note: '4–8' },
+                    { name: 'Coal',                texture: 'coal',                chance: '9.48%',  note: '3–7' },
+                    { name: 'Leather Helmet',      texture: 'leather_helmet',      chance: '8.02%',  note: 'Lv30 Ench' },
+                    { name: 'Ender Pearl',         texture: 'ender_pearl',         chance: '6.46%' },
+                    { name: 'Diamond',             texture: 'diamond',             chance: '4.79%' },
+                    { name: 'Golden Apple',        texture: 'golden_apple',        chance: '4.69%',  note: '"Gros Michel"' },
+                    { name: 'Enchanted Book',      texture: 'enchanted_book',      chance: '3.23%' },
+                    { name: 'Pale Oak Sapling',    texture: 'pale_oak_sapling',    chance: '1.25%' },
+                    { name: 'Acacia Sapling',      texture: 'acacia_sapling',      chance: '1.25%' },
+                    { name: 'Jungle Sapling',      texture: 'jungle_sapling',      chance: '1.25%' },
+                    { name: 'Cherry Sapling',      texture: 'cherry_sapling',      chance: '1.25%' },
+                    { name: 'Mangrove Propagule',  texture: 'mangrove_propagule',  chance: '1.25%' },
+                    { name: 'Anvil',               texture: 'anvil',               chance: '0.10%',  legendary: true, note: '"SILK TOUCH BABY"' },
+                    { name: 'Ench. Golden Apple',  texture: 'enchanted_golden_apple', chance: '0.10%', legendary: true, note: '"Cavendish"' },
+                ],
+            },
+        ],
+    },
 };
 
-// Recipe configurations
 const RECIPES = {
     antimatter: {
         normal: {
-            recipe: [
-                [null, 'nether_brick', null],
-                ['glowstone_dust', 'quartz', 'glowstone_dust'],
-                [null, 'nether_brick', null]
-            ],
-            result: 'knowledge_book',
-            name: 'Antimatter Locator'
+            recipe: [[null,'nether_brick',null],['glowstone_dust','quartz','glowstone_dust'],[null,'nether_brick',null]],
+            result: 'knowledge_book', name: 'Antimatter Locator',
         },
         hard: {
-            recipe: [
-                ['nether_brick', 'glowstone_dust', 'nether_brick'],
-                ['quartz', 'ender_eye', 'quartz'],
-                ['nether_brick', 'glowstone_dust', 'nether_brick']
-            ],
-            result: 'knowledge_book',
-            name: 'Antimatter Locator'
-        }
+            recipe: [['nether_brick','glowstone_dust','nether_brick'],['quartz','ender_eye','quartz'],['nether_brick','glowstone_dust','nether_brick']],
+            result: 'knowledge_book', name: 'Antimatter Locator',
+        },
     },
     trial: {
         normal: {
-            recipe: [
-                ['chiseled_copper', 'glass', 'chiseled_copper'],
-                ['glass', 'compass', 'glass'],
-                ['gold_ingot', 'gold_ingot', 'gold_ingot']
-            ],
-            result: 'wither_rose',
-            name: 'Trial Locator'
+            recipe: [['chiseled_copper','glass','chiseled_copper'],['glass','compass','glass'],['gold_ingot','gold_ingot','gold_ingot']],
+            result: 'wither_rose', name: 'Trial Locator',
         },
         hard: {
-            recipe: [
-                ['obsidian', 'copper_ingot', 'obsidian'],
-                ['gold_ingot', 'compass', 'iron_ingot'],
-                ['obsidian', 'diamond', 'obsidian']
-            ],
-            result: 'wither_rose',
-            name: 'Trial Locator'
-        }
-    }
+            recipe: [['obsidian','copper_ingot','obsidian'],['gold_ingot','compass','iron_ingot'],['obsidian','diamond','obsidian']],
+            result: 'wither_rose', name: 'Trial Locator',
+        },
+    },
 };
 
-function QuickLinks({ links }) {
-    const scrollTo = (id) => {
-        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
+const QUICK_LINKS = [
+    { id: 'antimatter-depths', label: 'Antimatter Depths',   color: COL.purple },
+    { id: 'trial-locator',     label: 'Trial Locator',        color: COL.amber  },
+    { id: 'loot-tables',       label: 'Loot Tables',          color: COL.green  },
+    { id: 'end-generation',    label: 'End Generation',       color: COL.purple },
+    { id: 'teleporter',        label: 'Teleporter',           color: COL.red    },
+    { id: 'wandering-trader',  label: 'Wandering Trader',     color: COL.cyan   },
+];
 
-    return (
-        <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px',
-            justifyContent: 'center',
-            marginTop: '36px'
-        }}>
-            {links.map(link => (
-                <button
-                    key={link.id}
-                    onClick={() => scrollTo(link.id)}
-                    style={{
-                        background: `${link.color}11`,
-                        border: `1.5px solid ${link.color}44`,
-                        borderRadius: '22px',
-                        padding: '8px 16px',
-                        color: COLORS.text,
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        letterSpacing: '0.3px'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = link.color;
-                        e.currentTarget.style.background = `${link.color}22`;
-                        e.currentTarget.style.boxShadow = `0 4px 16px ${link.color}33, inset 0 1px 0 ${link.color}22`;
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = `${link.color}44`;
-                        e.currentTarget.style.background = `${link.color}11`;
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                >
-                    <span style={{
-                        width: '7px',
-                        height: '7px',
-                        borderRadius: '50%',
-                        background: link.color,
-                        boxShadow: `0 0 8px ${link.color}`
-                    }} />
-                    {link.label}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-function RecipeToggle({ isHard, onToggle }) {
-    return (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            marginBottom: '28px',
-            padding: '14px 18px',
-            background: COLORS.bgLighter,
-            borderRadius: '10px',
-            border: `1px solid ${COLORS.border}44`,
-            width: 'fit-content',
-            transition: 'all 0.3s ease'
-        }}>
-            <span style={{
-                fontSize: '13px',
-                color: !isHard ? COLORS.text : COLORS.textMuted,
-                fontWeight: !isHard ? '600' : '400',
-                transition: 'all 0.3s ease',
-                letterSpacing: '0.2px'
-            }}>
-                Standard
-            </span>
-            <button
-                onClick={onToggle}
-                style={{
-                    width: '54px',
-                    height: '28px',
-                    borderRadius: '14px',
-                    border: 'none',
-                    background: isHard ? COLORS.orange : COLORS.border,
-                    cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'all 0.3s ease',
-                    boxShadow: `0 2px 8px ${isHard ? COLORS.orange : COLORS.border}44`
-                }}
-                onMouseEnter={e => {
-                    e.currentTarget.style.boxShadow = `0 4px 16px ${isHard ? COLORS.orange : COLORS.border}66`;
-                }}
-                onMouseLeave={e => {
-                    e.currentTarget.style.boxShadow = `0 2px 8px ${isHard ? COLORS.orange : COLORS.border}44`;
-                }}
-            >
-                <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '50%',
-                    background: COLORS.text,
-                    position: 'absolute',
-                    top: '3px',
-                    left: isHard ? '29px' : '3px',
-                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                    boxShadow: `0 2px 6px ${isHard ? COLORS.orange : COLORS.text}44`
-                }} />
-            </button>
-            <span style={{
-                fontSize: '13px',
-                color: isHard ? COLORS.orange : COLORS.textMuted,
-                fontWeight: isHard ? '600' : '400',
-                transition: 'all 0.3s ease',
-                letterSpacing: '0.2px'
-            }}>
-                Hard Mode
-            </span>
-        </div>
-    );
-}
-
-function CraftingGrid({ recipe, result, resultName, glowColor = COLORS.gold }) {
-    return (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '32px',
-            flexWrap: 'wrap'
-        }}>
-            {/* Crafting grid */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 58px)',
-                gap: '6px',
-                padding: '14px',
-                background: `linear-gradient(135deg, ${COLORS.bgLighter} 0%, ${COLORS.bgLight} 100%)`,
-                borderRadius: '10px',
-                border: `1px solid ${COLORS.border}44`,
-                boxShadow: `0 4px 16px ${glowColor}22, inset 0 1px 0 ${glowColor}11`
-            }}>
-                {recipe.flat().map((item, idx) => (
-                    <div
-                        key={idx}
-                        style={{
-                            width: '58px',
-                            height: '58px',
-                            background: COLORS.bgLight,
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                            cursor: item ? 'pointer' : 'default',
-                            border: `1px solid ${item ? glowColor + '33' : COLORS.border}44`,
-                            position: 'relative'
-                        }}
-                        onMouseEnter={e => {
-                            if (item) {
-                                e.currentTarget.style.transform = 'scale(1.12)';
-                                e.currentTarget.style.background = COLORS.bgLighter;
-                                e.currentTarget.style.boxShadow = `0 0 16px ${glowColor}44`;
-                                e.currentTarget.style.borderColor = glowColor;
-                            }
-                        }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.transform = 'scale(1)';
-                            e.currentTarget.style.background = COLORS.bgLight;
-                            e.currentTarget.style.boxShadow = 'none';
-                            e.currentTarget.style.borderColor = `${item ? glowColor + '33' : COLORS.border}44`;
-                        }}
-                    >
-                        {item && (
-                            <img
-                                src={`${IMAGE_BASE_URL}/${item}.png`}
-                                alt={item}
-                                title={item.replace(/_/g, ' ')}
-                                style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    imageRendering: 'pixelated'
-                                }}
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            {/* Arrow and result */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '18px'
-            }}>
-                <div style={{
-                    color: glowColor,
-                    fontSize: '32px',
-                    transition: 'all 0.3s ease',
-                    textShadow: `0 0 10px ${glowColor}44`
-                }}>→</div>
-
-                <div style={{
-                    width: '70px',
-                    height: '70px',
-                    background: `linear-gradient(135deg, ${COLORS.bgLighter} 0%, ${COLORS.bgLight} 100%)`,
-                    borderRadius: '10px',
-                    border: `2px solid ${glowColor}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: `0 0 24px ${glowColor}55, 0 0 48px ${glowColor}22, inset 0 1px 0 ${glowColor}22`,
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer'
-                }}
-                     onMouseEnter={e => {
-                         e.currentTarget.style.transform = 'scale(1.08)';
-                         e.currentTarget.style.boxShadow = `0 0 32px ${glowColor}77, 0 0 64px ${glowColor}33, inset 0 1px 0 ${glowColor}22`;
-                     }}
-                     onMouseLeave={e => {
-                         e.currentTarget.style.transform = 'scale(1)';
-                         e.currentTarget.style.boxShadow = `0 0 24px ${glowColor}55, 0 0 48px ${glowColor}22, inset 0 1px 0 ${glowColor}22`;
-                     }}>
-                    <img
-                        src={`${IMAGE_BASE_URL}/${result}.png`}
-                        alt={resultName}
-                        style={{
-                            width: '48px',
-                            height: '48px',
-                            imageRendering: 'pixelated'
-                        }}
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                </div>
-                <span style={{
-                    color: COLORS.text,
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    letterSpacing: '0.3px'
-                }}>
-                    {resultName}
-                </span>
-            </div>
-        </div>
-    );
-}
-
-function LootItem({ item }) {
-    const [hovered, setHovered] = useState(false);
-
-    // Determine rarity based on drop chance
-    const chanceNum = parseFloat(item.chance);
-    const isLegendary = item.legendary || chanceNum < 1;
-    const isRare = !isLegendary && chanceNum < 5;
-
-    return (
-        <div
-            style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-                width: '72px'
-            }}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-        >
-            <div style={{
-                width: '56px',
-                height: '56px',
-                background: COLORS.bgLight,
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: `2px solid ${isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.border}`,
-                transition: 'transform 0.15s, border-color 0.15s',
-                transform: hovered ? 'scale(1.1)' : 'scale(1)',
-                cursor: 'pointer',
-                boxShadow: isLegendary ? `0 0 12px ${COLORS.purple}44` : isRare ? `0 0 10px ${COLORS.gold}33` : 'none'
-            }}>
-                <img
-                    src={`${IMAGE_BASE_URL}/${item.texture}.png`}
-                    alt={item.name}
-                    style={{
-                        width: '40px',
-                        height: '40px',
-                        imageRendering: 'pixelated'
-                    }}
-                    onError={(e) => { e.target.style.opacity = '0.3'; }}
-                />
-            </div>
-
-            {/* Percentage always visible */}
-            <span style={{
-                fontSize: '11px',
-                fontFamily: "'Consolas', monospace",
-                color: isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.textMuted
-            }}>
-                {item.chance}
-            </span>
-
-            {/* Tooltip for name/notes */}
-            {hovered && (
-                <div style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    marginBottom: '8px',
-                    padding: '8px 12px',
-                    background: COLORS.bg,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '6px',
-                    whiteSpace: 'nowrap',
-                    zIndex: 100,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-                }}>
-                    <div style={{
-                        color: isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.text,
-                        fontSize: '13px',
-                        fontWeight: '600'
-                    }}>
-                        {item.name}
-                    </div>
-                    {item.note && (
-                        <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '2px' }}>
-                            {item.note}
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
+// ── Loot simulation logic ─────────────────────────────────────────────────────
 
 function simulateLoot(table) {
     const results = [];
-
     for (const pool of table.pools) {
-        // Parse roll range (e.g., "3-7 rolls" or "1 roll")
-        const rollMatch = pool.rolls.match(/(\d+)(?:-(\d+))?/);
-        if (!rollMatch) continue;
-
-        const minRolls = parseInt(rollMatch[1]);
-        const maxRolls = rollMatch[2] ? parseInt(rollMatch[2]) : minRolls;
-        const numRolls = Math.floor(Math.random() * (maxRolls - minRolls + 1)) + minRolls;
-
-        // Calculate total weight from percentages
-        const items = pool.items.map(item => ({
-            ...item,
-            weight: parseFloat(item.chance)
-        }));
-        const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-
-        // Roll for items
-        for (let i = 0; i < numRolls; i++) {
-            const roll = Math.random() * totalWeight;
-            let cumulative = 0;
-
+        const m = pool.rolls.match(/(\d+)(?:–(\d+))?/);
+        if (!m) continue;
+        const min = parseInt(m[1]), max = m[2] ? parseInt(m[2]) : min;
+        const rolls = Math.floor(Math.random() * (max - min + 1)) + min;
+        const items = pool.items.map(i => ({ ...i, weight: parseFloat(i.chance) }));
+        const total = items.reduce((s, i) => s + i.weight, 0);
+        for (let r = 0; r < rolls; r++) {
+            let cum = 0, roll = Math.random() * total;
             for (const item of items) {
-                cumulative += item.weight;
-                if (roll < cumulative) {
-                    // Skip "Nothing" entries
-                    if (item.name.toLowerCase() !== 'nothing') {
-                        results.push(item);
-                    }
+                cum += item.weight;
+                if (roll < cum) {
+                    if (item.name.toLowerCase() !== 'nothing') results.push(item);
                     break;
                 }
             }
         }
     }
-
     return results;
 }
 
-function LootSimulationResult({ items, onReroll, roomColor }) {
-    // Group items by name and count
-    const grouped = items.reduce((acc, item) => {
-        const key = item.name;
-        if (!acc[key]) {
-            acc[key] = { ...item, count: 0 };
-        }
-        acc[key].count++;
-        return acc;
-    }, {});
+// ── CSS ───────────────────────────────────────────────────────────────────────
 
-    const groupedItems = Object.values(grouped).sort((a, b) => b.count - a.count);
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
 
+  .cs {
+    font-family: 'Barlow', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    background: oklch(17% 0.025 255);
+    color: oklch(94% 0.007 255);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  .cs-shell { max-width: 860px; margin: 0 auto; padding: 0 28px; width: 100%; box-sizing: border-box; }
+  .cs-rule  { height: 1px; background: oklch(19% 0.019 255); }
+
+  /* ── Page header ── */
+  .cs-header { padding: 80px 0 64px; }
+  .cs-eyebrow {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px;
+    color: oklch(76% 0.16 68); margin: 0 0 14px;
+  }
+  .cs-h1 {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: clamp(44px, 6.5vw, 76px); font-weight: 800;
+    line-height: 0.95; letter-spacing: -0.5px; text-transform: uppercase;
+    color: oklch(94% 0.007 255); margin: 0 0 18px;
+  }
+  .cs-sub { font-size: 15.5px; color: oklch(52% 0.013 255); max-width: 520px; line-height: 1.72; margin: 0 0 32px; }
+
+  /* Quick links */
+  .cs-quicklinks { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cs-ql {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    background: transparent;
+    border-radius: 5px; border: 1px solid oklch(30% 0.019 255);
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(50% 0.013 255); cursor: pointer;
+    transition: color 0.12s ease-out, border-color 0.12s ease-out, background 0.12s ease-out;
+  }
+  .cs-ql:hover { color: oklch(88% 0.009 255); border-color: oklch(32% 0.016 255); background: oklch(21% 0.023 255); }
+  .cs-ql-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── Article body ── */
+  .cs-body { padding: 64px 0 80px; flex: 1; }
+
+  /* intro prose */
+  .cs-intro { margin-bottom: 48px; }
+  .cs-p { font-size: 15px; color: oklch(54% 0.013 255); line-height: 1.82; margin: 0 0 16px; }
+  .cs-p:last-child { margin-bottom: 0; }
+  .cs-hi { color: oklch(80% 0.01 255); font-weight: 500; }
+
+  /* ── Section ── */
+  .cs-section { margin-bottom: 72px; scroll-margin-top: 80px; }
+  .cs-section-head {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 16px; margin-bottom: 24px;
+    border-bottom: 1px solid oklch(19% 0.019 255);
+  }
+  .cs-section-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .cs-h2 {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: clamp(22px, 3vw, 30px); font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.2px;
+    color: oklch(94% 0.007 255); margin: 0;
+  }
+
+  /* Inline code */
+  .cs-code {
+    font-family: 'Courier New', monospace; font-size: 12.5px;
+    color: oklch(70% 0.14 200);
+    background: oklch(68% 0.12 200 / 0.09);
+    border: 1px solid oklch(68% 0.12 200 / 0.18);
+    border-radius: 4px; padding: 2px 7px;
+  }
+
+  /* ── Mode toggle ── */
+  .cs-toggle {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 10px 16px; margin-bottom: 24px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 7px;
+  }
+  .cs-toggle-label { font-size: 13px; font-weight: 500; transition: color 0.15s; }
+  .cs-toggle-track {
+    width: 40px; height: 22px; border-radius: 11px;
+    border: none; cursor: pointer; position: relative;
+    transition: background 0.15s ease-out; flex-shrink: 0;
+  }
+  .cs-toggle-knob {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: oklch(94% 0.007 255);
+    position: absolute; top: 3px;
+    transition: left 0.15s ease-out;
+  }
+
+  /* ── Crafting grid ── */
+  .cs-recipe {
+    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    padding: 20px; background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255); border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  .cs-recipe-grid {
+    display: grid; grid-template-columns: repeat(3, 52px); gap: 5px;
+  }
+  .cs-recipe-cell {
+    width: 52px; height: 52px; border-radius: 6px;
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.12s ease-out, background 0.12s ease-out;
+  }
+  .cs-recipe-cell.has-item:hover { border-color: oklch(36% 0.016 255); background: oklch(23% 0.022 255); }
+  .cs-recipe-cell img { width: 36px; height: 36px; image-rendering: pixelated; }
+  .cs-recipe-arrow { font-size: 22px; color: oklch(42% 0.013 255); }
+  .cs-recipe-result {
+    width: 60px; height: 60px; border-radius: 7px;
+    background: oklch(17% 0.025 255);
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid oklch(35% 0.016 255);
+    transition: border-color 0.12s ease-out;
+  }
+  .cs-recipe-result:hover { border-color: oklch(50% 0.016 255); }
+  .cs-recipe-result img { width: 40px; height: 40px; image-rendering: pixelated; }
+  .cs-recipe-name { font-size: 14px; font-weight: 600; color: oklch(80% 0.01 255); }
+
+  /* ── Loot tabs ── */
+  .cs-loot-tabs { display: flex; border-bottom: 1px solid oklch(24% 0.022 255); margin-bottom: 24px; flex-wrap: wrap; }
+  .cs-loot-tab {
+    padding: 10px 18px;
+    background: none; border: none; border-bottom: 2px solid transparent;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(42% 0.013 255); cursor: pointer;
+    transition: color 0.12s ease-out;
+  }
+  .cs-loot-tab.active { border-bottom-color: currentColor; }
+  .cs-loot-tab:not(.active):hover { color: oklch(65% 0.011 255); }
+
+  /* ── Loot items ── */
+  .cs-pool-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .cs-pool-tag {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+    padding: 3px 9px; border-radius: 4px; border: 1px solid;
+  }
+  .cs-pool-note { font-size: 12px; color: oklch(42% 0.013 255); font-style: italic; }
+
+  .cs-loot-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+  .cs-loot-item {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    width: 66px; cursor: default; position: relative;
+  }
+  .cs-loot-tile {
+    width: 52px; height: 52px; border-radius: 7px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.1s ease-out, border-color 0.1s ease-out;
+  }
+  .cs-loot-item:hover .cs-loot-tile { background: oklch(25.5% 0.021 255); border-color: oklch(35% 0.016 255); }
+  .cs-loot-tile.rare      { border-color: oklch(76% 0.16 68 / 0.50); }
+  .cs-loot-tile.legendary { border-color: oklch(62% 0.18 300 / 0.60); }
+  .cs-loot-tile img { width: 36px; height: 36px; image-rendering: pixelated; }
+  .cs-loot-pct { font-size: 10.5px; font-family: 'Courier New', monospace; font-variant-numeric: tabular-nums; }
+  .cs-loot-tooltip {
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%);
+    background: oklch(20% 0.022 255);
+    border: 1px solid oklch(34% 0.018 255);
+    border-radius: 6px; padding: 7px 10px;
+    white-space: nowrap; z-index: 100;
+    font-size: 12px; color: oklch(80% 0.01 255);
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.1s ease-out;
+  }
+  .cs-loot-item:hover .cs-loot-tooltip { opacity: 1; }
+  .cs-loot-tooltip-note { font-size: 10.5px; color: oklch(50% 0.013 255); margin-top: 2px; }
+
+  /* ── Chest button ── */
+  .cs-chest-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .cs-chest-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; cursor: pointer;
+    background: oklch(76% 0.16 68 / 0.10);
+    border: 1px solid oklch(76% 0.16 68 / 0.35);
+    border-radius: 7px;
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: oklch(76% 0.16 68);
+    transition: background 0.12s ease-out, border-color 0.12s ease-out;
+  }
+  .cs-chest-btn:hover:not(:disabled) { background: oklch(76% 0.16 68 / 0.18); border-color: oklch(76% 0.16 68 / 0.55); }
+  .cs-chest-btn:disabled { opacity: 0.5; cursor: wait; }
+  .cs-chest-btn img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+  /* ── Simulation result ── */
+  .cs-result {
+    padding: 20px; margin-top: 20px;
+    background: oklch(15% 0.022 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 8px;
+  }
+  .cs-result-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cs-result-title { font-size: 13.5px; font-weight: 600; color: oklch(80% 0.01 255); }
+  .cs-reroll-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 11px; cursor: pointer;
+    background: none; border: 1px solid oklch(30% 0.019 255); border-radius: 5px;
+    font-family: 'Barlow', system-ui, sans-serif;
+    font-size: 11.5px; font-weight: 600; color: oklch(50% 0.013 255);
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .cs-reroll-btn:hover { color: oklch(88% 0.009 255); border-color: oklch(38% 0.016 255); }
+  .cs-result-items { display: flex; flex-wrap: wrap; gap: 10px; }
+  .cs-result-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px;
+  }
+  .cs-result-tile {
+    width: 44px; height: 44px; border-radius: 6px; position: relative;
+    background: oklch(24% 0.022 255);
+    border: 1px solid oklch(32% 0.019 255);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cs-result-tile.rare      { border-color: oklch(76% 0.16 68 / 0.50); }
+  .cs-result-tile.legendary { border-color: oklch(62% 0.18 300 / 0.60); }
+  .cs-result-tile img { width: 28px; height: 28px; image-rendering: pixelated; }
+  .cs-result-count {
+    position: absolute; bottom: -3px; right: -3px;
+    background: oklch(33% 0.018 255); color: oklch(88% 0.009 255);
+    font-size: 10px; font-weight: 700;
+    padding: 0 4px; border-radius: 3px;
+    border: 1px solid oklch(30% 0.018 255);
+  }
+  .cs-result-name {
+    font-size: 9.5px; color: oklch(45% 0.013 255);
+    text-align: center; max-width: 56px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cs-result-empty { color: oklch(42% 0.013 255); font-size: 13px; padding: 12px 0; }
+
+  @media (max-width: 600px) {
+    .cs-shell { padding: 0 20px; }
+    .cs-header { padding: 60px 0 52px; }
+    .cs-body   { padding: 48px 0 64px; }
+  }
+`;
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ModeToggle({ value, onChange, offLabel, onLabel, onColor }) {
     return (
-        <div style={{
-            marginTop: '28px',
-            padding: '24px',
-            background: `linear-gradient(135deg, ${COLORS.bg}99 0%, ${COLORS.bgLight}44 100%)`,
-            borderRadius: '12px',
-            border: `1px solid ${roomColor}44`,
-            boxShadow: `0 8px 24px ${roomColor}11, inset 0 1px 0 ${roomColor}22`
-        }}>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '20px'
-            }}>
-                <span style={{
-                    color: COLORS.text,
-                    fontSize: '15px',
-                    fontWeight: '600',
-                    letterSpacing: '0.2px'
-                }}>
-                    Loot Result ({items.length} item{items.length !== 1 ? 's' : ''})
-                </span>
-                <button
-                    onClick={onReroll}
-                    style={{
-                        padding: '8px 14px',
-                        background: `${roomColor}11`,
-                        border: `1px solid ${roomColor}44`,
-                        borderRadius: '6px',
-                        color: COLORS.text,
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.3s ease',
-                        letterSpacing: '0.1px'
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = roomColor;
-                        e.currentTarget.style.background = `${roomColor}22`;
-                        e.currentTarget.style.boxShadow = `0 4px 12px ${roomColor}33`;
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = `${roomColor}44`;
-                        e.currentTarget.style.background = `${roomColor}11`;
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                >
-                    ↻ Open Again
-                </button>
+        <div className="cs-toggle">
+            <span className="cs-toggle-label" style={{ color: !value ? 'oklch(88% 0.009 255)' : 'oklch(42% 0.013 255)' }}>
+                {offLabel}
+            </span>
+            <button
+                className="cs-toggle-track"
+                onClick={() => onChange(!value)}
+                style={{ background: value ? onColor : 'oklch(30% 0.019 255)' }}
+            >
+                <div className="cs-toggle-knob" style={{ left: value ? '21px' : '3px' }} />
+            </button>
+            <span className="cs-toggle-label" style={{ color: value ? onColor : 'oklch(42% 0.013 255)' }}>
+                {onLabel}
+            </span>
+        </div>
+    );
+}
+
+function CraftingGrid({ recipe, result, resultName, glowColor }) {
+    return (
+        <div className="cs-recipe">
+            <div className="cs-recipe-grid">
+                {recipe.flat().map((item, i) => (
+                    <div key={i} className={`cs-recipe-cell${item ? ' has-item' : ''}`}
+                         title={item?.replace(/_/g, ' ')}>
+                        {item && (
+                            <img src={`${IMG}/${item}.png`} alt={item}
+                                 onError={e => { e.target.style.display = 'none'; }} />
+                        )}
+                    </div>
+                ))}
             </div>
+            <span className="cs-recipe-arrow">→</span>
+            <div className="cs-recipe-result" title={resultName}
+                 style={{ borderColor: glowColor + '55' }}>
+                <img src={`${IMG}/${result}.png`} alt={resultName}
+                     onError={e => { e.target.style.display = 'none'; }} />
+            </div>
+            <span className="cs-recipe-name">{resultName}</span>
+        </div>
+    );
+}
 
-            {groupedItems.length === 0 ? (
-                <div style={{
-                    textAlign: 'center',
-                    padding: '20px',
-                    color: COLORS.textMuted,
-                    fontSize: '13px'
-                }}>
-                    The chest was empty... Try again!
-                </div>
-            ) : (
-                <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '12px'
-                }}>
-                    {groupedItems.map((item, idx) => {
-                        const chanceNum = parseFloat(item.chance);
-                        const isLegendary = item.legendary || chanceNum < 1;
-                        const isRare = !isLegendary && chanceNum < 5;
-
-                        return (
-                            <div
-                                key={idx}
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                }}
-                            >
-                                <div style={{
-                                    position: 'relative',
-                                    width: '48px',
-                                    height: '48px',
-                                    background: COLORS.bgLight,
-                                    borderRadius: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    border: `2px solid ${isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.border}`,
-                                    boxShadow: isLegendary ? `0 0 12px ${COLORS.purple}44` : isRare ? `0 0 10px ${COLORS.gold}33` : 'none'
-                                }}>
-                                    <img
-                                        src={`${IMAGE_BASE_URL}/${item.texture}.png`}
-                                        alt={item.name}
-                                        style={{
-                                            width: '32px',
-                                            height: '32px',
-                                            imageRendering: 'pixelated'
-                                        }}
-                                        onError={(e) => { e.target.style.opacity = '0.3'; }}
-                                    />
-                                    {item.count > 1 && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            bottom: '-2px',
-                                            right: '-2px',
-                                            background: COLORS.bgLighter,
-                                            color: COLORS.text,
-                                            fontSize: '11px',
-                                            fontWeight: '600',
-                                            padding: '1px 5px',
-                                            borderRadius: '4px',
-                                            border: `1px solid ${COLORS.border}`
-                                        }}>
-                                            ×{item.count}
-                                        </span>
-                                    )}
-                                </div>
-                                <span style={{
-                                    fontSize: '10px',
-                                    color: isLegendary ? COLORS.purple : isRare ? COLORS.gold : COLORS.textMuted,
-                                    maxWidth: '60px',
-                                    textAlign: 'center',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    {item.name.split('(')[0].trim()}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+function LootItem({ item }) {
+    const chance = parseFloat(item.chance);
+    const isLegendary = item.legendary || chance < 1;
+    const isRare = !isLegendary && chance < 5;
+    const pctColor = isLegendary ? COL.purple : isRare ? COL.rare : 'oklch(42% 0.013 255)';
+    return (
+        <div className="cs-loot-item">
+            <div className={`cs-loot-tile${isLegendary ? ' legendary' : isRare ? ' rare' : ''}`}>
+                <img src={`${IMG}/${item.texture}.png`} alt={item.name}
+                     onError={e => { e.target.style.opacity = '0.3'; }} />
+            </div>
+            <span className="cs-loot-pct" style={{ color: pctColor }}>{item.chance}</span>
+            <div className="cs-loot-tooltip">
+                <div style={{ fontWeight: 600, color: pctColor }}>{item.name}</div>
+                {item.note && <div className="cs-loot-tooltip-note">{item.note}</div>}
+            </div>
         </div>
     );
 }
 
 function LootTableDisplay({ tables }) {
     const [activeRoom, setActiveRoom] = useState('honey');
-    const [simulationResult, setSimulationResult] = useState(null);
-    const [isAnimating, setIsAnimating] = useState(false);
+    const [simResult, setSimResult]   = useState(null);
+    const [simming, setSimming]       = useState(false);
     const table = tables[activeRoom];
 
-    const handleOpenChest = () => {
-        setIsAnimating(true);
-        setSimulationResult(null);
-
-        // Small delay for animation effect
-        setTimeout(() => {
-            const loot = simulateLoot(table);
-            setSimulationResult(loot);
-            setIsAnimating(false);
-        }, 300);
-    };
-
-    const handleRoomChange = (key) => {
-        setActiveRoom(key);
-        setSimulationResult(null);
+    const openChest = () => {
+        setSimming(true); setSimResult(null);
+        setTimeout(() => { setSimResult(simulateLoot(table)); setSimming(false); }, 250);
     };
 
     return (
         <div>
-            {/* Room selector tabs */}
-            <div style={{
-                display: 'flex',
-                gap: '10px',
-                marginBottom: '28px',
-                flexWrap: 'wrap',
-                alignItems: 'center'
-            }}>
-                {Object.entries(tables).map(([key, t]) => (
-                    <button
-                        key={key}
-                        onClick={() => handleRoomChange(key)}
-                        style={{
-                            padding: '12px 22px',
-                            background: activeRoom === key ? `${t.color}22` : 'transparent',
-                            border: `2px solid ${activeRoom === key ? t.color : COLORS.border}44`,
-                            borderRadius: '10px',
-                            color: activeRoom === key ? t.color : COLORS.textMuted,
-                            fontSize: '14px',
-                            fontWeight: activeRoom === key ? '600' : '500',
-                            cursor: 'pointer',
-                            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                            letterSpacing: '0.2px',
-                            boxShadow: activeRoom === key ? `0 0 16px ${t.color}22, inset 0 1px 0 ${t.color}22` : 'none'
-                        }}
-                        onMouseEnter={e => {
-                            if (activeRoom !== key) {
-                                e.currentTarget.style.borderColor = t.color;
-                                e.currentTarget.style.boxShadow = `0 4px 12px ${t.color}33`;
-                            }
-                        }}
-                        onMouseLeave={e => {
-                            if (activeRoom !== key) {
-                                e.currentTarget.style.borderColor = COLORS.border + '44';
-                                e.currentTarget.style.boxShadow = 'none';
-                            }
-                        }}
-                    >
-                        {t.name}
-                    </button>
-                ))}
-
-                {/* Chest button */}
-                <button
-                    onClick={handleOpenChest}
-                    disabled={isAnimating}
-                    style={{
-                        marginLeft: 'auto',
-                        padding: '12px 18px',
-                        background: isAnimating ? COLORS.bgLighter : `${table.color}22`,
-                        border: `2px solid ${table.color}`,
-                        borderRadius: '10px',
-                        color: table.color,
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        cursor: isAnimating ? 'wait' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        transition: 'all 0.3s ease',
-                        transform: isAnimating ? 'scale(0.95)' : 'scale(1)',
-                        boxShadow: `0 0 16px ${table.color}22, inset 0 1px 0 ${table.color}11`,
-                        letterSpacing: '0.2px'
-                    }}
-                    onMouseEnter={e => {
-                        if (!isAnimating) {
-                            e.currentTarget.style.background = `${table.color}33`;
-                            e.currentTarget.style.boxShadow = `0 6px 20px ${table.color}44, inset 0 1px 0 ${table.color}22`;
-                        }
-                    }}
-                    onMouseLeave={e => {
-                        if (!isAnimating) {
-                            e.currentTarget.style.background = `${table.color}22`;
-                            e.currentTarget.style.boxShadow = `0 0 16px ${table.color}22, inset 0 1px 0 ${table.color}11`;
-                        }
-                    }}
-                >
-                    <img
-                        src={`${IMAGE_BASE_URL}/chest.png`}
-                        alt="Open Chest"
-                        style={{
-                            width: '24px',
-                            height: '24px',
-                            imageRendering: 'pixelated',
-                            transform: isAnimating ? 'rotate(-10deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.15s'
-                        }}
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                    {isAnimating ? 'Opening...' : 'Open Chest'}
+            {/* Tabs + chest button row */}
+            <div className="cs-chest-row">
+                <div className="cs-loot-tabs" style={{ margin: 0, border: 'none' }}>
+                    {Object.entries(tables).map(([key, t]) => (
+                        <button
+                            key={key}
+                            className={`cs-loot-tab${activeRoom === key ? ' active' : ''}`}
+                            onClick={() => { setActiveRoom(key); setSimResult(null); }}
+                            style={{ color: activeRoom === key ? t.color : undefined }}
+                        >
+                            {t.name}
+                        </button>
+                    ))}
+                </div>
+                <button className="cs-chest-btn" onClick={openChest} disabled={simming}>
+                    <img src={`${IMG}/chest.png`} alt="chest"
+                         onError={e => { e.target.style.display = 'none'; }} />
+                    {simming ? 'Opening...' : 'Open Chest'}
                 </button>
             </div>
 
-            {/* Room content */}
-            <div style={{
-                background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter}88 100%)`,
-                border: `2px solid ${table.color}44`,
-                borderRadius: '14px',
-                padding: '28px',
-                position: 'relative',
-                boxShadow: `0 8px 32px ${table.color}11, inset 0 1px 0 ${table.color}22`
-            }}>
-                {/* Room header */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: '24px',
-                    flexWrap: 'wrap',
-                    gap: '12px'
+            {/* Room header */}
+            <div style={{ marginBottom: 20 }}>
+                <span style={{
+                    fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+                    fontSize: 18, fontWeight: 800, textTransform: 'uppercase',
+                    color: table.color,
                 }}>
-                    <div>
-                        <h3 style={{
-                            margin: 0,
-                            fontSize: '22px',
-                            fontWeight: '700',
-                            color: table.color,
-                            letterSpacing: '0.3px'
-                        }}>
-                            {table.name}
-                        </h3>
-                        <p style={{
-                            margin: '6px 0 0',
-                            fontSize: '13px',
-                            color: COLORS.textMuted,
-                            letterSpacing: '0.2px'
-                        }}>
-                            {table.description}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Pools */}
-                {table.pools.map((pool, poolIdx) => (
-                    <div key={poolIdx} style={{ marginBottom: poolIdx < table.pools.length - 1 ? '32px' : 0 }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            marginBottom: '18px'
-                        }}>
-                            <span style={{
-                                background: `linear-gradient(135deg, ${table.color}44 0%, ${table.color}22 100%)`,
-                                color: table.color,
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                fontSize: '12px',
-                                fontWeight: '700',
-                                border: `1px solid ${table.color}55`,
-                                letterSpacing: '0.2px',
-                                textShadow: `0 0 4px ${table.color}33`
-                            }}>
-                                {pool.rolls}
-                            </span>
-                            {pool.note && (
-                                <span style={{
-                                    color: COLORS.textMuted,
-                                    fontSize: '12px',
-                                    fontStyle: 'italic',
-                                    letterSpacing: '0.1px'
-                                }}>
-                                    {pool.note}
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Item grid */}
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '14px'
-                        }}>
-                            {pool.items.map((item, idx) => (
-                                <LootItem key={idx} item={item} />
-                            ))}
-                        </div>
-                    </div>
-                ))}
+                    {table.name}
+                </span>
+                <span style={{ fontSize: 13, color: 'oklch(50% 0.013 255)', marginLeft: 12 }}>
+                    {table.description}
+                </span>
             </div>
 
-            {/* Simulation Result */}
-            {simulationResult !== null && (
-                <LootSimulationResult
-                    items={simulationResult}
-                    onReroll={handleOpenChest}
-                    roomColor={table.color}
-                />
+            {/* Pools */}
+            {table.pools.map((pool, pi) => (
+                <div key={pi} style={{ marginBottom: pi < table.pools.length - 1 ? 28 : 0 }}>
+                    <div className="cs-pool-head">
+                        <span className="cs-pool-tag" style={{
+                            color: table.color,
+                            background: table.color + '12',
+                            borderColor: table.color + '40',
+                        }}>
+                            {pool.rolls}
+                        </span>
+                        {pool.note && <span className="cs-pool-note">{pool.note}</span>}
+                    </div>
+                    <div className="cs-loot-grid">
+                        {pool.items.map((item, idx) => <LootItem key={idx} item={item} />)}
+                    </div>
+                </div>
+            ))}
+
+            {/* Simulation result */}
+            {simResult !== null && (
+                <div className="cs-result">
+                    <div className="cs-result-head">
+                        <span className="cs-result-title">
+                            Loot Result — {simResult.length} item{simResult.length !== 1 ? 's' : ''}
+                        </span>
+                        <button className="cs-reroll-btn" onClick={openChest}>↻ Open again</button>
+                    </div>
+                    {simResult.length === 0 ? (
+                        <div className="cs-result-empty">The chest was empty. Try again!</div>
+                    ) : (() => {
+                        const grouped = Object.values(
+                            simResult.reduce((acc, item) => {
+                                if (!acc[item.name]) acc[item.name] = { ...item, count: 0 };
+                                acc[item.name].count++;
+                                return acc;
+                            }, {})
+                        ).sort((a, b) => b.count - a.count);
+                        return (
+                            <div className="cs-result-items">
+                                {grouped.map((item, i) => {
+                                    const c = parseFloat(item.chance);
+                                    const leg = item.legendary || c < 1;
+                                    const rare = !leg && c < 5;
+                                    return (
+                                        <div key={i} className="cs-result-item">
+                                            <div className={`cs-result-tile${leg ? ' legendary' : rare ? ' rare' : ''}`}>
+                                                <img src={`${IMG}/${item.texture}.png`} alt={item.name}
+                                                     onError={e => { e.target.style.opacity = '0.3'; }} />
+                                                {item.count > 1 && (
+                                                    <span className="cs-result-count">×{item.count}</span>
+                                                )}
+                                            </div>
+                                            <span className="cs-result-name">{item.name.split('(')[0].trim()}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+                </div>
             )}
         </div>
     );
 }
 
-
-function Section({ id, title, color, children }) {
+function Section({ id, color, title, children }) {
     return (
-        <section id={id} style={{ marginBottom: '72px', scrollMarginTop: '80px' }}>
-            <h2 style={{
-                fontSize: '24px',
-                fontWeight: '600',
-                color: COLORS.text,
-                margin: '0 0 28px 0',
-                paddingBottom: '16px',
-                borderBottom: `1px solid ${color}44`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                letterSpacing: '0.3px'
-            }}>
-                <span style={{
-                    width: '5px',
-                    height: '28px',
-                    background: `linear-gradient(180deg, ${color}, ${color}66)`,
-                    borderRadius: '2px',
-                    boxShadow: `0 0 12px ${color}66`
-                }} />
-                {title}
-            </h2>
+        <section id={id} className="cs-section">
+            <div className="cs-section-head">
+                <div className="cs-section-dot" style={{ background: color }} />
+                <h2 className="cs-h2">{title}</h2>
+            </div>
             {children}
         </section>
     );
 }
 
-function Paragraph({ children }) {
-    return (
-        <p style={{
-            color: COLORS.textMuted,
-            fontSize: '15px',
-            lineHeight: '1.9',
-            margin: '0 0 18px 0',
-            letterSpacing: '0.2px'
-        }}>
-            {children}
-        </p>
-    );
+function P({ children }) {
+    return <p className="cs-p">{children}</p>;
+}
+function Hi({ color, children }) {
+    return <span className="cs-hi" style={color ? { color } : {}}>{children}</span>;
+}
+function Cmd({ children }) {
+    return <code className="cs-code">{children}</code>;
 }
 
-function Highlight({ children, color = COLORS.text }) {
-    return <span style={{ color }}>{children}</span>;
-}
-
-function Command({ children }) {
-    return (
-        <code style={{
-            background: COLORS.bgLighter,
-            padding: '3px 8px',
-            borderRadius: '4px',
-            fontSize: '13px',
-            fontFamily: "'Consolas', 'Monaco', monospace",
-            color: COLORS.aqua
-        }}>
-            {children}
-        </code>
-    );
-}
-
-const QUICK_LINKS = [
-    { id: 'antimatter-depths', label: 'Antimatter Depths', color: COLORS.purple },
-    { id: 'trial-locator', label: 'Trial Locator', color: COLORS.gold },
-    { id: 'loot-tables', label: 'Loot Tables', color: COLORS.green },
-    { id: 'end-generation', label: 'End Generation', color: COLORS.purple },
-    { id: 'teleporter', label: 'Teleporter', color: COLORS.red },
-    { id: 'wandering-trader', label: 'Wandering Trader', color: COLORS.aqua },
-];
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CustomStructures() {
     const [antimatterHard, setAntimatterHard] = useState(false);
-    const [trialHard, setTrialHard] = useState(false);
+    const [trialHard,      setTrialHard]      = useState(false);
 
-    // Scroll to section if ?to=wheel (or other section) is in URL
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const scrollTo = params.get('to');
-        if (scrollTo) {
-            const element = document.getElementById(scrollTo);
-            if (element) {
-                setTimeout(() => {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 300);
-            }
-        }
+        const id = new URLSearchParams(window.location.search).get('to');
+        if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }, []);
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: `linear-gradient(180deg, ${COLORS.bg} 0%, #0f0f1a 100%)`,
-            color: COLORS.text,
-            fontFamily: "'Segoe UI', system-ui, sans-serif",
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative'
-        }}>
-            {/* Decorative background elements */}
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                pointerEvents: 'none',
-                zIndex: 0
-            }}>
-                <div style={{
-                    position: 'absolute',
-                    top: '15%',
-                    left: '10%',
-                    width: '350px',
-                    height: '350px',
-                    background: `radial-gradient(circle, ${COLORS.purple}06 0%, transparent 70%)`,
-                    borderRadius: '50%'
-                }} />
-                <div style={{
-                    position: 'absolute',
-                    bottom: '25%',
-                    right: '8%',
-                    width: '400px',
-                    height: '400px',
-                    background: `radial-gradient(circle, ${COLORS.accent}05 0%, transparent 70%)`,
-                    borderRadius: '50%'
-                }} />
+        <div className="cs">
+            <style>{CSS}</style>
+
+            <div className="cs-shell">
+                {/* ── Header ── */}
+                <div className="cs-header">
+                    <p className="cs-eyebrow">World</p>
+                    <h1 className="cs-h1">Custom Content</h1>
+                    <p className="cs-sub">
+                        Custom structures and items designed to make harder Minecraft content
+                        accessible within short-round FIB gameplay.
+                    </p>
+                    <div className="cs-quicklinks">
+                        {QUICK_LINKS.map(l => (
+                            <button
+                                key={l.id}
+                                className="cs-ql"
+                                onClick={() => document.getElementById(l.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                            >
+                                <span className="cs-ql-dot" style={{ background: l.color }} />
+                                {l.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
-            {/* Content wrapper */}
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
-                {/* Header */}
-                <div style={{
-                    padding: '80px 20px 56px',
-                    textAlign: 'center',
-                    borderBottom: `1px solid ${COLORS.border}44`
-                }}>
-                    <h1 style={{
-                        fontSize: '40px',
-                        fontWeight: '300',
-                        margin: '0 0 20px 0',
-                        letterSpacing: '-0.5px',
-                        lineHeight: '1.2'
-                    }}>
-                        Custom Content
-                    </h1>
-                    <p style={{
-                        fontSize: '17px',
-                        color: COLORS.textMuted,
-                        margin: 0,
-                        maxWidth: '600px',
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                        letterSpacing: '0.2px',
-                        lineHeight: '1.6'
-                    }}>
-                        Custom items and world generation designed for faster-paced gameplay
-                    </p>
+            <div className="cs-rule" />
 
-                    <QuickLinks links={QUICK_LINKS} />
-                </div>
+            <div className="cs-shell">
+                <div className="cs-body">
 
-                {/* Content */}
-                <div style={{
-                    maxWidth: '800px',
-                    margin: '0 auto',
-                    padding: '64px 20px',
-                    flex: 1
-                }}>
-                    {/* Introduction */}
-                    <Paragraph>
-                        Our ForceItemBattle originally designed for <Highlight color={COLORS.gold}>short rounds</Highlight> -
-                        not everyone has time for longer sessions. This meant excluding harder items
-                        like those from the End dimension.
-                    </Paragraph>
-                    <Paragraph>
-                        Rather than leave out a significant part of Minecraft, we added custom structures
-                        and items that make the world more accessible within shorter timeframes.
-                    </Paragraph>
+                    {/* Intro */}
+                    <div className="cs-intro">
+                        <P>
+                            ForceItemBattle was originally designed for <Hi>short rounds</Hi> — not everyone
+                            has time for longer sessions. This meant excluding harder items like those
+                            from the End dimension.
+                        </P>
+                        <P>
+                            Rather than leave out a significant part of Minecraft, we added custom structures
+                            and items that make the world more accessible within shorter timeframes.
+                        </P>
+                    </div>
 
-                    <div style={{
-                        width: '60px',
-                        height: '1px',
-                        background: COLORS.border,
-                        margin: '48px auto'
-                    }} />
-
-                    {/* Antimatter Depths */}
-                    <Section id="antimatter-depths" title="Antimatter Depths" color={COLORS.purple}>
-                        <Paragraph>
-                            The Antimatter Depths replaces the vanilla Stronghold as the gateway to the End.
-                            It spawns at <Highlight>Y-level −10</Highlight> and provides a much faster route
-                            to the End dimension.
-                        </Paragraph>
-                        <Paragraph>
-                            To find it, craft an <Highlight color={COLORS.aqua}>Antimatter Locator</Highlight>:
-                        </Paragraph>
-
-                        <RecipeToggle isHard={antimatterHard} onToggle={() => setAntimatterHard(!antimatterHard)} />
-
+                    {/* ── Antimatter Depths ── */}
+                    <Section id="antimatter-depths" color={COL.purple} title="Antimatter Depths">
+                        <P>
+                            Replaces the vanilla Stronghold as the gateway to the End.
+                            Spawns at <Hi>Y‑level −10</Hi> and provides a much faster route to the End dimension.
+                        </P>
+                        <P>To find it, craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>:</P>
+                        <ModeToggle
+                            value={antimatterHard}
+                            onChange={setAntimatterHard}
+                            offLabel="Standard"
+                            onLabel="Hard Mode"
+                            onColor={COL.orange}
+                        />
                         <CraftingGrid
                             recipe={antimatterHard ? RECIPES.antimatter.hard.recipe : RECIPES.antimatter.normal.recipe}
                             result={RECIPES.antimatter.normal.result}
                             resultName={RECIPES.antimatter.normal.name}
-                            glowColor={COLORS.purple}
+                            glowColor={COL.purple}
                         />
-
-                        <div style={{ marginTop: '24px' }}>
-                            <Paragraph>
-                                Right-click the locator to receive coordinates and a visual trail. Dig straight
-                                down at the location to find multiple loot rooms and an activated End Portal.
-                            </Paragraph>
-                            <Paragraph>
-                                <Highlight color={COLORS.textMuted}>View in-game:</Highlight> <Command>/info antimatter_locator</Command>
-                            </Paragraph>
-                        </div>
+                        <P>
+                            Right-click the locator to receive coordinates and a visual trail. Dig straight down
+                            to find multiple loot rooms and an activated End Portal.
+                        </P>
+                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info antimatter_locator</Cmd></P>
                     </Section>
 
-                    {/* Trial Chambers */}
-                    <Section id="trial-locator" title="Trial Chambers Locator" color={COLORS.gold}>
-                        <Paragraph>
-                            Trial Chambers (vanilla structure) also have a custom locator for easier discovery:
-                        </Paragraph>
-
-                        <RecipeToggle isHard={trialHard} onToggle={() => setTrialHard(!trialHard)} />
-
+                    {/* ── Trial Locator ── */}
+                    <Section id="trial-locator" color={COL.amber} title="Trial Chambers Locator">
+                        <P>Trial Chambers (vanilla structure) also have a custom locator for easier discovery:</P>
+                        <ModeToggle
+                            value={trialHard}
+                            onChange={setTrialHard}
+                            offLabel="Standard"
+                            onLabel="Hard Mode"
+                            onColor={COL.orange}
+                        />
                         <CraftingGrid
                             recipe={trialHard ? RECIPES.trial.hard.recipe : RECIPES.trial.normal.recipe}
                             result={RECIPES.trial.normal.result}
                             resultName={RECIPES.trial.normal.name}
-                            glowColor={COLORS.gold}
+                            glowColor={COL.amber}
                         />
-
-                        <div style={{ marginTop: '24px' }}>
-                            <Paragraph>
-                                Works identically to the Antimatter Locator: right-click for coordinates and a trail.
-                            </Paragraph>
-                            <Paragraph>
-                                <Highlight color={COLORS.textMuted}>View in-game:</Highlight> <Command>/info trial_locator</Command>
-                            </Paragraph>
-                        </div>
+                        <P>Works identically to the Antimatter Locator: right-click for coordinates and a trail.</P>
+                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info trial_locator</Cmd></P>
                     </Section>
 
-                    {/* Locator Mechanics */}
-                    <Section id="locator-mechanics" title="Locator Mechanics" color={COLORS.accent}>
-                        <Paragraph>
-                            Both locators share the same mechanics:
-                        </Paragraph>
-                        <Paragraph>
-                            If another player already marked the same structure, <Highlight color={COLORS.green}>your locator won't be consumed</Highlight> -
-                            you can keep searching until you find an unclaimed one. You can still enter
-                            claimed structures; this just helps you find unlooted ones.
-                        </Paragraph>
-                        <Paragraph>
-                            <Highlight color={COLORS.orange}>Hard Mode recipes</Highlight> (toggle above) are used in the 2 Hour Version,
-                            requiring more complex ingredients for a greater challenge.
-                        </Paragraph>
+                    {/* ── Locator Mechanics ── */}
+                    <Section id="locator-mechanics" color={COL.cyan} title="Locator Mechanics">
+                        <P>Both locators share the same mechanics:</P>
+                        <P>
+                            If another player already marked the same structure,{' '}
+                            <Hi color={COL.green}>your locator won't be consumed</Hi> — you can keep searching
+                            until you find an unclaimed one. You can still enter claimed structures; this just
+                            helps you find unlooted ones.
+                        </P>
+                        <P>
+                            <Hi color={COL.orange}>Hard Mode recipes</Hi> (toggle above) are used in the 2 Hour
+                            Version, requiring more complex ingredients for a greater challenge.
+                        </P>
                     </Section>
 
-                    {/* Loot Tables */}
-                    <Section id="loot-tables" title="Antimatter Depths Loot" color={COLORS.green}>
-                        <Paragraph>
-                            The Antimatter Depths contains four distinct loot rooms. Hover over items to see drop chances:
-                        </Paragraph>
-
+                    {/* ── Loot Tables ── */}
+                    <Section id="loot-tables" color={COL.green} title="Antimatter Depths Loot">
+                        <P>
+                            The Antimatter Depths contains four distinct loot rooms.
+                            Hover items to see their drop chance, or open a chest to simulate a roll.
+                        </P>
                         <LootTableDisplay tables={LOOT_TABLES} />
                     </Section>
 
-                    {/* Custom End */}
-                    <Section id="end-generation" title="Custom End Generation" color={COLORS.purple}>
-                        <Paragraph>
+                    {/* ── End Generation ── */}
+                    <Section id="end-generation" color={COL.purple} title="Custom End Generation">
+                        <P>
                             The End dimension is redesigned for better pacing. The surface is completely solid
-                            with <Highlight>no void gaps</Highlight>, and End City spawn rates have been
-                            increased for faster access to end-game loot.
-                        </Paragraph>
+                            with <Hi>no void gaps</Hi>, and End City spawn rates have been increased for
+                            faster access to end-game loot.
+                        </P>
                     </Section>
 
-                    {/* Teleporter */}
-                    <Section id="teleporter" title="Antimatter Teleporter" color={COLORS.red}>
-                        <Paragraph>
-                            A custom structure that generates randomly in the Overworld. Unlike other custom structures,
-                            it <Highlight>cannot be located</Highlight> - you'll have to stumble upon it.
-                        </Paragraph>
-                        <Paragraph>
-                            Entering the teleporter transports you <Highlight>5,000 - 10,000 blocks</Highlight> away
-                            in a random direction. Useful if you're hunting for a specific biome and your
-                            current area isn't cooperating.
-                        </Paragraph>
-                        <Paragraph>
-                            Below the portal is a hidden room with a chest. There's a <Highlight color={COLORS.gold}>50% chance</Highlight> it
-                            contains a <a href="wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> - a special item
-                            that grants one random item when used. Try your luck on the <a href="wheel" style={{ color: COLORS.gold }}>Wheel page</a>!
-                        </Paragraph>
+                    {/* ── Teleporter ── */}
+                    <Section id="teleporter" color={COL.red} title="Antimatter Teleporter">
+                        <P>
+                            A custom structure that generates randomly in the Overworld.
+                            Unlike other custom structures, it <Hi>cannot be located</Hi> — you'll have to stumble upon it.
+                        </P>
+                        <P>
+                            Entering the teleporter transports you{' '}
+                            <Hi>5,000 – 10,000 blocks</Hi> away in a random direction. Useful if you're hunting
+                            for a specific biome and your current area isn't cooperating.
+                        </P>
+                        <P>
+                            Below the portal is a hidden room with a chest.
+                            There's a <Hi color={COL.amber}>50% chance</Hi> it contains a{' '}
+                            <a href="wheel" style={{ color: COL.amber, textDecoration: 'none', fontWeight: 500 }}>Wheel of Fortune</a> —
+                            a special item that grants one random item when used.
+                        </P>
                     </Section>
 
-                    {/* Wandering Trader */}
-                    <Section id="wandering-trader" title="Custom Wandering Trader" color={COLORS.aqua}>
-                        <Paragraph>
-                            The Wandering Trader spawns every <Highlight>7-10 minutes</Highlight> near the spawn area.
-                            When it appears, coordinates are displayed in chat and the tab list.
-                        </Paragraph>
-                        <Paragraph>
-                            All trades are vanilla items but cost only <Highlight color={COLORS.green}>1 Emerald</Highlight> each.
-                            Additionally, the trader sells a <a href="wheel" style={{ color: COLORS.gold }}>Wheel of Fortune</a> for
-                            1 Emerald (limited to one per player per trader).
-                        </Paragraph>
-
+                    {/* ── Wandering Trader ── */}
+                    <Section id="wandering-trader" color={COL.cyan} title="Custom Wandering Trader">
+                        <P>
+                            Spawns every <Hi>7–10 minutes</Hi> near the spawn area. When it appears,
+                            coordinates are displayed in chat and the tab list.
+                        </P>
+                        <P>
+                            All trades are vanilla items but cost only <Hi color={COL.green}>1 Emerald</Hi> each.
+                            The trader also sells a{' '}
+                            <a href="wheel" style={{ color: COL.amber, textDecoration: 'none', fontWeight: 500 }}>Wheel of Fortune</a>{' '}
+                            for 1 Emerald (limited to one per player per trader).
+                        </P>
                     </Section>
+
                 </div>
-                <Footer />
             </div>
+
+            <Footer />
         </div>
     );
 }

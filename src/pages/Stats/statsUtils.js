@@ -4,39 +4,38 @@
 
 // Design tokens specific to stats pages
 export const STATS_COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    bgHover: '#353560',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    textDim: '#666',
-    border: '#3d3d5c',
-    borderLight: '#4d4d6c',
-    accent: '#5865F2',
-    accentHover: '#6875F3',
-
-    // Minecraft colors
-    gold: '#FFAA00',
-    aqua: '#55FFFF',
-    green: '#55FF55',
-    yellow: '#FFFF55',
-    red: '#FF5555',
-    blue: '#5555FF',
-    darkPurple: '#AA00AA',
-    orange: '#FF8800',
-
-    // Rarity colors
+    bg:          'oklch(17% 0.025 255)',
+    bgLight:     'oklch(21% 0.023 255)',
+    bgLighter:   'oklch(25% 0.021 255)',
+    bgHover:     'oklch(28% 0.019 255)',
+    text:        'oklch(94% 0.007 255)',
+    textMuted:   'oklch(58% 0.012 255)',
+    textDim:     'oklch(42% 0.013 255)',
+    border:      'oklch(30% 0.019 255)',
+    borderLight: 'oklch(36% 0.016 255)',
+    accent:      'oklch(65% 0.16 255)',
+    accentHover: 'oklch(70% 0.16 255)',
+    gold:        'oklch(76% 0.16 68)',
+    amber:       'oklch(76% 0.16 68)',
+    aqua:        'oklch(68% 0.12 200)',
+    green:       'oklch(64% 0.20 142)',
+    yellow:      'oklch(82% 0.16 90)',
+    red:         'oklch(62% 0.22 25)',
+    blue:        'oklch(65% 0.16 255)',
+    darkPurple:  'oklch(62% 0.18 300)',
+    orange:      'oklch(72% 0.18 55)',
     rarities: {
-        RARE: '#5555FF',
-        EPIC: '#AA00AA',
-        LEGENDARY: '#FFAA00',
-        RNGESUS: '#E41EBC',
-        EXTRAORDINARY: '#73FF00',
-    }
+        COMMON:        'oklch(58% 0.012 255)',
+        UNCOMMON:      'oklch(64% 0.20 142)',
+        RARE:          'oklch(65% 0.16 255)',
+        EPIC:          'oklch(62% 0.18 300)',
+        LEGENDARY:     'oklch(76% 0.16 68)',
+        EXTRAORDINARY: 'oklch(72% 0.24 150)',
+        RNGESUS:       'oklch(66% 0.24 320)',
+    },
 };
 
-export const MC_FONT = "'Minecraft', monospace";
+export const MC_FONT = "'Barlow Condensed', system-ui, sans-serif";
 
 export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
@@ -45,14 +44,14 @@ export const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/ma
 // ============================================================================
 
 export const MOCK_PLAYERS = [
-    { id: 'p1', name: 'threeseconds', avatarUrl: 'https://mc-heads.net/avatar/threeseconds/100' },
-    { id: 'p2', name: 'eltobito', avatarUrl: 'https://mc-heads.net/avatar/eltobito/100' },
-    { id: 'p3', name: 'stupxd', avatarUrl: 'https://mc-heads.net/avatar/stupxd/100' },
-    { id: 'p4', name: 'apppaa', avatarUrl: 'https://mc-heads.net/avatar/apppaa/100' },
-    { id: 'p5', name: 'CH0RD', avatarUrl: 'https://mc-heads.net/avatar/CH0RD/100' },
-    { id: 'p6', name: 'McPlayHD', avatarUrl: 'https://mc-heads.net/avatar/McPlayHD/100' },
-    { id: 'p7', name: 'Owen1212055', avatarUrl: 'https://mc-heads.net/avatar/Owen1212055/100' },
-    { id: 'p8', name: 'shabana02', avatarUrl: 'https://mc-heads.net/avatar/shabana02/100' },
+    { id: 'p1', name: 'threeseconds',  avatarUrl: 'https://mc-heads.net/avatar/threeseconds/100',  gamesPlayed: 87 },
+    { id: 'p2', name: 'eltobito',      avatarUrl: 'https://mc-heads.net/avatar/eltobito/100',      gamesPlayed: 64 },
+    { id: 'p3', name: 'stupxd',        avatarUrl: 'https://mc-heads.net/avatar/stupxd/100',        gamesPlayed: 53 },
+    { id: 'p4', name: 'apppaa',        avatarUrl: 'https://mc-heads.net/avatar/apppaa/100',        gamesPlayed: 41 },
+    { id: 'p5', name: 'CH0RD',         avatarUrl: 'https://mc-heads.net/avatar/CH0RD/100',         gamesPlayed: 38 },
+    { id: 'p6', name: 'McPlayHD',      avatarUrl: 'https://mc-heads.net/avatar/McPlayHD/100',      gamesPlayed: 29 },
+    { id: 'p7', name: 'Owen1212055',   avatarUrl: 'https://mc-heads.net/avatar/Owen1212055/100',   gamesPlayed: 22 },
+    { id: 'p8', name: 'shabana02',     avatarUrl: 'https://mc-heads.net/avatar/shabana02/100',     gamesPlayed: 17 },
 ];
 
 // O(1) lookup map for players by name - use instead of Array.find()
@@ -80,11 +79,13 @@ export const generateMockStats = (entityId, isTeam = false) => {
         ],
         avgItemsPerRound: (Math.random() * 5 + 2).toFixed(1),
         raritiesFound: {
-            RARE: Math.floor(Math.random() * 500) + 200,
-            EPIC: Math.floor(Math.random() * 200) + 50,
-            LEGENDARY: Math.floor(Math.random() * 80) + 10,
-            RNGESUS: Math.floor(Math.random() * 20) + 1,
-            EXTRAORDINARY: Math.floor(Math.random() * 5),
+            COMMON:        Math.floor(Math.random() * 1000) + 400,
+            UNCOMMON:      Math.floor(Math.random() * 600)  + 200,
+            RARE:          Math.floor(Math.random() * 300)  + 100,
+            EPIC:          Math.floor(Math.random() * 100)  + 20,
+            LEGENDARY:     Math.floor(Math.random() * 40)   + 5,
+            EXTRAORDINARY: Math.floor(Math.random() * 10),
+            RNGESUS:       Math.floor(Math.random() * 3),
         },
         distanceTravelled: Math.floor(Math.random() * 1000000) + 100000,
         highestScore: Math.floor(Math.random() * 15000) + 5000,

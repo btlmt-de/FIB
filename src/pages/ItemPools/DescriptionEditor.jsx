@@ -36,26 +36,345 @@ const FORMAT_CODES = {
     'r': { name: 'Reset', style: '' }
 };
 
-const COLORS = {
-    bg: '#1a1a2e',
-    bgLight: '#252542',
-    bgLighter: '#2d2d4a',
-    text: '#e0e0e0',
-    textMuted: '#888',
-    border: '#3d3d5c',
-    accent: '#5865F2',
-    success: '#55FF55',
-    error: '#FF5555',
-    warning: '#FFFF55',
-    // State colors for reference panel
-    early: '#55FF55',
-    mid: '#FFFF55',
-    late: '#FF5555',
-    nether: '#AA0000',
-    end: '#AA00AA',
-    extreme: '#FF55FF',
-    description: '#55FFFF'
-};
+import { COLORS as C } from '../../config/constants';
+
+// For parseMinecraftFormatting baseline
+const MC_BASE_COLOR = C.text;
+
+const EDITOR_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
+  @keyframes ed-in { from { opacity:0; transform:scale(0.97) translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes ed-spin { to { transform: rotate(360deg); } }
+
+  .ed { font-family: 'Barlow', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .ed-overlay {
+    position: fixed; inset: 0;
+    background: oklch(6% 0.022 255 / 0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px; box-sizing: border-box;
+  }
+  .ed-panel {
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 10px;
+    width: 100%; max-height: 90vh;
+    overflow: auto;
+    transition: max-width 0.2s cubic-bezier(0.16,1,0.3,1);
+    animation: ed-in 0.2s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .ed-panel.narrow { max-width: 1020px; }
+  .ed-panel.wide   { max-width: 1420px; }
+
+  /* ── Header ── */
+  .ed-header {
+    padding: 13px 22px;
+    border-bottom: 1px solid oklch(24% 0.022 255);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+    background: oklch(17% 0.025 255);
+  }
+  .ed-header-left { display: flex; flex-direction: column; gap: 3px; }
+  .ed-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(94% 0.007 255);
+    display: flex; align-items: center; gap: 10px; margin: 0;
+  }
+  .ed-wiki-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px;
+    color: oklch(50% 0.013 255);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    font-family: 'Barlow', system-ui, sans-serif;
+    text-decoration: none;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .ed-wiki-link:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); background: oklch(25% 0.021 255); }
+  .ed-subtitle { font-size: 11.5px; color: oklch(42% 0.013 255); display: flex; align-items: center; gap: 8px; }
+  .ed-draft-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px;
+    background: oklch(76% 0.16 68 / 0.10);
+    border: 1px solid oklch(76% 0.16 68 / 0.30);
+    border-radius: 4px;
+    color: oklch(76% 0.16 68);
+    font-size: 10.5px;
+  }
+  .ed-draft-discard {
+    background: none; border: none; padding: 0;
+    color: oklch(62% 0.22 25); font-size: 10.5px; cursor: pointer;
+    text-decoration: underline; font-family: 'Barlow', system-ui, sans-serif;
+  }
+
+  /* ── Body layout ── */
+  .ed-body { padding: 20px 22px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .ed-col-editor  { flex: 1 1 460px; min-width: 300px; }
+  .ed-col-preview { flex: 1 1 280px; min-width: 260px; }
+  .ed-col-ref     { flex: 1 1 280px; min-width: 260px; max-width: 340px; }
+
+  /* ── Section labels ── */
+  .ed-label {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    color: oklch(42% 0.013 255); margin-bottom: 7px;
+  }
+
+  /* ── Color / format buttons ── */
+  .ed-toolbar { display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 7px; }
+  .ed-color-btn {
+    width: 22px; height: 22px; border: none; border-radius: 3px; cursor: pointer;
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
+    flex-shrink: 0;
+  }
+  .ed-color-btn:hover { transform: scale(1.2); box-shadow: 0 0 0 1px oklch(94% 0.007 255 / 0.3); }
+
+  .ed-fmt-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+  .ed-fmt-btn {
+    padding: 3px 9px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px;
+    color: oklch(58% 0.012 255);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.1s, border-color 0.1s;
+  }
+  .ed-fmt-btn:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); }
+
+  /* ── Template field buttons ── */
+  .ed-templates { display: flex; gap: 5px; flex-wrap: wrap; }
+  .ed-tpl-btn {
+    padding: 4px 10px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px;
+    color: oklch(58% 0.012 255);
+    font-size: 11.5px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.1s, border-color 0.1s, background 0.1s;
+  }
+  .ed-tpl-btn:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); background: oklch(25% 0.021 255); }
+
+  /* ── Reference toggle ── */
+  .ed-ref-toggle {
+    width: 100%; padding: 7px 12px; cursor: pointer;
+    background: transparent;
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 5px;
+    color: oklch(50% 0.013 255);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .ed-ref-toggle:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); }
+  .ed-ref-toggle.active { color: oklch(76% 0.16 68); border-color: oklch(76% 0.16 68 / 0.40); background: oklch(76% 0.16 68 / 0.08); }
+
+  /* ── Line editors ── */
+  .ed-lines { display: flex; flex-direction: column; gap: 5px; }
+  .ed-line-row { display: flex; gap: 6px; align-items: center; }
+  .ed-line-num { color: oklch(34% 0.015 255); font-size: 11px; width: 18px; text-align: right; font-family: monospace; flex-shrink: 0; }
+  .ed-line-dash { color: oklch(30% 0.019 255); font-size: 12px; font-family: monospace; flex-shrink: 0; }
+  .ed-line-input {
+    flex: 1; padding: 7px 10px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 5px;
+    color: oklch(94% 0.007 255);
+    font-size: 12px; font-family: 'Courier New', monospace; outline: none;
+    transition: border-color 0.1s, background 0.1s;
+  }
+  .ed-line-input:focus, .ed-line-input.active { border-color: oklch(76% 0.16 68 / 0.6); background: oklch(22.5% 0.022 255); }
+  .ed-line-input::placeholder { color: oklch(34% 0.015 255); }
+  .ed-line-btns { display: flex; gap: 2px; flex-shrink: 0; }
+  .ed-line-btn {
+    padding: 4px 6px; cursor: pointer;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 4px;
+    color: oklch(50% 0.013 255);
+    transition: color 0.1s, border-color 0.1s;
+    display: flex; align-items: center;
+  }
+  .ed-line-btn:hover:not(:disabled) { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); }
+  .ed-line-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .ed-line-btn.copied { border-color: oklch(62% 0.20 142 / 0.5); color: oklch(62% 0.20 142); background: oklch(62% 0.20 142 / 0.08); }
+  .ed-line-btn.delete:hover:not(:disabled) { color: oklch(62% 0.22 25); border-color: oklch(62% 0.22 25 / 0.5); }
+  .ed-add-line-btn {
+    margin-top: 8px; width: 100%; padding: 7px 12px; cursor: pointer;
+    background: transparent;
+    border: 1px dashed oklch(30% 0.019 255);
+    border-radius: 5px;
+    color: oklch(42% 0.013 255);
+    font-size: 12px; font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.1s, border-color 0.1s;
+  }
+  .ed-add-line-btn:hover { color: oklch(74% 0.012 255); border-color: oklch(44% 0.014 255); }
+
+  /* ── Preview box ── */
+  .ed-preview-box {
+    background: oklch(5% 0.025 300);
+    border: 1px solid oklch(18% 0.015 290);
+    border-radius: 5px;
+    padding: 12px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px; line-height: 1.6;
+    min-height: 200px;
+  }
+  .ed-preview-empty { color: oklch(35% 0.016 255); font-style: italic; }
+
+  /* ── Code block ── */
+  .ed-code-block {
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 5px;
+    padding: 10px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px; line-height: 1.5;
+    color: oklch(58% 0.012 255);
+    max-height: 120px; overflow: auto;
+  }
+  .ed-code-key { color: oklch(76% 0.16 68); }
+
+  /* ── Quick ref ── */
+  .ed-qref { font-size: 10.5px; color: oklch(42% 0.013 255); margin-top: 14px; }
+  .ed-qref-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; margin-top: 5px; }
+
+  /* ── Reference panel ── */
+  .ed-ref-panel {
+    background: oklch(18.5% 0.024 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 7px;
+    padding: 12px;
+    display: flex; flex-direction: column;
+  }
+  .ed-ref-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .ed-ref-search {
+    width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px;
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255); border-radius: 5px;
+    color: oklch(94% 0.007 255); font-size: 12.5px; outline: none;
+    font-family: 'Barlow', system-ui, sans-serif;
+    transition: border-color 0.12s;
+  }
+  .ed-ref-search:focus { border-color: oklch(44% 0.014 255); }
+  .ed-ref-search::placeholder { color: oklch(42% 0.013 255); }
+  .ed-ref-list { background: oklch(17% 0.025 255); border-radius: 4px; padding: 4px; overflow-y: auto; }
+  .ed-ref-item {
+    padding: 6px 8px; border-radius: 4px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: background 0.1s;
+    font-size: 12.5px; color: oklch(74% 0.012 255);
+  }
+  .ed-ref-item:hover { background: oklch(21% 0.023 255); }
+  .ed-ref-item.selected { background: oklch(76% 0.16 68 / 0.10); color: oklch(94% 0.007 255); }
+  .ed-ref-preview {
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-radius: 5px;
+    padding: 10px 12px; margin-top: 8px;
+  }
+  .ed-ref-preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .ed-ref-preview-name { font-size: 11.5px; font-weight: 600; color: oklch(74% 0.012 255); }
+  .ed-ref-lines { font-family: 'Courier New', monospace; font-size: 11.5px; line-height: 1.6; }
+  .ed-ref-line-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .ed-ref-line-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ed-ref-copy-btn {
+    padding: 2px 6px; cursor: pointer; flex-shrink: 0;
+    background: none; border: 1px solid oklch(30% 0.019 255); border-radius: 3px;
+    color: oklch(42% 0.013 255); font-size: 10px;
+    font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.1s, border-color 0.1s;
+  }
+  .ed-ref-copy-btn:hover { color: oklch(76% 0.16 68); border-color: oklch(76% 0.16 68 / 0.4); }
+  .ed-ref-copy-btn.done { color: oklch(62% 0.20 142); border-color: oklch(62% 0.20 142 / 0.4); }
+
+  /* ── Auth / GitHub section ── */
+  .ed-auth { padding: 16px 22px; border-bottom: 1px solid oklch(24% 0.022 255); }
+  .ed-auth-desc { font-size: 13px; color: oklch(58% 0.012 255); margin-bottom: 12px; line-height: 1.6; }
+  .ed-auth-desc a { color: oklch(60% 0.09 200); text-decoration: none; }
+  .ed-auth-desc code { background: oklch(23% 0.022 255); border: 1px solid oklch(30% 0.019 255); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .ed-auth-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .ed-auth-user { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .ed-auth-user-info { display: flex; align-items: center; gap: 10px; }
+  .ed-auth-avatar { width: 28px; height: 28px; border-radius: 50%; }
+  .ed-auth-name { font-size: 13px; font-weight: 600; color: oklch(62% 0.20 142); display: flex; align-items: center; gap: 4px; }
+  .ed-auth-sub { font-size: 11px; color: oklch(42% 0.013 255); }
+  .ed-branch-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ed-branch-label { font-size: 11.5px; color: oklch(42% 0.013 255); white-space: nowrap; }
+  .ed-warn-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; color: oklch(82% 0.16 90);
+    background: oklch(82% 0.16 90 / 0.08);
+    border: 1px solid oklch(82% 0.16 90 / 0.25);
+    border-radius: 4px; padding: 2px 8px;
+  }
+
+  /* ── Generic inputs / selects / buttons ── */
+  .ed-input {
+    padding: 8px 11px;
+    background: oklch(21% 0.023 255); border: 1px solid oklch(30% 0.019 255);
+    border-radius: 6px; color: oklch(94% 0.007 255);
+    font-size: 13px; outline: none; font-family: 'Barlow', system-ui, sans-serif;
+    transition: border-color 0.12s;
+  }
+  .ed-input:focus { border-color: oklch(44% 0.014 255); }
+  .ed-input::placeholder { color: oklch(42% 0.013 255); }
+  .ed-input.flex1 { flex: 1; }
+  .ed-select {
+    appearance: none; padding: 7px 10px; min-width: 150px;
+    background: oklch(21% 0.023 255); border: 1px solid oklch(30% 0.019 255);
+    border-radius: 5px; color: oklch(74% 0.012 255);
+    font-size: 12.5px; cursor: pointer; outline: none;
+    font-family: 'Barlow', system-ui, sans-serif;
+  }
+  .ed-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: none; border: 1px solid oklch(30% 0.019 255); border-radius: 6px;
+    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(50% 0.013 255); cursor: pointer; white-space: nowrap;
+    font-family: 'Barlow', system-ui, sans-serif;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .ed-btn:hover:not(:disabled) { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); }
+  .ed-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ed-btn-primary {
+    background: oklch(76% 0.16 68); border-color: oklch(76% 0.16 68);
+    color: oklch(14% 0.01 50); font-weight: 700;
+  }
+  .ed-btn-primary:hover:not(:disabled) { background: oklch(80% 0.16 68); color: oklch(10% 0.01 50); border-color: oklch(80% 0.16 68); }
+  .ed-btn-primary:disabled { background: oklch(30% 0.019 255); border-color: oklch(30% 0.019 255); color: oklch(42% 0.013 255); opacity: 1; }
+  .ed-btn-icon { padding: 6px; gap: 0; border-radius: 5px; }
+  .ed-btn-ghost { background: none; border: none; color: oklch(42% 0.013 255); cursor: pointer; padding: 0; font-size: 12px; font-family: 'Barlow', system-ui, sans-serif; }
+  .ed-btn-ghost:hover { color: oklch(94% 0.007 255); }
+  .ed-btn-delete { border-color: oklch(62% 0.22 25 / 0.35); color: oklch(62% 0.22 25); }
+  .ed-btn-delete:hover:not(:disabled) { background: oklch(62% 0.22 25 / 0.10); border-color: oklch(62% 0.22 25 / 0.6); color: oklch(62% 0.22 25); }
+  .ed-btn-delete.confirming { background: oklch(62% 0.22 25); border-color: oklch(62% 0.22 25); color: oklch(94% 0.007 255); font-weight: 700; }
+  .ed-btn-lg { padding: 10px 22px; font-size: 13px; }
+  .ed-remember { display: flex; align-items: center; gap: 6px; font-size: 12px; color: oklch(58% 0.012 255); cursor: pointer; user-select: none; }
+
+  /* ── Status banner ── */
+  .ed-status {
+    padding: 9px 13px; border-radius: 5px; margin-bottom: 14px; font-size: 13px;
+    border: 1px solid;
+  }
+  .ed-status.info    { background: oklch(60% 0.09 200 / 0.08); border-color: oklch(60% 0.09 200 / 0.3); color: oklch(60% 0.09 200); }
+  .ed-status.success { background: oklch(62% 0.20 142 / 0.08); border-color: oklch(62% 0.20 142 / 0.3); color: oklch(62% 0.20 142); }
+  .ed-status.warning { background: oklch(82% 0.16 90 / 0.08);  border-color: oklch(82% 0.16 90 / 0.3);  color: oklch(82% 0.16 90);  }
+  .ed-status.error   { background: oklch(62% 0.22 25 / 0.10);  border-color: oklch(62% 0.22 25 / 0.30);  color: oklch(72% 0.18 25);  }
+
+  /* ── Footer ── */
+  .ed-footer {
+    padding: 14px 22px; border-top: 1px solid oklch(24% 0.022 255);
+    background: oklch(18.5% 0.024 255);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .ed-footer-right { display: flex; gap: 8px; align-items: center; }
+`;
+
 
 // Common field templates based on config.yml patterns
 const FIELD_TEMPLATES = [
@@ -167,7 +486,7 @@ function parseMinecraftFormatting(text) {
     if (!text) return null;
 
     const parts = [];
-    let currentColor = COLORS.text;
+    let currentColor = MC_BASE_COLOR;
     let isBold = false;
     let isItalic = false;
     let isUnderline = false;
@@ -194,7 +513,7 @@ function parseMinecraftFormatting(text) {
             } else if (code === 'm') {
                 isStrike = true;
             } else if (code === 'r') {
-                currentColor = COLORS.text;
+                currentColor = MC_BASE_COLOR;
                 isBold = false;
                 isItalic = false;
                 isUnderline = false;
@@ -401,19 +720,13 @@ function generateDefaultHeader(displayName) {
 function ColorButton({ code, onClick }) {
     return (
         <button
+            className="ed-color-btn"
             onClick={() => onClick(`&${code}`)}
             title={COLOR_NAMES[code]}
             style={{
-                width: '24px',
-                height: '24px',
                 background: MC_COLORS[code],
-                border: code === '0' ? '1px solid #444' : 'none',
-                borderRadius: '3px',
-                cursor: 'pointer',
-                transition: 'transform 0.1s'
+                border: code === '0' ? '1px solid oklch(34% 0.015 255)' : 'none',
             }}
-            onMouseEnter={e => e.target.style.transform = 'scale(1.15)'}
-            onMouseLeave={e => e.target.style.transform = 'scale(1)'}
         />
     );
 }
@@ -421,18 +734,12 @@ function ColorButton({ code, onClick }) {
 function FormatButton({ code, name, onClick }) {
     return (
         <button
+            className="ed-fmt-btn"
             onClick={() => onClick(`&${code}`)}
             style={{
-                padding: '4px 10px',
-                background: COLORS.bgLighter,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: '3px',
-                color: COLORS.text,
-                fontSize: '11px',
-                cursor: 'pointer',
-                fontWeight: code === 'l' ? '700' : '400',
-                fontStyle: code === 'o' ? 'italic' : 'normal',
-                textDecoration: code === 'n' ? 'underline' : code === 'm' ? 'line-through' : 'none'
+                fontWeight:     code === 'l' ? '700' : undefined,
+                fontStyle:      code === 'o' ? 'italic' : undefined,
+                textDecoration: code === 'n' ? 'underline' : code === 'm' ? 'line-through' : undefined,
             }}
         >
             {name}
@@ -442,34 +749,12 @@ function FormatButton({ code, name, onClick }) {
 
 function TemplateButton({ template, onClick }) {
     return (
-        <button
-            onClick={() => onClick(template)}
-            style={{
-                padding: '6px 10px',
-                background: COLORS.bgLight,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: '4px',
-                color: COLORS.text,
-                fontSize: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => {
-                e.currentTarget.style.borderColor = COLORS.accent;
-                e.currentTarget.style.background = COLORS.bgLighter;
-            }}
-            onMouseLeave={e => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.background = COLORS.bgLight;
-            }}
-        >
-            <span>{template.name}</span>
+        <button className="ed-tpl-btn" onClick={() => onClick(template)}>
+            {template.name}
         </button>
     );
 }
+
 
 export default function DescriptionEditor({ item, allItems = [], onClose, onSave }) {
     // Check for existing draft
@@ -1011,820 +1296,367 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
         return result.join('\n');
     }
 
+
     return (
-        <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.85)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-            padding: '20px',
-            boxSizing: 'border-box'
-        }}>
-            <div style={{
-                background: COLORS.bg,
-                borderRadius: '12px',
-                width: '100%',
-                maxWidth: showReference ? '1400px' : '1000px',
-                maxHeight: '90vh',
-                overflow: 'auto',
-                border: `1px solid ${COLORS.border}`,
-                transition: 'max-width 0.2s ease'
-            }}>
-                {/* Header */}
-                <div style={{
-                    padding: '16px 24px',
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    position: 'sticky',
-                    top: 0,
-                    background: COLORS.bg,
-                    zIndex: 10
-                }}>
-                    <div>
-                        <h2 style={{ margin: 0, color: COLORS.text, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="ed ed-overlay" onClick={onClose}>
+            <style>{EDITOR_CSS}</style>
+            <div
+                className={`ed-panel ${showReference ? 'wide' : 'narrow'}`}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* ── Header ── */}
+                <div className="ed-header">
+                    <div className="ed-header-left">
+                        <h2 className="ed-title">
                             Edit Description: {item.displayName}
                             <a
                                 href={`https://minecraft.wiki/w/${item.displayName.replace(/ /g, '_')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                target="_blank" rel="noopener noreferrer"
                                 title="Open Minecraft Wiki"
-                                style={{
-                                    color: COLORS.textMuted,
-                                    fontSize: '14px',
-                                    textDecoration: 'none',
-                                    padding: '4px 8px',
-                                    background: COLORS.bgLighter,
-                                    borderRadius: '4px',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = COLORS.accent;
-                                    e.currentTarget.style.color = '#fff';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = COLORS.bgLighter;
-                                    e.currentTarget.style.color = COLORS.textMuted;
-                                }}
+                                className="ed-wiki-link"
                             >
-                                <BookOpen size={14} /> Wiki
+                                <BookOpen size={12} /> Wiki
                             </a>
                         </h2>
-                        <div style={{ color: COLORS.textMuted, fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {item.material}
+                        <div className="ed-subtitle">
+                            <span>{item.material}</span>
                             {hasDraft && (
-                                <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '2px 8px',
-                                    background: '#FFAA0022',
-                                    border: '1px solid #FFAA0044',
-                                    borderRadius: '4px',
-                                    color: '#FFAA00',
-                                    fontSize: '11px'
-                                }}>
-                                    <Save size={14} style={{ marginRight: '4px' }} /> Draft saved {draftTimestamp && ` · ${new Date(draftTimestamp).toLocaleTimeString()}`}
-                                    <button
-                                        onClick={handleDiscardDraft}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#FF5555',
-                                            cursor: 'pointer',
-                                            padding: '0 2px',
-                                            fontSize: '11px',
-                                            textDecoration: 'underline'
-                                        }}
-                                    >
+                                <span className="ed-draft-pill">
+                                    <Save size={11} />
+                                    Draft{draftTimestamp && ` · ${new Date(draftTimestamp).toLocaleTimeString()}`}
+                                    <button className="ed-draft-discard" onClick={handleDiscardDraft}>
                                         Discard
                                     </button>
                                 </span>
                             )}
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: COLORS.textMuted,
-                            fontSize: '24px',
-                            cursor: 'pointer',
-                            padding: '4px 8px'
-                        }}
-                    >
+                    <button className="ed-btn ed-btn-icon" aria-label="Close" onClick={onClose} style={{ border: 'none', color: C.dim }}>
                         <X size={18} />
                     </button>
                 </div>
 
-                <div style={{ padding: '20px 24px', display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-                    {/* Editor Panel */}
-                    <div style={{ flex: '1 1 450px', minWidth: '300px' }}>
-                        {/* Formatting Tools */}
-                        <div style={{ marginBottom: '16px' }}>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                Colors & Formatting
-                            </div>
+                {/* ── Body ── */}
+                <div className="ed-body">
 
-                            <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                    {/* ── Editor column ── */}
+                    <div className="ed-col-editor">
+
+                        {/* Colors */}
+                        <div style={{ marginBottom: 14 }}>
+                            <div className="ed-label">Colors & Formatting</div>
+                            <div className="ed-toolbar">
                                 {Object.keys(MC_COLORS).map(code => (
                                     <ColorButton key={code} code={code} onClick={insertCode} />
                                 ))}
                             </div>
-
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <div className="ed-fmt-btns">
                                 {Object.entries(FORMAT_CODES).map(([code, { name }]) => (
                                     <FormatButton key={code} code={code} name={name} onClick={insertCode} />
                                 ))}
                             </div>
                         </div>
 
-                        {/* Field Templates */}
-                        <div style={{ marginBottom: '16px' }}>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                Add Field
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                {FIELD_TEMPLATES.map((template, idx) => (
-                                    <TemplateButton
-                                        key={idx}
-                                        template={template}
-                                        onClick={() => addLine(template)}
-                                    />
+                        {/* Templates */}
+                        <div style={{ marginBottom: 14 }}>
+                            <div className="ed-label">Add Field</div>
+                            <div className="ed-templates">
+                                {FIELD_TEMPLATES.map((tpl, idx) => (
+                                    <TemplateButton key={idx} template={tpl} onClick={() => addLine(tpl)} />
                                 ))}
                             </div>
                         </div>
 
-                        {/* Reference toggle button */}
-                        <div style={{ marginBottom: '16px' }}>
+                        {/* Reference toggle */}
+                        <div style={{ marginBottom: 14 }}>
                             <button
+                                className={`ed-ref-toggle${showReference ? ' active' : ''}`}
                                 onClick={() => setShowReference(!showReference)}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px 12px',
-                                    background: showReference ? COLORS.accent + '22' : 'transparent',
-                                    border: `1px solid ${showReference ? COLORS.accent : COLORS.border}`,
-                                    borderRadius: '4px',
-                                    color: showReference ? COLORS.accent : COLORS.textMuted,
-                                    fontSize: '11px',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '1px',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.15s'
-                                }}
                             >
-                                <Clipboard size={14} />
-                                <span>{showReference ? 'Hide Reference Panel' : 'Show Reference Panel'}</span>
+                                <Clipboard size={13} />
+                                {showReference ? 'Hide Reference Panel' : 'Show Reference Panel'}
                             </button>
                         </div>
 
-                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Description Lines
-                        </div>
-
                         {/* Line editors */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div className="ed-label">Description Lines</div>
+                        <div className="ed-lines">
                             {lines.map((line, index) => (
-                                <div key={index} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    <div style={{
-                                        color: COLORS.textMuted,
-                                        fontSize: '11px',
-                                        width: '18px',
-                                        textAlign: 'right',
-                                        fontFamily: 'monospace'
-                                    }}>
-                                        {index + 1}
-                                    </div>
-                                    <div style={{
-                                        color: COLORS.accent,
-                                        fontSize: '12px',
-                                        fontFamily: 'monospace',
-                                        opacity: 0.6
-                                    }}>
-                                        -
-                                    </div>
+                                <div key={index} className="ed-line-row">
+                                    <span className="ed-line-num">{index + 1}</span>
+                                    <span className="ed-line-dash">—</span>
                                     <input
                                         id={`line-editor-${index}`}
                                         type="text"
+                                        className={`ed-line-input${activeLineIndex === index ? ' active' : ''}`}
                                         value={line}
                                         onChange={e => updateLine(index, e.target.value)}
                                         onFocus={() => setActiveLineIndex(index)}
-                                        placeholder={index === 0 ? "Header line..." : "Description line..."}
-                                        style={{
-                                            flex: 1,
-                                            padding: '8px 10px',
-                                            background: activeLineIndex === index ? COLORS.bgLighter : COLORS.bgLight,
-                                            border: `1px solid ${activeLineIndex === index ? COLORS.accent : COLORS.border}`,
-                                            borderRadius: '4px',
-                                            color: COLORS.text,
-                                            fontSize: '12px',
-                                            fontFamily: "'Courier New', monospace",
-                                            outline: 'none'
-                                        }}
+                                        placeholder={index === 0 ? 'Header line...' : 'Description line...'}
                                     />
-                                    <div style={{ display: 'flex', gap: '2px' }}>
-                                        <button
-                                            onClick={() => moveLine(index, -1)}
-                                            disabled={index === 0}
-                                            title="Move up"
-                                            style={{
-                                                padding: '4px 6px',
-                                                background: COLORS.bgLight,
-                                                border: `1px solid ${COLORS.border}`,
-                                                borderRadius: '3px',
-                                                color: index === 0 ? COLORS.textMuted : COLORS.text,
-                                                cursor: index === 0 ? 'not-allowed' : 'pointer',
-                                                opacity: index === 0 ? 0.4 : 1,
-                                                fontSize: '11px'
-                                            }}
-                                        >
-                                            <ArrowUp size={14} />
+                                    <div className="ed-line-btns">
+                                        <button className="ed-line-btn" onClick={() => moveLine(index, -1)} disabled={index === 0} title="Move up">
+                                            <ArrowUp size={13} />
+                                        </button>
+                                        <button className="ed-line-btn" onClick={() => moveLine(index, 1)} disabled={index === lines.length - 1} title="Move down">
+                                            <ArrowDown size={13} />
                                         </button>
                                         <button
-                                            onClick={() => moveLine(index, 1)}
-                                            disabled={index === lines.length - 1}
-                                            title="Move down"
-                                            style={{
-                                                padding: '4px 6px',
-                                                background: COLORS.bgLight,
-                                                border: `1px solid ${COLORS.border}`,
-                                                borderRadius: '3px',
-                                                color: index === lines.length - 1 ? COLORS.textMuted : COLORS.text,
-                                                cursor: index === lines.length - 1 ? 'not-allowed' : 'pointer',
-                                                opacity: index === lines.length - 1 ? 0.4 : 1,
-                                                fontSize: '11px'
-                                            }}
-                                        >
-                                            <ArrowDown size={14} />
-                                        </button>
-                                        <button
+                                            className={`ed-line-btn${copiedIndex === index ? ' copied' : ''}`}
                                             onClick={() => {
                                                 navigator.clipboard.writeText(line).then(() => {
                                                     setCopiedIndex(index);
                                                     setTimeout(() => setCopiedIndex(null), 1500);
-                                                }).catch(err => {
-                                                    console.error('Failed to copy:', err);
-                                                });
+                                                }).catch(() => {});
                                             }}
                                             title="Copy line"
-                                            style={{
-                                                padding: '4px 6px',
-                                                background: copiedIndex === index ? '#00AA0033' : COLORS.bgLight,
-                                                border: `1px solid ${copiedIndex === index ? COLORS.success : COLORS.border}`,
-                                                borderRadius: '3px',
-                                                color: copiedIndex === index ? COLORS.success : COLORS.text,
-                                                cursor: 'pointer',
-                                                fontSize: '11px',
-                                                transition: 'all 0.15s'
-                                            }}
                                         >
-                                            {copiedIndex === index ? <Check size={14} /> : <Copy size={14} />}
+                                            {copiedIndex === index ? <Check size={13} /> : <Copy size={13} />}
                                         </button>
                                         <button
+                                            className="ed-line-btn delete"
                                             onClick={() => removeLine(index)}
                                             disabled={lines.length <= 1}
                                             title="Delete line"
-                                            style={{
-                                                padding: '4px 8px',
-                                                background: lines.length <= 1 ? COLORS.bgLight : '#AA000022',
-                                                border: `1px solid ${lines.length <= 1 ? COLORS.border : '#AA000066'}`,
-                                                borderRadius: '3px',
-                                                color: lines.length <= 1 ? COLORS.textMuted : '#FF5555',
-                                                cursor: lines.length <= 1 ? 'not-allowed' : 'pointer',
-                                                opacity: lines.length <= 1 ? 0.4 : 1,
-                                                fontSize: '11px'
-                                            }}
                                         >
-                                            <X size={16} />
+                                            <X size={13} />
                                         </button>
                                     </div>
                                 </div>
                             ))}
                         </div>
-
-                        <button
-                            onClick={() => addLine()}
-                            style={{
-                                marginTop: '10px',
-                                padding: '8px 14px',
-                                background: COLORS.bgLight,
-                                border: `1px dashed ${COLORS.border}`,
-                                borderRadius: '4px',
-                                color: COLORS.textMuted,
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                                width: '100%',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => {
-                                e.target.style.borderColor = COLORS.accent;
-                                e.target.style.color = COLORS.text;
-                            }}
-                            onMouseLeave={e => {
-                                e.target.style.borderColor = COLORS.border;
-                                e.target.style.color = COLORS.textMuted;
-                            }}
-                        >
-                            + Add Empty Line
-                        </button>
+                        <button className="ed-add-line-btn" onClick={() => addLine()}>+ Add Empty Line</button>
                     </div>
 
-                    {/* Preview Panel */}
-                    <div style={{ flex: '1 1 280px', minWidth: '260px' }}>
-                        <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                            Preview
-                        </div>
-                        <div style={{
-                            background: '#100010',
-                            border: '2px solid #2d0a3e',
-                            borderRadius: '4px',
-                            padding: '12px 14px',
-                            fontFamily: "'Courier New', monospace",
-                            fontSize: '13px',
-                            lineHeight: '1.5',
-                            minHeight: '200px',
-                            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)'
-                        }}>
+                    {/* ── Preview column ── */}
+                    <div className="ed-col-preview">
+                        <div className="ed-label">Preview</div>
+                        <div className="ed-preview-box">
                             {lines.length === 0 || (lines.length === 1 && !lines[0]) ? (
-                                <div style={{ color: COLORS.textMuted, fontStyle: 'italic' }}>
-                                    Preview will appear here...
-                                </div>
+                                <div className="ed-preview-empty">Preview will appear here...</div>
                             ) : (
                                 lines.map((line, idx) => (
-                                    <div key={idx} style={{ minHeight: '20px' }}>
+                                    <div key={idx} style={{ minHeight: 20 }}>
                                         <FormattedLine text={line} />
                                     </div>
                                 ))
                             )}
                         </div>
 
-                        {/* YAML Preview */}
-                        <div style={{ marginTop: '16px' }}>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                YAML Output
-                            </div>
-                            <div style={{
-                                background: COLORS.bgLight,
-                                border: `1px solid ${COLORS.border}`,
-                                borderRadius: '4px',
-                                padding: '10px 12px',
-                                fontFamily: 'monospace',
-                                fontSize: '11px',
-                                lineHeight: '1.4',
-                                color: COLORS.textMuted,
-                                maxHeight: '120px',
-                                overflow: 'auto'
-                            }}>
-                                <div style={{ color: COLORS.accent }}>{item.material}:</div>
+                        {/* YAML output */}
+                        <div style={{ marginTop: 14 }}>
+                            <div className="ed-label">YAML Output</div>
+                            <div className="ed-code-block">
+                                <div className="ed-code-key">{item.material}:</div>
                                 {lines.map((line, idx) => (
-                                    <div key={idx} style={{ paddingLeft: '12px' }}>
-                                        - "{line}"
-                                    </div>
+                                    <div key={idx} style={{ paddingLeft: 12 }}>- "{line}"</div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Quick Reference */}
-                        <div style={{ marginTop: '16px', fontSize: '10px', color: COLORS.textMuted }}>
-                            <div style={{ marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Reference</div>
-                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px'}}>
-                                <div>&amp;7 = <span style={{color: MC_COLORS['7']}}>Gray</span> (labels)</div>
-                                <div>&amp;a = <span style={{color: MC_COLORS.a}}>Green</span> (values & high %)</div>
-                                <div>&amp;6 = <span style={{color: MC_COLORS['6']}}>Gold</span> (mid %)</div>
-                                <div>&amp;c = <span style={{color: MC_COLORS.c}}>Red</span> (low %)</div>
-                                <div>&amp;b = <span style={{color: MC_COLORS.b}}>Aqua</span> (title)</div>
+                        {/* Quick ref */}
+                        <div className="ed-qref">
+                            <div style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Quick Reference</div>
+                            <div className="ed-qref-grid">
+                                <div>&amp;7 = <span style={{ color: MC_COLORS['7'] }}>Gray</span> (labels)</div>
+                                <div>&amp;a = <span style={{ color: MC_COLORS.a }}>Green</span> (values)</div>
+                                <div>&amp;6 = <span style={{ color: MC_COLORS['6'] }}>Gold</span> (mid %)</div>
+                                <div>&amp;c = <span style={{ color: MC_COLORS.c }}>Red</span> (low %)</div>
+                                <div>&amp;b = <span style={{ color: MC_COLORS.b }}>Aqua</span> (title)</div>
                                 <div>&amp;r = Reset all</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Reference Panel - Side by side */}
+                    {/* ── Reference panel ── */}
                     {showReference && (
-                        <div style={{
-                            flex: '1 1 300px',
-                            minWidth: '280px',
-                            maxWidth: '350px',
-                            background: COLORS.bgLight,
-                            borderRadius: '6px',
-                            padding: '12px',
-                            border: `1px solid ${COLORS.accent}44`,
-                            display: 'flex',
-                            flexDirection: 'column'
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                marginBottom: '10px'
-                            }}>
-                                <div style={{ fontSize: '11px', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                    <Clipboard size={14} /> Reference
-                                </div>
-                                <button
-                                    onClick={() => setShowReference(false)}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: COLORS.textMuted,
-                                        cursor: 'pointer',
-                                        fontSize: '16px',
-                                        padding: '0 4px'
-                                    }}
-                                >
-                                    <X size={18} />
-                                </button>
-                            </div>
-
-                            <input
-                                type="text"
-                                placeholder="Search items..."
-                                value={referenceSearch}
-                                onChange={e => {
-                                    setReferenceSearch(e.target.value);
-                                    setSelectedReference(null);
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px 10px',
-                                    background: COLORS.bg,
-                                    border: `1px solid ${COLORS.border}`,
-                                    borderRadius: '4px',
-                                    color: COLORS.text,
-                                    fontSize: '12px',
-                                    marginBottom: '8px'
-                                }}
-                            />
-
-                            {/* Item list */}
-                            <div style={{
-                                flex: selectedReference ? '0 0 auto' : '1',
-                                maxHeight: selectedReference ? '120px' : '200px',
-                                overflowY: 'auto',
-                                marginBottom: '8px',
-                                background: COLORS.bg,
-                                borderRadius: '4px',
-                                padding: '4px'
-                            }}>
-                                {referenceItems.length === 0 ? (
-                                    <div style={{ color: COLORS.textMuted, fontSize: '11px', padding: '12px', textAlign: 'center' }}>
-                                        {referenceSearch ? 'No matches' : 'Type to search'}
+                        <div className="ed-col-ref">
+                            <div className="ed-ref-panel">
+                                <div className="ed-ref-header">
+                                    <div className="ed-label" style={{ marginBottom: 0 }}>
+                                        <Clipboard size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                                        Reference
                                     </div>
-                                ) : (
-                                    referenceItems.map(refItem => (
+                                    <button className="ed-btn-ghost" onClick={() => setShowReference(false)}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                                <input
+                                    type="text"
+                                    className="ed-ref-search"
+                                    placeholder="Search items..."
+                                    value={referenceSearch}
+                                    onChange={e => { setReferenceSearch(e.target.value); setSelectedReference(null); }}
+                                />
+                                <div className="ed-ref-list" style={{ maxHeight: selectedReference ? 120 : 200 }}>
+                                    {referenceItems.length === 0 ? (
+                                        <div style={{ color: C.dim, fontSize: 11.5, padding: '12px', textAlign: 'center' }}>
+                                            {referenceSearch ? 'No matches' : 'Type to search'}
+                                        </div>
+                                    ) : referenceItems.map(refItem => (
                                         <div
                                             key={refItem.material}
+                                            className={`ed-ref-item${selectedReference?.material === refItem.material ? ' selected' : ''}`}
                                             onClick={() => setSelectedReference(
                                                 selectedReference?.material === refItem.material ? null : refItem
                                             )}
-                                            style={{
-                                                padding: '6px 8px',
-                                                background: selectedReference?.material === refItem.material
-                                                    ? COLORS.accent + '33'
-                                                    : 'transparent',
-                                                borderRadius: '3px',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                fontSize: '11px',
-                                                color: COLORS.text,
-                                                transition: 'background 0.1s'
-                                            }}
-                                            onMouseEnter={e => {
-                                                if (selectedReference?.material !== refItem.material) {
-                                                    e.currentTarget.style.background = COLORS.bgLighter;
-                                                }
-                                            }}
-                                            onMouseLeave={e => {
-                                                if (selectedReference?.material !== refItem.material) {
-                                                    e.currentTarget.style.background = 'transparent';
-                                                }
-                                            }}
                                         >
-                                            <span>{refItem.displayName}</span>
-                                            <span style={{
-                                                color: COLORS[refItem.state.toLowerCase()] || COLORS.textMuted,
-                                                fontSize: '9px',
-                                                textTransform: 'uppercase'
-                                            }}>
-                                                {refItem.state}
-                                            </span>
+                                            <img
+                                                src={`https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib/${refItem.material.toLowerCase()}.png`}
+                                                alt="" style={{ width: 18, height: 18, imageRendering: 'pixelated', flexShrink: 0 }}
+                                                onError={e => { e.target.style.display = 'none'; }}
+                                            />
+                                            {refItem.displayName}
                                         </div>
-                                    ))
+                                    ))}
+                                </div>
+
+                                {selectedReference && (
+                                    <div className="ed-ref-preview">
+                                        <div className="ed-ref-preview-header">
+                                            <span className="ed-ref-preview-name">{selectedReference.displayName}</span>
+                                            <button
+                                                className="ed-btn-ghost"
+                                                style={{ fontSize: 11 }}
+                                                onClick={() => {
+                                                    const allText = selectedReference.description.join('\n');
+                                                    navigator.clipboard.writeText(allText).catch(() => {});
+                                                }}
+                                            >
+                                                Copy all
+                                            </button>
+                                        </div>
+                                        <div className="ed-ref-lines">
+                                            {selectedReference.description.map((line, idx) => (
+                                                <div key={idx} className="ed-ref-line-row">
+                                                    <span className="ed-ref-line-text">
+                                                        <FormattedLine text={line} />
+                                                    </span>
+                                                    <button
+                                                        className={`ed-ref-copy-btn${copiedIndex === `ref-${idx}` ? ' done' : ''}`}
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(line).then(() => {
+                                                                setCopiedIndex(`ref-${idx}`);
+                                                                setTimeout(() => setCopiedIndex(null), 1500);
+                                                            }).catch(() => {});
+                                                        }}
+                                                    >
+                                                        {copiedIndex === `ref-${idx}` ? '✓' : 'Copy'}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-
-                            {/* Selected reference preview */}
-                            {selectedReference && (
-                                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                                    <div style={{
-                                        fontSize: '10px',
-                                        color: COLORS.text,
-                                        marginBottom: '6px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        fontWeight: '600'
-                                    }}>
-                                        <span>{selectedReference.displayName}</span>
-                                        <span style={{ color: COLORS.description, fontWeight: '400' }}>
-                                            {selectedReference.description.length} lines
-                                        </span>
-                                    </div>
-
-                                    {/* Formatted preview */}
-                                    <div style={{
-                                        background: '#000',
-                                        padding: '8px 10px',
-                                        borderRadius: '3px',
-                                        fontFamily: "'Minecraft', monospace",
-                                        fontSize: '11px',
-                                        flex: '1',
-                                        overflowY: 'auto',
-                                        marginBottom: '8px',
-                                        minHeight: '80px'
-                                    }}>
-                                        {selectedReference.description.map((descLine, idx) => (
-                                            <div key={idx} style={{ marginBottom: '2px' }}>
-                                                <FormattedLine text={descLine} />
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Raw codes */}
-                                    <div style={{
-                                        fontSize: '9px',
-                                        color: COLORS.textMuted,
-                                        fontFamily: 'monospace',
-                                        background: COLORS.bg,
-                                        padding: '6px 8px',
-                                        borderRadius: '3px',
-                                        maxHeight: '80px',
-                                        overflowY: 'auto'
-                                    }}>
-                                        {selectedReference.description.map((descLine, idx) => (
-                                            <div key={idx} style={{ marginBottom: '1px' }}>{descLine}</div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
 
-                {/* Footer - Auth & Actions */}
-                <div style={{
-                    padding: '16px 24px',
-                    borderTop: `1px solid ${COLORS.border}`,
-                    background: COLORS.bgLight
-                }}>
-                    {/* GitHub Authentication */}
+                {/* ── GitHub auth section ── */}
+                <div className="ed-auth">
                     {showTokenInput ? (
-                        <div style={{ marginBottom: '16px' }}>
-                            <div style={{ fontSize: '12px', color: COLORS.text, marginBottom: '8px', fontWeight: '500' }}>
-                                GitHub Authentication Required
-                            </div>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginBottom: '10px' }}>
-                                You need write access to <code style={{ background: COLORS.bgLighter, padding: '2px 6px', borderRadius: '3px' }}>{REPO_OWNER}/{REPO_NAME}</code> to edit descriptions.
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                        <div>
+                            <p className="ed-auth-desc">
+                                Enter a GitHub Personal Access Token with <code>repo</code> scope to save.{' '}
+                                <a href="https://github.com/settings/tokens/new?description=FIB+Description+Editor&scopes=repo" target="_blank" rel="noopener noreferrer">
+                                    Create one <ExternalLink size={11} style={{ verticalAlign: 'middle' }} />
+                                </a>
+                            </p>
+                            <div className="ed-auth-row">
                                 <input
                                     type="password"
+                                    placeholder="ghp_xxxxxxxxxxxx"
                                     value={githubToken}
                                     onChange={e => setGithubToken(e.target.value)}
-                                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                    style={{
-                                        flex: 1,
-                                        padding: '10px 12px',
-                                        background: COLORS.bgLighter,
-                                        border: `1px solid ${COLORS.border}`,
-                                        borderRadius: '4px',
-                                        color: COLORS.text,
-                                        fontSize: '13px',
-                                        fontFamily: 'monospace',
-                                        outline: 'none'
-                                    }}
+                                    onKeyDown={e => e.key === 'Enter' && verifyToken(githubToken)}
+                                    className="ed-input ed-input flex1"
                                 />
                                 <button
+                                    className={`ed-btn ed-btn-primary`}
                                     onClick={() => verifyToken(githubToken)}
-                                    disabled={!githubToken || verifyingToken}
-                                    style={{
-                                        padding: '10px 20px',
-                                        background: verifyingToken ? COLORS.bgLighter : COLORS.accent,
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        color: '#fff',
-                                        fontSize: '13px',
-                                        cursor: verifyingToken ? 'not-allowed' : 'pointer',
-                                        opacity: !githubToken || verifyingToken ? 0.7 : 1
-                                    }}
+                                    disabled={verifyingToken || !githubToken.trim()}
                                 >
-                                    {verifyingToken ? 'Verifying...' : 'Authenticate'}
+                                    {verifyingToken
+                                        ? <><RefreshCw size={13} style={{ animation: 'ed-spin 1s linear infinite' }} /> Verifying...</>
+                                        : 'Connect'
+                                    }
                                 </button>
-                            </div>
-                            <div style={{ fontSize: '11px', color: COLORS.textMuted, marginTop: '8px' }}>
-                                <a
-                                    href="https://github.com/settings/tokens/new?description=FIB%20Description%20Editor&scopes=repo"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: COLORS.accent }}
-                                >
-                                    Create a new token <ExternalLink size={12} style={{ display: 'inline', marginLeft: '4px' }} />
-                                </a>
-                                {' '}(requires <code style={{ background: COLORS.bgLighter, padding: '1px 4px', borderRadius: '2px' }}>repo</code> scope)
                             </div>
                         </div>
                     ) : githubUser && (
-                        <div style={{ marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div>
+                            <div className="ed-auth-user">
+                                <div className="ed-auth-user-info">
                                     {githubUser.avatar_url && (
-                                        <img
-                                            src={githubUser.avatar_url}
-                                            alt=""
-                                            style={{ width: '28px', height: '28px', borderRadius: '50%' }}
-                                        />
+                                        <img src={githubUser.avatar_url} alt="" className="ed-auth-avatar" />
                                     )}
                                     <div>
-                                        <div style={{ color: COLORS.success, fontSize: '13px' }}>
-                                            <span style={{ display: 'flex', alignItems: 'center' }}><Check size={14} style={{ color: COLORS.success, marginRight: '4px' }} /> Authenticated as <strong>@{githubUser.login}</strong></span>
+                                        <div className="ed-auth-name">
+                                            <Check size={13} /> @{githubUser.login}
                                         </div>
-                                        <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                            Has write access to {REPO_OWNER}/{REPO_NAME}
+                                        <div className="ed-auth-sub">
+                                            Write access to {REPO_OWNER}/{REPO_NAME}
                                         </div>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={handleLogout}
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: COLORS.textMuted,
-                                        fontSize: '12px',
-                                        cursor: 'pointer',
-                                        textDecoration: 'underline'
-                                    }}
-                                >
-                                    Sign out
-                                </button>
+                                <button className="ed-btn-ghost" onClick={handleLogout}>Sign out</button>
                             </div>
-
-                            {/* Branch Selector */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <label style={{ color: COLORS.textMuted, fontSize: '12px' }}>
-                                    Push to branch:
-                                </label>
+                            <div className="ed-branch-row">
+                                <span className="ed-branch-label">Push to branch:</span>
                                 <select
+                                    className="ed-select"
                                     value={selectedBranch}
-                                    onChange={(e) => setSelectedBranch(e.target.value)}
-                                    style={{
-                                        padding: '6px 10px',
-                                        background: COLORS.bgLighter,
-                                        border: `1px solid ${COLORS.border}`,
-                                        borderRadius: '4px',
-                                        color: COLORS.text,
-                                        fontSize: '13px',
-                                        cursor: 'pointer',
-                                        outline: 'none',
-                                        minWidth: '150px'
-                                    }}
+                                    onChange={e => setSelectedBranch(e.target.value)}
                                 >
                                     {branches.map(branch => (
-                                        <option key={branch} value={branch}>
-                                            {branch}
-                                        </option>
+                                        <option key={branch} value={branch}>{branch}</option>
                                     ))}
                                 </select>
-                                <button
-                                    onClick={handleRefreshBranches}
-                                    title="Refresh branch list"
-                                    style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        color: COLORS.textMuted,
-                                        cursor: 'pointer',
-                                        padding: '6px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        borderRadius: '4px'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = COLORS.bgLighter}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                >
-                                    <RefreshCw size={14} />
+                                <button className="ed-btn ed-btn-icon" aria-label="Refresh branches" onClick={handleRefreshBranches} title="Refresh branches">
+                                    <RefreshCw size={13} />
                                 </button>
                                 {selectedBranch === DEFAULT_BRANCH && (
-                                    <span style={{
-                                        color: COLORS.warning,
-                                        fontSize: '11px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                    }}>
-                                        <AlertTriangle size={14} style={{ marginRight: '4px' }} /> Pushing directly to {DEFAULT_BRANCH}
+                                    <span className="ed-warn-pill">
+                                        <AlertTriangle size={12} /> Pushing directly to {DEFAULT_BRANCH}
                                     </span>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Status message */}
                     {saveStatus && (
-                        <div style={{
-                            padding: '10px 14px',
-                            borderRadius: '4px',
-                            marginBottom: '16px',
-                            background: saveStatus.type === 'error' ? '#AA000033' :
-                                saveStatus.type === 'success' ? '#00AA0033' :
-                                    saveStatus.type === 'warning' ? '#AAAA0033' :
-                                        COLORS.bgLighter,
-                            color: saveStatus.type === 'error' ? COLORS.error :
-                                saveStatus.type === 'success' ? COLORS.success :
-                                    saveStatus.type === 'warning' ? COLORS.warning :
-                                        COLORS.text,
-                            fontSize: '13px'
-                        }}>
+                        <div className={`ed-status ${saveStatus.type}`} style={{ marginTop: 12, marginBottom: 0 }}>
                             {saveStatus.message}
                         </div>
                     )}
+                </div>
 
-                    {/* Action buttons */}
-                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between' }}>
-                        {/* Delete button - only show if item has existing description */}
-                        <div>
-                            {hasExistingDescription && (
-                                <button
-                                    onClick={handleDelete}
-                                    disabled={deleting || saving || !hasAccess}
-                                    style={{
-                                        padding: '12px 24px',
-                                        background: confirmDelete ? '#AA0000' : 'transparent',
-                                        border: `1px solid ${confirmDelete ? '#AA0000' : '#AA000066'}`,
-                                        borderRadius: '6px',
-                                        color: confirmDelete ? '#fff' : '#FF5555',
-                                        fontSize: '14px',
-                                        fontWeight: '600',
-                                        cursor: deleting || saving || !hasAccess ? 'not-allowed' : 'pointer',
-                                        opacity: deleting || saving || !hasAccess ? 0.6 : 1,
-                                        transition: 'all 0.15s'
-                                    }}
-                                >
-                                    {deleting ? 'Deleting...' : confirmDelete ? 'Confirm Delete' : <><Trash2 size={14} style={{ marginRight: '4px' }} /> Delete</>}
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Cancel and Save buttons */}
-                        <div style={{ display: 'flex', gap: '12px' }}>
+                {/* ── Footer ── */}
+                <div className="ed-footer">
+                    <div>
+                        {hasExistingDescription && (
                             <button
-                                onClick={onClose}
-                                style={{
-                                    padding: '12px 24px',
-                                    background: COLORS.bgLighter,
-                                    border: `1px solid ${COLORS.border}`,
-                                    borderRadius: '6px',
-                                    color: COLORS.text,
-                                    fontSize: '14px',
-                                    cursor: 'pointer'
-                                }}
+                                className={`ed-btn ed-btn-lg ed-btn-delete${confirmDelete ? ' confirming' : ''}`}
+                                onClick={handleDelete}
+                                disabled={deleting || saving || !hasAccess}
                             >
-                                Cancel
+                                {deleting ? 'Deleting...' : confirmDelete ? 'Confirm Delete' : <><Trash2 size={14} /> Delete</>}
                             </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={saving || deleting || !hasAccess}
-                                style={{
-                                    padding: '12px 24px',
-                                    background: saving || deleting || !hasAccess ? COLORS.bgLighter : COLORS.accent,
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    color: '#fff',
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    cursor: saving || deleting || !hasAccess ? 'not-allowed' : 'pointer',
-                                    opacity: saving || deleting || !hasAccess ? 0.6 : 1
-                                }}
-                            >
-                                {saving ? 'Saving...' : 'Save to GitHub'}
-                            </button>
-                        </div>
+                        )}
+                    </div>
+                    <div className="ed-footer-right">
+                        <button className="ed-btn ed-btn-lg" onClick={onClose}>Cancel</button>
+                        <button
+                            className="ed-btn ed-btn-lg ed-btn-primary"
+                            onClick={handleSave}
+                            disabled={saving || deleting || !hasAccess}
+                        >
+                            {saving ? 'Saving...' : 'Save to GitHub'}
+                        </button>
                     </div>
                 </div>
+
             </div>
         </div>
     );

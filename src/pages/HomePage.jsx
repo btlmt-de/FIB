@@ -1,5 +1,4 @@
-import React from 'react';
-import { COLORS } from '../config/constants';
+import React, { useCallback } from 'react';
 import Footer from "../components/common/Footer.jsx";
 import Swords from 'lucide-react/dist/esm/icons/swords';
 import Zap from 'lucide-react/dist/esm/icons/zap';
@@ -7,524 +6,745 @@ import Link from 'lucide-react/dist/esm/icons/link';
 import Layers from 'lucide-react/dist/esm/icons/layers';
 import Puzzle from 'lucide-react/dist/esm/icons/puzzle';
 import ArrowRight from 'lucide-react/dist/esm/icons/arrow-right';
+import Settings2 from 'lucide-react/dist/esm/icons/settings-2';
+import Users from 'lucide-react/dist/esm/icons/users';
+import Mountain from 'lucide-react/dist/esm/icons/mountain';
+import ScanLine from 'lucide-react/dist/esm/icons/scan-line';
 
-// Minecraft head API
-const getHeadUrl = (username) => `https://mc-heads.net/avatar/${username}/100`;
+const MC_HEAD  = (u) => `https://mc-heads.net/avatar/${u}/100`;
+const GH_AVT   = (u) => `https://github.com/${u}.png?size=100`;
+const alpha    = (color, a) => color.replace(')', ` / ${a})`);
 
-// Section Divider component
-function SectionDivider({ style, color = COLORS.gold, label }) {
-    // Labeled style with text
-    if (style === 'labeled' && label) {
-        const isLarge = label === 'Created By' || label === 'Features';
-        return (
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '24px',
-                margin: '56px 0',
-            }}>
-                <div style={{
-                    flex: 1,
-                    maxWidth: '200px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, transparent, ${COLORS.border})`,
-                }} />
-                <span style={{
-                    color: isLarge ? COLORS.text : COLORS.textMuted,
-                    fontSize: isLarge ? '18px' : '11px',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: isLarge ? '3px' : '2px',
-                }}>
-                    {label}
-                </span>
-                <div style={{
-                    flex: 1,
-                    maxWidth: '200px',
-                    height: '1px',
-                    background: `linear-gradient(90deg, ${COLORS.border}, transparent)`,
-                }} />
-            </div>
-        );
-    }
+// ─── Data ─────────────────────────────────────────────────────────────────────
 
-    // Default: simple gradient line
-    return (
-        <div style={{
-            width: '120px',
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
-            margin: '48px auto',
-        }} />
-    );
-}
-
-const CREATORS = [
-    {
-        username: 'threeseconds',
-        role: 'Core Development',
-        color: '#AA0000'
-    },
-    {
-        username: 'eltobito',
-        role: 'Content, Datapacks & Resource Packs',
-        color: COLORS.aqua
-    },
-    {
-        username: 'stupxd',
-        role: 'Bug Fixing & Quality Improvements',
-        color: COLORS.gold
-    },
-    {
-        username: 'apppaa',
-        role: 'Item Descriptions',
-        color: COLORS.yellow
-    },
-    {
-        username: 'CH0RD',
-        role: 'Structure Design',
-        color: COLORS.green
-    }
-];
-
-const SPECIAL_THANKS = [
-    {
-        username: '170yt',
-        description: 'Original project we forked and built upon',
-        color: COLORS.gold,
-        type: 'github',
-        link: 'https://github.com/170yt/ForceItemBattle'
-    },
-    {
-        username: 'McPlayHD',
-        description: 'Providing the server infrastructure',
-        color: COLORS.gold,
-        type: 'github',
-        link: 'https://github.com/mcplayhd'
-    },
-    {
-        username: 'Owen1212055',
-        description: 'Item Renders for Resource Pack',
-        color: COLORS.gold,
-        type: 'github',
-        link: 'https://github.com/Owen1212055/mc-assets'
-    }
-];
-
-const FEATURES = [
+const MODES = [
     {
         icon: Swords,
         title: 'ForceItemBattle',
-        description: 'The classic mode - race against time, whoever collects the most items wins',
-        color: COLORS.red
+        tag: 'Classic',
+        description: 'Race against the clock collecting randomly assigned items. Find yours, get the next one. Most collected before time runs out wins.',
+        color: 'oklch(62% 0.22 25)',
     },
     {
         icon: Zap,
         title: 'RunBattle',
-        description: 'Only the first player to find the item scores - speed is everything',
-        color: COLORS.gold
+        tag: 'Speed',
+        description: 'Only the first player to reach each item scores. No sharing, no second chances — route faster or lose the point.',
+        color: 'oklch(76% 0.16 68)',
     },
     {
         icon: Link,
         title: 'ForceChain',
-        description: 'See your current item and the next one - how are you planning?',
-        color: COLORS.aqua
+        tag: 'Strategy',
+        description: "You see the current item and the next one in the chain. Plan your path before you score.",
+        color: 'oklch(75% 0.12 200)',
     },
+];
+
+const FEATURES = [
     {
         icon: Layers,
         title: 'Dynamic Item Pools',
-        description: 'Carefully balanced item categories ranging from Easy to Extreme difficulty',
-        color: COLORS.purple
+        description: 'Carefully tiered categories from Easy to Extreme, tuned so every match stays fair regardless of skill level.',
+        href: 'pools',
     },
     {
         icon: Puzzle,
         title: 'Custom Structures',
-        description: 'Unique buildings and loot locations designed for FIB gameplay',
-        color: COLORS.green
-    }
+        description: 'Hand-built locations and loot spawns designed specifically around FIB gameplay.',
+        href: 'structures',
+    },
+    {
+        icon: Settings2,
+        title: 'Round Settings',
+        description: 'Tune the round experience your way — time limits, item counts, difficulty and more.',
+        href: 'settings',
+    },
+    {
+        icon: Users,
+        title: 'Team Mode',
+        description: 'Compete in teams. Points pool together, strategy shifts from individual routing to coordinated coverage.',
+    },
+    {
+        icon: Mountain,
+        title: 'Custom End Generation',
+        description: 'A purpose-built End dimension with faster traversal and sparser terrain, designed for the pace of competitive play.',
+        href: 'structures',
+    },
+    {
+        icon: ScanLine,
+        title: 'Auto Item Detection',
+        description: 'Already carrying the item? It registers automatically — inventory, bundle, or backpack. No fumbling required.',
+    },
 ];
 
-function FeatureCard({ icon: Icon, title, description, color }) {
-    return (
-        <div style={{
-            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`,
-            border: `1px solid ${color}22`,
-            borderRadius: '12px',
-            padding: '24px',
-            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            cursor: 'default',
-            position: 'relative',
-            overflow: 'hidden'
-        }}
-             onMouseEnter={e => {
-                 e.currentTarget.style.transform = 'translateY(-6px)';
-                 e.currentTarget.style.boxShadow = `0 16px 32px ${color}33, inset 0 1px 0 ${color}22`;
-                 e.currentTarget.style.borderColor = `${color}55`;
-             }}
-             onMouseLeave={e => {
-                 e.currentTarget.style.transform = 'translateY(0)';
-                 e.currentTarget.style.boxShadow = 'none';
-                 e.currentTarget.style.borderColor = `${color}22`;
-             }}
-        >
-            <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '10px',
-                background: `${color}15`,
-                border: `1px solid ${color}33`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
-                boxShadow: `0 0 20px ${color}22`,
-            }}>
-                <Icon size={24} style={{ color: color }} />
-            </div>
-            <h3 style={{
-                color: COLORS.text,
-                fontSize: '16px',
-                fontWeight: '600',
-                margin: '0 0 8px 0',
-            }}>
-                {title}
-            </h3>
-            <p style={{
-                color: COLORS.textMuted,
-                fontSize: '13px',
-                lineHeight: '1.6',
-                margin: 0,
-            }}>
-                {description}
-            </p>
-        </div>
-    );
-}
+const TEAM = [
+    { name: 'threeseconds', role: 'Core Development',                   color: 'oklch(62% 0.22 25)' },
+    { name: 'eltobito',     role: 'Content, Datapacks & Resource Packs', color: 'oklch(75% 0.12 200)' },
+    { name: 'stupxd',       role: 'Bug Fixing & Quality',                color: 'oklch(76% 0.16 68)' },
+    { name: 'apppaa',       role: 'Item Descriptions',                   color: 'oklch(82% 0.16 90)' },
+    { name: 'CH0RD',        role: 'Structure Design',                    color: 'oklch(68% 0.18 145)' },
+];
 
-function CreatorCard({ username, role, color }) {
-    return (
-        <div style={{
-            background: `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`,
-            border: `2px solid ${color}22`,
-            borderRadius: '12px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-            transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-            cursor: 'default',
-            position: 'relative',
-            overflow: 'hidden'
-        }}
-             onMouseEnter={e => {
-                 e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                 e.currentTarget.style.boxShadow = `0 20px 40px ${color}44, inset 0 1px 0 ${color}22`;
-                 e.currentTarget.style.borderColor = color;
-                 e.currentTarget.style.background = `linear-gradient(135deg, ${COLORS.bgLighter} 0%, #353560 100%)`;
-             }}
-             onMouseLeave={e => {
-                 e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                 e.currentTarget.style.boxShadow = 'none';
-                 e.currentTarget.style.borderColor = `${color}22`;
-                 e.currentTarget.style.background = `linear-gradient(135deg, ${COLORS.bgLight} 0%, ${COLORS.bgLighter} 100%)`;
-             }}
-        >
-            <div style={{
-                width: '90px',
-                height: '90px',
-                borderRadius: '10px',
-                overflow: 'hidden',
-                border: `3px solid ${color}`,
-                boxShadow: `0 0 30px ${color}55, 0 0 60px ${color}22`,
-                transition: 'all 0.3s ease'
-            }}>
-                <img
-                    src={getHeadUrl(username)}
-                    alt={username}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                    }}
-                />
-            </div>
-            <div style={{ textAlign: 'center', width: '100%' }}>
-                <div style={{
-                    color: color,
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    textShadow: `0 0 12px ${color}66`,
-                    marginBottom: '4px'
-                }}>
-                    {username}
-                </div>
-                <div style={{
-                    color: COLORS.textMuted,
-                    fontSize: '12px',
-                    lineHeight: '1.4'
-                }}>
-                    {role}
-                </div>
-            </div>
-        </div>
-    );
-}
+const THANKS = [
+    { name: '170yt',       role: 'Original project this forked from',   link: 'https://github.com/170yt/ForceItemBattle' },
+    { name: 'McPlayHD',    role: 'Server infrastructure',                link: 'https://github.com/mcplayhd' },
+    { name: 'Owen1212055', role: 'Item renders for the Resource Pack',   link: 'https://github.com/Owen1212055/mc-assets' },
+];
 
-function SpecialThanksCard({ username, description, color, type, link }) {
-    const avatarUrl = type === 'github'
-        ? `https://github.com/${username}.png?size=100`
-        : getHeadUrl(username);
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-    const handleInteractionStart = (e) => {
-        if (link) {
-            const target = e.currentTarget.tagName === 'A'
-                ? e.currentTarget.firstChild
-                : e.currentTarget;
-            target.style.borderColor = COLORS.gold;
-            target.style.background = COLORS.bgLighter;
-        }
-    };
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
 
-    const handleInteractionEnd = (e) => {
-        const target = e.currentTarget.tagName === 'A'
-            ? e.currentTarget.firstChild
-            : e.currentTarget;
-        target.style.borderColor = COLORS.border;
-        target.style.background = COLORS.bgLight;
-    };
+  /* ─── Tokens ─────────────────────────────────── */
+  .fib2 {
+    --bg:        oklch(17% 0.025 255);
+    --surface:   oklch(21% 0.023 255);
+    --surf-hov:  oklch(25% 0.021 255);
+    --border:    oklch(30% 0.019 255);
+    --border-f:  oklch(24% 0.022 255);
+    --text:      oklch(94% 0.007 255);
+    --text-mid:  oklch(74% 0.012 255);
+    --muted:     oklch(58% 0.012 255);
+    --dim:       oklch(42% 0.013 255);
+    --amber:     oklch(76% 0.16 68);
+    font-family: 'Barlow', system-ui, sans-serif;
+    background:  var(--bg);
+    color:       var(--text);
+    min-height:  100vh;
+    -webkit-font-smoothing: antialiased;
+  }
 
-    const content = (
-        <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px 16px',
-            background: COLORS.bgLight,
-            borderRadius: '8px',
-            border: `1px solid ${COLORS.border}`,
-            transition: 'all 0.15s ease-out',
-            cursor: link ? 'pointer' : 'default',
-        }}
-             onMouseEnter={handleInteractionStart}
-             onMouseLeave={handleInteractionEnd}
-        >
-            <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                border: `2px solid ${COLORS.border}`,
-                flexShrink: 0,
-            }}>
-                <img
-                    src={avatarUrl}
-                    alt={username}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                    }}
-                />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                    color: COLORS.text,
-                    fontSize: '14px',
-                    fontWeight: '600',
-                }}>
-                    {username}
-                </div>
-                <div style={{
-                    color: COLORS.textMuted,
-                    fontSize: '12px',
-                    marginTop: '2px',
-                }}>
-                    {description}
-                </div>
-            </div>
-            {link && (
-                <ArrowRight size={16} style={{ color: COLORS.textMuted, flexShrink: 0 }} />
-            )}
-        </div>
-    );
+  /* ─── Entrance animations ────────────────────── */
+  @keyframes fib-rise {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fib-r1 { animation: fib-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.04s both; }
+  .fib-r2 { animation: fib-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both; }
+  .fib-r3 { animation: fib-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both; }
+  .fib-r4 { animation: fib-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both; }
 
-    if (link) {
-        return (
-            <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                    textDecoration: 'none',
-                    borderRadius: '8px',
-                    outline: 'none',
-                }}
-                onFocus={handleInteractionStart}
-                onBlur={handleInteractionEnd}
-            >
-                {content}
-            </a>
+  /* ─── Scroll reveal ──────────────────────────── */
+  @keyframes fib-reveal {
+    from { opacity: 0; transform: translateY(36px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fib-hidden { opacity: 0; transform: translateY(36px); }
+  .fib-visible { animation: fib-reveal 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+  /* Staggered items — animate once the section (fib-visible) reveals */
+  .fib-visible .fib-item {
+    opacity: 0;
+    animation: fib-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .fib-visible .fib-item:nth-child(1) { animation-delay:  60ms; }
+  .fib-visible .fib-item:nth-child(2) { animation-delay: 120ms; }
+  .fib-visible .fib-item:nth-child(3) { animation-delay: 180ms; }
+  .fib-visible .fib-item:nth-child(4) { animation-delay: 240ms; }
+  .fib-visible .fib-item:nth-child(5) { animation-delay: 300ms; }
+  .fib-visible .fib-item:nth-child(6) { animation-delay: 360ms; }
+
+  /* ─── Hero ───────────────────────────────────── */
+  .fib2-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 96px 28px 100px;
+    text-align: center;
+  }
+
+  .fib2-hero-glow {
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 900px; height: 600px;
+    background: radial-gradient(ellipse at 50% 0%, oklch(76% 0.16 68 / 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .fib2-hero-fade {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 140px;
+    background: linear-gradient(transparent, oklch(17% 0.025 255));
+    pointer-events: none;
+  }
+
+  .fib2-hero-inner {
+    position: relative; z-index: 1;
+    max-width: 820px; margin: 0 auto;
+  }
+
+  .fib2-banner {
+    width: min(100%, 480px);
+    height: auto;
+    display: block;
+    margin: 0 auto 40px;
+    filter:
+      drop-shadow(0 20px 48px oklch(6% 0.022 255 / 0.75))
+      drop-shadow(0 6px 16px oklch(76% 0.16 68 / 0.14));
+  }
+
+  .fib2-hero-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: clamp(30px, 4.5vw, 52px);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    margin: 0 0 22px;
+    line-height: 1.0;
+  }
+
+  .fib2-hero-desc {
+    font-size: clamp(15px, 1.9vw, 18px);
+    line-height: 1.82;
+    color: var(--muted);
+    margin: 0 auto 32px;
+    max-width: 52ch;
+  }
+  .fib2-hero-desc strong { color: var(--text-mid); font-weight: 600; }
+
+  .fib2-hero-note {
+    font-size: 12.5px;
+    color: var(--dim);
+    line-height: 1.7;
+    max-width: 42ch;
+    margin: 0 auto;
+  }
+  .fib2-hero-note a {
+    color: oklch(60% 0.10 200);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.12s ease-out;
+  }
+  .fib2-hero-note a:hover { color: oklch(74% 0.11 200); }
+
+  @media (max-width: 600px) {
+    .fib2-hero { padding: 72px 20px 80px; }
+    .fib2-hero-stats { flex-wrap: wrap; }
+  }
+
+  /* ─── Layout shell ───────────────────────────── */
+  .fib2-rule { height: 1px; background: var(--border); max-width: 1120px; margin: 0 auto; }
+  .fib2-section { max-width: 1080px; margin: 0 auto; padding: 88px 28px; }
+
+  .fib2-eyebrow {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 3px;
+    color: var(--amber);
+    margin: 0 0 14px;
+  }
+
+  .fib2-h2 {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: clamp(40px, 5.5vw, 64px);
+    font-weight: 800; line-height: 1.0;
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+    color: var(--text);
+    margin: 0 0 52px;
+  }
+
+  /* ─── Mode mosaic ────────────────────────────── */
+  .fib2-modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--border-f);
+    border-radius: 12px;
+    overflow: hidden;
+    list-style: none; margin: 0; padding: 0;
+  }
+  /* ForceItemBattle spans full width */
+  .fib2-mode:nth-child(1) { grid-column: 1 / -1; }
+
+  @media (max-width: 640px) {
+    .fib2-modes { grid-template-columns: 1fr; }
+    .fib2-mode:nth-child(1) { grid-column: auto; }
+    .fib2-section { padding: 64px 20px; }
+    .fib2-hero { padding: 80px 20px 64px; }
+  }
+
+  .fib2-mode {
+    position: relative; overflow: hidden;
+    background: var(--surface);
+    padding: 32px 30px 28px;
+    display: flex; flex-direction: column; gap: 20px;
+    transition: background 0.12s ease-out;
+    cursor: default;
+  }
+  .fib2-mode:hover { background: var(--surf-hov); }
+
+  /* Coloured top accent line per mode */
+  .fib2-mode::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--mode-color, var(--border-f));
+    opacity: 0.6;
+    transition: opacity 0.12s ease-out;
+  }
+  .fib2-mode:hover::before { opacity: 1; }
+
+  /* Large watermark number */
+  .fib2-mode-num {
+    position: absolute; top: 16px; right: 22px;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 72px; font-weight: 900;
+    color: var(--mode-color, var(--border-f));
+    opacity: 0.07;
+    line-height: 1; pointer-events: none;
+    letter-spacing: -2px;
+    transition: opacity 0.12s ease-out;
+  }
+  .fib2-mode:hover .fib2-mode-num { opacity: 0.11; }
+
+  /* Header row: icon + tag */
+  .fib2-mode-header {
+    display: flex; align-items: center; gap: 12px;
+    position: relative; z-index: 1;
+  }
+  .fib2-mode-icon {
+    width: 40px; height: 40px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .fib2-mode:hover .fib2-mode-icon { transform: scale(1.10); }
+
+  .fib2-mode-tag {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 10.5px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 3px 9px; border-radius: 4px;
+    background: var(--mode-color-bg, transparent);
+    border: 1px solid var(--mode-color-bd, var(--border-f));
+    color: var(--mode-color, var(--muted));
+  }
+
+  /* Body: name + description */
+  .fib2-mode-body { position: relative; z-index: 1; }
+  .fib2-mode-name {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 26px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: -0.2px;
+    color: var(--text);
+    margin: 0 0 10px; line-height: 1.0;
+  }
+  /* Secondary modes: slightly smaller name */
+  .fib2-mode:nth-child(n+2) .fib2-mode-name { font-size: 21px; }
+
+  .fib2-mode-desc {
+    font-size: 14px; color: var(--muted);
+    line-height: 1.78; margin: 0;
+    max-width: 56ch;
+  }
+  .fib2-mode:nth-child(n+2) .fib2-mode-desc { font-size: 13.5px; }
+
+  /* ─── Features grid ──────────────────────────── */
+  .fib2-features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border-f);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  @media (max-width: 560px) {
+    .fib2-features { grid-template-columns: 1fr; }
+  }
+
+  .fib2-feat {
+    background: var(--surface);
+    padding: 28px 26px 26px;
+    display: flex; flex-direction: column; gap: 12px;
+    transition: background 0.12s ease-out;
+    cursor: default;
+    text-decoration: none; color: inherit;
+    position: relative;
+  }
+  .fib2-feat:nth-child(1),
+  .fib2-feat:nth-child(2) { padding: 36px 30px 32px; }
+  .fib2-feat:hover { background: var(--surf-hov); }
+  /* Linked tiles: title shifts amber and arrow appears */
+  .fib2-feat[href]:hover .fib2-feat-name { color: var(--amber); }
+  .fib2-feat-arrow {
+    position: absolute; bottom: 18px; right: 20px;
+    color: var(--dim); opacity: 0;
+    transition: opacity 0.12s ease-out, transform 0.12s ease-out;
+  }
+  .fib2-feat[href]:hover .fib2-feat-arrow {
+    opacity: 1;
+    transform: translate(2px, -2px);
+    color: var(--amber);
+  }
+
+  .fib2-feat-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: oklch(76% 0.16 68 / 0.10);
+    border: 1px solid oklch(76% 0.16 68 / 0.18);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .fib2-feat:nth-child(n+3) .fib2-feat-icon {
+    width: 30px; height: 30px; border-radius: 6px;
+    background: oklch(30% 0.019 255 / 0.60);
+    border: none;
+  }
+
+  .fib2-feat-name {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 18px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.3px;
+    color: var(--text); margin: 0; line-height: 1.15;
+    transition: color 0.12s ease-out;
+  }
+  .fib2-feat:nth-child(n+3) .fib2-feat-name { font-size: 15px; }
+
+  .fib2-feat-desc {
+    font-size: 13.5px; color: var(--muted);
+    line-height: 1.72; margin: 0;
+  }
+  .fib2-feat:nth-child(n+3) .fib2-feat-desc { font-size: 13px; }
+
+  /* ─── Team mosaic ────────────────────────────── */
+  .fib2-mosaic {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border-f);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 56px;
+  }
+  @media (max-width: 640px) { .fib2-mosaic { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 400px) { .fib2-mosaic { grid-template-columns: repeat(2, 1fr); } }
+
+  .fib2-creator {
+    background: oklch(17.5% 0.025 255);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 16px 28px; gap: 16px;
+    text-align: center;
+    transition: background 0.12s ease-out;
+    cursor: default;
+    position: relative;
+  }
+  .fib2-creator:hover { background: oklch(21% 0.022 255); }
+
+  .fib2-creator-head {
+    width: 80px; height: 80px;
+    border-radius: 10px; overflow: hidden;
+    image-rendering: pixelated; flex-shrink: 0;
+    /* Colored ring in their personal color */
+    outline: 2px solid var(--member-color, transparent);
+    outline-offset: 3px;
+    opacity: 0.9;
+    transition: opacity 0.12s ease-out, outline-color 0.12s ease-out;
+  }
+  .fib2-creator:hover .fib2-creator-head { opacity: 1; }
+  .fib2-creator-head img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+
+  .fib2-creator-name {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 16px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 0 0 4px; line-height: 1.1;
+  }
+
+  .fib2-creator-role {
+    font-size: 12px;
+    color: oklch(54% 0.010 255);
+    line-height: 1.45; font-weight: 500;
+  }
+
+  /* ─── Special Thanks ─────────────────────────── */
+  .fib2-st-divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 0 0 24px;
+  }
+  .fib2-st-divider-line {
+    flex: 1; height: 1px; background: var(--border-f);
+  }
+  .fib2-st-divider-label {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 3px;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+
+  .fib2-thanks-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 600px) {
+    .fib2-thanks-grid { grid-template-columns: 1fr; }
+  }
+
+  .fib2-thanks-tile {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px;
+    background: oklch(19% 0.024 255);
+    border: 1px solid var(--border-f);
+    border-radius: 8px;
+    text-decoration: none; color: inherit;
+    transition: background 0.12s ease-out, border-color 0.12s ease-out;
+    position: relative; overflow: hidden;
+  }
+  .fib2-thanks-tile:hover {
+    background: oklch(22% 0.022 255);
+    border-color: var(--border);
+  }
+
+  .fib2-thanks-avatar {
+    width: 48px; height: 48px;
+    border-radius: 8px; overflow: hidden; flex-shrink: 0;
+    border: 1px solid var(--border-f);
+  }
+  .fib2-thanks-avatar img { width: 100%; height: 100%; display: block; }
+
+  .fib2-thanks-body { flex: 1; min-width: 0; }
+
+  .fib2-thanks-name {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 15px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(90% 0.009 255);
+    margin-bottom: 3px; line-height: 1.1;
+  }
+  .fib2-thanks-role {
+    font-size: 11.5px; color: oklch(54% 0.011 255);
+    line-height: 1.45; font-weight: 500;
+  }
+
+  .fib2-thanks-gh {
+    flex-shrink: 0;
+    color: oklch(35% 0.015 255);
+    transition: color 0.12s ease-out, transform 0.12s ease-out;
+  }
+  .fib2-thanks-tile:hover .fib2-thanks-gh {
+    color: var(--amber);
+    transform: translate(2px, -2px);
+  }
+
+  /* ─── Reduced motion ─────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    .fib-r1, .fib-r2, .fib-r3, .fib-r4 { animation: none !important; opacity: 1; transform: none; }
+    .fib-hidden { opacity: 1 !important; transform: none !important; }
+    .fib-visible { animation: none !important; }
+    .fib-visible .fib-item { animation: none !important; opacity: 1; }
+    .fib2-mode-icon,
+    .fib2-feat-arrow,
+    .fib2-creator-head,
+    .fib2-thanks-gh { transition: none !important; }
+  }
+`;
+
+// ─── Scroll reveal hook ───────────────────────────────────────────────────────
+
+function useScrollReveal() {
+    const observe = useCallback((el) => {
+        if (!el) return;
+        const io = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.remove('fib-hidden');
+                    entry.target.classList.add('fib-visible');
+                    io.unobserve(entry.target);
+                }
+            },
+            { threshold: 0, rootMargin: '0px 0px -18% 0px' }
         );
-    }
-
-    return content;
+        io.observe(el);
+    }, []);
+    return observe;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+    const reveal = useScrollReveal();
+
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: `linear-gradient(180deg, ${COLORS.bg} 0%, #0f0f1a 100%)`,
-            color: COLORS.text,
-            fontFamily: "'Segoe UI', system-ui, sans-serif",
-            position: 'relative'
-        }}>
-            {/* Content wrapper */}
-            <div style={{ position: 'relative', zIndex: 1 }}>
-                {/* Hero Section */}
-                <div style={{
-                    padding: '80px 20px 48px',
-                    textAlign: 'center',
-                }}>
-                    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                        {/* Banner */}
-                        <img
-                            src="/banner.png"
-                            alt="ForceItemBattle"
-                            style={{
-                                maxWidth: '100%',
-                                height: 'auto',
-                                marginBottom: '56px',
-                                filter: 'drop-shadow(0 8px 32px rgba(255, 170, 0, 0.2))',
-                                transition: 'filter 0.3s ease'
-                            }}
-                        />
+        <div className="fib2">
+            <style>{CSS}</style>
 
-                        {/* Main Description */}
-                        <h2 style={{
-                            color: COLORS.text,
-                            fontSize: '32px',
-                            fontWeight: '300',
-                            marginBottom: '28px',
-                            marginTop: 0,
-                            letterSpacing: '-0.5px',
-                            lineHeight: '1.3'
-                        }}>
-                            What is <span style={{ color: COLORS.gold, fontWeight: '700', textShadow: `0 0 20px ${COLORS.gold}44` }}>ForceItemBattle</span>?
-                        </h2>
+            {/* ── Hero ── */}
+            <section className="fib2-hero">
+                <div className="fib2-hero-glow" aria-hidden="true" />
+                <div className="fib2-hero-fade" aria-hidden="true" />
 
-                        <p style={{
-                            fontSize: '18px',
-                            lineHeight: '1.9',
-                            color: COLORS.text,
-                            margin: '0 0 28px 0',
-                            fontWeight: '300',
-                            letterSpacing: '0.3px'
-                        }}>
-                            A competitive gamemode where players race to collect randomly assigned items as fast as possible. Each time you find your item, a new one is assigned.<br/>
-                            The goal: collect as many items as you can before time runs out.
-                        </p>
+                <div className="fib2-hero-inner">
+                    <img
+                        src="/banner.png"
+                        alt="ForceItemBattle"
+                        className="fib2-banner fib-r1"
+                        width="480"
+                        height="480"
+                        loading="eager"
+                        fetchPriority="high"
+                    />
 
-                        <SectionDivider color={COLORS.gold} />
+                    <h1 className="fib2-hero-title fib-r2">
+                        What is ForceItemBattle?
+                    </h1>
 
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr',
-                            gap: '16px',
-                        }}>
-                            <p style={{
-                                fontSize: '15px',
-                                lineHeight: '1.9',
-                                color: COLORS.textMuted,
-                                margin: 0,
-                                padding: '0 12px',
-                                letterSpacing: '0.2px'
-                            }}>
-                                Popularised by <span style={{ color: COLORS.aqua, fontWeight: '600' }}>BastiGHG</span>, who introduced the format through his videos and livestreams, helping establish it as a well-known Minecraft minigame.
-                            </p>
+                    <p className="fib2-hero-desc fib-r3">
+                        A competitive Minecraft gamemode where players race to collect randomly assigned items.
+                        Find yours, get the next one. Whoever collects the most{' '}
+                        <strong>before time runs out</strong> wins.
+                    </p>
 
-                            <p style={{
-                                fontSize: '15px',
-                                lineHeight: '1.9',
-                                color: COLORS.textMuted,
-                                margin: 0,
-                                padding: '0 12px',
-                                letterSpacing: '0.2px'
-                            }}>
-                                This is our take - the <span style={{ color: COLORS.gold, fontWeight: '600' }}>McPlayHD.net</span> version - with our own rules, balancing, and unique twists.
-                            </p>
+                    <p className="fib2-hero-note fib-r4">
+                        Popularised by{' '}
+                        <a href="https://www.youtube.com/@BastiGHG" target="_blank" rel="noopener noreferrer">
+                            BastiGHG
+                        </a>. This is the{' '}
+                        <strong style={{ color: 'var(--text-mid)', fontWeight: 600 }}>McPlayHD.net</strong>{' '}
+                        edition - with our own rules, balancing, and unique twists.
+                    </p>
+                </div>
+            </section>
+
+            <div className="fib2-rule" />
+
+            {/* ── Game Modes ── */}
+            <section className="fib2-section fib-hidden" ref={reveal}>
+                <p className="fib2-eyebrow">Game Modes</p>
+                <h2 className="fib2-h2">Choose how you play</h2>
+
+                <ul className="fib2-modes fib-stagger">
+                    {MODES.map((m, i) => {
+                        const Icon = m.icon;
+                        const colorBg = m.color.replace(')', ' / 0.10)');
+                        const colorBd = m.color.replace(')', ' / 0.25)');
+                        return (
+                            <li
+                                key={i}
+                                className="fib2-mode fib-item"
+                                style={{
+                                    '--mode-color':    m.color,
+                                    '--mode-color-bg': colorBg,
+                                    '--mode-color-bd': colorBd,
+                                }}
+                            >
+                                <span className="fib2-mode-num">{String(i + 1).padStart(2, '0')}</span>
+
+                                <div className="fib2-mode-header">
+                                    <div
+                                        className="fib2-mode-icon"
+                                        style={{ background: alpha(m.color, '0.12') }}
+                                    >
+                                        <Icon size={20} style={{ color: m.color }} />
+                                    </div>
+                                    <span className="fib2-mode-tag">{m.tag}</span>
+                                </div>
+
+                                <div className="fib2-mode-body">
+                                    <div className="fib2-mode-name">{m.title}</div>
+                                    <p className="fib2-mode-desc">{m.description}</p>
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </section>
+
+            <div className="fib2-rule" />
+
+            {/* ── Features ── */}
+            <section className="fib2-section fib-hidden" ref={reveal}>
+                <p className="fib2-eyebrow">Features</p>
+                <h2 className="fib2-h2">What's included</h2>
+
+                <div className="fib2-features fib-stagger">
+                    {FEATURES.map((f, i) => {
+                        const Icon = f.icon;
+                        const isPrimary = i < 2;
+                        const Tag = f.href ? 'a' : 'div';
+                        const linkProps = f.href ? {
+                            href: `#${f.href}`,
+                            onClick: (e) => { e.preventDefault(); window.location.hash = f.href; },
+                            style: { cursor: 'pointer' },
+                        } : {};
+                        return (
+                            <Tag key={i} className="fib2-feat fib-item" {...linkProps}>
+                                <div className="fib2-feat-icon">
+                                    <Icon
+                                        size={isPrimary ? 18 : 14}
+                                        style={{ color: isPrimary ? 'oklch(76% 0.16 68)' : 'oklch(54% 0.011 255)' }}
+                                    />
+                                </div>
+                                <div className="fib2-feat-name">{f.title}</div>
+                                <p className="fib2-feat-desc">{f.description}</p>
+                                {f.href && (
+                                    <ArrowRight size={14} className="fib2-feat-arrow" />
+                                )}
+                            </Tag>
+                        );
+                    })}
+                </div>
+            </section>
+
+            <div className="fib2-rule" />
+
+            {/* ── Team ── */}
+            <section className="fib2-section fib-hidden" ref={reveal}>
+                <p className="fib2-eyebrow">The Team</p>
+                <h2 className="fib2-h2">Built by this crew</h2>
+
+                <div className="fib2-mosaic fib-stagger">
+                    {TEAM.map((c, i) => (
+                        <div
+                            key={i}
+                            className="fib2-creator fib-item"
+                            style={{ '--member-color': c.color }}
+                        >
+                            <div className="fib2-creator-head">
+                                <img src={MC_HEAD(c.name)} alt={c.name} />
+                            </div>
+                            <div>
+                                <div className="fib2-creator-name" style={{ color: c.color }}>
+                                    {c.name}
+                                </div>
+                                <div className="fib2-creator-role">{c.role}</div>
+                            </div>
                         </div>
-                    </div>
+                    ))}
                 </div>
 
-                <SectionDivider style="labeled" label="Features" />
-
-                {/* Features Section */}
-                <div style={{
-                    maxWidth: '1100px',
-                    margin: '0 auto',
-                    padding: '0 20px 48px',
-                }}>
-                    <style>{`
-                        .features-grid {
-                            display: grid;
-                            grid-template-columns: repeat(2, 1fr);
-                            gap: 16px;
-                        }
-                        @media (min-width: 600px) {
-                            .features-grid {
-                                grid-template-columns: repeat(3, 1fr);
-                            }
-                        }
-                        @media (min-width: 1000px) {
-                            .features-grid {
-                                grid-template-columns: repeat(5, 1fr);
-                            }
-                        }
-                    `}</style>
-                    <div className="features-grid">
-                        {FEATURES.map((feature, idx) => (
-                            <FeatureCard key={idx} {...feature} />
-                        ))}
-                    </div>
+                <div className="fib2-st-divider">
+                    <div className="fib2-st-divider-line" />
+                    <span className="fib2-st-divider-label">Special Thanks</span>
+                    <div className="fib2-st-divider-line" />
                 </div>
 
-                <SectionDivider style="labeled" label="Created By" />
-
-                {/* Creators Section */}
-                <div style={{
-                    maxWidth: '900px',
-                    margin: '0 auto',
-                    padding: '0 20px 64px',
-                }}>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                        gap: '16px',
-                        maxWidth: '850px',
-                        margin: '0 auto 48px'
-                    }}>
-                        {CREATORS.map((creator, idx) => (
-                            <CreatorCard key={idx} {...creator} />
-                        ))}
-                    </div>
-
-                    <SectionDivider style="labeled" label="Special Thanks" />
-
-                    {/* Special Thanks */}
-                    <div style={{
-                        maxWidth: '500px',
-                        margin: '0 auto'
-                    }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {SPECIAL_THANKS.map((person, idx) => (
-                                <SpecialThanksCard key={idx} {...person} />
-                            ))}
-                        </div>
-                    </div>
+                <div className="fib2-thanks-grid">
+                    {THANKS.map((t, i) => (
+                        <a
+                            key={i}
+                            href={t.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="fib2-thanks-tile"
+                        >
+                            <div className="fib2-thanks-avatar">
+                                <img src={GH_AVT(t.name)} alt={t.name} />
+                            </div>
+                            <div className="fib2-thanks-body">
+                                <div className="fib2-thanks-name">{t.name}</div>
+                                <div className="fib2-thanks-role">{t.role}</div>
+                            </div>
+                            <ArrowRight size={14} className="fib2-thanks-gh" />
+                        </a>
+                    ))}
                 </div>
-                <Footer />
-            </div>
+            </section>
+
+            <Footer />
         </div>
     );
 }

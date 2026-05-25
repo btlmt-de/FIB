@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import HomePage from './pages/HomePage';
 import ForceItemPools from './pages/ItemPools/ForceItemPools.jsx';
 import HowToPlay from './pages/HowToPlay';
+import Gameplay from './pages/Gameplay';
 import Changelog from './pages/Changelog';
 import Imprint from './pages/Imprint';
 import Rules from './pages/Rules';
@@ -23,6 +24,7 @@ import { COLORS } from './config/constants';
 const ROUTE_MAP = {
     'pools': 'pools',
     'how-to-play': 'how-to-play',
+    'gameplay': 'gameplay',
     'changelog': 'changelog',
     'imprint': 'imprint',
     'rules': 'rules',
@@ -80,6 +82,10 @@ export default function App() {
 
             {currentPage === 'how-to-play' && (
                 <HowToPlay />
+            )}
+
+            {currentPage === 'gameplay' && (
+                <Gameplay />
             )}
 
             {currentPage === 'changelog' && (
