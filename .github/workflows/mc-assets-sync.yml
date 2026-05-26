@@ -46,6 +46,11 @@ jobs:
           python scripts/syncMcAssets.py \
             ForceItemBattle/assets/minecraft/textures/fib
 
+      - name: Restore custom textures
+        run: |
+          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/knowledge_book.png
+          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/wither_rose.png
+
       - name: Update pack.mcmeta versions
         run: |
           python scripts/updatePackMeta.py \
