@@ -1,0 +1,10 @@
+{
+  "criteria": {
+    "c": {
+      "trigger": "minecraft:using_item",
+      "conditions": { "item": { "items": "minecraft:paper", "predicates": { "minecraft:custom_data": "{bm_note:2b}" } } }
+    }
+  },
+  "requirements": [ ["c"] ],
+  "rewards": { "function": "biome_map:on_consume/note_badlands" }
+}
