@@ -43,10 +43,11 @@ scoreboard players add #dist bm.work 50
 scoreboard players operation #dist bm.work /= #100 bm.work
 scoreboard players operation #dist bm.work *= #100 bm.work
 execute store result storage biome_map:tmp dist int 1 run scoreboard players get #dist bm.work
-data modify storage biome_map:tmp flavor set from storage biome_map:tmp cfg.flavor
+function biome_map:pick_flavor
 
 tellraw @s ["",{"text":"You unfold the brittle note. The faded ink reads:","color":"gray","italic":true}]
 tellraw @s ["",{"text":"  \u201cHold yer heading ","color":"yellow"},{"storage":"biome_map:tmp","nbt":"dir","color":"gold","bold":true},{"text":" near on ","color":"yellow"},{"storage":"biome_map:tmp","nbt":"dist","color":"gold","bold":true},{"text":" paces, an' ye'll come upon ","color":"yellow"},{"storage":"biome_map:tmp","nbt":"flavor","color":"gold"},{"text":". Whether 'tis worth the walk, only ye can say.\u201d","color":"yellow"}]
+execute at @s run particle minecraft:enchant ~ ~1 ~ 0.3 0.4 0.3 0.05 10
 playsound minecraft:item.book.page_turn player @s ~ ~ ~ 1 1
 
 # One-time use: if this was triggered by reading a note, consume it

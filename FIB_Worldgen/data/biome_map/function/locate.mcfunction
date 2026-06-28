@@ -6,6 +6,7 @@ execute if score @s bm.armed matches 1 run data modify storage biome_map:tmp cfg
 execute if score @s bm.armed matches 2 run data modify storage biome_map:tmp cfg set value {biome:"minecraft:badlands",flavor:"the red-clay badlands"}
 execute if score @s bm.armed matches 3 run data modify storage biome_map:tmp cfg set value {biome:"minecraft:warm_ocean",flavor:"warm, turquoise waters"}
 execute if score @s bm.armed matches 4 run data modify storage biome_map:tmp cfg set value {biome:"minecraft:pale_garden",flavor:"a pale, mist-shrouded grove"}
+execute if score @s bm.armed matches 5 run data modify storage biome_map:tmp cfg set value {biome:"minecraft:cherry_grove",flavor:"a grove of pink cherry blossoms"}
 execute unless data storage biome_map:tmp cfg run return run function biome_map:msg/out_of_range
 
 execute store result storage biome_map:tmp x0 int 1 run data get entity @s Pos[0]
@@ -18,6 +19,9 @@ data modify storage biome_map:tmp dz set value 0
 data modify storage biome_map:tmp out set value "d0"
 function biome_map:sample with storage biome_map:tmp
 execute unless data storage biome_map:tmp d0 run return run function biome_map:msg/out_of_range
+# nearest target found but too distant -> wait before the 3 remaining /locate scans
+execute store result score #d0chk bm.work run data get storage biome_map:tmp d0 1
+execute if score #d0chk bm.work matches 3001.. run return run function biome_map:msg/too_far
 
 data remove storage biome_map:tmp d1
 data modify storage biome_map:tmp dx set value 64
