@@ -23,12 +23,13 @@
     "gros_michel": {
       "trigger": "minecraft:inventory_changed",
       "conditions": {
-        "player": [],
         "items": [
           {
             "items": "minecraft:golden_apple",
             "components": {
-              "minecraft:custom_name": "{\"text\":\"Gros Michel\",\"italic\":false,\"underlined\":false,\"color\":\"#E0B916\",\"bold\":true}"
+              "minecraft:custom_model_data": {
+                "strings": ["gros_michel"]
+              }
             }
           }
         ]
