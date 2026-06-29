@@ -47,6 +47,10 @@
                 "italic": false,
                 "underlined": true
               }
+            },
+            {
+              "function": "minecraft:set_custom_data",
+              "tag": { "fib_item": "silk_touch_baby" }
             }
           ]
         },

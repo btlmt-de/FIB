@@ -19,11 +19,9 @@
         "player": [],
         "items": [
           {
-            "items": [
-              "minecraft:anvil"
-            ],
-            "components": {
-              "minecraft:custom_name": "{\"text\":\"SILK TOUCH BABY\",\"italic\":false,\"underlined\":true,\"color\":\"#6EE911\",\"bold\":true}"
+            "items": "minecraft:anvil",
+            "predicates": {
+              "minecraft:custom_data": { "fib_item": "silk_touch_baby" }
             }
           }
         ]

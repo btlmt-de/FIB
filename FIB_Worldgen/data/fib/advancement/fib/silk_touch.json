@@ -24,10 +24,16 @@
               "minecraft:golden_shovel",
               "minecraft:golden_hoe"
             ],
-            "components": {
-              "minecraft:enchantments": {
-                "minecraft:silk_touch": 1
-              }
+            "predicates": {
+              "minecraft:enchantments": [
+                {
+                  "enchantments": "minecraft:silk_touch",
+                  "levels": {
+                    "min": 1
+                  }
+                }
+              ],
+              "minecraft:custom_data": "{fib_loot:\"ruined_portal\"}"
             }
           }
         ]
@@ -39,5 +45,8 @@
       "silk_touch"
     ]
   ],
+  "rewards": {
+    "function": "fib:claim_rp"
+  },
   "sends_telemetry_event": true
 }

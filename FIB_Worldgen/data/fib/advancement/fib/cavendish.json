@@ -27,7 +27,9 @@
           {
             "items": "minecraft:enchanted_golden_apple",
             "components": {
-              "minecraft:custom_name": "{\"text\":\"Cavendish\",\"italic\":false,\"underlined\":true,\"color\":\"#EDC830\",\"bold\":true}"
+              "minecraft:custom_model_data": {
+                "strings": ["cavendish"]
+              }
             }
           }
         ]
