@@ -12,4 +12,4 @@ execute at @s run particle minecraft:poof ~ ~1.2 ~ 0.25 0.3 0.25 0.01 12
 playsound minecraft:block.wood.break player @s ~ ~ ~ 0.4 0.6
 playsound minecraft:item.book.page_turn player @s ~ ~ ~ 1 0.7
 function biome_map:give_paper
-clear @s minecraft:book[minecraft:custom_data~{bm_is_oldbook:1b}] 1
+clear @s minecraft:torchflower[minecraft:custom_data~{bm_is_oldbook:1b}] 1

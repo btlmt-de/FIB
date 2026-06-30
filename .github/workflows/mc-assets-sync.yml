@@ -50,6 +50,8 @@ jobs:
         run: |
           git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/knowledge_book.png
           git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/wither_rose.png
+          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/nether_star.png
+          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/torchflower.png
 
       - name: Update pack.mcmeta versions
         run: |

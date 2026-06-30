@@ -9,6 +9,14 @@ import json
 import argparse
 from pathlib import Path
 
+TAB_TILE_COUNT = 3
+TAB_TILE_HEIGHT = 35
+TAB_TILE_ASCENT = 30
+TAB_SPACE_ADVANCE = -1
+
+
+def material_start_index() -> int:
+    return TAB_TILE_COUNT + 1
 
 def get_png_files(folder_path: str) -> list[str]:
     materials = []
@@ -36,7 +44,7 @@ def int_to_unicode_char(n: int) -> str:
 def generate_unicode_items(materials: list[str]) -> list[dict]:
     """Generate unicodeItems.json content"""
     items = []
-    unicode_index = 1
+    unicode_index = material_start_index()
 
     for material in materials:
         # Normal entry (for bossbar)
@@ -59,19 +67,24 @@ def generate_unicode_items(materials: list[str]) -> list[dict]:
 def generate_default_json(materials: list[str]) -> dict:
     """Generate default.json content"""
     providers = []
-    unicode_index = 0
 
-    # Tab banner FIRST - always \ue000
+    for i in range(TAB_TILE_COUNT):
+        providers.append({
+            "type": "bitmap",
+            "file": f"minecraft:fib/tab_logo_{i}.png",
+            "height": TAB_TILE_HEIGHT,
+            "ascent": TAB_TILE_ASCENT,
+            "chars": [int_to_unicode_char(i)]
+        })
+
+    # Negative-space
     providers.append({
-        "type": "bitmap",
-        "file": "minecraft:fib/tab.png",
-        "height": 106,
-        "ascent": 66,
-        "chars": [int_to_unicode_char(unicode_index)]
+        "type": "space",
+        "advances": {int_to_unicode_char(TAB_TILE_COUNT): TAB_SPACE_ADVANCE}
     })
-    unicode_index += 1
 
-    # Materials start at \ue001
+    unicode_index = material_start_index()
+
     for material in materials:
         filename = material.lower()
 
@@ -134,8 +147,10 @@ def main():
     # Get all PNG files
     materials = get_png_files(args.png_folder)
 
-    # Filter out 'tab' as it's handled separately
-    materials = [m for m in materials if m.lower() != 'tab']
+    materials = [
+        m for m in materials
+        if m.lower() != 'tab' and not m.lower().startswith('tab_logo')
+    ]
 
     print(f"Found {len(materials)} materials")
 
@@ -148,10 +163,13 @@ def main():
     write_json_file(args.font_output, default_json)
 
     # Print summary
-    total_unicodes = len(materials) * 2 + 1  # +1 for tab.png
+    # tab tiles + spacer + (normal + tabChat) per material
+    total_unicodes = TAB_TILE_COUNT + 1 + len(materials) * 2
     last_unicode = 0xe000 + total_unicodes - 1
     print(f"\nSummary:")
+    print(f"  Tab tiles: {TAB_TILE_COUNT} (+1 spacer)")
     print(f"  Materials: {len(materials)}")
+    print(f"  Material glyphs start at: \\u{0xe000 + material_start_index():04x}")
     print(f"  Unicode entries: {len(unicode_items)}")
     print(f"  Font providers: {len(default_json['providers'])}")
     print(f"  Unicode range: \\ue000 - \\u{last_unicode:04x}")

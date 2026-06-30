@@ -2,7 +2,7 @@
   "criteria": {
     "c": {
       "trigger": "minecraft:using_item",
-      "conditions": { "item": { "items": "minecraft:book", "predicates": { "minecraft:custom_data": "{bm_is_oldbook:1b}" } } }
+      "conditions": { "item": { "items": "minecraft:torchflower", "predicates": { "minecraft:custom_data": "{bm_is_oldbook:1b}" } } }
     }
   },
   "requirements": [ ["c"] ],
