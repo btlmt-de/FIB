@@ -121,7 +121,9 @@
             {
               "function": "minecraft:set_custom_data",
               "tag": {
-                "fib_item": "legendary_template"
+                "PublicBukkitValues": {
+                  "fib:fib_item": "legendary_template"
+                }
               }
             }
           ]
@@ -153,7 +155,9 @@
             {
               "function": "minecraft:set_custom_data",
               "tag": {
-                "fib_item": "legendary_template"
+                "PublicBukkitValues": {
+                  "fib:fib_item": "legendary_template"
+                }
               }
             }
           ]
@@ -182,7 +186,9 @@
             {
               "function": "minecraft:set_custom_data",
               "tag": {
-                "fib_item": "legendary_template"
+                "PublicBukkitValues": {
+                  "fib:fib_item": "legendary_template"
+                }
               }
             }
           ]
@@ -211,7 +217,9 @@
             {
               "function": "minecraft:set_custom_data",
               "tag": {
-                "fib_item": "legendary_template"
+                "PublicBukkitValues": {
+                  "fib:fib_item": "legendary_template"
+                }
               }
             }
           ]
@@ -240,7 +248,9 @@
             {
               "function": "minecraft:set_custom_data",
               "tag": {
-                "fib_item": "legendary_template"
+                "PublicBukkitValues": {
+                  "fib:fib_item": "legendary_template"
+                }
               }
             }
           ]
