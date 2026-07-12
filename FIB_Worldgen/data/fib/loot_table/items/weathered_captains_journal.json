@@ -1,0 +1,53 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:torchflower",
+          "functions": [
+            {
+              "function": "minecraft:set_custom_model_data",
+              "strings": {
+                "values": [
+                  "old_book"
+                ],
+                "mode": "append"
+              }
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "Weathered Captain's Journal",
+                "color": "#008000"
+              },
+              "target": "item_name"
+            },
+            {
+              "function": "minecraft:set_lore",
+              "mode": "replace_all",
+              "lore": [
+                {
+                  "text": "Salvaged from a sunken wreck.",
+                  "color": "gray",
+                  "italic": false
+                },
+                {
+                  "text": "Right-click to pry it open.",
+                  "color": "dark_gray",
+                  "italic": false
+                }
+              ]
+            },
+            {
+              "function": "minecraft:set_custom_data",
+              "tag": "{PublicBukkitValues:{\"fib:journal\":1b}}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
