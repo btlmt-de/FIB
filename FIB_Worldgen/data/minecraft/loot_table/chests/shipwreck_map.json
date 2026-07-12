@@ -95,69 +95,9 @@
           "weight": 8
         },
         {
-          "type": "minecraft:item",
-          "weight": 2,
-          "name": "minecraft:torchflower",
-          "functions": [
-            {
-              "function": "minecraft:set_custom_model_data",
-              "strings": {
-                "values": [
-                  "old_book"
-                ],
-                "mode": "append"
-              }
-            },
-            {
-              "function": "minecraft:set_name",
-              "name": {
-                "text": "Weathered Captain's Journal",
-                "color": "#008000"
-              },
-              "target": "item_name"
-            },
-            {
-              "function": "minecraft:set_lore",
-              "mode": "replace_all",
-              "lore": [
-                {
-                  "text": "Salvaged from a sunken wreck.",
-                  "color": "gray",
-                  "italic": false
-                },
-                {
-                  "text": "Right-click to pry it open.",
-                  "color": "dark_gray",
-                  "italic": false
-                }
-              ]
-            },
-            {
-              "function": "minecraft:set_custom_data",
-              "tag": "{bm_is_oldbook:1b}"
-            },
-            {
-              "function": "minecraft:set_components",
-              "components": {
-                "minecraft:consumable": {
-                  "consume_seconds": 1000000,
-                  "animation": "none",
-                  "has_consume_particles": true,
-                  "on_consume_effects": [
-                    {
-                      "type": "minecraft:play_sound",
-                      "sound": "minecraft:item.bone_meal.use"
-                    }
-                  ]
-                },
-                "minecraft:food": {
-                  "nutrition": 0,
-                  "saturation": 0,
-                  "can_always_eat": true
-                }
-              }
-            }
-          ]
+          "type": "minecraft:loot_table",
+          "value": "fib:items/weathered_captains_journal",
+          "weight": 2
         }
       ]
     },
