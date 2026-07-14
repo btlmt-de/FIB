@@ -6,6 +6,9 @@ import { COLORS } from '../config/constants';
 
 const IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
+// Custom item textures live in the resource pack's item folder, not the fib folder.
+const ITEM_IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item';
+
 // Map COLORS to the local names used throughout this file
 const COL = {
     amber:  COLORS.accent,
@@ -142,7 +145,7 @@ const RECIPES = {
     },
     trial: {
         normal: {
-            recipe: [['chiseled_copper','glass','chiseled_copper'],['glass','compass','glass'],['gold_ingot','gold_ingot','gold_ingot']],
+            recipe: [['cut_copper','glass','cut_copper'],['glass','compass','glass'],['gold_ingot','gold_ingot','gold_ingot']],
             result: 'wither_rose', name: 'Trial Locator',
         },
         hard: {
@@ -152,13 +155,68 @@ const RECIPES = {
     },
 };
 
+// Villager / trader offers. Ingredients are drawn as tiles, same as a crafting grid.
+const SULFUR_TRADE = {
+    cost: [
+        { texture: 'emerald', name: 'Emerald', amount: 6 },
+        { texture: 'compass', name: 'Compass', amount: 1 },
+    ],
+    result: { texture: 'music_disc_chirp', name: 'Sulfur Locator' },
+};
+
+const SPECIAL_TRADER_OFFERS = [
+    {
+        cost: 1,
+        src: `${ITEM_IMG}/wheel.png`,
+        name: 'Wheel of Fortune',
+        amount: 3,
+        note: 'Three for a single emerald — the reason to run.',
+        highlight: true,
+    },
+    {
+        cost: 5,
+        src: `${ITEM_IMG}/old_book.png`,
+        name: "Weathered Captain's Journal",
+        note: 'Otherwise only found out in the world.',
+    },
+    {
+        cost: 5,
+        texture: 'knowledge_book',
+        name: 'Random Tracker',
+        note: 'Antimatter, Trial or Sulfur — rolled when the trader spawns.',
+    },
+    {
+        cost: 5,
+        texture: 'iron_pickaxe',
+        name: 'Iron Pickaxe',
+        note: 'Randomly enchanted, level 30. No treasure enchants.',
+    },
+    {
+        cost: 5,
+        texture: 'iron_chestplate',
+        name: 'Iron Armor Piece',
+        note: 'Random piece, randomly enchanted, level 30.',
+    },
+];
+
+const BIOME_NOTES = [
+    { name: 'Desert',       color: COL.amber,  flavor: '"a sea of dunes where no water runs"' },
+    { name: 'Badlands',     color: COL.red,    flavor: '"broken hills streaked with rust and clay"' },
+    { name: 'Warm Ocean',   color: COL.cyan,   flavor: '"bright reefs beneath a warm tide"' },
+    { name: 'Pale Garden',  color: 'oklch(65% 0.012 255)', flavor: '"ghostly woods where the leaves hang grey"' },
+    { name: 'Cherry Grove', color: COL.purple, flavor: '"hills awash in falling pink petals"' },
+];
+
 const QUICK_LINKS = [
     { id: 'antimatter-depths', label: 'Antimatter Depths',   color: COL.purple },
     { id: 'trial-locator',     label: 'Trial Locator',        color: COL.amber  },
+    { id: 'sulfur-locator',    label: 'Sulfur Locator',       color: COL.orange },
     { id: 'loot-tables',       label: 'Loot Tables',          color: COL.green  },
     { id: 'end-generation',    label: 'End Generation',       color: COL.purple },
     { id: 'teleporter',        label: 'Teleporter',           color: COL.red    },
+    { id: 'journal',           label: 'Journal',              color: COL.amber  },
     { id: 'wandering-trader',  label: 'Wandering Trader',     color: COL.cyan   },
+    { id: 'random-events',     label: 'Random Events',        color: COL.purple },
 ];
 
 // ── Loot simulation logic ─────────────────────────────────────────────────────
@@ -431,6 +489,78 @@ const CSS = `
   }
   .cs-result-empty { color: oklch(42% 0.013 255); font-size: 13px; padding: 12px 0; }
 
+  /* ── Trades ── */
+  .cs-trade {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 16px 20px; background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255); border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  .cs-trade-cost { display: flex; gap: 6px; }
+  .cs-trade-tile {
+    width: 44px; height: 44px; border-radius: 6px; position: relative;
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cs-trade-tile.highlight { border-color: oklch(76% 0.16 68 / 0.5); }
+  .cs-trade-tile img { width: 30px; height: 30px; image-rendering: pixelated; }
+  .cs-trade-count {
+    position: absolute; bottom: -3px; right: -3px;
+    background: oklch(33% 0.018 255); color: oklch(88% 0.009 255);
+    font-size: 10px; font-weight: 700;
+    padding: 0 4px; border-radius: 3px;
+    border: 1px solid oklch(30% 0.018 255);
+  }
+  .cs-trade-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .cs-trade-name { font-size: 14px; font-weight: 600; color: oklch(80% 0.01 255); }
+  .cs-trade-note { font-size: 12px; color: oklch(48% 0.013 255); }
+
+  /* ── Biome notes ── */
+  .cs-notes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .cs-note {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 14px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-left: 3px solid;
+    border-radius: 7px;
+  }
+  .cs-note-tile {
+    width: 34px; height: 34px; border-radius: 5px; flex-shrink: 0;
+    background: oklch(17% 0.025 255);
+    border: 1px solid oklch(30% 0.019 255);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cs-note-tile img { width: 24px; height: 24px; image-rendering: pixelated; }
+  .cs-note-name { font-size: 14px; font-weight: 600; min-width: 108px; }
+  .cs-note-flavor { font-size: 12.5px; color: oklch(48% 0.013 255); font-style: italic; }
+  .cs-note-pct {
+    margin-left: auto; font-family: 'Courier New', monospace;
+    font-size: 11.5px; color: oklch(45% 0.013 255); flex-shrink: 0;
+  }
+
+  /* ── Event cards ── */
+  .cs-event {
+    padding: 18px 20px; margin-bottom: 16px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-left: 3px solid;
+    border-radius: 8px;
+  }
+  .cs-event-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .cs-event-name {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .cs-event-tag {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
+    padding: 2px 8px; border-radius: 4px; border: 1px solid;
+    color: oklch(50% 0.013 255); border-color: oklch(30% 0.019 255);
+  }
+  .cs-event p { margin: 0; font-size: 14px; color: oklch(54% 0.013 255); line-height: 1.7; }
+
   @media (max-width: 600px) {
     .cs-shell { padding: 0 20px; }
     .cs-header { padding: 60px 0 52px; }
@@ -481,6 +611,44 @@ function CraftingGrid({ recipe, result, resultName, glowColor }) {
                      onError={e => { e.target.style.display = 'none'; }} />
             </div>
             <span className="cs-recipe-name">{resultName}</span>
+        </div>
+    );
+}
+
+function TradeTile({ texture, src, name, amount, highlight }) {
+    return (
+        <div className={`cs-trade-tile${highlight ? ' highlight' : ''}`} title={name}>
+            <img src={src || `${IMG}/${texture}.png`} alt={name}
+                 onError={e => { e.target.style.opacity = '0.3'; }} />
+            {amount > 1 && <span className="cs-trade-count">×{amount}</span>}
+        </div>
+    );
+}
+
+function TradeRow({ cost, result, note }) {
+    return (
+        <div className="cs-trade">
+            <div className="cs-trade-cost">
+                {cost.map((c, i) => <TradeTile key={i} {...c} />)}
+            </div>
+            <span className="cs-recipe-arrow">→</span>
+            <TradeTile {...result} highlight={result.highlight} />
+            <div className="cs-trade-meta">
+                <span className="cs-trade-name">{result.name}</span>
+                {note && <span className="cs-trade-note">{note}</span>}
+            </div>
+        </div>
+    );
+}
+
+function EventCard({ color, name, tag, children }) {
+    return (
+        <div className="cs-event" style={{ borderLeftColor: color }}>
+            <div className="cs-event-head">
+                <span className="cs-event-name" style={{ color }}>{name}</span>
+                <span className="cs-event-tag">{tag}</span>
+            </div>
+            {children}
         </div>
     );
 }
@@ -745,9 +913,30 @@ export default function CustomStructures() {
                         <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info trial_locator</Cmd></P>
                     </Section>
 
+                    {/* ── Sulfur Locator ── */}
+                    <Section id="sulfur-locator" color={COL.orange} title="Sulfur Locator">
+                        <P>
+                            Points to the nearest <Hi color={COL.orange}>Sulfur Cave</Hi>. Unlike the other two,
+                            this one tracks a <Hi>biome</Hi> rather than a structure — and it{' '}
+                            <Hi>cannot be crafted</Hi>.
+                        </P>
+                        <P>
+                            Instead, every <Hi color={COL.cyan}>Cartographer</Hi> villager has a{' '}
+                            <Hi color={COL.orange}>30% chance</Hi> to roll it as one of their offers. If yours
+                            didn't get it, <Hi>break and replace their job block</Hi> to reset their profession
+                            and roll again — repeat until it shows up.
+                        </P>
+                        <TradeRow
+                            cost={SULFUR_TRADE.cost}
+                            result={SULFUR_TRADE.result}
+                            note="30% per cartographer — reroll by resetting their job block."
+                        />
+                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info sulfur_locator</Cmd></P>
+                    </Section>
+
                     {/* ── Locator Mechanics ── */}
                     <Section id="locator-mechanics" color={COL.cyan} title="Locator Mechanics">
-                        <P>Both locators share the same mechanics:</P>
+                        <P>All three locators share the same mechanics:</P>
                         <P>
                             If another player already marked the same structure,{' '}
                             <Hi color={COL.green}>your locator won't be consumed</Hi> — you can keep searching
@@ -797,18 +986,110 @@ export default function CustomStructures() {
                         </P>
                     </Section>
 
+                    {/* ── Weathered Captain's Journal ── */}
+                    <Section id="journal" color={COL.amber} title="Weathered Captain's Journal">
+                        <P>
+                            Found in the <Hi color={COL.cyan}>Shipwreck map chest</Hi> — the one that normally
+                            holds the buried treasure map — with a <Hi color={COL.amber}>30% chance</Hi>. It can
+                            also be bought from the{' '}
+                            <a href="#random-events" style={{ color: COL.purple, textDecoration: 'none', fontWeight: 500 }}>Special Trader</a>.
+                        </P>
+                        <P>
+                            A battered book that falls apart the moment you open it. Right-click it and a single{' '}
+                            <Hi color={COL.amber}>Biome Note</Hi> slips out of the binding — the journal itself
+                            is <Hi>consumed</Hi>.
+                        </P>
+                        <P>
+                            Each note describes one biome in the captain's own words. Right-click the note and it
+                            points you at the nearest matching biome, the same way a locator points at a
+                            structure. Which note you get is <Hi>random</Hi> — the journal is a gamble, not a
+                            request. There are five, each equally likely:
+                        </P>
+
+                        <div className="cs-notes">
+                            {BIOME_NOTES.map(note => (
+                                <div className="cs-note" key={note.name} style={{ borderLeftColor: note.color }}>
+                                    <div className="cs-note-tile">
+                                        <img src={`${ITEM_IMG}/old_paper.png`} alt={note.name}
+                                             onError={e => { e.target.style.opacity = '0.3'; }} />
+                                    </div>
+                                    <span className="cs-note-name" style={{ color: note.color }}>{note.name}</span>
+                                    <span className="cs-note-flavor">{note.flavor}</span>
+                                    <span className="cs-note-pct">20%</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <P>
+                            Useful when the item you're hunting only spawns somewhere you haven't been, and you
+                            don't fancy walking in a straight line for ten minutes hoping for cherry blossom.
+                        </P>
+                    </Section>
+
                     {/* ── Wandering Trader ── */}
                     <Section id="wandering-trader" color={COL.cyan} title="Custom Wandering Trader">
                         <P>
-                            Spawns every <Hi>7–10 minutes</Hi> near the spawn area. When it appears,
-                            coordinates are displayed in chat and the tab list.
+                            Spawns every <Hi>7–10 minutes</Hi> near the spawn area. When it appears, coordinates
+                            are announced in chat, drawn as a particle trail, and pinned in the tab list with a
+                            countdown. It <Hi color={COL.red}>despawns after 5 minutes</Hi>, so don't dawdle.
                         </P>
                         <P>
-                            All trades are vanilla items but cost only <Hi color={COL.green}>1 Emerald</Hi> each.
-                            The trader also sells a{' '}
+                            All trades are vanilla items but cost only <Hi color={COL.green}>1 Emerald</Hi> each,
+                            with unlimited uses. The trader also sells a{' '}
                             <a href="wheel" style={{ color: COL.amber, textDecoration: 'none', fontWeight: 500 }}>Wheel of Fortune</a>{' '}
-                            for 1 Emerald (limited to one per player per trader).
+                            for 1 Emerald — limited to one per player, per trader.
                         </P>
+                        <P>
+                            Everyone gets their <Hi>own</Hi> copy of the trader's offers, so there's no queueing
+                            and no stealing the good trade out from under someone.
+                        </P>
+                    </Section>
+
+                    {/* ── Random Events ── */}
+                    <Section id="random-events" color={COL.purple} title="Random Events">
+                        <P>
+                            Roughly <Hi>3–4 times an hour</Hi>, something happens. Events are announced in chat
+                            when they fire, pause when the game pauses, and never trigger in{' '}
+                            <Hi color={COL.orange}>Run Battle</Hi> — that mode is already a race. Only one event
+                            runs at a time, and the whole system can be switched off in the settings menu.
+                        </P>
+
+                        <EventCard color={COL.amber} name="Item Hunt" tag="Race">
+                            <p>
+                                A race for the item you're <strong style={{ color: 'oklch(80% 0.01 255)' }}>already holding</strong>.
+                                First player to collect theirs wins <strong style={{ color: COL.amber }}>1–3 Wheels of Fortune</strong>.
+                                Skipping never wins — but it doesn't knock you out either, so you can still take
+                                the hunt on your next real find. Back-to-backs don't count: the win has to be
+                                an item you actually went and got. In teams, only the finder is paid.
+                            </p>
+                        </EventCard>
+
+                        <EventCard color={COL.purple} name="Special Trader" tag="Rare · Once per game">
+                            <p>
+                                A one-off trader stocked with things you cannot buy anywhere else. Turns up in
+                                roughly <strong style={{ color: 'oklch(80% 0.01 255)' }}>half of games</strong> at
+                                most, never twice, and lives for the usual 5 minutes. Its offers are rolled when
+                                it spawns, so everyone sees the same five — and each is{' '}
+                                <strong style={{ color: 'oklch(80% 0.01 255)' }}>limited to one purchase per player</strong>.
+                            </p>
+                        </EventCard>
+
+                        <div style={{ marginTop: 20 }}>
+                            {SPECIAL_TRADER_OFFERS.map((offer, i) => (
+                                <TradeRow
+                                    key={i}
+                                    cost={[{ texture: 'emerald', name: 'Emerald', amount: offer.cost }]}
+                                    result={{
+                                        texture: offer.texture,
+                                        src: offer.src,
+                                        name: offer.name,
+                                        amount: offer.amount,
+                                        highlight: offer.highlight,
+                                    }}
+                                    note={offer.note}
+                                />
+                            ))}
+                        </div>
                     </Section>
 
                 </div>
