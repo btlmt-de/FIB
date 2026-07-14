@@ -13,6 +13,13 @@ const TYPE = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const CHANGELOG = [
+    { version:'26.7.2', date:'14th July 2026',     type:'update',  title:'Random Events',          description:'Added random events', changes:['Added ItemHunt and SpecialTrader as events that can randomly occur during a game', 'Achievements are now separated into global and round based achievements'] },
+    { version:'26.7.1', date:'12th July 2026',     type:'major',   title:'Refactoring',            description:'Codebase in a fresh coat', changes:['Finished refactor of entire codebase', 'multiple bug-fixes', 'various QOL improvements', 'changed versioning'] },
+    { version:'4.3.0', date:'7th July 2026',       type:'feature', title:'Quickie Mode',           description:'Added quickie mode', changes:['Added a setting for quickie mode to control which item pools are active during a round', 'fixed multiple achievement triggers'] },
+    { version:'4.2.1', date:'6th July 2026',       type:'feature', title:'The Sulfur Problem',     description:'Added the Sulfur Locator', changes:['Added the Sulfur Locator as custom trade for Cartography villagers', 'Added Sulfur Locator to item pools', 'Fixed multiple spectator related bugs'] },
+    { version:'4.2.0', date:'3rd July 2026',       type:'update',  title:'Achievements',           description:'Added achievements', changes:['Added 54 achievements'] },
+    { version:'4.1.1', date:'30th June 2026',      type:'feature', title:'Captains Journal',       description:'New custom items', changes:['Added Weathered Captains Journal as lootable item', 'Added all other custom items to the item pools'] },
+    { version:'4.1.0', date:'22th June 2026',      type:'update',  title:'Chaos Cubed',            description:'Added full 26.2 support', changes:['Added all sulfur items'] },
     { version:'4.0.0', date:'15th May 2026',       type:'major',   title:'Stats',                  description:'Added players stats', changes:['Added solo stats','Added team stats'] },
     { version:'3.9.6', date:'18th April 2026',     type:'update',  title:'Tiny Takeover',          description:'Added full 26.1.2 support', changes:['Added the golden dandelion','Changed nametag from mid to early pool and adjusted its description'] },
     { version:'3.9.5', date:'16th January 2026',   type:'feature', title:'Item List Overhaul v2',  description:'Refactored the item list & Quality of Life improvements', changes:['Improved readability and maintainability of the item list','Added some missing items'] },

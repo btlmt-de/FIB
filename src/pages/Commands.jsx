@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import Search from 'lucide-react/dist/esm/icons/search';
 import X from 'lucide-react/dist/esm/icons/x';
+import ServerOff from 'lucide-react/dist/esm/icons/server-off';
 import Footer from "../components/common/Footer.jsx";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -11,31 +12,43 @@ const PLAYER_COMMANDS = [
     { cmd: '/info',             desc: 'Shows the crafting recipe or description of your currently assigned item.' },
     { cmd: '/info <item>',      desc: 'Shows the recipe or description for any specific item.', example: '/info wooden_axe' },
     { cmd: '/infowiki',         desc: 'Opens a Minecraft Wiki link for your current assigned item.' },
+    { cmd: '/help',             desc: 'List every command available to you.' },
     { cmd: '/shout <message>',  desc: 'Sends a global message to all players. Team chat is default.' },
     { cmd: '/shout',            desc: 'Toggle shout mode on/off. When on, all messages are sent globally.' },
     { cmd: '/pos <name>',       desc: 'Save your current location with a name. Shared and visible to all players.', example: '/pos base' },
     { cmd: '/pos',              desc: 'View all saved positions.' },
     { cmd: '/pause',            desc: 'Freeze all players and the timer.' },
     { cmd: '/resume',           desc: 'Unfreeze all players and the timer.' },
-    { cmd: '/show <item>',      desc: 'Display an item in front of you.' },
     { cmd: '/spectate',         desc: 'Toggle spectator mode after the round has ended.' },
     { cmd: '/fixskips',         desc: 'Restore all your remaining jokers if they were lost.' },
+    { cmd: '/fixlocate',        desc: 'Dismiss your active locator boss bars and particle trails.', example: '/fixlocate all' },
     { cmd: '/bp',               desc: 'Open your backpack.' },
     { cmd: '/ping',             desc: 'Show your current ping.' },
+    { cmd: '/trade',            desc: 'Ask other players whether they have an item you or your team needs.' },
+    { cmd: '/teams',            desc: 'Everything about teams — invite, accept, decline, leave, list.', example: '/teams invite Steve' },
     { cmd: '/voteskip',         desc: 'Start a skip vote. Only available when RUN mode is active.' },
     { cmd: '/vote',             desc: 'Vote yes or no when a vote is in progress.' },
+    { cmd: '/stats',            desc: 'Show your own stats across all recorded rounds.', service: true },
+    { cmd: '/stats <player>',   desc: "Show another player's stats.", example: '/stats Steve', service: true },
+    { cmd: '/stats duo',        desc: 'Show your combined stats with a teammate.', service: true },
+    { cmd: '/top',              desc: 'Show the stat leaderboards.', example: '/top solo items', service: true },
+    { cmd: '/achievements',     desc: 'Open the achievement menu and browse your progress.', service: true },
 ];
 
 const GM_COMMANDS = [
-    { cmd: '/start <time> <jokers>', desc: 'Start the game with a time limit and joker count.', example: '/start 60 3' },
-    { cmd: '/start <preset>',        desc: 'Start the game using a predefined preset.', example: '/start default' },
-    { cmd: '/reset',                 desc: 'Reset the game and generate a new world.' },
-    { cmd: '/settings',              desc: 'Open the settings menu.' },
-    { cmd: '/stoptimer',             desc: 'Instantly end the game.' },
-    { cmd: '/forceteam <team> ...',  desc: 'Assign players to a team before the round starts.', example: '/forceteam blue Steve Alex' },
-    { cmd: '/skip <player>',         desc: 'Force-skip the current item for a specific player.', example: '/skip Steve' },
-    { cmd: '/result',                desc: 'Start the result screen at the end of the game.' },
-    { cmd: '/items',                 desc: 'View all item pools.' },
+    { cmd: '/start <time> <jokers>',   desc: 'Start the game with a time limit and joker count.', example: '/start 60 3' },
+    { cmd: '/start <preset>',          desc: 'Start the game using a predefined preset.', example: '/start default' },
+    { cmd: '/reset',                   desc: 'Reset the game and generate a new world.' },
+    { cmd: '/settings',                desc: 'Open the settings menu.' },
+    { cmd: '/stoptimer',               desc: 'Instantly end the game.' },
+    { cmd: '/forceteam <team> ...',    desc: 'Assign players to a team before the round starts.', example: '/forceteam blue Steve Alex' },
+    { cmd: '/skip <player>',           desc: 'Force-skip the current item for a specific player.', example: '/skip Steve' },
+    { cmd: '/forceitem <item> ...',    desc: 'Force the current and upcoming items. Dev tool.', example: '/forceitem diamond emerald' },
+    { cmd: '/randomevent <event>',     desc: 'Trigger a random event immediately.', example: '/randomevent item_hunt' },
+    { cmd: '/result',                  desc: 'Start the result screen at the end of the game.' },
+    { cmd: '/items',                   desc: 'View all item pools.' },
+    { cmd: '/stats reset',             desc: 'Wipe all recorded stats. Requires a confirmation step.', service: true },
+    { cmd: '/achievements grant ...',  desc: 'Grant, revoke or reset achievements for a player.', example: '/achievements grant Steve b2b_king', service: true },
 ];
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
@@ -177,6 +190,36 @@ const CSS = `
     padding: 1px 6px; border-radius: 3px;
   }
 
+  /* ── Service notice ── */
+  .cmd-notice {
+    display: flex; gap: 14px; align-items: flex-start;
+    margin: 40px 0 0;
+    padding: 16px 18px;
+    background: oklch(21% 0.023 255);
+    border: 1px solid oklch(30% 0.019 255);
+    border-left: 3px solid oklch(76% 0.16 68);
+    border-radius: 8px;
+  }
+  .cmd-notice-icon { color: oklch(76% 0.16 68); flex-shrink: 0; margin-top: 1px; }
+  .cmd-notice-title {
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+    color: oklch(76% 0.16 68); margin: 0 0 5px;
+  }
+  .cmd-notice p { margin: 0; font-size: 13px; line-height: 1.7; color: oklch(56% 0.012 255); }
+  .cmd-notice strong { color: oklch(80% 0.01 255); font-weight: 600; }
+
+  .cmd-service-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 6px;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
+    color: oklch(66% 0.11 68);
+    background: oklch(76% 0.16 68 / 0.09);
+    border: 1px solid oklch(76% 0.16 68 / 0.22);
+    border-radius: 4px; padding: 2px 7px;
+  }
+
   /* ── No results ── */
   .cmd-empty {
     padding: 48px 0; text-align: center;
@@ -194,7 +237,7 @@ const CSS = `
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function CmdRow({ cmd, desc, example }) {
+function CmdRow({ cmd, desc, example, service }) {
     return (
         <div className="cmd-row">
             <div>
@@ -205,6 +248,13 @@ function CmdRow({ cmd, desc, example }) {
                 {example && (
                     <div className="cmd-example">
                         e.g. <code className="cmd-example-code">{example}</code>
+                    </div>
+                )}
+                {service && (
+                    <div>
+                        <span className="cmd-service-pill" title="Requires the FIB backend service">
+                            <ServerOff size={9} /> mcplayhd.net only
+                        </span>
                     </div>
                 )}
             </div>
@@ -290,7 +340,24 @@ export default function Commands() {
                 </div>
             </div>
 
-            <div className="cmd-rule" />
+            <div className="cmd-shell">
+                <div className="cmd-notice">
+                    <ServerOff size={17} className="cmd-notice-icon" />
+                    <div>
+                        <p className="cmd-notice-title">Stats &amp; Achievements need the backend</p>
+                        <p>
+                            <strong>/stats</strong>, <strong>/top</strong> and <strong>/achievements</strong> are
+                            backed by the FIB service and its database, which only runs on{' '}
+                            <strong>mcplayhd.net</strong>. If you host ForceItemBattle yourself, the plugin has
+                            nothing to connect to — those commands won't record or return anything, and nothing
+                            you do in a self-hosted round is tracked. Every other command works exactly the same
+                            wherever you play.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="cmd-rule" style={{ marginTop: 40 }} />
 
             <div className="cmd-shell" style={{ flex: 1 }}>
                 {totalVisible === 0 ? (
