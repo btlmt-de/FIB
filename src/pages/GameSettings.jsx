@@ -27,6 +27,12 @@ import Lock          from 'lucide-react/dist/esm/icons/lock';
 import Unlock        from 'lucide-react/dist/esm/icons/unlock';
 import ChevronLeft   from 'lucide-react/dist/esm/icons/chevron-left';
 import ChevronRight  from 'lucide-react/dist/esm/icons/chevron-right';
+import Award         from 'lucide-react/dist/esm/icons/award';
+import Cake          from 'lucide-react/dist/esm/icons/cake';
+import Zap           from 'lucide-react/dist/esm/icons/zap';
+import Repeat        from 'lucide-react/dist/esm/icons/repeat';
+import Timer         from 'lucide-react/dist/esm/icons/timer';
+import Feather       from 'lucide-react/dist/esm/icons/feather';
 import Footer        from "../components/common/Footer.jsx";
 import { COLORS as C } from '../config/constants';
 
@@ -60,6 +66,13 @@ const SETTINGS = [
     { id:'extreme',         name:'Extreme',         category:'itempool',    icon:Gem,           enabledText:'All obtainable items included',                   disabledText:'Only reasonably obtainable items',             default:false, requires:['nether','end','hard'], link:{ text:'View Extreme items', href:'pools?tag=EXTREME' } },
     { id:'stats',           name:'Stats',           category:'progression', icon:BarChart3,     enabledText:'Stats count towards leaderboards',               disabledText:"Stats won't be recorded",                      default:true  },
     { id:'score',           name:'Score',           category:'progression', icon:Eye,           enabledText:'Score is visible to all players',                 disabledText:'Score is hidden until round ends',             default:true  },
+    { id:'achievements',    name:'Achievements',    category:'progression', icon:Award,         enabledText:'Achievements can be earned this round',           disabledText:"Achievements won't be tracked",                default:true  },
+    { id:'trading',         name:'Player Trading',  category:'gameplay',    icon:Repeat,        enabledText:'Players can trade items with each other',        disabledText:'Player-to-player trading is disabled',         default:false, unlocks:['trading_cooldown'] },
+    { id:'random_events',   name:'Random Events',   category:'gameplay',    icon:Zap,           enabledText:'Events fire 3-4 times per hour',                 disabledText:'No random events this round',                  default:true,  link:{ text:'View random events', href:'structures#random-events' } },
+    { id:'event_modifiers', name:'Event Modifiers', category:'gameplay',    icon:Cake,          enabledText:'Tournament rules: some commands become OP-only, keep-inventory forced on for 5 minutes', disabledText:'Standard rules', default:false },
+    { id:'backpack_rows',   name:'Backpack Rows',   category:'gameplay',    icon:Package,       type:'value', valueLabel:'3 rows',  valueText:'How many rows the backpack has.',                requires:'backpack' },
+    { id:'trading_cooldown',name:'Trading Cooldown',category:'gameplay',    icon:Timer,         type:'value', valueLabel:'3 min',   valueText:'Cooldown between player trades.',                requires:'trading' },
+    { id:'quickie',         name:'Quickie',         category:'itempool',    icon:Feather,       type:'value', valueLabel:'Disabled', valueText:'Restricts the item pool. Cycles: Disabled → Early → Early + Mid.' },
 ];
 
 const CATEGORIES = {
@@ -293,6 +306,16 @@ const CSS = `
   }
   .gs-ext-link:hover { color: oklch(72% 0.09 200); }
 
+  .gs-value-pill {
+    font-family: 'Courier New', monospace;
+    font-size: 11.5px; font-weight: 600;
+    color: oklch(70% 0.14 200);
+    background: oklch(68% 0.12 200 / 0.09);
+    border: 1px solid oklch(68% 0.12 200 / 0.18);
+    border-radius: 5px; padding: 5px 10px; white-space: nowrap;
+  }
+  .gs-row.locked .gs-value-pill { color: oklch(40% 0.013 255); background: none; border-color: oklch(28% 0.019 255); }
+
   /* ── Toggle ── */
   .gs-toggle-col { padding-top: 4px; flex-shrink: 0; }
   .gs-toggle {
@@ -340,6 +363,7 @@ function SettingRow({ setting, isEnabled, onToggle, enabledSettings }) {
     const unlockNames = (setting.unlocks || []).map(getSettingName);
     const toggleBg    = isEnabled && !isLocked ? C.green : 'oklch(28% 0.019 255)';
     const active      = isEnabled && !isLocked;
+    const isValue     = setting.type === 'value';
 
     return (
         <div className={`gs-row${isLocked ? ' locked' : ''}`}>
@@ -361,8 +385,8 @@ function SettingRow({ setting, isEnabled, onToggle, enabledSettings }) {
                         </span>
                     )}
                 </div>
-                <p className={`gs-row-desc${active ? ' on' : ' off'}`}>
-                    {active ? setting.enabledText : setting.disabledText}
+                <p className={`gs-row-desc${!isValue && active ? ' on' : ' off'}`}>
+                    {isValue ? setting.valueText : (active ? setting.enabledText : setting.disabledText)}
                 </p>
                 {(unlockNames.length > 0 || setting.link) && (
                     <div className="gs-row-meta">
@@ -383,18 +407,22 @@ function SettingRow({ setting, isEnabled, onToggle, enabledSettings }) {
             </div>
 
             <div className="gs-toggle-col">
-                <button
-                    className="gs-toggle"
-                    onClick={() => !isLocked && onToggle(setting.id)}
-                    disabled={isLocked}
-                    style={{ background: toggleBg }}
-                    role="switch"
-                    aria-checked={active}
-                    aria-label={setting.name}
-                    title={isLocked ? `Requires: ${unmetDeps.join(', ')}` : undefined}
-                >
-                    <div className="gs-toggle-knob" style={{ left: active ? '21px' : '3px' }} />
-                </button>
+                {isValue ? (
+                    <span className="gs-value-pill" title="Default value">{setting.valueLabel}</span>
+                ) : (
+                    <button
+                        className="gs-toggle"
+                        onClick={() => !isLocked && onToggle(setting.id)}
+                        disabled={isLocked}
+                        style={{ background: toggleBg }}
+                        role="switch"
+                        aria-checked={active}
+                        aria-label={setting.name}
+                        title={isLocked ? `Requires: ${unmetDeps.join(', ')}` : undefined}
+                    >
+                        <div className="gs-toggle-knob" style={{ left: active ? '21px' : '3px' }} />
+                    </button>
+                )}
             </div>
         </div>
     );
