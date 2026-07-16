@@ -1,0 +1,16 @@
+# fib-seed-buckets v1
+mc=26.2
+flags=0
+point=0,63,0
+target=1000000
+generated=2026-07-16T05:27:12Z
+# group counts (name=count)
+acacia=1000000
+badlands=1000000
+jungle=1000000
+desert=1000000
+flower_forest=1000000
+dark_forest=1000000
+pale_garden=1000000
+cherry_grove=1000000
+mangrove_swamp=1000000
