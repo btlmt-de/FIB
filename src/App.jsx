@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -11,14 +11,27 @@ import Rules from './pages/Rules';
 import CustomStructures from './pages/CustomStructures';
 import Commands from './pages/Commands';
 import GameSettings from './pages/GameSettings';
-import Stats from './pages/Stats/Stats.jsx';
 
 // Components
 import Navigation from './components/common/Navigation';
-import WheelOfFortune from './components/wheel/WheelOfFortune';
 
 // Config
 import { COLORS } from './config/constants';
+
+/*
+ * The two standalone routes are code-split.
+ *
+ * Both are heavy and mutually exclusive with everything else: the wheel pulls
+ * in three.js, and the stats module carries its own design system. Loading
+ * either eagerly meant every visitor to a reference page downloaded both.
+ */
+const WheelOfFortune = lazy(() => import('./components/wheel/WheelOfFortune'));
+const StatsShell = lazy(() => import('./pages/Stats/StatsShell.jsx'));
+
+/** Full-bleed placeholder while a split route's chunk arrives. */
+function RouteFallback() {
+    return <div style={{ minHeight: '100vh', background: COLORS.bg }} />;
+}
 
 // Route lookup map
 const ROUTE_MAP = {
@@ -66,7 +79,19 @@ export default function App() {
 
     // Wheel page is standalone (no nav bar)
     if (currentPage === 'wheel') {
-        return <WheelOfFortune onBack={() => navigate('home')} />;
+        return (
+            <Suspense fallback={<RouteFallback />}>
+                <WheelOfFortune onBack={() => navigate('home')} />
+            </Suspense>
+        );
+    }
+
+    if (currentPage === 'stats') {
+        return (
+            <Suspense fallback={<RouteFallback />}>
+                <StatsShell wikiHref="/" onExitWiki={() => navigate('home')} />
+            </Suspense>
+        );
     }
 
     return (
@@ -110,10 +135,6 @@ export default function App() {
 
             {currentPage === 'commands' && (
                 <Commands />
-            )}
-
-            {currentPage === 'stats' && (
-                <Stats />
             )}
 
             {currentPage === 'settings' && (

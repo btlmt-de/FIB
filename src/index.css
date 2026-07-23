@@ -6,7 +6,16 @@
 
 html, body {
   min-height: 100vh;
-  overflow-x: hidden;
+  /*
+   * `clip`, not `hidden`. Both stop horizontal overflow, but `hidden` makes the
+   * element a scroll container, which forces the other axis from `visible` to
+   * `auto` and silently breaks `position: sticky` for every descendant on the
+   * page — the stats sidebar scrolled away instead of staying pinned.
+   *
+   * `clip` is the one overflow value that may pair with `visible` on the other
+   * axis, so the viewport stays the scroller and sticky keeps working.
+   */
+  overflow-x: clip;
   background: #1a1a2e;
 }
 
