@@ -10,18 +10,10 @@
  */
 
 export {
-  formatNumber as num,
-  formatDistance as distance,
-  mmss as clock,
-  formatTime as duration,
-  formatDate as date,
-  formatClock as timeOfDay,
-  formatByKind as byKind,
   timeAgo,
   winRate,
   itemsPerGame,
   secondsPerItem,
-  totalRarities,
   itemLabel,
 } from './data.js';
 

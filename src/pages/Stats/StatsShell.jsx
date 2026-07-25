@@ -18,7 +18,6 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { injectStyles } from './styles.js';
-import { loadStats } from './adapter.js';
 import { Rail } from './Chrome.jsx';
 import { Overview } from './Overview.jsx';
 import { Leaderboards } from './Leaderboards.jsx';
@@ -26,7 +25,6 @@ import { Matches } from './Matches.jsx';
 import { MatchDetail } from './MatchDetail.jsx';
 import { Players, PlayerProfile } from './Profile.jsx';
 import { Items } from './Items.jsx';
-import { Loading, Empty } from './Primitives.jsx';
 
 /** Which rail item lights up for a given view. Detail views keep their parent lit. */
 const NAV_FOR = { match: 'matches', player: 'players' };
@@ -80,25 +78,6 @@ export function StatsShell({ initialView = 'overview', wikiHref = '/', onExitWik
     routeRef.current = route;
   });
 
-  /**
-   * `loadStats` is synchronous today — `data.js` is a seeded generator, not a
-   * fetch — so the result is produced in a lazy initialiser rather than an
-   * effect. Loading it in an effect would render an empty shell, then a
-   * skeleton, then the content, for data that was available before the first
-   * paint.
-   *
-   * When the real endpoint lands this becomes a fetch and moves back into an
-   * effect; `Loading` and the error branch below are already wired for that,
-   * and nothing else in the module changes.
-   */
-  const [{ data, error }] = useState(() => {
-    try {
-      return { data: loadStats(), error: null };
-    } catch (e) {
-      return { data: null, error: e };
-    }
-  });
-
   useEffect(() => { injectStyles(); }, []);
 
   /* Back / forward: the URL is the source of truth, so re-read it. */
@@ -127,64 +106,38 @@ export function StatsShell({ initialView = 'overview', wikiHref = '/', onExitWik
   const openMatch = useCallback((matchId) => go('match', { matchId }), [go]);
   const openPlayer = useCallback((playerUuid) => go('player', { playerUuid }), [go]);
 
-  const match = useMemo(
-    () => (data && route.matchId ? data.matches.find((m) => m.matchId === route.matchId) : null),
-    [data, route.matchId],
-  );
-
   const body = () => {
-    if (error) {
-      return (
-        <div className="fib-page">
-          <Empty
-            title="Statistics couldn’t load"
-            action={
-              <button type="button" className="fib-btn fib-btn--primary" onClick={() => window.location.reload()}>
-                Try again
-              </button>
-            }
-          >
-            The results feed didn&rsquo;t respond. Nothing has been lost — match results are
-            written server-side the moment a match ends, so they&rsquo;ll be here when it does.
-          </Empty>
-        </div>
-      );
-    }
-
-    if (!data) return <Loading />;
-
     switch (route.view) {
       case 'leaderboards':
         return <Leaderboards scope={scope} onScopeChange={setScope} onOpenPlayer={openPlayer} />;
       case 'matches':
-        return <Matches data={data} onOpenMatch={openMatch} />;
+        return <Matches onOpenMatch={openMatch} />;
       case 'match':
-        return <MatchDetail match={match} onBack={() => go('matches')} onOpenPlayer={openPlayer} />;
+        // The id, not a pre-found match object. MatchDetail fetches it.
+        return <MatchDetail matchId={route.matchId} onBack={() => go('matches')} onOpenPlayer={openPlayer} />;
       case 'players':
-        return <Players onOpenPlayer={openPlayer} scope={scope} matches={data.matches} />;
+        return <Players onOpenPlayer={openPlayer} scope={scope} />;
       case 'player':
         return (
-          <PlayerProfile
-            uuid={route.playerUuid}
-            scope={scope}
-            onScopeChange={setScope}
-            matches={data.matches}
-            onBack={() => go('players')}
-            onOpenPlayer={openPlayer}
-            onOpenMatch={openMatch}
-          />
+            <PlayerProfile
+                uuid={route.playerUuid}
+                scope={scope}
+                onScopeChange={setScope}
+                onBack={() => go('players')}
+                onOpenPlayer={openPlayer}
+                onOpenMatch={openMatch}
+            />
         );
       case 'items':
-        return <Items data={data} />;
+        return <Items />;
       default:
         return (
-          <Overview
-            data={data}
-            onOpenMatch={openMatch}
-            onOpenPlayer={openPlayer}
-            onOpenItems={() => go('items')}
-            onOpenLeaderboards={() => go('leaderboards')}
-          />
+            <Overview
+                onOpenMatch={openMatch}
+                onOpenPlayer={openPlayer}
+                onOpenItems={() => go('items')}
+                onOpenLeaderboards={() => go('leaderboards')}
+            />
         );
     }
   };

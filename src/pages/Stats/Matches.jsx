@@ -14,7 +14,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { matchStandings, playerName } from './adapter.js';
-import { Section, Avatar, Medal, Chip, Empty } from './Primitives.jsx';
+import { loadMatches } from './api.js';
+import { useAsync } from './useAsync.js';
+import { Section, Avatar, Medal, Chip, Empty, AsyncView } from './Primitives.jsx';
 import * as f from './format.js';
 
 const MODES = [
@@ -35,11 +37,22 @@ function dayLabel(v) {
   return `${d.toLocaleDateString('en-US', { weekday: 'short' })}, ${date}`;
 }
 
-export function Matches({ data, onOpenMatch }) {
+export function Matches({ onOpenMatch }) {
+  const state = useAsync(() => loadMatches(0), []);
+  return (
+      <AsyncView state={state} loadingLabel="Loading matches…">
+        {(page) => <MatchesBody matches={page.matches} totalCount={page.totalCount} onOpenMatch={onOpenMatch} />}
+      </AsyncView>
+  );
+}
+
+/* The feed's render, unchanged except that it reads its match array and true total from props
+ * (the fetched FibMatchPage) rather than from a `data` bundle. */
+function MatchesBody({ matches, totalCount, onOpenMatch }) {
   const [mode, setMode] = useState('all');
 
   const groups = useMemo(() => {
-    const list = mode === 'all' ? data.matches : data.matches.filter((m) => m.mode === mode);
+    const list = mode === 'all' ? matches : matches.filter((m) => m.mode === mode);
     const byDay = new Map();
     for (const match of list) {
       const standings = matchStandings(match);
@@ -52,106 +65,106 @@ export function Matches({ data, onOpenMatch }) {
       byDay.get(key).rows.push(row);
     }
     return [...byDay.values()];
-  }, [data.matches, mode]);
+  }, [matches, mode]);
 
   const widestMargin = Math.max(1, ...groups.flatMap((g) => g.rows.map((r) => r.margin)));
 
   return (
-    <div className="fib-page">
-      <Section
-        title="Matches"
-        sub={`${data.matches.length} completed matches, newest first.`}
-        aside={
-          <div style={{ display: 'flex', gap: 7 }}>
-            {MODES.map((m) => (
-              <Chip key={m.id} active={mode === m.id} onClick={() => setMode(m.id)}>
-                {m.label}
-              </Chip>
-            ))}
-          </div>
-        }
-      >
-        {groups.length === 0 ? (
-          /*
-            The copy has to survive the All filter. It read "No team matches
-            yet" whenever the feed was empty — naming a filter the reader
-            wasn't on, then telling them to switch back to the one they were
-            already using.
-          */
-          mode === 'all' ? (
-            <Empty title="No matches yet">
-              Matches are written here the moment one ends on the server, so this fills
-              itself — nothing needs to be imported and nothing has been lost.
-            </Empty>
-          ) : (
-            <Empty
-              title={`No ${mode === 'SOLO' ? 'solo' : 'team'} matches yet`}
-              action={
-                <button type="button" className="fib-btn fib-btn--quiet" onClick={() => setMode('all')}>
-                  Show all matches
-                </button>
-              }
-            >
-              {data.matches.length > 0
-                ? `The server has ${data.matches.length} completed ${data.matches.length === 1 ? 'match' : 'matches'}, but none of them were played ${mode === 'SOLO' ? 'solo' : 'in teams'}.`
-                : 'Matches are written here the moment one ends on the server.'}
-            </Empty>
-          )
-        ) : (
-          groups.map((group) => (
-            <section className="fib-day" key={group.label}>
-              <h3>{group.label}</h3>
-              <div className="fib-panel fib-panel--flush">
-                {group.rows.map(({ match, standings, winner, runnerUp, margin }) => (
-                  <button
-                    key={match.matchId}
-                    type="button"
-                    className="fib-row-link fib-match-row"
-                    onClick={() => onOpenMatch(match.matchId)}
-                  >
-                    <div className="fib-match-when">
-                      <b>{f.timeAgo(match.endedAt)}</b>
-                      <span className="fib-meta">{f.stamp(match.endedAt)}</span>
-                    </div>
-
-                    <div className="fib-match-winner">
-                      <Medal place={1} />
-                      <div style={{ display: 'flex', minWidth: 0 }}>
-                        {winner.members.map((uuid) => (
-                          <Avatar key={uuid} uuid={uuid} size={26} />
-                        ))}
-                      </div>
-                      <span className="fib-match-names">
-                        {winner.members.map((uuid) => playerName(uuid)).join(' & ')}
-                      </span>
-                    </div>
-
-                    <div className="fib-match-margin">
-                      <div className="fib-ramp-track" style={{ height: 5, color: margin <= 2 ? 'var(--fib-negative)' : 'var(--fib-ink-3)' }}>
-                        <i style={{ '--fill': margin / widestMargin }} />
-                      </div>
-                      <span className="fib-meta">
-                        {!runnerUp
-                          ? 'uncontested'
-                          : margin === 0
-                            ? 'tied at the line'
-                            : `beat ${runnerUp.members.map((uuid) => playerName(uuid)).join(' & ')} by ${margin}`}
-                      </span>
-                    </div>
-
-                    <div className="fib-match-score">
-                      <b>{winner.score}</b>
-                      <span className="fib-meta">
-                        {match.mode === 'SOLO' ? 'solo' : 'team'} · {standings.length} · {f.duration(match.durationSeconds)}
-                      </span>
-                    </div>
-                  </button>
+      <div className="fib-page">
+        <Section
+            title="Matches"
+            sub={`${totalCount} completed matches, newest first.`}
+            aside={
+              <div style={{ display: 'flex', gap: 7 }}>
+                {MODES.map((m) => (
+                    <Chip key={m.id} active={mode === m.id} onClick={() => setMode(m.id)}>
+                      {m.label}
+                    </Chip>
                 ))}
               </div>
-            </section>
-          ))
-        )}
-      </Section>
-    </div>
+            }
+        >
+          {groups.length === 0 ? (
+              /*
+                The copy has to survive the All filter. It read "No team matches
+                yet" whenever the feed was empty — naming a filter the reader
+                wasn't on, then telling them to switch back to the one they were
+                already using.
+              */
+              mode === 'all' ? (
+                  <Empty title="No matches yet">
+                    Matches are written here the moment one ends on the server, so this fills
+                    itself — nothing needs to be imported and nothing has been lost.
+                  </Empty>
+              ) : (
+                  <Empty
+                      title={`No ${mode === 'SOLO' ? 'solo' : 'team'} matches yet`}
+                      action={
+                        <button type="button" className="fib-btn fib-btn--quiet" onClick={() => setMode('all')}>
+                          Show all matches
+                        </button>
+                      }
+                  >
+                    {totalCount > 0
+                        ? `The server has ${totalCount} completed ${totalCount === 1 ? 'match' : 'matches'}, but none of them were played ${mode === 'SOLO' ? 'solo' : 'in teams'}.`
+                        : 'Matches are written here the moment one ends on the server.'}
+                  </Empty>
+              )
+          ) : (
+              groups.map((group) => (
+                  <section className="fib-day" key={group.label}>
+                    <h3>{group.label}</h3>
+                    <div className="fib-panel fib-panel--flush">
+                      {group.rows.map(({ match, standings, winner, runnerUp, margin }) => (
+                          <button
+                              key={match.matchId}
+                              type="button"
+                              className="fib-row-link fib-match-row"
+                              onClick={() => onOpenMatch(match.matchId)}
+                          >
+                            <div className="fib-match-when">
+                              <b>{f.timeAgo(match.endedAt)}</b>
+                              <span className="fib-meta">{f.stamp(match.endedAt)}</span>
+                            </div>
+
+                            <div className="fib-match-winner">
+                              <Medal place={1} />
+                              <div style={{ display: 'flex', minWidth: 0 }}>
+                                {winner.members.map((m) => (
+                                    <Avatar key={m.playerUuid} uuid={m.playerUuid} size={26} />
+                                ))}
+                              </div>
+                              <span className="fib-match-names">
+                        {winner.members.map((m) => m.playerName ?? playerName(m.playerUuid)).join(' & ')}
+                      </span>
+                            </div>
+
+                            <div className="fib-match-margin">
+                              <div className="fib-ramp-track" style={{ height: 5, color: margin <= 2 ? 'var(--fib-negative)' : 'var(--fib-ink-3)' }}>
+                                <i style={{ '--fill': margin / widestMargin }} />
+                              </div>
+                              <span className="fib-meta">
+                        {!runnerUp
+                            ? 'uncontested'
+                            : margin === 0
+                                ? 'tied at the line'
+                                : `beat ${runnerUp.members.map((m) => m.playerName ?? playerName(m.playerUuid)).join(' & ')} by ${margin}`}
+                      </span>
+                            </div>
+
+                            <div className="fib-match-score">
+                              <b>{winner.score}</b>
+                              <span className="fib-meta">
+                        {match.mode === 'SOLO' ? 'solo' : 'team'} · {standings.length} · {f.duration(match.durationSeconds)}
+                      </span>
+                            </div>
+                          </button>
+                      ))}
+                    </div>
+                  </section>
+              ))
+          )}
+        </Section>
+      </div>
   );
 }

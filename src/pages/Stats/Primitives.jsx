@@ -454,6 +454,34 @@ export function Segmented({ options, value, onChange, label }) {
   );
 }
 
+export function AsyncView({ state, loadingLabel, errorTitle = 'Couldn’t load', notFound, children }) {
+  if (state.loading) return <Loading label={loadingLabel} />;
+
+  if (state.error) {
+    const is404 = state.error.status === 404;
+    if (is404 && notFound) return notFound;
+    return (
+        <div className="fib-page">
+          <Empty
+              title={is404 ? 'Not found' : errorTitle}
+              action={
+                <button type="button" className="fib-btn fib-btn--primary" onClick={() => window.location.reload()}>
+                  Try again
+                </button>
+              }
+          >
+            {is404
+                ? 'That page doesn’t exist, or hasn’t been recorded yet.'
+                : 'The stats service didn’t respond. Match results are written server-side the moment a match ends, so they’ll be here when it does.'}
+          </Empty>
+        </div>
+    );
+  }
+
+  // Loaded. children is a function of the data, so a view reads its payload without a null-check.
+  return children(state.data);
+}
+
 export function Chip({ active, children, ...rest }) {
   return (
     <button type="button" className="fib-chip" aria-pressed={!!active} {...rest}>

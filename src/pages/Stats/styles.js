@@ -736,6 +736,10 @@ ${cssVariables()}
   transition: transform var(--fib-motion-slow) var(--fib-ease);
 }
 
+.fib-ach-group { margin-bottom: var(--fib-space-6); }
+.fib-ach-group:last-child { margin-bottom: 0; }
+.fib-ach-check { color: var(--fib-emerald); font-weight: 700; }
+
 /* ── 10. States ───────────────────────────────────────────────────────── */
 
 .fib-skel {
