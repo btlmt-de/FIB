@@ -13,7 +13,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { matchStandings, idLabel, idUuid } from './adapter.js';
+import { matchStandings, matchDuration, idLabel, idUuid } from './adapter.js';
 import { loadMatches } from './api.js';
 import { useAsync } from './useAsync.js';
 import { Section, Avatar, Medal, Chip, Empty, AsyncView } from './Primitives.jsx';
@@ -155,7 +155,7 @@ function MatchesBody({ matches, totalCount, onOpenMatch }) {
                                         <div className="fib-match-score">
                                             <b>{winner.score}</b>
                                             <span className="fib-meta">
-                        {match.mode === 'SOLO' ? 'solo' : 'team'} · {standings.length} · {f.duration(match.durationSeconds)}
+                        {match.mode === 'SOLO' ? 'solo' : 'team'} · {standings.length} · {f.duration(matchDuration(match))}
                       </span>
                                         </div>
                                     </button>

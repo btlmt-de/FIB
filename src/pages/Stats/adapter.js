@@ -15,7 +15,7 @@ import {
   playerName, playerAvatar, idUuid, idName, idLabel,
   itemKey, itemLabel, itemTexture,
   LEADERBOARD_SCOPES, LEADERBOARD_CATEGORIES,
-  matchStandings, raceEntries, standingsAt, leadChanges, leadChangeTimes, itemSegments,
+  matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes, itemSegments,
   winRate, itemsPerGame, secondsPerItem, timeAgo,
 } from './data.js';
 import { RARITY_KEYS, RARITY_FIELDS } from './tokens.js';
@@ -24,7 +24,7 @@ export {
   playerName, playerAvatar, idUuid, idName, idLabel,
   itemKey, itemLabel, itemTexture,
   LEADERBOARD_SCOPES, LEADERBOARD_CATEGORIES,
-  matchStandings, raceEntries, standingsAt, leadChanges, leadChangeTimes, itemSegments,
+  matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes, itemSegments,
   winRate, itemsPerGame, secondsPerItem, timeAgo,
 };
 

@@ -11,12 +11,12 @@
 
 export {
   formatNumber as num,
-  formatTime as timeOfDay,
+  formatTime as duration,
   formatDistance as distance,
   formatDate as date,
-  formatClock as clock,
+  formatClock as timeOfDay,
   formatByKind as byKind,
-  mmss as duration,
+  mmss as clock,
   totalRarities,
   timeAgo,
   winRate,

@@ -40,7 +40,7 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { matchStandings, playerName, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
+import { matchStandings, matchDuration, playerName, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
 import { loadOverview } from './api.js';
 import { useAsync } from './useAsync.js';
 import { usePendingReveal } from './useSeen.js';
@@ -264,7 +264,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                                 </b>
                                 <span className="fib-lede">
                   A {featured.mode === 'SOLO' ? 'solo' : 'team'} match over{' '}
-                                    {f.duration(featured.durationSeconds)}, decided in the final stretch.
+                                    {f.duration(matchDuration(featured))}, decided in the final stretch.
                   Watch it unfold — or open it and scrub the clock yourself.
                 </span>
                                 <span className="fib-meta">{f.stamp(featured.endedAt)}</span>
@@ -273,13 +273,13 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                                 {/* Diamond, not gold: a contested match is exceptional, but gold
                     means rank, and nobody placed here by changing lead. */}
                                 <Figure size="lg" value={featured.leadChanges} label="Lead changes" tone="diamond" />
-                                <Figure size="lg" value={featured.items.length} label="Items collected" />
+                                <Figure size="lg" value={featured.items.filter((i) => !i.skipped).length} label="Items collected" />
                             </div>
                         </div>
 
                         <RaceMini
                             entries={race.entries}
-                            duration={featured.durationSeconds}
+                            duration={matchDuration(featured)}
                             markers={race.changeTimes}
                             label="Score over time in the featured match"
                         />

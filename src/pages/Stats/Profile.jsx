@@ -44,7 +44,7 @@ import {
 import { RARITY_KEYS, rarityColor } from './tokens.js';
 import { unifyStats, totalPulls, achievementGroups, achievementSummary, scopeLabel } from './achievements.js';
 import { loadRoster, loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements } from './api.js';
-import { idUuid, idName, idLabel } from './adapter.js';
+import { idUuid, idName, idLabel, matchDuration } from './adapter.js';
 import { useAsync } from './useAsync.js';
 import { canObserve } from './env.js';
 import {
@@ -493,7 +493,7 @@ function PlayerProfileBody({
                                     {m.mode === 'SOLO' ? 'Solo' : 'Team'} · {standings.length} competitors
                                   </div>
                                   <div className="fib-meta">
-                                    {f.date(m.endedAt)} · {f.duration(m.durationSeconds)}
+                                    {f.date(m.endedAt)} · {f.duration(matchDuration(m))}
                                   </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
@@ -521,7 +521,7 @@ function PlayerProfileBody({
 
               {/* ── HONOURS ──────────────────────────────────────────────── */}
               <Section
-                  title="Honours"
+                  title="Achievements"
                   sub={`${summary.earned} of ${summary.total} earned. The real in-game achievements — when each was unlocked, and who it was earned with.`}
               >
                 {achGroups.length === 0 ? (

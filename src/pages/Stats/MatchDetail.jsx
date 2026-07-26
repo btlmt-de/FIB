@@ -16,7 +16,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  matchStandings, raceEntries, standingsAt, leadChanges, leadChangeTimes, playerName,
+  matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes,
 } from './adapter.js';
 import { useFlipRows } from './useFlip.js';
 import { loadMatch } from './api.js';
@@ -144,11 +144,22 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
 
   // Scrubbing is a live re-rank; at rest the view shows the final result.
   // Hover outranks the pinned cursor only for as long as the pointer stays.
-  const t = hover ?? cursor ?? match?.durationSeconds ?? 0;
+  const t = hover ?? cursor ?? (match ? matchDuration(match) : 0);
   const live = useMemo(
       () => (model ? standingsAt(model.entries, t) : []),
       [model, t],
   );
+
+  // The real final score per competitor, keyed for lookup. `standingsAt` derives a *running item
+  // count* from the log — which is the right thing to show WHILE scrubbing (the race unfolding),
+  // but is NOT the match's actual score. FIB scores are awarded, tracked as finalScore, and can
+  // differ sharply from the item count (a match can log 98 items yet score 59-53). So at rest, the
+  // Score column reads the real finalScore; only during a scrub does it show the running count.
+  const finalScoreByKey = useMemo(() => {
+    const m = new Map();
+    for (const row of (model?.finalStandings ?? [])) m.set(row.key, row.score);
+    return m;
+  }, [model]);
 
   useFlipRows(bodyRef, live.map((r) => r.entry.key).join('|'));
 
@@ -166,9 +177,9 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
 
     const tick = (now) => {
       if (!start) start = now;
-      const elapsed = ((now - start) / REPLAY_MS) * match.durationSeconds;
+      const elapsed = ((now - start) / REPLAY_MS) * matchDuration(match);
       const next = from + elapsed;
-      if (next >= match.durationSeconds) {
+      if (next >= matchDuration(match)) {
         setPlaying(false);
         setCursor(null);
         return;
@@ -196,7 +207,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
     } else {
       // A cursor parked at the finish would end the replay on its first
       // frame; rewind instead of no-oping.
-      if (cursor != null && match && cursor >= match.durationSeconds) setCursor(null);
+      if (cursor != null && match && cursor >= matchDuration(match)) setCursor(null);
       setPlaying(true);
     }
   };
@@ -215,7 +226,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
       <div className="fib-page">
         <Section
             title={`${match.mode === 'SOLO' ? 'Solo' : 'Team'} match`}
-            sub={`${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.duration(match.durationSeconds)}`}
+            sub={`${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.duration(matchDuration(match))}`}
             aside={
               <button type="button" className="fib-btn fib-btn--quiet" onClick={onBack}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -227,7 +238,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
         >
           <div className="fib-stat-strip" style={{ marginTop: 0, marginBottom: 'var(--fib-space-6)' }}>
             <Figure size="sm" value={entries.length} label={match.mode === 'SOLO' ? 'Players' : 'Teams'} />
-            <Figure size="sm" value={match.items.length} label="Items collected" />
+            <Figure size="sm" value={match.items.filter((i) => !i.skipped).length} label="Items collected" />
             {/* Diamond, not gold: a contested match is exceptional, but gold in
               this module means rank, and nobody placed here by changing lead. */}
             <Figure size="sm" value={changes} label="Lead changes" tone={changes > 3 ? 'diamond' : undefined} />
@@ -240,7 +251,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
 
           <RaceTrace
               entries={entries}
-              duration={match.durationSeconds}
+              duration={matchDuration(match)}
               cursor={hover ?? cursor}
               labelFor={labelFor}
               markers={changeTimes}
@@ -286,7 +297,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                   id="fib-scrub-input"
                   type="range"
                   min={0}
-                  max={match.durationSeconds}
+                  max={matchDuration(match)}
                   step={5}
                   value={t}
                   onChange={(e) => {
@@ -296,11 +307,11 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                     setCursor(Number(e.target.value));
                     setOpenKey(null);
                   }}
-                  aria-valuetext={`${f.clock(t)} of ${f.clock(match.durationSeconds)}`}
+                  aria-valuetext={`${f.clock(t)} of ${f.clock(matchDuration(match))}`}
               />
             </div>
             <div className="fib-scrub-foot">
-              <span className="fib-meta">{f.clock(t)} / {f.clock(match.durationSeconds)}</span>
+              <span className="fib-meta">{f.clock(t)} / {f.clock(matchDuration(match))}</span>
               {scrubbing ? (
                   <button type="button" className="fib-btn fib-btn--quiet" onClick={() => { setPlaying(false); setHover(null); setCursor(null); }}>
                     Jump to final result
@@ -372,7 +383,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                           </div>
                         </td>
                         <td data-num style={{ color: row.pos === 1 ? 'var(--fib-gold)' : undefined }}>
-                          {row.score}
+                          {scrubbing ? row.score : (finalScoreByKey.get(row.entry.key) ?? row.score)}
                         </td>
                         <td data-num>{row.found}</td>
                         <td data-num style={{ color: 'var(--fib-netherite)' }}>{row.skipped}</td>
@@ -402,7 +413,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                             <td colSpan={7} id={panelId}>
                               <Inventory
                                   entry={row.entry}
-                                  duration={match.durationSeconds}
+                                  duration={matchDuration(match)}
                                   ownerLabel={labelFor(row.entry)}
                                   mode={match.mode}
                               />

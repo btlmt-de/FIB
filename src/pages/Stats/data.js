@@ -100,6 +100,24 @@ const identityOf = (p) => {
     return { uuid: idUuid(id), name: idName(id) };
 };
 
+/**
+ * The real elapsed duration of a match, in seconds — from the start/end timestamps, NOT the stored
+ * durationSeconds.
+ *
+ * durationSeconds cannot be trusted: it carries the configured round length (e.g. 3600 for a 60-min
+ * round) even when the match actually ran longer, so a match that went 88 minutes still reports
+ * 3600. startedAt and endedAt are real event timestamps and are authoritative. Everything that needs
+ * a time axis or a "final" cutoff — the race graph, the replay scrubber, the at-rest standings —
+ * uses this, so items collected past the nominal round length are not silently dropped.
+ */
+export const matchDuration = (match) => {
+    const start = new Date(match.startedAt).getTime();
+    const end = new Date(match.endedAt).getTime();
+    const span = (end - start) / 1000;
+    // Fall back to the stored field only if the timestamps are missing or nonsensical.
+    return Number.isFinite(span) && span > 0 ? span : (match.durationSeconds ?? 0);
+};
+
 export const matchStandings = (match) => {
     if (match.mode === 'SOLO') {
         return match.participants
