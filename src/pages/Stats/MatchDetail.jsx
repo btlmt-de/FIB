@@ -22,11 +22,12 @@ import { useFlipRows } from './useFlip.js';
 import { loadMatch } from './api.js';
 import { useAsync } from './useAsync.js';
 import { Section, Avatar, Medal, Sprite, Empty, Figure, RarityTag, AsyncView } from './Primitives.jsx';
+import { idLabel, idUuid } from './adapter.js';
 import { Inventory } from './Inventory.jsx';
 import { RaceTrace } from './Charts.jsx';
 import * as f from './format.js';
 
-const labelFor = (row) => row.members.map((m) => m.playerName ?? playerName(m.playerUuid)).join(' & ');
+const labelFor = (row) => row.members.map(idLabel).join(' & ');
 
 /**
  * Server setting keys, in the wiki's own words.
@@ -247,7 +248,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
               iconFor={(entry) => (
                   <span className="fib-lane-faces" aria-hidden="true">
               {entry.members.map((m) => (
-                  <Avatar key={m.playerUuid} uuid={m.playerUuid} size={16} />
+                  <Avatar key={idUuid(m)} uuid={idUuid(m)} size={16} />
               ))}
             </span>
               )}
@@ -359,13 +360,13 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--fib-space-3)', flexWrap: 'wrap' }}>
                             {row.entry.members.map((m) => (
                                 <button
-                                    key={m.playerUuid}
+                                    key={idUuid(m)}
                                     type="button"
                                     className="fib-cell-player"
-                                    onClick={() => onOpenPlayer?.(m.playerUuid)}
+                                    onClick={() => onOpenPlayer?.(idUuid(m))}
                                 >
-                                  <Avatar uuid={m.playerUuid} size={24} />
-                                  <span>{m.playerName ?? playerName(m.playerUuid)}</span>
+                                  <Avatar uuid={idUuid(m)} size={24} />
+                                  <span>{idLabel(m)}</span>
                                 </button>
                             ))}
                           </div>

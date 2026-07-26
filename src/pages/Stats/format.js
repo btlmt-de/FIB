@@ -10,6 +10,14 @@
  */
 
 export {
+  formatNumber as num,
+  formatTime as timeOfDay,
+  formatDistance as distance,
+  formatDate as date,
+  formatClock as clock,
+  formatByKind as byKind,
+  mmss as duration,
+  totalRarities,
   timeAgo,
   winRate,
   itemsPerGame,

@@ -130,6 +130,13 @@ export const loadLeaderboard = (scope, category, limit = 100) =>
 /** The item index — the server-wide rarity snapshot. */
 export const loadItems = () => apiGet('/items');
 
+/** The achievement catalogue — every achievement that exists (id, title, description, scope). */
+export const loadCatalogue = () => apiGet('/catalogue');
+
+/** One player's unlocked achievements. Pairs with the catalogue to render the profile's honours. */
+export const loadPlayerAchievements = (player) =>
+    apiGet(`/achievements/${encodeURIComponent(player)}`);
+
 /** One item's detail and its finders. */
 export const loadItem = (itemName, limit = 50) =>
     apiGet(`/items/${encodeURIComponent(itemName)}`, { limit });

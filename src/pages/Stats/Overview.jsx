@@ -40,7 +40,7 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { matchStandings, playerName, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
+import { matchStandings, playerName, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
 import { loadOverview } from './api.js';
 import { useAsync } from './useAsync.js';
 import { usePendingReveal } from './useSeen.js';
@@ -102,22 +102,36 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
 
     /* The featured race, derived once: lanes, and the moments the lead turned. */
     const race = useMemo(() => {
-        if (!featured?.match) return null;
-        const entries = raceEntries(featured.match);
+        // `featured` IS the match (a FibMatchDetail), not a { changes, match } wrapper — the dashboard
+        // puts the raw match detail here. leadChanges is a field on it; the race trace and standings
+        // derive from its item log the same way any match view does.
+        if (!featured) return null;
+        const entries = raceEntries(featured);
         return {
             entries,
-            changes: leadChangeTimes(entries),
-            winner: matchStandings(featured.match)[0],
+            changeTimes: leadChangeTimes(entries),
+            winner: matchStandings(featured)[0],
         };
     }, [featured]);
 
-    /* The two feeds, kept apart because they were always two queries. `activity`
-       merged wins and rare pulls into one stream; splitting the display lets each
-       column map to its own endpoint (the match feed, and rare-moments) and lets
-       a rare moment keep the matchId the merge used to strip. Wins are filtered
-       out of `activity` rather than refetched — the win entries already carry
-       everything the column needs. */
-    const wins = useMemo(() => activity.filter((a) => a.kind === 'win'), [activity]);
+    /* The two feeds, kept apart because they were always two queries. `activity` is the raw match
+       feed — a FibMatchPage { totalCount, page, size, matches } — so the winners are derived from it
+       here: each match's winning participants (won === true), their names and the winning score. The
+       mock handed a pre-shaped {playerUuids, score} row; the real feed hands the match, and this is
+       where it becomes a win row. `moments` stays as-is (rare pulls, its own endpoint). */
+    const wins = useMemo(() => {
+        const matches = activity?.matches ?? [];
+        return matches.map((m) => {
+            const winners = (m.participants ?? []).filter((p) => p.won);
+            return {
+                matchId: m.matchId,
+                at: m.endedAt,
+                // Names from the participant identities; a team win lists both, a solo win one.
+                players: winners.map((p) => idLabel(p.player)),
+                score: winners[0]?.finalScore ?? 0,
+            };
+        });
+    }, [activity]);
 
     return (
         <div className="fib-page">
@@ -136,20 +150,20 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                 <div className="fib-pulse">
                     <Figure
                         size="lg" value={globals.matchesPlayed} format={f.full} label="Matches played"
-                        note={<><Delta value={globals.matchesThisWeek} /> this week</>}
+                        note={<><Delta value={globals.matchesPlayedInWindow} /> this week</>}
                     />
                     <Figure
                         size="lg" value={globals.itemsFound} format={f.full} label="Items found"
-                        note={<><Delta value={globals.itemsThisWeek} /> this week</>}
+                        note={<><Delta value={globals.itemsFoundInWindow} /> this week</>}
                     />
                     <Figure
                         size="lg" value={globals.playersRanked} format={f.full} label="Ranked players"
-                        note={<><Delta value={globals.playersThisWeek} /> this week</>}
+                        note={<><Delta value={globals.playersRankedInWindow} /> this week</>}
                     />
                     <Figure
                         size="lg" value={globals.achievementsGranted} format={f.full}
                         label="Achievements granted"
-                        note={<><Delta value={globals.achievementsThisWeek} /> this week</>}
+                        note={<><Delta value={globals.achievementsGrantedInWindow} /> this week</>}
                     />
                 </div>
             </Reveal>
@@ -206,18 +220,18 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                     <ol className="fib-podium" ref={podiumRef} key={scope}>
                         {topThree.map((row) => (
                             <li
-                                key={row.player.playerUuid}
+                                key={idUuid(row.player)}
                                 className="fib-podium-slot"
                                 data-place={row.rank}
                                 style={{ '--ceremony': 3 - row.rank }}
                             >
                                 <div className="fib-podium-faces">
-                                    <Avatar uuid={row.player.playerUuid} size={64} />
+                                    <Avatar uuid={idUuid(row.player)} size={64} />
                                 </div>
                                 <Medal place={row.rank} />
                                 <div className="fib-podium-name">
-                                    <button type="button" onClick={() => onOpenPlayer(row.player.playerUuid)}>
-                                        {row.player.playerName ?? playerName(row.player.playerUuid)}
+                                    <button type="button" onClick={() => onOpenPlayer(idUuid(row.player))}>
+                                        {idLabel(row.player)}
                                     </button>
                                 </div>
                                 <div className="fib-podium-value">
@@ -233,40 +247,40 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
             </Section>
 
 
-            {featured?.match && race ? (
+            {featured && race ? (
                 <Section
                     title="Match of the week"
-                    sub={`The most contested of any recent match — the lead changed hands ${featured.changes} ${featured.changes === 1 ? 'time' : 'times'}.`}
+                    sub={`The most contested of any recent match — the lead changed hands ${featured.leadChanges} ${featured.leadChanges === 1 ? 'time' : 'times'}.`}
                 >
                     <button
                         type="button"
                         className="fib-panel fib-feature-card"
-                        onClick={() => onOpenMatch(featured.match.matchId)}
+                        onClick={() => onOpenMatch(featured.matchId)}
                     >
                         <div className="fib-feature-top">
                             <div style={{ minWidth: 0 }}>
                                 <b className="fib-h2">
-                                    {race.winner.members.map((m) => m.playerName ?? playerName(m.playerUuid)).join(' & ')} held on
+                                    {race.winner.members.map(idLabel).join(' & ')} held on
                                 </b>
                                 <span className="fib-lede">
-                  A {featured.match.mode === 'SOLO' ? 'solo' : 'team'} match over{' '}
-                                    {f.duration(featured.match.durationSeconds)}, decided in the final stretch.
+                  A {featured.mode === 'SOLO' ? 'solo' : 'team'} match over{' '}
+                                    {f.duration(featured.durationSeconds)}, decided in the final stretch.
                   Watch it unfold — or open it and scrub the clock yourself.
                 </span>
-                                <span className="fib-meta">{f.stamp(featured.match.endedAt)}</span>
+                                <span className="fib-meta">{f.stamp(featured.endedAt)}</span>
                             </div>
                             <div className="fib-feature-figures">
                                 {/* Diamond, not gold: a contested match is exceptional, but gold
                     means rank, and nobody placed here by changing lead. */}
-                                <Figure size="lg" value={featured.changes} label="Lead changes" tone="diamond" />
-                                <Figure size="lg" value={featured.match.items.length} label="Items collected" />
+                                <Figure size="lg" value={featured.leadChanges} label="Lead changes" tone="diamond" />
+                                <Figure size="lg" value={featured.items.length} label="Items collected" />
                             </div>
                         </div>
 
                         <RaceMini
                             entries={race.entries}
-                            duration={featured.match.durationSeconds}
-                            markers={race.changes}
+                            duration={featured.durationSeconds}
+                            markers={race.changeTimes}
                             label="Score over time in the featured match"
                         />
 
@@ -299,7 +313,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                                 <span className="fib-stream-icon"><Medal place={1} /></span>
                                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                                     <div style={{ fontWeight: 500 }}>
-                                        {a.playerUuids.map(playerName).join(' & ')} won with {a.score}
+                                        {a.players.join(' & ')} won with {a.score}
                                     </div>
                                     <div className="fib-meta">{timeAgo(a.at)}</div>
                                 </div>
@@ -324,15 +338,15 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                                 onClick={() => onOpenMatch(m.matchId)}
                             >
                 <span className="fib-stream-icon">
-                  <Sprite name={m.itemName} size={32} pad={6} tier={m.rarity} />
+                  <Sprite name={m.itemName} size={32} pad={6} tier={m.b2bRarity} />
                 </span>
                                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                                     <div style={{ fontWeight: 500 }}>
-                                        {m.player?.playerName ?? playerName(m.player?.playerUuid)} pulled {f.itemLabel(m.itemName)}
+                                        {idLabel(m.player)} pulled {f.itemLabel(m.itemName)}
                                     </div>
-                                    <div className="fib-meta">{timeAgo(m.at)}</div>
+                                    <div className="fib-meta">{timeAgo(m.collectedAt)}</div>
                                 </div>
-                                <RarityTag tier={m.rarity} />
+                                <RarityTag tier={m.b2bRarity} />
                             </button>
                         ))}
                     </div>

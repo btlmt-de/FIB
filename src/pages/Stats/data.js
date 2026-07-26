@@ -27,6 +27,27 @@ export { RARITY_KEYS, RARITY_FIELDS };
 /** A display string for a bare uuid: the first eight characters. Real names come from the DTO. */
 export const playerName = (uuid) => (uuid ? String(uuid).slice(0, 8) : 'Unknown');
 
+/**
+ * Read a player identity, tolerant of both field-namings.
+ *
+ * The public API serializes its FibPlayer as { uuid, name } — those are the getter names on the
+ * server object, so those are the JSON keys the frontend actually receives. (The generated *client*
+ * DTO calls them playerUuid/playerName, but that shape never reaches the browser; the public API
+ * re-serializes through its own class.) These helpers read `uuid`/`name` first and fall back to the
+ * nested names, so a payload of either shape resolves — and everything that shows a player goes
+ * through here rather than reaching into the object, so there is one place this naming lives.
+ */
+export const idUuid = (identity) => identity?.uuid ?? identity?.playerUuid ?? null;
+export const idName = (identity) => identity?.name ?? identity?.playerName ?? null;
+
+/** A player identity's display name: the real name if recorded, else the short uuid, else Unknown. */
+export const idLabel = (identity) => {
+    const name = idName(identity);
+    if (name) return name;
+    const uuid = idUuid(identity);
+    return uuid ? String(uuid).slice(0, 8) : 'Unknown';
+};
+
 /** A head-renderer URL for a uuid. The renderer keys on uuid, so this needs no name. */
 export const playerAvatar = (uuid) => `https://mc-heads.net/avatar/${uuid ?? 'MHF_Question'}/48`;
 
@@ -70,11 +91,14 @@ export const categorySense = (category) =>
 // therefore identity objects, not bare uuids, so a caller can render the name the DTO already
 // carries instead of a lookup.
 
-/** A uuid from a nested-or-flat player, tolerating either during the transition. */
-const uuidOf = (p) => p?.player?.playerUuid ?? p?.playerUuid ?? null;
+/** A uuid from a participant, reading the real { uuid, name } identity (or the nested variant). */
+const uuidOf = (p) => idUuid(p?.player) ?? idUuid(p) ?? null;
 
-/** The identity object from a participant, for `members` lists that want the name too. */
-const identityOf = (p) => p?.player ?? { playerUuid: p?.playerUuid, playerName: null };
+/** A normalized identity { uuid, name } from a participant, for `members` lists. */
+const identityOf = (p) => {
+    const id = p?.player ?? p;
+    return { uuid: idUuid(id), name: idName(id) };
+};
 
 export const matchStandings = (match) => {
     if (match.mode === 'SOLO') {
@@ -190,6 +214,61 @@ export const itemSegments = (entry) =>
         order: i + 1,
         took: e.t - (i ? entry.events[i - 1].t : 0),
     }));
+
+// ── Number & time formatting ─────────────────────────────────────────────────
+// Pure formatters used across the whole UI (and re-exported through format.js). No mock
+// dependency — they format whatever value they are handed.
+
+export const formatNumber = (n) => {
+    if (n == null) return '—';
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 10000) return `${(n / 1000).toFixed(1)}K`;
+    // Locale pinned: left to the browser, a German client renders "1.216.896" while every other
+    // formatter says "1,216,896".
+    return n.toLocaleString('en-US');
+};
+
+export const formatDistance = (b) => {
+    if (b == null) return '—';
+    if (b >= 1000000) return `${(b / 1000000).toFixed(2)}M`;
+    if (b >= 1000) return `${(b / 1000).toFixed(1)}K`;
+    return b.toLocaleString('en-US');
+};
+
+/** Clock form "42:07" — match durations, offsets, per-item times. */
+export const mmss = (s) => {
+    const total = Math.max(0, Math.round(s));
+    if (total >= 3600) return `${Math.floor(total / 3600)}:${String(Math.floor((total % 3600) / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+export const formatTime = (s) => {
+    if (s == null || Number.isNaN(s)) return '—';
+    const total = Math.round(s);
+    if (total >= 60) return `${Math.floor(total / 60)}m ${total % 60}s`;
+    return `${total}s`;
+};
+
+export const formatDate = (v) => {
+    const d = new Date(v);
+    const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+export const formatClock = (v) =>
+    new Date(v).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+export const formatByKind = (value, kind) => {
+    if (kind === 'compact') return formatNumber(value);
+    if (kind === 'distance') return `${formatDistance(value)} blocks`;
+    return (value ?? 0).toLocaleString('en-US');
+};
+
+export const totalRarities = (r) =>
+    RARITY_KEYS.reduce((a, k) => a + (r?.[RARITY_FIELDS[k]] ?? 0), 0);
 
 // ── Small numeric helpers ────────────────────────────────────────────────────
 

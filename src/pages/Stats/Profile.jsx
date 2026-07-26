@@ -43,7 +43,8 @@ import {
 } from './adapter.js';
 import { RARITY_KEYS, rarityColor } from './tokens.js';
 import { unifyStats, totalPulls, achievementGroups, achievementSummary, scopeLabel } from './achievements.js';
-import { loadRoster, loadPlayer, loadPlayerMatches } from './api.js';
+import { loadRoster, loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements } from './api.js';
+import { idUuid, idName, idLabel } from './adapter.js';
 import { useAsync } from './useAsync.js';
 import { canObserve } from './env.js';
 import {
@@ -132,8 +133,13 @@ function PlayersBody({ rows, total, query, onQuery, sort, onSort, onOpenPlayer }
           ) : (
               <div className="fib-panel fib-panel--flush">
                 {rows.map((p, i) => {
-                  const uuid = p.player.playerUuid;
-                  const name = p.player.playerName ?? uuid.slice(0, 8);
+                  // The roster entry's identity: nested {playerUuid, playerName} like every other
+                  // endpoint, OR the raw {uuid, name} if the public API's roster mapper passed FIBService's
+                  // shape through without normalizing. Tolerate both so a mapper mismatch degrades to
+                  // "works" rather than a crash; the backend fix (emit the identity DTO like the rest) can
+                  // follow without breaking this.
+                  const uuid = idUuid(p.player);
+                  const name = idLabel(p.player);
                   const winRate = f.winRate(p.gamesWon, p.gamesPlayed);
                   return (
                       <button
@@ -180,9 +186,13 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
 
   const profileState = useAsync(() => loadPlayer(uuid), [uuid]);
   // The score trend needs this player's matches — a separate, optional fetch whose failure or
-  // absence must not block the profile. Its endpoint (a player-filtered /matches) is not built yet,
-  // so today this 404s and the Form section shows its "not enough matches" empty state.
+  // absence must not block the profile.
   const historyState = useAsync(() => loadPlayerMatches(uuid), [uuid]);
+  // Achievements are their own two calls (catalogue + this player's unlocks), loaded alongside the
+  // profile rather than folded into it — the honours section can lag or fail on its own. The
+  // catalogue is the same for everyone, so it is cheap and cacheable upstream.
+  const catalogueState = useAsync(loadCatalogue, []);
+  const achievementsState = useAsync(() => loadPlayerAchievements(uuid), [uuid]);
 
   return (
       <AsyncView
@@ -202,6 +212,8 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
                 onBack={onBack} onOpenPlayer={onOpenPlayer} onOpenMatch={onOpenMatch}
                 payload={payload}
                 history={historyState.data}
+                catalogue={catalogueState.data}
+                achievements={achievementsState.data}
                 partnerIndex={partnerIndex} setPartnerIndex={setPartnerIndex}
             />
         )}
@@ -211,7 +223,7 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
 
 function PlayerProfileBody({
                              uuid, scope, onScopeChange, onBack, onOpenPlayer, onOpenMatch,
-                             payload, history, partnerIndex, setPartnerIndex,
+                             payload, history, catalogue, achievements, partnerIndex, setPartnerIndex,
                            }) {
   const heroRef = useRef(null);
   const [barOn, setBarOn] = useState(false);
@@ -241,10 +253,10 @@ function PlayerProfileBody({
     const partners = (payload.partners ?? []).map((teamStats) => {
       const p1 = teamStats.player1;
       const p2 = teamStats.player2;
-      const partner = p1?.playerUuid === uuid ? p2 : p1;
+      const partner = idUuid(p1) === uuid ? p2 : p1;
       return {
-        uuid: partner?.playerUuid ?? null,
-        name: partner?.playerName ?? null,
+        uuid: idUuid(partner),
+        name: idName(partner),
         team: teamStats,
       };
     });
@@ -260,33 +272,33 @@ function PlayerProfileBody({
     // Trend from the optional history fetch. Null until that endpoint exists; the Form section
     // already treats "fewer than two" as its empty case, so an empty list flows through cleanly.
     const matches = history?.matches ?? [];
-    const mine = matches.filter((m) => m.participants?.some((p) => p.player?.playerUuid === uuid));
+    const mine = matches.filter((m) => m.participants?.some((p) => idUuid(p.player) === uuid));
     const trend = mine
         .slice()
         .sort((a, b) => new Date(a.endedAt) - new Date(b.endedAt))
         .slice(-14)
         .map((m) => {
-          const me = m.participants.find((p) => p.player?.playerUuid === uuid);
+          const me = m.participants.find((p) => idUuid(p.player) === uuid);
           return { value: me.finalScore, won: me.won, label: f.date(m.endedAt), matchId: m.matchId };
         });
 
-    const achGroups = achievementGroups(profile?.catalogue, profile?.achievements);
+    const achGroups = achievementGroups(catalogue, achievements);
 
     return {
       profile, stats, trend, partners,
-      // field is the "Nth of M" comparison against every player — no endpoint feeds that yet, so an
-      // empty field makes Record's standing() return null (it already guards population < 3) and the
-      // placement notes simply do not render. Populate this when an all-players endpoint lands.
-      field: { label: 'all ranked players', stats: [] },
-      summary: achievementSummary(profile?.catalogue, profile?.achievements),
+      // No per-stat placement notes: the profile shows one real global rank in the hero (from the
+      // rank endpoint) and that is the whole rank story. Record renders every figure without an
+      // "Nth of M" note when field is null — a deliberate design choice, not a missing endpoint.
+      field: null,
+      summary: achievementSummary(catalogue, achievements),
       rank: payload.rank ?? null,
       achGroups,
       recent: mine.slice(0, 5),
     };
-  }, [payload, history, scope, partnerIndex, uuid]);
+  }, [payload, history, catalogue, achievements, scope, partnerIndex, uuid]);
 
   const { profile, stats, field, trend, achGroups, summary, rank, partners, recent } = model;
-  const name = profile?.player?.playerName ?? uuid.slice(0, 8);
+  const name = idName(profile?.player) ?? uuid.slice(0, 8);
   const winRate = f.winRate(stats.gamesWon, stats.gamesPlayed);
 
   // Under five matches a win rate is noise dressed as a statistic. The profile
@@ -375,7 +387,7 @@ function PlayerProfileBody({
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     <span className="fib-label">with</span>
                     <Segmented
-                        options={partners.map((p, i) => ({ id: String(i), label: p.name ?? playerName(p.uuid) }))}
+                        options={partners.map((p, i) => ({ id: String(i), label: p.name ?? (p.uuid ? p.uuid.slice(0, 8) : '?') }))}
                         value={String(partnerIndex)}
                         onChange={(v) => setPartnerIndex(Number(v))}
                         label="Duo partner"
@@ -466,7 +478,7 @@ function PlayerProfileBody({
                       <ScoreTrend points={trend} label={`${name}'s score per match`} />
                       <div className="fib-panel fib-panel--flush" style={{ marginTop: 'var(--fib-space-5)' }}>
                         {recent.map((m) => {
-                          const me = m.participants.find((p) => p.player?.playerUuid === uuid);
+                          const me = m.participants.find((p) => idUuid(p.player) === uuid);
                           const standings = matchStandings(m);
                           return (
                               <button
@@ -534,7 +546,7 @@ function PlayerProfileBody({
                                     <p>{renderMiniMessage(a.description)}</p>
                                     {a.unlocked && a.teammates.length > 0 ? (
                                         <span className="fib-meta">
-                              with {a.teammates.map((t) => t.playerName ?? t.playerUuid.slice(0, 8)).join(', ')}
+                              with {a.teammates.map(idLabel).join(', ')}
                             </span>
                                     ) : null}
                                   </div>
@@ -613,19 +625,18 @@ function PlayerProfileBody({
  * entries in the field, where a placing is noise dressed as a ranking.
  */
 function Record({ stats, field, streaks }) {
-  const population = field.stats.length;
-
-  /* Standing in the field: how many are strictly ahead, plus one. Ties share a
-     place, which is what a ranking means. `sense: low` inverts "ahead" — on
-     deaths and seconds per item, fewer is better. */
+  /* Standing in the field: how many are strictly ahead, plus one. Only rendered when a field
+     payload is supplied — today it never is (the profile shows one global rank in the hero
+     instead), so every note below is null and the figures stand alone. Kept intact so a future
+     all-players comparison can light them up by passing a field; not currently wired. */
   const standing = (pick, value, sense) => {
-    if (population < 3 || !Number.isFinite(value)) return null;
+    if (!field || field.stats.length < 3 || !Number.isFinite(value)) return null;
     const ahead = field.stats.filter((s) => {
       const v = pick(s);
       if (!Number.isFinite(v)) return false;
       return sense === 'low' ? v < value : v > value;
     }).length;
-    return `${f.ordinal(ahead + 1)} of ${population}`;
+    return `${f.ordinal(ahead + 1)} of ${field.stats.length}`;
   };
 
   const HEADLINE = [
