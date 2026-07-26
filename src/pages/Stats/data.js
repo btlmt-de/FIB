@@ -54,8 +54,15 @@ export const playerAvatar = (uuid) => `https://mc-heads.net/avatar/${uuid ?? 'MH
 // ── Items ───────────────────────────────────────────────────────────────────
 // Stored namespaced ("minecraft:oak_log") so the data outlives MC version churn;
 // everything user-facing strips it. Texture filenames drop the namespace.
-
-export const itemKey = (itemName) => (itemName || '').split(':').pop();
+//
+// Lower-cased: item ids are canonically lowercase, but this API hands them back
+// as SCREAMING_ENUMS ("CHIPPED_ANVIL"). Texture files — both the vendored set in
+// public/fib-items and the remote pack — are lowercase, and a case-sensitive
+// static server (Vite's dev server, and the production host) 404s the uppercase
+// path, so every sprite fell through to the fallback and then to a broken image.
+// Normalising here also un-breaks itemLabel's Title-casing, which only works on
+// a lowercase base.
+export const itemKey = (itemName) => (itemName || '').split(':').pop().toLowerCase();
 export const itemLabel = (itemName) =>
     itemKey(itemName).split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 export const itemTexture = (itemName) => `${ITEM_TEXTURE_BASE}/${itemKey(itemName)}.png`;

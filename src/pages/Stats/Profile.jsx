@@ -37,21 +37,18 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  playerName,
-  LEADERBOARD_SCOPES, matchStandings,
-} from './adapter.js';
-import { RARITY_KEYS, rarityColor } from './tokens.js';
-import { unifyStats, totalPulls, achievementGroups, achievementSummary, scopeLabel } from './achievements.js';
+import { LEADERBOARD_SCOPES, matchStandings } from './adapter.js';
+import { RARITY_KEYS } from './tokens.js';
+import { unifyStats, totalPulls, achievementGroups, achievementSummary } from './achievements.js';
 import { loadRoster, loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements } from './api.js';
 import { idUuid, idName, idLabel, matchDuration } from './adapter.js';
 import { useAsync } from './useAsync.js';
 import { canObserve } from './env.js';
 import {
   Section, Figure, Avatar, Sprite, Medal, Segmented, Search, Empty, Chip,
-  RarityRamp, RarityTag, PlayerLink, Reveal, Counter, AsyncView,
+  RarityRamp, PlayerLink, Reveal, Counter, AsyncView,
 } from './Primitives.jsx';
-import { ScoreTrend, Sparkline } from './Charts.jsx';
+import { ScoreTrend } from './Charts.jsx';
 import * as f from './format.js';
 import { renderMiniMessage } from './minimessage.jsx';
 
@@ -77,7 +74,7 @@ const PLAYER_SORTS = [
  * a client re-sort of a loaded page. 'rank' is the default games_won ordering. */
 const ROSTER_SORT = { rank: 'games_won', wins: 'games_won', winRate: 'win_rate', items: 'total_items_found' };
 
-export function Players({ onOpenPlayer, scope }) {
+export function Players({ onOpenPlayer }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('rank');
 
@@ -696,7 +693,10 @@ function Record({ stats, field, streaks }) {
       note: standing((s) => f.itemsPerGame(s.totalItemsFound, s.gamesPlayed), perMatch),
     },
     {
-      label: 'Seconds per item', value: perItem, format: (n) => f.dec(n, 1), unit: 's',
+      // Time, not a bare second count: `duration` writes m + s past a minute,
+      // so a slow item reads "1m 49s" rather than "108.6s". No `unit` — duration
+      // carries its own.
+      label: 'Time per item', value: perItem, format: f.duration,
       note: standing(
           (s) => f.secondsPerItem(s.totalTimeSpentOnItems, s.totalItemsFound),
           perItem,
@@ -781,10 +781,22 @@ function Signature({ name, stats, summary, rank, partners, onOpenPlayer }) {
       <Section title="In short">
         <div className="fib-signature">
           <p className="fib-signature-line">
+            {/* Each figure reserves its settled width in `ch` before it counts up.
+                The numbers are monospace, so a character count is an exact width —
+                without this the count-up grows from one digit to three and shoves
+                the words after it sideways, the one place the module's tabular
+                digits don't cover (a block figure has no in-line neighbour to
+                push; a sentence does). */}
             <strong>{name}</strong> has played{' '}
-            <b><Counter value={stats.gamesPlayed} format={f.full} /></b> matches, won{' '}
-            <b><Counter value={stats.gamesWon} format={f.full} /></b>, and pulled{' '}
-            <b><Counter value={stats.totalItemsFound} format={f.full} /></b> items out of the world.
+            <b style={{ minWidth: `${f.full(stats.gamesPlayed).length}ch` }}>
+              <Counter value={stats.gamesPlayed} format={f.full} />
+            </b> matches, won{' '}
+            <b style={{ minWidth: `${f.full(stats.gamesWon).length}ch` }}>
+              <Counter value={stats.gamesWon} format={f.full} />
+            </b>, and pulled{' '}
+            <b style={{ minWidth: `${f.full(stats.totalItemsFound).length}ch` }}>
+              <Counter value={stats.totalItemsFound} format={f.full} />
+            </b> items out of the world.
             {summary.total > 0 ? (
                 <> They've earned <em>{summary.earned}</em> of {summary.total} achievements.</>
             ) : null}

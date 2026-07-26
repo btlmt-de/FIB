@@ -1087,6 +1087,10 @@ ${cssVariables()}
 .fib-signature-line b {
   font-family: var(--fib-font-mono); font-weight: 500;
   font-variant-numeric: tabular-nums; color: var(--fib-ink);
+  /* inline-block so the min-width each figure reserves (see Signature) actually
+     holds the box; left-aligned so the growing count-up fills it from the start
+     rather than drifting in from the right. */
+  display: inline-block; text-align: left;
 }
 .fib-signature-line em { color: var(--fib-gold); font-style: normal; }
 

@@ -45,9 +45,13 @@ const SORTS = [
     brief: (r) => `${f.num(r.seen)} seen`,
   },
   {
-    id: 'slow', label: 'Biggest time sink', hint: 'Average seconds spent before finding it',
-    pick: (r) => r.avgSeconds, format: (n) => f.dec(n, 0), unit: 'sec average',
-    brief: (r) => `${f.dec(r.avgSeconds, 0)}s avg`,
+    id: 'slow', label: 'Biggest time sink', hint: 'Average time spent before finding it',
+    // Shown as m + s past a minute: a bare "1,988s" reads as noise, "33m 8s" reads
+    // as a duration. `duration` (formatTime) is the same helper the match feed uses,
+    // so a time is written one way across the module. The sort still keys on the raw
+    // seconds via `pick`, so ordering is unaffected.
+    pick: (r) => r.avgSeconds, format: f.duration, unit: 'on average',
+    brief: (r) => `${f.duration(r.avgSeconds)} avg`,
   },
   {
     id: 'skipped', label: 'Most skipped', hint: 'Share of appearances players gave up on',
@@ -151,7 +155,7 @@ function ItemsBody({ items }) {
                                 </div>
                               </td>
                               <td data-num>{f.num(r.seen)}</td>
-                              <td data-num>{f.dec(r.avgSeconds, 0)}s</td>
+                              <td data-num>{f.duration(r.avgSeconds)}</td>
                               <td data-num style={{ color: r.skipRate > 25 ? 'var(--fib-negative)' : undefined }}>
                                 {f.pct(r.skipRate, 0)}
                               </td>

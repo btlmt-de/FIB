@@ -72,7 +72,15 @@ export function unifyStats(payload, scope = 'solo') {
     deaths: payload.deaths,
     wheelOfFortuneUses: payload.wheelOfFortuneUses,
     enteredAntimatterTeleporter: payload.enteredAntimatterTeleporter,
-    totalTimeSpentOnItems: payload.totalTimeSpentOnItems,
+    // The service reports this in MILLISECONDS (a 5-match player carries ~17.7M),
+    // but every consumer — secondsPerItem, the `hours` formatter — reads it as
+    // seconds, which rendered "108,557 s/item" and "4,915h spent on items" (204
+    // days). Normalise to seconds once, here at the boundary, so the unified
+    // vocabulary means seconds like the rest of it. Guarded so a genuinely-absent
+    // value stays null rather than collapsing to 0 (a real 0/1000).
+    totalTimeSpentOnItems: Number.isFinite(payload.totalTimeSpentOnItems)
+      ? payload.totalTimeSpentOnItems / 1000
+      : null,
     topThreeItems: payload.topThreeItems ?? [],
     teamsCount: payload.teamsCount ?? null,
   };
