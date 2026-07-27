@@ -178,7 +178,7 @@ function PlayersBody({ rows, total, query, onQuery, sort, onSort, onOpenPlayer }
 
 /* ── The record ───────────────────────────────────────────────────────── */
 
-export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer, onOpenMatch }) {
+export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer, onOpenMatch, onOpenCollection }) {
   const [partnerIndex, setPartnerIndex] = useState(0);
 
   const profileState = useAsync(() => loadPlayer(uuid), [uuid]);
@@ -207,6 +207,7 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
             <PlayerProfileBody
                 uuid={uuid} scope={scope} onScopeChange={onScopeChange}
                 onBack={onBack} onOpenPlayer={onOpenPlayer} onOpenMatch={onOpenMatch}
+                onOpenCollection={onOpenCollection}
                 payload={payload}
                 history={historyState.data}
                 catalogue={catalogueState.data}
@@ -219,7 +220,7 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
 }
 
 function PlayerProfileBody({
-                             uuid, scope, onScopeChange, onBack, onOpenPlayer, onOpenMatch,
+                             uuid, scope, onScopeChange, onBack, onOpenPlayer, onOpenMatch, onOpenCollection,
                              payload, history, catalogue, achievements, partnerIndex, setPartnerIndex,
                            }) {
   const heroRef = useRef(null);
@@ -412,6 +413,14 @@ function PlayerProfileBody({
               <Section
                   title="Collection"
                   sub={`${f.num(stats.totalItemsFound)} items found, ${f.num(pulls)} of them back-to-back pulls.`}
+                  aside={onOpenCollection ? (
+                      <button type="button" className="fib-btn" onClick={() => onOpenCollection(uuid)}>
+                        Open full collection
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M9 6l6 6-6 6" />
+                        </svg>
+                      </button>
+                  ) : null}
               >
                 <div className="fib-collection">
                   <div>

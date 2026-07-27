@@ -16,7 +16,7 @@
  * frame of reference. It is the one piece of state worth lifting.
  */
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { injectStyles } from './styles.js';
 import { Rail } from './Chrome.jsx';
 import { Overview } from './Overview.jsx';
@@ -24,10 +24,11 @@ import { Leaderboards } from './Leaderboards.jsx';
 import { Matches } from './Matches.jsx';
 import { MatchDetail } from './MatchDetail.jsx';
 import { Players, PlayerProfile } from './Profile.jsx';
+import { Collection } from './Collection.jsx';
 import { Items } from './Items.jsx';
 
 /** Which rail item lights up for a given view. Detail views keep their parent lit. */
-const NAV_FOR = { match: 'matches', player: 'players' };
+const NAV_FOR = { match: 'matches', player: 'players', collection: 'players' };
 
 const SCOPES = ['solo', 'duo', 'combined'];
 
@@ -105,6 +106,7 @@ export function StatsShell({ initialView = 'overview', wikiHref = '/', onExitWik
 
   const openMatch = useCallback((matchId) => go('match', { matchId }), [go]);
   const openPlayer = useCallback((playerUuid) => go('player', { playerUuid }), [go]);
+  const openCollection = useCallback((playerUuid) => go('collection', { playerUuid }), [go]);
 
   const body = () => {
     switch (route.view) {
@@ -126,8 +128,12 @@ export function StatsShell({ initialView = 'overview', wikiHref = '/', onExitWik
                 onBack={() => go('players')}
                 onOpenPlayer={openPlayer}
                 onOpenMatch={openMatch}
+                onOpenCollection={openCollection}
             />
         );
+      case 'collection':
+        // The player's whole item book. Back returns to their profile.
+        return <Collection uuid={route.playerUuid} onBack={() => openPlayer(route.playerUuid)} />;
       case 'items':
         return <Items />;
       default:

@@ -822,6 +822,52 @@ ${cssVariables()}
               inset 0 -1px 0 0 var(--fib-shadow-soft);
 }
 
+/*
+ * Collection scarcity. A measured-scarce holding — held by few of the ranked
+ * players — earns diamond, the module's one "rarity / exceptional" colour, and
+ * a diamond rim on its well. This is NOT the five-tier back-to-back ramp: that
+ * measures how a pull landed, this measures how few others own the item. Two
+ * different axes, so they are kept visually distinct — a rim, never a bloom
+ * (the Earned Glow Rule reserves the outer glow for podium medals and the top
+ * two pull tiers), and the rim persists on hover so a scarce object stays lit.
+ */
+.fib-well--scarce {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-diamond) 55%, transparent),
+              inset 0 1px 0 0 var(--fib-edge-strong),
+              inset 0 -1px 0 0 var(--fib-shadow-soft);
+}
+.fib-sprite-lift:hover .fib-well--scarce {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-diamond) 55%, transparent),
+              inset 0 1px 0 0 var(--fib-edge-strong),
+              inset 0 -1px 0 0 var(--fib-shadow-soft);
+}
+
+/* "Held by N of M" — quiet metadata by default, diamond when the holding is
+   genuinely scarce. Sits beside sprites in the shelf and the header. */
+.fib-held {
+  font-family: var(--fib-font-mono);
+  font-size: var(--fib-text-2xs); color: var(--fib-netherite);
+  letter-spacing: 0.02em; font-variant-numeric: tabular-nums;
+}
+.fib-held[data-scarce] { color: var(--fib-diamond); }
+
+/* In the table the scarcity cell reads like its numeric neighbours (ink), and
+   only lifts to diamond when the holding is scarce. */
+.fib-table td[data-num][data-scarce] { color: var(--fib-diamond); }
+
+/* The header's "rarest find" line: a quiet strip under the identity grid. */
+.fib-collection-meta {
+  display: flex; align-items: center; gap: var(--fib-space-3); flex-wrap: wrap;
+  margin-top: var(--fib-space-5);
+}
+.fib-collection-meta b { font-weight: 600; letter-spacing: -0.005em; }
+
+/* The completion gauge is the first gauge to live inside the right-aligned hero
+   figure column, whose align-items:flex-end collapses the zero-content-width bar
+   to nothing. Stretch just the gauge back to the figure's width so the
+   completion bar actually reads. */
+.fib-hero-figures .fib-gauge { align-self: stretch; min-width: 168px; }
+
 /* FLIP transforms are written by useFlip; the row must not transition while
    it is being placed back at its old position. */
 .fib-table tbody tr[data-flipping] { transition: none; }

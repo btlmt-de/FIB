@@ -137,6 +137,19 @@ export const loadCatalogue = () => apiGet('/catalogue');
 export const loadPlayerAchievements = (player) =>
     apiGet(`/achievements/${encodeURIComponent(player)}`);
 
+/**
+ * A player's full item collection — every item they have ever found, with first-collected time,
+ * times collected, and how many other players have it (rarity joined in server-side).
+ *
+ * Returns FibCollection: { player, distinctItems, totalItems, totalPlayers, items: [
+ *   { itemName, firstCollected, timesCollected, playerCount } ] }.
+ * distinctItems is the "X collected" figure; totalItems is the pool size for "X of Y". This is the
+ * whole collection book for one player, already assembled and rarity-joined by the service — no
+ * pairing with a separate catalogue call needed.
+ */
+export const loadCollection = (player) =>
+    apiGet(`/collection/${encodeURIComponent(player)}`);
+
 /** One item's detail and its finders. */
 export const loadItem = (itemName, limit = 50) =>
     apiGet(`/items/${encodeURIComponent(itemName)}`, { limit });
