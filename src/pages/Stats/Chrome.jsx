@@ -56,7 +56,7 @@ export function Rail({ view, onNavigate, onExitWiki, wikiHref = '/' }) {
     <nav className="fib-rail" aria-label="Statistics">
       <div className="fib-rail-brand">
         <b>Statistics</b>
-        <span>FIB</span>
+        <span>Beta</span>
       </div>
 
       <div className="fib-rail-nav">
