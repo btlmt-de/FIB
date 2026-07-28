@@ -23,6 +23,7 @@ export function useFlipRows(containerRef, key) {
 
     const rows = [...container.querySelectorAll('[data-flip-key]')];
     const next = new Map();
+    const frames = [];
 
     for (const row of rows) {
       const id = row.getAttribute('data-flip-key');
@@ -35,12 +36,13 @@ export function useFlipRows(containerRef, key) {
       const delta = before - top;
       row.dataset.flipping = 'true';
       row.style.transform = `translateY(${delta}px)`;
-      requestAnimationFrame(() => {
+      frames.push(requestAnimationFrame(() => {
         delete row.dataset.flipping;
         row.style.transform = '';
-      });
+      }));
     }
 
     previous.current = next;
+    return () => frames.forEach(cancelAnimationFrame);
   }, [containerRef, key]);
 }

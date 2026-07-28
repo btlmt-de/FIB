@@ -209,7 +209,7 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                                                 {/* This table starts at rank 4, so the leader's own
                               "—" never renders here; the gap is always real. */}
                                                 <td data-num className="fib-gap">
-                                                    {`−${gapFormat(gapOf(row.value))}`}
+                                                    {`${low ? '+' : '−'}${gapFormat(gapOf(row.value))}`}
                                                 </td>
                                             </tr>
                                         );

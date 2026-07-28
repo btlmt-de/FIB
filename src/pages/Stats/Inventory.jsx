@@ -89,8 +89,10 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
      it, which is the flash the animation exists to avoid. */
   const [phase, setPhase] = useState(() => (canAnimate() ? 'pending' : 'idle'));
   const timers = useRef([]);
+  const frame = useRef(0);
 
   const clearTimers = () => {
+    cancelAnimationFrame(frame.current);
     timers.current.forEach(clearTimeout);
     timers.current = [];
   };
@@ -101,10 +103,10 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
     // One frame after the hidden paint, flip to 'run' so the per-slot
     // transitions have a start value to animate from.
     const raf = requestAnimationFrame(() => setPhase('run'));
+    frame.current = requestAnimationFrame(() => setPhase('run'));
     timers.current.push(setTimeout(() => setPhase('idle'), PLAYBACK_MS + SLOT_MS + 60));
 
     return () => {
-      cancelAnimationFrame(raf);
       clearTimers();
     };
     // Runs once, off the initial phase; `phase` moving on must not restart it.

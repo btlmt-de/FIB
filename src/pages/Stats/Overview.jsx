@@ -83,7 +83,7 @@ export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderb
  * differs from the pre-fetch version -- everything from the podium down is exactly as it was.
  */
 function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderboards }) {
-    const { globals, podiums, featured, activity, moments } = data;
+    const { globals = {}, podiums, featured, activity, moments = [] } = data;
 
     const [scope, setScope] = useState('solo');
 
@@ -247,7 +247,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
             </Section>
 
 
-            {featured && race ? (
+            {featured && race?.winner ? (
                 <Section
                     title="Match of the week"
                     sub={`The most contested of any recent match — the lead changed hands ${featured.leadChanges} ${featured.leadChanges === 1 ? 'time' : 'times'}.`}
@@ -273,7 +273,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                                 {/* Diamond, not gold: a contested match is exceptional, but gold
                     means rank, and nobody placed here by changing lead. */}
                                 <Figure size="lg" value={featured.leadChanges} label="Lead changes" tone="diamond" />
-                                <Figure size="lg" value={featured.items.filter((i) => !i.skipped).length} label="Items collected" />
+                                <Figure size="lg" value={(featured.items ?? []).filter((i) => !i.skipped).length} label="Items collected" />
                             </div>
                         </div>
 

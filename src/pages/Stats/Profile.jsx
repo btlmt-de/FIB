@@ -50,7 +50,7 @@ import {
 } from './Primitives.jsx';
 import { ScoreTrend } from './Charts.jsx';
 import * as f from './format.js';
-import { renderMiniMessage } from './minimessage.jsx';
+import { renderMiniMessage } from './MiniMessage.jsx';
 
 /* ── Derivation ───────────────────────────────────────────────────────── */
 

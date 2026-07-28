@@ -116,6 +116,7 @@ function MatchesBody({ matches, totalCount, onOpenMatch }) {
                             <h3>{group.label}</h3>
                             <div className="fib-panel fib-panel--flush">
                                 {group.rows.map(({ match, standings, winner, runnerUp, margin }) => (
+                                    winner ? (
                                     <button
                                         key={match.matchId}
                                         type="button"
@@ -159,6 +160,7 @@ function MatchesBody({ matches, totalCount, onOpenMatch }) {
                       </span>
                                         </div>
                                     </button>
+                                    ) : null
                                 ))}
                             </div>
                         </section>
