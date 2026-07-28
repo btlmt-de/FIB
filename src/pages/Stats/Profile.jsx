@@ -837,7 +837,10 @@ function Signature({ name, stats, summary, rank, partners, onOpenPlayer }) {
                 <div>
                   <dt className="fib-figure-label">Strongest duo</dt>
                   <dd style={{ marginTop: 4 }}>
-                    <PlayerLink uuid={best.uuid} onOpen={onOpenPlayer} size={28} />
+                    {/* `name` is the partner identity's real name, resolved in
+                        the model above — without it PlayerLink falls back to the
+                        short uuid, which read as a bug whenever a name exists. */}
+                    <PlayerLink uuid={best.uuid} name={best.name} onOpen={onOpenPlayer} size={28} />
                     <span className="fib-meta">
                   {f.pct(f.winRate(best.team.gamesWon, best.team.gamesPlayed))} across{' '}
                       {best.team.gamesPlayed} matches

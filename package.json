@@ -10,7 +10,8 @@
     "check:styles": "node scripts/check-styles.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "vendor:textures": "node scripts/vendor-textures.mjs"
+    "vendor:textures": "node scripts/vendor-textures.mjs",
+    "vendor:pool": "node scripts/vendor-pool.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",

@@ -72,8 +72,16 @@ const settingValue = (key, raw) => {
   return raw === 'true' ? 'On' : raw === 'false' ? 'Off' : String(raw);
 };
 
-/** Wall-clock length of a full replay. Long enough to read, short enough to finish. */
-const REPLAY_MS = 8000;
+/*
+ * Replay pacing. A fixed wall-clock played EVERY match at the same speed —
+ * a 20-minute quickie and a 90-minute grind compressed into the same eight
+ * seconds, so the longer the match, the more unreadably the race flashed by.
+ * The replay is paced on the match instead: one wall second per two match
+ * minutes (1:120), clamped to 10–24 seconds so quickies and marathons both
+ * stay inside the readable band.
+ */
+const replayMs = (matchSecs) =>
+    Math.min(24000, Math.max(10000, (matchSecs * 1000) / 120));
 
 export function MatchDetail({ matchId, onBack, onOpenPlayer }) {
   const state = useAsync(() => loadMatch(matchId), [matchId]);
@@ -168,6 +176,9 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
      the view — trace cursor, standings, FLIP — moves together. The replay
      pauses when the tab hides (rAF throttles to nothing there and the clock
      would silently jump) and stops on unmount. */
+  /* Wall-clock length of one replay of THIS match; stable while the match is. */
+  const replayLength = match ? replayMs(matchDuration(match)) : 10000;
+
   useEffect(() => {
     if (!playing || !match) return undefined;
 
@@ -177,7 +188,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
 
     const tick = (now) => {
       if (!start) start = now;
-      const elapsed = ((now - start) / REPLAY_MS) * matchDuration(match);
+      const elapsed = ((now - start) / replayLength) * matchDuration(match);
       const next = from + elapsed;
       if (next >= matchDuration(match)) {
         setPlaying(false);
@@ -279,7 +290,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                   className="fib-replay"
                   onClick={replay}
                   aria-pressed={playing}
-                  aria-label={playing ? 'Pause the replay' : `Replay the match in ${Math.round(REPLAY_MS / 1000)} seconds`}
+                  aria-label={playing ? 'Pause the replay' : `Replay the match in ${Math.round(replayLength / 1000)} seconds`}
                   title={playing ? 'Pause' : 'Replay the match'}
               >
                 {playing ? (

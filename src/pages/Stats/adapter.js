@@ -13,7 +13,7 @@
 
 import {
   playerName, playerAvatar, idUuid, idName, idLabel,
-  itemKey, itemLabel, itemTexture,
+  itemKey, itemLabel, itemTexture, ITEM_POOL, ITEM_STATE,
   LEADERBOARD_SCOPES, LEADERBOARD_CATEGORIES,
   matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes, itemSegments,
   winRate, itemsPerGame, secondsPerItem, timeAgo,
@@ -22,7 +22,7 @@ import { RARITY_KEYS, RARITY_FIELDS } from './tokens.js';
 
 export {
   playerName, playerAvatar, idUuid, idName, idLabel,
-  itemKey, itemLabel, itemTexture,
+  itemKey, itemLabel, itemTexture, ITEM_POOL, ITEM_STATE,
   LEADERBOARD_SCOPES, LEADERBOARD_CATEGORIES,
   matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes, itemSegments,
   winRate, itemsPerGame, secondsPerItem, timeAgo,

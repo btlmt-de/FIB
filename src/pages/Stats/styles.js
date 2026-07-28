@@ -855,13 +855,77 @@ ${cssVariables()}
    only lifts to diamond when the holding is scarce. */
 .fib-table td[data-num][data-scarce] { color: var(--fib-diamond); }
 
-/* The header's "rarest find" line: a quiet strip under the identity grid. */
-.fib-collection-meta {
-  display: flex; align-items: center; gap: var(--fib-space-3); flex-wrap: wrap;
+/*
+ * The trophy — the scarcest holding, on its own plinth between the hero and
+ * the case. It was a bare inline strip and read as a caption that had
+ * wandered off; a feature this singular earns furniture. Diamond is spent
+ * three ways on one fact (the well's rim, the hairline top edge, the holder
+ * figure) — allowed, because all three mark the same thing: the module's one
+ * rarity colour on the page's one rarity feature.
+ */
+.fib-trophy {
+  display: flex; align-items: center; gap: var(--fib-space-5);
+  flex-wrap: wrap;
   margin-top: var(--fib-space-5);
+  padding: var(--fib-space-4) var(--fib-space-5);
+  background: linear-gradient(var(--fib-plinth), var(--fib-void));
+  border: 1px solid var(--fib-line-soft);
+  border-radius: var(--fib-radius-lg);
+  box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--fib-diamond) 30%, transparent),
+              0 18px 40px -24px var(--fib-shadow-deep);
 }
-.fib-collection-meta b { font-weight: 600; letter-spacing: -0.005em; }
+.fib-trophy-id {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.fib-trophy-id > b {
+  font-size: var(--fib-text-xl); font-weight: 600; letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+/* The holder figure docks right, rhyming with the hero figure above it. */
+.fib-trophy .fib-figure { flex: none; align-items: flex-end; text-align: right; }
 
+/*
+ * The collection book — a vitrine, not a spreadsheet.
+ *
+ * A bare shelf of wells sitting on the page void read as exactly that: placed.
+ * So the holdings are set INTO a case — a panel-grade surface with its own
+ * light. The case light is the vitrine metaphor at block scale: a soft fall
+ * from the top edge (light falls downward, per the tokens), strongest where
+ * the case opens and gone by mid-depth, so the block reads as a lit recess
+ * rather than a rectangle of squares. It shows only in the tray around the
+ * wells; the wells themselves keep their own lighting.
+ *
+ * Inside: a head strip (the label and the census), then the shelf of cards.
+ */
+.fib-book-case {
+  position: relative;
+  background: linear-gradient(var(--fib-plinth), var(--fib-void));
+  border: 1px solid var(--fib-line-soft);
+  border-radius: var(--fib-radius-lg);
+  padding: var(--fib-space-4);
+  box-shadow: inset 0 1px 0 0 var(--fib-edge),
+              0 18px 40px -24px var(--fib-shadow-deep);
+}
+/* The case light. A fall from the top edge, no colour of its own, never an
+   event target. */
+.fib-book-case::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(75% 140px at 50% 0, oklch(1 0 0 / 0.05), transparent 72%);
+  pointer-events: none;
+}
+
+/* The case head: the label on the left, the census on the right. */
+.fib-book-head {
+  position: relative;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--fib-space-3); flex-wrap: wrap;
+  padding-bottom: var(--fib-space-3);
+  margin-bottom: var(--fib-space-4);
+  border-bottom: 1px solid var(--fib-line-soft);
+}
 /* The completion gauge is the first gauge to live inside the right-aligned hero
    figure column, whose align-items:flex-end collapses the zero-content-width bar
    to nothing. Stretch just the gauge back to the figure's width so the
