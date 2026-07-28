@@ -163,7 +163,7 @@ export const matchStandings = (match) => {
 };
 
 export const itemsForOwner = (match, owner) =>
-    match.items
+    (match?.items ?? [])
         .filter((it) =>
             owner.teamIndex != null ? it.teamIndex === owner.teamIndex : uuidOf(it) === owner.playerUuid,
         )
@@ -290,8 +290,10 @@ export const formatDate = (v) => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-export const formatClock = (v) =>
-    new Date(v).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+export const formatClock = (v) => {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+};
 
 export const formatByKind = (value, kind) => {
     if (kind === 'compact') return formatNumber(value);

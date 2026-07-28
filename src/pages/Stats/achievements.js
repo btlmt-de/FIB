@@ -196,7 +196,7 @@ function compareScopes(a, b) {
   if (ia !== -1 && ib !== -1) return ia - ib;
   if (ia !== -1) return -1;
   if (ib !== -1) return 1;
-  return a.localeCompare(b);
+  return String(a || '').localeCompare(String(b || ''));
 }
 
 /** Unlocked before locked; among unlocked, earliest earned first; else stable by title text. */
