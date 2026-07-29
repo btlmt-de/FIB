@@ -59,6 +59,12 @@ const PODIUM_SCOPES = [
     { key: 'teams', label: 'Teams' },
 ];
 
+/* Solo finds name the player. Team finds record no individual puller, so the team roster (both
+   members) is the actor, joined the same way the match view labels a team. Falls back to "Unknown"
+   only for a row with neither — a genuinely malformed moment. */
+const momentActor = (m) =>
+    (m.player ? idLabel(m.player) : (m.members ?? []).map(idLabel).join(' & ')) || 'Unknown';
+
 export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderboards }) {
     const state = useAsync(loadOverview, []);
 
@@ -342,7 +348,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                 </span>
                                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                                     <div style={{ fontWeight: 500 }}>
-                                        {idLabel(m.player)} pulled {f.itemLabel(m.itemName)}
+                                        {momentActor(m)} pulled {f.itemLabel(m.itemName)}
                                     </div>
                                     <div className="fib-meta">{timeAgo(m.collectedAt)}</div>
                                 </div>
