@@ -13,18 +13,21 @@
  * before a single number is parsed). Both respect the category's sense: on
  * the deaths board the best value is the smallest one.
  *
- * Category is a chip row rather than a select: there are eight, they are all
- * one word, and making the reader open a menu to compare two boards is a tax.
+ * Scope and metric are both `Segmented` — the same control, because they are the
+ * same job. The metric row was a chip row for a while, which meant two different
+ * "pick one of N" widgets sat on one screen looking and behaving differently. It
+ * is not a select either: the boards are one word each, and making a reader open
+ * a menu to compare two of them is a tax.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
     LEADERBOARD_SCOPES, LEADERBOARD_CATEGORIES, idLabel, idUuid,
 } from './adapter.js';
 import { loadLeaderboard } from './api.js';
 import { useAsync } from './useAsync.js';
 import {
-    Section, Segmented, Chip, Avatar, Medal, Empty, PlayerLink, Counter, AsyncView,
+    Section, Segmented, Avatar, Medal, Empty, PlayerLink, Counter, AsyncView,
 } from './Primitives.jsx';
 import * as f from './format.js';
 
@@ -61,11 +64,26 @@ export function Leaderboards({ scope, onScopeChange, onOpenPlayer }) {
     );
 }
 
+/*
+ * A podium needs a field to stand above.
+ *
+ * At six entrants or more, lifting the top three out leaves a table with enough
+ * rows to be a table. Below that it does not: a five-player board put three on
+ * the podium and left two rows behind, which read as a broken table rather than
+ * as a ceremony — and "where am I" is unanswerable when the answer is "one of the
+ * two under the photos".
+ *
+ * So under six, the whole board is the table and the medals move into the rank
+ * column. Same information, one shape instead of one and a half.
+ */
+const PODIUM_MIN = 6;
+
 function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, onOpenPlayer }) {
     const meta = LEADERBOARD_CATEGORIES.find((c) => c.id === category);
 
-    const podium = rows.slice(0, 3);
-    const rest = rows.slice(3);
+    const showPodium = rows.length >= PODIUM_MIN;
+    const podium = showPodium ? rows.slice(0, 3) : [];
+    const rest = showPodium ? rows.slice(3) : rows;
     const format = (v) => f.byKind(v, meta.format);
 
     /*
@@ -84,8 +102,17 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
        suffix ("blocks" behind every figure would drown the point). */
     const gapFormat = (v) => (meta.format === 'distance' ? f.distance(v) : f.num(v));
 
+    /*
+     * The share column earns its width only when there is a shape to show. On a
+     * board where everyone below the lead sits at zero — two players with no wins
+     * on the wins board — it drew two full-width empty tracks, a column whose
+     * every cell said nothing. Suppressed rather than shipped empty; the gap
+     * column still carries the distance to the lead.
+     */
+    const showShare = rest.some((r) => shareOf(r.value) > 0);
+
     return (
-        <div className="fib-page">
+        <div className="fib-page fib-page--wide">
             <Section
                 title="Ranking"
                 sub={
@@ -103,26 +130,26 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                 }
             >
                 {/*
-          A group, not a tablist. `Chip` renders `<button aria-pressed>`, which
-          is a toggle — announcing the container as a tab list promised a screen
-          reader structure that was not in it, and there were no `role="tab"`
-          children for it to find.
+          The metric picker. This was a chip row, which put two different
+          "pick exactly one of N" controls on the same screen — a sliding
+          segmented track for scope, toggle-styled chips for the metric — and a
+          reader has no way to know they behave identically. Both are Segmented
+          now: one control, one keyboard contract (one tab stop, arrows move the
+          selection), one look.
+
+          The chip row existed because the old Segmented could not wrap. It can
+          now; see `measure` in Primitives.
         */}
-                <div
-                    role="group"
-                    aria-label="Leaderboard category"
-                    style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 'var(--fib-space-6)' }}
-                >
-                    {LEADERBOARD_CATEGORIES.map((c) => (
-                        <Chip
-                            key={c.id}
-                            active={c.id === category}
-                            onClick={() => onCategory(c.id)}
-                            title={c.sense === 'low' ? 'Lower is better' : undefined}
-                        >
-                            {c.label}
-                        </Chip>
-                    ))}
+                <div style={{ marginBottom: 'var(--fib-space-6)' }}>
+                    <Segmented
+                        options={LEADERBOARD_CATEGORIES.map((c) => ({
+                            ...c,
+                            hint: c.sense === 'low' ? 'Lower is better' : undefined,
+                        }))}
+                        value={category}
+                        onChange={onCategory}
+                        label="Leaderboard metric"
+                    />
                 </div>
 
                 {rows.length === 0 ? (
@@ -132,6 +159,7 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                     </Empty>
                 ) : (
                     <>
+                        {showPodium ? (
                         <ol className="fib-podium">
                             {podium.map((row) => {
                                 const entrants = entrantsOf(row);
@@ -161,13 +189,18 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                                 );
                             })}
                         </ol>
+                        ) : null}
 
                         {rest.length > 0 ? (
-                            <div className="fib-panel fib-panel--flush fib-table-wrap" style={{ marginTop: 'var(--fib-space-6)' }}>
+                            <div
+                                className="fib-panel fib-panel--flush fib-table-wrap"
+                                style={{ marginTop: showPodium ? 'var(--fib-space-6)' : 0 }}
+                            >
                                 <table className="fib-table">
                                     <caption className="fib-sr">
-                                        {meta.label}, positions 4 and below, {scope} scope. Share and gap are
-                                        measured against the leader&rsquo;s {format(best)}.
+                                        {meta.label}, {showPodium ? 'positions 4 and below' : 'every position'},
+                                        {' '}{scope} scope. {showShare ? 'Share and gap are' : 'The gap is'}
+                                        {' '}measured against the leader&rsquo;s {format(best)}.
                                     </caption>
                                     <thead>
                                     <tr>
@@ -177,18 +210,27 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                                         {/* The share column takes the slack the Player column used
                           to hoard — a name and its bar now sit close enough to
                           be read as one fact. */}
-                                        <th scope="col" className="fib-share-col">
-                                            Share of {format(best)}
-                                        </th>
+                                        {showShare ? (
+                                            <th scope="col" className="fib-share-col">
+                                                Share of {format(best)}
+                                            </th>
+                                        ) : null}
                                         <th scope="col" data-num style={{ width: 104 }}>Gap</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     {rest.map((row) => {
                                         const entrants = entrantsOf(row);
+                                        /* With no podium the table starts at rank 1, so the leader
+                                           is in it and its gap to itself is nothing to state. */
+                                        const isLeader = row.rank === 1;
                                         return (
                                             <tr key={keyOf(row)}>
-                                                <td data-num style={{ color: 'var(--fib-netherite)' }}>{row.rank}</td>
+                                                <td data-num style={{ color: 'var(--fib-netherite)' }}>
+                                                    {row.rank <= 3 && !showPodium
+                                                        ? <Medal place={row.rank} />
+                                                        : row.rank}
+                                                </td>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--fib-space-3)', flexWrap: 'wrap' }}>
                                                         {entrants.map((e) => (
@@ -197,19 +239,19 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                                                     </div>
                                                 </td>
                                                 <td data-num>{format(row.value)}</td>
-                                                <td className="fib-share-col">
-                                                    <div
-                                                        className="fib-ramp-track fib-share-track"
-                                                        role="img"
-                                                        aria-label={`${Math.round(shareOf(row.value) * 100)}% of the leader's ${format(best)}`}
-                                                    >
-                                                        <i style={{ '--fill': shareOf(row.value) }} />
-                                                    </div>
-                                                </td>
-                                                {/* This table starts at rank 4, so the leader's own
-                              "—" never renders here; the gap is always real. */}
+                                                {showShare ? (
+                                                    <td className="fib-share-col">
+                                                        <div
+                                                            className="fib-ramp-track fib-share-track"
+                                                            role="img"
+                                                            aria-label={`${Math.round(shareOf(row.value) * 100)}% of the leader's ${format(best)}`}
+                                                        >
+                                                            <i style={{ '--fill': shareOf(row.value) }} />
+                                                        </div>
+                                                    </td>
+                                                ) : null}
                                                 <td data-num className="fib-gap">
-                                                    {`${low ? '+' : '−'}${gapFormat(gapOf(row.value))}`}
+                                                    {isLeader ? '—' : `${low ? '+' : '−'}${gapFormat(gapOf(row.value))}`}
                                                 </td>
                                             </tr>
                                         );

@@ -34,7 +34,7 @@ import { loadCollection } from './api.js';
 import { useAsync } from './useAsync.js';
 import { idName, itemPhase } from './adapter.js';
 import {
-  Section, Sprite, Chip, Search, Empty, Figure, Avatar, AsyncView,
+  Section, Sprite, Segmented, Search, Empty, Figure, Avatar, AsyncView,
 } from './Primitives.jsx';
 import * as f from './format.js';
 
@@ -293,12 +293,8 @@ function CollectionBody({ uuid, payload, onBack }) {
         sub="Rarity is counted, not declared: “held by N of M” is how many of the ranked players share each item."
         aside={<Search value={query} onChange={setQuery} placeholder="Find an item" label="Find an item" />}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center', marginBottom: 'var(--fib-space-6)' }}>
-          {SORTS.map((s) => (
-            <Chip key={s.id} active={s.id === sort} onClick={() => setSort(s.id)} title={s.hint}>
-              {s.label}
-            </Chip>
-          ))}
+        <div style={{ marginBottom: 'var(--fib-space-6)' }}>
+          <Segmented options={SORTS} value={sort} onChange={setSort} label="Sort the collection" />
         </div>
 
         {holdings.length === 0 ? (

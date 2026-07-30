@@ -391,6 +391,17 @@ export function Segmented({ options, value, onChange, label }) {
    * The border width is subtracted because the thumb's containing block is the
    * track's padding box while getBoundingClientRect returns border-box
    * coordinates. It is 0 today; this keeps the maths true if that changes.
+   *
+   * ── Why both axes, and why the size is measured too ──
+   *
+   * The thumb used to set only `width` and `translateX`, with `top: 3px; bottom:
+   * 3px` pinning its height. That silently required the track to be a single
+   * line, so the control could not carry more than about four options — which is
+   * exactly why the leaderboard's six metrics shipped as a chip row instead,
+   * leaving two different controls doing "pick one of N" on one screen.
+   *
+   * Measuring both axes and both dimensions costs nothing and lets the track
+   * wrap, so the same control now scales from three options to eight.
    */
   const measure = useCallback(() => {
     const wrap = wrapRef.current;
@@ -400,10 +411,14 @@ export function Segmented({ options, value, onChange, label }) {
 
     const wrapRect = wrap.getBoundingClientRect();
     const rect = active.getBoundingClientRect();
-    const border = parseFloat(getComputedStyle(wrap).borderLeftWidth) || 0;
+    const cs = getComputedStyle(wrap);
+    const bx = parseFloat(cs.borderLeftWidth) || 0;
+    const by = parseFloat(cs.borderTopWidth) || 0;
 
     thumb.style.width = `${rect.width}px`;
-    thumb.style.transform = `translateX(${rect.left - wrapRect.left - border}px)`;
+    thumb.style.height = `${rect.height}px`;
+    thumb.style.transform =
+      `translate(${rect.left - wrapRect.left - bx}px, ${rect.top - wrapRect.top - by}px)`;
     thumb.style.opacity = '1';
   }, []);
 
@@ -495,15 +510,49 @@ export function AsyncView({ state, loadingLabel, errorTitle = 'Couldn’t load',
   return children(state.data);
 }
 
-export function Chip({ active, children, ...rest }) {
-  return (
-    <button type="button" className="fib-chip" aria-pressed={!!active} {...rest}>
-      {children}
-    </button>
-  );
-}
+/*
+ * `Chip` used to live here: a toggle-styled `<button aria-pressed>` that five
+ * views reached for whenever they needed "pick one of N" — the leaderboard
+ * metric, the item sort, the collection sort, the match mode, the podium scope.
+ *
+ * It is gone, and that is the point. Every one of those is exactly the job
+ * `Segmented` does, so the module was shipping two controls with different
+ * shapes, different keyboard behaviour (five tab stops versus one) and different
+ * ARIA for one interaction — twice on the leaderboards page, side by side. A
+ * reader has no way to learn that a pill and a track behave identically.
+ *
+ * If a genuine multi-select toggle is ever needed, it is `CheckRow`, not a chip:
+ * "some of N" is a checkbox, and the facet rail already uses it.
+ */
 
-export function Search({ value, onChange, placeholder = 'Search', label }) {
+/**
+ * The module's search field.
+ *
+ * `hotkey` binds `/` to focus it and prints the key in the field, the way every
+ * search-first tool a player already uses does. The badge is the point as much as
+ * the binding: an accelerator nobody can see is an accelerator nobody uses.
+ *
+ * Opt-in per call site rather than always-on, because two fields listening for
+ * the same key on one view would race. One search per view gets it.
+ */
+export function Search({ value, onChange, placeholder = 'Search', label, hotkey = false }) {
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!hotkey) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Never steal the key from someone typing — including into this very field.
+      const el = document.activeElement;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable) return;
+      e.preventDefault();
+      inputRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [hotkey]);
+
   return (
     <label className="fib-search">
       <span className="fib-sr">{label ?? placeholder}</span>
@@ -512,12 +561,129 @@ export function Search({ value, onChange, placeholder = 'Search', label }) {
         <path d="m20 20-3.5-3.5" strokeLinecap="round" />
       </svg>
       <input
+        ref={inputRef}
         type="search"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
+      {hotkey ? <kbd className="fib-search-key" aria-hidden="true">/</kbd> : null}
     </label>
+  );
+}
+
+/* ── Facets ───────────────────────────────────────────────────────────────
+ *
+ * A filter rail, the marketplace affordance the module was missing entirely: a
+ * 616-item index that could only be sorted three ways and searched by name, so
+ * "which late-game items get skipped most" was a question the interface could
+ * not be asked.
+ *
+ * Three pieces, deliberately plain controls. Checkboxes are checkboxes and number
+ * inputs are number inputs — a filter rail is the last place to invent an
+ * affordance, because a reader has to trust that what they set is what they got.
+ */
+
+/** One titled block in the rail. A fieldset, so its legend names its controls. */
+export function FacetGroup({ title, children, hint }) {
+  return (
+    <fieldset className="fib-facet">
+      <legend className="fib-facet-title">{title}</legend>
+      {hint ? <p className="fib-facet-hint">{hint}</p> : null}
+      {children}
+    </fieldset>
+  );
+}
+
+/** A checkbox row with an optional count of what it would leave. */
+export function CheckRow({ checked, onChange, children, count, swatch }) {
+  return (
+    <label className="fib-check">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      {swatch ? <i className="fib-check-swatch" style={{ background: swatch }} aria-hidden="true" /> : null}
+      <span className="fib-check-label">{children}</span>
+      {count != null ? <span className="fib-meta">{f.num(count)}</span> : null}
+    </label>
+  );
+}
+
+/**
+ * A min/max pair, CSFloat's "From / To" shape.
+ *
+ * Both sides are optional and empty means unbounded, which is why the value is
+ * held as a string rather than a number: a half-typed "1" in the min box must not
+ * be coerced to a bound the reader did not mean, and clearing the box has to be
+ * distinguishable from typing zero.
+ */
+export function RangeInputs({ min, max, onMin, onMax, suffix, step = 1, low = 'From', high = 'To' }) {
+  return (
+    <div className="fib-range">
+      <label>
+        {/* The unit rides on the label rather than inside the box: a suffix inside
+            a number input either collides with the spinner or has to suppress it,
+            and a number input without its spinner is a text field pretending. */}
+        <span>{low}{suffix ? <em>{suffix}</em> : null}</span>
+        <input
+          type="number" inputMode="numeric" step={step} min={0}
+          value={min} onChange={(e) => onMin(e.target.value)} placeholder="0"
+        />
+      </label>
+      <label>
+        <span>{high}{suffix ? <em>{suffix}</em> : null}</span>
+        <input
+          type="number" inputMode="numeric" step={step} min={0}
+          value={max} onChange={(e) => onMax(e.target.value)} placeholder="∞"
+        />
+      </label>
+    </div>
+  );
+}
+
+/**
+ * The rail itself. Below the shell's own breakpoint it collapses into a
+ * `<details>` — a native disclosure rather than a hand-rolled sheet, so it is
+ * keyboard-operable and announces its own state for free. `activeCount` puts the
+ * number of live filters in the summary, because a collapsed rail that is
+ * silently filtering the list is how a reader concludes the data is broken.
+ */
+export function FacetRail({ children, activeCount = 0, onClear }) {
+  /*
+   * `open` is held in state and mirrored back from the element's own toggle.
+   *
+   * It cannot be a bare `open` attribute: React treats it as controlled, so every
+   * re-render would reassert it — and since ticking a facet re-renders, a rail the
+   * reader had just closed would spring open under their finger. Reading the
+   * element's state back in `onToggle` keeps the two in agreement.
+   *
+   * The initial value is the breakpoint: open beside the grid on desktop, closed
+   * above it on a phone, where a rail that ate the first screenful would be
+   * something to scroll past on every visit. Deliberately not re-derived on
+   * resize — after first paint the open state belongs to the reader.
+   */
+  const [open, setOpen] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+    return !window.matchMedia('(max-width: 900px)').matches;
+  });
+
+  return (
+    <details
+      className="fib-facet-rail"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary>
+        <span className="fib-facet-rail-title">Filters</span>
+        {activeCount > 0 ? <span className="fib-facet-count">{activeCount}</span> : null}
+      </summary>
+      <div className="fib-facet-rail-body">
+        {children}
+        {activeCount > 0 && onClear ? (
+          <button type="button" className="fib-btn fib-btn--quiet fib-facet-clear" onClick={onClear}>
+            Clear {activeCount === 1 ? 'filter' : `all ${activeCount} filters`}
+          </button>
+        ) : null}
+      </div>
+    </details>
   );
 }
 

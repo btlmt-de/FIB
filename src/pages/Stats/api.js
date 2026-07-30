@@ -152,31 +152,189 @@ export async function loadPlayerIndex() {
         loadRoster({ size: 500 }),
         loadLeaderboard('combined', 'TOTAL_ITEMS', 500),
         loadLeaderboard('duo', 'TOTAL_ITEMS', 500),
+        // The recent feed, for "last seen". Its own failure costs the directory a
+        // column, never the directory.
+        loadMatches(0, 100),
     ]);
 
-    if (!settled.some((s) => s.status === 'fulfilled')) {
+    if (!settled.slice(0, 3).some((s) => s.status === 'fulfilled')) {
         const firstError = settled.find((s) => s.status === 'rejected');
         throw firstError?.reason ?? new ApiError(0, 'The player directory could not be loaded.');
     }
 
-    const [roster, combined, duo] = settled.map((s) => (s.status === 'fulfilled' ? s.value.data : null));
+    const [roster, combined, duo, feed] =
+        settled.map((s) => (s.status === 'fulfilled' ? s.value.data : null));
 
-    // Dedup by uuid; first name seen wins (they agree across sources anyway).
+    /*
+     * Two facts per player, both free of a second round of fetches and both
+     * available for EVERY player rather than only the solo roster:
+     *
+     *   itemsFound  the value already sitting on the combined TOTAL_ITEMS board,
+     *               which was being fetched purely for the names on it and then
+     *               thrown away. Combined sums solo and every duo, so it is the
+     *               one count that exists for a team-only player too.
+     *   lastSeen    the newest match in the recent feed this player appears in.
+     *               A window, not a career — so it is absent rather than wrong
+     *               for someone who has not played inside it.
+     *
+     * Deliberately NOT wins or rank: /ranking already answers those, and a
+     * directory that re-ranks the field is the leaderboard wearing a hat, which
+     * is what this view was carved out of in the first place.
+     */
     const byUuid = new Map();
     const add = (identity) => {
         const uuid = idUuid(identity);
-        if (!uuid || byUuid.has(uuid)) return;
-        byUuid.set(uuid, { uuid, name: idName(identity) ?? uuid });
+        if (!uuid) return null;
+        if (!byUuid.has(uuid)) {
+            byUuid.set(uuid, {
+                uuid,
+                name: idName(identity) ?? uuid,
+                itemsFound: null,
+                lastSeen: null,
+            });
+        }
+        return byUuid.get(uuid);
     };
+
     (roster?.players ?? []).forEach((p) => add(p.player));
-    (Array.isArray(combined) ? combined : []).forEach((row) => add(row.player));
+    (Array.isArray(combined) ? combined : []).forEach((row) => {
+        const entry = add(row.player);
+        if (entry && Number.isFinite(row.value)) entry.itemsFound = row.value;
+    });
     (Array.isArray(duo) ? duo : []).forEach((row) => { add(row.player1); add(row.player2); });
+
+    for (const match of feed?.matches ?? []) {
+        const at = new Date(match.endedAt).getTime();
+        if (!Number.isFinite(at)) continue;
+        for (const p of match.participants ?? []) {
+            const entry = add(p.player);
+            if (entry && (entry.lastSeen == null || at > entry.lastSeen)) entry.lastSeen = at;
+        }
+    }
 
     const players = [...byUuid.values()].sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
     const stale = settled.some((s) => s.status === 'fulfilled' && s.value.stale);
     return { data: { players }, stale };
+}
+
+/**
+ * The field a profile figure states its placing against — "2nd of 6".
+ *
+ * `Record` has always computed the placing; for a long time nothing supplied a
+ * field to compute it from, so every note came out null and fourteen numerals
+ * shipped bare, which is the one thing the module's layout grammar says a figure
+ * must never do.
+ *
+ * ## Why this reads boards and not profiles
+ *
+ * The obvious source is the profiles themselves: read the roster, fetch every
+ * player, and you have every metric for every player. That was built, and it was
+ * wrong. It is O(players) requests per sweep, and this backend rate-limits —
+ * a cold profile view already fires the profile, its matches, the catalogue, the
+ * player's achievements and their collection, so adding a request per rostered
+ * player pushed straight into 429s and the origin returning 502s under the load.
+ * A comparison feature that degrades the pages it decorates is not worth having.
+ *
+ * `/leaderboards` is a whole column in one call: every player's value for one
+ * metric, already ranked. Six calls covers six metrics for any roster size, and
+ * the cost stops growing after that — a server with 400 players costs exactly
+ * what a server with 6 does.
+ *
+ * The trade is coverage, and it is stated rather than hidden: six metrics are
+ * board categories, `gamesPlayed` comes off the roster, and `itemsPerMatch` is
+ * derived from the two. The rest — longest item streak, time per item, total
+ * back-to-backs, wheel spins, antimatter trips — have no board and no roster
+ * column, so they carry no note. A figure without a field renders bare, exactly
+ * as every figure did before this existed.
+ *
+ * TODO(backend): one `/players/stats` returning every player's full block would
+ * cover all fourteen in a single call, and this whole function becomes a map
+ * over its rows.
+ */
+
+/*
+ * Board category → the key `Record` asks for. The keys match `unifyStats`'s
+ * vocabulary so a figure can name the stat it is comparing rather than a board.
+ */
+const FIELD_BOARDS = [
+    ['gamesWon', 'GAMES_WON'],
+    ['highestScore', 'HIGHEST_SCORE'],
+    ['totalItemsFound', 'TOTAL_ITEMS'],
+    ['highestB2BStreak', 'BACK_TO_BACK_STREAK'],
+    ['blocksTravelled', 'BLOCKS_TRAVELLED'],
+    ['deaths', 'DEATHS'],
+];
+
+/*
+ * Cached per scope, because the field is server-wide: every profile compares
+ * against the same seven responses, so browsing five profiles should cost one
+ * fetch, not five. The in-flight promise is cached too, so two components
+ * mounting together share one request rather than racing.
+ *
+ * TTL rather than forever — a finished match changes the boards, and a reader
+ * with a tab open for an hour should not be comparing against yesterday.
+ */
+const FIELD_TTL_MS = 5 * 60 * 1000;
+const fieldCache = new Map(); // scope -> { at, promise }
+
+/** Drops the memoised field. Exposed for tests and for a hard-refresh path. */
+export function clearStatFieldCache() {
+    fieldCache.clear();
+}
+
+export function loadStatField(scope = 'solo') {
+    const now = Date.now();
+    const hit = fieldCache.get(scope);
+    if (hit && now - hit.at < FIELD_TTL_MS) return hit.promise;
+
+    const promise = fetchStatField(scope).catch((err) => {
+        // Never cache a failure as the answer for the next five minutes.
+        if (fieldCache.get(scope)?.promise === promise) fieldCache.delete(scope);
+        throw err;
+    });
+
+    fieldCache.set(scope, { at: now, promise });
+    return promise;
+}
+
+async function fetchStatField(scope) {
+    const settled = await Promise.allSettled([
+        ...FIELD_BOARDS.map(([, category]) => loadLeaderboard(scope, category, 500)),
+        // Solo-only upstream, so it supplies gamesPlayed for the solo field and
+        // nothing for combined — where those two figures simply carry no note.
+        scope === 'solo' ? loadRoster({ size: 500 }) : Promise.resolve({ data: null, stale: false }),
+    ]);
+
+    const values = {};
+    FIELD_BOARDS.forEach(([key], i) => {
+        const s = settled[i];
+        if (s.status !== 'fulfilled' || !Array.isArray(s.value.data)) return;
+        const column = s.value.data.map((row) => row.value).filter(Number.isFinite);
+        // A board that came back with fewer than three entrants is not a field;
+        // `Record` suppresses the note rather than printing "1st of 2".
+        if (column.length >= 3) values[key] = column;
+    });
+
+    const rosterResult = settled[settled.length - 1];
+    const rosterRows = rosterResult.status === 'fulfilled'
+        ? (rosterResult.value.data?.players ?? [])
+        : [];
+    if (rosterRows.length >= 3) {
+        const played = rosterRows.map((r) => r.gamesPlayed).filter(Number.isFinite);
+        if (played.length >= 3) values.gamesPlayed = played;
+
+        // Derived, not fetched: the same ratio the figure itself shows.
+        const perMatch = rosterRows
+            .map((r) => (r.gamesPlayed > 0 ? r.totalItemsFound / r.gamesPlayed : null))
+            .filter(Number.isFinite);
+        if (perMatch.length >= 3) values.itemsPerMatch = perMatch;
+    }
+
+    const stale = settled.some((s) => s.status === 'fulfilled' && s.value.stale);
+    if (Object.keys(values).length === 0) return { data: null, stale };
+    return { data: { values }, stale };
 }
 
 /** The item index — the server-wide rarity snapshot. */

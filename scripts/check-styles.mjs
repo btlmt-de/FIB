@@ -81,6 +81,32 @@ if (depth !== 0) {
   errors.push(`CSS ends at brace depth ${depth}; a block was left unclosed.`);
 }
 
+/*
+ * 3. The blue accent has two steps, and only one of them is legal as text.
+ *
+ * `--fib-blue` (oklch 0.585) is the FILL: a button background, a meter, a focus
+ * ring. Measured against the page it is 4.39:1, which fails WCAG AA for text by
+ * a hair — close enough that it looks fine in a screenshot and fails an audit.
+ * `--fib-blue-ink` (0.720) is the text step at 7.62:1 and exists for exactly
+ * this reason.
+ *
+ * The distinction is documented in DESIGN.md and was, until this check, enforced
+ * by nothing. Only `color:` is flagged; background, border, box-shadow and
+ * fill/stroke are all legitimate uses of the darker step.
+ */
+const blueText = [];
+stripped.split('\n').forEach((text, i) => {
+  const decl = text.match(/(^|[;{]|\s)color\s*:\s*var\(\s*--fib-blue\s*\)/);
+  if (decl) blueText.push({ line: i + 1, text: text.trim().slice(0, 72) });
+});
+if (blueText.length) {
+  errors.push(
+    `${blueText.length} use(s) of --fib-blue as a text colour (4.39:1, below AA). ` +
+    'Use --fib-blue-ink (7.62:1); --fib-blue is the fill step:\n' +
+    blueText.map((o) => `    line ${o.line}: ${o.text}`).join('\n'),
+  );
+}
+
 if (orphans.length) {
   errors.push(
     `${orphans.length} indented rule(s) found at top level — they escaped their @media block ` +

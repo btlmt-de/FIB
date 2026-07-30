@@ -179,10 +179,27 @@ ${cssVariables()}
  * Anything inside that needs to reflow measures THIS, not the window.
  */
 .fib-page {
-  max-width: 1180px; margin: 0 auto;
+  max-width: var(--fib-measure, 1180px); margin: 0 auto;
   padding: var(--fib-space-7) var(--fib-space-6) var(--fib-space-8);
   container: fib-page / inline-size;
 }
+
+/*
+ * The wide measure, for the three views that are a GRID or a TABLE rather than a
+ * document: items, matches, ranking, players.
+ *
+ * 1180px is the right measure for a page you read — the profile, a match report,
+ * anything with prose and a chart. It is the wrong measure for a marketplace
+ * grid. At 1920 the rail took 232px and the grid took 1180, which left 259px of
+ * dead space to the right of the content and the rail pinned to the left edge:
+ * visibly off-centre, and four columns where there was room for six.
+ *
+ * That gap is the single biggest reason a dense listing read as documentation
+ * rather than as an index. Prose does not get wider with it — every lede and
+ * paragraph is capped at its own ch measure independently — so the extra width
+ * goes only to the things that can use it.
+ */
+.fib-page--wide { --fib-measure: 1560px; }
 
 /* ── 3. Type + section furniture ──────────────────────────────────────── */
 
@@ -422,7 +439,10 @@ ${cssVariables()}
 
 .fib-dir-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+  /* Wider than the 184px it was: the tile now carries two facts under the name,
+     and at 184px "1,203 items · 2 days ago" wrapped to a second line on every
+     tile. */
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
   gap: var(--fib-space-3);
 }
 /* One player: a seated tile that lifts and lights blue on hover, because it IS
@@ -446,10 +466,18 @@ ${cssVariables()}
               0 10px 22px -14px var(--fib-blue);
   transform: translateY(-2px);
 }
+.fib-dir-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .fib-dir-name {
+  display: block;
   font-size: var(--fib-text-sm); font-weight: 500; color: var(--fib-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* The two facts under a name, separated by a middot rather than by a gap — at
+   this size a gap alone reads as one string with a hole in it. Rendered per-fact
+   so a player missing one (never seen in the recent window) simply shows the
+   other, with no stray separator. */
+.fib-dir-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.fib-dir-facts > span + span::before { content: '·'; margin-right: 6px; color: var(--fib-trace-dim); }
 
 /* ── 4. Objects: wells, sprites, avatars, medals ──────────────────────── */
 
@@ -709,19 +737,24 @@ ${cssVariables()}
  * in the module, so it is a real segmented control with a sliding indicator
  * rather than three buttons that happen to sit together.
  */
+/* Wraps, because the thumb measures both axes (see Segmented in Primitives) —
+   so one control covers three options and eight, and there is no second
+   "pick one of N" vocabulary for the wide cases. */
 .fib-seg {
-  position: relative; display: inline-flex;
+  position: relative; display: inline-flex; flex-wrap: wrap; gap: 2px;
+  max-width: 100%;
   padding: 3px; border-radius: var(--fib-radius-md);
   background: var(--fib-plinth);
   box-shadow: inset 0 0 0 1px var(--fib-line-soft);
 }
 .fib-seg-thumb {
-  position: absolute; top: 3px; bottom: 3px; left: 0;
+  position: absolute; top: 0; left: 0;
   border-radius: var(--fib-radius-sm);
   background: var(--fib-plinth-2);
   box-shadow: inset 0 1px 0 0 var(--fib-edge);
   transition: transform var(--fib-motion-base) var(--fib-ease),
-              width var(--fib-motion-base) var(--fib-ease);
+              width var(--fib-motion-base) var(--fib-ease),
+              height var(--fib-motion-base) var(--fib-ease);
   pointer-events: none;
 }
 .fib-seg button {
@@ -734,21 +767,9 @@ ${cssVariables()}
 .fib-seg button:hover { color: var(--fib-ink-2); }
 .fib-seg button[aria-checked="true"] { color: var(--fib-ink); font-weight: 600; }
 
-.fib-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: var(--fib-radius-pill);
-  font-size: var(--fib-text-xs); font-weight: 500;
-  color: var(--fib-ink-3);
-  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
-  transition: color var(--fib-motion-fast) var(--fib-ease),
-              box-shadow var(--fib-motion-fast) var(--fib-ease),
-              background var(--fib-motion-fast) var(--fib-ease);
-}
-.fib-chip:hover { color: var(--fib-ink-2); box-shadow: inset 0 0 0 1px var(--fib-line); }
-.fib-chip[aria-pressed="true"] {
-  color: var(--fib-blue-ink); background: var(--fib-blue-tint);
-  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-blue) 45%, transparent);
-}
+/* .fib-chip is gone with the Chip component — every one of its five call sites
+   was a "pick one of N" that Segmented already owned. See the note where Chip
+   used to be defined in Primitives.jsx. */
 
 .fib-search {
   display: flex; align-items: center; gap: 9px;
@@ -772,6 +793,138 @@ ${cssVariables()}
 /* Placeholder sits at ink-3, not a browser-default grey: it is text and has to
    clear 4.5:1 like any other text. */
 .fib-search input::placeholder { color: var(--fib-ink-3); opacity: 1; }
+
+/* The / accelerator, printed in the field. A shortcut nobody can see is a
+   shortcut nobody uses, which is why the marketplace this module takes its cues
+   from prints it too. */
+.fib-search-key {
+  flex: none;
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-2xs);
+  line-height: 1; color: var(--fib-ink-3);
+  padding: 3px 5px;
+  border-radius: var(--fib-radius-sm);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+}
+/* Once you are typing, the hint has done its job and the field needs the room. */
+.fib-search:focus-within .fib-search-key { display: none; }
+
+/* ── Facets ───────────────────────────────────────────────────────────────
+ *
+ * The filter rail. Two columns on desktop: the rail, then the content. The rail
+ * is the affordance the module was missing — 616 items sortable three ways and
+ * searchable by name, with no way to ask the index a question.
+ *
+ * It is a <details> at every size, not only on mobile, so the same element is
+ * doing the same job in both layouts. On desktop the marker is hidden and it sits
+ * open; below the shell's breakpoint the summary becomes a real disclosure button.
+ */
+.fib-faceted {
+  display: grid;
+  grid-template-columns: var(--facet-rail, 236px) minmax(0, 1fr);
+  gap: var(--fib-space-6);
+  align-items: start;
+}
+.fib-faceted-body { min-width: 0; }
+
+.fib-facet-rail {
+  position: sticky; top: var(--fib-space-5);
+  display: flex; flex-direction: column;
+  padding: var(--fib-space-4);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  border: 1px solid var(--fib-line-soft);
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-facet-rail > summary {
+  display: flex; align-items: center; gap: var(--fib-space-3);
+  font-size: var(--fib-text-xs); font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--fib-ink-2);
+  cursor: pointer;
+}
+.fib-facet-rail > summary::-webkit-details-marker { display: none; }
+.fib-facet-rail > summary::marker { content: ''; }
+.fib-facet-count {
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-2xs);
+  letter-spacing: 0; text-transform: none;
+  min-width: 18px; padding: 2px 5px; text-align: center;
+  border-radius: var(--fib-radius-pill);
+  background: var(--fib-blue-tint); color: var(--fib-blue-ink);
+}
+.fib-facet-rail-body {
+  display: flex; flex-direction: column; gap: var(--fib-space-5);
+  margin-top: var(--fib-space-5);
+}
+
+.fib-facet { display: flex; flex-direction: column; gap: 7px; border: none; padding: 0; margin: 0; }
+.fib-facet + .fib-facet { padding-top: var(--fib-space-5); border-top: 1px solid var(--fib-line-soft); }
+.fib-facet-title {
+  padding: 0;
+  font-size: var(--fib-text-sm); font-weight: 600;
+  color: var(--fib-ink); letter-spacing: -0.005em;
+}
+.fib-facet-hint {
+  font-size: var(--fib-text-2xs); line-height: 1.5;
+  color: var(--fib-ink-3); text-wrap: pretty;
+  margin-bottom: 2px;
+}
+.fib-facet-clear { align-self: flex-start; }
+
+.fib-check {
+  display: flex; align-items: center; gap: 9px;
+  font-size: var(--fib-text-sm); color: var(--fib-ink-2);
+  cursor: pointer; padding: 2px 0;
+}
+/* The native box, tinted rather than replaced: a filter is the last control to
+   reinvent, because the reader has to trust that what they ticked is what they
+   got. accent-color recolours it without giving up the platform's own focus
+   ring, keyboard behaviour or indeterminate state. */
+.fib-check input {
+  flex: none; width: 14px; height: 14px; margin: 0;
+  accent-color: var(--fib-blue);
+  cursor: pointer;
+}
+.fib-check-swatch { width: 8px; height: 8px; border-radius: var(--fib-radius-sm); flex: none; }
+.fib-check-label { flex: 1; min-width: 0; }
+.fib-check:hover .fib-check-label { color: var(--fib-ink); }
+
+.fib-range { display: flex; gap: var(--fib-space-3); }
+.fib-range label {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.fib-range label > span {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: var(--fib-text-2xs); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--fib-ink-3);
+}
+.fib-range label em {
+  font-style: normal; letter-spacing: 0; color: var(--fib-netherite);
+}
+.fib-range input {
+  width: 100%; min-width: 0; height: 32px;
+  padding: 0 8px;
+  border: none; border-radius: var(--fib-radius-md);
+  background: var(--fib-sunk);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+  color: var(--fib-ink);
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.fib-range input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--fib-blue); }
+.fib-range input::placeholder { color: var(--fib-ink-3); opacity: 1; }
+
+/* The bar above a faceted grid: the sort on the left, the colour legend on the
+   right, wrapping to two rows before either has to shrink. */
+.fib-items-bar {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--fib-space-3) var(--fib-space-5);
+  margin-bottom: var(--fib-space-5);
+}
+.fib-items-bar .fib-phase-legend { margin-left: auto; }
+.fib-items-count { padding: var(--fib-space-6) 0; text-align: center; }
 
 /* ── 7. Tables + rows ─────────────────────────────────────────────────── */
 
@@ -921,64 +1074,91 @@ ${cssVariables()}
   color: var(--fib-ink-2); min-width: 4ch; text-align: right;
 }
 
+.fib-trophy figcaption { gap: 5px; }
+
 /*
- * The trophy case. Earned achievements are OBJECTS — a sprite in a well, its
- * rim lit by the tier the player set actually measured — not rows in a list.
- * What you have and what you are chasing are different questions, so they get
- * different furniture: a shelf here, a progress list below.
+ * ── The case and the chase ──────────────────────────────────────────────
+ *
+ * What a player holds and what they are chasing are different questions, so
+ * they get different furniture rather than one list with a "Locked" word on
+ * half the rows.
+ *
+ * THE CASE is a shelf of objects. Each tile is a glyph in a lit well, rimmed in
+ * emerald.
+ *
+ * Emerald and not gold, though a trophy case argues for gold: gold means a rank
+ * or a win in this module and an achievement is neither, and the old row list
+ * already spent emerald on exactly this meaning (its unlocked tick was
+ * --fib-emerald). Widening gold to cover "earned" would cost the podium its
+ * only colour; reusing emerald costs nothing and keeps the vocabulary the module
+ * already had.
+ *
+ * There is no per-achievement artwork in the plugin's payload, so the glyph names
+ * the KIND of achievement and nothing more; a made-up sprite per row would be
+ * decoration pretending to be data.
+ *
+ * THE CHASE is a progress list, closest first, and every row carries its own
+ * numerator. It is one of the few places in the module where the number is
+ * *not* the display element — here the bar is the point, because "how close"
+ * is the question and a bar answers it faster than a fraction does.
  */
 .fib-case {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: var(--fib-space-5);
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: var(--fib-space-5) var(--fib-space-5);
+  list-style: none;
 }
-.fib-trophy figcaption { gap: 5px; }
-.fib-trophy-held { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.fib-case-tile {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  align-items: start; gap: var(--fib-space-4);
+}
+/* The well is square and sized here rather than by the Sprite component, which
+   measures itself from a 128px texture that a glyph does not have. */
+.fib-case-well {
+  width: 44px; height: 44px; flex: none;
+  color: var(--fib-emerald);
+  --tier: var(--fib-emerald);
+}
+.fib-case-body { min-width: 0; }
+.fib-case-body b {
+  display: block; font-size: var(--fib-text-md); font-weight: 600;
+  letter-spacing: -0.005em; text-wrap: pretty;
+}
+.fib-case-body p { margin-top: 2px; text-wrap: pretty; }
+.fib-case-when { display: block; margin-top: 5px; color: var(--fib-netherite); }
 
-/*
- * Locked achievements stay a list: object, what it takes, how far you are.
- * Dimmed but never hidden — absence is information, and "locked" is carried
- * by the sprite losing its colour, never by making the words unreadable.
- */
-.fib-ach { display: flex; flex-direction: column; }
-.fib-ach-row {
-  display: grid; grid-template-columns: auto 1fr auto;
-  align-items: center; gap: var(--fib-space-4);
+.fib-chase-head { margin-top: var(--fib-space-7); }
+.fib-chase { display: flex; flex-direction: column; list-style: none; }
+.fib-chase-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 176px;
+  align-items: center; gap: var(--fib-space-5);
   padding: var(--fib-space-4) 0;
   border-bottom: 1px solid var(--fib-line-soft);
 }
-.fib-ach-row:last-child { border-bottom: none; }
-.fib-ach-row[data-locked="true"] .fib-ach-body b { color: var(--fib-ink-2); font-weight: 500; }
-.fib-ach-row[data-locked="true"] .fib-rarity { opacity: 0.75; }
-.fib-ach-row[data-locked="true"] .fib-well {
-  opacity: 0.6;
-  box-shadow: inset 0 1px 0 0 var(--fib-edge);
+.fib-chase-row:last-child { border-bottom: none; }
+.fib-chase-body { min-width: 0; }
+.fib-chase-body b {
+  display: block; font-size: var(--fib-text-md); font-weight: 500;
+  color: var(--fib-ink-2); letter-spacing: -0.005em;
 }
-.fib-ach-row[data-locked="true"] .fib-sprite { filter: grayscale(1) brightness(0.75); }
+.fib-chase-body p { font-size: var(--fib-text-sm); color: var(--fib-ink-3); text-wrap: pretty; }
 
-.fib-ach-body { min-width: 0; }
-.fib-ach-body b { display: block; font-size: var(--fib-text-md); font-weight: 600; letter-spacing: -0.005em; }
-.fib-ach-body p { font-size: var(--fib-text-sm); color: var(--fib-ink-3); text-wrap: pretty; }
-
-.fib-ach-side {
-  display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
-  text-align: right; flex: none;
+.fib-chase-track {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
 }
-
-.fib-ach-progress {
-  width: 108px; height: 3px; border-radius: var(--fib-radius-pill);
-  background: var(--fib-plinth-2); overflow: hidden;
+.fib-chase-count {
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-xs);
+  font-variant-numeric: tabular-nums; color: var(--fib-ink-2);
+  text-align: right;
 }
-.fib-ach-progress i {
-  display: block; height: 100%; width: 100%; border-radius: inherit;
-  background: var(--fib-ink-3);
-  transform-origin: left center; transform: scaleX(var(--fill, 0));
-  transition: transform var(--fib-motion-slow) var(--fib-ease);
-}
+/* A single-round feat has no lifetime total to measure it. The row says which
+   kind it is instead of drawing a bar that would mean nothing. */
+.fib-chase-unmeasured { text-align: right; }
 
-.fib-ach-group { margin-bottom: var(--fib-space-6); }
-.fib-ach-group:last-child { margin-bottom: 0; }
-.fib-ach-check { color: var(--fib-emerald); font-weight: 700; }
+.fib-ach-filters {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  margin-bottom: var(--fib-space-6);
+}
 
 /* ── 10. States ───────────────────────────────────────────────────────── */
 
@@ -1928,13 +2108,38 @@ ${cssVariables()}
     flex-direction: column; gap: 3px; padding: 6px 4px;
     font-size: var(--fib-text-2xs); font-weight: 500;
   }
-  .fib-nav-item[aria-current="page"] { background: none; color: var(--fib-diamond); }
+  /* Blue, not diamond. The pill is dropped here because a bottom bar has no room
+     for one, but the COLOUR has to stay blue: blue is the module's one
+     interactive accent and diamond means rarity and nothing else. Switching hue
+     at a breakpoint made the active-nav signal mean two different things
+     depending on the width of the window. */
+  .fib-nav-item[aria-current="page"] { background: none; color: var(--fib-blue-ink); }
 
   .fib-main { padding-bottom: 76px; }
   .fib-page { padding: var(--fib-space-6) var(--fib-space-4) var(--fib-space-7); }
   .fib-section { padding-top: var(--fib-space-7); }
 
   .fib-table th, .fib-table td { padding-left: var(--fib-space-3); padding-right: var(--fib-space-3); }
+
+  /*
+   * The facet rail stacks above the grid and collapses. It is the same
+   * <details> as on desktop, so there is no second component to keep in sync —
+   * only the marker comes back and the default open state goes away.
+   *
+   * Closed by default here because a phone's first job is to show the list: a
+   * rail that ate the first screenful would be a filter panel the reader has to
+   * scroll past every visit. The summary carries the active-filter count, so a
+   * closed rail that IS filtering still says so.
+   */
+  .fib-faceted { grid-template-columns: minmax(0, 1fr); gap: var(--fib-space-5); }
+  .fib-facet-rail { position: static; }
+  .fib-facet-rail > summary { list-style: revert; }
+  .fib-facet-rail > summary::marker { content: revert; }
+  .fib-facet-rail > summary::-webkit-details-marker { display: revert; }
+  .fib-facet-rail:not([open]) { padding-bottom: var(--fib-space-4); }
+  /* Two columns of checkboxes and ranges rather than one tall stack. */
+  .fib-facet-rail-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .fib-facet + .fib-facet { padding-top: 0; border-top: none; }
 }
 
 /* Two-column editorial splits collapse before the shell does — they run out of
@@ -1972,8 +2177,10 @@ ${cssVariables()}
   .fib-inv-grid { grid-template-columns: minmax(0, 1fr); }
   .fib-inv-drawer > td { padding-left: var(--fib-space-3); padding-right: var(--fib-space-3); }
 
-  .fib-ach-row { grid-template-columns: auto 1fr; row-gap: var(--fib-space-2); }
-  .fib-ach-side { grid-column: 2; align-items: flex-start; text-align: left; }
+  /* The chase's track column cannot hold a bar and a fraction at 360px, so the
+     row stacks and the track runs full width beneath the words. */
+  .fib-chase-row { grid-template-columns: minmax(0, 1fr); row-gap: var(--fib-space-3); }
+  .fib-chase-count, .fib-chase-unmeasured { text-align: left; }
   .fib-ramp-row { grid-template-columns: 76px 1fr auto; gap: var(--fib-space-2); }
 
   /* The hero avatar drops to 64px — an exact 2:1 downscale, still a legal
