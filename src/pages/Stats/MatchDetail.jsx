@@ -17,51 +17,130 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes,
+  idLabel, idUuid,
 } from './adapter.js';
 import { useFlipRows } from './useFlip.js';
 import { loadMatch } from './api.js';
 import { useAsync } from './useAsync.js';
 import { Section, Avatar, Medal, Sprite, Empty, Figure, RarityTag, AsyncView } from './Primitives.jsx';
-import { idLabel, idUuid } from './adapter.js';
 import { Inventory } from './Inventory.jsx';
 import { RaceTrace } from './Charts.jsx';
 import * as f from './format.js';
 
 const labelFor = (row) => row.members.map(idLabel).join(' & ');
 
+/* An absolute collection timestamp as an offset into the match, so a pull can be
+   quoted on the same clock the scrubber runs. Clamped at zero: an item logged a
+   beat before `startedAt` is clock skew, not a negative match time. */
+const atMatchTime = (match, at) =>
+    Math.max(0, (new Date(at).getTime() - new Date(match.startedAt).getTime()) / 1000);
+
 /**
  * Server setting keys, in the wiki's own words.
  *
  * The keys arrive as the server stores them — `KEEP_INVENTORY`, `BACKPACKSIZE`,
- * `HARD` — with stringly-typed values (`"true"`, `"3"`). Lowercasing the key
- * and printing the raw value shipped `keep inventory / true` to players, which
- * is the server's vocabulary leaking through a page written for the people who
- * played the match. Names and phrasings here match `pages/GameSettings.jsx`, so
- * a setting reads the same on both pages.
+ * `FASTER_RANDOM_TICK` — with stringly-typed values (`"true"`, `"3"`).
+ * Lowercasing the key and printing the raw value shipped `keep inventory / true`
+ * to players, which is the server's vocabulary leaking through a page written
+ * for the people who played the match.
  *
- * `value` is given the raw string and returns what a player should see. Keys
- * the server adds later fall through to a humanised key and the raw value,
- * which is ugly but never wrong — and visibly a gap worth filling in here.
+ * Every name and phrasing below is taken from `pages/GameSettings.jsx`, which is
+ * where this project documents what each setting DOES, so a setting reads the
+ * same on both pages. That file is the source; this is not a second vocabulary.
+ * Values are condensed to a clause because they live in a right-aligned column
+ * roughly 34 characters wide — the wiki's full sentences ("Crops, trees & leaves
+ * grow/decay faster") are written for a page that gives each setting a
+ * paragraph, and this one gives it a line.
+ *
+ * ── Why this map was completed ──
+ *
+ * It used to carry nine keys and let the other fifteen fall through to a
+ * humanised key plus the raw value. That was never wrong, but it was a page
+ * mostly written by the database: "Faster random tick / On", "Positions / On",
+ * "Chain / Off". Worse, it printed BACKPACK and BACKPACKSIZE as two rows both
+ * labelled "Backpack", one saying "On" and one saying "5 rows", which reads as a
+ * bug rather than as two settings.
+ *
+ * The fall-through is kept — a key the server adds tomorrow still renders, in
+ * an "Other" group, rather than vanishing from a page that claims to list the
+ * rules the match was played under.
  */
 const yesNo = (on, off) => (v) => (v === 'true' ? on : off);
 
+/*
+ * The wiki's categories, minus one.
+ *
+ * `GameSettings.jsx` files PvP under its own "Combat" heading, which earns a
+ * section on a page that gives every category an icon, a description and room to
+ * breathe. Here it would be a heading over a single row — scaffolding for a
+ * scale the data does not have — so PvP joins Survival, whose other two members
+ * (Food, KeepInventory) are the same question: what happens to you out there.
+ */
+const SETTING_GROUPS = [
+  { id: 'mode', name: 'Game mode' },
+  { id: 'pool', name: 'Item pool' },
+  { id: 'survival', name: 'Survival' },
+  { id: 'gameplay', name: 'Gameplay' },
+  { id: 'progression', name: 'Progression' },
+  { id: 'other', name: 'Other' },
+];
+
+/* Ordered within each group by what decides a match, not alphabetically: the
+   format and the difficulty are what a reader came to check. */
 const SETTINGS = {
-  TEAM: { label: 'Format', value: yesNo('Teams', 'Solo') },
-  HARD: { label: 'Hard', value: yesNo('Late items included', 'Late items excluded') },
-  NETHER: { label: 'Nether', value: yesNo('Portal open, nether items in the pool', 'Disabled') },
-  END: { label: 'End', value: yesNo('Portal open, end items in the pool', 'Disabled') },
+  /* Game mode */
+  TEAM: { group: 'mode', label: 'Format', value: yesNo('Teams', 'Solo') },
+  RUN: { group: 'mode', label: 'RunBattle', value: yesNo('Only the first finder scores', 'Everyone can score the same item') },
+  CHAIN: { group: 'mode', label: 'ForceChain', value: yesNo('Current + next item shown', 'Only the current item shown') },
+  TEAM_CHAT: { group: 'mode', label: 'Team Chat', value: yesNo('Visible to teammates only', 'All chat is global') },
+
+  /* Item pool */
+  HARD: { group: 'pool', label: 'Hard', value: yesNo('Late items included', 'Late items excluded') },
+  NETHER: { group: 'pool', label: 'Nether', value: yesNo('Portal open, nether items in the pool', 'Disabled') },
+  END: { group: 'pool', label: 'End', value: yesNo('Portal open, end items in the pool', 'Disabled') },
+  EXTREME: { group: 'pool', label: 'Extreme', value: yesNo('All obtainable items', 'Only reasonably obtainable items') },
   QUICKIE: {
+    group: 'pool',
     label: 'Quickie',
     value: (v) => ['Disabled', 'Early only', 'Early + Mid'][Number(v)] ?? v,
   },
+
+  /* Survival */
+  PVP: { group: 'survival', label: 'PvP', value: yesNo('Players can attack each other', 'No player damage') },
+  FOOD: { group: 'survival', label: 'Food', value: yesNo('Normal hunger', 'No hunger drain') },
+  KEEP_INVENTORY: { group: 'survival', label: 'KeepInventory', value: yesNo('Items kept on death', 'Items dropped on death') },
+
+  /* Gameplay */
+  BACKPACK: { group: 'gameplay', label: 'Backpack', value: yesNo('Extra inventory slots', 'Standard 36 slots') },
   BACKPACKSIZE: {
-    label: 'Backpack',
+    group: 'gameplay',
+    label: 'Backpack Rows',
     value: (v) => (v === '0' ? 'None' : `${v} ${Number(v) === 1 ? 'row' : 'rows'}`),
   },
-  KEEP_INVENTORY: { label: 'KeepInventory', value: yesNo('Items kept on death', 'Items dropped on death') },
-  RANDOM_EVENTS: { label: 'Random events', value: yesNo('On', 'Off') },
-  STATS: { label: 'Stats', value: yesNo('Counted towards the leaderboards', 'Not recorded') },
+  POSITIONS: { group: 'gameplay', label: 'Position System', value: yesNo('Positions can be shared', '/pos is disabled') },
+  ELYTRA: { group: 'gameplay', label: 'Elytra Gliding', value: yesNo('Gliding allowed', 'Gliding disabled') },
+  HARDER_TRACKERS: { group: 'gameplay', label: 'Harder Trackers', value: yesNo('Harder tracker recipes', 'Standard tracker recipes') },
+  FASTER_RANDOM_TICK: { group: 'gameplay', label: 'Faster Plants', value: yesNo('Crops and trees grow faster', 'Vanilla growth speeds') },
+  TRADING: { group: 'gameplay', label: 'Player Trading', value: yesNo('Players can trade items', 'Trading disabled') },
+  /* Minutes, per the wiki's own "3 min". A bare "3" beside "Trading Cooldown"
+     is a number with no unit, which is the one thing this module never ships. */
+  TRADING_COOLDOWN: {
+    group: 'gameplay',
+    label: 'Trading Cooldown',
+    value: (v) => (v === '0' ? 'None' : `${v} min`),
+  },
+  RANDOM_EVENTS: { group: 'gameplay', label: 'Random Events', value: yesNo('Fires 3–4 times an hour', 'No random events') },
+  EVENT: { group: 'gameplay', label: 'Event Modifiers', value: yesNo('Tournament rules', 'Standard rules') },
+
+  /* Progression */
+  STATS: { group: 'progression', label: 'Stats', value: yesNo('Counted towards the leaderboards', 'Not recorded') },
+  SCORE: { group: 'progression', label: 'Score', value: yesNo('Visible to all players', 'Hidden until the round ends') },
+  ACHIEVEMENTS: { group: 'progression', label: 'Achievements', value: yesNo('Earned this round', 'Not tracked') },
 };
+
+/* The render order inside a group is this map's key order, which is authored
+   above; `Object.keys` on a plain object preserves it for string keys. */
+const SETTING_ORDER = Object.keys(SETTINGS);
 
 const settingLabel = (key) =>
     SETTINGS[key]?.label ?? key.replace(/_/g, ' ').toLowerCase().replace(/^./, (c) => c.toUpperCase());
@@ -71,6 +150,33 @@ const settingValue = (key, raw) => {
   if (shown != null) return shown;
   return raw === 'true' ? 'On' : raw === 'false' ? 'Off' : String(raw);
 };
+
+/**
+ * The match's settings, bucketed into the groups above and ordered within each.
+ *
+ * Only groups the server actually sent keys for are returned, so a payload that
+ * drops a whole category (no team settings on a solo match, say) leaves no empty
+ * heading behind.
+ */
+function groupSettings(settings) {
+  const seen = new Set();
+  const buckets = new Map(SETTING_GROUPS.map((g) => [g.id, []]));
+
+  for (const key of SETTING_ORDER) {
+    if (!(key in settings)) continue;
+    seen.add(key);
+    buckets.get(SETTINGS[key].group).push(key);
+  }
+  // Anything the server knows about and this file does not, kept rather than
+  // dropped: an unlisted rule is still a rule the match was played under.
+  for (const key of Object.keys(settings)) {
+    if (!seen.has(key)) buckets.get('other').push(key);
+  }
+
+  return SETTING_GROUPS
+      .map((g) => ({ ...g, keys: buckets.get(g.id) }))
+      .filter((g) => g.keys.length > 0);
+}
 
 /*
  * Replay pacing. A fixed wall-clock played EVERY match at the same speed —
@@ -237,7 +343,11 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
       <div className="fib-page">
         <Section
             title={`${match.mode === 'SOLO' ? 'Solo' : 'Team'} match`}
-            sub={`${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.duration(matchDuration(match))}`}
+            /* `hours`, not `duration`: a match that runs past the hour reads
+               "60m 3s" through the latter, which is a number the reader has to
+               convert, and this page already prints "1:00:03" on the scrubber
+               eighty pixels below it. */
+            sub={`${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.hours(matchDuration(match))}`}
             aside={
               <button type="button" className="fib-btn fib-btn--quiet" onClick={onBack}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -362,6 +472,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                 return (
                     <React.Fragment key={key}>
                       <tr
+                          className="fib-row-toggle"
                           data-flip-key={key}
                           data-open={open || undefined}
                           /*
@@ -379,7 +490,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                       >
                         <td><Medal place={row.pos} /></td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--fib-space-3)', flexWrap: 'wrap' }}>
+                          <div className="fib-cell-players">
                             {row.entry.members.map((m) => (
                                 <button
                                     key={idUuid(m)}
@@ -448,7 +559,20 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                       <figcaption>
                         <b>{f.itemLabel(item.itemName)}</b>
                         <RarityTag tier={item.b2bRarity} />
-                        <span className="fib-meta">{f.timeOfDay(item.collectedAt)}</span>
+                        {/*
+                          Who, and when in the MATCH — not what the wall clock
+                          said. Everything else on this page is on match time
+                          (the scrubber, the standings heading, the lead-change
+                          ticks), so "22:07" was the one figure a reader could
+                          not place against the race they had just scrubbed
+                          through. The name is plain text rather than a link:
+                          the standings above own player navigation, and a
+                          second, differently-shaped way to open a profile is
+                          the "save button" problem.
+                        */}
+                        <span className="fib-meta">
+                          {item.player?.name ?? 'Unknown'} · {f.clock(atMatchTime(match, item.collectedAt))}
+                        </span>
                       </figcaption>
                     </figure>
                 ))}
@@ -457,17 +581,20 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
         ) : null}
 
         <Section title="Settings" sub="The rules this match was played under.">
-          <dl className="fib-settings">
-            {Object.entries(match.settings).map(([k, v]) => (
-                <div key={k}>
-                  <dt>{settingLabel(k)}</dt>
-                  <dd>{settingValue(k, v)}</dd>
-                </div>
-            ))}
-          </dl>
-          <p className="fib-meta" style={{ marginTop: 'var(--fib-space-4)' }}>
-            Match {match.matchId}
-          </p>
+          {groupSettings(match.settings).map((group) => (
+              <div className="fib-settings-group" key={group.id}>
+                <h3 className="fib-label fib-settings-head">{group.name}</h3>
+                <dl className="fib-settings">
+                  {group.keys.map((k) => (
+                      <div key={k}>
+                        <dt>{settingLabel(k)}</dt>
+                        <dd>{settingValue(k, match.settings[k])}</dd>
+                      </div>
+                  ))}
+                </dl>
+              </div>
+          ))}
+          <p className="fib-meta fib-match-id">Match {match.matchId}</p>
         </Section>
       </div>
   );

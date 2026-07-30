@@ -228,6 +228,29 @@ export function Sparkline({ values, width = 88, height = 24, tone = 'var(--fib-i
  */
 const DASHES = ['', '6 3', '2 3', '10 3 2 3', '4 2', '8 4', '1 3', '12 3'];
 
+/*
+ * Axis steps a person would have picked.
+ *
+ * Both axes used to divide their own range into four, which produces the labels
+ * the DATA happens to land on rather than the ones a reader can hold: a 60m 3s
+ * match was ticked "0:00 · 15:01 · 30:01 · 45:02 · 1:00:03", and a 49-item
+ * leader gave "0 · 12 · 25 · 37 · 49". Both are precise and both are noise —
+ * nobody reads an axis to find out what a quarter of 3603 seconds is.
+ *
+ * So the step is chosen from a fixed vocabulary of intervals people already
+ * think in, and the axis runs on multiples of it. The candidates are asked in
+ * order and the first one that keeps the axis under `most` labels wins.
+ */
+const TIME_STEPS = [30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
+const COUNT_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
+
+const niceStep = (span, steps, most) =>
+  steps.find((s) => span / s <= most) ?? steps[steps.length - 1];
+
+/** Multiples of `step` from 0 up to and including `span`. */
+const stepsUpTo = (span, step) =>
+  Array.from({ length: Math.floor(span / step) + 1 }, (_, i) => i * step);
+
 export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, iconFor, markers = [], onScrub }) {
   const wrapRef = useRef(null);
   const width = useWidth(wrapRef);
@@ -237,8 +260,26 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
   const innerH = Math.max(10, height - pad.top - pad.bottom);
 
   const maxScore = Math.max(1, ...entries.map((e) => e.events.length));
+
+  /* The scale tops out at the next whole step above the leader, so the highest
+     gridline is a number worth printing and the winning lane still lands below
+     it rather than on the frame. */
+  const yStep = niceStep(maxScore, COUNT_STEPS, 5);
+  const yMax = Math.max(yStep, Math.ceil(maxScore / yStep) * yStep);
+
+  /* How many time labels the track can actually hold.
+     Measured off the widest label this match will print rather than a constant:
+     an hour-long match labels "1:00:00" and a quickie labels "12:00", and
+     budgeting for the long one on every chart costs the short one half its
+     ticks. ~7px per mono character at the chart's size, plus 22px of gutter so
+     neighbours never touch. On a phone this lands on three labels; asking for
+     six there would overprint them rather than shrink them. */
+  const xLabelPx = f.clock(duration).length * 7 + 22;
+  const xBudget = Math.max(2, Math.min(6, Math.floor(innerW / xLabelPx)));
+  const xStep = niceStep(duration, TIME_STEPS, xBudget);
+
   const x = (t) => pad.left + (Math.min(t, duration) / Math.max(1, duration)) * innerW;
-  const y = (s) => pad.top + innerH - (s / maxScore) * innerH;
+  const y = (s) => pad.top + innerH - (s / yMax) * innerH;
 
   const stepPath = (entry) => {
     let d = `M${pad.left.toFixed(1)} ${y(0).toFixed(1)}`;
@@ -249,8 +290,6 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
     d += ` L${x(duration).toFixed(1)} ${y(last).toFixed(1)}`;
     return d;
   };
-
-  const ticks = 4;
 
   const handleMove = onScrub
     ? (e) => {
@@ -273,20 +312,21 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
         onPointerMove={handleMove}
         onPointerLeave={onScrub ? () => onScrub(null) : undefined}
       >
-        {Array.from({ length: ticks + 1 }, (_, i) => {
-          const s = Math.round((maxScore / ticks) * i);
-          return (
-            <g key={i}>
-              <line className="grid" x1={pad.left} x2={width - pad.right} y1={y(s)} y2={y(s)} />
-              <text x={pad.left - 8} y={y(s) + 3} textAnchor="end">{s}</text>
-            </g>
-          );
-        })}
+        {stepsUpTo(yMax, yStep).map((s) => (
+          <g key={s}>
+            <line className="grid" x1={pad.left} x2={width - pad.right} y1={y(s)} y2={y(s)} />
+            <text x={pad.left - 8} y={y(s) + 3} textAnchor="end">{s}</text>
+          </g>
+        ))}
 
-        {Array.from({ length: 5 }, (_, i) => {
-          const t = (duration / 4) * i;
+        {stepsUpTo(duration, xStep).map((t) => {
+          /* Anchored so no label crosses the frame: the first hangs off its tick
+             to the right, anything landing near the right edge hangs to the
+             left, and everything between is centred on its own tick. */
+          const px = x(t);
+          const anchor = t === 0 ? 'start' : px > width - pad.right - 24 ? 'end' : 'middle';
           return (
-            <text key={i} x={x(t)} y={height - 8} textAnchor={i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}>
+            <text key={t} x={px} y={height - 8} textAnchor={anchor}>
               {f.clock(t)}
             </text>
           );
@@ -294,9 +334,12 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
 
         <line className="axis" x1={pad.left} x2={pad.left} y1={pad.top} y2={pad.top + innerH} />
 
-        {/* Lead changes, ticked along the base of the track. */}
+        {/* Lead changes, ticked along the base of the track. Brighter and taller
+            than the miniature's, because the scrubber's caption points at them
+            in words — "every tick is a lead change" — and at the miniature's
+            weight they were a promise the chart did not keep. */}
         {markers.map((t) => (
-          <line key={t} className="tick" x1={x(t)} x2={x(t)} y1={pad.top + innerH - 5} y2={pad.top + innerH + 5} />
+          <line key={t} className="tick tick--lead" x1={x(t)} x2={x(t)} y1={pad.top + innerH - 7} y2={pad.top + innerH + 7} />
         ))}
 
         {entries.map((entry, i) => (

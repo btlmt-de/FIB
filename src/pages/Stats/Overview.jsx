@@ -89,7 +89,14 @@ export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderb
  * differs from the pre-fetch version -- everything from the podium down is exactly as it was.
  */
 function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderboards }) {
-    const { globals = {}, podiums, featured, activity, moments = [] } = data;
+    /* `??`, not a destructuring default. An unavailable section arrives from the dashboard
+       composition as JSON null, and a destructuring default only fires on `undefined` — so
+       `moments = []` never ran and `moments.length` threw the moment the rare-moments call
+       failed. The sections below already use this idiom (`podiums?.[scope] ?? []`,
+       `activity?.matches ?? []`); these two were the pair that did not. */
+    const { podiums, featured, activity } = data;
+    const globals = data.globals ?? {};
+    const moments = data.moments ?? [];
 
     const [scope, setScope] = useState('solo');
 
