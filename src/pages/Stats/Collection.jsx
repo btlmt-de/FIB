@@ -32,7 +32,7 @@
 import React, { useMemo, useState } from 'react';
 import { loadCollection } from './api.js';
 import { useAsync } from './useAsync.js';
-import { idName } from './adapter.js';
+import { idName, itemPhase } from './adapter.js';
 import {
   Section, Sprite, Chip, Search, Empty, Figure, Avatar, AsyncView,
 } from './Primitives.jsx';
@@ -47,6 +47,15 @@ import * as f from './format.js';
  */
 const SCARCE_MIN_POOL = 4;
 const SCARCE_SHARE = 0.34;
+
+/* Match-phase tag labels + text colours — the same green/yellow/red the item
+   index uses. LATE takes the lighter text-safe red (phase-late-ink): the fill red
+   is too dark to clear 4.5:1 as small text, the same split the item cards use. */
+const PHASE_TAG = {
+  EARLY: { label: 'Early', ink: 'var(--fib-phase-early)' },
+  MID: { label: 'Mid', ink: 'var(--fib-phase-mid)' },
+  LATE: { label: 'Late', ink: 'var(--fib-phase-late-ink)' },
+};
 
 const isScarce = (playerCount, totalPlayers) =>
   Number.isFinite(playerCount) && totalPlayers >= SCARCE_MIN_POOL
@@ -102,16 +111,25 @@ function Held({ playerCount, totalPlayers, className = '' }) {
  */
 function HoldingCard({ item, totalPlayers }) {
   const scarce = isScarce(item.playerCount, totalPlayers);
+  const phase = itemPhase(item.itemName);
+  const tag = phase ? PHASE_TAG[phase] : null;
   return (
     <figure className="fib-artifact fib-sprite-lift">
       <Sprite
         name={item.itemName}
         size={64}
         pad={20}
+        phase={phase}
         className={scarce ? 'fib-well--scarce' : ''}
       />
       <figcaption>
         <b>{f.itemLabel(item.itemName)}</b>
+        {tag ? (
+          <span style={{
+            color: tag.ink, fontWeight: 700,
+            fontSize: 'var(--fib-text-2xs)', letterSpacing: '0.06em', textTransform: 'uppercase',
+          }}>{tag.label}</span>
+        ) : null}
         <Figure size="sm" value={item.timesCollected} format={f.num} unit="found" count={false} />
         <Held playerCount={item.playerCount} totalPlayers={totalPlayers} />
         {item.firstCollected ? (
@@ -250,7 +268,7 @@ function CollectionBody({ uuid, payload, onBack }) {
              feature of the page, so it gets the rarity colour spent on it:
              the rim, the hairline top edge, and the counted figure. */
           <div className="fib-trophy">
-            <Sprite name={scarcest.itemName} size={64} pad={16} className="fib-well--scarce" />
+            <Sprite name={scarcest.itemName} size={64} pad={16} phase={itemPhase(scarcest.itemName)} className="fib-well--scarce" />
             <div className="fib-trophy-id">
               <span className="fib-label">Rarest find</span>
               <b>{f.itemLabel(scarcest.itemName)}</b>

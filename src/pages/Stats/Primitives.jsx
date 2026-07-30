@@ -247,21 +247,34 @@ export function Movement({ value, verbose = false }) {
  * makes pixel art look chewed. `width`/`height` are always set, so the well
  * never collapses and reflows when the image lands.
  */
-export function Sprite({ name, size = 32, pad = 8, className = '', title, tier }) {
+/** Match-phase key → its colour token, for the well's phase bleed. */
+const PHASE_VAR = {
+  EARLY: 'var(--fib-phase-early)',
+  MID: 'var(--fib-phase-mid)',
+  LATE: 'var(--fib-phase-late)',
+};
+
+export function Sprite({ name, size = 32, pad = 8, className = '', title, tier, phase }) {
   const px = spriteSize(size);
   /*
    * `tier` puts the rarity on the rim of the well, the same way an inventory
    * slot does. One pattern, so a Legendary pull looks Legendary wherever it is
    * shown rather than only where someone remembered to add a badge.
+   *
+   * `phase` (EARLY/MID/LATE) bleeds the item's match phase up from the floor of
+   * the well in green/yellow/red — the same code the item index uses. It sits
+   * on a different axis from rarity, so a scarce EARLY item shows both.
    */
   return (
     <div
       className={`fib-well ${className}`.trim()}
       data-tier={tier || undefined}
+      data-phase={phase || undefined}
       style={{
         width: px + pad * 2,
         height: px + pad * 2,
         ...(tier ? { '--tier': rarityColor(tier) } : null),
+        ...(phase && PHASE_VAR[phase] ? { '--phase': PHASE_VAR[phase] } : null),
       }}
       title={title ?? itemLabel(name)}
     >
@@ -524,6 +537,72 @@ export function Section({ title, sub, aside, children, id }) {
       )}
       {children}
     </Reveal>
+  );
+}
+
+/* ── Product card (the CSFloat listing shape) ─────────────────────────── */
+
+/**
+ * The reusable marketplace card. A tone top-line (rank/rarity/quiet), an object
+ * on a lit media band, a title, whatever body the view composes, and a footer.
+ * Renders as a <button> when it opens something, a <div> otherwise, so a card
+ * that navigates is a real, keyboard-reachable control.
+ *
+ * `tone` colours the top line and hover border/glow; `glow` overrides the hover
+ * bloom colour when it should differ from the tone (rarely needed).
+ */
+export function PCard({ tone, glow, onClick, media, badge, title, sub, children, foot, ...rest }) {
+  const style = {};
+  if (tone) style['--pcard-tone'] = tone;
+  if (glow) style['--pcard-glow'] = glow;
+  const interactive = typeof onClick === 'function';
+  const Tag = interactive ? 'button' : 'div';
+  return (
+    <Tag
+      type={interactive ? 'button' : undefined}
+      className="fib-pcard"
+      style={style}
+      onClick={onClick}
+      {...rest}
+    >
+      {media != null ? (
+        <div className="fib-pcard-media">
+          {badge ? <div className="fib-pcard-badge">{badge}</div> : null}
+          {media}
+        </div>
+      ) : null}
+      <div className="fib-pcard-body">
+        {title != null ? <div className="fib-pcard-title">{title}</div> : null}
+        {sub != null ? <div className="fib-pcard-sub fib-meta">{sub}</div> : null}
+        {children}
+      </div>
+      {foot != null ? <div className="fib-pcard-foot">{foot}</div> : null}
+    </Tag>
+  );
+}
+
+/**
+ * A labelled meter for inside a card — the CSFloat "price + bar" rhythm. The
+ * fill is clamped and carries an accessible name, and the tone defaults to
+ * diamond (a comparison, not a good/bad judgment). `fill` is 0..1.
+ */
+export function CardMeter({ label, value, fill, tone = 'diamond' }) {
+  const pct = Math.max(0, Math.min(1, Number.isFinite(fill) ? fill : 0));
+  return (
+    <div className="fib-pcard-meter">
+      <div className="fib-pcard-meter-head">
+        <span className="fib-label">{label}</span>
+        {value != null ? <span className="fib-meta">{value}</span> : null}
+      </div>
+      <div
+        className="fib-ramp-track"
+        style={{ height: 6, color: `var(--fib-${tone})` }}
+        role="img"
+        aria-label={value != null ? `${label}: ${value}` : label}
+      >
+        <i style={{ '--fill': pct }} />
+      </div>
+    </div>
   );
 }
 

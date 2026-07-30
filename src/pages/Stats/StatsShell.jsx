@@ -23,7 +23,8 @@ import { Overview } from './Overview.jsx';
 import { Leaderboards } from './Leaderboards.jsx';
 import { Matches } from './Matches.jsx';
 import { MatchDetail } from './MatchDetail.jsx';
-import { Players, PlayerProfile } from './Profile.jsx';
+import { Players } from './Players.jsx';
+import { PlayerProfile } from './Profile.jsx';
 import { Collection } from './Collection.jsx';
 import { Items } from './Items.jsx';
 

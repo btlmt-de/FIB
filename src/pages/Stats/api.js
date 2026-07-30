@@ -27,6 +27,8 @@
  * backend, and Apache proxies it in production, so the app never needs to know which it is talking
  * to. This is why the path is baked in rather than read from an env var per environment.
  */
+import { idUuid, idName } from './data.js';
+
 const BASE = '/stats-api';
 
 /** A request that failed in a way a view should show. Carries the status so a 404 can read as
@@ -126,6 +128,56 @@ export const loadRoster = ({ page = 0, size = 25, query, sort = 'games_won' } = 
 /** A leaderboard board. scope: solo | duo | combined. category: the board vocabulary. */
 export const loadLeaderboard = (scope, category, limit = 100) =>
     apiGet('/leaderboards', { scope, category, limit });
+
+/**
+ * The player directory — every player with a record, as bare { uuid, name }, for
+ * the Players index. No stats: this answers "who exists, how do I open them".
+ *
+ * TODO(backend): this is a client-side merge and should become a single roster
+ * call. `/players` (loadRoster) is solo-only today, so a team-only player is
+ * absent from it. They are recovered from the *combined* leaderboard, which
+ * lists individuals (it sums every duo a player has been part of), plus the duo
+ * board's members as a backstop. TOTAL_ITEMS is the most inclusive category —
+ * you find items every match — so it catches anyone who has played at all. When
+ * `/players` is broadened to return all players (solo or team), drop the two
+ * leaderboard calls and read the roster alone.
+ *
+ * Sources are fetched together and tolerated individually: as long as ONE
+ * resolves the index renders, so a single board being briefly unavailable
+ * degrades the roster rather than blanking the page. Only a total failure
+ * throws, which the view shows as "unavailable".
+ */
+export async function loadPlayerIndex() {
+    const settled = await Promise.allSettled([
+        loadRoster({ size: 500 }),
+        loadLeaderboard('combined', 'TOTAL_ITEMS', 500),
+        loadLeaderboard('duo', 'TOTAL_ITEMS', 500),
+    ]);
+
+    if (!settled.some((s) => s.status === 'fulfilled')) {
+        const firstError = settled.find((s) => s.status === 'rejected');
+        throw firstError?.reason ?? new ApiError(0, 'The player directory could not be loaded.');
+    }
+
+    const [roster, combined, duo] = settled.map((s) => (s.status === 'fulfilled' ? s.value.data : null));
+
+    // Dedup by uuid; first name seen wins (they agree across sources anyway).
+    const byUuid = new Map();
+    const add = (identity) => {
+        const uuid = idUuid(identity);
+        if (!uuid || byUuid.has(uuid)) return;
+        byUuid.set(uuid, { uuid, name: idName(identity) ?? uuid });
+    };
+    (roster?.players ?? []).forEach((p) => add(p.player));
+    (Array.isArray(combined) ? combined : []).forEach((row) => add(row.player));
+    (Array.isArray(duo) ? duo : []).forEach((row) => { add(row.player1); add(row.player2); });
+
+    const players = [...byUuid.values()].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+    const stale = settled.some((s) => s.status === 'fulfilled' && s.value.stale);
+    return { data: { players }, stale };
+}
 
 /** The item index — the server-wide rarity snapshot. */
 export const loadItems = () => apiGet('/items');

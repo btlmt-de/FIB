@@ -40,141 +40,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LEADERBOARD_SCOPES, matchStandings } from './adapter.js';
 import { RARITY_KEYS } from './tokens.js';
 import { unifyStats, totalPulls, achievementGroups, achievementSummary } from './achievements.js';
-import { loadRoster, loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements } from './api.js';
+import { loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements } from './api.js';
 import { idUuid, idName, idLabel, matchDuration } from './adapter.js';
 import { useAsync } from './useAsync.js';
 import { canObserve } from './env.js';
 import {
   Section, Figure, Avatar, Sprite, Medal, Segmented, Search, Empty, Chip,
-  RarityRamp, PlayerLink, Reveal, Counter, AsyncView,
+  RarityRamp, PlayerLink, Reveal, Counter, AsyncView, PCard, CardMeter,
 } from './Primitives.jsx';
 import { ScoreTrend } from './Charts.jsx';
 import * as f from './format.js';
 import { renderMiniMessage } from './MiniMessage.jsx';
-
-/* ── Derivation ───────────────────────────────────────────────────────── */
-
-/* ── Players index ────────────────────────────────────────────────────── */
-
-const PLAYER_SORTS = [
-  { id: 'rank', label: 'Rank' },
-  { id: 'wins', label: 'Wins' },
-  { id: 'winRate', label: 'Win rate' },
-  { id: 'items', label: 'Items found' },
-];
-
-/**
- * Finding a player is the entry point to everything else, so this view is a
- * search box and a sortable ranked list — not a grid of identical profile
- * cards, which would make eight players look like a product catalogue. Each
- * row carries the player's recent form as a sparkline: a record is what they
- * did, form is what they are doing.
- */
-/* The sort chips map to the roster endpoint's own `sort`, so ordering is the server's job now, not
- * a client re-sort of a loaded page. 'rank' is the default games_won ordering. */
-const ROSTER_SORT = { rank: 'games_won', wins: 'games_won', winRate: 'win_rate', items: 'total_items_found' };
-
-export function Players({ onOpenPlayer }) {
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('rank');
-
-  // Debounce-free for now: each keystroke re-fetches, which the backend rate-limits and caches.
-  // A real debounce belongs here later; it is a refinement, not a correctness fix.
-  const state = useAsync(
-      () => loadRoster({ query: query.trim() || undefined, sort: ROSTER_SORT[sort] }),
-      [query, sort],
-  );
-
-  return (
-      <AsyncView state={state} loadingLabel="Loading players…">
-        {(page) => (
-            <PlayersBody
-                rows={page?.players ?? []}
-                total={page?.totalCount ?? 0}
-                query={query} onQuery={setQuery}
-                sort={sort} onSort={setSort}
-                onOpenPlayer={onOpenPlayer}
-            />
-        )}
-      </AsyncView>
-  );
-}
-
-function PlayersBody({ rows, total, query, onQuery, sort, onSort, onOpenPlayer }) {
-  const maxItems = Math.max(1, ...rows.map((r) => r.totalItemsFound));
-
-  return (
-      <div className="fib-page">
-        <Section
-            title="Players"
-            sub={`${total} ranked players. Open a record to see the whole history.`}
-            aside={
-              <div style={{ display: 'flex', gap: 'var(--fib-space-3)', flexWrap: 'wrap' }}>
-                <Search value={query} onChange={onQuery} placeholder="Find a player" label="Find a player" />
-              </div>
-            }
-        >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 'var(--fib-space-5)' }}>
-            {PLAYER_SORTS.map((s) => (
-                <Chip key={s.id} active={s.id === sort} onClick={() => onSort(s.id)}>
-                  {s.label}
-                </Chip>
-            ))}
-          </div>
-
-          {rows.length === 0 ? (
-              <Empty title={query.trim() ? `Nobody matches “${query.trim()}”` : 'No ranked players yet'}>
-                Player names are exact Minecraft usernames. Check the spelling, or clear the
-                search to see everyone who has played a ranked match.
-              </Empty>
-          ) : (
-              <div className="fib-panel fib-panel--flush">
-                {rows.map((p, i) => {
-                  // The roster entry's identity: nested {playerUuid, playerName} like every other
-                  // endpoint, OR the raw {uuid, name} if the public API's roster mapper passed FIBService's
-                  // shape through without normalizing. Tolerate both so a mapper mismatch degrades to
-                  // "works" rather than a crash; the backend fix (emit the identity DTO like the rest) can
-                  // follow without breaking this.
-                  const uuid = idUuid(p.player);
-                  const name = idLabel(p.player);
-                  const winRate = f.winRate(p.gamesWon, p.gamesPlayed);
-                  return (
-                      <button
-                          key={uuid}
-                          type="button"
-                          className="fib-row-link"
-                          onClick={() => onOpenPlayer(uuid)}
-                      >
-                        {/* Line number within the page, not a rank — the roster does not return one,
-                      because a page position is not a rank once players tie. */}
-                        <Medal place={i + 1} />
-                        <Avatar uuid={uuid} size={36} />
-                        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>{name}</div>
-                          <div className="fib-meta">
-                            {f.num(p.gamesPlayed)} matches · {f.pct(winRate)} won
-                          </div>
-                        </div>
-                        {/* The recent-form sparkline is gone: the roster row carries no per-match history,
-                      and fetching each player's last ten matches would be the exact N+1 the roster
-                      endpoint exists to remove. */}
-                        <div style={{ width: 128, flex: 'none' }} className="fib-hide-sm">
-                          <div className="fib-ramp-track" style={{ height: 6, color: 'var(--fib-diamond)' }}>
-                            <i style={{ '--fill': p.totalItemsFound / maxItems }} />
-                          </div>
-                          <div className="fib-meta" style={{ marginTop: 5 }}>
-                            {f.num(p.totalItemsFound)} items
-                          </div>
-                        </div>
-                      </button>
-                  );
-                })}
-              </div>
-          )}
-        </Section>
-      </div>
-  );
-}
 
 /* ── The record ───────────────────────────────────────────────────────── */
 
