@@ -25,10 +25,11 @@
  *     as a thing on a shelf rather than an icon in a void.
  *
  *  4. RARER IS LITERALLY BRIGHTER. The rarity ramp climbs monotonically in
- *     lightness (0.68 -> 0.735 -> 0.80 -> 0.865 -> 0.94) while walking the hue
- *     wheel so adjacent tiers are never adjacent hues. Rarity is readable
- *     from luminance alone, which means it survives greyscale and colour
- *     blindness both.
+ *     lightness (0.690 -> 0.740 -> 0.802 -> 0.845 -> 0.886) so rarity is
+ *     readable from luminance alone, which means it survives greyscale and
+ *     colour blindness both. The HUES are not a design choice — they are the
+ *     plugin's `Rarity.java` colours, because the tier is a thing the player
+ *     saw in chat before they saw it here. See the `rarity` block.
  *
  * Every value below is OKLCH and was verified in-gamut, and every ink and
  * accent clears WCAG AA (>=4.5:1) as text against ALL FOUR surface steps.
@@ -151,19 +152,57 @@ export const tokens = {
   },
 
   /**
-   * Ordinal rarity ramp, lowest tier first. Lightness climbs monotonically so
-   * "rarer" is legible without colour at all; hue walks 250 -> 300 -> 55 ->
-   * 195 -> 160 so no two adjacent tiers sit on adjacent hues.
+   * Ordinal rarity ramp, lowest tier first.
    *
-   * LEGENDARY sits at hue 55 rather than gold's 85 on purpose: gold means rank
-   * in this module, and a legendary pull is not a rank.
+   * THE HUES ARE NOT OURS TO CHOOSE. A back-to-back is announced in chat by the
+   * plugin before it is ever a row on this site, and `Rarity.java` fixes what
+   * colour each tier is:
+   *
+   *   RARE          <blue>                        #5555FF   h 275
+   *   EPIC          <dark_purple>                 #AA00AA   h 328
+   *   LEGENDARY     <gold>                        #FFAA00   h 73
+   *   RNGESUS       <gradient:#E41EBC:#9A4992>              h 339
+   *   EXTRAORDINARY <gradient:#73FF00:#14C8FF>              h 137 -> 227
+   *
+   * Each tier below takes the plugin's hue. The two gradient tiers collapse to
+   * their FIRST stop, because a `--tier` value feeds `color-mix()` and
+   * `box-shadow` as well as text and has to stay a single colour — the first
+   * stop is also the one the eye reads the label as.
+   *
+   * *This ramp previously walked hue 250 -> 300 -> 55 -> 195 -> 160, chosen so
+   * no two adjacent tiers sat on adjacent hues.* It was internally elegant and
+   * wrong: it painted RNGesus cyan and Extraordinary mint, so the pull that
+   * lights the server up magenta in chat arrived here as the same colour as the
+   * diamond accent. A player checking a match they played needs the tier to be
+   * the colour they just saw. Hue answers to the plugin now; the rest of the
+   * ramp's construction still answers to rule 4.
+   *
+   * Lightness still climbs monotonically (0.690 -> 0.886) so rarity survives
+   * greyscale, and every tier still clears the module's 5.0:1 floor as text on
+   * all four surfaces (worst: RARE at 5.24 on plinth-2). Where the plugin's
+   * colour is too dark to clear that floor — #5555FF is 2.94:1, #AA00AA 2.34:1
+   * — the hue is kept and the lightness lifted to the ramp's step, with chroma
+   * taken as high as sRGB allows there. LEGENDARY needs no lifting: #FFAA00 is
+   * already L 0.802 and lands on its own step.
+   *
+   * The cost of that faithfulness, accepted knowingly: LEGENDARY now sits 12
+   * hue degrees off `gold`, the rank accent (rule 1 wanted rarity to stay clear
+   * of it — but the plugin calls the tier `<gold>`, so the game conflated them
+   * first), and EXTRAORDINARY sits near `emerald`/`phaseEarly`. Both are held
+   * apart by chroma: the rarity tiers are the loudest colours in the module,
+   * which is the one place the Earned Glow Rule already allows spectacle.
+   *
+   * RNGesus is the one tier that reads softer than in-game. #E41EBC is a vivid
+   * magenta at L 0.630; the tier sits ABOVE legendary on the lightness ramp, and
+   * sRGB has no bright saturated pink (max chroma at L 0.845, h 339 is 0.117).
+   * Hue is right, intensity is capped by the gamut, not by taste.
    */
   rarity: {
-    RARE: 'oklch(0.680 0.080 250)',
-    EPIC: 'oklch(0.735 0.130 300)',
-    LEGENDARY: 'oklch(0.800 0.125 55)',
-    RNGESUS: 'oklch(0.865 0.115 195)',
-    EXTRAORDINARY: 'oklch(0.940 0.075 160)',
+    RARE: 'oklch(0.690 0.150 275)',
+    EPIC: 'oklch(0.740 0.220 328)',
+    LEGENDARY: 'oklch(0.802 0.168 73)',
+    RNGESUS: 'oklch(0.845 0.112 339)',
+    EXTRAORDINARY: 'oklch(0.886 0.250 137)',
   },
 
   /**

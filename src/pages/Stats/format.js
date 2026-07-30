@@ -66,6 +66,27 @@ export function hours(seconds) {
   return `${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m`;
 }
 
+/**
+ * The same span, spelled out: "15 minutes 17 seconds".
+ *
+ * `duration` renders "15m 17s", which is right on screen and wrong in an
+ * accessible name — a screen reader pronounces it "fifteen m seventeen s". The
+ * two forms are kept separate rather than compromised into one that is poor at
+ * both jobs.
+ */
+export function durationWords(seconds) {
+  if (!Number.isFinite(seconds)) return '—';
+  const total = Math.max(0, Math.round(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  const parts = [];
+  if (m > 0) parts.push(`${m} minute${m === 1 ? '' : 's'}`);
+  // A bare "15 minutes" is the honest reading of an exact minute; the seconds
+  // only join it when there are any, or when there is no minute to carry it.
+  if (s > 0 || m === 0) parts.push(`${s} second${s === 1 ? '' : 's'}`);
+  return parts.join(' ');
+}
+
 export const signed = (n) =>
   !Number.isFinite(n) || n === 0
     ? '±0'

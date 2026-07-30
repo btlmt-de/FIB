@@ -293,9 +293,16 @@ export const formatDate = (v) => {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+/*
+ * 24-hour, pinned — "22:13", never "10:13 PM".
+ *
+ * `formatStamp` already pins 24h, so the two disagreed on the same fact: the
+ * match feed listed a match at "Jul 28, 22:13" and the match's own page called
+ * it "10:13 PM". One clock per module, and it is the one the match log speaks.
+ */
 export const formatClock = (v) => {
     const d = new Date(v);
-    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
 export const formatByKind = (value, kind) => {

@@ -16,11 +16,30 @@
  *   phase bleed  early / mid / late, the green→yellow→red the item index uses
  *   rim          back-to-back rarity, on the five-tier ramp
  *   corner index collection order, where Minecraft puts stack size
- *   meta line    seconds to collect · rarity · skipped
+ *   meta line    time to collect · rarity · skipped
  *
  * Skips are desaturated rather than reddened. A skipped item still scores, so
  * it means "gave up on this one", not "failed" — colouring it like an error
  * would misreport the rules of the game.
+ *
+ * ── The rail ──
+ *
+ * Three figures, the pool-phase split, then the back-to-back ramp: the run as a
+ * whole, how it was composed, then the rare part of it.
+ *
+ * The split is a stacked bar and not a second ramp beside the rarity one,
+ * because the phases PARTITION the run — every item is exactly one of early,
+ * mid or late, and the parts sum to the total. A shape that sums says "this is
+ * the whole inventory, divided"; the ramp says "these counts, side by side",
+ * which is the right sentence for rarity tiers spanning orders of magnitude and
+ * the wrong one here. It also doubles as the legend for the grid's phase bleed,
+ * which this view otherwise never names — the item index prints exactly this
+ * colour code above its cards for the same reason.
+ *
+ * Every duration on this screen goes through `f.duration`, so anything past a
+ * minute reads as "15m 17s". A bare "917s" is arithmetic handed to the reader:
+ * they cannot tell whether the longest stall was a bad minute or a quarter of
+ * the match without doing the division themselves.
  *
  * ── The playback ──
  *
@@ -53,6 +72,24 @@ const PHASE_VAR = {
   LATE: 'var(--fib-phase-late)',
 };
 
+/*
+ * The split's parts, in match order, with the pool's unassigned tail last.
+ *
+ * `itemPhase` returns null for an item the plugin never gave a state, and those
+ * are real items sitting in a real inventory. Dropping them would leave the
+ * parts summing to less than the run, which is the one thing a stacked bar
+ * promises. It takes the netherite tone and the item index's own word for them —
+ * "Unassigned" — rather than inventing a fourth phase that the pool does not have.
+ */
+const PHASE_PARTS = [
+  { id: 'EARLY', label: 'Early' },
+  { id: 'MID', label: 'Mid' },
+  { id: 'LATE', label: 'Late' },
+  { id: 'NONE', label: 'Unassigned' },
+];
+
+const phaseTone = (id) => PHASE_VAR[id] ?? 'var(--fib-netherite)';
+
 /** Total wall-clock length of the fill animation. */
 const PLAYBACK_MS = 4500;
 /** How long one slot takes to land once its turn arrives. */
@@ -60,6 +97,48 @@ const SLOT_MS = 240;
 
 const canAnimate = () =>
   !prefersReducedMotion() && !(typeof document !== 'undefined' && document.hidden);
+
+/**
+ * How much of this run came out of the early, mid and late pools — one bar,
+ * read at a glance, with the counts spelled out beneath it.
+ */
+function PhaseSplit({ counts }) {
+  const parts = PHASE_PARTS
+    .map((p) => ({ ...p, n: counts[p.id] ?? 0 }))
+    /* Early / Mid / Late always hold their row: "Late 0" is an answer, and a row
+       that disappears at zero leaves the reader unable to tell which phases the
+       pool even has. "Unassigned" is not a phase, so it only appears when it has
+       something to report. */
+    .filter((p) => p.id !== 'NONE' || p.n > 0);
+
+  return (
+    <div className="fib-phase-split">
+      <h5 className="fib-label fib-inv-subhead">Pool phase</h5>
+
+      {/* Empty parts are dropped rather than grown to nothing — the 2px seam
+          between segments would still be drawn around a segment that isn't
+          there, reading as a phase too thin to see rather than one absent. */}
+      <div className="fib-phase-split-bar" aria-hidden="true">
+        {parts.filter((p) => p.n > 0).map((p) => (
+          <i key={p.id} style={{ flexGrow: p.n, backgroundColor: phaseTone(p.id) }} />
+        ))}
+      </div>
+
+      {/* The key carries the counts as ordinary text, so the bar can stay purely
+          visual: describing it for a screen reader would only say the same
+          numbers a second time, one line above where they already are. */}
+      <ul className="fib-phase-split-key">
+        {parts.map((p) => (
+          <li key={p.id} data-empty={p.n === 0 || undefined}>
+            <i style={{ backgroundColor: phaseTone(p.id) }} aria-hidden="true" />
+            <span>{p.label}</span>
+            <em>{p.n}</em>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function Inventory({ entry, duration, ownerLabel, mode }) {
   const segments = useMemo(() => itemSegments(entry), [entry]);
@@ -71,12 +150,17 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
       RARITY_KEYS.map((k) => [k, pulls.filter((s) => s.b2b === k).length]),
     );
     const stall = segments.reduce((a, b) => (b.took > (a?.took ?? -1) ? b : a), null);
+    // Keyed by the same ids the split renders, so a phase with none of this
+    // run's items still has a bucket to report zero from.
+    const phases = { EARLY: 0, MID: 0, LATE: 0, NONE: 0 };
+    for (const s of segments) phases[itemPhase(s.itemName) ?? 'NONE'] += 1;
     return {
       total: segments.length,
       found: segments.length - skipped,
       skipped,
       pulls: pulls.length,
       counts,
+      phases,
       stall,
     };
   }, [segments]);
@@ -162,7 +246,9 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
             const label = [
               f.itemLabel(s.itemName),
               `#${s.order}`,
-              `${Math.round(s.took)} seconds`,
+              // Spelled out, not the on-screen "1m 54s" — an abbreviation that
+              // reads well is not the same string as one that speaks well.
+              f.durationWords(s.took),
               tier ? `${RARITY_LABEL[tier]} back-to-back` : null,
               s.skipped ? 'skipped' : null,
             ].filter(Boolean).join(', ');
@@ -195,7 +281,7 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
                 <div className="fib-inv-tile-text">
                   <b className="fib-inv-name">{f.itemLabel(s.itemName)}</b>
                   <span className="fib-inv-meta">
-                    <span className="fib-inv-took">{Math.round(s.took)}s</span>
+                    <span className="fib-inv-took">{f.duration(s.took)}</span>
                     {tier ? <RarityTag tier={tier} /> : null}
                     {s.skipped ? <span className="fib-inv-skipped-tag">skipped</span> : null}
                   </span>
@@ -214,14 +300,22 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
         <div className="fib-inv-figures">
           <Figure size="sm" value={summary.found} label="Found" count={false} />
           <Figure size="sm" value={summary.skipped} label="Skipped" count={false} />
+          {/* `f.duration` past a minute, not a raw second count: the whole point
+              of this figure is how long the run got stuck, and "917s" makes the
+              reader divide before they can tell. The item is named beneath it —
+              a stall has a subject, and without it the number sends you scanning
+              the grid for which one it was. */}
           <Figure
             size="sm"
             value={summary.stall ? summary.stall.took : null}
-            format={(n) => `${Math.round(n)}s`}
+            format={f.duration}
             label="Longest stall"
+            note={summary.stall ? f.itemLabel(summary.stall.itemName) : null}
             count={false}
           />
         </div>
+
+        <PhaseSplit counts={summary.phases} />
 
         {summary.pulls > 0 ? (
           <>

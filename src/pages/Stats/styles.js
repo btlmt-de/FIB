@@ -963,6 +963,17 @@ ${cssVariables()}
 .fib-cell-player { display: flex; align-items: center; gap: 10px; font-weight: 500; min-width: 0; }
 .fib-cell-player span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* A cell holding one or two of them — a duo is two names in one row. */
+.fib-cell-players {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--fib-space-3); min-width: 0;
+}
+
+/* A whole row that opens something. The chevron is the real control, but the
+   row takes the click too, and a clickable row that keeps the text cursor never
+   tells anyone that. */
+.fib-row-toggle { cursor: pointer; }
+
 /* Rows that are themselves links into a deeper view. */
 .fib-row-link {
   display: flex; align-items: center; gap: var(--fib-space-4);
@@ -1014,6 +1025,9 @@ ${cssVariables()}
 .fib-chart .dot   { stroke: var(--fib-void); stroke-width: 2; }
 /* Lead-change ticks on a race timeline. */
 .fib-chart .tick  { stroke: var(--fib-netherite); stroke-width: 1; opacity: 0.55; }
+/* The full-size trace names its ticks in the caption beside it, so they have to
+   survive being looked for. The miniature keeps the quiet weight above. */
+.fib-chart .tick--lead { stroke: var(--fib-ink-3); stroke-width: 1.5; opacity: 0.9; }
 .fib-chart .enddot { stroke: var(--fib-void); stroke-width: 1.5; }
 
 .fib-chart-legend {
@@ -1770,6 +1784,23 @@ ${cssVariables()}
   text-align: right; text-wrap: pretty;
 }
 
+/*
+ * Twenty-four rules in one undifferentiated grid is a list you search rather
+ * than read, and the two that decide what the match even was — the format and
+ * the item pool — sat wherever the server happened to send them. The groups are
+ * the wiki's own categories, separated by a label and space, never boxed.
+ */
+.fib-settings-group + .fib-settings-group { margin-top: var(--fib-space-6); }
+.fib-settings-head {
+  /* More air above the heading than below it: the label belongs to the rows
+     under it, not to the group it just left. Colour is ".fib-label"'s own
+     ink-3 — the module's proven label step — not a dimmer one; a heading that
+     has to be hunted for is not doing the job the grouping exists to do. */
+  margin: 0 0 var(--fib-space-3);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.fib-match-id { margin-top: var(--fib-space-6); }
+
 /* Overview. */
 .fib-overview-head { padding-bottom: var(--fib-space-6); }
 .fib-overview-head .fib-lede { margin: var(--fib-space-3) 0 0; }
@@ -2024,7 +2055,71 @@ ${cssVariables()}
   min-width: 0; max-width: 380px;
 }
 .fib-inv-figures { display: flex; gap: var(--fib-space-5); flex-wrap: wrap; }
-.fib-inv-subhead { margin-top: var(--fib-space-2); }
+
+/* The full margin, not just the top. "h5" is absent from the reset's heading
+   list, so it kept the UA's ~1.67em margin-block-end and pushed the ramp a good
+   20px clear of the heading that names it. */
+.fib-inv-subhead { margin: var(--fib-space-2) 0 0; }
+
+/* The stall's SUBJECT, not a measurement. The figure note is mono and tabular
+   because it usually carries a standing ("2nd of 8"); an item name set in
+   JetBrains Mono is monospace worn as a costume for "technical". */
+.fib-inv-figures .fib-figure-note {
+  font-family: var(--fib-font-sans);
+  font-variant-numeric: normal;
+  color: var(--fib-ink-3);
+}
+
+/* ── The pool-phase split ──────────────────────────────────────────────
+ *
+ * A stacked bar, not a fourth ramp: the three phases partition the run, so the
+ * shape has to sum to the whole. Segments flex-grow by their count and butt
+ * together inside a clipped pill, and the key beneath carries the counts as
+ * text — the bar answers "how was this run made up", the key answers "how many".
+ *
+ * Named "phase-split" and not "split": ".fib-split" is already the overview's
+ * two-column pair, and inheriting its "align-items: start" collapsed this bar to
+ * 13px of its 260px column.
+ */
+.fib-phase-split { display: flex; flex-direction: column; gap: var(--fib-space-3); }
+
+.fib-phase-split-bar {
+  display: flex; gap: 2px;
+  height: 10px; border-radius: var(--fib-radius-pill);
+  background: var(--fib-sunk);
+  box-shadow: inset 0 1px 0 0 var(--fib-shadow-mid);
+  overflow: hidden;
+}
+.fib-phase-split-bar i {
+  /* The same top-edge gloss the ramp fills carry, so both meters in this rail
+     are lit from the same place. The colour is set inline per segment, which is
+     why this is background-IMAGE — the shorthand would wipe it. */
+  background-image: linear-gradient(var(--fib-gloss-top), transparent 55%);
+  /* One item out of sixty is still an item. Without a floor its segment rounds
+     to a sub-pixel and the phase reads as absent rather than rare. */
+  min-width: 3px;
+}
+
+.fib-phase-split-key { display: flex; flex-direction: column; gap: 7px; }
+.fib-phase-split-key li {
+  display: grid; grid-template-columns: 9px minmax(0, 1fr) auto;
+  align-items: center; gap: var(--fib-space-3);
+}
+/* Swatch only: the label stays in ink. Three coloured words above five more in
+   the rarity ramp would spend the rail's whole colour budget on legends, and
+   phase-late is the fill red that doesn't clear 4.5:1 as small text anyway. */
+.fib-phase-split-key i { width: 9px; height: 9px; border-radius: var(--fib-radius-sm); }
+.fib-phase-split-key span { font-size: var(--fib-text-xs); color: var(--fib-ink-2); }
+.fib-phase-split-key em {
+  font-family: var(--fib-font-mono); font-style: normal;
+  font-size: var(--fib-text-xs); font-variant-numeric: tabular-nums;
+  color: var(--fib-ink-2); min-width: 3ch; text-align: right;
+}
+/* A phase this run never touched. Dimmed, never hidden — the zero is the answer. */
+.fib-phase-split-key li[data-empty] { color: var(--fib-trace-dim); }
+.fib-phase-split-key li[data-empty] span,
+.fib-phase-split-key li[data-empty] em { color: inherit; }
+.fib-phase-split-key li[data-empty] i { opacity: 0.4; }
 
 /* ── The fill ──────────────────────────────────────────────────────────
  *
