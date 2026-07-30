@@ -28,6 +28,13 @@ export {
   winRate, itemsPerGame, secondsPerItem, timeAgo,
 };
 
+/**
+ * An item's match phase — EARLY / MID / LATE — from ITEM_STATE (vendored from
+ * the plugin), or null for an item never assigned one. Shared by the item index
+ * and the collection so a sprite reads the same phase colour in both places.
+ */
+export const itemPhase = (itemName) => ITEM_STATE[itemKey(itemName).toUpperCase()] || null;
+
 /** Order-independent pair key, matching FibTeamKey. */
 export const teamKey = (a, b) => [a, b].slice().sort().join('~');
 

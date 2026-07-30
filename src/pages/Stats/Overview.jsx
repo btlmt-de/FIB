@@ -40,12 +40,12 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { matchStandings, matchDuration, playerName, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
+import { matchStandings, matchDuration, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
 import { loadOverview } from './api.js';
 import { useAsync } from './useAsync.js';
 import { usePendingReveal } from './useSeen.js';
 import {
-    Section, Figure, Avatar, Medal, Sprite, RarityTag, Reveal, Delta, Movement, Counter, Chip,
+    Section, Figure, Avatar, Medal, Sprite, RarityTag, Reveal, Delta, Movement, Counter, Segmented,
     AsyncView,
 } from './Primitives.jsx';
 import { RaceMini } from './Charts.jsx';
@@ -58,6 +58,12 @@ const PODIUM_SCOPES = [
     { key: 'solo', label: 'Solo' },
     { key: 'teams', label: 'Teams' },
 ];
+
+/* Solo finds name the player. Team finds record no individual puller, so the team roster (both
+   members) is the actor, joined the same way the match view labels a team. Falls back to "Unknown"
+   only for a row with neither — a genuinely malformed moment. */
+const momentActor = (m) =>
+    (m.player ? idLabel(m.player) : (m.members ?? []).map(idLabel).join(' & ')) || 'Unknown';
 
 export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderboards }) {
     const state = useAsync(loadOverview, []);
@@ -181,24 +187,18 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                 }
             >
                 {/*
-          A group, not a tablist — `Chip` renders `<button aria-pressed>`, the
-          same toggle the leaderboards page uses. Announcing this as a tab list
-          would promise a `role="tab"` structure that is not here.
+          A radiogroup, not a tablist: there is no tab panel here, scope is a lens
+          on one podium. `Segmented` owns that contract — one tab stop, arrows
+          move the selection — and it is the same control the leaderboards and
+          the profile use for the same job.
         */}
-                <div
-                    role="group"
-                    aria-label="Podium scope"
-                    style={{ display: 'flex', gap: 7, marginBottom: 'var(--fib-space-6)' }}
-                >
-                    {PODIUM_SCOPES.map((s) => (
-                        <Chip
-                            key={s.key}
-                            active={s.key === scope}
-                            onClick={() => setScope(s.key)}
-                        >
-                            {s.label}
-                        </Chip>
-                    ))}
+                <div style={{ marginBottom: 'var(--fib-space-6)' }}>
+                    <Segmented
+                        options={PODIUM_SCOPES.map((s) => ({ id: s.key, label: s.label }))}
+                        value={scope}
+                        onChange={setScope}
+                        label="Podium scope"
+                    />
                 </div>
 
                 {topThree.length === 0 ? (
@@ -342,7 +342,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                 </span>
                                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                                     <div style={{ fontWeight: 500 }}>
-                                        {idLabel(m.player)} pulled {f.itemLabel(m.itemName)}
+                                        {momentActor(m)} pulled {f.itemLabel(m.itemName)}
                                     </div>
                                     <div className="fib-meta">{timeAgo(m.collectedAt)}</div>
                                 </div>

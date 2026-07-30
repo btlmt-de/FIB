@@ -39,142 +39,23 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LEADERBOARD_SCOPES, matchStandings } from './adapter.js';
 import { RARITY_KEYS } from './tokens.js';
-import { unifyStats, totalPulls, achievementGroups, achievementSummary } from './achievements.js';
-import { loadRoster, loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements } from './api.js';
+import {
+  unifyStats, totalPulls, achievementGroups, achievementSummary, splitAchievements,
+} from './achievements.js';
+import {
+  loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements,
+  loadStatField, loadCollection,
+} from './api.js';
 import { idUuid, idName, idLabel, matchDuration } from './adapter.js';
 import { useAsync } from './useAsync.js';
 import { canObserve } from './env.js';
 import {
-  Section, Figure, Avatar, Sprite, Medal, Segmented, Search, Empty, Chip,
-  RarityRamp, PlayerLink, Reveal, Counter, AsyncView,
+  Section, Figure, Avatar, Sprite, Medal, Segmented, Search, Empty,
+  RarityRamp, PlayerLink, Reveal, Counter, AsyncView, PCard, CardMeter,
 } from './Primitives.jsx';
 import { ScoreTrend } from './Charts.jsx';
 import * as f from './format.js';
 import { renderMiniMessage } from './MiniMessage.jsx';
-
-/* ── Derivation ───────────────────────────────────────────────────────── */
-
-/* ── Players index ────────────────────────────────────────────────────── */
-
-const PLAYER_SORTS = [
-  { id: 'rank', label: 'Rank' },
-  { id: 'wins', label: 'Wins' },
-  { id: 'winRate', label: 'Win rate' },
-  { id: 'items', label: 'Items found' },
-];
-
-/**
- * Finding a player is the entry point to everything else, so this view is a
- * search box and a sortable ranked list — not a grid of identical profile
- * cards, which would make eight players look like a product catalogue. Each
- * row carries the player's recent form as a sparkline: a record is what they
- * did, form is what they are doing.
- */
-/* The sort chips map to the roster endpoint's own `sort`, so ordering is the server's job now, not
- * a client re-sort of a loaded page. 'rank' is the default games_won ordering. */
-const ROSTER_SORT = { rank: 'games_won', wins: 'games_won', winRate: 'win_rate', items: 'total_items_found' };
-
-export function Players({ onOpenPlayer }) {
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('rank');
-
-  // Debounce-free for now: each keystroke re-fetches, which the backend rate-limits and caches.
-  // A real debounce belongs here later; it is a refinement, not a correctness fix.
-  const state = useAsync(
-      () => loadRoster({ query: query.trim() || undefined, sort: ROSTER_SORT[sort] }),
-      [query, sort],
-  );
-
-  return (
-      <AsyncView state={state} loadingLabel="Loading players…">
-        {(page) => (
-            <PlayersBody
-                rows={page?.players ?? []}
-                total={page?.totalCount ?? 0}
-                query={query} onQuery={setQuery}
-                sort={sort} onSort={setSort}
-                onOpenPlayer={onOpenPlayer}
-            />
-        )}
-      </AsyncView>
-  );
-}
-
-function PlayersBody({ rows, total, query, onQuery, sort, onSort, onOpenPlayer }) {
-  const maxItems = Math.max(1, ...rows.map((r) => r.totalItemsFound));
-
-  return (
-      <div className="fib-page">
-        <Section
-            title="Players"
-            sub={`${total} ranked players. Open a record to see the whole history.`}
-            aside={
-              <div style={{ display: 'flex', gap: 'var(--fib-space-3)', flexWrap: 'wrap' }}>
-                <Search value={query} onChange={onQuery} placeholder="Find a player" label="Find a player" />
-              </div>
-            }
-        >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 'var(--fib-space-5)' }}>
-            {PLAYER_SORTS.map((s) => (
-                <Chip key={s.id} active={s.id === sort} onClick={() => onSort(s.id)}>
-                  {s.label}
-                </Chip>
-            ))}
-          </div>
-
-          {rows.length === 0 ? (
-              <Empty title={query.trim() ? `Nobody matches “${query.trim()}”` : 'No ranked players yet'}>
-                Player names are exact Minecraft usernames. Check the spelling, or clear the
-                search to see everyone who has played a ranked match.
-              </Empty>
-          ) : (
-              <div className="fib-panel fib-panel--flush">
-                {rows.map((p, i) => {
-                  // The roster entry's identity: nested {playerUuid, playerName} like every other
-                  // endpoint, OR the raw {uuid, name} if the public API's roster mapper passed FIBService's
-                  // shape through without normalizing. Tolerate both so a mapper mismatch degrades to
-                  // "works" rather than a crash; the backend fix (emit the identity DTO like the rest) can
-                  // follow without breaking this.
-                  const uuid = idUuid(p.player);
-                  const name = idLabel(p.player);
-                  const winRate = f.winRate(p.gamesWon, p.gamesPlayed);
-                  return (
-                      <button
-                          key={uuid}
-                          type="button"
-                          className="fib-row-link"
-                          onClick={() => onOpenPlayer(uuid)}
-                      >
-                        {/* Line number within the page, not a rank — the roster does not return one,
-                      because a page position is not a rank once players tie. */}
-                        <Medal place={i + 1} />
-                        <Avatar uuid={uuid} size={36} />
-                        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, letterSpacing: '-0.01em' }}>{name}</div>
-                          <div className="fib-meta">
-                            {f.num(p.gamesPlayed)} matches · {f.pct(winRate)} won
-                          </div>
-                        </div>
-                        {/* The recent-form sparkline is gone: the roster row carries no per-match history,
-                      and fetching each player's last ten matches would be the exact N+1 the roster
-                      endpoint exists to remove. */}
-                        <div style={{ width: 128, flex: 'none' }} className="fib-hide-sm">
-                          <div className="fib-ramp-track" style={{ height: 6, color: 'var(--fib-diamond)' }}>
-                            <i style={{ '--fill': p.totalItemsFound / maxItems }} />
-                          </div>
-                          <div className="fib-meta" style={{ marginTop: 5 }}>
-                            {f.num(p.totalItemsFound)} items
-                          </div>
-                        </div>
-                      </button>
-                  );
-                })}
-              </div>
-          )}
-        </Section>
-      </div>
-  );
-}
 
 /* ── The record ───────────────────────────────────────────────────────── */
 
@@ -190,6 +71,17 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
   // catalogue is the same for everyone, so it is cheap and cacheable upstream.
   const catalogueState = useAsync(loadCatalogue, []);
   const achievementsState = useAsync(() => loadPlayerAchievements(uuid), [uuid]);
+  /* The field every figure states its placing against, and the collection totals
+     the four COLLECTION achievements measure progress against. Both are optional
+     by design: without the field the figures render bare (as they did for every
+     release before this one), and without the collection those four rows show no
+     bar. Neither blocks the profile, and neither is refetched per scope — the
+     field is scoped client-side from one payload. */
+  const fieldState = useAsync(
+      () => (scope === 'duo' ? Promise.resolve({ data: null }) : loadStatField(scope)),
+      [scope],
+  );
+  const collectionState = useAsync(() => loadCollection(uuid), [uuid]);
 
   return (
       <AsyncView
@@ -212,6 +104,8 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
                 history={historyState.data}
                 catalogue={catalogueState.data}
                 achievements={achievementsState.data}
+                statField={fieldState.data}
+                collection={collectionState.data}
                 partnerIndex={partnerIndex} setPartnerIndex={setPartnerIndex}
             />
         )}
@@ -221,7 +115,8 @@ export function PlayerProfile({ uuid, scope, onScopeChange, onBack, onOpenPlayer
 
 function PlayerProfileBody({
                              uuid, scope, onScopeChange, onBack, onOpenPlayer, onOpenMatch, onOpenCollection,
-                             payload, history, catalogue, achievements, partnerIndex, setPartnerIndex,
+                             payload, history, catalogue, achievements, statField, collection,
+                             partnerIndex, setPartnerIndex,
                            }) {
   const heroRef = useRef(null);
   const [barOn, setBarOn] = useState(false);
@@ -280,20 +175,35 @@ function PlayerProfileBody({
           return { value: me.finalScore, won: me.won, label: f.date(m.endedAt), matchId: m.matchId };
         });
 
-    const achGroups = achievementGroups(catalogue, achievements);
+    /*
+     * The field each figure states its placing against: one column of values per
+     * metric, fetched from the leaderboards for the scope being shown (see
+     * `loadStatField`). Duo never gets one — a partnership's totals are not
+     * comparable to individuals', and "2nd of 6" against the wrong denominator is
+     * worse than no note at all — and `PlayerProfile` does not even request it.
+     */
+    const field = scope === 'duo' ? null : (statField?.values ?? null);
+
+    /* Lifetime totals, for achievement progress. Deliberately NOT the scoped
+       block: "Die 500 times" counts every death a player has ever had, so
+       flipping the scope selector to Duos must not make a global achievement
+       look further away than it is. `team` is the combined roll-up. */
+    const career = unifyStats(profile?.team, 'combined') ?? unifyStats(profile?.solo, 'solo');
+
+    const achGroups = achievementGroups(catalogue, achievements, {
+      career,
+      streaks: profile?.streaks ?? null,
+      collection,
+    });
 
     return {
-      profile, stats, trend, partners,
-      // No per-stat placement notes: the profile shows one real global rank in the hero (from the
-      // rank endpoint) and that is the whole rank story. Record renders every figure without an
-      // "Nth of M" note when field is null — a deliberate design choice, not a missing endpoint.
-      field: null,
+      profile, stats, trend, partners, field,
       summary: achievementSummary(catalogue, achievements),
       rank: payload.rank ?? null,
       achGroups,
       recent: mine.slice(0, 5),
     };
-  }, [payload, history, catalogue, achievements, scope, partnerIndex, uuid]);
+  }, [payload, history, catalogue, achievements, statField, collection, scope, partnerIndex, uuid]);
 
   const { profile, stats, field, trend, achGroups, summary, rank, partners, recent } = model;
   const name = idName(profile?.player) ?? uuid.slice(0, 8);
@@ -526,58 +436,7 @@ function PlayerProfileBody({
               </Section>
 
               {/* ── HONOURS ──────────────────────────────────────────────── */}
-              <Section
-                  title="Achievements"
-                  sub={`${summary.earned} of ${summary.total} earned. The real in-game achievements — when each was unlocked, and who it was earned with.`}
-              >
-                {achGroups.length === 0 ? (
-                    <Empty title="No achievements yet">
-                      {name} hasn't unlocked anything yet. Achievements are earned in-game — win a
-                      match, hit a streak, complete the collection — and appear here the moment they land.
-                    </Empty>
-                ) : (
-                    achGroups.map((group) => (
-                        <div key={group.scope} className="fib-ach-group">
-                          <h3 className="fib-subhead">{group.label}</h3>
-                          <div className="fib-ach">
-                            {group.achievements.map((a) => (
-                                <div
-                                    key={a.id}
-                                    className="fib-ach-row"
-                                    data-locked={a.unlocked ? undefined : 'true'}
-                                >
-                                  <div className="fib-ach-body">
-                                    {/* Titles carry MiniMessage colour; render, don't print raw. */}
-                                    <b>{renderMiniMessage(a.title)}</b>
-                                    <p>{renderMiniMessage(a.description)}</p>
-                                    {a.unlocked && a.teammates.length > 0 ? (
-                                        <span className="fib-meta">
-                              with {a.teammates.map(idLabel).join(', ')}
-                            </span>
-                                    ) : null}
-                                  </div>
-
-                                  <div className="fib-ach-side">
-                                    {a.unlocked ? (
-                                        <>
-                                          <span className="fib-ach-check" aria-label="Unlocked">✔</span>
-                                          <span className="fib-meta">{f.date(a.earnedAt)}</span>
-                                          {/* Rarity line renders only if a count endpoint ever fills these. */}
-                                          {a.heldBy != null && a.population != null ? (
-                                              <span className="fib-meta">held by {a.heldBy} of {a.population}</span>
-                                          ) : null}
-                                        </>
-                                    ) : (
-                                        <span className="fib-meta">Locked</span>
-                                    )}
-                                  </div>
-                                </div>
-                            ))}
-                          </div>
-                        </div>
-                    ))
-                )}
-              </Section>
+              <Honours name={name} groups={achGroups} summary={summary} />
 
               {/* ── IN SHORT ─────────────────────────────────────────────── */}
               <Signature
@@ -624,35 +483,55 @@ function PlayerProfileBody({
  * field's best as a bar, plus that best as a figure. The compact tier cannot
  * carry a bar at this size, so it carries the standing instead.
  *
- * Which is arguably the better half of that bargain. Every figure in both tiers
- * says where it places in the field — "2nd of 8" — a fact the old StatCard's
- * decorative subValue ("back-to-back rares") never carried, counted rather than
- * asserted, the same rule the achievement tiers follow. Suppressed below three
- * entries in the field, where a placing is noise dressed as a ranking.
+ * Which is arguably the better half of that bargain. A figure that has a field
+ * says where it places in it — "2nd of 8" — a fact the old StatCard's decorative
+ * subValue ("back-to-back rares") never carried, counted rather than asserted,
+ * the same rule the achievement tiers follow.
+ *
+ * ── Which figures get one, and why not all of them ──
+ *
+ * The field comes from the leaderboards, one call per metric, because the
+ * alternative (a request per rostered player) rate-limited this backend hard
+ * enough to take the origin down with it — see `loadStatField`. Eight of the
+ * fourteen figures therefore carry a placing: the six board categories, plus
+ * matches played and items per match off the roster. Current win streak carries
+ * its own best instead, which says more than a placing would. The remaining five
+ * — longest item streak, time per item, total back-to-backs, wheel spins,
+ * antimatter trips — have no board and no roster column, so they render bare.
+ *
+ * That is a real gap and it is deliberately visible rather than papered over: a
+ * fabricated denominator would be worse than a missing one. It closes the day a
+ * bulk stats endpoint exists; nothing here changes but the field's source.
  */
 function Record({ stats, field, streaks }) {
-  /* Standing in the field: how many are strictly ahead, plus one. Only rendered when a field
-     payload is supplied — today it never is (the profile shows one global rank in the hero
-     instead), so every note below is null and the figures stand alone. Kept intact so a future
-     all-players comparison can light them up by passing a field; not currently wired. */
-  const standing = (pick, value, sense) => {
-    if (!field || field.stats.length < 3 || !Number.isFinite(value)) return null;
-    const ahead = field.stats.filter((s) => {
-      const v = pick(s);
-      if (!Number.isFinite(v)) return false;
-      return sense === 'low' ? v < value : v > value;
-    }).length;
-    return `${f.ordinal(ahead + 1)} of ${field.stats.length}`;
+  /*
+   * Standing in the field: how many players are strictly ahead on this metric,
+   * plus one. Counted, never asserted — and inverted where fewer is better, so
+   * fewest deaths reads as 1st.
+   *
+   * `metric` names a column in the field (see `loadStatField`). A metric with no
+   * column returns null and its figure renders bare, which is the honest state
+   * for the five stats no leaderboard and no roster row carries. So is a null
+   * field: duo scope, or a fetch that failed. Nothing here guesses.
+   *
+   * The field is already filtered to columns with at least three entrants, where
+   * a placing stops being noise dressed as a ranking.
+   */
+  const standing = (metric, value, sense) => {
+    const column = field?.[metric];
+    if (!column || !Number.isFinite(value)) return null;
+    const ahead = column.filter((v) => (sense === 'low' ? v < value : v > value)).length;
+    return `${f.ordinal(ahead + 1)} of ${column.length}`;
   };
 
   const HEADLINE = [
     {
       label: 'Matches played', value: stats.gamesPlayed,
-      note: standing((s) => s.gamesPlayed, stats.gamesPlayed),
+      note: standing('gamesPlayed', stats.gamesPlayed),
     },
     {
       label: 'Matches won', value: stats.gamesWon, tone: 'gold',
-      note: standing((s) => s.gamesWon, stats.gamesWon),
+      note: standing('gamesWon', stats.gamesWon),
     },
     {
       /* The one figure with no field to stand in: streak lives on the player
@@ -665,15 +544,16 @@ function Record({ stats, field, streaks }) {
     },
     {
       label: 'Back-to-back best', value: stats.highestB2BStreak,
-      note: standing((s) => s.highestB2BStreak, stats.highestB2BStreak),
+      note: standing('highestB2BStreak', stats.highestB2BStreak),
     },
     {
       label: 'Longest item streak', value: stats.longestItemStreak,
-      note: standing((s) => s.longestItemStreak, stats.longestItemStreak),
+      /* No board and no roster column carries this one, so it renders bare. */
+      note: standing('longestItemStreak', stats.longestItemStreak),
     },
     {
       label: 'Highest score', value: stats.highestScore, format: f.full,
-      note: standing((s) => s.highestScore, stats.highestScore),
+      note: standing('highestScore', stats.highestScore),
     },
   ];
 
@@ -695,43 +575,39 @@ function Record({ stats, field, streaks }) {
   const REST = [
     {
       label: 'Items found', value: stats.totalItemsFound, format: f.full,
-      note: standing((s) => s.totalItemsFound, stats.totalItemsFound),
+      note: standing('totalItemsFound', stats.totalItemsFound),
     },
     {
       label: 'Items per match', value: perMatch, format: (n) => f.dec(n, 1),
-      note: standing((s) => f.itemsPerGame(s.totalItemsFound, s.gamesPlayed), perMatch),
+      note: standing('itemsPerMatch', perMatch),
     },
     {
       // Time, not a bare second count: `duration` writes m + s past a minute,
       // so a slow item reads "1m 49s" rather than "108.6s". No `unit` — duration
       // carries its own.
       label: 'Time per item', value: perItem, format: f.duration,
-      note: standing(
-          (s) => f.secondsPerItem(s.totalTimeSpentOnItems, s.totalItemsFound),
-          perItem,
-          'low',
-      ),
+      note: standing('secondsPerItem', perItem, 'low'),
     },
     {
       label: 'Total back-to-backs', value: pulls,
-      note: standing(totalPulls, pulls),
+      note: standing('totalPulls', pulls),
     },
     {
       label: 'Distance travelled', value: stats.blocksTravelled, format: f.distance,
       unit: 'blocks',
-      note: standing((s) => s.blocksTravelled, stats.blocksTravelled),
+      note: standing('blocksTravelled', stats.blocksTravelled),
     },
     {
       label: 'Deaths', value: stats.deaths,
-      note: standing((s) => s.deaths, stats.deaths, 'low'),
+      note: standing('deaths', stats.deaths, 'low'),
     },
     {
       label: 'Wheel spins', value: stats.wheelOfFortuneUses,
-      note: standing((s) => s.wheelOfFortuneUses, stats.wheelOfFortuneUses),
+      note: standing('wheelOfFortuneUses', stats.wheelOfFortuneUses),
     },
     {
       label: 'Antimatter trips', value: stats.enteredAntimatterTeleporter,
-      note: standing((s) => s.enteredAntimatterTeleporter, stats.enteredAntimatterTeleporter),
+      note: standing('enteredAntimatterTeleporter', stats.enteredAntimatterTeleporter),
     },
   ];
 
@@ -771,6 +647,197 @@ function Record({ stats, field, streaks }) {
           ))}
         </div>
       </Reveal>
+  );
+}
+
+/* ── Honours ──────────────────────────────────────────────────────────── */
+
+/*
+ * One glyph per achievement kind. Inline and hand-drawn for the same reason the
+ * rail's five are (see Chrome.jsx): four outlines cost less than four icon
+ * modules, and drawing them here keeps one stroke weight across the set.
+ *
+ * These identify the *kind* of achievement, which is the only thing the
+ * catalogue tells us about it — there is no per-achievement artwork in the
+ * plugin's payload, and inventing one would be decoration pretending to be data.
+ */
+const ACH_ICON = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+const ACH_GLYPH = {
+  /* A single round: a stopwatch. */
+  ROUND: <svg {...ACH_ICON} aria-hidden="true"><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 3h5" /></svg>,
+  /* Lifetime: a trophy. */
+  GLOBAL: <svg {...ACH_ICON} aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z" /><path d="M8 5.5H5.5V7a3 3 0 0 0 2.5 3M16 5.5h2.5V7a3 3 0 0 1-2.5 3" /><path d="M12 13v4M9 20h6" /></svg>,
+  /* The collection: a stack of crates. */
+  COLLECTION: <svg {...ACH_ICON} aria-hidden="true"><rect x="3.5" y="13" width="7" height="7" rx="1" /><rect x="13.5" y="13" width="7" height="7" rx="1" /><rect x="8.5" y="4" width="7" height="7" rx="1" /></svg>,
+  /* Meta: achievements about achievements. */
+  META: <svg {...ACH_ICON} aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z" /></svg>,
+};
+
+const achGlyph = (scope) => ACH_GLYPH[scope] ?? ACH_GLYPH.GLOBAL;
+
+/** The kind filters, in the catalogue's own scope order. `all` is not a scope. */
+const ACH_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'ROUND', label: 'In a round' },
+  { id: 'GLOBAL', label: 'Lifetime' },
+  { id: 'COLLECTION', label: 'Collection' },
+  { id: 'META', label: 'Meta' },
+];
+
+/**
+ * The case and the chase.
+ *
+ * This section used to be one list: every achievement in the catalogue, grouped
+ * by scope, each row a title, a description, and — on the 53 a player did not
+ * have — the right-aligned word "Locked". Eighty-six rows of identical furniture,
+ * ordered alphabetically, which meant the two questions a player actually brings
+ * here both went unanswered. "What have I got" was buried among what they hadn't,
+ * and "what am I closest to" required reading every locked row and doing the
+ * arithmetic in their head.
+ *
+ * So: two blocks, different furniture, per DESIGN.md's "The Case and the Chase".
+ *
+ *   the case   what they hold, as objects — a glyph in a lit well, gold-rimmed
+ *              because an earned achievement is a prize, newest first, because a
+ *              trophy case is read as "what did I just get"
+ *   the chase  what is left, as a progress list, closest first, each row carrying
+ *              its own numerator ("412 of 500") and a bar
+ *
+ * Progress is derived — see ACHIEVEMENT_PROGRESS in achievements.js — and only
+ * where a career stat genuinely measures it. The 54 single-round achievements
+ * ("Collect 3 items in the final minute") carry no bar, because no lifetime total
+ * says how close you are to one. They sort last and say what they need instead of
+ * pretending to a percentage.
+ *
+ * A search box and a kind filter sit above both, because 86 rows without either
+ * is a scroll, not an interface.
+ */
+function Honours({ name, groups, summary }) {
+  const [kind, setKind] = useState('all');
+  const [query, setQuery] = useState('');
+
+  const { earned, chase } = useMemo(() => splitAchievements(groups), [groups]);
+
+  const q = query.trim().toLowerCase();
+  const match = (a) =>
+      (kind === 'all' || a.scope === kind)
+      && (!q || a.plainTitle.toLowerCase().includes(q) || a.plainDescription.toLowerCase().includes(q));
+
+  const shownEarned = earned.filter(match);
+  const shownChase = chase.filter(match);
+  const filtered = kind !== 'all' || q !== '';
+
+  /* Only offer a kind the catalogue actually contains — a filter that yields
+     nothing on every profile is a control that lies about the data. */
+  const filters = ACH_FILTERS.filter(
+      (o) => o.id === 'all' || groups.some((g) => g.scope === o.id));
+
+  return (
+      <Section
+          title="Achievements"
+          sub={`${summary.earned} of ${summary.total} earned. The real in-game achievements — what ${name} holds, and what is closest to falling next.`}
+          aside={<Search value={query} onChange={setQuery} placeholder="Find an achievement" label="Find an achievement" />}
+      >
+        {groups.length === 0 ? (
+            <Empty title="No achievements yet">
+              {name} hasn't unlocked anything yet. Achievements are earned in-game — win a
+              match, hit a streak, complete the collection — and appear here the moment they land.
+            </Empty>
+        ) : (
+            <>
+              {filters.length > 2 ? (
+                  <div className="fib-ach-filters">
+                    <Segmented
+                        options={filters}
+                        value={kind}
+                        onChange={setKind}
+                        label="Filter achievements by kind"
+                    />
+                  </div>
+              ) : null}
+
+              {/* ── THE CASE ─────────────────────────────────────────────── */}
+              <h3 className="fib-subhead">
+                Earned
+                <span className="fib-meta"> · {f.num(shownEarned.length)}{filtered ? ` of ${f.num(earned.length)}` : ''}</span>
+              </h3>
+              {shownEarned.length === 0 ? (
+                  <Empty title={filtered ? 'Nothing earned matches that' : 'Nothing earned yet'}>
+                    {filtered
+                        ? 'Clear the search or pick another kind to see the rest of the case.'
+                        : `Every achievement ${name} unlocks lands here, newest first.`}
+                  </Empty>
+              ) : (
+                  <ul className="fib-case">
+                    {shownEarned.map((a) => (
+                        <li key={a.id} className="fib-case-tile">
+                          {/* `data-tier` lights the well's rim; the colour itself is
+                              set in CSS (emerald — see the case/chase block in
+                              styles.js), so the tier name here is only the switch. */}
+                          <div className="fib-well fib-case-well" data-tier="earned">
+                            {achGlyph(a.scope)}
+                          </div>
+                          <div className="fib-case-body">
+                            <b>{renderMiniMessage(a.title)}</b>
+                            <p className="fib-meta">{renderMiniMessage(a.description)}</p>
+                            <span className="fib-meta fib-case-when">
+                          {a.earnedAt ? f.date(a.earnedAt) : a.scopeLabel}
+                              {a.teammates.length > 0 ? ` · with ${a.teammates.map(idLabel).join(', ')}` : ''}
+                        </span>
+                          </div>
+                        </li>
+                    ))}
+                  </ul>
+              )}
+
+              {/* ── THE CHASE ────────────────────────────────────────────── */}
+              <h3 className="fib-subhead fib-chase-head">
+                Closest to earning
+                <span className="fib-meta"> · {f.num(shownChase.length)}{filtered ? ` of ${f.num(chase.length)}` : ''} left</span>
+              </h3>
+              {shownChase.length === 0 ? (
+                  <Empty title={filtered ? 'Nothing left matches that' : 'Everything earned'}>
+                    {filtered
+                        ? 'Clear the search or pick another kind to see what is still open.'
+                        : `${name} holds every achievement in the catalogue. There is nothing left to chase.`}
+                  </Empty>
+              ) : (
+                  <ol className="fib-chase">
+                    {shownChase.map((a) => (
+                        <li key={a.id} className="fib-chase-row">
+                          <div className="fib-chase-body">
+                            <b>{renderMiniMessage(a.title)}</b>
+                            <p>{renderMiniMessage(a.description)}</p>
+                          </div>
+                          <div className="fib-chase-track">
+                            {a.progress ? (
+                                <>
+                                  <div
+                                      className="fib-ramp-track"
+                                      style={{ height: 6, color: 'var(--fib-blue)' }}
+                                      role="img"
+                                      aria-label={`${a.plainTitle}: ${f.num(a.progress.current)} of ${f.num(a.progress.target)}`}
+                                  >
+                                    <i style={{ '--fill': a.progress.ratio }} />
+                                  </div>
+                                  <span className="fib-chase-count">
+                                {f.num(a.progress.current)} of {f.num(Math.round(a.progress.target))}
+                              </span>
+                                </>
+                            ) : (
+                                /* No career total measures a single-round feat, so this row states
+                                   its kind instead of faking a percentage. */
+                                <span className="fib-meta fib-chase-unmeasured">{a.scopeLabel}</span>
+                            )}
+                          </div>
+                        </li>
+                    ))}
+                  </ol>
+              )}
+            </>
+        )}
+      </Section>
   );
 }
 

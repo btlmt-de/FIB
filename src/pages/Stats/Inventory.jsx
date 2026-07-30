@@ -1,17 +1,22 @@
 /**
  * FIB Stats — the match inventory.
  *
- * One competitor's complete item log from a single match, laid out as a
- * nine-wide inventory grid. Nine columns is not decoration: it is the width of
- * a Minecraft inventory row, and reading the run in the same shape the player
- * saw it in-game is the point. The slot itself is the module's existing `well`
- * recess, so this reads as the same system rather than a bolt-on.
+ * One competitor's complete item log from a single match, laid out as a grid of
+ * labelled tiles — one tile per item, in collection order. This was a nine-wide
+ * Minecraft-shaped grid of bare 48px slots whose names lived only in a hover
+ * caption; that shape was authentic but unreadable, a wall of tiny squares you
+ * had to point at one at a time to decode. The tile keeps the sprite in the
+ * module's `well` recess but sets its NAME beside it, always on, so the run
+ * reads as a list of things collected rather than a puzzle to hover through.
  *
- * Three signals ride on each slot, all of them already in the data:
+ * Every signal is on the tile itself, none of it behind a pointer:
  *
+ *   name         the item, spelled out
+ *   sprite well  seated in the shared recess, so this is the same system
+ *   phase bleed  early / mid / late, the green→yellow→red the item index uses
  *   rim          back-to-back rarity, on the five-tier ramp
  *   corner index collection order, where Minecraft puts stack size
- *   slash + grey skipped
+ *   meta line    seconds to collect · rarity · skipped
  *
  * Skips are desaturated rather than reddened. A skipped item still scores, so
  * it means "gave up on this one", not "failed" — colouring it like an error
@@ -19,7 +24,7 @@
  *
  * ── The playback ──
  *
- * Slots do not appear on a uniform stagger. Each one's delay is its REAL
+ * Tiles do not appear on a uniform stagger. Each one's delay is its REAL
  * collection time, scaled proportionally onto ~4.5 seconds, so the gaps survive
  * the compression: a 13-second item snaps in, a 114-second item visibly
  * grinds. The consequence is that every player's inventory fills with a
@@ -27,7 +32,7 @@
  * this from decoration. A uniform stagger would animate identically for
  * everyone and tell you nothing.
  *
- * The timing is pure CSS: each slot carries its own `--delay` and the container
+ * The timing is pure CSS: each tile carries its own `--delay` and the container
  * flips one attribute. No per-frame JavaScript, and the browser owns the
  * scheduling. Reduced motion, a hidden tab, or the skip control all land on the
  * same fully-populated grid, which is also the default render — the animation
@@ -35,11 +40,18 @@
  */
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { itemSegments } from './adapter.js';
+import { itemSegments, itemPhase } from './adapter.js';
 import { RARITY_KEYS, RARITY_LABEL, rarityColor } from './tokens.js';
 import { prefersReducedMotion } from './env.js';
 import { ItemImage, Figure, RarityRamp, RarityTag, Empty } from './Primitives.jsx';
 import * as f from './format.js';
+
+/** Match-phase key → colour token, for the slot's phase bleed. */
+const PHASE_VAR = {
+  EARLY: 'var(--fib-phase-early)',
+  MID: 'var(--fib-phase-mid)',
+  LATE: 'var(--fib-phase-late)',
+};
 
 /** Total wall-clock length of the fill animation. */
 const PLAYBACK_MS = 4500;
@@ -48,16 +60,6 @@ const SLOT_MS = 240;
 
 const canAnimate = () =>
   !prefersReducedMotion() && !(typeof document !== 'undefined' && document.hidden);
-
-/** Highest tier present, or null. `RARITY_KEYS` is ordered lowest-first. */
-function rarestOf(segments) {
-  let best = null;
-  for (const s of segments) {
-    if (!s.b2b) continue;
-    if (best == null || RARITY_KEYS.indexOf(s.b2b) > RARITY_KEYS.indexOf(best.b2b)) best = s;
-  }
-  return best;
-}
 
 export function Inventory({ entry, duration, ownerLabel, mode }) {
   const segments = useMemo(() => itemSegments(entry), [entry]);
@@ -75,7 +77,6 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
       skipped,
       pulls: pulls.length,
       counts,
-      rarest: rarestOf(segments),
       stall,
     };
   }, [segments]);
@@ -100,9 +101,8 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
   useLayoutEffect(() => {
     if (phase !== 'pending') return undefined;
 
-    // One frame after the hidden paint, flip to 'run' so the per-slot
+    // One frame after the hidden paint, flip to 'run' so the per-tile
     // transitions have a start value to animate from.
-    const raf = requestAnimationFrame(() => setPhase('run'));
     frame.current = requestAnimationFrame(() => setPhase('run'));
     timers.current.push(setTimeout(() => setPhase('idle'), PLAYBACK_MS + SLOT_MS + 60));
 
@@ -124,8 +124,6 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
 
   const skip = () => { clearTimers(); setPhase('idle'); };
 
-  const [hovered, setHovered] = useState(null);
-
   if (!segments.length) {
     return (
       <Empty title={`${ownerLabel} collected nothing in this match`}>
@@ -134,11 +132,6 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
       </Empty>
     );
   }
-
-  // The caption defaults to the run's headline moment and follows the pointer
-  // from there — a readout beats 61 native tooltips, which are slow to appear
-  // and cannot be styled.
-  const caption = hovered ?? summary.rarest ?? summary.stall;
 
   return (
     <div className="fib-inv">
@@ -152,7 +145,7 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
               Skip replay
             </button>
           ) : (
-            <span className="fib-meta">{summary.total} slots, in collection order</span>
+            <span className="fib-meta">{summary.total} items, in collection order</span>
           )}
         </div>
 
@@ -160,13 +153,10 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
             you the grid is still populating and can be skipped. */}
         <div className="fib-inv-progress" data-play={phase} aria-hidden="true"><i /></div>
 
-        <ol
-          className="fib-inv-grid"
-          data-play={phase}
-          onMouseLeave={() => setHovered(null)}
-        >
+        <ol className="fib-inv-grid" data-play={phase}>
           {segments.map((s) => {
             const tier = s.b2b;
+            const phase = itemPhase(s.itemName);
             // Delay IS the item's real collection time, proportionally scaled.
             const delay = (Math.min(s.t, duration) / Math.max(1, duration)) * PLAYBACK_MS;
             const label = [
@@ -180,52 +170,44 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
             return (
               <li
                 key={s.order}
-                /* Composes the shared well: surface, lighting and seating come
-                   from there, and only the slot geometry is local. */
-                className="fib-well fib-inv-slot"
+                className="fib-inv-tile"
                 data-skipped={s.skipped || undefined}
-                data-tier={tier || undefined}
-                style={{ '--delay': `${delay.toFixed(0)}ms`, '--tier': tier ? rarityColor(tier) : undefined }}
-                title={label}
-                onMouseEnter={() => setHovered(s)}
-                /* Touch has no hover; a tap moves the readout. The full text is
-                   already in the accessible name, so this is enhancement only
-                   and deliberately stays out of the tab order — 61 tab stops
-                   between the standings and the next control is not a keyboard
-                   path anyone wants. */
-                onClick={() => setHovered(s)}
+                style={{ '--delay': `${delay.toFixed(0)}ms` }}
               >
-                {/* Eager, not lazy. The reader has just asked for this grid and
-                    the fill starts immediately — a lazily-loaded slot would pop
-                    in blank and fill after its own reveal had already played. */}
-                <ItemImage name={s.itemName} size={32} loading="eager" />
-                <span className="fib-inv-order">{s.order}</span>
-                {/*
-                  A visually-hidden span rather than `aria-label` on the <li>.
-                  Naming a bare listitem is unreliable — several screen readers
-                  drop the label entirely and announce an empty slot — whereas
-                  the text node is read wherever the list is. The full readout
-                  is therefore available to a reader walking the list even
-                  though the slot itself is deliberately not a tab stop.
-                */}
+                {/* Composes the shared well: surface, lighting, seating, the
+                    phase bleed and the rarity rim all come from there. */}
+                <div
+                  className="fib-well fib-inv-cell"
+                  data-tier={tier || undefined}
+                  data-phase={phase || undefined}
+                  style={{
+                    ...(tier ? { '--tier': rarityColor(tier) } : null),
+                    ...(phase && PHASE_VAR[phase] ? { '--phase': PHASE_VAR[phase] } : null),
+                  }}
+                >
+                  {/* Eager, not lazy. The reader has just asked for this grid
+                      and the fill starts immediately — a lazily-loaded sprite
+                      would pop in blank after its own reveal had played. */}
+                  <ItemImage name={s.itemName} size={40} loading="eager" />
+                  <span className="fib-inv-order">{s.order}</span>
+                </div>
+
+                <div className="fib-inv-tile-text">
+                  <b className="fib-inv-name">{f.itemLabel(s.itemName)}</b>
+                  <span className="fib-inv-meta">
+                    <span className="fib-inv-took">{Math.round(s.took)}s</span>
+                    {tier ? <RarityTag tier={tier} /> : null}
+                    {s.skipped ? <span className="fib-inv-skipped-tag">skipped</span> : null}
+                  </span>
+                </div>
+
+                {/* The full readout for a screen reader walking the list; the
+                    tile itself is deliberately not a tab stop. */}
                 <span className="fib-sr">{label}</span>
               </li>
             );
           })}
         </ol>
-
-        <p className="fib-inv-caption" aria-live="off">
-          {caption ? (
-            <>
-              <b>{f.itemLabel(caption.itemName)}</b>
-              <span className="fib-meta">
-                #{caption.order} · {Math.round(caption.took)}s · {f.clock(caption.t)}
-              </span>
-              {caption.b2b ? <RarityTag tier={caption.b2b} /> : null}
-              {caption.skipped ? <span className="fib-inv-skipped-tag">skipped</span> : null}
-            </>
-          ) : null}
-        </p>
       </div>
 
       <div className="fib-inv-side">

@@ -16,7 +16,7 @@ import React, { useMemo, useState } from 'react';
 import { matchStandings, matchDuration, idLabel, idUuid } from './adapter.js';
 import { loadMatches } from './api.js';
 import { useAsync } from './useAsync.js';
-import { Section, Avatar, Medal, Chip, Empty, AsyncView } from './Primitives.jsx';
+import { Section, Avatar, Medal, Segmented, Empty, AsyncView } from './Primitives.jsx';
 import * as f from './format.js';
 
 const MODES = [
@@ -70,18 +70,12 @@ function MatchesBody({ matches, totalCount, onOpenMatch }) {
     const widestMargin = Math.max(1, ...groups.flatMap((g) => g.rows.map((r) => r.margin)));
 
     return (
-        <div className="fib-page">
+        <div className="fib-page fib-page--wide">
             <Section
                 title="Matches"
                 sub={`${totalCount} completed matches, newest first.`}
                 aside={
-                    <div style={{ display: 'flex', gap: 7 }}>
-                        {MODES.map((m) => (
-                            <Chip key={m.id} active={mode === m.id} onClick={() => setMode(m.id)}>
-                                {m.label}
-                            </Chip>
-                        ))}
-                    </div>
+                    <Segmented options={MODES} value={mode} onChange={setMode} label="Match mode" />
                 }
             >
                 {groups.length === 0 ? (

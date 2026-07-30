@@ -76,7 +76,8 @@ ${cssVariables()}
 :where(.fib) :where(img) { display: block; max-width: 100%; }
 :where(.fib) :where(table) { border-collapse: collapse; width: 100%; }
 
-/* One focus ring everywhere. Diamond, because gold means rank. */
+/* One focus ring everywhere. Blue, the interactive accent — focus is a
+   "you can act here" signal, which is exactly what blue means now. */
 .fib :focus-visible {
   outline: 2px solid var(--fib-focus);
   outline-offset: 2px;
@@ -152,11 +153,14 @@ ${cssVariables()}
               color var(--fib-motion-fast) var(--fib-ease);
 }
 .fib-nav-item:hover { background: var(--fib-plinth); color: var(--fib-ink); }
+/* Active item wears the interactive accent: a blue-tinted pill, blue label and
+   icon, and a top gloss so it reads as the lit, current destination. */
 .fib-nav-item[aria-current="page"] {
-  background: var(--fib-plinth-2); color: var(--fib-ink); font-weight: 600;
+  background: var(--fib-blue-tint); color: var(--fib-blue-ink); font-weight: 600;
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
 }
 .fib-nav-item svg { flex: none; opacity: 0.7; }
-.fib-nav-item[aria-current="page"] svg { opacity: 1; }
+.fib-nav-item[aria-current="page"] svg { opacity: 1; color: var(--fib-blue-ink); }
 
 .fib-rail-foot { margin-top: auto; padding-top: var(--fib-space-5); }
 
@@ -175,10 +179,27 @@ ${cssVariables()}
  * Anything inside that needs to reflow measures THIS, not the window.
  */
 .fib-page {
-  max-width: 1180px; margin: 0 auto;
+  max-width: var(--fib-measure, 1180px); margin: 0 auto;
   padding: var(--fib-space-7) var(--fib-space-6) var(--fib-space-8);
   container: fib-page / inline-size;
 }
+
+/*
+ * The wide measure, for the three views that are a GRID or a TABLE rather than a
+ * document: items, matches, ranking, players.
+ *
+ * 1180px is the right measure for a page you read — the profile, a match report,
+ * anything with prose and a chart. It is the wrong measure for a marketplace
+ * grid. At 1920 the rail took 232px and the grid took 1180, which left 259px of
+ * dead space to the right of the content and the rail pinned to the left edge:
+ * visibly off-centre, and four columns where there was room for six.
+ *
+ * That gap is the single biggest reason a dense listing read as documentation
+ * rather than as an index. Prose does not get wider with it — every lede and
+ * paragraph is capped at its own ch measure independently — so the extra width
+ * goes only to the things that can use it.
+ */
+.fib-page--wide { --fib-measure: 1560px; }
 
 /* ── 3. Type + section furniture ──────────────────────────────────────── */
 
@@ -245,8 +266,218 @@ ${cssVariables()}
   border: 1px solid var(--fib-line-soft);
   border-radius: var(--fib-radius-lg);
   padding: var(--fib-space-5);
+  /* A hairline top highlight: the CSFloat card cue that lifts a flat fill into
+     a surface catching light from above. */
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
 }
 .fib-panel--flush { padding: 0; overflow: hidden; }
+
+/*
+ * ── Product card (the CSFloat shape) ──────────────────────────────────────
+ *
+ * The marketplace grammar, adopted deliberately for LISTING views (players,
+ * items, matches): a uniform, data-rich card as the atomic unit. This is the
+ * "identical card grid" the museum system warned against — legitimate here
+ * because each card carries genuinely different, scannable data (a rank, a win
+ * rate, a score, a meter), not a decorative icon+heading+text repeat. Featured
+ * rows only; the long tail stays a table, so the grid never runs on forever.
+ *
+ * A tone top-LINE (never a side stripe) marks rank/rarity; the card lifts and
+ * lights on hover, CSFloat's headline behaviour, made a reusable shell here.
+ */
+.fib-pcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(216px, 1fr));
+  gap: var(--fib-space-4);
+}
+.fib-pcard {
+  position: relative; display: flex; flex-direction: column;
+  width: 100%; text-align: left; cursor: pointer;
+  background: linear-gradient(var(--fib-plinth-2), var(--fib-plinth));
+  border: 1px solid var(--fib-line-soft);
+  border-radius: var(--fib-radius-lg);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
+  transition: transform var(--fib-motion-base) var(--fib-ease),
+              border-color var(--fib-motion-fast) var(--fib-ease),
+              box-shadow var(--fib-motion-base) var(--fib-ease);
+}
+/* The tone line rides the top edge — rank gold, scarcity diamond, else a quiet
+   line. A line, not a stripe: the banned pattern is a >1px colour on the SIDE. */
+.fib-pcard::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--pcard-tone, var(--fib-line));
+  z-index: 2;
+}
+.fib-pcard:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in oklch, var(--pcard-tone, var(--fib-blue)) 55%, var(--fib-line));
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top),
+              0 20px 52px -18px var(--pcard-glow, var(--fib-blue));
+}
+/*
+ * The media band: object on a lit field, CSFloat's image area — the object sits
+ * over a colour that BLEEDS up from the bottom in the card's own tone (the
+ * marketplace's rarity bleed), a top catch of light, and a bright tone line
+ * closing it off from the data below. This is what turns an empty square into a
+ * lit display.
+ */
+.fib-pcard-media {
+  position: relative;
+  display: grid; place-items: center;
+  min-height: 160px;
+  padding: var(--fib-space-5) var(--fib-space-4);
+  background:
+    radial-gradient(130% 96% at 50% 128%, color-mix(in oklch, var(--pcard-tone, var(--fib-blue)) 30%, transparent), transparent 68%),
+    radial-gradient(92% 120% at 50% 0, var(--fib-gloss-top), transparent 70%);
+  border-bottom: 1px solid color-mix(in oklch, var(--pcard-tone, var(--fib-line-soft)) 45%, var(--fib-line-soft));
+}
+/*
+ * Item-index variant. The top of an item card carries no phase bar: the phase
+ * is spoken once, where it matters — as the line dividing the texture from the
+ * item name. So the top tone line is dropped, and the media/body seam is
+ * promoted from a near-invisible tinted hairline to a 2px band in the card's
+ * own phase tone (green EARLY, yellow MID, red LATE, netherite for the
+ * unpooled). One phase mark per card, seated at the divide it explains.
+ */
+.fib-items-cards .fib-pcard::before { display: none; }
+.fib-items-cards .fib-pcard-media {
+  border-bottom: 2px solid var(--pcard-tone, var(--fib-line-soft));
+}
+/* The object gets its own seat of shadow so it lifts off the lit field. */
+.fib-pcard-media > .fib-avatar { box-shadow: 0 6px 18px -6px var(--fib-shadow-deep); }
+/*
+ * The item texture sits DIRECTLY on the lit field — no inner well. The media
+ * band is already the lit display (tone bleed, top catch, closing line), so a
+ * box inside a box was one surface too many. Bigger, and it scales down rather
+ * than overflowing the narrowest card. A pixel-art drop shadow seats it.
+ */
+.fib-pcard-media .fib-pcard-sprite {
+  width: 128px; max-width: 100%; height: auto;
+  /* A gentle seat — enough to lift the texture off the field — plus the tight
+     light halo that rescues dark items (blackstone, basalt) against it. */
+  filter: drop-shadow(0 3px 5px var(--fib-shadow-soft))
+          drop-shadow(0 0 1px oklch(1 0 0 / 0.55));
+}
+/* The rank/medal badge, docked to the media corner like a CSFloat quality tag. */
+.fib-pcard-badge { position: absolute; top: var(--fib-space-3); left: var(--fib-space-3); }
+.fib-pcard-body {
+  display: flex; flex-direction: column; gap: var(--fib-space-3);
+  padding: var(--fib-space-4) var(--fib-space-4) var(--fib-space-4);
+  flex: 1 1 auto; min-width: 0;
+}
+.fib-pcard-title {
+  font-size: var(--fib-text-lg); font-weight: 600;
+  letter-spacing: -0.01em; line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.fib-pcard-sub { margin-top: 2px; }
+/* The item card's phase tag: a short uppercase word in the phase colour. Colour
+   is set inline per phase (LATE takes the lighter text-safe red); the shape is
+   here so every card's tag is sized and tracked identically. */
+.fib-pcard-phase { font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+/* A labelled meter inside a card: the track spans the card and its value sits
+   to the right, the CSFloat price+bar rhythm. Reuses .fib-ramp-track. */
+.fib-pcard-meter { display: flex; flex-direction: column; gap: 6px; }
+.fib-pcard-meter-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--fib-space-3);
+}
+.fib-pcard-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--fib-space-3);
+  margin-top: auto;
+  padding: var(--fib-space-3) var(--fib-space-4);
+  border-top: 1px solid var(--fib-line-soft);
+}
+
+/* Phase legend for the item index: the colour code named, once, above the grid. */
+.fib-phase-legend { display: flex; align-items: center; gap: var(--fib-space-4); }
+.fib-phase-legend span {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fib-text-xs); color: var(--fib-ink-3);
+}
+.fib-phase-legend i { width: 9px; height: 9px; border-radius: var(--fib-radius-sm); flex: none; }
+
+/* ── The player directory ─────────────────────────────────────────────────
+ *
+ * A contacts-list, not a leaderboard: no numbers, just a face and a name that
+ * routes into a profile. Grouped A–Z when browsing, flat when searching.
+ */
+
+/* The A–Z jump strip, docked to the top of the scroll so it stays reachable as
+   the roster grows. A soft void wash so tiles pass cleanly beneath it. */
+.fib-dir-index {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 4px;
+  padding: var(--fib-space-3) 0;
+  margin-bottom: var(--fib-space-2);
+  background: linear-gradient(var(--fib-void) 72%, transparent);
+}
+.fib-dir-jump {
+  min-width: 26px; height: 26px; padding: 0 6px;
+  border-radius: var(--fib-radius-sm);
+  font-family: var(--fib-font-mono);
+  font-size: var(--fib-text-2xs); font-variant-numeric: tabular-nums;
+  color: var(--fib-ink-3);
+  transition: color var(--fib-motion-fast) var(--fib-ease),
+              background var(--fib-motion-fast) var(--fib-ease);
+}
+.fib-dir-jump:hover { background: var(--fib-blue-tint); color: var(--fib-blue-ink); }
+
+.fib-dir-group { scroll-margin-top: var(--fib-space-6); }
+.fib-dir-group + .fib-dir-group { margin-top: var(--fib-space-6); }
+/* The initial, set in the number face — a quiet divider, not a shout. */
+.fib-dir-letter {
+  font-family: var(--fib-font-mono);
+  font-size: var(--fib-text-lg); font-weight: 600;
+  color: var(--fib-ink-3);
+  padding-bottom: var(--fib-space-2);
+  margin-bottom: var(--fib-space-4);
+  border-bottom: 1px solid var(--fib-line-soft);
+}
+
+.fib-dir-grid {
+  display: grid;
+  /* Wider than the 184px it was: the tile now carries two facts under the name,
+     and at 184px "1,203 items · 2 days ago" wrapped to a second line on every
+     tile. */
+  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
+  gap: var(--fib-space-3);
+}
+/* One player: a seated tile that lifts and lights blue on hover, because it IS
+   a link (blue is the module's interactive chrome, never a value colour). */
+.fib-dir-tile {
+  display: flex; align-items: center; gap: var(--fib-space-3);
+  min-width: 0; padding: var(--fib-space-3);
+  border-radius: var(--fib-radius-md);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft),
+              inset 0 1px 0 0 var(--fib-gloss-top);
+  text-align: left; cursor: pointer;
+  transition: background var(--fib-motion-fast) var(--fib-ease),
+              box-shadow var(--fib-motion-fast) var(--fib-ease),
+              transform var(--fib-motion-fast) var(--fib-ease);
+}
+.fib-dir-tile:hover {
+  background: var(--fib-plinth-2);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-blue) 48%, var(--fib-line)),
+              inset 0 1px 0 0 var(--fib-gloss-top),
+              0 10px 22px -14px var(--fib-blue);
+  transform: translateY(-2px);
+}
+.fib-dir-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fib-dir-name {
+  display: block;
+  font-size: var(--fib-text-sm); font-weight: 500; color: var(--fib-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The two facts under a name, separated by a middot rather than by a gap — at
+   this size a gap alone reads as one string with a hole in it. Rendered per-fact
+   so a player missing one (never seen in the recent window) simply shows the
+   other, with no stray separator. */
+.fib-dir-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.fib-dir-facts > span + span::before { content: '·'; margin-right: 6px; color: var(--fib-trace-dim); }
 
 /* ── 4. Objects: wells, sprites, avatars, medals ──────────────────────── */
 
@@ -257,6 +488,7 @@ ${cssVariables()}
  * surface.
  */
 .fib-well {
+  position: relative;
   display: grid; place-items: center;
   /*
    * Lit from above and a step LIGHTER than the field it sits on.
@@ -278,6 +510,18 @@ ${cssVariables()}
   transition: box-shadow var(--fib-motion-base) var(--fib-ease),
               background var(--fib-motion-base) var(--fib-ease);
 }
+
+/*
+ * Match-phase bleed. A soft wash of the item's phase colour rising from the
+ * floor of the well — the same green/yellow/red the item index uses, sitting on
+ * a different axis from the rarity rim so a scarce EARLY item can show both.
+ */
+.fib-well[data-phase]::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 0;
+  background: radial-gradient(86% 64% at 50% 122%, color-mix(in oklch, var(--phase) 58%, transparent), transparent 60%);
+}
+.fib-well[data-phase] > .fib-sprite { position: relative; z-index: 1; }
 
 /*
  * Rarity on the rim of a well. Shared by inventory slots and any other sprite
@@ -359,10 +603,15 @@ ${cssVariables()}
   font-weight: 500; line-height: 1; letter-spacing: -0.03em;
   color: var(--fib-ink);
   display: flex; align-items: baseline; gap: 0.18em;
+  /* A duration like "33m 8s" carries an internal space; without this it breaks
+     across two lines on a narrow card. The number is one token — keep it whole
+     and let the container query shrink the type instead. */
+  white-space: nowrap;
 }
 .fib-figure-unit {
   font-size: 0.42em; font-weight: 400; letter-spacing: 0;
   color: var(--fib-ink-3);
+  white-space: normal;
 }
 /* 0.42em of an 18px figure is 7.5px, which is not a size type can be read at.
    Small figures carry their unit proportionally larger so it lands on the
@@ -423,20 +672,27 @@ ${cssVariables()}
  * field to sit in doesn't answer "how good is this".
  */
 .fib-gauge {
-  position: relative; height: 3px; margin-top: 8px;
+  position: relative; height: 4px; margin-top: 8px;
   background: var(--fib-plinth-2); border-radius: var(--fib-radius-pill);
+  box-shadow: inset 0 1px 1px 0 var(--fib-shadow-soft);
   overflow: hidden;
 }
+/*
+ * The fill carries a top-edge gloss over its colour — the CSFloat meter look.
+ * Share-of-best is not good/bad, so the gloss is a lightness highlight within
+ * the fill's OWN hue, never a green→red judgment the data doesn't make.
+ */
 .fib-gauge i {
   position: absolute; inset: 0 auto 0 0;
   display: block; width: 100%; border-radius: inherit;
-  background: var(--fib-ink-3);
+  background: linear-gradient(var(--fib-gloss-top), transparent 65%), var(--fib-ink-3);
   transform-origin: left center; transform: scaleX(var(--fill, 0));
   transition: transform var(--fib-motion-slow) var(--fib-ease);
 }
-.fib-gauge[data-tone="gold"] i    { background: var(--fib-gold); }
-.fib-gauge[data-tone="diamond"] i { background: var(--fib-diamond); }
-.fib-gauge[data-tone="emerald"] i { background: var(--fib-emerald); }
+.fib-gauge[data-tone="gold"] i    { background: linear-gradient(var(--fib-gloss-top), transparent 65%), var(--fib-gold); }
+.fib-gauge[data-tone="diamond"] i { background: linear-gradient(var(--fib-gloss-top), transparent 65%), var(--fib-diamond); }
+.fib-gauge[data-tone="emerald"] i { background: linear-gradient(var(--fib-gloss-top), transparent 65%), var(--fib-emerald); }
+.fib-gauge[data-tone="blue"] i    { background: linear-gradient(var(--fib-gloss-top), transparent 65%), var(--fib-blue); }
 
 .fib-delta {
   font-family: var(--fib-font-mono);
@@ -466,8 +722,13 @@ ${cssVariables()}
 }
 .fib-btn:hover { background: var(--fib-line); }
 .fib-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.fib-btn--primary { background: var(--fib-diamond); color: var(--fib-on-accent); font-weight: 600; }
-.fib-btn--primary:hover { background: var(--fib-diamond-hi); }
+/* Primary action wears the interactive accent, white ink on blue, with a soft
+   glow that gives the button the "live" lift CSFloat's primaries have. */
+.fib-btn--primary {
+  background: var(--fib-blue); color: var(--fib-ink); font-weight: 600;
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top), 0 6px 18px -10px var(--fib-blue);
+}
+.fib-btn--primary:hover { background: var(--fib-blue-hi); }
 .fib-btn--quiet { background: none; color: var(--fib-ink-2); box-shadow: none; }
 .fib-btn--quiet:hover { background: var(--fib-plinth); color: var(--fib-ink); }
 
@@ -476,19 +737,24 @@ ${cssVariables()}
  * in the module, so it is a real segmented control with a sliding indicator
  * rather than three buttons that happen to sit together.
  */
+/* Wraps, because the thumb measures both axes (see Segmented in Primitives) —
+   so one control covers three options and eight, and there is no second
+   "pick one of N" vocabulary for the wide cases. */
 .fib-seg {
-  position: relative; display: inline-flex;
+  position: relative; display: inline-flex; flex-wrap: wrap; gap: 2px;
+  max-width: 100%;
   padding: 3px; border-radius: var(--fib-radius-md);
   background: var(--fib-plinth);
   box-shadow: inset 0 0 0 1px var(--fib-line-soft);
 }
 .fib-seg-thumb {
-  position: absolute; top: 3px; bottom: 3px; left: 0;
+  position: absolute; top: 0; left: 0;
   border-radius: var(--fib-radius-sm);
   background: var(--fib-plinth-2);
   box-shadow: inset 0 1px 0 0 var(--fib-edge);
   transition: transform var(--fib-motion-base) var(--fib-ease),
-              width var(--fib-motion-base) var(--fib-ease);
+              width var(--fib-motion-base) var(--fib-ease),
+              height var(--fib-motion-base) var(--fib-ease);
   pointer-events: none;
 }
 .fib-seg button {
@@ -501,21 +767,9 @@ ${cssVariables()}
 .fib-seg button:hover { color: var(--fib-ink-2); }
 .fib-seg button[aria-checked="true"] { color: var(--fib-ink); font-weight: 600; }
 
-.fib-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px; border-radius: var(--fib-radius-pill);
-  font-size: var(--fib-text-xs); font-weight: 500;
-  color: var(--fib-ink-3);
-  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
-  transition: color var(--fib-motion-fast) var(--fib-ease),
-              box-shadow var(--fib-motion-fast) var(--fib-ease),
-              background var(--fib-motion-fast) var(--fib-ease);
-}
-.fib-chip:hover { color: var(--fib-ink-2); box-shadow: inset 0 0 0 1px var(--fib-line); }
-.fib-chip[aria-pressed="true"] {
-  color: var(--fib-ink); background: var(--fib-plinth-2);
-  box-shadow: inset 0 0 0 1px var(--fib-line);
-}
+/* .fib-chip is gone with the Chip component — every one of its five call sites
+   was a "pick one of N" that Segmented already owned. See the note where Chip
+   used to be defined in Primitives.jsx. */
 
 .fib-search {
   display: flex; align-items: center; gap: 9px;
@@ -525,7 +779,11 @@ ${cssVariables()}
   box-shadow: inset 0 0 0 1px var(--fib-line-soft);
   transition: box-shadow var(--fib-motion-fast) var(--fib-ease);
 }
-.fib-search:focus-within { box-shadow: inset 0 0 0 1px var(--fib-line); }
+.fib-search:focus-within { box-shadow: inset 0 0 0 1px var(--fib-blue); }
+/* The label's :focus-within border above IS the focus indicator; suppress the
+   input's own global :focus-visible outline so it doesn't draw a second ring
+   that overflows the box top and bottom. */
+.fib-search input:focus-visible { outline: none; }
 .fib-search svg { flex: none; color: var(--fib-netherite); }
 .fib-search input {
   flex: 1; min-width: 0; height: 100%;
@@ -535,6 +793,138 @@ ${cssVariables()}
 /* Placeholder sits at ink-3, not a browser-default grey: it is text and has to
    clear 4.5:1 like any other text. */
 .fib-search input::placeholder { color: var(--fib-ink-3); opacity: 1; }
+
+/* The / accelerator, printed in the field. A shortcut nobody can see is a
+   shortcut nobody uses, which is why the marketplace this module takes its cues
+   from prints it too. */
+.fib-search-key {
+  flex: none;
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-2xs);
+  line-height: 1; color: var(--fib-ink-3);
+  padding: 3px 5px;
+  border-radius: var(--fib-radius-sm);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+}
+/* Once you are typing, the hint has done its job and the field needs the room. */
+.fib-search:focus-within .fib-search-key { display: none; }
+
+/* ── Facets ───────────────────────────────────────────────────────────────
+ *
+ * The filter rail. Two columns on desktop: the rail, then the content. The rail
+ * is the affordance the module was missing — 616 items sortable three ways and
+ * searchable by name, with no way to ask the index a question.
+ *
+ * It is a <details> at every size, not only on mobile, so the same element is
+ * doing the same job in both layouts. On desktop the marker is hidden and it sits
+ * open; below the shell's breakpoint the summary becomes a real disclosure button.
+ */
+.fib-faceted {
+  display: grid;
+  grid-template-columns: var(--facet-rail, 236px) minmax(0, 1fr);
+  gap: var(--fib-space-6);
+  align-items: start;
+}
+.fib-faceted-body { min-width: 0; }
+
+.fib-facet-rail {
+  position: sticky; top: var(--fib-space-5);
+  display: flex; flex-direction: column;
+  padding: var(--fib-space-4);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  border: 1px solid var(--fib-line-soft);
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-facet-rail > summary {
+  display: flex; align-items: center; gap: var(--fib-space-3);
+  font-size: var(--fib-text-xs); font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--fib-ink-2);
+  cursor: pointer;
+}
+.fib-facet-rail > summary::-webkit-details-marker { display: none; }
+.fib-facet-rail > summary::marker { content: ''; }
+.fib-facet-count {
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-2xs);
+  letter-spacing: 0; text-transform: none;
+  min-width: 18px; padding: 2px 5px; text-align: center;
+  border-radius: var(--fib-radius-pill);
+  background: var(--fib-blue-tint); color: var(--fib-blue-ink);
+}
+.fib-facet-rail-body {
+  display: flex; flex-direction: column; gap: var(--fib-space-5);
+  margin-top: var(--fib-space-5);
+}
+
+.fib-facet { display: flex; flex-direction: column; gap: 7px; border: none; padding: 0; margin: 0; }
+.fib-facet + .fib-facet { padding-top: var(--fib-space-5); border-top: 1px solid var(--fib-line-soft); }
+.fib-facet-title {
+  padding: 0;
+  font-size: var(--fib-text-sm); font-weight: 600;
+  color: var(--fib-ink); letter-spacing: -0.005em;
+}
+.fib-facet-hint {
+  font-size: var(--fib-text-2xs); line-height: 1.5;
+  color: var(--fib-ink-3); text-wrap: pretty;
+  margin-bottom: 2px;
+}
+.fib-facet-clear { align-self: flex-start; }
+
+.fib-check {
+  display: flex; align-items: center; gap: 9px;
+  font-size: var(--fib-text-sm); color: var(--fib-ink-2);
+  cursor: pointer; padding: 2px 0;
+}
+/* The native box, tinted rather than replaced: a filter is the last control to
+   reinvent, because the reader has to trust that what they ticked is what they
+   got. accent-color recolours it without giving up the platform's own focus
+   ring, keyboard behaviour or indeterminate state. */
+.fib-check input {
+  flex: none; width: 14px; height: 14px; margin: 0;
+  accent-color: var(--fib-blue);
+  cursor: pointer;
+}
+.fib-check-swatch { width: 8px; height: 8px; border-radius: var(--fib-radius-sm); flex: none; }
+.fib-check-label { flex: 1; min-width: 0; }
+.fib-check:hover .fib-check-label { color: var(--fib-ink); }
+
+.fib-range { display: flex; gap: var(--fib-space-3); }
+.fib-range label {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.fib-range label > span {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: var(--fib-text-2xs); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--fib-ink-3);
+}
+.fib-range label em {
+  font-style: normal; letter-spacing: 0; color: var(--fib-netherite);
+}
+.fib-range input {
+  width: 100%; min-width: 0; height: 32px;
+  padding: 0 8px;
+  border: none; border-radius: var(--fib-radius-md);
+  background: var(--fib-sunk);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+  color: var(--fib-ink);
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.fib-range input:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--fib-blue); }
+.fib-range input::placeholder { color: var(--fib-ink-3); opacity: 1; }
+
+/* The bar above a faceted grid: the sort on the left, the colour legend on the
+   right, wrapping to two rows before either has to shrink. */
+.fib-items-bar {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--fib-space-3) var(--fib-space-5);
+  margin-bottom: var(--fib-space-5);
+}
+.fib-items-bar .fib-phase-legend { margin-left: auto; }
+.fib-items-count { padding: var(--fib-space-6) 0; text-align: center; }
 
 /* ── 7. Tables + rows ─────────────────────────────────────────────────── */
 
@@ -581,7 +971,7 @@ ${cssVariables()}
   text-align: left;
   transition: background var(--fib-motion-fast) var(--fib-ease);
 }
-.fib-row-link:hover { background: var(--fib-plinth); }
+.fib-row-link:hover { background: var(--fib-blue-tint); }
 .fib-row-link:last-child { border-bottom: none; }
 
 /*
@@ -671,7 +1061,10 @@ ${cssVariables()}
 }
 .fib-ramp-track i {
   display: block; height: 100%; width: 100%; border-radius: inherit;
-  background: currentColor;
+  /* A top-edge gloss over the fill's own colour — the CSFloat meter sheen. The
+     colour is currentColor (set by the caller); the gloss is a lightness
+     highlight, never a hue shift. */
+  background: linear-gradient(var(--fib-gloss-top), transparent 55%), currentColor;
   transform-origin: left center; transform: scaleX(var(--fill, 0));
   transition: transform var(--fib-motion-slow) var(--fib-ease);
 }
@@ -681,64 +1074,91 @@ ${cssVariables()}
   color: var(--fib-ink-2); min-width: 4ch; text-align: right;
 }
 
+.fib-trophy figcaption { gap: 5px; }
+
 /*
- * The trophy case. Earned achievements are OBJECTS — a sprite in a well, its
- * rim lit by the tier the player set actually measured — not rows in a list.
- * What you have and what you are chasing are different questions, so they get
- * different furniture: a shelf here, a progress list below.
+ * ── The case and the chase ──────────────────────────────────────────────
+ *
+ * What a player holds and what they are chasing are different questions, so
+ * they get different furniture rather than one list with a "Locked" word on
+ * half the rows.
+ *
+ * THE CASE is a shelf of objects. Each tile is a glyph in a lit well, rimmed in
+ * emerald.
+ *
+ * Emerald and not gold, though a trophy case argues for gold: gold means a rank
+ * or a win in this module and an achievement is neither, and the old row list
+ * already spent emerald on exactly this meaning (its unlocked tick was
+ * --fib-emerald). Widening gold to cover "earned" would cost the podium its
+ * only colour; reusing emerald costs nothing and keeps the vocabulary the module
+ * already had.
+ *
+ * There is no per-achievement artwork in the plugin's payload, so the glyph names
+ * the KIND of achievement and nothing more; a made-up sprite per row would be
+ * decoration pretending to be data.
+ *
+ * THE CHASE is a progress list, closest first, and every row carries its own
+ * numerator. It is one of the few places in the module where the number is
+ * *not* the display element — here the bar is the point, because "how close"
+ * is the question and a bar answers it faster than a fraction does.
  */
 .fib-case {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: var(--fib-space-5);
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: var(--fib-space-5) var(--fib-space-5);
+  list-style: none;
 }
-.fib-trophy figcaption { gap: 5px; }
-.fib-trophy-held { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.fib-case-tile {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  align-items: start; gap: var(--fib-space-4);
+}
+/* The well is square and sized here rather than by the Sprite component, which
+   measures itself from a 128px texture that a glyph does not have. */
+.fib-case-well {
+  width: 44px; height: 44px; flex: none;
+  color: var(--fib-emerald);
+  --tier: var(--fib-emerald);
+}
+.fib-case-body { min-width: 0; }
+.fib-case-body b {
+  display: block; font-size: var(--fib-text-md); font-weight: 600;
+  letter-spacing: -0.005em; text-wrap: pretty;
+}
+.fib-case-body p { margin-top: 2px; text-wrap: pretty; }
+.fib-case-when { display: block; margin-top: 5px; color: var(--fib-netherite); }
 
-/*
- * Locked achievements stay a list: object, what it takes, how far you are.
- * Dimmed but never hidden — absence is information, and "locked" is carried
- * by the sprite losing its colour, never by making the words unreadable.
- */
-.fib-ach { display: flex; flex-direction: column; }
-.fib-ach-row {
-  display: grid; grid-template-columns: auto 1fr auto;
-  align-items: center; gap: var(--fib-space-4);
+.fib-chase-head { margin-top: var(--fib-space-7); }
+.fib-chase { display: flex; flex-direction: column; list-style: none; }
+.fib-chase-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 176px;
+  align-items: center; gap: var(--fib-space-5);
   padding: var(--fib-space-4) 0;
   border-bottom: 1px solid var(--fib-line-soft);
 }
-.fib-ach-row:last-child { border-bottom: none; }
-.fib-ach-row[data-locked="true"] .fib-ach-body b { color: var(--fib-ink-2); font-weight: 500; }
-.fib-ach-row[data-locked="true"] .fib-rarity { opacity: 0.75; }
-.fib-ach-row[data-locked="true"] .fib-well {
-  opacity: 0.6;
-  box-shadow: inset 0 1px 0 0 var(--fib-edge);
+.fib-chase-row:last-child { border-bottom: none; }
+.fib-chase-body { min-width: 0; }
+.fib-chase-body b {
+  display: block; font-size: var(--fib-text-md); font-weight: 500;
+  color: var(--fib-ink-2); letter-spacing: -0.005em;
 }
-.fib-ach-row[data-locked="true"] .fib-sprite { filter: grayscale(1) brightness(0.75); }
+.fib-chase-body p { font-size: var(--fib-text-sm); color: var(--fib-ink-3); text-wrap: pretty; }
 
-.fib-ach-body { min-width: 0; }
-.fib-ach-body b { display: block; font-size: var(--fib-text-md); font-weight: 600; letter-spacing: -0.005em; }
-.fib-ach-body p { font-size: var(--fib-text-sm); color: var(--fib-ink-3); text-wrap: pretty; }
-
-.fib-ach-side {
-  display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
-  text-align: right; flex: none;
+.fib-chase-track {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
 }
-
-.fib-ach-progress {
-  width: 108px; height: 3px; border-radius: var(--fib-radius-pill);
-  background: var(--fib-plinth-2); overflow: hidden;
+.fib-chase-count {
+  font-family: var(--fib-font-mono); font-size: var(--fib-text-xs);
+  font-variant-numeric: tabular-nums; color: var(--fib-ink-2);
+  text-align: right;
 }
-.fib-ach-progress i {
-  display: block; height: 100%; width: 100%; border-radius: inherit;
-  background: var(--fib-ink-3);
-  transform-origin: left center; transform: scaleX(var(--fill, 0));
-  transition: transform var(--fib-motion-slow) var(--fib-ease);
-}
+/* A single-round feat has no lifetime total to measure it. The row says which
+   kind it is instead of drawing a bar that would mean nothing. */
+.fib-chase-unmeasured { text-align: right; }
 
-.fib-ach-group { margin-bottom: var(--fib-space-6); }
-.fib-ach-group:last-child { margin-bottom: 0; }
-.fib-ach-check { color: var(--fib-emerald); font-weight: 700; }
+.fib-ach-filters {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  margin-bottom: var(--fib-space-6);
+}
 
 /* ── 10. States ───────────────────────────────────────────────────────── */
 
@@ -817,9 +1237,14 @@ ${cssVariables()}
 .fib-chart[data-wipe="pending"] .fib-wipe-rect { transform: scaleX(0); transition: none; }
 
 .fib-sprite-lift:hover .fib-sprite { transform: translateY(-2px) scale(1.04); }
+/* The well lifts toward the viewer and catches an outer shadow — the CSFloat
+   card behaviour, so a shelf of artifacts feels handled rather than pinned. */
+.fib-sprite-lift .fib-well { transition: box-shadow var(--fib-motion-base) var(--fib-ease), transform var(--fib-motion-base) var(--fib-ease); }
 .fib-sprite-lift:hover .fib-well {
+  transform: translateY(-3px);
   box-shadow: inset 0 1px 0 0 var(--fib-edge-strong),
-              inset 0 -1px 0 0 var(--fib-shadow-soft);
+              inset 0 -1px 0 0 var(--fib-shadow-soft),
+              0 14px 28px -14px var(--fib-shadow-deep);
 }
 
 /*
@@ -839,7 +1264,8 @@ ${cssVariables()}
 .fib-sprite-lift:hover .fib-well--scarce {
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-diamond) 55%, transparent),
               inset 0 1px 0 0 var(--fib-edge-strong),
-              inset 0 -1px 0 0 var(--fib-shadow-soft);
+              inset 0 -1px 0 0 var(--fib-shadow-soft),
+              0 14px 28px -14px var(--fib-shadow-deep);
 }
 
 /* "Held by N of M" — quiet metadata by default, diamond when the holding is
@@ -1219,16 +1645,35 @@ ${cssVariables()}
   gap: var(--fib-space-4); align-items: end;
 }
 .fib-podium-slot {
+  position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; gap: var(--fib-space-2);
   text-align: center; min-width: 0;
-  padding: var(--fib-space-5) var(--fib-space-3);
-  border-top: 1px solid var(--fib-line-soft);
-  background: linear-gradient(to bottom, var(--fib-plinth), transparent 70%);
-  border-radius: var(--fib-radius-lg) var(--fib-radius-lg) 0 0;
+  padding: var(--fib-space-6) var(--fib-space-4) var(--fib-space-5);
+  /* A filled, medal-lit card — the colour falls from the top (where the avatar
+     and medal sit) over an opaque body, so the slot reads as a substantial
+     object rather than a transparent tray with a glow floating around it. */
+  background:
+    radial-gradient(130% 78% at 50% 0, color-mix(in oklch, var(--medal, var(--fib-line)) 20%, transparent), transparent 60%),
+    linear-gradient(var(--fib-plinth-2), var(--fib-plinth));
+  border: 1px solid color-mix(in oklch, var(--medal, var(--fib-line-soft)) 32%, var(--fib-line-soft));
+  border-radius: var(--fib-radius-lg);
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
+  transition: transform var(--fib-motion-base) var(--fib-ease),
+              box-shadow var(--fib-motion-base) var(--fib-ease);
 }
-.fib-podium-slot[data-place="1"] { padding-top: var(--fib-space-7); border-top-color: var(--fib-medal-gold); }
-.fib-podium-slot[data-place="2"] { padding-top: var(--fib-space-6); order: -1; }
-.fib-podium-slot[data-place="3"] { padding-top: var(--fib-space-4); }
+/* The medal line rides the top edge, the same tone as the bleed. */
+.fib-podium-slot::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--medal, var(--fib-line));
+}
+.fib-podium-slot:hover {
+  transform: translateY(-4px);
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top),
+              0 18px 44px -22px var(--medal, var(--fib-shadow-deep));
+}
+.fib-podium-slot[data-place="1"] { --medal: var(--fib-medal-gold);   padding-top: var(--fib-space-7); }
+.fib-podium-slot[data-place="2"] { --medal: var(--fib-medal-silver); order: -1; padding-top: var(--fib-space-6); }
+.fib-podium-slot[data-place="3"] { --medal: var(--fib-medal-bronze); padding-top: var(--fib-space-5); }
 
 .fib-podium-faces { display: flex; gap: var(--fib-space-2); }
 .fib-podium-name {
@@ -1236,7 +1681,7 @@ ${cssVariables()}
   overflow-wrap: anywhere; line-height: 1.25;
 }
 .fib-podium-name button { font: inherit; }
-.fib-podium-name button:hover { color: var(--fib-diamond); }
+.fib-podium-name button:hover { color: var(--fib-blue-ink); }
 .fib-podium-amp { color: var(--fib-netherite); font-weight: 400; }
 .fib-podium-value {
   font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
@@ -1284,7 +1729,7 @@ ${cssVariables()}
 .fib-scrub { margin-top: var(--fib-space-5); }
 .fib-scrub-row { display: flex; align-items: center; gap: var(--fib-space-3); }
 .fib-scrub input[type="range"] {
-  flex: 1; width: 100%; accent-color: var(--fib-diamond); cursor: grab;
+  flex: 1; width: 100%; accent-color: var(--fib-blue); cursor: grab;
 }
 .fib-scrub input[type="range"]:active { cursor: grabbing; }
 .fib-replay {
@@ -1328,7 +1773,7 @@ ${cssVariables()}
 /* Overview. */
 .fib-overview-head { padding-bottom: var(--fib-space-6); }
 .fib-overview-head .fib-lede { margin: var(--fib-space-3) 0 0; }
-.fib-overview-head .fib-pulse { margin-top: var(--fib-space-6); }
+.fib-overview-head .fib-pulse { margin-top: var(--fib-space-7); }
 
 /*
  * The featured match: the whole week compressed into one card — the race
@@ -1340,9 +1785,18 @@ ${cssVariables()}
   display: flex; flex-direction: column; gap: var(--fib-space-5);
   width: 100%; text-align: left; cursor: pointer;
   transition: background var(--fib-motion-fast) var(--fib-ease),
-              border-color var(--fib-motion-fast) var(--fib-ease);
+              border-color var(--fib-motion-fast) var(--fib-ease),
+              box-shadow var(--fib-motion-base) var(--fib-ease),
+              transform var(--fib-motion-base) var(--fib-ease);
 }
-.fib-feature-card:hover { background: var(--fib-plinth-2); border-color: var(--fib-line); }
+/* The featured card lights up and lifts on hover — the one panel that behaves
+   like a CSFloat product card, because it is the page's headline object. */
+.fib-feature-card:hover {
+  background: var(--fib-plinth-2);
+  border-color: color-mix(in oklch, var(--fib-blue) 40%, var(--fib-line));
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top), 0 16px 50px -20px var(--fib-blue);
+  transform: translateY(-2px);
+}
 .fib-feature-top {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: var(--fib-space-5) var(--fib-space-6); flex-wrap: wrap;
@@ -1357,7 +1811,7 @@ ${cssVariables()}
 /* The arrow steps out when the card is hovered or focused. The card is one
    large click target with only a background change to confirm it; this is the
    bit that says which way the click goes. */
-.fib-feature-go { display: inline-flex; align-items: center; gap: 7px; color: var(--fib-ink-3); }
+.fib-feature-go { display: inline-flex; align-items: center; gap: 7px; color: var(--fib-blue-ink); }
 .fib-feature-go i {
   font-style: normal;
   transition: transform var(--fib-motion-base) var(--fib-ease);
@@ -1448,13 +1902,14 @@ ${cssVariables()}
 }
 
 /*
- * Grid on the left at its natural width, the run's numbers on the right. The
- * grid is NOT allowed to stretch: nine columns spread across a full-width
- * table would put 100px of empty slot around a 32px sprite.
+ * The tile grid takes the room on the left, the run's numbers ride a capped
+ * column on the right. The grid fills its column — labelled tiles WANT the
+ * width the bare-slot grid refused, so a wider drawer means more tiles per row
+ * rather than more empty space around a sprite.
  */
 .fib-inv {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
   gap: var(--fib-space-6);
   align-items: start;
   padding-top: var(--fib-space-4);
@@ -1466,24 +1921,48 @@ ${cssVariables()}
 }
 .fib-inv-skip { padding: 4px 10px; }
 
-/* Nine columns, because that is the width of a Minecraft inventory row. */
+/* Labelled tiles that fill the column: as many per row as fit at a readable
+   width, so a wide drawer packs more in rather than stretching each one. */
 .fib-inv-grid {
-  --slot: 48px;
   display: grid;
-  grid-template-columns: repeat(9, var(--slot));
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--fib-space-3);
 }
 
 /*
- * Composes the shared well and overrides only what is genuinely slot-specific:
- * a fixed square, a tighter radius for the dense grid, and positioning for the
- * order index. The surface treatment itself now lives on .fib-well, where
- * every other sprite in the module gets it too.
+ * One item: the sprite well on the left, its name and meta on the right. The
+ * tile is its own recessed plinth so the row reads as a shelf of labelled
+ * objects, and it lifts on hover to say "this is the one you're pointing at".
  */
-.fib-inv-slot {
+.fib-inv-tile {
   position: relative;
-  width: var(--slot); height: var(--slot);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--fib-space-3);
+  padding: var(--fib-space-2);
+  border-radius: var(--fib-radius-md);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+  transition: background var(--fib-motion-fast) var(--fib-ease),
+              box-shadow var(--fib-motion-fast) var(--fib-ease),
+              transform var(--fib-motion-fast) var(--fib-ease);
+}
+.fib-inv-tile:hover {
+  background: var(--fib-plinth-2);
+  box-shadow: inset 0 0 0 1px var(--fib-line);
+  transform: translateY(-1px);
+}
+
+/*
+ * The sprite's seat. Composes the shared well — surface, lighting, phase bleed
+ * and rarity rim all come from there — and only fixes the square geometry.
+ */
+.fib-inv-cell {
+  position: relative;
+  width: 52px; height: 52px;
   border-radius: var(--fib-radius-sm);
+  flex: none;
 }
 
 /* Collection order, where Minecraft puts stack size. */
@@ -1495,37 +1974,43 @@ ${cssVariables()}
   color: var(--fib-ink-3);
   text-shadow: 0 1px 2px var(--fib-shadow-deep);
   pointer-events: none;
+  z-index: 2;
+}
+
+.fib-inv-tile-text {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.fib-inv-name {
+  font-size: var(--fib-text-sm); font-weight: 600;
+  line-height: 1.2; color: var(--fib-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fib-inv-meta {
+  display: flex; align-items: center; gap: var(--fib-space-2);
+  flex-wrap: wrap;
+}
+.fib-inv-took {
+  font-family: var(--fib-font-mono);
+  font-size: var(--fib-text-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--fib-ink-3);
 }
 
 /* Desaturate and LIGHTEN, never darken. Crushing brightness on sprites that
    are already dark (blackstone, basalt, cobblestone) turned the slot into an
-   empty square — a skipped item still has to be identifiable. */
-.fib-inv-slot[data-skipped] .fib-sprite {
+   empty square — a skipped item still has to be identifiable. The whole tile
+   dims a touch so the run's skips recede without disappearing. */
+.fib-inv-tile[data-skipped] { opacity: 0.66; }
+.fib-inv-tile[data-skipped] .fib-sprite {
   /* Keeps both shadows: without the halo the desaturated dark items vanish. */
   filter: grayscale(1) brightness(1.15) contrast(0.85)
           drop-shadow(0 1px 2px var(--fib-shadow-deep))
           drop-shadow(0 0 1px oklch(1 0 0 / 0.45));
-  opacity: 0.72;
 }
-.fib-inv-slot[data-skipped] .fib-inv-order { color: var(--fib-netherite); }
-.fib-inv-slot[data-skipped]::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(
-    to top left,
-    transparent calc(50% - 1px), var(--fib-ink-3) 50%, transparent calc(50% + 1px));
-  opacity: 0.75;
-  border-radius: inherit;
-  pointer-events: none;
-}
+.fib-inv-tile[data-skipped] .fib-inv-name { font-weight: 500; color: var(--fib-ink-2); }
 
-/* Readout beneath the grid. Reserves its own height so hovering never reflows. */
-.fib-inv-caption {
-  display: flex; align-items: center; gap: var(--fib-space-3);
-  flex-wrap: wrap;
-  min-height: 26px;
-  margin-top: var(--fib-space-3);
-}
-.fib-inv-caption b { font-size: var(--fib-text-sm); font-weight: 600; }
+/* The skipped marker on a tile's meta line. */
 .fib-inv-skipped-tag {
   font-size: var(--fib-text-2xs); font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.03em;
@@ -1552,17 +2037,17 @@ ${cssVariables()}
  * default render. Reduced motion, a hidden tab and the skip control all land
  * there, so the grid is never left half-filled.
  */
-.fib-inv-slot {
-  opacity: 1; transform: none;
+.fib-inv-grid[data-play="pending"] .fib-inv-tile {
+  opacity: 0; transform: translateY(7px) scale(0.96);
 }
-.fib-inv-grid[data-play="pending"] .fib-inv-slot {
-  opacity: 0; transform: translateY(7px) scale(0.92);
-}
-.fib-inv-grid[data-play="run"] .fib-inv-slot {
+.fib-inv-grid[data-play="run"] .fib-inv-tile {
   opacity: 1; transform: none;
   transition: opacity 240ms var(--fib-ease) var(--delay),
               transform 240ms var(--fib-ease) var(--delay);
 }
+/* A skipped tile keeps its resting dim through the reveal — the reveal only
+   restores opacity to that resting value, so exclude it from the 1.0 override. */
+.fib-inv-grid[data-play="run"] .fib-inv-tile[data-skipped] { opacity: 0.66; }
 
 .fib-inv-progress {
   height: 2px; border-radius: var(--fib-radius-pill);
@@ -1587,9 +2072,12 @@ ${cssVariables()}
 @media (prefers-reduced-motion: reduce) {
   /* Resting state IS the visible state, so killing the transition lands on a
      populated grid rather than an empty one. */
-  .fib-inv-grid[data-play="pending"] .fib-inv-slot { opacity: 1; transform: none; }
+  .fib-inv-grid[data-play="pending"] .fib-inv-tile { opacity: 1; transform: none; }
+  .fib-inv-grid[data-play="pending"] .fib-inv-tile[data-skipped] { opacity: 0.66; }
   .fib-inv-progress { display: none; }
   .fib-inv-toggle[aria-expanded="true"] { transform: rotate(180deg); }
+  /* Keep the directory tile's colour feedback, drop its lift. */
+  .fib-dir-tile:hover { transform: none; }
 }
 
 /* ── 14. Responsive ───────────────────────────────────────────────────── */
@@ -1620,13 +2108,38 @@ ${cssVariables()}
     flex-direction: column; gap: 3px; padding: 6px 4px;
     font-size: var(--fib-text-2xs); font-weight: 500;
   }
-  .fib-nav-item[aria-current="page"] { background: none; color: var(--fib-diamond); }
+  /* Blue, not diamond. The pill is dropped here because a bottom bar has no room
+     for one, but the COLOUR has to stay blue: blue is the module's one
+     interactive accent and diamond means rarity and nothing else. Switching hue
+     at a breakpoint made the active-nav signal mean two different things
+     depending on the width of the window. */
+  .fib-nav-item[aria-current="page"] { background: none; color: var(--fib-blue-ink); }
 
   .fib-main { padding-bottom: 76px; }
   .fib-page { padding: var(--fib-space-6) var(--fib-space-4) var(--fib-space-7); }
   .fib-section { padding-top: var(--fib-space-7); }
 
   .fib-table th, .fib-table td { padding-left: var(--fib-space-3); padding-right: var(--fib-space-3); }
+
+  /*
+   * The facet rail stacks above the grid and collapses. It is the same
+   * <details> as on desktop, so there is no second component to keep in sync —
+   * only the marker comes back and the default open state goes away.
+   *
+   * Closed by default here because a phone's first job is to show the list: a
+   * rail that ate the first screenful would be a filter panel the reader has to
+   * scroll past every visit. The summary carries the active-filter count, so a
+   * closed rail that IS filtering still says so.
+   */
+  .fib-faceted { grid-template-columns: minmax(0, 1fr); gap: var(--fib-space-5); }
+  .fib-facet-rail { position: static; }
+  .fib-facet-rail > summary { list-style: revert; }
+  .fib-facet-rail > summary::marker { content: revert; }
+  .fib-facet-rail > summary::-webkit-details-marker { display: revert; }
+  .fib-facet-rail:not([open]) { padding-bottom: var(--fib-space-4); }
+  /* Two columns of checkboxes and ranges rather than one tall stack. */
+  .fib-facet-rail-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .fib-facet + .fib-facet { padding-top: 0; border-top: none; }
 }
 
 /* Two-column editorial splits collapse before the shell does — they run out of
@@ -1659,16 +2172,15 @@ ${cssVariables()}
 @media (max-width: 560px) {
   .fib { --fib-text-5xl: 3rem; --fib-text-4xl: 2.5rem; --fib-text-3xl: 2rem; }
 
-  /*
-   * Nine columns stay nine columns — that is the whole reference. The slot
-   * shrinks to fit instead, and the sprite holds at 32px (an exact 4:1
-   * downscale of the 128px source) so the pixel art never gets chewed.
-   */
-  .fib-inv-grid { --slot: 36px; gap: 3px; }
+  /* Tiles go single-file on a phone: two per row would crush each name to an
+     ellipsis, and the whole point of the tile is that the name is readable. */
+  .fib-inv-grid { grid-template-columns: minmax(0, 1fr); }
   .fib-inv-drawer > td { padding-left: var(--fib-space-3); padding-right: var(--fib-space-3); }
 
-  .fib-ach-row { grid-template-columns: auto 1fr; row-gap: var(--fib-space-2); }
-  .fib-ach-side { grid-column: 2; align-items: flex-start; text-align: left; }
+  /* The chase's track column cannot hold a bar and a fraction at 360px, so the
+     row stacks and the track runs full width beneath the words. */
+  .fib-chase-row { grid-template-columns: minmax(0, 1fr); row-gap: var(--fib-space-3); }
+  .fib-chase-count, .fib-chase-unmeasured { text-align: left; }
   .fib-ramp-row { grid-template-columns: 76px 1fr auto; gap: var(--fib-space-2); }
 
   /* The hero avatar drops to 64px — an exact 2:1 downscale, still a legal

@@ -67,11 +67,60 @@ export const tokens = {
 
     /* Dark ink for use ON gold/diamond/emerald fills. */
     onAccent: 'oklch(0.140 0.010 250)',
-    focus: 'oklch(0.830 0.100 200)',
     /* Hover step for the diamond primary action — one lightness step up. */
     diamondHi: 'oklch(0.870 0.100 200)',
 
+    /*
+     * Interactive blue — the CSFloat-inspired layer, added deliberately.
+     *
+     * The original brief held that this module had NO single primary accent:
+     * gold, diamond and emerald each carry a meaning and interactive chrome
+     * borrowed diamond. That was a compromise — "clickable" and "rare" are not
+     * the same idea, and diamond was doing two jobs. Blue now owns the one job
+     * nothing owned cleanly: "this is interactive." It signals links, the active
+     * nav item, the match scrubber, primary buttons and the focus ring, and
+     * NOTHING about rank (gold), rarity (diamond) or wins (emerald), which keep
+     * their meanings untouched. `#237bff`, the CSFloat signature, converted to
+     * OKLCH and verified in-gamut.
+     *
+     * `blue` is the fill (buttons, focus, meters); `blueInk` is the lighter step
+     * used when blue is TEXT on the dark field, where the fill is too dark to
+     * clear 4.5:1. `blueTint` is the 15% wash for active/hover backgrounds.
+     */
+    blue: 'oklch(0.585 0.20 258)',
+    blueHi: 'oklch(0.655 0.185 258)',
+    blueInk: 'oklch(0.720 0.150 250)',
+    blueTint: 'oklch(0.585 0.20 258 / 0.15)',
+    focus: 'oklch(0.585 0.20 258)',
+
+    /*
+     * Glass + gloss — the second deliberate override. The brief banned blur and
+     * translucent glass; it is now permitted, SCOPED to floating action controls
+     * layered over sprite art (exactly CSFloat's use), never as a decorative
+     * panel. `glossTop` is the top-edge highlight that makes a surface read as a
+     * lit card rather than a flat fill.
+     */
+    glassBg: 'oklch(0.210 0.006 250 / 0.55)',
+    glassBorder: 'oklch(1 0 0 / 0.12)',
+    glossTop: 'oklch(1 0 0 / 0.06)',
+
     negative: 'oklch(0.720 0.110 25)',
+
+    /*
+     * Match-phase colours, for the item index — which phase of a match an item
+     * can start coming up in. Green / yellow / red, the same EARLY→MID→LATE
+     * ramp the ItemPools pages use, so an item reads the same in both places.
+     * Assigned from ITEM_STATE (vendored from the plugin), never guessed.
+     */
+    phaseEarly: 'oklch(0.720 0.170 148)',
+    phaseMid: 'oklch(0.830 0.150 95)',
+    phaseLate: 'oklch(0.640 0.200 27)',
+    /* Text-on-dark step for LATE, the blue/blueInk split applied to phase: the
+       fill red (0.640) is a lit tone-line/bleed colour but only clears ~4.05:1
+       as small text on plinth-2, under the module's 4.5 floor. This lighter red
+       reads as the same phase but passes (4.67:1). EARLY and MID already clear
+       it as text (6.4 / 8.9), so only LATE needs the split. */
+    phaseLateInk: 'oklch(0.675 0.190 27)',
 
     /*
      * Podium metals. Universal rather than FIB-specific, and the only place in

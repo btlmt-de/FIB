@@ -89,7 +89,10 @@ export const LEADERBOARD_CATEGORIES = [
     { id: 'GAMES_WON', label: 'Wins', format: 'number', sense: 'high' },
     { id: 'HIGHEST_SCORE', label: 'Top score', format: 'number', sense: 'high' },
     { id: 'TOTAL_ITEMS', label: 'Items', format: 'number', sense: 'high' },
-    { id: 'BACK_TO_BACK_STREAK', label: 'B2B streak', format: 'number', sense: 'high' },
+    /* Spelled out. "B2B streak" is server shorthand sitting in a row of
+       plain-English labels, and the profile calls the same number
+       "Back-to-back best" three clicks away. */
+    { id: 'BACK_TO_BACK_STREAK', label: 'Back-to-back', format: 'number', sense: 'high' },
     { id: 'BLOCKS_TRAVELLED', label: 'Distance', format: 'distance', sense: 'high' },
     { id: 'DEATHS', label: 'Deaths', format: 'number', sense: 'low' },
 ];
