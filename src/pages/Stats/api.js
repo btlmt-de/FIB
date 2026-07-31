@@ -169,10 +169,22 @@ export async function loadPlayerIndex() {
      * Two facts per player, both free of a second round of fetches and both
      * available for EVERY player rather than only the solo roster:
      *
-     *   itemsFound  the value already sitting on the combined TOTAL_ITEMS board,
+     *   itemsFound  the roster's own total PLUS the combined TOTAL_ITEMS board,
      *               which was being fetched purely for the names on it and then
-     *               thrown away. Combined sums solo and every duo, so it is the
-     *               one count that exists for a team-only player too.
+     *               thrown away.
+     *
+     *               Added, because neither half is the career on its own. The
+     *               name misleads: "combined" is `/fib/leaderboard/team/combined`
+     *               and combines a player's TEAMS — FIBService builds it from the
+     *               team member rows and never touches the solo table — while the
+     *               roster's totalItemsFound is solo and only solo. Read as the
+     *               whole career, the board alone dropped every solo game a
+     *               player had ever played, and left someone who has only played
+     *               solo with a tile that said nothing but "2d ago".
+     *
+     *               A player absent from one side contributes nothing from it,
+     *               which is the truth rather than a gap: no team games is no
+     *               team items.
      *   lastSeen    the newest match in the recent feed this player appears in.
      *               A window, not a career — so it is absent rather than wrong
      *               for someone who has not played inside it.
@@ -196,11 +208,15 @@ export async function loadPlayerIndex() {
         return byUuid.get(uuid);
     };
 
-    (roster?.players ?? []).forEach((p) => add(p.player));
-    (Array.isArray(combined) ? combined : []).forEach((row) => {
-        const entry = add(row.player);
-        if (entry && Number.isFinite(row.value)) entry.itemsFound = row.value;
-    });
+    /* Accumulates rather than assigns, so the two halves of a career add up. Stays null until one
+       of them reports something — a player nobody has a count for shows no count. */
+    const addItems = (entry, value) => {
+        if (!entry || !Number.isFinite(value)) return;
+        entry.itemsFound = (entry.itemsFound ?? 0) + value;
+    };
+
+    (roster?.players ?? []).forEach((p) => addItems(add(p.player), p.totalItemsFound));
+    (Array.isArray(combined) ? combined : []).forEach((row) => addItems(add(row.player), row.value));
     (Array.isArray(duo) ? duo : []).forEach((row) => { add(row.player1); add(row.player2); });
 
     for (const match of feed?.matches ?? []) {

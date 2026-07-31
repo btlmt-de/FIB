@@ -40,7 +40,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LEADERBOARD_SCOPES, matchStandings } from './adapter.js';
 import { RARITY_KEYS } from './tokens.js';
 import {
-  unifyStats, totalPulls, achievementGroups, achievementSummary, splitAchievements,
+  unifyStats, lifetimeStats, totalPulls, achievementGroups, achievementSummary, splitAchievements,
 } from './achievements.js';
 import {
   loadPlayer, loadPlayerMatches, loadCatalogue, loadPlayerAchievements,
@@ -187,8 +187,15 @@ function PlayerProfileBody({
     /* Lifetime totals, for achievement progress. Deliberately NOT the scoped
        block: "Die 500 times" counts every death a player has ever had, so
        flipping the scope selector to Duos must not make a global achievement
-       look further away than it is. `team` is the combined roll-up. */
-    const career = unifyStats(profile?.team, 'combined') ?? unifyStats(profile?.solo, 'solo');
+       look further away than it is.
+
+       This used to read `team` alone, on the belief that it was the combined
+       roll-up. It is not — it combines a player's TEAMS and holds no solo game
+       at all — and since a player with no team gets a zero-filled block rather
+       than a null, the `?? solo` fallback never fired. Solo-only players read 0
+       against every lifetime achievement. `lifetimeStats` adds the two halves;
+       the argument is written out there. */
+    const career = lifetimeStats(profile?.solo, profile?.team);
 
     const achGroups = achievementGroups(catalogue, achievements, {
       career,
