@@ -90,6 +90,76 @@ export function unifyStats(payload, scope = 'solo') {
   };
 }
 
+/**
+ * A player's whole career: solo and team ADDED, not one or the other.
+ *
+ * The name "combined" is the trap here, and it cost this module a section. FIBService's
+ * `getPlayerCombinedTeamStats` combines a player's TEAMS — it aggregates the team member rows and
+ * never reads the solo table — so `profile.team` is every duo they have played summed, and the
+ * `combined` leaderboard behind `/fib/leaderboard/team/combined` is the same figure ranked. Neither
+ * one contains a single solo game.
+ *
+ * The profile read that block as the career and fell back to solo only when it was missing. It is
+ * never missing: a player with no team gets a zero-filled block rather than a null. So a solo-only
+ * player's lifetime progress read 0 against every GLOBAL achievement while the record two sections
+ * above printed the real numbers — 6 back-to-backs, 18.9K blocks, "0 of 1,000", "0 of 50.0K" — and
+ * a player with teams had their solo half silently dropped instead.
+ *
+ * The GLOBAL achievements are lifetime counters ("Die 250 times", "Play 10 games", "Travel 50000
+ * blocks"), and the plugin awards them off totals that do not care which mode earned them, so the
+ * numerator has to be the sum. Counters add; the handful of "highest" and "longest" fields take
+ * whichever mode holds the record, since a best is a best in either.
+ *
+ * `topThreeItems` and `teamsCount` are deliberately absent from the result. Neither merges into a
+ * career figure honestly — two top-three lists do not make a top three — and a caller reading a
+ * field that is not there gets no progress bar, which is this module's correct default. Whoever
+ * needs those should read the scoped block that owns them.
+ */
+export function lifetimeStats(soloPayload, teamPayload) {
+  const solo = unifyStats(soloPayload, 'solo');
+  const team = unifyStats(teamPayload, 'combined');
+  if (!solo && !team) return null;
+
+  /* Absent in both stays null — a stat nobody reported is a gap, and rendering it as 0 would put a
+     bar at "0 of 500" for something that was never measured. Absent in ONE counts as zero, which is
+     what it means: no team games is no team deaths. */
+  const sum = (key) => {
+    const a = solo?.[key];
+    const b = team?.[key];
+    if (!Number.isFinite(a) && !Number.isFinite(b)) return null;
+    return (Number.isFinite(a) ? a : 0) + (Number.isFinite(b) ? b : 0);
+  };
+
+  const best = (key) => {
+    const values = [solo?.[key], team?.[key]].filter(Number.isFinite);
+    return values.length ? Math.max(...values) : null;
+  };
+
+  return {
+    scope: 'lifetime',
+
+    gamesPlayed: sum('gamesPlayed'),
+    gamesWon: sum('gamesWon'),
+    totalItemsFound: sum('totalItemsFound'),
+    blocksTravelled: sum('blocksTravelled'),
+    deaths: sum('deaths'),
+    wheelOfFortuneUses: sum('wheelOfFortuneUses'),
+    enteredAntimatterTeleporter: sum('enteredAntimatterTeleporter'),
+    totalTimeSpentOnItems: sum('totalTimeSpentOnItems'),
+
+    rarities: Object.fromEntries(
+      RARITY_KEYS.map((tier) => {
+        const field = RARITY_FIELDS[tier];
+        return [field, (solo?.rarities?.[field] ?? 0) + (team?.rarities?.[field] ?? 0)];
+      }),
+    ),
+
+    highestScore: best('highestScore'),
+    highestB2BStreak: best('highestB2BStreak'),
+    longestItemStreak: best('longestItemStreak'),
+  };
+}
+
 const rarityCount = (s, tier) => s.rarities?.[RARITY_FIELDS[tier]] ?? 0;
 
 /** Total pulls across every rarity tier. */
@@ -135,7 +205,8 @@ const distinct = (ctx) => ctx.collection?.distinctItems;
 const poolSize = (ctx) => ctx.collection?.totalItems;
 
 export const ACHIEVEMENT_PROGRESS = {
-  /* GLOBAL — lifetime counters, straight off the combined career block. */
+  /* GLOBAL — lifetime counters, off the career roll-up (`lifetimeStats`: solo + team, not the
+     team block alone, which is what "combined" turned out to mean). */
   LEARNING_EXPERIENCE: [stat('deaths'), 50],
   BETTER_LUCK_NEXT_TIME: [stat('deaths'), 250],
   ARE_YOU_EVEN_TRYING: [stat('deaths'), 500],

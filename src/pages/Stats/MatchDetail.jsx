@@ -29,6 +29,17 @@ import * as f from './format.js';
 
 const labelFor = (row) => row.members.map(idLabel).join(' & ');
 
+/* Who pulled an item. A solo match logs the puller on the item itself, but a TEAM match logs only
+   the teamIndex — `item.player` is null there, so reading it directly printed "Unknown" against
+   every team pull. The standings already hold each competitor's members under the same key the item
+   is filed by, so a team pull is labelled with the roster, exactly like its standings row and like
+   the overview's rare-moments feed. "Unknown" is left for a row with neither: genuinely malformed. */
+const pullActor = (standings, item) => {
+  if (item.player) return idLabel(item.player);
+  const row = standings.find((r) => r.key === `t${item.teamIndex}`);
+  return row ? labelFor(row) : 'Unknown';
+};
+
 /* An absolute collection timestamp as an offset into the match, so a pull can be
    quoted on the same clock the scrubber runs. Clamped at zero: an item logged a
    beat before `startedAt` is clock skew, not a negative match time. */
@@ -336,7 +347,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
     return <MatchGone onBack={onBack} />;
   }
 
-  const { entries, changes, changeTimes, rare } = model;
+  const { entries, changes, changeTimes, rare, finalStandings } = model;
   const scrubbing = hover != null || cursor != null;
 
   return (
@@ -571,7 +582,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                           the "save button" problem.
                         */}
                         <span className="fib-meta">
-                          {item.player?.name ?? 'Unknown'} · {f.clock(atMatchTime(match, item.collectedAt))}
+                          {pullActor(finalStandings, item)} · {f.clock(atMatchTime(match, item.collectedAt))}
                         </span>
                       </figcaption>
                     </figure>
