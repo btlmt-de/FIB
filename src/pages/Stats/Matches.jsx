@@ -28,9 +28,19 @@ const MODES = [
 /** Calendar-day key, so grouping is stable regardless of locale formatting. */
 const dayKey = (v) => new Date(v).toDateString();
 
+/*
+ * The caption over one day's group.
+ *
+ * `calendarDaysAgo` and not an elapsed-hours division: the two disagree, and
+ * this is the view where the disagreement was visible. Grouping is by
+ * `toDateString` — the real calendar day — while the caption was counting
+ * 24-hour periods, so late last night and early this morning both came out as
+ * "Today" and the feed printed the heading twice over two different dates.
+ * The key and the caption now answer the same question.
+ */
 function dayLabel(v) {
     const d = new Date(v);
-    const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    const days = f.calendarDaysAgo(v);
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
     const date = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });

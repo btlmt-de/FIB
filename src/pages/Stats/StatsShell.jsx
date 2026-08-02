@@ -143,6 +143,7 @@ export function StatsShell({ initialView = 'overview', wikiHref = '/', onExitWik
                 onOpenMatch={openMatch}
                 onOpenPlayer={openPlayer}
                 onOpenItems={() => go('items')}
+                onOpenMatches={() => go('matches')}
                 onOpenLeaderboards={() => go('leaderboards')}
             />
         );

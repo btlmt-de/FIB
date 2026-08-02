@@ -275,16 +275,29 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
       [model, t],
   );
 
-  // The real final score per competitor, keyed for lookup. `standingsAt` derives a *running item
-  // count* from the log — which is the right thing to show WHILE scrubbing (the race unfolding),
-  // but is NOT the match's actual score. FIB scores are awarded, tracked as finalScore, and can
-  // differ sharply from the item count (a match can log 98 items yet score 59-53). So at rest, the
-  // Score column reads the real finalScore; only during a scrub does it show the running count.
-  const finalScoreByKey = useMemo(() => {
-    const m = new Map();
-    for (const row of (model?.finalStandings ?? [])) m.set(row.key, row.score);
-    return m;
-  }, [model]);
+  /*
+   * At rest the table reads the RESULT; only a scrub reads the race.
+   *
+   * `standingsAt` derives everything from the item log — a running count, and a
+   * position ranked on that count. While scrubbing that is exactly right: it is
+   * the race unfolding, and no final placement exists yet at 12:04. At rest it
+   * is the wrong source for three of the columns, and each was wrong in its own
+   * way:
+   *
+   *   Score  an item count is NOT the match's score. FIB scores are awarded and
+   *          stored as `finalScore`, and the two can diverge sharply — a match
+   *          can log 98 items and finish 59-53.
+   *   #      the placement is the server's, and the server resolves ties. Two
+   *          players level on 28 both place 2nd; ranking them by row index put
+   *          a silver medal on one and a bronze on the other.
+   *   Gap    computed against the leader's item count, so it could contradict
+   *          the Score column standing beside it in the same row.
+   *
+   * All three live on `row.entry`, which `raceEntries` spreads straight off
+   * `matchStandings` — the server's own participant record. No lookup table
+   * needed: the final figure is already on the row.
+   */
+  const finalLead = model?.finalStandings?.[0]?.score ?? 0;
 
   useFlipRows(bodyRef, live.map((r) => r.entry.key).join('|'));
 
@@ -349,6 +362,37 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
 
   const { entries, changes, changeTimes, rare, finalStandings } = model;
   const scrubbing = hover != null || cursor != null;
+
+  /* The three columns that switch source between the race and the result, resolved
+     once per render. The placement falls back to the derived position for a match
+     whose participants carry no usable one, rather than printing the 0 that would
+     arrive from `matchStandings`. */
+  const placeOf = (r) => (scrubbing || !(r.entry.placement > 0) ? r.pos : r.entry.placement);
+  const table = live.map((row) => ({
+    row,
+    place: placeOf(row),
+    score: scrubbing ? row.score : row.entry.score,
+    gap: scrubbing ? row.gap : row.entry.score - finalLead,
+  }));
+
+  /* Places held by more than one competitor. A shared place is stated, not left
+     to be inferred: a sighted reader has the equal Score and Gap in the same two
+     rows as corroboration, and a screen reader hearing "2" then "2" down a column
+     has nothing but the repetition. */
+  const sharedPlaces = new Set(
+      table.map((r) => r.place).filter((p, i, all) => all.indexOf(p) !== i),
+  );
+
+  /*
+   * Is anybody actually ahead of anybody?
+   *
+   * Every scrub before the first item lands has the whole field on nothing, and
+   * ranking equals honestly means they all place first — which printed seven gold
+   * medals and seven gold zeroes over a race that had not started. A standing is a
+   * separation, so where there is none the column says so and no score is gilded.
+   * The instant one competitor scores, the medals are real again.
+   */
+  const separated = new Set(table.map((r) => r.place)).size > 1;
 
   return (
       <div className="fib-page">
@@ -457,7 +501,11 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
 
         <Section
             title={scrubbing ? `Standings at ${f.clock(t)}` : 'Final standings'}
-            sub={scrubbing ? 'Rows move as the lead changes.' : undefined}
+            /* An all-square field says so rather than leaving seven dashes in the
+               "#" column to be puzzled over. */
+            sub={scrubbing
+                ? (separated ? 'Rows move as the lead changes.' : 'Every competitor is level — no standing yet.')
+                : undefined}
         >
           <div className="fib-panel fib-panel--flush fib-table-wrap">
             <table className="fib-table">
@@ -476,10 +524,11 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
               </tr>
               </thead>
               <tbody ref={bodyRef}>
-              {live.map((row) => {
+              {table.map(({ row, place, score, gap }) => {
                 const key = row.entry.key;
                 const open = openKey === key;
                 const panelId = `fib-inv-${match.matchId}-${key}`;
+                const tied = sharedPlaces.has(place);
                 return (
                     <React.Fragment key={key}>
                       <tr
@@ -499,7 +548,10 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                             toggle(key);
                           }}
                       >
-                        <td><Medal place={row.pos} /></td>
+                        <td>
+                          <Medal place={separated ? place : null} />
+                          {separated && tied ? <span className="fib-sr">, tied</span> : null}
+                        </td>
                         <td>
                           <div className="fib-cell-players">
                             {row.entry.members.map((m) => (
@@ -515,13 +567,13 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                             ))}
                           </div>
                         </td>
-                        <td data-num style={{ color: row.pos === 1 ? 'var(--fib-gold)' : undefined }}>
-                          {scrubbing ? row.score : (finalScoreByKey.get(row.entry.key) ?? row.score)}
+                        <td data-num style={{ color: separated && place === 1 ? 'var(--fib-gold)' : undefined }}>
+                          {score}
                         </td>
                         <td data-num>{row.found}</td>
                         <td data-num style={{ color: 'var(--fib-netherite)' }}>{row.skipped}</td>
                         <td data-num style={{ color: 'var(--fib-netherite)' }}>
-                          {row.gap === 0 ? '—' : row.gap}
+                          {gap === 0 ? '—' : gap}
                         </td>
                         <td data-num>
                           <button

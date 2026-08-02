@@ -14,6 +14,23 @@
  * and the rare-moments endpoint — so they are shown as two columns rather than
  * merged into a stream that then has to be pulled apart again.
  *
+ * ── The two feeds carry the same anatomy ──
+ *
+ * Object · what happened · the figure. In the moments feed the object is the
+ * item's sprite and the figure is its rarity; in the wins feed the object is
+ * the winner's head and the figure is the score. They sit side by side, so a
+ * row shape that only half-works in one column is visible in the other.
+ *
+ * The wins feed used to open every row with a gold "1" medal and bury the
+ * score inside the sentence ("eltobito won with 40"). Both were wrong, and for
+ * the same reason: the section is titled "Latest wins", so first place is a
+ * constant, and eleven identical gold pills spent the module's rank colour on
+ * the one part of the row that could not vary — while the number the row is
+ * actually about sat in a proportional face with no field beside it. The head
+ * answers "who", which does vary, and a duo's two heads say "team" without a
+ * word; the score moved to the right edge in tabular mono with its margin
+ * underneath, which is the field that says whether 40 was a rout or a squeak.
+ *
  * ── The podium is all-time, not weekly ──
  *
  * It shows the top three by total wins, with a Solo / Teams toggle. All-time
@@ -65,7 +82,76 @@ const PODIUM_SCOPES = [
 const momentActor = (m) =>
     (m.player ? idLabel(m.player) : (m.members ?? []).map(idLabel).join(' & ')) || 'Unknown';
 
-export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderboards }) {
+/*
+ * How many rows each of the paired feeds shows.
+ *
+ * The two columns sit side by side, so their lengths are a visual fact, not
+ * just a data one: the match feed hands back a full page (20) while the rare
+ * moments endpoint hands back a handful, which left the wins column running
+ * a screenful past its neighbour and the page ending on a long ragged edge.
+ * One shared cap on both keeps the pair roughly level whichever way the two
+ * endpoints happen to be sized on any given day.
+ *
+ * Eight, not six: it is the point where the feed still scans as one glance.
+ * Wins carry an "All matches" link into the full feed, so nothing capped here
+ * is unreachable. Rare moments have no such view yet — but that list is a
+ * highlights reel by definition, and today the endpoint returns fewer than
+ * this anyway, so the cap is a guard rather than a truncation.
+ */
+const FEED_LIMIT = 8;
+
+/*
+ * The winning side of a finished match, plus the field that says how it was won.
+ *
+ * Deliberately derived from `participants` and the `won` flag rather than from
+ * `matchStandings`: that helper reads `match.teams` for a team match, and the
+ * dashboard's activity feed is not the endpoint it was written against. The
+ * `won` flag and `placement` are on every participant in both modes, so this
+ * path needs nothing the payload might not carry. A team's members all carry
+ * `won: true` and share a placement, which is what makes the grouping below
+ * work without a team array to group by.
+ */
+function winFromMatch(match) {
+    const participants = match.participants ?? [];
+    const winners = participants.filter((p) => p.won);
+    if (winners.length === 0) return null;
+
+    /* The runner-up is everyone sharing the best placement among the losers —
+       one player in a solo match, both members of a team in a duo. Without them
+       there is no margin to state, which is itself worth saying ("uncontested"). */
+    const beaten = participants.filter((p) => !p.won).sort((a, b) => a.placement - b.placement);
+    const runnersUp = beaten.length > 0 ? beaten.filter((p) => p.placement === beaten[0].placement) : [];
+
+    const score = winners[0]?.finalScore ?? 0;
+    const runnerScore = runnersUp[0]?.finalScore;
+
+    return {
+        matchId: match.matchId,
+        at: match.endedAt,
+        winners: winners.map((p) => ({ uuid: idUuid(p.player), name: idLabel(p.player) })),
+        score,
+        beat: runnersUp.length > 0 ? runnersUp.map((p) => idLabel(p.player)).join(' & ') : null,
+        margin: Number.isFinite(runnerScore) ? score - runnerScore : null,
+    };
+}
+
+/*
+ * The margin, as the score's field — printed under the figure, and spoken in
+ * full in the row's accessible name.
+ *
+ * Counted, never asserted. A dead-level match says the scores were level and
+ * stops there: the server hands down `placement` and `won`, not how it decided
+ * between two equal scores, and naming a tie-break the plugin may not run would
+ * be the layout inventing a rule. The uncontested case is the same discipline —
+ * a lone finisher has no margin, and "0" would read as a photo finish.
+ */
+function margin(win) {
+    if (win.margin == null) return { short: 'uncontested', spoken: 'uncontested' };
+    if (win.margin === 0) return { short: 'level on score', spoken: `level on score with ${win.beat}` };
+    return { short: `by ${win.margin}`, spoken: `${win.margin} ahead of ${win.beat}` };
+}
+
+export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatches, onOpenLeaderboards }) {
     const state = useAsync(loadOverview, []);
 
     return (
@@ -76,6 +162,7 @@ export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderb
                     onOpenMatch={onOpenMatch}
                     onOpenPlayer={onOpenPlayer}
                     onOpenItems={onOpenItems}
+                    onOpenMatches={onOpenMatches}
                     onOpenLeaderboards={onOpenLeaderboards}
                 />
             )}
@@ -88,7 +175,7 @@ export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderb
  * props now that the fetch happens one level up, so the destructure below is the only line that
  * differs from the pre-fetch version -- everything from the podium down is exactly as it was.
  */
-function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLeaderboards }) {
+function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatches, onOpenLeaderboards }) {
     /* `??`, not a destructuring default. An unavailable section arrives from the dashboard
        composition as JSON null, and a destructuring default only fires on `undefined` — so
        `moments = []` never ran and `moments.length` threw the moment the rare-moments call
@@ -128,23 +215,22 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
     }, [featured]);
 
     /* The two feeds, kept apart because they were always two queries. `activity` is the raw match
-       feed — a FibMatchPage { totalCount, page, size, matches } — so the winners are derived from it
-       here: each match's winning participants (won === true), their names and the winning score. The
-       mock handed a pre-shaped {playerUuids, score} row; the real feed hands the match, and this is
-       where it becomes a win row. `moments` stays as-is (rare pulls, its own endpoint). */
-    const wins = useMemo(() => {
-        const matches = activity?.matches ?? [];
-        return matches.map((m) => {
-            const winners = (m.participants ?? []).filter((p) => p.won);
-            return {
-                matchId: m.matchId,
-                at: m.endedAt,
-                // Names from the participant identities; a team win lists both, a solo win one.
-                players: winners.map((p) => idLabel(p.player)),
-                score: winners[0]?.finalScore ?? 0,
-            };
-        });
-    }, [activity]);
+       feed — a FibMatchPage { totalCount, page, size, matches } — so the win rows are derived from it
+       here by `winFromMatch`. The mock handed a pre-shaped {playerUuids, score} row; the real feed
+       hands the match, and this is where it becomes a win row. `moments` stays as-is (rare pulls, its
+       own endpoint).
+
+       A match with no winning participant is dropped rather than rendered blank: it is a match that
+       ended without a result, and a row that names nobody is not a "latest win". */
+    const wins = useMemo(
+        () => (activity?.matches ?? []).map(winFromMatch).filter(Boolean).slice(0, FEED_LIMIT),
+        [activity],
+    );
+
+    /* Not memoised: slicing at most eight rows off an array is cheaper than the
+       comparison that would guard it, and `moments` is a fresh array on any
+       render where the section arrived null anyway. */
+    const topMoments = moments.slice(0, FEED_LIMIT);
 
     return (
         <div className="fib-page">
@@ -304,38 +390,70 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
             ) : null}
 
             <div className="fib-split">
-                <Section title="Latest wins" sub="The most recent ranked matches, newest first.">
+                <Section
+                    title="Latest wins"
+                    sub="The most recent ranked matches, newest first."
+                    aside={
+                        <button type="button" className="fib-btn fib-btn--quiet" onClick={onOpenMatches}>
+                            All matches
+                        </button>
+                    }
+                >
                     <div className="fib-panel fib-panel--flush">
                         {wins.length === 0 ? (
                             <div className="fib-meta" style={{ padding: 'var(--fib-space-4)' }}>
                                 No matches yet.
                             </div>
-                        ) : wins.map((a, i) => (
-                            <button
-                                key={a.matchId ?? i}
-                                type="button"
-                                className="fib-row-link"
-                                onClick={() => onOpenMatch(a.matchId)}
-                            >
-                                <span className="fib-stream-icon"><Medal place={1} /></span>
-                                <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                                    <div style={{ fontWeight: 500 }}>
-                                        {a.players.join(' & ')} won with {a.score}
+                        ) : wins.map((a, i) => {
+                            const names = a.winners.map((w) => w.name).join(' & ');
+                            /*
+                              The row reads as three fragments — a face, a name, a numeral — which
+                              scans well and dictates nothing to a screen reader. One authored
+                              sentence carries the same facts in the order they would be spoken. The
+                              moments row beside it needs none: its text is already a sentence.
+                            */
+                            const field = margin(a);
+                            return (
+                                <button
+                                    key={a.matchId ?? i}
+                                    type="button"
+                                    className="fib-row-link"
+                                    onClick={() => onOpenMatch(a.matchId)}
+                                    aria-label={`${names} won with ${a.score}, ${field.spoken}, ${timeAgo(a.at)}. Open the match.`}
+                                >
+                                    <span className="fib-stream-icon fib-win-faces">
+                                        {a.winners.map((w) => (
+                                            <Avatar key={w.uuid ?? w.name} uuid={w.uuid} size={30} />
+                                        ))}
+                                    </span>
+                                    <div className="fib-stream-body">
+                                        <div className="fib-stream-title">{names}</div>
+                                        <div className="fib-meta">
+                                            {timeAgo(a.at)}{a.beat ? ` · over ${a.beat}` : ''}
+                                        </div>
                                     </div>
-                                    <div className="fib-meta">{timeAgo(a.at)}</div>
-                                </div>
-                            </button>
-                        ))}
+                                    {/* Gold, and the only gold in this column now: a win is exactly
+                                        what the module spends gold on, and here it lands on the one
+                                        part of the row that differs between rows. `.fib-match-score`
+                                        is the match feed's own score cell — one score, one look,
+                                        wherever the module prints one. */}
+                                    <div className="fib-match-score">
+                                        <b>{a.score}</b>
+                                        <span className="fib-meta">{field.short}</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </Section>
 
                 <Section title="Rarest moments" sub="Legendary and rarer back-to-backs, newest first.">
                     <div className="fib-panel fib-panel--flush">
-                        {moments.length === 0 ? (
+                        {topMoments.length === 0 ? (
                             <div className="fib-meta" style={{ padding: 'var(--fib-space-4)' }}>
                                 No rare pulls yet.
                             </div>
-                        ) : moments.map((m, i) => (
+                        ) : topMoments.map((m, i) => (
                             /* Links to the match now — a rare moment carries its matchId, which
                                the old merged feed dropped and this one keeps. */
                             <button
@@ -347,8 +465,8 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                 <span className="fib-stream-icon">
                   <Sprite name={m.itemName} size={32} pad={6} tier={m.b2bRarity} />
                 </span>
-                                <div style={{ flex: '1 1 auto', minWidth: 0 }}>
-                                    <div style={{ fontWeight: 500 }}>
+                                <div className="fib-stream-body">
+                                    <div className="fib-stream-title">
                                         {momentActor(m)} pulled {f.itemLabel(m.itemName)}
                                     </div>
                                     <div className="fib-meta">{timeAgo(m.collectedAt)}</div>
@@ -360,7 +478,10 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenLead
                 </Section>
             </div>
 
-            <div style={{ marginTop: 'var(--fib-space-4)' }}>
+            {/* The page's last route out. It sat at space-4, close enough to the
+                feed panel above to read as part of it rather than as the next
+                thing; the section rhythm is what separates a block from a block. */}
+            <div style={{ marginTop: 'var(--fib-space-6)' }}>
                 <button
                     type="button"
                     className="fib-btn fib-btn--quiet"
