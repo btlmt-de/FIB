@@ -328,11 +328,19 @@ export function Avatar({ uuid, size = 28, className = '' }) {
   );
 }
 
-/** Podium position. Places outside the top three render as a plain numeral. */
+/**
+ * Podium position. Places outside the top three render as a plain numeral.
+ *
+ * `null` is "there is no standing" — the match replay parks here whenever every
+ * competitor is level, which is every scrub before the first item lands. Ranking
+ * an undifferentiated field 1 through 7 invents an order, and calling all seven
+ * of them first spends the module's rank colour on the absence of a rank; a rule
+ * says neither, which is the truth at 0:00.
+ */
 export function Medal({ place }) {
   const podium = place >= 1 && place <= 3;
   return (
-    <span className="fib-medal" data-place={podium ? place : 0}>{place}</span>
+    <span className="fib-medal" data-place={podium ? place : 0}>{place ?? '—'}</span>
   );
 }
 

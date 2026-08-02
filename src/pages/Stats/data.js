@@ -210,7 +210,31 @@ export const standingsAt = (entries, t) => {
         })
         .sort((a, b) => b.score - a.score || a.entry.index - b.entry.index);
     const lead = rows[0]?.score ?? 0;
-    return rows.map((r, i) => ({ ...r, pos: i + 1, gap: r.score - lead }));
+
+    /*
+     * Position is a DENSE rank, not the row index.
+     *
+     * `i + 1` handed two competitors on the same score two different places, in
+     * whatever order the lane index happened to fall — and the standings table
+     * dresses that number in a medal, so a match with two players level on 28
+     * awarded one of them silver and the other bronze while every other column
+     * in both rows read identically. That is the interface inventing an order
+     * the data does not contain, which is the one thing this module is not
+     * allowed to do.
+     *
+     * Dense (1, 2, 2, 3, 3, 4) and not competition ranking (1, 2, 2, 4, 4, 6),
+     * because dense is the convention the plugin itself resolves `placement`
+     * with — a player who reads "2nd" in chat has to read "2nd" here.
+     */
+    let pos = 0;
+    let prevScore = null;
+    return rows.map((r) => {
+        if (r.score !== prevScore) {
+            pos += 1;
+            prevScore = r.score;
+        }
+        return { ...r, pos, gap: r.score - lead };
+    });
 };
 
 export const leadChanges = (entries) => {
@@ -284,9 +308,40 @@ export const formatTime = (s) => {
     return `${total}s`;
 };
 
+/**
+ * How many CALENDAR days back a timestamp falls. 0 is today, 1 yesterday.
+ *
+ * Not `(now - then) / 86400000`, which is what "Today" and "Yesterday" were
+ * computed from everywhere in this module and is a different question — it
+ * counts 24-hour periods, not dates. Read at 02:00 on a Saturday, a match that
+ * ended at 23:00 on Friday is three hours old, so that arithmetic called it
+ * "Today"; Thursday evening's match came out at "Yesterday". The match feed
+ * showed the effect most plainly, because it groups by the real calendar day
+ * and labels each group with this: two adjacent groups, two different dates,
+ * both captioned "Today".
+ *
+ * Both ends are floored to local midnight and the quotient rounded, because a
+ * calendar day is not always 86400000ms — across a DST boundary it is 23 or 25
+ * hours, and flooring an exact-looking division would slip a day twice a year.
+ * Local, not UTC: the reader's "today" is the one on their own clock, and it is
+ * the same day `toDateString` groups by, so the caption cannot disagree with
+ * the bucket it captions.
+ */
+const midnight = (t) => {
+    const d = new Date(t);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
+export const calendarDaysAgo = (v) => {
+    const then = new Date(v).getTime();
+    if (Number.isNaN(then)) return NaN;
+    return Math.round((midnight(Date.now()) - midnight(then)) / 86400000);
+};
+
 export const formatDate = (v) => {
     const d = new Date(v);
-    const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+    const days = calendarDaysAgo(v);
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days < 7) return `${days} days ago`;

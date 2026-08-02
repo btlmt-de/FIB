@@ -1712,10 +1712,20 @@ ${cssVariables()}
 .fib-match-winner { display: flex; align-items: center; gap: var(--fib-space-3); min-width: 0; }
 .fib-match-names { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .fib-match-margin { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.fib-match-score { text-align: right; }
+/* Shared with the overview's "Latest wins" feed, which prints the same figure
+   for the same reason. "flex: none" is for that use — inside the match feed's
+   grid it is inert; inside a ".fib-row-link" it stops the score cell shrinking
+   under a long pair of names. */
+.fib-match-score { text-align: right; flex: none; }
 .fib-match-score b {
   display: block; font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
   font-size: var(--fib-text-xl); font-weight: 600; color: var(--fib-gold); letter-spacing: -0.02em;
+  /* The module's numeral leading (".fib-podium-value", ".fib-figure-value"), which
+     this cell was inheriting body line-height instead of. At 22px that is 34px of
+     line box for a 22px digit, and it made the score the tallest thing in the row:
+     every row in the overview's win feed was 17px taller than its content, and the
+     score sat visibly off the baseline of the name beside it. */
+  line-height: 1.1;
 }
 
 /*
@@ -1863,8 +1873,51 @@ ${cssVariables()}
 }
 .fib-split > .fib-section { padding-top: 0; }
 
-/* Icon slot in the unified stream: medal for a win, sprite for a pull. */
+/*
+ * The paired overview feeds. Both rows are the same three parts — an object, a
+ * line of text, a figure on the right — because the columns sit side by side
+ * and a row shape that only half-works in one of them is visible in the other.
+ */
+
+/* The object slot: the winner's head(s) for a win, the item's sprite for a
+   pull. Fixed width so the text in both feeds starts on the same x. */
 .fib-stream-icon { flex: none; width: 34px; display: grid; place-items: center; }
+.fib-stream-body { flex: 1 1 auto; min-width: 0; }
+.fib-stream-title { font-weight: 500; }
+/*
+ * The second line truncates rather than wraps. It is the row's supporting
+ * clause ("4d ago · over eltobito & apppaa"), and at a phone's column width it
+ * takes two lines on most rows — 17px per row of a feed whose whole value is
+ * that it scans in one pass, spent on a fragment reading as a detached line.
+ * The relative time is written first precisely so the ellipsis never eats it,
+ * and the match is one tap away with the full story in it.
+ */
+.fib-stream-body .fib-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/*
+ * The winners' heads, stacked.
+ *
+ * This slot used to hold a gold "1" medal on every row. The medal was a
+ * constant — the section is titled "Latest wins", so first place is the one
+ * thing every row shares — which turned the column into a stack of identical
+ * gold pills that outshouted the real sprites in the feed beside it, and spent
+ * the module's rank colour on the only part of the row that could not vary. A
+ * head answers "who", which does, and two heads say "team" without a word.
+ *
+ * The overlap is ".fib-lane-faces"' idiom at row scale: the ring is the panel
+ * behind the row, so a duo reads as two objects rather than one wide sprite.
+ *
+ * The slot is widened to hold a pair and the heads are packed to its left edge
+ * rather than centred in it — a solo win is one head in a 50px box, and
+ * centring it would start that row's name 10px right of every duo's. The empty
+ * tail after a lone head is invisible; a ragged text edge is not.
+ */
+.fib-win-faces {
+  display: flex; align-items: center; justify-content: flex-start;
+  width: 50px;
+}
+.fib-win-faces .fib-avatar { margin-left: -10px; box-shadow: 0 0 0 2px var(--fib-plinth); }
+.fib-win-faces .fib-avatar:first-child { margin-left: 0; }
 
 /*
  * The server record, at the head of the overview. These totals are the
@@ -1950,6 +2003,13 @@ ${cssVariables()}
   display: flex; align-items: baseline; justify-content: space-between;
   gap: var(--fib-space-4); margin-bottom: var(--fib-space-3);
 }
+/* The count and the replay control share the right end, and wrap together
+   rather than letting the button drop under the heading on its own. */
+.fib-inv-head-aside {
+  display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: var(--fib-space-2) var(--fib-space-4);
+  justify-content: flex-end;
+}
 .fib-inv-skip { padding: 4px 10px; }
 
 /* Labelled tiles that fill the column: as many per row as fit at a readable
@@ -1996,14 +2056,29 @@ ${cssVariables()}
   flex: none;
 }
 
-/* Collection order, where Minecraft puts stack size. */
+/*
+ * Collection order, where Minecraft puts stack size.
+ *
+ * The position is the authentic reference and stays. What did not work was the
+ * treatment: ink-3 over a text-shadow, sitting directly on the sprite, which on
+ * a light item (bone meal, quartz, a torch's flame) had nothing to read against
+ * and dissolved into the texture. A stack count in the game is legible over
+ * every block in it, and this is the same job.
+ *
+ * A small plate rather than a heavier shadow — the numeral gets its own dark
+ * ground, so it clears the sprite whatever the sprite is, and the ink can stay
+ * quiet instead of being pushed to white to survive.
+ */
 .fib-inv-order {
-  position: absolute; right: 2px; bottom: 0;
+  position: absolute; right: 1px; bottom: 1px;
+  min-width: 14px; padding: 0 3px;
+  border-radius: var(--fib-radius-sm);
+  background: color-mix(in oklch, var(--fib-void) 78%, transparent);
   font-family: var(--fib-font-mono);
-  font-size: var(--fib-text-2xs);
+  font-size: var(--fib-text-2xs); line-height: 1.45;
   font-variant-numeric: tabular-nums;
-  color: var(--fib-ink-3);
-  text-shadow: 0 1px 2px var(--fib-shadow-deep);
+  text-align: center;
+  color: var(--fib-ink-2);
   pointer-events: none;
   z-index: 2;
 }
@@ -2012,10 +2087,25 @@ ${cssVariables()}
   display: flex; flex-direction: column; gap: 3px;
   min-width: 0;
 }
+/*
+ * Two lines, not one line with an ellipsis.
+ *
+ * The tile's whole argument is that the name is always on, so the run reads as
+ * a list of things collected rather than a grid to hover through — and a third
+ * of Minecraft's names do not fit one 130px line. "Waxed Weathered Copper Door"
+ * arrived as "Waxed Weathered Coppe…", which is the hover puzzle back again on
+ * exactly the items whose names carry the most information.
+ *
+ * It costs no height. The 52px well sets the tile's floor and a second line of
+ * name plus the meta row still measures under it, so the grid's rhythm is
+ * unchanged and only the truncation is gone. Past two lines the clamp holds —
+ * nothing in the pool needs a third.
+ */
 .fib-inv-name {
   font-size: var(--fib-text-sm); font-weight: 600;
   line-height: 1.2; color: var(--fib-ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; overflow-wrap: anywhere;
 }
 .fib-inv-meta {
   display: flex; align-items: center; gap: var(--fib-space-2);

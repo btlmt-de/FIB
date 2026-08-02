@@ -19,6 +19,7 @@ export {
   mmss as clock,
   totalRarities,
   timeAgo,
+  calendarDaysAgo,
   winRate,
   itemsPerGame,
   secondsPerItem,

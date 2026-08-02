@@ -53,9 +53,26 @@
  *
  * The timing is pure CSS: each tile carries its own `--delay` and the container
  * flips one attribute. No per-frame JavaScript, and the browser owns the
- * scheduling. Reduced motion, a hidden tab, or the skip control all land on the
- * same fully-populated grid, which is also the default render — the animation
- * is only ever an override of something already correct and on screen.
+ * scheduling.
+ *
+ * *It used to run on open, and that was the wrong default.* The claim right
+ * here was that the full grid "is also the default render — the animation is
+ * only ever an override of something already correct and on screen". It was
+ * not: `phase` initialised to `pending`, `pending` sets `opacity: 0` on every
+ * tile, and so opening the drawer bought a blank grid for up to 4.74 seconds.
+ * The sprites are the app's own 4KB of PNG and land in about 12ms — every bit
+ * of that wait was the animation, and it read as the page loading rather than
+ * as a replay. That is precisely what "Motion Never Withholds" exists to
+ * forbid, and the rule's other half was broken too: an entrance belongs on
+ * elements genuinely below the fold, and the first row of tiles is the first
+ * thing the drawer shows.
+ *
+ * So the grid is now correct and complete on the frame it opens, and the replay
+ * is a control. Nothing about the rhythm changed — the same proportional delays
+ * over the same 4.5 seconds — but a reader who wants to watch the run asks for
+ * it, and a reader who wants to read the list is not charged for a show they
+ * did not order. Reduced motion, a hidden tab, and the skip control all still
+ * land on the same fully-populated grid, which is now also where they start.
  */
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -166,13 +183,10 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
   }, [segments]);
 
   /* ── Playback ─────────────────────────────────────────────────────────
-     'idle' is the resting, fully-visible state, and where every non-animating
-     path lands so the grid is never left half-filled.
-
-     The starting phase is decided in the initialiser rather than in an effect:
-     deciding it after mount would paint one frame of full grid before hiding
-     it, which is the flash the animation exists to avoid. */
-  const [phase, setPhase] = useState(() => (canAnimate() ? 'pending' : 'idle'));
+     'idle' is the resting, fully-visible state. It is where the drawer OPENS,
+     where every non-animating path lands, and where the replay returns to, so
+     the grid is never left half-filled and never starts empty. */
+  const [phase, setPhase] = useState('idle');
   const timers = useRef([]);
   const frame = useRef(0);
 
@@ -182,20 +196,23 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
     timers.current = [];
   };
 
+  /* Keyed on 'pending', so the same path serves the first press and every one
+     after it. The body is a no-op in the other two phases, which is what keeps
+     the 'pending' → 'run' transition from tearing down its own return-to-idle
+     timer the way a cleanup on this effect would. */
   useLayoutEffect(() => {
-    if (phase !== 'pending') return undefined;
+    if (phase !== 'pending') return;
 
     // One frame after the hidden paint, flip to 'run' so the per-tile
     // transitions have a start value to animate from.
     frame.current = requestAnimationFrame(() => setPhase('run'));
     timers.current.push(setTimeout(() => setPhase('idle'), PLAYBACK_MS + SLOT_MS + 60));
+  }, [phase]);
 
-    return () => {
-      clearTimers();
-    };
-    // Runs once, off the initial phase; `phase` moving on must not restart it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Unmount is the only time everything in flight has to be dropped. Closing the
+  // drawer mid-replay unmounts this, and a timer left holding `setPhase` would
+  // fire into a component that no longer exists.
+  useEffect(() => () => clearTimers(), []);
 
   // Backgrounding mid-fill stops CSS transitions dead. Land on the full grid
   // rather than leaving half an inventory stranded for the reader's return.
@@ -207,6 +224,17 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
   }, [phase]);
 
   const skip = () => { clearTimers(); setPhase('idle'); };
+
+  /* A press starts the run from the top. `canAnimate` is checked here as well as
+     at render time: the button is hidden under reduced motion, but the setting
+     can be turned on between the render that drew it and the press. */
+  const replay = () => {
+    if (!canAnimate()) return;
+    clearTimers();
+    setPhase('pending');
+  };
+
+  const motionOk = !prefersReducedMotion();
 
   if (!segments.length) {
     return (
@@ -224,13 +252,25 @@ export function Inventory({ entry, duration, ownerLabel, mode }) {
           <h4 className="fib-h2">
             {mode === 'SOLO' ? `${ownerLabel}'s items` : `${ownerLabel} — shared items`}
           </h4>
-          {phase === 'run' ? (
-            <button type="button" className="fib-btn fib-btn--quiet fib-inv-skip" onClick={skip}>
-              Skip replay
-            </button>
-          ) : (
-            <span className="fib-meta">{summary.total} items, in collection order</span>
-          )}
+          <div className="fib-inv-head-aside">
+            {phase === 'run' ? (
+              <button type="button" className="fib-btn fib-btn--quiet fib-inv-skip" onClick={skip}>
+                Skip replay
+              </button>
+            ) : (
+              <>
+                <span className="fib-meta">{summary.total} items, in collection order</span>
+                {/* Offered, never imposed — see "The playback" above. Absent under
+                    reduced motion rather than present and inert: a control that
+                    does nothing when pressed is worse than one that isn't there. */}
+                {motionOk ? (
+                  <button type="button" className="fib-btn fib-btn--quiet fib-inv-skip" onClick={replay}>
+                    Replay the run
+                  </button>
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
 
         {/* Runs only while the fill is playing; it is the affordance that tells
