@@ -1,0 +1,30 @@
+{
+  "type": "minecraft:smelting",
+  "category": "misc",
+  "ingredient": "minecraft:brush",
+  "result": {
+    "id": "minecraft:brush",
+    "count": 1,
+    "components": {
+      "minecraft:custom_name": {
+        "text": "» ",
+        "color": "dark_gray",
+        "italic": false,
+        "extra": [
+          {
+            "text": "Kiln-Fired Brush",
+            "color": "#C77B3E"
+          }
+        ]
+      },
+      "minecraft:custom_model_data": {
+        "strings": [
+          "kiln_fired_brush"
+        ]
+      },
+      "minecraft:item_model": "fib:kiln_fired_brush"
+    }
+  },
+  "experience": 0.3,
+  "cookingtime": 200
+}
