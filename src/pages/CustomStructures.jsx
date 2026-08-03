@@ -989,8 +989,10 @@ export default function CustomStructures() {
                             note="No chance involved — any brush can be fired, in any furnace."
                         />
                         <P>
-                            Then <Hi>brush the ground</Hi> with it: right-click a block and it sweeps for the
-                            nearest ruins. Instead of a line through the air you get{' '}
+                            Then <Hi>brush the ground</Hi> with it: right-click{' '}
+                            <Hi>grass, sand, mud, podzol, coarse dirt or snow</Hi> and it sweeps for the
+                            nearest ruins. Anything harder gives the brush nothing to read.
+                            Instead of a line through the air you get{' '}
                             <Hi color={COL.trail}>footprints dusted across the ground</Hi> — a steady trail
                             that keeps leading from wherever you are standing to the find. Trail ruins sit at
                             the surface, so there is no dig-spot beam to follow; just walk the prints.
