@@ -18,6 +18,9 @@ const COL = {
     red:    COLORS.red,
     orange: COLORS.orange,
     rare:   COLORS.accent,
+    // Trail ruins have no token in the shared palette; terracotta matches both the structure and
+    // the Kiln-Fired Brush that finds it.
+    trail:  '#C77B3E',
 };
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -132,16 +135,19 @@ const LOOT_TABLES = {
     },
 };
 
+// Custom items have no sprite in the fib folder, so a recipe cell may also be given as
+// { src, name } instead of a texture name. See CraftingGrid.
+const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
+
 const RECIPES = {
+    // One recipe, unaffected by Harder Trackers — the eye is the difficulty.
     antimatter: {
-        normal: {
-            recipe: [[null,'nether_brick',null],['glowstone_dust','quartz','glowstone_dust'],[null,'nether_brick',null]],
-            result: 'knowledge_book', name: 'Antimatter Locator',
-        },
-        hard: {
-            recipe: [['nether_brick','glowstone_dust','nether_brick'],['quartz','ender_eye','quartz'],['nether_brick','glowstone_dust','nether_brick']],
-            result: 'knowledge_book', name: 'Antimatter Locator',
-        },
+        recipe: [
+            ['nether_brick', 'glowstone_dust', 'nether_brick'],
+            ['quartz', EYE_OF_ANTIMATTER, 'quartz'],
+            ['nether_brick', 'glowstone_dust', 'nether_brick'],
+        ],
+        result: 'knowledge_book', name: 'Antimatter Locator',
     },
     trial: {
         normal: {
@@ -156,12 +162,26 @@ const RECIPES = {
 };
 
 // Villager / trader offers. Ingredients are drawn as tiles, same as a crafting grid.
+const EYE_TRADE = {
+    cost: [{ texture: 'emerald', name: 'Emerald', amount: 5 }],
+    result: { src: EYE_OF_ANTIMATTER.src, name: EYE_OF_ANTIMATTER.name },
+};
+
 const SULFUR_TRADE = {
     cost: [
         { texture: 'emerald', name: 'Emerald', amount: 6 },
         { texture: 'compass', name: 'Compass', amount: 1 },
     ],
     result: { texture: 'music_disc_chirp', name: 'Sulfur Locator' },
+};
+
+// Not a trade but the same shape: what goes in, what comes out.
+const KILN_BRUSH_SMELT = {
+    cost: [
+        { texture: 'brush', name: 'Brush' },
+        { texture: 'furnace', name: 'Furnace' },
+    ],
+    result: { src: `${ITEM_IMG}/kiln_fired_brush.png`, name: 'Kiln-Fired Brush' },
 };
 
 const SPECIAL_TRADER_OFFERS = [
@@ -211,6 +231,7 @@ const QUICK_LINKS = [
     { id: 'antimatter-depths', label: 'Antimatter Depths',   color: COL.purple },
     { id: 'trial-locator',     label: 'Trial Locator',        color: COL.amber  },
     { id: 'sulfur-locator',    label: 'Sulfur Locator',       color: COL.orange },
+    { id: 'trail-ruins',       label: 'Trail Ruins',          color: COL.trail  },
     { id: 'loot-tables',       label: 'Loot Tables',          color: COL.green  },
     { id: 'end-generation',    label: 'End Generation',       color: COL.purple },
     { id: 'teleporter',        label: 'Teleporter',           color: COL.red    },
@@ -590,19 +611,32 @@ function ModeToggle({ value, onChange, offLabel, onLabel, onColor }) {
     );
 }
 
+/**
+ * A cell is a vanilla texture name, or { src, name } for a custom item — those sprites live in
+ * the pack's item folder rather than the fib folder, so they cannot be named the same way.
+ */
+function recipeCell(item) {
+    return typeof item === 'string'
+        ? { src: `${IMG}/${item}.png`, name: item.replace(/_/g, ' ') }
+        : item;
+}
+
 function CraftingGrid({ recipe, result, resultName, glowColor }) {
     return (
         <div className="cs-recipe">
             <div className="cs-recipe-grid">
-                {recipe.flat().map((item, i) => (
-                    <div key={i} className={`cs-recipe-cell${item ? ' has-item' : ''}`}
-                         title={item?.replace(/_/g, ' ')}>
-                        {item && (
-                            <img src={`${IMG}/${item}.png`} alt={item}
-                                 onError={e => { e.target.style.display = 'none'; }} />
-                        )}
-                    </div>
-                ))}
+                {recipe.flat().map((item, i) => {
+                    const cell = item && recipeCell(item);
+                    return (
+                        <div key={i} className={`cs-recipe-cell${cell ? ' has-item' : ''}`}
+                             title={cell?.name}>
+                            {cell && (
+                                <img src={cell.src} alt={cell.name}
+                                     onError={e => { e.target.style.display = 'none'; }} />
+                            )}
+                        </div>
+                    );
+                })}
             </div>
             <span className="cs-recipe-arrow">→</span>
             <div className="cs-recipe-result" title={resultName}
@@ -812,8 +846,7 @@ function Cmd({ children }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CustomStructures() {
-    const [antimatterHard, setAntimatterHard] = useState(false);
-    const [trialHard,      setTrialHard]      = useState(false);
+    const [trialHard, setTrialHard] = useState(false);
 
     useEffect(() => {
         const id = new URLSearchParams(window.location.search).get('to');
@@ -873,18 +906,22 @@ export default function CustomStructures() {
                             Spawns at <Hi>Y‑level −10</Hi> and provides a much faster route to the End dimension.
                         </P>
                         <P>To find it, craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>:</P>
-                        <ModeToggle
-                            value={antimatterHard}
-                            onChange={setAntimatterHard}
-                            offLabel="Standard"
-                            onLabel="Hard Mode"
-                            onColor={COL.orange}
-                        />
                         <CraftingGrid
-                            recipe={antimatterHard ? RECIPES.antimatter.hard.recipe : RECIPES.antimatter.normal.recipe}
-                            result={RECIPES.antimatter.normal.result}
-                            resultName={RECIPES.antimatter.normal.name}
+                            recipe={RECIPES.antimatter.recipe}
+                            result={RECIPES.antimatter.result}
+                            resultName={RECIPES.antimatter.name}
                             glowColor={COL.purple}
+                        />
+                        <P>
+                            This is the only recipe — <Hi color={COL.orange}>Hard Mode</Hi> does not change it.
+                            The eye at its centre is an <Hi color={COL.purple}>Eye of Antimatter</Hi>, and it
+                            cannot be crafted or found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one
+                            once it reaches <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
+                        </P>
+                        <TradeRow
+                            cost={EYE_TRADE.cost}
+                            result={EYE_TRADE.result}
+                            note="Every apprentice cleric has it. Trade with a level 1 cleric to level it up."
                         />
                         <P>
                             Right-click the locator to receive coordinates and a visual trail. Dig straight down
@@ -934,18 +971,56 @@ export default function CustomStructures() {
                         <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info sulfur_locator</Cmd></P>
                     </Section>
 
+                    {/* ── Trail Ruins Locator ── */}
+                    <Section id="trail-ruins" color={COL.trail} title="Trail Ruins Locator">
+                        <P>
+                            Points to the nearest <Hi color={COL.trail}>Trail Ruins</Hi> — the vanilla
+                            archaeology structure, buried shallow enough that you can walk over one all
+                            round without ever noticing it.
+                        </P>
+                        <P>
+                            This one isn't crafted or traded either. <Hi>Smelt a brush in a furnace</Hi> and
+                            it comes out the other side as a <Hi color={COL.trail}>Kiln-Fired Brush</Hi>.
+                            An unfired brush does nothing — it has to have been through the fire.
+                        </P>
+                        <TradeRow
+                            cost={KILN_BRUSH_SMELT.cost}
+                            result={KILN_BRUSH_SMELT.result}
+                            note="No chance involved — any brush can be fired, in any furnace."
+                        />
+                        <P>
+                            Then <Hi>brush the ground</Hi> with it: right-click{' '}
+                            <Hi>grass, sand, mud, podzol, coarse dirt or snow</Hi> and it sweeps for the
+                            nearest ruins. Anything harder gives the brush nothing to read.
+                            Instead of a line through the air you get{' '}
+                            <Hi color={COL.trail}>footprints dusted across the ground</Hi> — a steady trail
+                            that keeps leading from wherever you are standing to the find. Trail ruins sit at
+                            the surface, so there is no dig-spot beam to follow; just walk the prints.
+                            Swinging it at thin air won't do anything.
+                        </P>
+                        <P>
+                            The brush <Hi color={COL.green}>is never used up</Hi> — it is a tool, not a
+                            one-shot charm, so you can keep sweeping as you travel and pick up the next ruins
+                            along the way. It also still works as a brush: point it at{' '}
+                            <Hi>suspicious sand or gravel</Hi> and it digs the find out as normal.
+                        </P>
+                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info kiln_fired_brush</Cmd></P>
+                    </Section>
+
                     {/* ── Locator Mechanics ── */}
                     <Section id="locator-mechanics" color={COL.cyan} title="Locator Mechanics">
-                        <P>All three locators share the same mechanics:</P>
+                        <P>All four locators share the same mechanics:</P>
                         <P>
                             If another player already marked the same structure,{' '}
                             <Hi color={COL.green}>your locator won't be consumed</Hi> — you can keep searching
                             until you find an unclaimed one. You can still enter claimed structures; this just
-                            helps you find unlooted ones.
+                            helps you find unlooted ones. (The <Hi color={COL.trail}>Kiln-Fired Brush</Hi> is
+                            never consumed either way.)
                         </P>
                         <P>
-                            <Hi color={COL.orange}>Hard Mode recipes</Hi> (toggle above) are used in the 2 Hour
-                            Version, requiring more complex ingredients for a greater challenge.
+                            The <Hi color={COL.orange}>Hard Mode recipe</Hi> (toggle above the Trial Locator) is
+                            used in the 2 Hour Version, requiring more complex ingredients for a greater
+                            challenge. It is the only locator the setting still changes.
                         </P>
                     </Section>
 
