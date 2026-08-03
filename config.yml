@@ -1965,6 +1965,16 @@ descriptions:
     - "&ePlains house chest &7- &a74.2%"
     - "&eSnowy house chest &7- &a66.3%"
     - "&eTaiga house chest  &7- &a66.3%"
+  BRUSH:
+    - "&b&lBrush &7| &6Item Information"
+    - "&7"
+    - "&7Crafted from a &afeather&7, a &acopper ingot &7and a &astick"
+    - "&7"
+    - "&6Kiln-Fired Brush"
+    - "&7Smelt a &abrush &7in a &afurnace &7to fire it into a &6Kiln-Fired Brush"
+    - "&7Brush the ground with it to locate the nearest &aTrail Ruins"
+    - "&7Footprints in the dust lead the way there"
+    - "&7It is never used up, and still brushes &asuspicious sand &7and &agravel"
   TORCHFLOWER_SEEDS:
     - "&b&lEye of Antimatter &7| &6Item Information"
     - "&7"

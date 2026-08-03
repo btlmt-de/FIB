@@ -18,6 +18,9 @@ const COL = {
     red:    COLORS.red,
     orange: COLORS.orange,
     rare:   COLORS.accent,
+    // Trail ruins have no token in the shared palette; terracotta matches both the structure and
+    // the Kiln-Fired Brush that finds it.
+    trail:  '#C77B3E',
 };
 
 // ── Data ──────────────────────────────────────────────────────────────────────
@@ -172,6 +175,15 @@ const SULFUR_TRADE = {
     result: { texture: 'music_disc_chirp', name: 'Sulfur Locator' },
 };
 
+// Not a trade but the same shape: what goes in, what comes out.
+const KILN_BRUSH_SMELT = {
+    cost: [
+        { texture: 'brush', name: 'Brush' },
+        { texture: 'furnace', name: 'Furnace' },
+    ],
+    result: { src: `${ITEM_IMG}/kiln_fired_brush.png`, name: 'Kiln-Fired Brush' },
+};
+
 const SPECIAL_TRADER_OFFERS = [
     {
         cost: 1,
@@ -219,6 +231,7 @@ const QUICK_LINKS = [
     { id: 'antimatter-depths', label: 'Antimatter Depths',   color: COL.purple },
     { id: 'trial-locator',     label: 'Trial Locator',        color: COL.amber  },
     { id: 'sulfur-locator',    label: 'Sulfur Locator',       color: COL.orange },
+    { id: 'trail-ruins',       label: 'Trail Ruins',          color: COL.trail  },
     { id: 'loot-tables',       label: 'Loot Tables',          color: COL.green  },
     { id: 'end-generation',    label: 'End Generation',       color: COL.purple },
     { id: 'teleporter',        label: 'Teleporter',           color: COL.red    },
@@ -958,18 +971,54 @@ export default function CustomStructures() {
                         <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info sulfur_locator</Cmd></P>
                     </Section>
 
+                    {/* ── Trail Ruins Locator ── */}
+                    <Section id="trail-ruins" color={COL.trail} title="Trail Ruins Locator">
+                        <P>
+                            Points to the nearest <Hi color={COL.trail}>Trail Ruins</Hi> — the vanilla
+                            archaeology structure, buried shallow enough that you can walk over one all
+                            round without ever noticing it.
+                        </P>
+                        <P>
+                            This one isn't crafted or traded either. <Hi>Smelt a brush in a furnace</Hi> and
+                            it comes out the other side as a <Hi color={COL.trail}>Kiln-Fired Brush</Hi>.
+                            An unfired brush does nothing — it has to have been through the fire.
+                        </P>
+                        <TradeRow
+                            cost={KILN_BRUSH_SMELT.cost}
+                            result={KILN_BRUSH_SMELT.result}
+                            note="No chance involved — any brush can be fired, in any furnace."
+                        />
+                        <P>
+                            Then <Hi>brush the ground</Hi> with it: right-click a block and it sweeps for the
+                            nearest ruins. Instead of a line through the air you get{' '}
+                            <Hi color={COL.trail}>footprints dusted across the ground</Hi> — a steady trail
+                            that keeps leading from wherever you are standing to the find. Trail ruins sit at
+                            the surface, so there is no dig-spot beam to follow; just walk the prints.
+                            Swinging it at thin air won't do anything.
+                        </P>
+                        <P>
+                            The brush <Hi color={COL.green}>is never used up</Hi> — it is a tool, not a
+                            one-shot charm, so you can keep sweeping as you travel and pick up the next ruins
+                            along the way. It also still works as a brush: point it at{' '}
+                            <Hi>suspicious sand or gravel</Hi> and it digs the find out as normal.
+                        </P>
+                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info kiln_fired_brush</Cmd></P>
+                    </Section>
+
                     {/* ── Locator Mechanics ── */}
                     <Section id="locator-mechanics" color={COL.cyan} title="Locator Mechanics">
-                        <P>All three locators share the same mechanics:</P>
+                        <P>All four locators share the same mechanics:</P>
                         <P>
                             If another player already marked the same structure,{' '}
                             <Hi color={COL.green}>your locator won't be consumed</Hi> — you can keep searching
                             until you find an unclaimed one. You can still enter claimed structures; this just
-                            helps you find unlooted ones.
+                            helps you find unlooted ones. (The <Hi color={COL.trail}>Kiln-Fired Brush</Hi> is
+                            never consumed either way.)
                         </P>
                         <P>
-                            <Hi color={COL.orange}>Hard Mode recipes</Hi> (toggle above) are used in the 2 Hour
-                            Version, requiring more complex ingredients for a greater challenge.
+                            The <Hi color={COL.orange}>Hard Mode recipe</Hi> (toggle above the Trial Locator) is
+                            used in the 2 Hour Version, requiring more complex ingredients for a greater
+                            challenge. It is the only locator the setting still changes.
                         </P>
                     </Section>
 
