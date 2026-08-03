@@ -1965,3 +1965,9 @@ descriptions:
     - "&ePlains house chest &7- &a74.2%"
     - "&eSnowy house chest &7- &a66.3%"
     - "&eTaiga house chest  &7- &a66.3%"
+  TORCHFLOWER_SEEDS:
+    - "&b&lEye of Antimatter &7| &6Item Information"
+    - "&7"
+    - "&7Trading: &aCleric &7- &aLevel 2 (Apprentice)"
+    - "&7Workstation: &aBrewing Stand"
+    - "&7Every &aapprentice-level cleric &7sells the &5Eye of Antimatter &7for &a5 emeralds"

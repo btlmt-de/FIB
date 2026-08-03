@@ -13,6 +13,13 @@ const TYPE = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const CHANGELOG = [
+    { version:'26.7.9', date:'31st July 2026',     type:'update',  title:'Clean up & QOL additions', description:'Added world clock to tab list' },
+    { version:'26.7.8', date:'28th July 2026',     type:'update',  title:'Additions & Bug Fixes',  description:'Reworked locator visuals', changes:['The link to the match stats now gets pasted when the games has finished', 'Fixed various bugs' ]},
+    { version:'26.7.7', date:'25th July 2026',     type:'fix',     title:'Bug Fixes',              description:'Fixed various bugs' },
+    { version:'26.7.6', date:'24th July 2026',     type:'update',  title:'Stats',                  description:'Final preparations for the stats website' },
+    { version:'26.7.5', date:'22nd July 2026',     type:'fix',     title:'Bug Fixes',              description:'Fixed various bugs' },
+    { version:'26.7.4', date:'19th July 2026',     type:'major',   title:'Collection & History',   description:'Added Collection Book and Match History', changes:['Added the collection book with various categories', 'Added collection based achievements', 'Added match history' ] },
+    { version:'26.7.3', date:'16th July 2026',     type:'update',  title:'Forced Seeds',           description:'Added forced seed on reset', changes:['Added an argument to the /reset command to force a specified biome as spawn biome for the next seed'] },
     { version:'26.7.2', date:'14th July 2026',     type:'update',  title:'Random Events',          description:'Added random events', changes:['Added ItemHunt and SpecialTrader as events that can randomly occur during a game', 'Achievements are now separated into global and round based achievements'] },
     { version:'26.7.1', date:'12th July 2026',     type:'major',   title:'Refactoring',            description:'Codebase in a fresh coat', changes:['Finished refactor of entire codebase', 'multiple bug-fixes', 'various QOL improvements', 'changed versioning'] },
     { version:'4.3.0', date:'7th July 2026',       type:'feature', title:'Quickie Mode',           description:'Added quickie mode', changes:['Added a setting for quickie mode to control which item pools are active during a round', 'fixed multiple achievement triggers'] },

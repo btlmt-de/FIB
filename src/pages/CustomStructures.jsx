@@ -132,16 +132,19 @@ const LOOT_TABLES = {
     },
 };
 
+// Custom items have no sprite in the fib folder, so a recipe cell may also be given as
+// { src, name } instead of a texture name. See CraftingGrid.
+const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
+
 const RECIPES = {
+    // One recipe, unaffected by Harder Trackers — the eye is the difficulty.
     antimatter: {
-        normal: {
-            recipe: [[null,'nether_brick',null],['glowstone_dust','quartz','glowstone_dust'],[null,'nether_brick',null]],
-            result: 'knowledge_book', name: 'Antimatter Locator',
-        },
-        hard: {
-            recipe: [['nether_brick','glowstone_dust','nether_brick'],['quartz','ender_eye','quartz'],['nether_brick','glowstone_dust','nether_brick']],
-            result: 'knowledge_book', name: 'Antimatter Locator',
-        },
+        recipe: [
+            ['nether_brick', 'glowstone_dust', 'nether_brick'],
+            ['quartz', EYE_OF_ANTIMATTER, 'quartz'],
+            ['nether_brick', 'glowstone_dust', 'nether_brick'],
+        ],
+        result: 'knowledge_book', name: 'Antimatter Locator',
     },
     trial: {
         normal: {
@@ -156,6 +159,11 @@ const RECIPES = {
 };
 
 // Villager / trader offers. Ingredients are drawn as tiles, same as a crafting grid.
+const EYE_TRADE = {
+    cost: [{ texture: 'emerald', name: 'Emerald', amount: 5 }],
+    result: { src: EYE_OF_ANTIMATTER.src, name: EYE_OF_ANTIMATTER.name },
+};
+
 const SULFUR_TRADE = {
     cost: [
         { texture: 'emerald', name: 'Emerald', amount: 6 },
@@ -590,19 +598,32 @@ function ModeToggle({ value, onChange, offLabel, onLabel, onColor }) {
     );
 }
 
+/**
+ * A cell is a vanilla texture name, or { src, name } for a custom item — those sprites live in
+ * the pack's item folder rather than the fib folder, so they cannot be named the same way.
+ */
+function recipeCell(item) {
+    return typeof item === 'string'
+        ? { src: `${IMG}/${item}.png`, name: item.replace(/_/g, ' ') }
+        : item;
+}
+
 function CraftingGrid({ recipe, result, resultName, glowColor }) {
     return (
         <div className="cs-recipe">
             <div className="cs-recipe-grid">
-                {recipe.flat().map((item, i) => (
-                    <div key={i} className={`cs-recipe-cell${item ? ' has-item' : ''}`}
-                         title={item?.replace(/_/g, ' ')}>
-                        {item && (
-                            <img src={`${IMG}/${item}.png`} alt={item}
-                                 onError={e => { e.target.style.display = 'none'; }} />
-                        )}
-                    </div>
-                ))}
+                {recipe.flat().map((item, i) => {
+                    const cell = item && recipeCell(item);
+                    return (
+                        <div key={i} className={`cs-recipe-cell${cell ? ' has-item' : ''}`}
+                             title={cell?.name}>
+                            {cell && (
+                                <img src={cell.src} alt={cell.name}
+                                     onError={e => { e.target.style.display = 'none'; }} />
+                            )}
+                        </div>
+                    );
+                })}
             </div>
             <span className="cs-recipe-arrow">→</span>
             <div className="cs-recipe-result" title={resultName}
@@ -812,8 +833,7 @@ function Cmd({ children }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CustomStructures() {
-    const [antimatterHard, setAntimatterHard] = useState(false);
-    const [trialHard,      setTrialHard]      = useState(false);
+    const [trialHard, setTrialHard] = useState(false);
 
     useEffect(() => {
         const id = new URLSearchParams(window.location.search).get('to');
@@ -873,18 +893,22 @@ export default function CustomStructures() {
                             Spawns at <Hi>Y‑level −10</Hi> and provides a much faster route to the End dimension.
                         </P>
                         <P>To find it, craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>:</P>
-                        <ModeToggle
-                            value={antimatterHard}
-                            onChange={setAntimatterHard}
-                            offLabel="Standard"
-                            onLabel="Hard Mode"
-                            onColor={COL.orange}
-                        />
                         <CraftingGrid
-                            recipe={antimatterHard ? RECIPES.antimatter.hard.recipe : RECIPES.antimatter.normal.recipe}
-                            result={RECIPES.antimatter.normal.result}
-                            resultName={RECIPES.antimatter.normal.name}
+                            recipe={RECIPES.antimatter.recipe}
+                            result={RECIPES.antimatter.result}
+                            resultName={RECIPES.antimatter.name}
                             glowColor={COL.purple}
+                        />
+                        <P>
+                            This is the only recipe — <Hi color={COL.orange}>Hard Mode</Hi> does not change it.
+                            The eye at its centre is an <Hi color={COL.purple}>Eye of Antimatter</Hi>, and it
+                            cannot be crafted or found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one
+                            once it reaches <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
+                        </P>
+                        <TradeRow
+                            cost={EYE_TRADE.cost}
+                            result={EYE_TRADE.result}
+                            note="Every apprentice cleric has it. Trade with a level 1 cleric to level it up."
                         />
                         <P>
                             Right-click the locator to receive coordinates and a visual trail. Dig straight down
