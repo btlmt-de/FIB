@@ -138,16 +138,28 @@ const LOOT_TABLES = {
 // Custom items have no sprite in the fib folder, so a recipe cell may also be given as
 // { src, name } instead of a texture name. See CraftingGrid.
 const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
+const TOTEM_OF_ANTIMATTER = { src: `${ITEM_IMG}/totem_of_antimatter.png`, name: 'Totem of Antimatter' };
 
 const RECIPES = {
-    // One recipe, unaffected by Harder Trackers — the eye is the difficulty.
+    // One recipe, unaffected by Harder Trackers. It briefly took an Eye of Antimatter at its centre,
+    // back when the eye was the only thing gating a trip to the Depths. The Totem of Antimatter is
+    // that gate now and costs an eye itself, so the locator went back to being cheap.
     antimatter: {
         recipe: [
-            ['nether_brick', 'glowstone_dust', 'nether_brick'],
-            ['quartz', EYE_OF_ANTIMATTER, 'quartz'],
-            ['nether_brick', 'glowstone_dust', 'nether_brick'],
+            [null, 'nether_brick', null],
+            ['glowstone_dust', 'quartz', 'glowstone_dust'],
+            [null, 'nether_brick', null],
         ],
         result: 'knowledge_book', name: 'Antimatter Locator',
+    },
+    // The actual price of a trip. One totem opens one portal, and it is consumed doing so.
+    totem: {
+        recipe: [
+            [null, EYE_OF_ANTIMATTER, null],
+            ['quartz', 'glowstone', 'quartz'],
+            [null, 'quartz', null],
+        ],
+        result: TOTEM_OF_ANTIMATTER, name: 'Totem of Antimatter',
     },
     trial: {
         normal: {
@@ -641,7 +653,9 @@ function CraftingGrid({ recipe, result, resultName, glowColor }) {
             <span className="cs-recipe-arrow">→</span>
             <div className="cs-recipe-result" title={resultName}
                  style={{ borderColor: glowColor + '55' }}>
-                <img src={`${IMG}/${result}.png`} alt={resultName}
+                {/* Custom items have no sprite in the fib folder, so the result may be given as
+                    { src, name } instead of a texture name — the same escape hatch the cells have. */}
+                <img src={typeof result === 'string' ? `${IMG}/${result}.png` : result.src} alt={resultName}
                      onError={e => { e.target.style.display = 'none'; }} />
             </div>
             <span className="cs-recipe-name">{resultName}</span>
@@ -902,10 +916,20 @@ export default function CustomStructures() {
                     {/* ── Antimatter Depths ── */}
                     <Section id="antimatter-depths" color={COL.purple} title="Antimatter Depths">
                         <P>
-                            Replaces the vanilla Stronghold as the gateway to the End.
-                            Spawns at <Hi>Y‑level −10</Hi> and provides a much faster route to the End dimension.
+                            A loot dungeon in its own dimension, and the fast route to the End. It is not a
+                            place you dig down to — you reach it through a portal, and the portal you open is
+                            <Hi> yours alone</Hi>. Nobody can follow you in and empty the barrels first.
                         </P>
-                        <P>To find it, craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>:</P>
+                        <P>
+                            Getting there takes two things: finding the doorway, which is cheap, and opening
+                            it, which is not.
+                        </P>
+                        <P>
+                            <Hi color={COL.purple}>1.</Hi> Craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>{' '}
+                            and right-click it. You get coordinates and a visual trail leading to an{' '}
+                            <Hi color={COL.purple}>Antimatter Depths Portal</Hi> — a ruin standing on the
+                            Overworld surface, holding a tall dark frame with a vault on either side.
+                        </P>
                         <CraftingGrid
                             recipe={RECIPES.antimatter.recipe}
                             result={RECIPES.antimatter.result}
@@ -914,9 +938,23 @@ export default function CustomStructures() {
                         />
                         <P>
                             This is the only recipe — <Hi color={COL.orange}>Hard Mode</Hi> does not change it.
-                            The eye at its centre is an <Hi color={COL.purple}>Eye of Antimatter</Hi>, and it
-                            cannot be crafted or found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one
-                            once it reaches <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
+                            The locator only finds the ruin; it does not get you through it.
+                        </P>
+                        <P>
+                            <Hi color={COL.purple}>2.</Hi> Craft a{' '}
+                            <Hi color={COL.purple}>Totem of Antimatter</Hi>. This is the real cost of the trip,
+                            and it is spent every time you open a portal.
+                        </P>
+                        <CraftingGrid
+                            recipe={RECIPES.totem.recipe}
+                            result={RECIPES.totem.result}
+                            resultName={RECIPES.totem.name}
+                            glowColor={COL.purple}
+                        />
+                        <P>
+                            The <Hi color={COL.purple}>Eye of Antimatter</Hi> at the top cannot be crafted or
+                            found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one once it reaches{' '}
+                            <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
                         </P>
                         <TradeRow
                             cost={EYE_TRADE.cost}
@@ -924,8 +962,22 @@ export default function CustomStructures() {
                             note="Every apprentice cleric has it. Trade with a level 1 cleric to level it up."
                         />
                         <P>
-                            Right-click the locator to receive coordinates and a visual trail. Dig straight down
-                            to find multiple loot rooms and an activated End Portal.
+                            <Hi color={COL.purple}>3.</Hi> Right-click either vault with the totem in hand. The
+                            totem is consumed, lightning strikes the frame, and a moment later the portal fills
+                            in — <Hi>only for you</Hi>. Another player standing in the same ruin sees an empty
+                            frame and walks through open air. They need a totem of their own, and when they
+                            spend it they get their own portal and their own Depths.
+                        </P>
+                        <P>
+                            <Hi color={COL.purple}>4.</Hi> Step through. Your Depths is picked once and kept for
+                            the round, so going back later returns you to the same dungeon rather than a fresh
+                            one, and the frame you arrive in front of takes you home again.
+                        </P>
+                        <P>
+                            Inside are the loot rooms below, a vault room guarded by trial spawners, and a
+                            portal room holding an <Hi color={COL.purple}>End Portal</Hi> — which is what makes
+                            this the quick way into the End. Where it drops you is random, but it is the same
+                            spot every time for you.
                         </P>
                         <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info antimatter_locator</Cmd></P>
                     </Section>
