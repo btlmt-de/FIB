@@ -1,19 +1,32 @@
 {
   "model": {
-    "type": "range_dispatch",
+    "type": "select",
     "property": "custom_model_data",
-    "entries": [
+    "cases": [
       {
-        "threshold": 286000,
+        "when": "antimatter_portal",
         "model": {
           "type": "model",
-          "model": "minecraft:item/antimatter_teleporter"
+          "model": "minecraft:item/antimatter_portal"
         }
       }
     ],
     "fallback": {
-      "type": "model",
-      "model": "minecraft:item/snowball"
+      "type": "range_dispatch",
+      "property": "custom_model_data",
+      "entries": [
+        {
+          "threshold": 286000,
+          "model": {
+            "type": "model",
+            "model": "minecraft:item/antimatter_teleporter"
+          }
+        }
+      ],
+      "fallback": {
+        "type": "model",
+        "model": "minecraft:item/snowball"
+      }
     }
   }
 }

@@ -23,11 +23,6 @@
             {
               "function": "minecraft:set_enchantments",
               "enchantments": {}
-            },
-            {
-              "function": "minecraft:set_item",
-              "item": "minecraft:netherite_pickaxe",
-              "conditions": []
             }
           ]
         }

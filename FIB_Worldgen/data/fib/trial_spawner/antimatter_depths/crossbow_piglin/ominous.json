@@ -1,8 +1,8 @@
 {
   "spawn_range": 4,
-  "total_mobs": 8.0,
-  "simultaneous_mobs": 4.0,
-  "total_mobs_added_per_player": 2.0,
+  "total_mobs": 8,
+  "simultaneous_mobs": 4,
+  "total_mobs_added_per_player": 2,
   "simultaneous_mobs_added_per_player": 0.5,
   "ticks_between_spawn": 20,
   "spawn_potentials": [
@@ -11,11 +11,17 @@
         "entity": {
           "id": "minecraft:piglin",
           "IsImmuneToZombification": true,
-          "CannotHunt": true
+          "CannotHunt": true,
+          "attributes": [
+            {
+              "id": "minecraft:fall_damage_multiplier",
+              "base": 0
+            }
+          ]
         },
         "equipment": {
           "loot_table": "fib:equipment/antimatter_crossbow_piglin",
-          "slot_drop_chances": 0.0
+          "slot_drop_chances": 0
         }
       },
       "weight": 1
