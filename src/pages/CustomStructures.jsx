@@ -25,6 +25,11 @@ const COL = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
+// Custom items have no sprite in the fib folder, so a recipe cell, a recipe result or a loot row
+// may be given as { src, name } instead of a texture name. See CraftingGrid, LootItem.
+const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
+const TOTEM_OF_ANTIMATTER = { src: `${ITEM_IMG}/totem_of_antimatter.png`, name: 'Totem of Antimatter' };
+
 const LOOT_TABLES = {
     honey: {
         name: 'Nature Room',
@@ -83,21 +88,41 @@ const LOOT_TABLES = {
             },
         ],
     },
-    parkour: {
-        name: 'Lava Parkour',
+    pots: {
+        name: 'Storage Pots',
         color: COL.cyan,
-        description: 'Complete the challenge for a 10% shot at a music disc',
+        description: '27 decorated pots line the storage room — most of them hold nothing',
         pools: [
             {
-                rolls: '1 roll',
-                note: '10% total chance for any disc',
+                rolls: '27 pots × 1 roll each',
+                note: 'A pot holds a single item, and 57% are empty',
                 items: [
-                    { name: 'Music Disc (Pigstep)',   texture: 'music_disc_pigstep',   chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Otherside)', texture: 'music_disc_otherside', chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Relic)',     texture: 'music_disc_relic',     chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (13)',         texture: 'music_disc_13',        chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Cat)',        texture: 'music_disc_cat',       chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Tears)',      texture: 'music_disc_wait',      chance: '1.67%', legendary: true },
+                    { name: 'Nothing',             texture: 'air',                 chance: '57.00%' },
+                    { name: 'Copper Ingot',        texture: 'copper_ingot',        chance: '25.00%', note: '1–3' },
+                    { name: 'Emerald',             texture: 'emerald',             chance: '10.00%', note: '1–2' },
+                    { name: 'Amethyst Shard',      texture: 'amethyst_shard',      chance: '7.00%',  note: '1–2' },
+                    { name: 'Iron Horse Armor',    texture: 'iron_horse_armor',    chance: '0.50%',  legendary: true },
+                    { name: 'Golden Horse Armor',  texture: 'golden_horse_armor',  chance: '0.25%',  legendary: true },
+                    { name: 'Diamond Horse Armor', texture: 'diamond_horse_armor', chance: '0.15%',  legendary: true },
+                    { name: 'Eye of Antimatter',   src: EYE_OF_ANTIMATTER.src,     chance: '0.10%',  legendary: true },
+                ],
+            },
+        ],
+    },
+    mines: {
+        name: 'Mines',
+        color: COL.cyan,
+        description: 'Two chest minecarts, and the best odds on diamonds in the Depths',
+        pools: [
+            {
+                rolls: '5–15 rolls',
+                note: 'Per minecart — the room holds two of them',
+                items: [
+                    { name: 'Cobbled Deepslate', texture: 'cobbled_deepslate', chance: '50.00%', note: '1–5' },
+                    { name: 'Gunpowder',         texture: 'gunpowder',         chance: '25.00%', note: '1–3' },
+                    { name: 'Iron Ingot',        texture: 'iron_ingot',        chance: '10.00%', note: '1–5' },
+                    { name: 'Gold Ingot',        texture: 'gold_ingot',        chance: '10.00%', note: '1–3' },
+                    { name: 'Diamond',           texture: 'diamond',           chance: '5.00%',  note: '1–2 · 63% chance of at least one across both carts' },
                 ],
             },
         ],
@@ -134,11 +159,6 @@ const LOOT_TABLES = {
         ],
     },
 };
-
-// Custom items have no sprite in the fib folder, so a recipe cell may also be given as
-// { src, name } instead of a texture name. See CraftingGrid.
-const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
-const TOTEM_OF_ANTIMATTER = { src: `${ITEM_IMG}/totem_of_antimatter.png`, name: 'Totem of Antimatter' };
 
 const RECIPES = {
     // One recipe, unaffected by Harder Trackers. It briefly took an Eye of Antimatter at its centre,
@@ -709,7 +729,9 @@ function LootItem({ item }) {
     return (
         <div className="cs-loot-item">
             <div className={`cs-loot-tile${isLegendary ? ' legendary' : isRare ? ' rare' : ''}`}>
-                <img src={`${IMG}/${item.texture}.png`} alt={item.name}
+                {/* Custom items have no sprite in the fib folder, so a loot row may carry an
+                    explicit src instead of a texture name — same escape hatch as TradeTile. */}
+                <img src={item.src || `${IMG}/${item.texture}.png`} alt={item.name}
                      onError={e => { e.target.style.opacity = '0.3'; }} />
             </div>
             <span className="cs-loot-pct" style={{ color: pctColor }}>{item.chance}</span>
@@ -1079,8 +1101,9 @@ export default function CustomStructures() {
                     {/* ── Loot Tables ── */}
                     <Section id="loot-tables" color={COL.green} title="Antimatter Depths Loot">
                         <P>
-                            The Antimatter Depths contains four distinct loot rooms.
-                            Hover items to see their drop chance, or open a chest to simulate a roll.
+                            Every container in the Antimatter Depths draws from one of these tables.
+                            Hover items to see their drop chance, or open a chest to simulate a roll —
+                            for the pots that rolls all 27 of them at once.
                         </P>
                         <LootTableDisplay tables={LOOT_TABLES} />
                     </Section>
