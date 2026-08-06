@@ -25,6 +25,11 @@ const COL = {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
+// Custom items have no sprite in the fib folder, so a recipe cell, a recipe result or a loot row
+// may be given as { src, name } instead of a texture name. See CraftingGrid, LootItem.
+const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
+const TOTEM_OF_ANTIMATTER = { src: `${ITEM_IMG}/totem_of_antimatter.png`, name: 'Totem of Antimatter' };
+
 const LOOT_TABLES = {
     honey: {
         name: 'Nature Room',
@@ -83,21 +88,41 @@ const LOOT_TABLES = {
             },
         ],
     },
-    parkour: {
-        name: 'Lava Parkour',
+    pots: {
+        name: 'Storage Pots',
         color: COL.cyan,
-        description: 'Complete the challenge for a 10% shot at a music disc',
+        description: '27 decorated pots line the storage room — most of them hold nothing',
         pools: [
             {
-                rolls: '1 roll',
-                note: '10% total chance for any disc',
+                rolls: '27 pots × 1 roll each',
+                note: 'A pot holds a single item, and 57% are empty',
                 items: [
-                    { name: 'Music Disc (Pigstep)',   texture: 'music_disc_pigstep',   chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Otherside)', texture: 'music_disc_otherside', chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Relic)',     texture: 'music_disc_relic',     chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (13)',         texture: 'music_disc_13',        chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Cat)',        texture: 'music_disc_cat',       chance: '1.67%', legendary: true },
-                    { name: 'Music Disc (Tears)',      texture: 'music_disc_wait',      chance: '1.67%', legendary: true },
+                    { name: 'Nothing',             texture: 'air',                 chance: '57.00%' },
+                    { name: 'Copper Ingot',        texture: 'copper_ingot',        chance: '25.00%', note: '1–3' },
+                    { name: 'Emerald',             texture: 'emerald',             chance: '10.00%', note: '1–2' },
+                    { name: 'Amethyst Shard',      texture: 'amethyst_shard',      chance: '7.00%',  note: '1–2' },
+                    { name: 'Iron Horse Armor',    texture: 'iron_horse_armor',    chance: '0.50%',  legendary: true },
+                    { name: 'Golden Horse Armor',  texture: 'golden_horse_armor',  chance: '0.25%',  legendary: true },
+                    { name: 'Diamond Horse Armor', texture: 'diamond_horse_armor', chance: '0.15%',  legendary: true },
+                    { name: 'Eye of Antimatter',   src: EYE_OF_ANTIMATTER.src,     chance: '0.10%',  legendary: true },
+                ],
+            },
+        ],
+    },
+    mines: {
+        name: 'Mines',
+        color: COL.cyan,
+        description: 'Two chest minecarts, and the best odds on diamonds in the Depths',
+        pools: [
+            {
+                rolls: '5–15 rolls',
+                note: 'Per minecart — the room holds two of them',
+                items: [
+                    { name: 'Cobbled Deepslate', texture: 'cobbled_deepslate', chance: '50.00%', note: '1–5' },
+                    { name: 'Gunpowder',         texture: 'gunpowder',         chance: '25.00%', note: '1–3' },
+                    { name: 'Iron Ingot',        texture: 'iron_ingot',        chance: '10.00%', note: '1–5' },
+                    { name: 'Gold Ingot',        texture: 'gold_ingot',        chance: '10.00%', note: '1–3' },
+                    { name: 'Diamond',           texture: 'diamond',           chance: '5.00%',  note: '1–2 · 63% chance of at least one across both carts' },
                 ],
             },
         ],
@@ -135,19 +160,26 @@ const LOOT_TABLES = {
     },
 };
 
-// Custom items have no sprite in the fib folder, so a recipe cell may also be given as
-// { src, name } instead of a texture name. See CraftingGrid.
-const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
-
 const RECIPES = {
-    // One recipe, unaffected by Harder Trackers — the eye is the difficulty.
+    // One recipe, unaffected by Harder Trackers. It briefly took an Eye of Antimatter at its centre,
+    // back when the eye was the only thing gating a trip to the Depths. The Totem of Antimatter is
+    // that gate now and costs an eye itself, so the locator went back to being cheap.
     antimatter: {
         recipe: [
-            ['nether_brick', 'glowstone_dust', 'nether_brick'],
-            ['quartz', EYE_OF_ANTIMATTER, 'quartz'],
-            ['nether_brick', 'glowstone_dust', 'nether_brick'],
+            [null, 'nether_brick', null],
+            ['glowstone_dust', 'quartz', 'glowstone_dust'],
+            [null, 'nether_brick', null],
         ],
         result: 'knowledge_book', name: 'Antimatter Locator',
+    },
+    // The actual price of a trip. One totem opens one portal, and it is consumed doing so.
+    totem: {
+        recipe: [
+            [null, EYE_OF_ANTIMATTER, null],
+            ['quartz', 'glowstone', 'quartz'],
+            [null, 'quartz', null],
+        ],
+        result: TOTEM_OF_ANTIMATTER, name: 'Totem of Antimatter',
     },
     trial: {
         normal: {
@@ -641,7 +673,9 @@ function CraftingGrid({ recipe, result, resultName, glowColor }) {
             <span className="cs-recipe-arrow">→</span>
             <div className="cs-recipe-result" title={resultName}
                  style={{ borderColor: glowColor + '55' }}>
-                <img src={`${IMG}/${result}.png`} alt={resultName}
+                {/* Custom items have no sprite in the fib folder, so the result may be given as
+                    { src, name } instead of a texture name — the same escape hatch the cells have. */}
+                <img src={typeof result === 'string' ? `${IMG}/${result}.png` : result.src} alt={resultName}
                      onError={e => { e.target.style.display = 'none'; }} />
             </div>
             <span className="cs-recipe-name">{resultName}</span>
@@ -695,7 +729,9 @@ function LootItem({ item }) {
     return (
         <div className="cs-loot-item">
             <div className={`cs-loot-tile${isLegendary ? ' legendary' : isRare ? ' rare' : ''}`}>
-                <img src={`${IMG}/${item.texture}.png`} alt={item.name}
+                {/* Custom items have no sprite in the fib folder, so a loot row may carry an
+                    explicit src instead of a texture name — same escape hatch as TradeTile. */}
+                <img src={item.src || `${IMG}/${item.texture}.png`} alt={item.name}
                      onError={e => { e.target.style.opacity = '0.3'; }} />
             </div>
             <span className="cs-loot-pct" style={{ color: pctColor }}>{item.chance}</span>
@@ -902,10 +938,20 @@ export default function CustomStructures() {
                     {/* ── Antimatter Depths ── */}
                     <Section id="antimatter-depths" color={COL.purple} title="Antimatter Depths">
                         <P>
-                            Replaces the vanilla Stronghold as the gateway to the End.
-                            Spawns at <Hi>Y‑level −10</Hi> and provides a much faster route to the End dimension.
+                            A loot dungeon in its own dimension, and the fast route to the End. It is not a
+                            place you dig down to — you reach it through a portal, and the portal you open is
+                            <Hi> yours alone</Hi>. Nobody can follow you in and empty the barrels first.
                         </P>
-                        <P>To find it, craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>:</P>
+                        <P>
+                            Getting there takes two things: finding the doorway, which is cheap, and opening
+                            it, which is not.
+                        </P>
+                        <P>
+                            <Hi color={COL.purple}>1.</Hi> Craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>{' '}
+                            and right-click it. You get coordinates and a visual trail leading to an{' '}
+                            <Hi color={COL.purple}>Antimatter Depths Portal</Hi> — a ruin standing on the
+                            Overworld surface, holding a tall dark frame with a vault on either side.
+                        </P>
                         <CraftingGrid
                             recipe={RECIPES.antimatter.recipe}
                             result={RECIPES.antimatter.result}
@@ -914,9 +960,23 @@ export default function CustomStructures() {
                         />
                         <P>
                             This is the only recipe — <Hi color={COL.orange}>Hard Mode</Hi> does not change it.
-                            The eye at its centre is an <Hi color={COL.purple}>Eye of Antimatter</Hi>, and it
-                            cannot be crafted or found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one
-                            once it reaches <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
+                            The locator only finds the ruin; it does not get you through it.
+                        </P>
+                        <P>
+                            <Hi color={COL.purple}>2.</Hi> Craft a{' '}
+                            <Hi color={COL.purple}>Totem of Antimatter</Hi>. This is the real cost of the trip,
+                            and it is spent every time you open a portal.
+                        </P>
+                        <CraftingGrid
+                            recipe={RECIPES.totem.recipe}
+                            result={RECIPES.totem.result}
+                            resultName={RECIPES.totem.name}
+                            glowColor={COL.purple}
+                        />
+                        <P>
+                            The <Hi color={COL.purple}>Eye of Antimatter</Hi> at the top cannot be crafted or
+                            found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one once it reaches{' '}
+                            <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
                         </P>
                         <TradeRow
                             cost={EYE_TRADE.cost}
@@ -924,8 +984,22 @@ export default function CustomStructures() {
                             note="Every apprentice cleric has it. Trade with a level 1 cleric to level it up."
                         />
                         <P>
-                            Right-click the locator to receive coordinates and a visual trail. Dig straight down
-                            to find multiple loot rooms and an activated End Portal.
+                            <Hi color={COL.purple}>3.</Hi> Right-click either vault with the totem in hand. The
+                            totem is consumed, lightning strikes the frame, and a moment later the portal fills
+                            in — <Hi>only for you</Hi>. Another player standing in the same ruin sees an empty
+                            frame and walks through open air. They need a totem of their own, and when they
+                            spend it they get their own portal and their own Depths.
+                        </P>
+                        <P>
+                            <Hi color={COL.purple}>4.</Hi> Step through. Your Depths is picked once and kept for
+                            the round, so going back later returns you to the same dungeon rather than a fresh
+                            one, and the frame you arrive in front of takes you home again.
+                        </P>
+                        <P>
+                            Inside are the loot rooms below, a vault room guarded by trial spawners, and a
+                            portal room holding an <Hi color={COL.purple}>End Portal</Hi> — which is what makes
+                            this the quick way into the End. Where it drops you is random, but it is the same
+                            spot every time for you.
                         </P>
                         <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info antimatter_locator</Cmd></P>
                     </Section>
@@ -1027,8 +1101,9 @@ export default function CustomStructures() {
                     {/* ── Loot Tables ── */}
                     <Section id="loot-tables" color={COL.green} title="Antimatter Depths Loot">
                         <P>
-                            The Antimatter Depths contains four distinct loot rooms.
-                            Hover items to see their drop chance, or open a chest to simulate a roll.
+                            Every container in the Antimatter Depths draws from one of these tables.
+                            Hover items to see their drop chance, or open a chest to simulate a roll —
+                            for the pots that rolls all 27 of them at once.
                         </P>
                         <LootTableDisplay tables={LOOT_TABLES} />
                     </Section>

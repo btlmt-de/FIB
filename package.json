@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "vendor:textures": "node scripts/vendor-textures.mjs",
-    "vendor:pool": "node scripts/vendor-pool.mjs"
+    "vendor:pool": "node scripts/vendor-pool.mjs",
+    "sanitize:structures": "node scripts/sanitize-structures.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",

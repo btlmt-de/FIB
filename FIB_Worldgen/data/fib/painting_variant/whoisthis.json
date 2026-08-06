@@ -1,0 +1,9 @@
+{
+  "asset_id": "fib:whoisthis",
+  "width": 1,
+  "height": 1,
+  "title": {
+    "text": "Who is this?",
+    "color": "yellow"
+  }
+}

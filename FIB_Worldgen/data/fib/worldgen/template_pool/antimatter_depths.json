@@ -5,7 +5,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/hallway",
+        "location": "fib:antimatter_depths/antimatter_depths_corridor_mines",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -14,7 +14,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/main_section",
+        "location": "fib:antimatter_depths/antimatter_depths_corridor_tsection",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -23,7 +23,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/storage_room",
+        "location": "fib:antimatter_depths/antimatter_depths_mines",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -32,7 +32,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/library",
+        "location": "fib:antimatter_depths/antimatter_depths_nature",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -41,7 +41,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/treasure_room",
+        "location": "fib:antimatter_depths/antimatter_depths_portal_corridor",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -50,7 +50,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/portal_room_entrance",
+        "location": "fib:antimatter_depths/antimatter_depths_portal_room",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -59,7 +59,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/portal_room",
+        "location": "fib:antimatter_depths/antimatter_depths_start",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -68,7 +68,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/hallway_180",
+        "location": "fib:antimatter_depths/antimatter_depths_vault",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"
@@ -77,88 +77,7 @@
     {
       "weight": 9,
       "element": {
-        "location": "fib:antimatter_depths/hallway_tbone_1",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/hallway_tbone_2",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/hallway_left_1",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/hallway_left_2",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/dragon_sculk",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/hallway_tbone_3",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/hallway_tbone_4",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/honey_room",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/parkour",
-        "processors": "minecraft:empty",
-		"projection": "rigid",
-        "element_type": "minecraft:single_pool_element"
-      }
-    },
-    {
-      "weight": 9,
-      "element": {
-        "location": "fib:antimatter_depths/hallway2",
+        "location": "fib:antimatter_depths/antimatter_depths_start_corridor",
         "processors": "minecraft:empty",
 		"projection": "rigid",
         "element_type": "minecraft:single_pool_element"

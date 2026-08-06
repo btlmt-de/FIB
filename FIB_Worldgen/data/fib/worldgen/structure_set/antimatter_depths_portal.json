@@ -1,0 +1,16 @@
+{
+  "structures": [
+    {
+      "structure": "fib:antimatter_depths_portal",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 843157221,
+    "frequency_reduction_method": "default",
+    "frequency": 1.0,
+    "spacing": 112,
+    "separation": 56
+  }
+}
