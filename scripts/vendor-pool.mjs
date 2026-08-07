@@ -15,7 +15,19 @@
  * reports as totalItems. The same filter is applied here from the same file,
  * so a config change re-filters on the next run.
  *
- *   node scripts/vendor-pool.mjs
+ * This runs on `prebuild`, so a production build always vendors a fresh pool.
+ * It was manual for a long time and drifted badly: thirteen items (the trail
+ * ruins set and TORCHFLOWER_SEEDS) were missing and seven more had a stale
+ * phase, which the stats pages render as "Unassigned" or the wrong colour with
+ * nothing to signal the snapshot is old. The cost of wiring it in is that a
+ * build now needs GitHub reachable — the fetch failure below is fatal on
+ * purpose, because a build that quietly falls back to the old snapshot is the
+ * exact failure this is meant to end.
+ *
+ * `npm run dev` does NOT trigger prebuild, so run it by hand after a pool change
+ * if you want the dev server to see it:
+ *
+ *   npm run vendor:pool
  */
 
 import { readFile, writeFile, readdir } from 'node:fs/promises';
@@ -93,9 +105,10 @@ async function main() {
  * The full FIB item pool: every item the game can ask for, parsed from the
  * register() calls in the plugin's ItemDifficultiesManager.java with the live
  * config.yml exclusions applied (hard: ${settings.hard}, extreme: ${settings.extreme}, end: ${settings.end}
- * -> ${registered.length} registered, ${pool.length} in the pool). Re-run
+ * -> ${registered.length} registered, ${pool.length} in the pool). Regenerated on every
+ * \`npm run build\` via prebuild; \`npm run dev\` does not, so re-run
  *   npm run vendor:pool
- * when the pool or the config changes.
+ * by hand when the pool or the config changes under the dev server.
  *
  * Names are bare Material enums (ACACIA_BOAT). Endpoint itemNames arrive
  * namespaced and lowercase (minecraft:acacia_boat); join the two with

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "npm run check:styles",
+    "prebuild": "npm run vendor:pool && npm run check:styles",
     "build": "vite build",
     "check:styles": "node scripts/check-styles.mjs",
     "lint": "eslint .",
