@@ -24,6 +24,7 @@ export {
   itemsPerGame,
   secondsPerItem,
   itemLabel,
+  itemSearchText,
 } from './data.js';
 
 /**

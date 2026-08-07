@@ -1,6 +1,10 @@
 import React from 'react';
 import { Swords, Zap, Trophy, SkipForward, ScanSearch, Split, Brain, Link } from 'lucide-react';
 import Footer from "../components/common/Footer.jsx";
+/* Generated from the plugin's CustomMaterials enum by scripts/vendor-pool.mjs. Its own
+   module, not part of itemPool.js, so this page does not drag the 1,300-entry pool
+   arrays out of the lazy Stats chunk and into the main bundle. */
+import { CUSTOM_ITEM_NAMES } from '../config/customItems.js';
 
 /* ─────────────────────────────────────
    Textures — same source as ItemPoolManager / ForceItemPools
@@ -9,7 +13,13 @@ const IMG_BASE  = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItem
 const fib       = (m) => `${IMG_BASE}/${String(m).toLowerCase()}.png`;
 const BARRIER   = `${IMG_BASE}/barrier.png`;
 const onImgErr  = (e) => { e.currentTarget.onerror = null; e.currentTarget.src = BARRIER; };
-const itemLabel = (m) => String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+/* A custom item answers with its own name, not the material it rides on — NETHER_STAR is
+   the Wheel of Fortune. Mirrors CustomMaterials.nameOf() via the vendored map, and takes
+   both casings because the pool list arrives as MATERIAL and the demo rows as material.
+   The two on-screen uses are text-transform: uppercase anyway; the title-casing is for
+   the sprite alt text. */
+const itemLabel = (m) => CUSTOM_ITEM_NAMES[String(m).toUpperCase()]
+    ?? String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const Sprite = ({ item, size = 20, dim = false }) => (
     <img
