@@ -1214,6 +1214,24 @@ export default function CustomStructures() {
                             </p>
                         </EventCard>
 
+                        <EventCard color={COL.cyan} name="Point Hunt" tag="10 minutes · Once per game">
+                            <p>
+                                A <strong style={{ color: 'oklch(80% 0.01 255)' }}>ten-minute scoring race</strong>{' '}
+                                where every find counts, not just one — the second most likely event to
+                                fire. Items are worth their pool tier:{' '}
+                                <strong style={{ color: COL.green }}>Early 1</strong>,{' '}
+                                <strong style={{ color: COL.amber }}>Mid 2</strong>,{' '}
+                                <strong style={{ color: COL.red }}>Late 3</strong>. Back-to-backs score
+                                here, so a streak is worth chasing; skips never do. Whoever leads when
+                                the clock runs out takes <strong style={{ color: COL.cyan }}>3 Wheels of Fortune</strong>,
+                                or <strong style={{ color: COL.cyan }}>4 split across the team</strong> in a
+                                team game — but a tie pays nobody. Nothing is shown while it runs except
+                                the time left, so you never know how close it is. It only starts with
+                                eleven minutes still on the game clock, and a hunt cut short by the game
+                                ending pays nothing.
+                            </p>
+                        </EventCard>
+
                         <EventCard color={COL.purple} name="Special Trader" tag="Rare · Once per game">
                             <p>
                                 A one-off trader stocked with things you cannot buy anywhere else. Turns up in
