@@ -2015,7 +2015,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   DANGER_POTTERY_SHERD:
     - "&b&lDanger Pottery Sherd &7| &6Item Information"
@@ -2025,7 +2026,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   FRIEND_POTTERY_SHERD:
     - "&b&lFriend Pottery Sherd &7| &6Item Information"
@@ -2035,7 +2037,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   HEART_POTTERY_SHERD:
     - "&b&lHeart Pottery Sherd &7| &6Item Information"
@@ -2045,7 +2048,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   HEARTBREAK_POTTERY_SHERD:
     - "&b&lHeartbreak Pottery Sherd &7| &6Item Information"
@@ -2055,7 +2059,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   HOWL_POTTERY_SHERD:
     - "&b&lHowl Pottery Sherd &7| &6Item Information"
@@ -2065,7 +2070,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   SHEAF_POTTERY_SHERD:
     - "&b&lSheaf Pottery Sherd &7| &6Item Information"
@@ -2075,7 +2081,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   HOST_ARMOR_TRIM_SMITHING_TEMPLATE:
     - "&b&lHost Armor Trim Smithing Template &7| &6Item Information"
@@ -2085,7 +2092,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   RAISER_ARMOR_TRIM_SMITHING_TEMPLATE:
     - "&b&lRaiser Armor Trim Smithing Template &7| &6Item Information"
@@ -2095,7 +2103,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   SHAPER_ARMOR_TRIM_SMITHING_TEMPLATE:
     - "&b&lShaper Armor Trim Smithing Template &7| &6Item Information"
@@ -2105,7 +2114,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE:
     - "&b&lWayfinder Armor Trim Smithing Template &7| &6Item Information"
@@ -2115,7 +2125,8 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
   MUSIC_DISC_RELIC:
     - "&b&lMusic Disc Relic &7| &6Item Information"
@@ -2125,5 +2136,6 @@ descriptions:
     - "&aOld Growth Spruce Taiga&7, &aOld Growth Birch Forest &7and &aJungle"
     - "&7Tool: &aBrush"
     - "&7Brush &arare suspicious gravel &7to obtain the item"
-    - "&7Rare gravel only sits in the buried &abuildings&7, at most &a3 &7per building"
+    - "&7Rare gravel sits &athroughout &7the ruins: buildings, roads and tower tops"
+    - "&7At most &a9 &7per building, &a2 &7per road or tower top"
     - "&7Chance: &68.3% &7per rare gravel"
