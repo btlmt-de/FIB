@@ -1,0 +1,40 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:torchflower_seeds",
+          "functions": [
+            {
+              "function": "minecraft:set_custom_model_data",
+              "strings": {
+                "values": [
+                  "eye_of_antimatter"
+                ],
+                "mode": "append"
+              }
+            },
+            {
+              "function": "minecraft:set_name",
+              "name": {
+                "text": "» ",
+                "color": "dark_gray",
+                "italic": false,
+                "extra": [
+                  {
+                    "text": "Eye of Antimatter",
+                    "color": "dark_purple"
+                  }
+                ]
+              },
+              "target": "item_name"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
