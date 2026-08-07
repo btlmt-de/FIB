@@ -215,7 +215,7 @@ function CollectionBody({ uuid, payload, onBack }) {
   const q = query.trim().toLowerCase();
   const rows = useMemo(
     () => holdings
-      .filter((it) => !q || f.itemLabel(it.itemName).toLowerCase().includes(q))
+      .filter((it) => !q || f.itemSearchText(it.itemName).toLowerCase().includes(q))
       .slice()
       .sort(active.cmp),
     [holdings, active, q],

@@ -163,7 +163,7 @@ function ItemsBody({ items }) {
 
     return items
         .filter((r) => {
-          if (q && !f.itemLabel(r.itemName).toLowerCase().includes(q)) return false;
+          if (q && !f.itemSearchText(r.itemName).toLowerCase().includes(q)) return false;
           if (facets.phases.length > 0
               && !facets.phases.includes(phaseOf(r.itemName) ?? 'NONE')) return false;
           if (seenMin != null && r.seen < seenMin) return false;

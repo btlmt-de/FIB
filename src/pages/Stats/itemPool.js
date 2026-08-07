@@ -15,6 +15,8 @@
  *
  * ITEM_STATE carries each item's match phase (EARLY/MID/LATE — when in a
  * match it can start coming up), straight from the same register() calls.
+ *
+ * Custom item names live in src/config/customItems.js, written by the same script.
  */
 
 export const ITEM_POOL = [
