@@ -121,6 +121,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     // Pending KOTW result to apply after animation completes
     const pendingKotwResultRef = useRef(null);
+    // Pending lucky spin balance, held for the same reason - see settleKotwSpin()
+    const pendingKotwLuckySpinsRef = useRef(null);
 
     // Error state for server unavailability
     const [error, setError] = useState(null);
@@ -407,14 +409,33 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Track if this spin will use a KOTW lucky spin (if not already using recursion)
         // Use ref to get latest value (props can be stale due to React batching)
-        // Also require KOTW event to be active to prevent styling when event is inactive
+        // The condition mirrors the server's exactly: holding a balance is enough, the
+        // event does NOT have to be running. It can't be - the reward is only handed out
+        // when the event ends, so every lucky spin is spent afterwards. This used to also
+        // require an active event and only looked right because the client never learned
+        // that events had ended, leaving `active` stuck at true.
         const currentKotwSpins = kotwLuckySpinsRef?.current ?? kotwLuckySpins;
         const isKotwEventActive = globalEventStatus?.type === 'king_of_wheel' && globalEventStatus?.active;
-        const willUseKotwLucky = !currentSpinIsRecursionRef.current && currentKotwSpins > 0 && isKotwEventActive;
+        const willUseKotwLucky = !currentSpinIsRecursionRef.current && currentKotwSpins > 0;
         currentSpinIsKotwLuckyRef.current = willUseKotwLucky;
 
         // Set state for KOTW spin - this triggers re-render with correct styling
         setCurrentSpinIsKotwLucky(willUseKotwLucky);
+
+        // Apply the lucky spin balance the server reported for this spin.
+        // Held back until the wheel lands because the reward can be granted by the very
+        // request that is driving this animation: First Blood is claimed inside the
+        // winning spin, so the response already carries the post-award balance, and
+        // KOTW does the same whenever its end timer fires while a spin is in flight.
+        // Applying it on response popped the badge up - "13 Lucky Spins" - over a strip
+        // that was still spinning, telling the player they had won before the wheel
+        // could say so.
+        const applyPendingKotwLuckySpins = () => {
+            if (pendingKotwLuckySpinsRef.current !== null && onKotwLuckySpinsUpdate) {
+                onKotwLuckySpinsUpdate(pendingKotwLuckySpinsRef.current);
+            }
+            pendingKotwLuckySpinsRef.current = null;
+        };
 
         // Helper to flush KOTW pending state on any exit path
         const flushKotwPending = () => {
@@ -422,6 +443,25 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 // Clear any stale pending result to prevent future spins from crashing
                 updateKotwUserStats?.({ ...kotwUserStats, pending: null });
             }
+            // The spin may still have been processed server-side before we gave up on
+            // it, so don't strand a balance we were already told about.
+            applyPendingKotwLuckySpins();
+        };
+
+        // Settle the KOTW spin once the animation is done. Applying the pending result
+        // is only half of it: the server omits kotwResult when the event expired while
+        // the request was in flight, and markKotwSpinStart() has already flagged this
+        // spin as pending. Without the else branch that flag never clears, and the
+        // leaderboard sidebar keeps rendering the user's own row from the frozen
+        // kotwUserStats for the rest of the session.
+        const settleKotwSpin = () => {
+            if (pendingKotwResultRef.current) {
+                updateKotwUserStats(pendingKotwResultRef.current);
+                pendingKotwResultRef.current = null;
+            } else if (isKotwEventActive) {
+                updateKotwUserStats(kotwUserStats);
+            }
+            applyPendingKotwLuckySpins();
         };
 
         try {
@@ -514,9 +554,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         updateRecursionStatus(spinResult.recursionStatus);
                     }
 
-                    // Update KOTW lucky spins count (decremented by server if used)
-                    if (spinResult.kotwLuckySpinsRemaining !== undefined && onKotwLuckySpinsUpdate) {
-                        onKotwLuckySpinsUpdate(spinResult.kotwLuckySpinsRemaining);
+                    // Hold the new lucky spin balance until the wheel lands - applying it
+                    // here would reveal the reward mid-animation. See settleKotwSpin().
+                    if (spinResult.kotwLuckySpinsRemaining !== undefined) {
+                        pendingKotwLuckySpinsRef.current = spinResult.kotwLuckySpinsRemaining;
                     }
 
                     // Store KOTW result to apply after animation completes
@@ -607,14 +648,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             setState('recursion');
                             playRecursionSound();
                             // Apply pending KOTW result now that animation is complete
-                            if (pendingKotwResultRef.current) {
-                                updateKotwUserStats(pendingKotwResultRef.current);
-                                pendingKotwResultRef.current = null;
-                            }
+                            settleKotwSpin();
                             if (onSpinComplete) onSpinComplete(result);
                         } else if (result.isEvent) {
                             setState('event');
-                            setTimeout(() => spinBonusWheel(), 1500);
+                            // The bonus wheel takes over from here and never returns to
+                            // this handler, so the KOTW spin has to be settled now.
+                            settleKotwSpin();
+                            setTimeout(() => spinBonusWheel(result.bonusEvent), 1500);
                         } else {
                             setState('result');
                             setSpinProgress(1); // Animation complete
@@ -623,10 +664,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 playRaritySound(result.result.type);
                             }
                             // Apply pending KOTW result now that animation is complete
-                            if (pendingKotwResultRef.current) {
-                                updateKotwUserStats(pendingKotwResultRef.current);
-                                pendingKotwResultRef.current = null;
-                            }
+                            settleKotwSpin();
                             if (onSpinComplete) onSpinComplete(result);
                         }
                     }).catch((err) => {
@@ -687,12 +725,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         return BONUS_EVENTS[0]; // Fallback
     }
 
-    // Spin the bonus wheel to select which event - using horizontal strip
-    function spinBonusWheel() {
+    // Spin the bonus wheel onto the event the server already rolled - using horizontal strip.
+    // The wheel is presentation: /api/spin decided the outcome the moment the BONUS EVENT
+    // item came up, and the reward is gated on that roll, so picking a different one here
+    // would just animate a lie and then be refused. selectWeightedEvent() survives for the
+    // filler slots, which are decoration and have no bearing on the payout.
+    function spinBonusWheel(rolledEvent) {
         setState('bonusWheel');
 
-        // Pick weighted random event
-        const event = selectWeightedEvent();
+        // Match the server's roll to the local entry so the strip has colour/description.
+        // Falling back to a local roll keeps an older backend (one that doesn't send
+        // bonusEvent yet) playable rather than wedging the wheel on a null.
+        const event = (rolledEvent && BONUS_EVENTS.find(e => e.id === rolledEvent.id)) || selectWeightedEvent();
         setSelectedEvent(event);
 
         // Build a strip of events (repeat them to fill the strip)
@@ -753,6 +797,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         animationCancelledRef.current = false;
 
         try {
+            // No body: the server knows which bonus event it rolled for this user and
+            // gates the spin on that, so there is nothing for the client to declare.
             const res = await fetch(`${API_BASE_URL}/api/spin/lucky`, {
                 method: 'POST',
                 credentials: 'include'
@@ -830,25 +876,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     async function triggerTripleSpin() {
         setState('tripleSpinning');
-        let tripleSpinTracked = false; // Track if we've reported this triple spin
 
         try {
-            // Helper to get a valid (non-event) spin result
+            // Helper to get a valid (non-event) spin result.
+            // `bonus` is the only field the server reads - it spends a bonus credit
+            // instead of the cooldown. Which event granted those credits is the
+            // server's own record, so the client no longer declares it.
             async function getValidSpin() {
                 let attempts = 0;
                 while (attempts < 5) {
-                    const bodyData = { bonus: true };
-                    // On first successful spin, mark it as triple spin trigger
-                    if (!tripleSpinTracked) {
-                        bodyData.eventType = 'triple_spin';
-                        bodyData.isFirstSpin = true;
-                    }
-
                     const res = await fetch(`${API_BASE_URL}/api/spin`, {
                         method: 'POST',
                         credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(bodyData)
+                        body: JSON.stringify({ bonus: true })
                     });
                     const result = await res.json();
 
@@ -863,7 +904,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     }
 
                     if (!result.isEvent) {
-                        tripleSpinTracked = true; // Mark as tracked after successful non-event spin
                         return result;
                     }
                     attempts++;
@@ -952,6 +992,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     return best;
                                 }, null);
                                 if (bestRarity) playRaritySound(bestRarity);
+                                // Bonus spins still spend KOTW lucky spins server-side, so
+                                // the badge has to be reconciled here - otherwise it keeps
+                                // showing the pre-sequence count until the next ordinary
+                                // spin corrects it. The five requests run concurrently and
+                                // Promise.all preserves argument order, not completion
+                                // order, so the lowest balance reported is the reliable
+                                // one: it only ever counts down across a sequence.
+                                const reportedBalances = results
+                                    .map(r => r?.kotwLuckySpinsRemaining)
+                                    .filter(v => typeof v === 'number');
+                                if (reportedBalances.length > 0 && onKotwLuckySpinsUpdate) {
+                                    onKotwLuckySpinsUpdate(Math.min(...reportedBalances));
+                                }
                                 results.forEach(r => { if (onSpinComplete) onSpinComplete(r); });
                             }
                         }
@@ -973,33 +1026,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Triple Lucky Spin - 3 lucky spins with equal probability for all items
     async function triggerTripleLuckySpin() {
         setState('tripleLuckySpinning');
-        let tripleLuckySpinTracked = false; // Track if we've reported this triple lucky spin
 
         try {
-            // Helper to get a lucky spin result
+            // Helper to get a lucky spin result.
+            // No body: the server rolled this bonus event and counts the trigger itself.
             async function getLuckySpin() {
-                const bodyData = { bonus: true };
-                // On first successful spin, mark it as triple lucky spin trigger
-                if (!tripleLuckySpinTracked) {
-                    bodyData.eventType = 'triple_lucky_spin';
-                    bodyData.isFirstSpin = true;
-                }
-
                 const res = await fetch(`${API_BASE_URL}/api/spin/lucky`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(bodyData)
+                    credentials: 'include'
                 });
                 const data = await res.json();
 
                 if (!res.ok) {
                     throw new Error(data.error || 'Lucky spin failed');
-                }
-
-                // Mark as tracked after first successful spin
-                if (!tripleLuckySpinTracked) {
-                    tripleLuckySpinTracked = true;
                 }
 
                 return data;

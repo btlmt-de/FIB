@@ -356,11 +356,18 @@ function WheelOfFortunePage({ onBack }) {
             if (processedKotwWinnerRef.current !== winnerKey) {
                 processedKotwWinnerRef.current = winnerKey;
                 const spinsAwarded = kotwWinner.winner.luckySpinsAwarded || 0;
+                const newTotal = kotwWinner.winner.luckySpinsTotal;
                 console.log('[WheelPage] Current user won KOTW! Awarding', spinsAwarded, 'lucky spins');
-                // Update ref IMMEDIATELY (bypasses React batching)
-                kotwLuckySpinsRef.current = spinsAwarded;
-                // Also update state for re-render
-                setKotwLuckySpins(spinsAwarded);
+                // Only ever apply the balance the server reports. Deriving it here - either
+                // by assigning the award or by adding it to what we hold - gets it wrong
+                // whenever the winner's in-flight spin response already carried the new
+                // balance, or whenever they had spins left over from an earlier event.
+                if (typeof newTotal === 'number') {
+                    // Update ref IMMEDIATELY (bypasses React batching)
+                    kotwLuckySpinsRef.current = newTotal;
+                    // Also update state for re-render
+                    setKotwLuckySpins(newTotal);
+                }
             }
         }
     }, [kotwWinner, user?.id]);
@@ -375,10 +382,16 @@ function WheelOfFortunePage({ onBack }) {
             if (processedFirstBloodWinnerRef.current !== winnerKey) {
                 processedFirstBloodWinnerRef.current = winnerKey;
                 const spinsAwarded = firstBloodWinner.winner.luckySpinsAwarded || 0;
+                const newTotal = firstBloodWinner.winner.luckySpinsTotal;
                 console.log('[WheelPage] Current user won First Blood! Awarding', spinsAwarded, 'lucky spins');
-                // Add to the existing lucky spins pool (shared with KOTW)
-                kotwLuckySpinsRef.current = (kotwLuckySpinsRef.current || 0) + spinsAwarded;
-                setKotwLuckySpins(prev => (prev || 0) + spinsAwarded);
+                // This used to add the award to the pool we already held (shared with KOTW),
+                // which double-counted every First Blood win: the reward is granted inside
+                // the winning spin's own request, so that spin's response had already
+                // reported the post-award balance. Take the server's number instead.
+                if (typeof newTotal === 'number') {
+                    kotwLuckySpinsRef.current = newTotal;
+                    setKotwLuckySpins(newTotal);
+                }
             }
         }
     }, [firstBloodWinner, user?.id]);

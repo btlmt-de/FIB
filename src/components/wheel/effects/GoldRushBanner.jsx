@@ -633,10 +633,13 @@ function GoldRushBanner({
                 hasPlayedSoundRef.current = false;
                 wasActiveRef.current = false;
                 wasPendingRef.current = false;
-                // Stop soundtrack and reset event identity tracking
-                // This allows new events to properly start their soundtrack
+                // Stop the soundtrack, but keep lastEventStartTimeRef pointing at this
+                // event. Clearing it used to look like "a new event arrived" to the
+                // soundtrack effect the next time its callbacks were re-created (any
+                // isPlaying/isRecursionPlaying change does that), which restarted the
+                // music we had just stopped. A genuinely new event has a different
+                // activatesAt and still resets tracking on its own.
                 stopGoldRushSoundtrack?.();
-                lastEventStartTimeRef.current = null;
             }
         };
 
