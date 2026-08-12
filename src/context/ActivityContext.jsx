@@ -35,6 +35,7 @@ export function ActivityProvider({ children }) {
 
     // Timeout refs for SSE handler cleanup
     const eventSelectionTimeoutRef = useRef(null);
+    const kotwWinnerDelayTimeoutRef = useRef(null);
     const kotwWinnerTimeoutRef = useRef(null);
     const firstBloodTimeoutRef = useRef(null);
     const firstBloodClearTimeoutRef = useRef(null);
@@ -257,18 +258,29 @@ export function ActivityProvider({ children }) {
 
                             case 'kotw_winner':
                                 console.log('[SSE] KOTW winner announced:', data);
-                                // Clear any existing timeout
+                                // Clear any existing timeouts
+                                if (kotwWinnerDelayTimeoutRef.current) {
+                                    clearTimeout(kotwWinnerDelayTimeoutRef.current);
+                                }
                                 if (kotwWinnerTimeoutRef.current) {
                                     clearTimeout(kotwWinnerTimeoutRef.current);
                                 }
-                                setKotwWinner(data);
-                                // Clear leaderboard after winner announcement
-                                kotwWinnerTimeoutRef.current = setTimeout(() => {
-                                    setKotwWinner(null);
-                                    setKotwLeaderboard([]);
-                                    setKotwUserStats(null);
-                                    kotwWinnerTimeoutRef.current = null;
-                                }, 30000); // Keep winner visible for 30 seconds
+                                // Delay the announcement the same way First Blood does.
+                                // KOTW ends on a server timer, so it routinely fires while
+                                // someone is mid-spin - without the delay the winner banner
+                                // and the lucky-spin reward appear on top of a wheel that
+                                // has not landed yet, spoiling the result.
+                                kotwWinnerDelayTimeoutRef.current = setTimeout(() => {
+                                    setKotwWinner(data);
+                                    kotwWinnerDelayTimeoutRef.current = null;
+                                    // Clear leaderboard after winner announcement
+                                    kotwWinnerTimeoutRef.current = setTimeout(() => {
+                                        setKotwWinner(null);
+                                        setKotwLeaderboard([]);
+                                        setKotwUserStats(null);
+                                        kotwWinnerTimeoutRef.current = null;
+                                    }, 30000); // Keep winner visible for 30 seconds
+                                }, 5000); // Wait for spin animation to complete
                                 break;
 
                             case 'first_blood_result':
@@ -411,6 +423,10 @@ export function ActivityProvider({ children }) {
             if (eventSelectionTimeoutRef.current) {
                 clearTimeout(eventSelectionTimeoutRef.current);
                 eventSelectionTimeoutRef.current = null;
+            }
+            if (kotwWinnerDelayTimeoutRef.current) {
+                clearTimeout(kotwWinnerDelayTimeoutRef.current);
+                kotwWinnerDelayTimeoutRef.current = null;
             }
             if (kotwWinnerTimeoutRef.current) {
                 clearTimeout(kotwWinnerTimeoutRef.current);
