@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 
 // ============================================
 // Sound Context - Manages all game audio
@@ -99,53 +99,70 @@ export function SoundProvider({ children }) {
     const [audioLoaded, setAudioLoaded] = useState(false);
 
     // Initialize audio elements
+    //
+    // Every soundtrack below is created with preload='none' on purpose. These files add
+    // up to ~66 MB, and 'auto' had the browser fetch all of them the moment the page
+    // mounted - which saturates the six-connection-per-origin budget and leaves
+    // wheel.png, the sprite atlas and the API calls queueing behind tens of megabytes of
+    // music nobody has asked to hear yet. Observed effect: wheel.png taking 90 seconds.
+    //
+    // 'none' means the file is fetched when play() is first called, and browsers stream
+    // audio progressively, so playback still starts promptly. The trade is that the very
+    // first spin's music may begin a beat late on a slow connection - far cheaper than
+    // making every visitor wait on the whole library before the wheel appears.
+    //
+    // The SFX below keep 'auto': together they are ~5 MB and they have to fire the
+    // instant a result lands, where a late sound would be obvious.
+    //
+    // The bigger win still on the table is the format. spin.wav and soundtrack.wav are
+    // 15.5 MB each as uncompressed WAV; as mp3 they would be a tenth of that.
     useEffect(() => {
         // Create spin intro audio element (plays once before soundtrack loops)
         const spin = new Audio(SOUND_FILES.spin);
         spin.loop = false;
-        spin.preload = 'auto';
+        spin.preload = 'none';
         spin.onerror = () => console.warn('[Sound] Spin file not found - add spin.wav to /public/sounds/');
         spinRef.current = spin;
 
         // Create main soundtrack audio element (loops after spin)
         const soundtrack = new Audio(SOUND_FILES.soundtrack);
         soundtrack.loop = true;
-        soundtrack.preload = 'auto';
+        soundtrack.preload = 'none';
         soundtrack.onerror = () => console.warn('[Sound] Soundtrack file not found - add soundtrack.wav to /public/sounds/');
         soundtrackRef.current = soundtrack;
 
         // Create recursion soundtrack audio element
         const recursionSoundtrack = new Audio(SOUND_FILES.recursionSoundtrack);
         recursionSoundtrack.loop = true;
-        recursionSoundtrack.preload = 'auto';
+        recursionSoundtrack.preload = 'none';
         recursionSoundtrack.onerror = () => console.warn('[Sound] Recursion soundtrack file not found - add recursion_soundtrack.wav to /public/sounds/');
         recursionSoundtrackRef.current = recursionSoundtrack;
 
         // Create KOTW soundtrack audio element
         const kotwSoundtrack = new Audio(SOUND_FILES.kotwSoundtrack);
         kotwSoundtrack.loop = true;
-        kotwSoundtrack.preload = 'auto';
+        kotwSoundtrack.preload = 'none';
         kotwSoundtrack.onerror = () => console.warn('[Sound] KOTW soundtrack file not found - add KOTW.mp3 to /public/sounds/');
         kotwSoundtrackRef.current = kotwSoundtrack;
 
         // Create Gold Rush soundtrack audio element
         const goldRushSoundtrack = new Audio(SOUND_FILES.goldRushSoundtrack);
         goldRushSoundtrack.loop = true;
-        goldRushSoundtrack.preload = 'auto';
+        goldRushSoundtrack.preload = 'none';
         goldRushSoundtrack.onerror = () => console.warn('[Sound] Gold Rush soundtrack file not found - add gold.mp3 to /public/sounds/');
         goldRushSoundtrackRef.current = goldRushSoundtrack;
 
         // Create First Blood soundtrack audio element
         const firstBloodSoundtrack = new Audio(SOUND_FILES.firstBloodSoundtrack);
         firstBloodSoundtrack.loop = true;
-        firstBloodSoundtrack.preload = 'auto';
+        firstBloodSoundtrack.preload = 'none';
         firstBloodSoundtrack.onerror = () => console.warn('[Sound] First Blood soundtrack file not found - add blood.mp3 to /public/sounds/');
         firstBloodSoundtrackRef.current = firstBloodSoundtrack;
 
         // Create Community Goal soundtrack audio element
         const communityGoalSoundtrack = new Audio(SOUND_FILES.communityGoalSoundtrack);
         communityGoalSoundtrack.loop = true;
-        communityGoalSoundtrack.preload = 'auto';
+        communityGoalSoundtrack.preload = 'none';
         communityGoalSoundtrack.onerror = () => console.warn('[Sound] Community Goal soundtrack file not found - add community.mp3 to /public/sounds/');
         communityGoalSoundtrackRef.current = communityGoalSoundtrack;
 
