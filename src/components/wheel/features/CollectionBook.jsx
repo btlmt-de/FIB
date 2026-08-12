@@ -232,30 +232,38 @@ function ItemDetailModal({ item, details, onClose }) {
     );
 }
 
-export function CollectionBook({ collection, collectionDetails, stats, allItems, dynamicItems, onClose, viewingUser }) {
+export function CollectionBook({ collection, collectionDetails, stats, dryStreaks: dryStreaksProp, allItems, dynamicItems, onClose, viewingUser }) {
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
     const [selectedItem, setSelectedItem] = useState(null);
     const [showSpinStats, setShowSpinStats] = useState(false);
-    const [dryStreaks, setDryStreaks] = useState({ mythic: 0, legendary: 0, rare: 0 });
+    const [ownDryStreaks, setOwnDryStreaks] = useState({ mythic: 0, legendary: 0, rare: 0 });
+
+    // When viewing someone else, their streaks arrive as a prop alongside the rest of
+    // their profile - /api/dry-streaks only answers for the logged-in user, so this
+    // used to leave the whole row sitting at zero for other people's collections.
+    const dryStreaks = dryStreaksProp || ownDryStreaks;
 
     // Fetch dry streaks data (only for own collection)
     useEffect(() => {
-        if (viewingUser) return; // Don't fetch for other users
+        // Never fetch when looking at someone else - /api/dry-streaks answers for the
+        // session, so it would quietly show the viewer's own streaks on another
+        // player's collection.
+        if (viewingUser || dryStreaksProp) return;
 
         async function fetchDryStreaks() {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/dry-streaks`, { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
-                    setDryStreaks(data);
+                    setOwnDryStreaks(data);
                 }
             } catch (err) {
                 console.error('Failed to fetch dry streaks:', err);
             }
         }
         fetchDryStreaks();
-    }, [viewingUser]);
+    }, [viewingUser, dryStreaksProp]);
 
     // Memoize special items list - only recalculate when dynamicItems changes
     const { insaneItems, mythicItems, legendaryItems, rareItems, allItemsWithSpecial } = useMemo(() => {

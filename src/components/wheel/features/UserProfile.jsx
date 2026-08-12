@@ -256,11 +256,21 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
             setCollectionBookData({
                 collection: collectionData.collection || {},
                 collectionDetails,
+                // CollectionBook's Spin Stats panel reads camelCase totalSpins/*Count.
+                // This used to pass unique_items/total_possible/total_duplicates, which
+                // the panel never looks at, so every figure in it fell back to zero when
+                // you opened someone else's collection. The profile payload has all of it,
+                // just under the database's snake_case names.
                 stats: {
-                    unique_items: profile?.unique_items || 0,
-                    total_possible: profile?.total_possible || 0,
-                    total_duplicates: profile?.total_duplicates || 0
+                    totalSpins: profile?.total_spins || 0,
+                    insaneCount: profile?.insane_count || 0,
+                    mythicCount: profile?.mythic_count || 0,
+                    legendaryCount: profile?.legendary_count || 0,
+                    rareCount: profile?.rare_count || 0,
+                    eventTriggers: profile?.event_triggers || 0,
+                    totalDuplicates: profile?.total_duplicates || 0
                 },
+                dryStreaks: profile?.dry_streaks || null,
                 allItems: itemsData.items || [],
                 dynamicItems: specialData.items || []
             });
@@ -2319,6 +2329,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     collection={collectionBookData.collection}
                     collectionDetails={collectionBookData.collectionDetails}
                     stats={collectionBookData.stats}
+                    dryStreaks={collectionBookData.dryStreaks}
                     allItems={collectionBookData.allItems}
                     dynamicItems={collectionBookData.dynamicItems}
                     onClose={() => {
