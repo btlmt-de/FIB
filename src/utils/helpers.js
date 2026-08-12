@@ -62,6 +62,17 @@ export function formatTimeAgo(dateString) {
     }
 }
 
+// Parse an activity_feed timestamp to epoch ms.
+// SQLite hands these back as "YYYY-MM-DD HH:MM:SS" with no zone marker, which Safari
+// refuses outright and other engines read as local time. Normalise to UTC first.
+// Returns 0 for anything unparseable so callers can sort without guarding every entry.
+export function parseActivityDate(createdAt) {
+    if (!createdAt) return 0;
+    const hasZone = createdAt.includes('Z') || createdAt.includes('+');
+    const time = new Date(hasZone ? createdAt : createdAt.replace(' ', 'T') + 'Z').getTime();
+    return Number.isFinite(time) ? time : 0;
+}
+
 // Get Minecraft head URL from username
 export function getMinecraftHeadUrl(username) {
     return `https://mc-heads.net/avatar/${username}/64`;

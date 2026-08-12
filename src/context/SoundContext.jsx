@@ -14,6 +14,7 @@ const SOUND_FILES = {
     kotwSoundtrack: '/sounds/KOTW.mp3',
     goldRushSoundtrack: '/sounds/gold.mp3',
     firstBloodSoundtrack: '/sounds/blood.mp3',
+    communityGoalSoundtrack: '/sounds/community.mp3',
     recursion: '/sounds/recursion.wav',
     insane: '/sounds/sfxinsane.wav',
     mythic: '/sounds/sfxmythic.wav',
@@ -33,6 +34,7 @@ const DEFAULT_SETTINGS = {
     kotwSoundtrackEnabled: true,
     goldRushSoundtrackEnabled: true,
     firstBloodSoundtrackEnabled: true,
+    communityGoalSoundtrackEnabled: true,
     recursionEnabled: true,
     insaneEnabled: true,
     mythicEnabled: true,
@@ -68,6 +70,7 @@ export function SoundProvider({ children }) {
     const [isRecursionPlaying, setIsRecursionPlaying] = useState(false);
     const [isKotwPlaying, setIsKotwPlaying] = useState(false);
     const [isGoldRushPlaying, setIsGoldRushPlaying] = useState(false);
+    const [isCommunityGoalPlaying, setIsCommunityGoalPlaying] = useState(false);
     const [isFirstBloodPlaying, setIsFirstBloodPlaying] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
     const [previewingSound, setPreviewingSound] = useState(null); // Track which sound is previewing
@@ -79,6 +82,7 @@ export function SoundProvider({ children }) {
     const kotwSoundtrackRef = useRef(null);
     const goldRushSoundtrackRef = useRef(null);
     const firstBloodSoundtrackRef = useRef(null);
+    const communityGoalSoundtrackRef = useRef(null);
     const sfxRefs = useRef({
         recursion: null,
         insane: null,
@@ -138,6 +142,13 @@ export function SoundProvider({ children }) {
         firstBloodSoundtrack.onerror = () => console.warn('[Sound] First Blood soundtrack file not found - add blood.mp3 to /public/sounds/');
         firstBloodSoundtrackRef.current = firstBloodSoundtrack;
 
+        // Create Community Goal soundtrack audio element
+        const communityGoalSoundtrack = new Audio(SOUND_FILES.communityGoalSoundtrack);
+        communityGoalSoundtrack.loop = true;
+        communityGoalSoundtrack.preload = 'auto';
+        communityGoalSoundtrack.onerror = () => console.warn('[Sound] Community Goal soundtrack file not found - add community.mp3 to /public/sounds/');
+        communityGoalSoundtrackRef.current = communityGoalSoundtrack;
+
         // Create SFX audio elements
         Object.keys(sfxRefs.current).forEach(key => {
             const audio = new Audio(SOUND_FILES[key]);
@@ -169,6 +180,10 @@ export function SoundProvider({ children }) {
             if (goldRushSoundtrackRef.current) {
                 goldRushSoundtrackRef.current.pause();
                 goldRushSoundtrackRef.current = null;
+            }
+            if (communityGoalSoundtrackRef.current) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current = null;
             }
             if (firstBloodSoundtrackRef.current) {
                 firstBloodSoundtrackRef.current.pause();
@@ -237,6 +252,16 @@ export function SoundProvider({ children }) {
         }
     }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.firstBloodSoundtrackEnabled]);
 
+    // Update Community Goal soundtrack volume when settings change (real-time)
+    useEffect(() => {
+        if (communityGoalSoundtrackRef.current) {
+            const effectiveVolume = settings.enabled && settings.communityGoalSoundtrackEnabled
+                ? settings.masterVolume * settings.musicVolume
+                : 0;
+            communityGoalSoundtrackRef.current.volume = effectiveVolume;
+        }
+    }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.communityGoalSoundtrackEnabled]);
+
     // Update SFX volumes in real-time (for any currently playing sounds including preview)
     useEffect(() => {
         const effectiveVolume = settings.enabled
@@ -290,6 +315,7 @@ export function SoundProvider({ children }) {
         if (isKotwPlaying) return;
         if (isGoldRushPlaying) return;
         if (isFirstBloodPlaying) return;
+        if (isCommunityGoalPlaying) return;
 
         const effectiveVolume = settings.masterVolume * settings.musicVolume;
 
@@ -315,6 +341,10 @@ export function SoundProvider({ children }) {
                     }
                     // Check if First Blood started during spin.wav - if so, don't start soundtrack
                     if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                        return;
+                    }
+                    // Check if Community Goal started during spin.wav - if so, don't start soundtrack
+                    if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
                         return;
                     }
                     if (soundtrackRef.current && !soundtrackRef.current.error) {
@@ -353,7 +383,7 @@ export function SoundProvider({ children }) {
                 // Silently fail
             }
         }
-    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying]);
+    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying]);
 
     // Stop soundtrack (stops both spin and soundtrack)
     const stopSoundtrack = useCallback(() => {
@@ -424,6 +454,13 @@ export function SoundProvider({ children }) {
                 setIsFirstBloodPlaying(false);
             }
 
+            // Stop Community Goal soundtrack if playing
+            if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current.currentTime = 0;
+                setIsCommunityGoalPlaying(false);
+            }
+
             await recursionSoundtrackRef.current.play();
             setIsRecursionPlaying(true);
             setHasInteracted(true);
@@ -440,13 +477,13 @@ export function SoundProvider({ children }) {
             setIsRecursionPlaying(false);
 
             // Resume main soundtrack if it was playing before recursion (and no other event soundtrack is active)
-            if (isPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start KOTW soundtrack
     const startKotwSoundtrack = useCallback(async () => {
@@ -494,6 +531,13 @@ export function SoundProvider({ children }) {
                 setIsFirstBloodPlaying(false);
             }
 
+            // Stop Community Goal soundtrack if playing
+            if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current.currentTime = 0;
+                setIsCommunityGoalPlaying(false);
+            }
+
             await kotwSoundtrackRef.current.play();
             setIsKotwPlaying(true);
             setHasInteracted(true);
@@ -510,13 +554,13 @@ export function SoundProvider({ children }) {
             setIsKotwPlaying(false);
 
             // Resume main soundtrack if it was playing before KOTW (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isGoldRushPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start Gold Rush soundtrack
     const startGoldRushSoundtrack = useCallback(async () => {
@@ -564,6 +608,13 @@ export function SoundProvider({ children }) {
                 setIsFirstBloodPlaying(false);
             }
 
+            // Stop Community Goal soundtrack if playing
+            if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current.currentTime = 0;
+                setIsCommunityGoalPlaying(false);
+            }
+
             await goldRushSoundtrackRef.current.play();
             setIsGoldRushPlaying(true);
             setHasInteracted(true);
@@ -580,13 +631,13 @@ export function SoundProvider({ children }) {
             setIsGoldRushPlaying(false);
 
             // Resume main soundtrack if it was playing before Gold Rush (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start First Blood soundtrack
     const startFirstBloodSoundtrack = useCallback(async () => {
@@ -634,6 +685,13 @@ export function SoundProvider({ children }) {
                 setIsGoldRushPlaying(false);
             }
 
+            // Stop Community Goal soundtrack if playing
+            if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current.currentTime = 0;
+                setIsCommunityGoalPlaying(false);
+            }
+
             await firstBloodSoundtrackRef.current.play();
             setIsFirstBloodPlaying(true);
             setHasInteracted(true);
@@ -650,13 +708,90 @@ export function SoundProvider({ children }) {
             setIsFirstBloodPlaying(false);
 
             // Resume main soundtrack if it was playing before First Blood (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isCommunityGoalPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isCommunityGoalPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+
+    // Start Community Goal soundtrack
+    const startCommunityGoalSoundtrack = useCallback(async () => {
+        if (!communityGoalSoundtrackRef.current) return;
+        if (!settings.enabled || !settings.communityGoalSoundtrackEnabled) return;
+        if (communityGoalSoundtrackRef.current.error) return;
+
+        // Don't restart if already playing
+        if (isCommunityGoalPlaying) return;
+
+        try {
+            const effectiveVolume = settings.masterVolume * settings.musicVolume;
+            communityGoalSoundtrackRef.current.volume = effectiveVolume;
+            communityGoalSoundtrackRef.current.currentTime = 0;
+
+            // Stop spin.wav if playing and clear its callback
+            if (spinRef.current) {
+                spinRef.current.pause();
+                spinRef.current.onended = null;
+            }
+
+            // Pause main soundtrack if playing (don't reset position so we can resume)
+            if (soundtrackRef.current && !soundtrackRef.current.paused) {
+                soundtrackRef.current.pause();
+            }
+
+            // Stop recursion soundtrack if playing
+            if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                recursionSoundtrackRef.current.pause();
+                recursionSoundtrackRef.current.currentTime = 0;
+                setIsRecursionPlaying(false);
+            }
+
+            // Stop KOTW soundtrack if playing
+            if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current.currentTime = 0;
+                setIsKotwPlaying(false);
+            }
+
+            // Stop Gold Rush soundtrack if playing
+            if (goldRushSoundtrackRef.current && !goldRushSoundtrackRef.current.paused) {
+                goldRushSoundtrackRef.current.pause();
+                goldRushSoundtrackRef.current.currentTime = 0;
+                setIsGoldRushPlaying(false);
+            }
+
+            // Stop First Blood soundtrack if playing
+            if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current.currentTime = 0;
+                setIsFirstBloodPlaying(false);
+            }
+
+            await communityGoalSoundtrackRef.current.play();
+            setIsCommunityGoalPlaying(true);
+            setHasInteracted(true);
+        } catch (e) {
+            // Silently fail
+        }
+    }, [settings.enabled, settings.communityGoalSoundtrackEnabled, settings.masterVolume, settings.musicVolume, isCommunityGoalPlaying]);
+
+    // Stop Community Goal soundtrack
+    const stopCommunityGoalSoundtrack = useCallback(() => {
+        if (communityGoalSoundtrackRef.current) {
+            communityGoalSoundtrackRef.current.pause();
+            communityGoalSoundtrackRef.current.currentTime = 0;
+            setIsCommunityGoalPlaying(false);
+
+            // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+                const effectiveVolume = settings.masterVolume * settings.musicVolume;
+                soundtrackRef.current.volume = effectiveVolume;
+                soundtrackRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Stop any currently previewing sound
     const stopPreview = useCallback(() => {
@@ -698,6 +833,11 @@ export function SoundProvider({ children }) {
         stopPreview();
 
         let audio;
+        // Set alongside the element itself rather than by re-listing the soundtrack names
+        // in a second array further down. That duplication is what let the Community Goal
+        // track get missed here: its preview fell through to the SFX branch and reported
+        // "file not loaded". Adding a soundtrack now means adding exactly one branch.
+        let isSoundtrack = true;
 
         if (soundName === 'soundtrack') {
             audio = soundtrackRef.current;
@@ -709,8 +849,11 @@ export function SoundProvider({ children }) {
             audio = goldRushSoundtrackRef.current;
         } else if (soundName === 'firstBloodSoundtrack') {
             audio = firstBloodSoundtrackRef.current;
+        } else if (soundName === 'communityGoalSoundtrack') {
+            audio = communityGoalSoundtrackRef.current;
         } else {
             audio = sfxRefs.current[soundName];
+            isSoundtrack = false;
         }
 
         if (!audio || audio.error) {
@@ -719,8 +862,8 @@ export function SoundProvider({ children }) {
         }
 
         try {
-            // Use appropriate volume
-            const effectiveVolume = ['soundtrack', 'recursionSoundtrack', 'kotwSoundtrack', 'goldRushSoundtrack', 'firstBloodSoundtrack'].includes(soundName)
+            // Music tracks follow the music slider, everything else the SFX slider
+            const effectiveVolume = isSoundtrack
                 ? settings.masterVolume * settings.musicVolume
                 : settings.masterVolume * settings.sfxVolume;
 
@@ -854,6 +997,7 @@ export function SoundProvider({ children }) {
         isKotwPlaying,
         isGoldRushPlaying,
         isFirstBloodPlaying,
+        isCommunityGoalPlaying,
         hasInteracted,
         audioLoaded,
         startSoundtrack,
@@ -867,6 +1011,8 @@ export function SoundProvider({ children }) {
         stopGoldRushSoundtrack,
         startFirstBloodSoundtrack,
         stopFirstBloodSoundtrack,
+        startCommunityGoalSoundtrack,
+        stopCommunityGoalSoundtrack,
         playSfx,
         playRaritySound,
         playRecursionSound,

@@ -5,7 +5,7 @@
 // Shows when a milestone triggers an event selection
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, Sparkles, Zap, Trophy, Crosshair } from 'lucide-react';
+import { Crown, Sparkles, Zap, Trophy, Crosshair, Target } from 'lucide-react';
 import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
@@ -32,6 +32,13 @@ const EVENT_CONFIG = {
         color: '#DC2626',
         bgGradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
         description: 'First special drop wins!',
+    },
+    community_goal: {
+        name: 'COMMUNITY GOAL',
+        icon: Target,
+        color: '#2DD4BF',
+        bgGradient: 'linear-gradient(135deg, #2DD4BF 0%, #0D9488 100%)',
+        description: 'Hit the target together!',
     },
 };
 
