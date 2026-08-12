@@ -412,7 +412,7 @@ function KingOfWheelBanner({
                                isAdmin = false,
                                currentUserId = null,
                            }) {
-    const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner } = useActivity();
+    const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner, kotwWinnerPending } = useActivity();
     const { playSfx, startKotwSoundtrack, stopKotwSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
@@ -546,11 +546,19 @@ function KingOfWheelBanner({
     // Also check if the event has expired based on timestamp (fallback)
     const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt;
 
+    // The stretch between the competition ending and the winner being announced. The
+    // result is held back so it cannot land mid-spin; without this the banner would go
+    // out the moment the clock hit zero and slide back in seconds later, which reads as
+    // a glitch rather than a hand-off. eventExpired alone would hide it during that gap.
+    const isSettling = kotwWinnerPending && !showWinnerInBanner;
+
     const shouldShowBanner = hasShownWinner
         ? showWinnerInBanner
-        : (recentlyEnded || eventExpired)
-            ? false  // Don't show if we recently ended an event or it's expired
-            : (isPending || isActive);
+        : isSettling
+            ? true   // Hold the banner while the final standings are being announced
+            : (recentlyEnded || eventExpired)
+                ? false  // Don't show if we recently ended an event or it's expired
+                : (isPending || isActive);
 
     // Countdown timer for pending phase
     useEffect(() => {

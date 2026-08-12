@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { COLORS } from '../config/constants';
 
@@ -579,6 +579,42 @@ export function SoundSettingsPanel({ onClose }) {
                                 />
                             </div>
 
+                            {/* Community Goal Soundtrack row */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    background: '#2DD4BF15',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#2DD4BF',
+                                    flexShrink: 0,
+                                }}>
+                                    <Target size={16} />
+                                </div>
+                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
+                                    Community Goal
+                                </span>
+                                <PreviewButton
+                                    onClick={() => previewSound('communityGoalSoundtrack')}
+                                    disabled={!settings.enabled}
+                                    isActive={previewingSound === 'communityGoalSoundtrack'}
+                                />
+                                <ToggleSwitch
+                                    checked={settings.communityGoalSoundtrackEnabled}
+                                    onChange={(v) => updateSetting('communityGoalSoundtrackEnabled', v)}
+                                    disabled={!settings.enabled}
+                                    color="#2DD4BF"
+                                    ariaLabel="Toggle Community Goal music"
+                                />
+                            </div>
+
                             {/* Music volume */}
                             <div style={{
                                 display: 'flex',
@@ -589,7 +625,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 <VolumeSlider
                                     value={settings.musicVolume}
                                     onChange={(v) => updateSetting('musicVolume', v)}
-                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.goldRushSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled)}
+                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.goldRushSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled)}
                                     color={COLORS.accent}
                                     ariaLabel="Music volume"
                                 />

@@ -92,7 +92,7 @@ function FloatingTargets({ isMobile }) {
 // Main First Blood Banner Component
 // ============================================
 function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
-    const { globalEventStatus, updateGlobalEventStatus, firstBloodWinner } = useActivity();
+    const { globalEventStatus, updateGlobalEventStatus, firstBloodWinner, firstBloodResultPending } = useActivity();
     const { playSfx, startFirstBloodSoundtrack, stopFirstBloodSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
@@ -287,8 +287,12 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
     const isCriticalTime = remainingTime > 0 && remainingTime < 30000;
     const countdownSecs = Math.ceil(countdownTime / 1000);
 
-    // Determine if we should show the banner
-    const shouldShowBanner = isVisible || showWinnerInBanner;
+    // Determine if we should show the banner.
+    // firstBloodResultPending covers the stretch between the race ending and the winner
+    // being announced - the result is held back so it cannot land mid-spin, and without
+    // this the banner would disappear for those seconds and then slide back in.
+    const isSettling = firstBloodResultPending && !showWinnerInBanner;
+    const shouldShowBanner = isVisible || showWinnerInBanner || isSettling;
 
     if (!shouldShowBanner) return null;
 
@@ -513,6 +517,33 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
                                                 textShadow: `0 0 12px ${FB_PRIMARY}`,
                                             }}>
                                                 {countdownSecs}
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    {/* Race over, winner not announced yet - hold the banner
+                                        rather than letting it blink out and back */}
+                                    {isSettling && (
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            padding: isMobile ? '6px 12px' : '8px 16px',
+                                            background: FB_BG_DARK,
+                                            borderRadius: '8px',
+                                            border: `2px solid ${FB_PRIMARY}66`,
+                                        }}>
+                                            <Swords size={isMobile ? 16 : 20} color={FB_ACCENT} style={{
+                                                animation: 'bloodPulse 1s ease-in-out infinite',
+                                            }} />
+                                            <span style={{
+                                                fontSize: isMobile ? '11px' : '14px',
+                                                fontWeight: 600,
+                                                color: FB_ACCENT,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '1px',
+                                            }}>
+                                                Deciding
                                             </span>
                                         </div>
                                     )}

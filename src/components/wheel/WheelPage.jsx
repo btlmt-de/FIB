@@ -19,6 +19,7 @@ import { RecursionOverlay } from './effects/RecursionOverlay.jsx';
 import GoldRushBanner from './effects/GoldRushBanner.jsx';
 import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
 import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
+import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
 import { LeaderboardSidebar } from './sidebars/LeaderboardSidebar.jsx';
@@ -1136,6 +1137,9 @@ function WheelOfFortunePage({ onBack }) {
 
             {/* First Blood Banner */}
             <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
+
+            {/* Community Goal Banner */}
+            <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
 
             <EventSelectionWheel isMobile={isMobile} />
 

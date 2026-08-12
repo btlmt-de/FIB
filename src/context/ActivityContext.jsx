@@ -35,6 +35,18 @@ export function ActivityProvider({ children }) {
     // First Blood state
     const [firstBloodWinner, setFirstBloodWinner] = useState(null);
 
+    // Community Goal state
+    const [communityGoal, setCommunityGoal] = useState(null); // { progress, target, participants }
+    const [communityGoalResult, setCommunityGoalResult] = useState(null);
+    const [communityGoalResultPending, setCommunityGoalResultPending] = useState(false);
+
+    // Both of these events also hold their result back so it cannot land mid-spin. The
+    // flags let their banners stay on screen through that gap instead of unmounting and
+    // sliding back in a few seconds later, which read as a glitch.
+    const [kotwWinnerPending, setKotwWinnerPending] = useState(false);
+    const [firstBloodResultPending, setFirstBloodResultPending] = useState(false);
+    const [communityGoalReward, setCommunityGoalReward] = useState(null); // This user's payout
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     const lastIdRef = useRef(null);
@@ -46,6 +58,8 @@ export function ActivityProvider({ children }) {
     const kotwWinnerTimeoutRef = useRef(null);
     const firstBloodTimeoutRef = useRef(null);
     const firstBloodClearTimeoutRef = useRef(null);
+    const communityGoalResultTimeoutRef = useRef(null);
+    const communityGoalClearTimeoutRef = useRef(null);
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -192,6 +206,21 @@ export function ActivityProvider({ children }) {
                             case 'global_event_countdown':
                             case 'global_event_start':
                                 console.log('[SSE] Global event update:', data.type, data);
+                                // Seed the Community Goal bar. Every one of these three
+                                // carries the target, and global_event_status (sent on
+                                // connect) also carries live progress, so a client that
+                                // joins mid-event gets a filled bar rather than an empty one.
+                                if (data.eventType === 'community_goal') {
+                                    setCommunityGoal(prev => ({
+                                        progress: data.progress ?? prev?.progress ?? 0,
+                                        target: data.target ?? prev?.target ?? 0,
+                                        tiers: data.tiers ?? prev?.tiers ?? [],
+                                        tierReached: data.tierReached ?? prev?.tierReached ?? null,
+                                        payout: data.payout ?? prev?.payout ?? data.participationReward ?? 0,
+                                        participationReward: data.participationReward ?? prev?.participationReward ?? 0,
+                                        participants: data.participants ?? prev?.participants ?? 0,
+                                    }));
+                                }
                                 setGlobalEventStatus(prev => {
                                     // Determine active/pending based on event type
                                     let active = prev.active;
@@ -229,7 +258,15 @@ export function ActivityProvider({ children }) {
                                         active,
                                         pending,
                                         type: data.eventType || (data.boostedRarity ? 'gold_rush' : prev.type),
-                                        data: data.boostedRarity ? { boostedRarity: data.boostedRarity, multiplier: data.multiplier } : prev.data,
+                                        data: data.boostedRarity
+                                            ? { boostedRarity: data.boostedRarity, multiplier: data.multiplier }
+                                            : data.eventType === 'community_goal'
+                                                ? {
+                                                    target: data.target,
+                                                    tiers: data.tiers,
+                                                    participationReward: data.participationReward,
+                                                }
+                                                : prev.data,
                                         activatesAt: adjustedActivatesAt,
                                         expiresAt: adjustedExpiresAt,
                                         milestone: data.milestone || prev.milestone,
@@ -250,6 +287,11 @@ export function ActivityProvider({ children }) {
                                 // Clear KOTW state if it was a KOTW event
                                 setKotwLeaderboard([]);
                                 setKotwUserStats(null);
+                                // Community Goal progress is deliberately NOT cleared here.
+                                // This message lands ~5s before the result is shown, and
+                                // wiping it would empty the banner for that whole gap. The
+                                // result handler clears it at the moment it swaps the banner
+                                // over. See communityGoalResultPending.
                                 break;
 
                             case 'event_selection':
@@ -285,8 +327,10 @@ export function ActivityProvider({ children }) {
                                 // someone is mid-spin - without the delay the winner banner
                                 // and the lucky-spin reward appear on top of a wheel that
                                 // has not landed yet, spoiling the result.
+                                setKotwWinnerPending(true);
                                 kotwWinnerDelayTimeoutRef.current = setTimeout(() => {
                                     setKotwWinner(data);
+                                    setKotwWinnerPending(false);
                                     kotwWinnerDelayTimeoutRef.current = null;
                                     // Clear leaderboard after winner announcement
                                     kotwWinnerTimeoutRef.current = setTimeout(() => {
@@ -296,6 +340,55 @@ export function ActivityProvider({ children }) {
                                         kotwWinnerTimeoutRef.current = null;
                                     }, 30000); // Keep winner visible for 30 seconds
                                 }, 5000); // Wait for spin animation to complete
+                                break;
+
+                            case 'community_goal_progress':
+                                // Already throttled server-side past the spin animation,
+                                // so this is safe to apply the moment it lands.
+                                setCommunityGoal(prev => ({
+                                    ...prev,
+                                    progress: data.progress,
+                                    target: data.target,
+                                    tiers: data.tiers ?? prev?.tiers ?? [],
+                                    tierReached: data.tierReached ?? null,
+                                    payout: data.payout ?? prev?.payout ?? 0,
+                                    participants: data.participants,
+                                }));
+                                break;
+
+                            case 'community_goal_result':
+                                console.log('[SSE] Community Goal result:', data);
+                                if (communityGoalResultTimeoutRef.current) {
+                                    clearTimeout(communityGoalResultTimeoutRef.current);
+                                }
+                                if (communityGoalClearTimeoutRef.current) {
+                                    clearTimeout(communityGoalClearTimeoutRef.current);
+                                }
+                                // Flag the pending result straight away. The banner uses this
+                                // to hold its ground for the delay below instead of vanishing
+                                // and popping back - the event is over, but the summary is not
+                                // ready to show yet.
+                                setCommunityGoalResultPending(true);
+                                // Same delay as the other events: the goal expires on a
+                                // server timer that lands mid-spin as often as not.
+                                communityGoalResultTimeoutRef.current = setTimeout(() => {
+                                    setCommunityGoalResult(data);
+                                    setCommunityGoalResultPending(false);
+                                    setCommunityGoal(null);
+                                    communityGoalResultTimeoutRef.current = null;
+                                    communityGoalClearTimeoutRef.current = setTimeout(() => {
+                                        setCommunityGoalResult(null);
+                                        setCommunityGoalReward(null);
+                                        communityGoalClearTimeoutRef.current = null;
+                                    }, 12000);
+                                }, 5000);
+                                break;
+
+                            case 'community_goal_reward':
+                                // Sent only to players who took part - carries their own
+                                // new balance, so no arithmetic on this side.
+                                console.log('[SSE] Community Goal reward:', data);
+                                setCommunityGoalReward(data);
                                 break;
 
                             case 'first_blood_result':
@@ -309,8 +402,10 @@ export function ActivityProvider({ children }) {
                                 }
                                 // Delay showing winner to allow spin animation to complete first
                                 // Spin animations take ~4-5 seconds, so wait before showing winner
+                                setFirstBloodResultPending(true);
                                 firstBloodTimeoutRef.current = setTimeout(() => {
                                     setFirstBloodWinner(data);
+                                    setFirstBloodResultPending(false);
                                     firstBloodTimeoutRef.current = null;
                                     // Clear winner after display period
                                     firstBloodClearTimeoutRef.current = setTimeout(() => {
@@ -455,6 +550,14 @@ export function ActivityProvider({ children }) {
                 clearTimeout(firstBloodClearTimeoutRef.current);
                 firstBloodClearTimeoutRef.current = null;
             }
+            if (communityGoalResultTimeoutRef.current) {
+                clearTimeout(communityGoalResultTimeoutRef.current);
+                communityGoalResultTimeoutRef.current = null;
+            }
+            if (communityGoalClearTimeoutRef.current) {
+                clearTimeout(communityGoalClearTimeoutRef.current);
+                communityGoalClearTimeoutRef.current = null;
+            }
         };
     }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus]);
 
@@ -496,6 +599,7 @@ export function ActivityProvider({ children }) {
         kotwLeaderboard,
         kotwUserStats,
         kotwWinner,
+        kotwWinnerPending,
         kotwSpinPending,
         markKotwSpinStart,
         updateKotwUserStats,
@@ -503,6 +607,12 @@ export function ActivityProvider({ children }) {
         eventSelection,
         // First Blood
         firstBloodWinner,
+        firstBloodResultPending,
+        // Community Goal
+        communityGoal,
+        communityGoalResult,
+        communityGoalResultPending,
+        communityGoalReward,
     };
 
     return (
