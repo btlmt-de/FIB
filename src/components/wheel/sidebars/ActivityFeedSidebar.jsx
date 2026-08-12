@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { COLORS } from '../config/constants';
 import { Activity, Sparkles, Crown, Radio } from 'lucide-react';
-import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl } from '../../../utils/helpers.js';
+import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl, parseActivityDate } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 
@@ -31,7 +31,7 @@ function formatExactTime(dateStr) {
 }
 
 export function ActivityFeedSidebar() {
-    const { feed: rawFeed, initialized, serverTime } = useActivity();
+    const { feed: rawFeed, rareFeed, initialized, serverTime } = useActivity();
     const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
     const [delayedFeed, setDelayedFeed] = useState([]);
     const processedIdsRef = useRef(new Set());
@@ -69,11 +69,7 @@ export function ActivityFeedSidebar() {
             processedIdsRef.current.add(item.id);
 
             // Check if item is fresh (< 2 seconds old = from SSE)
-            let createdAtStr = item.created_at;
-            if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
-            }
-            const itemAge = now - new Date(createdAtStr).getTime();
+            const itemAge = now - parseActivityDate(item.created_at);
 
             if (itemAge < 2000) {
                 // Fresh SSE item - delay by 4.5 seconds to cover spin animations
@@ -110,19 +106,28 @@ export function ActivityFeedSidebar() {
     const feed = useMemo(() => {
         return [...delayedFeed]
             .filter(item => item.event_type !== 'achievement_unlock')
-            .sort((a, b) => {
-                const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
-                const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
-                return dateB - dateA;
-            });
+            .sort((a, b) => parseActivityDate(b.created_at) - parseActivityDate(a.created_at));
     }, [delayedFeed]);
 
-    // Filter for mythic and insane only
+    // Mythic & Insane board - all time, not just what is still in the live feed.
+    // rawFeed is capped at the most recent 150 entries and the delayed feed inherits that
+    // cap, so filtering it only ever surfaced the handful of rare drops recent enough to
+    // still be in the window. rareFeed carries the full history; the delayed feed is still
+    // unioned in so a drop that lands right now appears on the same 4.5s delay as
+    // everywhere else, instead of spoiling the spin that produced it.
     const specialFeed = useMemo(() => {
-        return feed.filter(item =>
-            item.item_rarity === 'mythic' || item.item_rarity === 'insane'
+        const isSpecialRarity = item => item.item_rarity === 'mythic' || item.item_rarity === 'insane';
+        const byId = new Map();
+        for (const item of rareFeed) {
+            if (isSpecialRarity(item)) byId.set(item.id, item);
+        }
+        for (const item of feed) {
+            if (isSpecialRarity(item)) byId.set(item.id, item);
+        }
+        return [...byId.values()].sort(
+            (a, b) => parseActivityDate(b.created_at) - parseActivityDate(a.created_at)
         );
-    }, [feed]);
+    }, [feed, rareFeed]);
 
     const displayFeed = activeTab === 'all' ? feed : specialFeed;
     const loading = !initialized;

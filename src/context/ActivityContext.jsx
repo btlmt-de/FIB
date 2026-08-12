@@ -6,11 +6,18 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
+import { parseActivityDate } from '../utils/helpers.js';
 
 const ActivityContext = createContext(null);
 
+// How far back mythic/insane drops are folded into the main activity feed. The board
+// itself is all-time; this only governs how long a rare drop lingers in the All tab.
+const RARE_FEED_MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+
 export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
+    const [rareFeed, setRareFeed] = useState([]); // All-time mythic/insane, for the board
     const [serverTime, setServerTime] = useState(null);
     const [lastId, setLastId] = useState(null);
     const [newItems, setNewItems] = useState([]);
@@ -91,11 +98,19 @@ export function ActivityProvider({ children }) {
         try {
             const [allRes, rareRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/activity/all?limit=100`, { credentials: 'include' }),
-                fetch(`${API_BASE_URL}/api/activity/rare?days=7&limit=50`)
+                // Full mythic/insane history - the Mythic & Insane board is all-time.
+                // One request serves both consumers: the board takes the whole list, while
+                // the main feed still only merges the last 7 days so the All tab keeps
+                // reading as a recent-activity feed rather than an archive.
+                fetch(`${API_BASE_URL}/api/activity/rare?days=all&limit=500`)
             ]);
 
             const allData = await allRes.json();
             const rareData = await rareRes.json();
+
+            if (rareData.feed) {
+                setRareFeed(rareData.feed);
+            }
 
             if (allData.feed) {
                 if (allData.serverTime) {
@@ -116,14 +131,14 @@ export function ActivityProvider({ children }) {
 
                 let mergedFeed = allData.feed;
                 if (rareData.feed && rareData.feed.length > 0) {
+                    // Only the recent slice belongs in the main feed - see the fetch above.
+                    const rareCutoff = Date.now() - RARE_FEED_MERGE_WINDOW_MS;
                     const existingIds = new Set(allData.feed.map(item => item.id));
-                    const additionalRare = rareData.feed.filter(item => !existingIds.has(item.id));
+                    const additionalRare = rareData.feed.filter(item =>
+                        !existingIds.has(item.id) && parseActivityDate(item.created_at) >= rareCutoff);
                     if (additionalRare.length > 0) {
-                        mergedFeed = [...allData.feed, ...additionalRare].sort((a, b) => {
-                            const dateA = new Date(a.created_at.replace(' ', 'T') + (a.created_at.includes('Z') ? '' : 'Z'));
-                            const dateB = new Date(b.created_at.replace(' ', 'T') + (b.created_at.includes('Z') ? '' : 'Z'));
-                            return dateB - dateA;
-                        });
+                        mergedFeed = [...allData.feed, ...additionalRare]
+                            .sort((a, b) => parseActivityDate(b.created_at) - parseActivityDate(a.created_at));
                     }
                 }
 
@@ -468,6 +483,7 @@ export function ActivityProvider({ children }) {
 
     const value = {
         feed,
+        rareFeed,
         serverTime,
         newItems,
         clearNewItems,
