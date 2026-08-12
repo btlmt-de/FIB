@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl, isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
 // CONSTANTS
@@ -142,10 +143,17 @@ export function CanvasResultItem({
         imageRef.current = null;
         setImageLoaded(false);
 
-        const src = getItemImageUrl(item);
         let cancelled = false;
 
-        loadImage(src).then(img => {
+        // Pool items are drawn straight from the atlas, so there is nothing to
+        // fetch and nothing to wait for — the result can render on the frame the
+        // item arrives. Only the sprites the atlas does not pack still load here.
+        if (!needsOwnImage(item)) {
+            setImageLoaded(true);
+            return () => { cancelled = true; };
+        }
+
+        loadImage(getItemImageUrl(item)).then(img => {
             // Only update if this is still the current item and not cancelled
             if (!cancelled && img) {
                 imageRef.current = img;
@@ -492,7 +500,7 @@ export function CanvasResultItem({
             // ============================================
             // 6. ITEM IMAGE
             // ============================================
-            if (imageRef.current) {
+            if (imageRef.current || getAtlasSprite(item)) {
                 const imgSize = size * 0.7;
                 const imgX = centerX - imgSize / 2;
                 const imgY = centerY - imgSize / 2;
@@ -508,7 +516,7 @@ export function CanvasResultItem({
                     ctx.shadowBlur = 8;
                 }
 
-                ctx.drawImage(imageRef.current, imgX, imgY, imgSize, imgSize);
+                drawItemSprite(ctx, item, imageRef.current, imgX, imgY, imgSize);
                 ctx.shadowBlur = 0;
                 ctx.imageSmoothingEnabled = true;
             }
