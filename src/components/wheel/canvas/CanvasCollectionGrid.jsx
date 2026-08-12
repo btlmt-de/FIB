@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
+import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
 // CONSTANTS
@@ -343,7 +344,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
     const imgX = x + (size - imgSize) / 2;
     const imgY = y + (size - imgSize) / 2;
 
-    if (img) {
+    if (img || getAtlasSprite(item)) {
         ctx.save();
 
         // Apply grayscale and opacity for uncollected
@@ -361,7 +362,7 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.imageSmoothingEnabled = useSmooth;
         ctx.imageSmoothingQuality = useSmooth ? 'high' : 'low';
 
-        ctx.drawImage(img, imgX, imgY, imgSize, imgSize);
+        drawItemSprite(ctx, item, img, imgX, imgY, imgSize);
 
         // Reset filter and alpha (restore handles this, but be explicit)
         ctx.filter = 'none';
@@ -516,8 +517,11 @@ export function CanvasCollectionGrid({
             }
         }
 
-        // Load images for visible items
-        Promise.all(visibleItems.map(item => {
+        // Load images for visible items. Pool sprites come from the atlas, so
+        // this is now only the heads and custom art — which is also why the LRU
+        // cache below stopped mattering much: the thing that used to evict it was
+        // scrolling through a thousand item sprites.
+        Promise.all(visibleItems.filter(needsOwnImage).map(item => {
             const src = getItemImageUrl(item);
             return loadImage(src).then(img => {
                 if (img) imagesRef.current.set(src, img);

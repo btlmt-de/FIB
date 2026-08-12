@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, memo } from 'react';
 import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { EnhancedWheelIdleState } from './canvas/EnhancedWheelIdleState.jsx';
-import { CanvasSpinningStrip, preloadItemImages } from './canvas/CanvasSpinningStrip.jsx';
+import { CanvasSpinningStrip, preloadItemImages, warmImageCache } from './canvas/CanvasSpinningStrip.jsx';
+import { loadAtlas } from './canvas/atlas.js';
 import { CanvasResultItem } from './canvas/CanvasResultItem.jsx';
 import { CanvasBonusStrip } from './canvas/CanvasBonusStrip.jsx';
 
@@ -43,8 +44,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [spinProgress, setSpinProgress] = useState(0); // 0-1 for Phase 2 effects
-    const [imagesPreloaded, setImagesPreloaded] = useState(false); // Track if images are ready
-    const [preloadProgress, setPreloadProgress] = useState(0); // 0-100 percentage
+    // One flag instead of the old imagesPreloaded/preloadProgress pair: the wheel
+    // waits on a single atlas request now, so there is no meaningful percentage to
+    // report — it is one file, and it is either here or it is not.
+    const [atlasReady, setAtlasReady] = useState(false);
     // Use ref for canvas offset to avoid re-renders during animation
     const canvasOffsetRef = useRef(0);
     const animationRef = useRef(null);
@@ -145,35 +148,72 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Preload ALL item images on mount so they're ready for first spin
+    /**
+     * Gate the spin button on the sprite atlas — one request for the whole pool.
+     *
+     * The history here is worth keeping, because the obvious version of this is
+     * the one we started with and it was the slowest thing about the page. It
+     * used to await every sprite in the pool individually, ~1,500 files, so that
+     * a strip could never draw a missing texture. That cost 9.4s cold from our
+     * own origin and 2.2s from GitHub, and moving the files between hosts only
+     * changed who absorbed it.
+     *
+     * Removing the gate outright fixed the wait and reintroduced the flashes it
+     * had been paying for. The atlas is what makes both work at once: one image
+     * means every pool sprite becomes available at the same instant, so there is
+     * no half-loaded state to render and no per-item race to lose. Gating on a
+     * single request is cheap enough to be honest about.
+     *
+     * The heads and custom art the atlas does not pack are warmed alongside it
+     * but not waited for — there are a few dozen, they are third-party, and the
+     * strip already tolerates them arriving late.
+     */
     useEffect(() => {
         if (allItems.length === 0) return;
 
         let isMounted = true;
-        setImagesPreloaded(false);
-        setPreloadProgress(0);
+        setAtlasReady(false);
 
-        preloadItemImages(allItems, (loaded, total) => {
-            if (isMounted) {
-                setPreloadProgress(Math.round((loaded / total) * 100));
-            }
-        }).then(() => {
-            if (isMounted) {
-                setImagesPreloaded(true);
-            }
-        }).catch((err) => {
-            console.error('Failed to preload images:', err);
-            // Set ready state anyway so user can spin (images will load on demand)
-            if (isMounted) {
-                setImagesPreloaded(true);
-                setPreloadProgress(100);
-            }
+        loadAtlas().then((ok) => {
+            if (!isMounted) return;
+            // Opens the gate either way. A failed atlas is a slower wheel, not a
+            // broken one: every renderer falls back to per-item images, which is
+            // exactly the path the non-pool sprites already take.
+            setAtlasReady(true);
+            if (!ok) warmImageCache(allItems);
         });
+
+        // Not awaited, and deliberately not cancelled on unmount — an in-flight
+        // sweep that outlives the component is just cache the next mount inherits.
+        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...TEAM_MEMBERS]);
 
         return () => {
             isMounted = false;
         };
     }, [allItems]);
+
+    /**
+     * Load the strip the moment one exists — the exact 80 items about to be
+     * drawn, winner first.
+     *
+     * This is where the startup cost went. Instead of paying for ~1,500 sprites
+     * up front to show 80, we pay for the 80 as they become known, under the
+     * cover of the spin animation. The winner is ordered first because it is the
+     * one image that cannot be late: it sits centred and static under a rarity
+     * glow for as long as the result is on screen, where a barrier reads as a
+     * bug rather than as loading. The other 79 fly past at speed, and by the
+     * time the strip decelerates the background sweep has usually got them
+     * anyway.
+     *
+     * Keyed on the strip rather than wired into each of the four call sites that
+     * build one (normal, lucky, multi-spin, placeholder), so no future path can
+     * forget it.
+     */
+    useEffect(() => {
+        if (strip.length === 0) return;
+        const winner = strip[FINAL_INDEX];
+        preloadItemImages(winner ? [winner, ...strip] : strip);
+    }, [strip]);
 
     // Spacebar to spin/respin
     useEffect(() => {
@@ -1253,8 +1293,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     onSpin={spin}
                     onShowOddsInfo={() => setShowOddsInfo(true)}
                     isMobile={isMobile}
-                    isLoading={!imagesPreloaded}
-                    loadingProgress={preloadProgress}
+                    isLoading={!atlasReady}
                 />
 
                 {/* Odds Info Modal */}
