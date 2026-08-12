@@ -5,13 +5,13 @@ import Footer from "../components/common/Footer.jsx";
    module, not part of itemPool.js, so this page does not drag the 1,300-entry pool
    arrays out of the lazy Stats chunk and into the main bundle. */
 import { CUSTOM_ITEM_NAMES } from '../config/customItems.js';
+import { IMAGE_BASE_URL } from '../config/constants';
 
 /* ─────────────────────────────────────
    Textures — same source as ItemPoolManager / ForceItemPools
 ───────────────────────────────────── */
-const IMG_BASE  = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
-const fib       = (m) => `${IMG_BASE}/${String(m).toLowerCase()}.png`;
-const BARRIER   = `${IMG_BASE}/barrier.png`;
+const fib       = (m) => `${IMAGE_BASE_URL}/${String(m).toLowerCase()}.png`;
+const BARRIER   = `${IMAGE_BASE_URL}/barrier.png`;
 const onImgErr  = (e) => { e.currentTarget.onerror = null; e.currentTarget.src = BARRIER; };
 /* A custom item answers with its own name, not the material it rides on — NETHER_STAR is
    the Wheel of Fortune. Mirrors CustomMaterials.nameOf() via the vendored map, and takes

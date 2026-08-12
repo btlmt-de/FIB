@@ -2,7 +2,7 @@
 // Client-side utility functions
 // ============================================
 
-import { IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
+import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
 
 // Format chance as a readable percentage (strips trailing zeros)
 export function formatChance(chance) {
@@ -151,7 +151,7 @@ export function getItemImageUrl(item) {
         if (insane?.imageUrl) return insane.imageUrl;
         // Fallback for known insane items
         if (texture === 'insane_cavendish') {
-            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
+            return `${CUSTOM_IMAGE_BASE_URL}/cavendish.png`;
         }
     }
 
@@ -164,7 +164,7 @@ export function getItemImageUrl(item) {
         // Fallback for known mythics
         if (texture === 'mythic_jimbo') return '/jimbo.png';
         if (texture === 'mythic_gros_michel') {
-            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/gros_michel.png';
+            return `${CUSTOM_IMAGE_BASE_URL}/gros_michel.png`;
         }
     }
 

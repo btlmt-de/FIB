@@ -25,6 +25,22 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/fib');
 const OUT = join(root, 'public/fib-items');
 
+/**
+ * The pack's custom items (cavendish, the antimatter set, the wheel) live in
+ * `item/` rather than `fib/` and are referenced by name, not by pool membership,
+ * so there is no reachable set to compute — the whole directory is ~16 KB and
+ * gets copied wholesale.
+ *
+ * `.mcmeta` sidecars are deliberately not copied. They describe vertical
+ * animation strips for a handful of textures (knowledge_book, sulfur_locator,
+ * trial_locator), and a browser has no idea what to do with one — it would
+ * render the strip as a tall static image. Nothing in the app references those
+ * three today; if something starts to, it needs a real sprite-sheet renderer,
+ * not this file.
+ */
+const CUSTOM_SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/item');
+const CUSTOM_OUT = join(root, 'public/fib-custom');
+
 /** The item names the app can actually reach, read from the data layer. */
 async function reachableKeys() {
   const { ITEM_POOL, itemKey } = await import('../src/pages/Stats/data.js');
@@ -78,6 +94,34 @@ async function main() {
       `fall back to the remote host: ${missing.join(', ')}`,
     );
   }
+
+  await copyCustom();
+}
+
+/** Copies the `item/` custom textures. Absence is a warning, not a failure. */
+async function copyCustom() {
+  let available;
+  try {
+    available = await readdir(CUSTOM_SRC);
+  } catch {
+    console.warn(`No custom textures at ${CUSTOM_SRC}; skipping public/fib-custom/.`);
+    return;
+  }
+
+  const files = available.filter((f) => f.endsWith('.png'));
+  await mkdir(CUSTOM_OUT, { recursive: true });
+
+  const sizes = await Promise.all(
+    files.map(async (f) => {
+      await copyFile(join(CUSTOM_SRC, f), join(CUSTOM_OUT, f));
+      return (await stat(join(CUSTOM_SRC, f))).size;
+    }),
+  );
+
+  console.log(
+    `Vendored ${files.length} custom textures ` +
+    `(${bytes(sizes.reduce((a, b) => a + b, 0))}) -> public/fib-custom/`,
+  );
 }
 
 main();

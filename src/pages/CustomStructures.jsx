@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import Footer from "../components/common/Footer.jsx";
-import { COLORS } from '../config/constants';
+import { COLORS, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../config/constants';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+const IMG = IMAGE_BASE_URL;
 
-// Custom item textures live in the resource pack's item folder, not the fib folder.
-const ITEM_IMG = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item';
+// Custom item textures live in the resource pack's item folder, not the fib folder,
+// so they are vendored to their own path rather than sharing the pool's.
+const ITEM_IMG = CUSTOM_IMAGE_BASE_URL;
 
 // Map COLORS to the local names used throughout this file
 const COL = {

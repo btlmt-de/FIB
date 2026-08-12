@@ -1,8 +1,24 @@
 // Service Worker for FIB Wheel of Fortune
 
-const CACHE_NAME = 'fib-textures-v1';
-const TEXTURE_URL_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/(fib|item)\/.+\.png$/;
-const MINOTAR_PATTERN = /minotar\.net\/avatar\//;
+// Bumped to v2 when item sprites moved from raw.githubusercontent.com to our own
+// origin. The activate handler deletes every `fib-` cache that isn't the current
+// one, so the rename is what evicts the old GitHub-keyed entries — without it,
+// returning visitors would carry a dead cache of remote URLs around forever.
+const CACHE_NAME = 'fib-textures-v2';
+
+// Sprites are same-origin now (/fib-items/, /fib-custom/). Keeping cache-first
+// over them is still worth it: files under public/ are not content-hashed, so
+// their freshness is at the mercy of whatever headers the host sends, and the
+// wheel wants all ~1,500 of them present before it will let anyone spin.
+const TEXTURE_URL_PATTERN = /\/fib-(items|custom)\/[^/]+\.(png|gif)$/;
+
+// The remote pack, still matched so that anything not yet vendored — and any
+// client running a build from before the move — keeps its cache-first path.
+const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/(fib|item)\/.+\.png$/;
+
+// Player heads. mc-heads.net is what getMinecraftHeadUrl() actually returns;
+// the minotar.net pattern this replaced had stopped matching anything.
+const HEAD_PATTERN = /mc-heads\.net\/avatar\//;
 
 // Cache-first strategy for images
 async function cacheFirst(request) {
@@ -32,8 +48,12 @@ async function cacheFirst(request) {
 self.addEventListener('fetch', (event) => {
     const url = event.request.url;
 
-    // Cache texture images from GitHub and Minotar avatars
-    if (TEXTURE_URL_PATTERN.test(url) || MINOTAR_PATTERN.test(url)) {
+    // Cache item sprites (local and remote) and player heads
+    if (
+        TEXTURE_URL_PATTERN.test(url) ||
+        REMOTE_TEXTURE_PATTERN.test(url) ||
+        HEAD_PATTERN.test(url)
+    ) {
         event.respondWith(cacheFirst(event.request));
     }
 });

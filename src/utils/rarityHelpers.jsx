@@ -4,7 +4,13 @@
 
 import React from 'react';
 import { Sparkles, Star, Diamond, Circle, Zap, Crown } from 'lucide-react';
-import { COLORS } from '../config/constants';
+// The wheel's palette, not the wiki's. Every consumer of these helpers lives under
+// components/wheel/, and the wheel renders against its own COLORS (hex, Minecraft-derived)
+// rather than the site-wide oklch tokens. Importing '../config/constants' here — which is what
+// this file used to do — made getRarityColor('legendary') return the wiki's blue-violet purple
+// while the surrounding wheel chrome used #AA00AA magenta, so the activity feed rows and the
+// pull toast disagreed with the "Legendary" label sitting right under them.
+import { COLORS } from '../components/wheel/config/constants';
 
 /**
  * Get the color associated with a rarity level

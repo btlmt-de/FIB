@@ -3,7 +3,7 @@ import X from 'lucide-react/dist/esm/icons/x';
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import { COLORS as C } from '../../config/constants';
+import { COLORS as C, IMAGE_BASE_URL } from '../../config/constants';
 
 const SD_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
@@ -171,8 +171,6 @@ const SD_CSS = `
 const MISODE_ITEM_TAGS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.json';
 const MISODE_TAGS_CACHE_KEY = 'forceitem_tags_cache_v1';
 const MISODE_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 
 // Item Tags caching functions (for official Minecraft categories)
 function getTagsCache() {

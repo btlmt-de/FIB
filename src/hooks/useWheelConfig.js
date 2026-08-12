@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../config/constants';
+import { API_BASE_URL, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../config/constants';
 
 // Fallback values (used only if server is unreachable)
 const FALLBACK_CONFIG = {
@@ -9,9 +9,16 @@ const FALLBACK_CONFIG = {
         stripLength: 80,
         finalIndex: 72
     },
+    // `/api/config` also serves a `urls` block pointing at raw.githubusercontent.com.
+    // Nothing reads it — the only accessor anyone consumes from this hook is
+    // spinDuration, and image URLs come from config/constants.js, which now resolves
+    // to vendored copies under public/. The block is mirrored here rather than
+    // dropped so the shape still matches what the server sends; leaving the remote
+    // URLs in place as a "fallback" would only mean a stale second source of truth
+    // that quietly reintroduces the throttled host the moment something reads it.
     urls: {
-        imageBase: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib',
-        wheelTexture: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/wheel.png'
+        imageBase: IMAGE_BASE_URL,
+        wheelTexture: `${CUSTOM_IMAGE_BASE_URL}/wheel.png`
     },
     bonusEvents: [
         { id: 'triple_spin', name: '5x Spin', description: '5 bonus spins!' },

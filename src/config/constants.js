@@ -44,7 +44,45 @@ export const COLORS = {
     recursionDark:'oklch(12% 0.025 155)',
 };
 
-export const IMAGE_BASE_URL     = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+/**
+ * Item sprites, served from our own origin.
+ *
+ * These are vendored out of the resource pack into `public/fib-items/` by
+ * `scripts/vendor-textures.mjs` and committed, so they ship with the build.
+ * The stats module moved to them first (see Stats/tokens.js); this is the rest
+ * of the app following, and the wheel is the reason it mattered enough to do.
+ *
+ * raw.githubusercontent.com is not a CDN. It sends `cache-control: max-age=300`
+ * and throttles, and the wheel preloads the *entire* pool before it will let
+ * anyone spin — 1,537 sprites, fetched 20 at a time, each wave waiting on the
+ * slowest member. Against a throttling origin that is a cold-start stall of
+ * tens of seconds, repeated every five minutes once the max-age lapses. From
+ * our own origin the same set is immutable and cacheable, and the second visit
+ * costs nothing.
+ *
+ * Re-run `npm run vendor:textures` after adding items to the pool. The vendored
+ * set is derived from the stats data layer's ITEM_POOL, which is not the same
+ * list the wheel gets from `/api/items` — they happen to coincide today (all
+ * 1,537 wheel textures and all 1,540 unicodeItems materials are present), but
+ * nothing enforces it. A sprite that goes missing renders as barrier rather
+ * than reaching for the network, so check the script's output for the warning
+ * about pool items with no texture instead of relying on a runtime fallback.
+ */
+export const IMAGE_BASE_URL     = '/fib-items';
+
+/**
+ * The pack's custom items — cavendish, gros_michel, the antimatter set, the
+ * wheel. These live in the pack's `item/` directory rather than `fib/`, so they
+ * are vendored separately (see scripts/vendor-textures.mjs) and keyed by name
+ * rather than by pool membership.
+ */
+export const CUSTOM_IMAGE_BASE_URL = '/fib-custom';
+
+/**
+ * The upstream pack. Kept for tooling and for anything that genuinely wants the
+ * canonical remote URL. Not a runtime fallback for the pool — see above.
+ */
+export const REMOTE_IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 export const WHEEL_TEXTURE_URL  = '/wheel.png';
 export const ITEM_WIDTH         = 80;
 export const SPIN_DURATION      = 4000;
@@ -77,7 +115,7 @@ export const RARE_MEMBERS = [
 
 export const INSANE_ITEMS = [
     { name: 'Cavendish', texture: 'insane_cavendish', chance: 0.000001, type: 'insane',
-        imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png' },
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/cavendish.png` },
 ];
 export const INSANE_ITEM = INSANE_ITEMS[0];
 
@@ -85,7 +123,7 @@ export const MYTHIC_ITEMS = [
     { name: 'Jimbo',        texture: 'mythic_jimbo',        chance: 0.00002, type: 'mythic', imageUrl: '/jimbo.png' },
     { name: 'eltobito',     texture: 'mythic_eltobito',     chance: 0.00003, type: 'mythic', username: 'eltobito' },
     { name: 'Gros Michel',  texture: 'mythic_gros_michel',  chance: 0.00004, type: 'mythic',
-        imageUrl: 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/gros_michel.png' },
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/gros_michel.png` },
 ];
 export const MYTHIC_ITEM = MYTHIC_ITEMS[0];
 

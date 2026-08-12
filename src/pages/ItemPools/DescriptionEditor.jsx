@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { IMAGE_BASE_URL } from '../../config/constants';
 import Check from 'lucide-react/dist/esm/icons/check';
 import Copy from 'lucide-react/dist/esm/icons/copy';
 import ArrowUp from 'lucide-react/dist/esm/icons/arrow-up';
@@ -1502,7 +1503,7 @@ export default function DescriptionEditor({ item, allItems = [], onClose, onSave
                                             )}
                                         >
                                             <img
-                                                src={`https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib/${refItem.material.toLowerCase()}.png`}
+                                                src={`${IMAGE_BASE_URL}/${refItem.material.toLowerCase()}.png`}
                                                 alt="" style={{ width: 18, height: 18, imageRendering: 'pixelated', flexShrink: 0 }}
                                                 onError={e => { e.target.style.display = 'none'; }}
                                             />

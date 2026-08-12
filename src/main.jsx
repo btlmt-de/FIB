@@ -3,8 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import unicodeItems from '../unicodeItems.json'
-
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+import { IMAGE_BASE_URL } from './config/constants'
 
 // Register service worker for texture caching
 // Textures cache naturally as you spin - no upfront download needed
