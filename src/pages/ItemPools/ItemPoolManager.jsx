@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { IMAGE_BASE_URL } from '../../config/constants';
 // Direct imports for bundle optimization (react-best-practices rule 2.1)
 import X from 'lucide-react/dist/esm/icons/x';
 import Plus from 'lucide-react/dist/esm/icons/plus';
@@ -288,8 +289,7 @@ const MODAL_CSS = `
 `;
 
 
-// Image URL for Minecraft items
-const IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+// Image URL for Minecraft items — IMAGE_BASE_URL is imported at the top of the file.
 
 // GitHub token creation URL
 const GITHUB_TOKEN_URL = 'https://github.com/settings/tokens/new?description=FIB%20Item%20Pool%20Manager&scopes=repo';

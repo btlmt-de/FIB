@@ -45,7 +45,10 @@ function loadBarrierImage() {
             resolve(img);
         };
         img.onerror = () => resolve(null);
-        img.src = 'https://mc-items.s3.us-east-1.amazonaws.com/barrier.png';
+        // Was an unrelated S3 bucket. barrier.png is vendored with the rest of the
+        // pack, and a fallback that itself needs a third-party round trip is the
+        // one image guaranteed to be wanted while the network is already failing.
+        img.src = `${IMAGE_BASE_URL}/barrier.png`;
     });
 }
 

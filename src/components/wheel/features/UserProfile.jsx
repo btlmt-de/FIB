@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { API_BASE_URL, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
 import { Achievements } from './Achievements.jsx';
@@ -381,13 +381,13 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
         if (item.item_type === 'mythic' && !item.username) {
             // Check for known mythics
             if (item.item_texture === 'mythic_cavendish') {
-                return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
+                return `${CUSTOM_IMAGE_BASE_URL}/cavendish.png`;
             }
             if (item.item_texture === 'mythic_jimbo') {
                 return '/jimbo.png';
             }
             // Fallback for unknown mythics
-            return 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/item/cavendish.png';
+            return `${CUSTOM_IMAGE_BASE_URL}/cavendish.png`;
         }
 
         // Player heads (legendaries and rares with usernames)
