@@ -7,19 +7,28 @@
 const SoundContext = createContext(null);
 
 // Sound file paths (relative to public folder)
+// All mp3. These were WAV originally - 47 MB between them, against 5 MB as mp3 at the
+// same ~195 kbps the other tracks already use. Two reasons that mattered:
+//
+//   1. Size. spin.wav and soundtrack.wav were 15.5 MB each for 92 seconds of audio.
+//   2. Cloudflare does not cache .wav by default, so every one of those megabytes was
+//      served from the origin VPS on every request while the mp3s were edge cached.
+//
+// The .wav files are still in public/sounds for now; they can go once this is confirmed
+// working in production.
 const SOUND_FILES = {
-    spin: '/sounds/spin.wav',
-    soundtrack: '/sounds/soundtrack.wav',
-    recursionSoundtrack: '/sounds/recursion_soundtrack.wav',
+    spin: '/sounds/spin.mp3',
+    soundtrack: '/sounds/soundtrack.mp3',
+    recursionSoundtrack: '/sounds/recursion_soundtrack.mp3',
     kotwSoundtrack: '/sounds/KOTW.mp3',
     goldRushSoundtrack: '/sounds/gold.mp3',
     firstBloodSoundtrack: '/sounds/blood.mp3',
     communityGoalSoundtrack: '/sounds/community.mp3',
-    recursion: '/sounds/recursion.wav',
-    insane: '/sounds/sfxinsane.wav',
-    mythic: '/sounds/sfxmythic.wav',
-    legendary: '/sounds/sfxlegendary.wav',
-    rare: '/sounds/sfxrare.wav',
+    recursion: '/sounds/recursion.mp3',
+    insane: '/sounds/sfxinsane.mp3',
+    mythic: '/sounds/sfxmythic.mp3',
+    legendary: '/sounds/sfxlegendary.mp3',
+    rare: '/sounds/sfxrare.mp3',
 };
 
 // Default volume settings
@@ -121,21 +130,21 @@ export function SoundProvider({ children }) {
         const spin = new Audio(SOUND_FILES.spin);
         spin.loop = false;
         spin.preload = 'none';
-        spin.onerror = () => console.warn('[Sound] Spin file not found - add spin.wav to /public/sounds/');
+        spin.onerror = () => console.warn('[Sound] Spin file not found - add spin.mp3 to /public/sounds/');
         spinRef.current = spin;
 
         // Create main soundtrack audio element (loops after spin)
         const soundtrack = new Audio(SOUND_FILES.soundtrack);
         soundtrack.loop = true;
         soundtrack.preload = 'none';
-        soundtrack.onerror = () => console.warn('[Sound] Soundtrack file not found - add soundtrack.wav to /public/sounds/');
+        soundtrack.onerror = () => console.warn('[Sound] Soundtrack file not found - add soundtrack.mp3 to /public/sounds/');
         soundtrackRef.current = soundtrack;
 
         // Create recursion soundtrack audio element
         const recursionSoundtrack = new Audio(SOUND_FILES.recursionSoundtrack);
         recursionSoundtrack.loop = true;
         recursionSoundtrack.preload = 'none';
-        recursionSoundtrack.onerror = () => console.warn('[Sound] Recursion soundtrack file not found - add recursion_soundtrack.wav to /public/sounds/');
+        recursionSoundtrack.onerror = () => console.warn('[Sound] Recursion soundtrack file not found - add recursion_soundtrack.mp3 to /public/sounds/');
         recursionSoundtrackRef.current = recursionSoundtrack;
 
         // Create KOTW soundtrack audio element
