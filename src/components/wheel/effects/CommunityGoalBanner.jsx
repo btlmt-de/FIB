@@ -11,7 +11,16 @@
 //
 // Progress arrives pre-throttled from the server (see COMMUNITY_GOAL_BROADCAST_DELAY_MS
 // in globalEvents.js): a bar that ticked up the instant a rare landed would tell whoever
-// was mid-spin what they had just pulled, seconds before their own wheel did.
+// was mid-spin what they had just pulled, seconds before their own wheel did. Scoring
+// every spin did not retire that concern - the bar moves constantly now, so it is the
+// size of the jump that leaks a mythic. The server still holds every tick back.
+//
+// Two things about the numbers, both set by the server:
+//   - progress is POINTS, not drops. Every spin scores; rarity decides how much.
+//   - the target GROWS during the event as new players take their first spin, so the
+//     stage thresholds are not fixed for the whole five minutes. StagedBar calls this
+//     out when it happens, because a bar whose fill drops while the number rises reads
+//     as a bug otherwise.
 
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
@@ -41,6 +50,9 @@ const TIER_COLORS = {
     diamond: '#22D3EE',
 };
 const tierColor = key => TIER_COLORS[key] || CG_PRIMARY;
+
+// How long the "goal raised" notice and its ring stay up after the target climbs.
+const GOAL_RAISED_MS = 2500;
 
 // ============================================
 // Floating Decorations
@@ -104,7 +116,7 @@ function FloatingGoals({ isMobile }) {
 // Sits inside a pill in the main row. Spans to the FINAL stage so the markers are at
 // their true relative positions and the bar shows how much is left to climb, rather
 // than snapping to full the moment the first stage falls.
-function StagedBar({ progress, tiers, isMobile }) {
+function StagedBar({ progress, tiers, isMobile, raised }) {
     const max = tiers.length > 0 ? tiers[tiers.length - 1].threshold : 0;
     if (max <= 0) return null;
 
@@ -115,7 +127,11 @@ function StagedBar({ progress, tiers, isMobile }) {
 
     return (
         <div
-            title={tiers.map(t => `${t.name}: ${t.threshold} drops`).join('  |  ')}
+            title={
+                `${progress} points  |  ` +
+                tiers.map(t => `${t.name}: ${t.threshold}`).join('  |  ') +
+                '  |  targets rise as more players join'
+            }
             style={{
                 position: 'relative',
                 width: `${width}px`,
@@ -124,6 +140,7 @@ function StagedBar({ progress, tiers, isMobile }) {
                 borderRadius: '999px',
                 overflow: 'hidden',
                 boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.6)',
+                animation: raised ? `goalRaised ${GOAL_RAISED_MS}ms ease-out` : undefined,
             }}
         >
             <div style={{
@@ -164,7 +181,7 @@ function StagedBar({ progress, tiers, isMobile }) {
                 fontFamily: 'monospace',
                 pointerEvents: 'none',
             }}>
-                {progress}/{max}
+                {progress}/{max} pts
             </div>
         </div>
     );
@@ -217,6 +234,32 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
     const reachedTier = [...tiers].reverse().find(t => progress >= t.threshold) || null;
     const nextTier = tiers.find(t => progress < t.threshold) || null;
     const currentPayout = communityGoal?.payout ?? (participationReward + (reachedTier?.bonus || 0));
+
+    // The stage thresholds climb whenever someone takes their first spin of the event, so
+    // the bar's fill can drop while the points go up. That is the server being honest about
+    // needing more, but unannounced it just looks like losing ground - so say so for a
+    // couple of seconds. Keyed on the final stage because that is what the bar spans.
+    // Detected during render rather than in an effect, and clocked off `remainingTime`
+    // rather than Date.now(). Both are deliberate: an effect here would be a fourth
+    // setState-in-effect in this file, and reading the wall clock during render is impure
+    // (it makes the notice appear or vanish on any incidental re-render). `remainingTime`
+    // already ticks once a second from the active timer, counting down, so the difference
+    // between the value at the raise and the value now IS the elapsed time - pure, and it
+    // costs no extra timer.
+    const finalThreshold = tiers.length > 0 ? tiers[tiers.length - 1].threshold : 0;
+    const [seenThreshold, setSeenThreshold] = useState(finalThreshold);
+    const [raisedAtRemaining, setRaisedAtRemaining] = useState(0);
+    if (finalThreshold !== seenThreshold) {
+        setSeenThreshold(finalThreshold);
+        // Ignore the first real value and the reset to 0 between events - only a genuine
+        // mid-event raise should announce itself.
+        if (seenThreshold > 0 && finalThreshold > seenThreshold) setRaisedAtRemaining(remainingTime);
+    }
+    // Clears on the first tick past the window, so it can run up to a second long. That is
+    // fine for a transient notice, and it can never outlive the event itself.
+    const goalRaised = raisedAtRemaining > 0
+        && remainingTime > 0
+        && raisedAtRemaining - remainingTime < GOAL_RAISED_MS;
 
     // Prize pill copy: a range while the event is still counting down and nobody has
     // banked anything, the live figure once it is running.
@@ -386,7 +429,19 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                     from { opacity: 0; transform: translateY(-10px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-
+                /* The bar's target just moved up because someone joined. Ring the track
+                   rather than the fill: the fill is busy animating down to its new
+                   percentage, and two things moving at once reads as a glitch. */
+                @keyframes goalRaised {
+                    0%   { box-shadow: inset 0 1px 4px rgba(0,0,0,0.6), 0 0 0 0 ${CG_ACCENT}00; }
+                    20%  { box-shadow: inset 0 1px 4px rgba(0,0,0,0.6), 0 0 0 3px ${CG_ACCENT}66; }
+                    100% { box-shadow: inset 0 1px 4px rgba(0,0,0,0.6), 0 0 0 0 ${CG_ACCENT}00; }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    @keyframes goalRaised {
+                        0%, 100% { box-shadow: inset 0 1px 4px rgba(0,0,0,0.6), 0 0 0 2px ${CG_ACCENT}66; }
+                    }
+                }
             `}</style>
 
             <div style={{
@@ -490,7 +545,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                 justifyContent: 'center',
                             }}>
                                 <span>
-                                    <strong style={{ color: CG_TEXT }}>{communityGoalResult.progress}</strong> drops by{' '}
+                                    <strong style={{ color: CG_TEXT }}>{communityGoalResult.progress}</strong> points by{' '}
                                     <strong style={{ color: CG_TEXT }}>{communityGoalResult.participantCount}</strong>{' '}
                                     player{communityGoalResult.participantCount !== 1 ? 's' : ''}
                                 </span>
@@ -514,12 +569,22 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                 {communityGoalResult.topContributors?.length > 0 && (
                                     <>
                                         <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
+                                        {/* Ranked by points server-side, so the leader is shown by
+                                            points too. Their rare count is not interchangeable with
+                                            it - the top scorer can perfectly well have pulled none,
+                                            and printing "x0" beside a trophy read as a bug. */}
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <Trophy size={13} color={COLORS.gold} />{' '}
                                             <strong style={{ color: CG_TEXT }}>
                                                 {communityGoalResult.topContributors[0].username}
                                             </strong>{' '}
-                                            &times;{communityGoalResult.topContributors[0].contributions}
+                                            {communityGoalResult.topContributors[0].points} pts
+                                            {communityGoalResult.topContributors[0].contributions > 0 && (
+                                                <span style={{ opacity: 0.7, fontSize: isMobile ? '10px' : '12px' }}>
+                                                    {' '}({communityGoalResult.topContributors[0].contributions} rare
+                                                    {communityGoalResult.topContributors[0].contributions !== 1 ? 's' : ''})
+                                                </span>
+                                            )}
                                         </span>
                                     </>
                                 )}
@@ -573,16 +638,29 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                             {/* Progress (while running, and frozen while settling) */}
                             {showLiveLayout && (
                                 <div style={pill(`${edgeColor}66`, { pad: '6px 14px', gap: '10px' })}>
-                                    <StagedBar progress={progress} tiers={tiers} isMobile={isMobile} />
+                                    <StagedBar
+                                        progress={progress}
+                                        tiers={tiers}
+                                        isMobile={isMobile}
+                                        raised={goalRaised}
+                                    />
                                     <span style={{
                                         fontSize: isMobile ? '10px' : '12px',
                                         fontWeight: 600,
-                                        color: CG_ACCENT,
+                                        color: goalRaised ? CG_TEXT : CG_ACCENT,
                                         whiteSpace: 'nowrap',
+                                        transition: 'color 0.3s ease',
                                     }}>
-                                        {nextTier
-                                            ? <>{nextTier.threshold - progress} to {nextTier.name}</>
-                                            : 'all stages clear'}
+                                        {/* Deliberately about as wide as the text it stands in
+                                            for. The row wraps, and this label lives for 2.5s -
+                                            a longer string would bounce the banner's height and
+                                            shift the wheel under it, twice, for no reason. The
+                                            why is in the bar's own tooltip. */}
+                                        {goalRaised
+                                            ? 'goal raised'
+                                            : nextTier
+                                                ? <>{nextTier.threshold - progress} to {nextTier.name}</>
+                                                : 'all stages clear'}
                                     </span>
                                 </div>
                             )}
@@ -655,7 +733,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                         }}>
                             <span style={{ color: CG_TEXT, fontWeight: 600 }}>Goal:</span>
                             <span>
-                                Everyone lands <strong style={{ color: '#EF4444' }}>Rare</strong> or higher together
+                                Every spin scores - <strong style={{ color: '#EF4444' }}>rarer is worth more</strong>
                             </span>
                             <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
                             {tiers.map(tier => (
