@@ -4,11 +4,23 @@
 
 import React, { useState, useRef } from 'react';
 import { COLORS } from '../config/constants';
+import { RARITY, RARITY_KEYS, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import {
-    Crown, Sparkles, Star, Diamond, ChevronDown, Zap, X,
+    Crown, Sparkles, Star, Gem, Diamond, ChevronDown, Zap, X,
     Calculator, BarChart3, Info, AlertTriangle, Scale,
     Gift, Shuffle, Repeat, Layers, Database, Server, TrendingUp, RefreshCw
 } from 'lucide-react';
+
+// Tiers this modal accounts for, derived from the shared ladder rather than
+// listed by hand — the four separate hand-written tier lists that used to live in
+// this file are why adding a rarity meant editing it in four places and missing
+// one. `common` is excluded because it is the remainder, not a weighted tier.
+const WEIGHTED_TIERS = RARITY_KEYS.filter(key => key !== 'common');
+
+// Tiers the odds table reports "1 in N" for. Event is excluded from this one: it
+// drops on a schedule rather than against the weight pool, so a per-spin
+// probability for it would be a number with no meaning behind it.
+const ODDS_TIERS = WEIGHTED_TIERS.filter(key => key !== 'event');
 
 // ============================================
 // Event Configuration Constants
@@ -50,7 +62,7 @@ const EVENT_DETAILS = [
         tagline: 'Better odds for everyone',
         body: 'One rarity is picked at random and its drop rate is doubled for the whole server. Nothing to do but spin.',
         stat: '2x odds',
-        statLabel: 'on rare, legendary, mythic or insane',
+        statLabel: 'on rare, exotic, legendary, mythic or insane',
     },
     {
         key: 'king_of_wheel',
@@ -93,13 +105,7 @@ export function OddsInfoModal({
     // Calculate weights by rarity tier from dynamicItems
     const TOTAL_WEIGHT = 10000000;
 
-    const tierWeights = {
-        insane: 0,
-        mythic: 0,
-        legendary: 0,
-        rare: 0,
-        event: 0
-    };
+    const tierWeights = Object.fromEntries(WEIGHTED_TIERS.map(key => [key, 0]));
 
     let totalSpecialWeight = 0;
     const specialItemCount = dynamicItems ? dynamicItems.length : 0;
@@ -119,12 +125,10 @@ export function OddsInfoModal({
     const totalItemCount = (dynamicItems?.length || 0) + regularItemCount;
 
     // Calculate expected spins (1/probability = totalWeight/tierWeight)
-    const expectedSpins = {
-        insane: tierWeights.insane > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.insane) : null,
-        mythic: tierWeights.mythic > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.mythic) : null,
-        legendary: tierWeights.legendary > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.legendary) : null,
-        rare: tierWeights.rare > 0 ? Math.round(TOTAL_WEIGHT / tierWeights.rare) : null
-    };
+    const expectedSpins = Object.fromEntries(ODDS_TIERS.map(key => [
+        key,
+        tierWeights[key] > 0 ? Math.round(TOTAL_WEIGHT / tierWeights[key]) : null,
+    ]));
 
     // Calculate confidence intervals using geometric distribution
     const calculateConfidenceSpins = (weight, confidence) => {
@@ -145,28 +149,11 @@ export function OddsInfoModal({
         return Number.isFinite(result) ? result : null;
     };
 
-    const confidenceSpins = {
-        insane: {
-            median: calculateConfidenceSpins(tierWeights.insane, 0.5),
-            p90: calculateConfidenceSpins(tierWeights.insane, 0.9),
-            p99: calculateConfidenceSpins(tierWeights.insane, 0.99)
-        },
-        mythic: {
-            median: calculateConfidenceSpins(tierWeights.mythic, 0.5),
-            p90: calculateConfidenceSpins(tierWeights.mythic, 0.9),
-            p99: calculateConfidenceSpins(tierWeights.mythic, 0.99)
-        },
-        legendary: {
-            median: calculateConfidenceSpins(tierWeights.legendary, 0.5),
-            p90: calculateConfidenceSpins(tierWeights.legendary, 0.9),
-            p99: calculateConfidenceSpins(tierWeights.legendary, 0.99)
-        },
-        rare: {
-            median: calculateConfidenceSpins(tierWeights.rare, 0.5),
-            p90: calculateConfidenceSpins(tierWeights.rare, 0.9),
-            p99: calculateConfidenceSpins(tierWeights.rare, 0.99)
-        }
-    };
+    const confidenceSpins = Object.fromEntries(ODDS_TIERS.map(key => [key, {
+        median: calculateConfidenceSpins(tierWeights[key], 0.5),
+        p90: calculateConfidenceSpins(tierWeights[key], 0.9),
+        p99: calculateConfidenceSpins(tierWeights[key], 0.99),
+    }]));
 
     // Format large numbers - show full numbers with commas
     const formatNumber = (n) => {
@@ -223,13 +210,23 @@ export function OddsInfoModal({
             .sort((a, b) => (a.weight || 0) - (b.weight || 0));
     };
 
-    // Rarity config
-    const rarityConfig = {
-        insane: { icon: <Crown size={16} />, color: COLORS.insane, label: 'Insane' },
-        mythic: { icon: <Sparkles size={16} />, color: COLORS.aqua, label: 'Mythic' },
-        legendary: { icon: <Star size={16} />, color: COLORS.purple, label: 'Legendary' },
-        rare: { icon: <Diamond size={16} />, color: COLORS.red, label: 'Rare' }
+    // Rarity config. Label and colour come from the shared ladder; the icon is
+    // declared here because these render at 16px inside a card header rather than
+    // at the helper's default. Colours are the ink step — every one of these is
+    // set as text next to a figure, not as a swatch.
+    const rarityIcons = {
+        insane: <Crown size={16} />,
+        mythic: <Sparkles size={16} />,
+        legendary: <Star size={16} />,
+        exotic: <Gem size={16} />,
+        rare: <Diamond size={16} />,
+        event: <Zap size={16} />,
     };
+    const rarityConfig = Object.fromEntries(ODDS_TIERS.map(key => [key, {
+        icon: rarityIcons[key],
+        color: getRarityInk(key),
+        label: RARITY[key].label,
+    }]));
 
     // Stat Cell Component - must be defined before RarityCard which uses it
     const StatCell = ({ label, value, sublabel, color, isFirst }) => (
@@ -460,7 +457,7 @@ export function OddsInfoModal({
                         <TrendingUp size={12} /> Drop Rates by Rarity
                     </div>
 
-                    {['insane', 'mythic', 'legendary', 'rare'].map(rarity => (
+                    {ODDS_TIERS.map(rarity => (
                         <RarityCard key={rarity} rarity={rarity} />
                     ))}
                 </div>

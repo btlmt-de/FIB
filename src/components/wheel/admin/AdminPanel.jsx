@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../../config/constants.js';
+import { API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
-import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Crown, Sparkles, Star, Diamond, Zap, Check } from 'lucide-react';
+import { RARITY, getRarityColor, getRarityIcon } from '../../../utils/rarityHelpers.jsx';
+import { Bell, Plus, Trash2, FileText, Megaphone, Wrench, AlertTriangle, Zap, Check } from 'lucide-react';
 
 // Module-level constant for total weight (10 million)
 const TOTAL_WEIGHT = 10000000;
 
 // Text-only rarity label for use in <option> tags (can't use React components)
 function getRarityText(rarity) {
-    switch (rarity) {
-        case 'insane': return 'Insane';
-        case 'mythic': return 'Mythic';
-        case 'legendary': return 'Legendary';
-        case 'rare': return 'Rare';
-        case 'event': return 'Event';
-        default: return 'Common';
-    }
+    return (RARITY[rarity] || RARITY.common).label;
 }
 
 // User Collection Editor Sub-component
@@ -31,6 +25,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
     const specialItems = [
         { texture: 'mythic_cavendish', name: 'Cavendish', type: 'mythic' },
         ...TEAM_MEMBERS.map(m => ({ texture: `special_${m.username}`, name: m.name, type: 'legendary' })),
+        ...EXOTIC_ITEMS.map(i => ({ texture: i.texture, name: i.name, type: 'exotic' })),
         ...RARE_MEMBERS.map(m => ({ texture: `rare_${m.username}`, name: m.name, type: 'rare' }))
     ];
 
@@ -139,7 +134,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
                             <select value={selectedItem} onChange={e => setSelectedItem(e.target.value)}
                                     style={{ width: '100%', padding: '10px 12px', background: COLORS.bgLight, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}>
                                 <option value="">Select a special item...</option>
-                                {specialItems.map(item => <option key={item.texture} value={item.texture}>{getRarityEmoji(item.type)} {item.name}</option>)}
+                                {specialItems.map(item => <option key={item.texture} value={item.texture}>{getRarityText(item.type)} — {item.name}</option>)}
                             </select>
                         </div>
                     )}
@@ -173,7 +168,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
                                     <option value="">Select an item...</option>
                                     {collectedItems.map(item => (
                                         <option key={item.texture} value={item.texture}>
-                                            {getRarityEmoji(item.type)} {item.name} (x{item.count})
+                                            {getRarityText(item.type)} — {item.name} (x{item.count})
                                         </option>
                                     ))}
                                 </select>
@@ -204,32 +199,12 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
 }
 
 // Helper functions
-function getRarityEmoji(rarity) {
-    if (rarity === 'insane') return '👑';
-    if (rarity === 'mythic') return '✨';
-    if (rarity === 'legendary') return '⭐';
-    if (rarity === 'event') return '⚡';
-    if (rarity === 'rare') return '💎';
-    return '';
-}
-
-function getRarityIcon(rarity) {
-    if (rarity === 'insane') return <Crown size={12} style={{ color: COLORS.insane }} />;
-    if (rarity === 'mythic') return <Sparkles size={12} style={{ color: COLORS.aqua }} />;
-    if (rarity === 'legendary') return <Star size={12} style={{ color: COLORS.purple }} />;
-    if (rarity === 'event') return <Zap size={12} style={{ color: COLORS.orange }} />;
-    if (rarity === 'rare') return <Diamond size={12} style={{ color: COLORS.red }} />;
-    return null;
-}
-
-function getRarityColor(rarity) {
-    if (rarity === 'insane') return COLORS.insane;
-    if (rarity === 'mythic') return COLORS.aqua;
-    if (rarity === 'legendary') return COLORS.purple;
-    if (rarity === 'event') return COLORS.orange;
-    if (rarity === 'rare') return COLORS.red;
-    return COLORS.gold;
-}
+//
+// This file used to carry its own getRarityEmoji / getRarityIcon / getRarityColor
+// — a private copy of the rarity ladder that had to be updated in lockstep with
+// utils/rarityHelpers.jsx and, predictably, was not. They are imported now. The
+// unicode emoji version is gone with them: the icon set is Lucide everywhere else
+// in this panel, and 👑 next to a <Crown /> was two icon systems in one dropdown.
 
 function formatWeight(weight) {
     if (weight >= 1000000) return (weight / 1000000).toFixed(1) + 'M';

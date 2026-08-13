@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
+import { RARITY, getRarityColor, getRarityInk, getRarityIcon, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
 import { X, Sparkles, Star, Diamond, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3, Coins } from 'lucide-react';
 import { CanvasCollectionGrid } from '../canvas/CanvasCollectionGrid.jsx';
 
@@ -13,11 +14,12 @@ function ItemDetailModal({ item, details, onClose }) {
     const isInsane = item.type === 'insane';
     const isMythic = item.type === 'mythic';
     const isLegendary = item.type === 'legendary';
+    const isExotic = item.type === 'exotic';
     const isRare = item.type === 'rare';
-    const isSpecialType = isInsane || isMythic || isLegendary || isRare;
+    const isSpecialType = isInsane || isMythic || isLegendary || isExotic || isRare;
 
-    const rarityColor = isInsane ? COLORS.insane : isMythic ? COLORS.aqua : isLegendary ? COLORS.purple : isRare ? COLORS.red : COLORS.gold;
-    const rarityLabel = isInsane ? 'INSANE' : isMythic ? 'MYTHIC' : isLegendary ? 'LEGENDARY' : isRare ? 'RARE' : 'COMMON';
+    const rarityColor = getRarityColor(item.type);
+    const rarityLabel = (RARITY[item.type] || RARITY.common).label.toUpperCase();
 
     // Use the imported getItemImageUrl helper
     const itemImageUrl = getItemImageUrl(item);
@@ -74,23 +76,35 @@ function ItemDetailModal({ item, details, onClose }) {
 
                     {/* Rarity badge */}
                     {isSpecialType && (
-                        <div style={{
-                            display: 'inline-block',
-                            background: isInsane
-                                ? `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0, ${COLORS.insane})`
-                                : isMythic
-                                    ? `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`
-                                    : isLegendary
-                                        ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`
-                                        : `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                            color: isInsane ? '#1a1a1a' : '#fff',
-                            fontSize: '10px',
-                            fontWeight: '700',
-                            padding: '4px 12px',
-                            borderRadius: '4px',
-                            marginBottom: '16px',
-                            letterSpacing: '1px'
-                        }}>
+                        <div
+                            // Insane's badge takes the drifting slick; every other
+                            // tier keeps its static two- or three-stop gradient.
+                            className={isInsane ? 'fib-holo' : undefined}
+                            style={{
+                                display: 'inline-block',
+                                background: isInsane
+                                    ? undefined
+                                    : isMythic
+                                        ? `linear-gradient(135deg, ${COLORS.mythicCycle[0]}, ${COLORS.mythicCycle[1]}, ${COLORS.mythicCycle[2]})`
+                                        : isLegendary
+                                            ? COLORS.insane
+                                            : isExotic
+                                                ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.red})`
+                                                : `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
+                                // Dark ink on the light tiers, white on the dark
+                                // ones. Insane, legendary and mythic are all light
+                                // fills — mythic's ramp is aqua/azure/teal now, and
+                                // white on #55FFFF is 1.2:1 — so they take the dark
+                                // ink. Exotic and rare are dark enough for white.
+                                color: (isInsane || isLegendary || isMythic) ? '#1a1a1a' : '#fff',
+                                fontSize: '10px',
+                                fontWeight: '700',
+                                padding: '4px 12px',
+                                borderRadius: '4px',
+                                marginBottom: '16px',
+                                letterSpacing: '1px'
+                            }}
+                        >
                             {rarityLabel}
                         </div>
                     )}
@@ -266,53 +280,75 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
     }, [viewingUser, dryStreaksProp]);
 
     // Memoize special items list - only recalculate when dynamicItems changes
-    const { insaneItems, mythicItems, legendaryItems, rareItems, allItemsWithSpecial } = useMemo(() => {
+    const { insaneItems, mythicItems, legendaryItems, exoticItems, rareItems, allItemsWithSpecial } = useMemo(() => {
         const hasApiData = dynamicItems && dynamicItems.length > 0;
-        let insane, mythic, legendary, rare;
+
+        // One mapper per source instead of four near-identical filter/map pairs
+        // per tier — adding exotic to the hand-written version meant writing the
+        // same eight lines a fifth time and getting one of the field names wrong.
+        const fromApi = tier => dynamicItems.filter(i => i.rarity === tier).map(i => ({
+            name: i.name, texture: i.texture, type: tier,
+            chance: i.display_chance || i.chance,
+            username: i.username, imageUrl: i.image_url || i.imageUrl
+        }));
+        const fromMembers = (members, tier, prefix) => members.map(m => ({
+            name: m.name, texture: `${prefix}_${m.username}`, type: tier,
+            username: m.username, chance: m.chance
+        }));
+
+        let insane, mythic, legendary, exotic, rare;
 
         if (hasApiData) {
-            insane = dynamicItems.filter(i => i.rarity === 'insane').map(i => ({
-                name: i.name, texture: i.texture, type: 'insane', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-            }));
-            mythic = dynamicItems.filter(i => i.rarity === 'mythic').map(i => ({
-                name: i.name, texture: i.texture, type: 'mythic', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-            }));
-            legendary = dynamicItems.filter(i => i.rarity === 'legendary').map(i => ({
-                name: i.name, texture: i.texture, type: 'legendary', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-            }));
-            rare = dynamicItems.filter(i => i.rarity === 'rare').map(i => ({
-                name: i.name, texture: i.texture, type: 'rare', chance: i.display_chance || i.chance, username: i.username, imageUrl: i.image_url || i.imageUrl
-            }));
+            insane = fromApi('insane');
+            mythic = fromApi('mythic');
+            legendary = fromApi('legendary');
+            exotic = fromApi('exotic');
+            rare = fromApi('rare');
         } else {
             insane = INSANE_ITEMS.map(i => ({ ...i, texture: i.texture, type: 'insane' }));
             mythic = MYTHIC_ITEMS.map(m => ({ ...m, texture: m.texture }));
-            legendary = TEAM_MEMBERS.map(m => ({ name: m.name, texture: `special_${m.username}`, type: 'legendary', username: m.username, chance: m.chance }));
-            rare = RARE_MEMBERS.map(m => ({ name: m.name, texture: `rare_${m.username}`, type: 'rare', username: m.username, chance: m.chance }));
+            legendary = fromMembers(TEAM_MEMBERS, 'legendary', 'special');
+            // Exotic is a list of items, not members — its textures are already
+            // whole, so it maps like INSANE_ITEMS rather than through fromMembers.
+            exotic = EXOTIC_ITEMS.map(i => ({ ...i, type: 'exotic' }));
+            rare = fromMembers(RARE_MEMBERS, 'rare', 'rare');
         }
 
         return {
             insaneItems: insane,
             mythicItems: mythic,
             legendaryItems: legendary,
+            exoticItems: exotic,
             rareItems: rare,
-            allItemsWithSpecial: [...insane, ...mythic, ...legendary, ...rare, ...allItems]
+            allItemsWithSpecial: [...insane, ...mythic, ...legendary, ...exotic, ...rare, ...allItems]
         };
     }, [dynamicItems, allItems]);
 
     // Memoize collection stats - only recalculate when collection or items change
-    const { collectedCount, totalCount, percentage, collectedInsaneCount, collectedMythicCount, collectedLegendaryCount, collectedRareCount } = useMemo(() => {
+    const { collectedCount, totalCount, percentage, tierProgress } = useMemo(() => {
         const collected = Object.keys(collection).filter(k => collection[k] > 0).length;
         const total = allItemsWithSpecial.length;
+        const owned = items => items.filter(item => collection[item.texture] > 0).length;
+
+        // One row per tier, rarest first, so the summary strip below is a map over
+        // the ladder rather than five hand-written cells. A tier with no items at
+        // all is dropped rather than rendered as "0/0" — exotic sits empty until
+        // the backend supplies a roster, and an empty counter reads as a bug.
         return {
             collectedCount: collected,
             totalCount: total,
             percentage: total > 0 ? ((collected / total) * 100).toFixed(1) : 0,
-            collectedInsaneCount: insaneItems.filter(item => collection[item.texture] > 0).length,
-            collectedMythicCount: mythicItems.filter(item => collection[item.texture] > 0).length,
-            collectedLegendaryCount: legendaryItems.filter(item => collection[item.texture] > 0).length,
-            collectedRareCount: rareItems.filter(item => collection[item.texture] > 0).length
+            tierProgress: [
+                { key: 'insane', items: insaneItems },
+                { key: 'mythic', items: mythicItems },
+                { key: 'legendary', items: legendaryItems },
+                { key: 'exotic', items: exoticItems },
+                { key: 'rare', items: rareItems },
+            ]
+                .filter(t => t.items.length > 0)
+                .map(t => ({ ...t, collected: owned(t.items), total: t.items.length })),
         };
-    }, [collection, allItemsWithSpecial, insaneItems, mythicItems, legendaryItems, rareItems]);
+    }, [collection, allItemsWithSpecial, insaneItems, mythicItems, legendaryItems, exoticItems, rareItems]);
 
     // Memoize filtered and sorted items - recalculate when filter, search, or collection changes
     const sortedItems = useMemo(() => {
@@ -321,19 +357,18 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             const matchesSearch = item.name.toLowerCase().includes(searchLower);
             const isCollected = collection[item.texture] > 0;
             if (!matchesSearch) return false;
-            if (filter === 'insane') return item.type === 'insane';
-            if (filter === 'mythic') return item.type === 'mythic';
-            if (filter === 'legendary') return item.type === 'legendary';
-            if (filter === 'rare') return item.type === 'rare';
             if (filter === 'collected') return isCollected;
             if (filter === 'missing') return !isCollected;
+            // Any remaining non-'all' filter is a tier name and matches on type,
+            // so a new rarity needs no branch here — only an entry in the button
+            // list below.
+            if (filter !== 'all') return item.type === filter;
             return true;
         });
 
         return filtered.sort((a, b) => {
-            const typeOrder = { insane: 0, mythic: 1, legendary: 2, rare: 3 };
-            const aOrder = typeOrder[a.type] ?? 4;
-            const bOrder = typeOrder[b.type] ?? 4;
+            const aOrder = getRarityOrder(a.type);
+            const bOrder = getRarityOrder(b.type);
             if (aOrder !== bOrder) return aOrder - bOrder;
             const aCount = collection[a.texture] || 0;
             const bCount = collection[b.texture] || 0;
@@ -344,14 +379,17 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
 
     // getItemImageUrl is imported from helpers.js
 
+    // Tier filters are derived from what the book actually holds, so a tier with
+    // no items yet does not get a chip that filters to an empty grid.
     const filterButtons = [
         { id: 'all', label: 'All' },
         { id: 'collected', label: 'Collected' },
         { id: 'missing', label: 'Missing' },
-        { id: 'insane', label: 'Insane', color: COLORS.insane },
-        { id: 'mythic', label: 'Mythic', color: COLORS.aqua },
-        { id: 'legendary', label: 'Legendary', color: COLORS.purple },
-        { id: 'rare', label: 'Rare', color: COLORS.red },
+        ...tierProgress.map(({ key }) => ({
+            id: key,
+            label: RARITY[key].label,
+            color: getRarityInk(key),
+        })),
     ];
 
     return (
@@ -406,10 +444,14 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
 
                     {/* Stats Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '10px', marginBottom: '12px' }}>
-                        <div><span style={{ color: COLORS.insane, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Crown size={12} /> Insane</span><div style={{ color: COLORS.insane, fontWeight: '600' }}>{collectedInsaneCount}/{insaneItems.length}</div></div>
-                        <div><span style={{ color: COLORS.aqua, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Sparkles size={12} /> Mythic</span><div style={{ color: COLORS.aqua, fontWeight: '600' }}>{collectedMythicCount}/{mythicItems.length}</div></div>
-                        <div><span style={{ color: COLORS.purple, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Star size={12} /> Legendary</span><div style={{ color: COLORS.purple, fontWeight: '600' }}>{collectedLegendaryCount}/{legendaryItems.length}</div></div>
-                        <div><span style={{ color: COLORS.red, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Diamond size={12} /> Rare</span><div style={{ color: COLORS.red, fontWeight: '600' }}>{collectedRareCount}/{rareItems.length}</div></div>
+                        {tierProgress.map(({ key, collected, total }) => (
+                            <div key={key}>
+                                <span style={{ color: getRarityInk(key), fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    {getRarityIcon(key, 12)} {RARITY[key].label}
+                                </span>
+                                <div style={{ color: getRarityInk(key), fontWeight: '600' }}>{collected}/{total}</div>
+                            </div>
+                        ))}
                     </div>
 
                     {/* Spin Stats Expandable Section */}

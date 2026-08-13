@@ -9,20 +9,29 @@ import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
-import { Crown, Sparkles, Star, Diamond, X, Timer, FlaskConical, Coins, TrendingUp, Crosshair } from 'lucide-react';
+import { Crown, Sparkles, Star, Gem, Diamond, X, Timer, FlaskConical, Coins, TrendingUp, Crosshair } from 'lucide-react';
+import { RARITY, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 
 // ============================================
 // CONSTANTS
 // ============================================
 
+// Name and colour come from the shared ladder; only the icon is declared here,
+// because this banner sizes its glyphs itself rather than taking the rendered
+// element getRarityIcon returns. Colours are the ink step: these render as large
+// labels over a dark banner, not as swatches.
 const RARITY_CONFIG = {
-    rare: { name: 'Rare', color: COLORS.red, icon: Diamond },
-    legendary: { name: 'Legendary', color: COLORS.purple, icon: Star },
-    mythic: { name: 'Mythic', color: COLORS.aqua, icon: Sparkles },
-    insane: { name: 'Insane', color: COLORS.insane, icon: Crown },
+    rare: { name: RARITY.rare.label, color: getRarityInk('rare'), icon: Diamond },
+    exotic: { name: RARITY.exotic.label, color: getRarityInk('exotic'), icon: Gem },
+    legendary: { name: RARITY.legendary.label, color: getRarityInk('legendary'), icon: Star },
+    mythic: { name: RARITY.mythic.label, color: getRarityInk('mythic'), icon: Sparkles },
+    insane: { name: RARITY.insane.label, color: getRarityInk('insane'), icon: Crown },
 };
 
-const RARITY_ORDER = ['rare', 'legendary', 'mythic', 'insane'];
+// Commonest first — this is the order the selection strip climbs through, so it
+// has to read as an ascending ladder rather than the rarest-first sort order the
+// lists use.
+const RARITY_ORDER = ['rare', 'exotic', 'legendary', 'mythic', 'insane'];
 const GOLD_COLOR = '#FFD700';
 const GOLD_DARK = '#B8860B';
 

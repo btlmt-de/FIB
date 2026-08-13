@@ -67,3 +67,74 @@ html, body {
     transform: rotate(360deg);
   }
 }
+
+/* ── Insane: the iridescent treatment ───────────────────────────────────────
+ *
+ * Insane is the top of the wheel's rarity ladder and the only tier with no flat
+ * colour of its own — gold, aqua and magenta are all spoken for one rung down.
+ * It gets an oil-slick instead: a magenta/cyan/gold gradient drifting across the
+ * surface, so the tier is identified by a *material* rather than by a hue.
+ *
+ * Two rules this treatment is built around, both learned the hard way elsewhere
+ * in this codebase:
+ *
+ * 1. The slick is a surface and a rim. It is never text. Gradient text here would
+ *    put a magenta stop at 2.7:1 behind the one word the reader has to read; the
+ *    label sits in `insaneFlat` platinum at 14.8:1 and the flash goes around it.
+ * 2. Reduced motion freezes the drift, it does not remove the gradient. Motion is
+ *    what a reader opted out of; the tier's identity is not, and an insane pull
+ *    that renders as a flat grey box is a worse outcome than a still rainbow.
+ *
+ * Only one tier is ever allowed this. A second would turn "top of the ladder"
+ * into "special-ish".
+ */
+@keyframes fib-holo-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: -300% 50%; }
+}
+
+.fib-holo,
+.fib-holo-rim {
+  /* Four stops closing on the opening colour so the loop has no seam. Kept in
+   * sync with COLORS.insaneHolo in components/wheel/config/constants.js — the JS
+   * copy is what the canvas renderers read, since they cannot use a CSS class. */
+  background-image: linear-gradient(
+    115deg,
+    #FF55FF 0%,
+    #55FFFF 33%,
+    #FFD700 66%,
+    #FF55FF 100%
+  );
+  background-size: 300% 100%;
+  animation: fib-holo-drift 4.5s linear infinite;
+}
+
+/* The rim variant: a 2px slick around a solid core. Implemented as padding over
+ * a gradient background rather than border-image, which cannot carry a radius,
+ * or a z-index:-1 pseudo-element, which disappears the moment anything in the
+ * ancestor chain creates a stacking context. The child supplies its own
+ * background and its own (inner) radius. */
+.fib-holo-rim {
+  padding: 2px;
+  border-radius: 8px;
+  box-shadow: 0 0 18px 2px rgba(255, 120, 255, 0.28);
+}
+
+.fib-holo-rim > * {
+  border-radius: 6px;
+  background: #1a1a2e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fib-holo,
+  .fib-holo-rim {
+    animation: none;
+    /* Park the gradient mid-sweep so the frozen state shows all three hues
+     * rather than the seam where magenta meets magenta. */
+    background-position: -45% 50%;
+  }
+
+  .fib-holo-rim {
+    box-shadow: none;
+  }
+}

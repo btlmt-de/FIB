@@ -19,18 +19,23 @@ const CONFETTI_COUNT = 500;
 // Color schemes for each rarity
 const RARITY_THEMES = {
     insane: {
-        primary: COLORS.insane,      // Gold #FFD700
-        secondary: COLORS.gold,       // #FFAA00
-        accent: '#FFF5B0',            // Light gold
-        confettiColors: [COLORS.insane, COLORS.gold, '#FFF5B0', '#FFE55C', '#FFCC00'],
+        // Iridescent, not gold. This theme was five shades of gold, which is now
+        // legendary's colour — the biggest moment in the product would have
+        // celebrated an insane pull in the tier below it.
+        primary: COLORS.insaneHolo[0],   // #FF55FF hot magenta
+        secondary: COLORS.insaneHolo[1], // #55FFFF cyan
+        accent: COLORS.insaneFlat,       // #F2ECFF platinum
+        confettiColors: [...COLORS.insaneHolo.slice(0, 3), COLORS.insaneFlat, '#FFFFFF'],
         icon: Crown,
         label: 'INSANE PULL!'
     },
     mythic: {
-        primary: COLORS.aqua,         // Aqua #55FFFF
-        secondary: '#00DDFF',         // Cyan
-        accent: '#88FFFF',            // Light aqua
-        confettiColors: [COLORS.aqua, '#00DDFF', '#88FFFF', '#00BBDD', COLORS.purple],
+        primary: COLORS.mythicCycle[0],   // #55FFFF aqua
+        secondary: COLORS.mythicCycle[1], // #2E86FF azure
+        accent: COLORS.mythicCycle[2],    // #3BE8B0 teal
+        // The last confetti colour used to be COLORS.purple, which is exotic's —
+        // mythic's own celebration was throwing another tier's colour.
+        confettiColors: [...COLORS.mythicCycle.slice(0, 3), '#00DDFF', '#88FFFF'],
         icon: Sparkles,
         label: 'MYTHIC PULL!'
     }

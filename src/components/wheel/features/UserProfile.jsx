@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
+import { getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { Achievements } from './Achievements.jsx';
 import { LuckInfoModal } from '../modals/LuckInfoModal.jsx';
 import { CollectionBook } from './CollectionBook.jsx';
 import {
-    X, User, Trophy, Sparkles, Star, Diamond, Zap, Target,
+    X, User, Trophy, Sparkles, Star, Gem, Diamond, Zap, Target,
     TrendingUp, Calendar, BarChart3, Crown, Flame, Clock,
     ChevronRight, Award, Edit3, Percent, HelpCircle, Plus, Check,
     Package, Settings, Image, BookOpen
@@ -368,16 +369,12 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
         }
     }
 
-    function getRarityColor(rarity) {
-        switch (rarity) {
-            case 'insane': return COLORS.insane;
-            case 'mythic': return COLORS.aqua;
-            case 'legendary': return COLORS.purple;
-            case 'rare': return COLORS.red;
-            case 'event': return COLORS.gold;
-            default: return COLORS.textMuted;
-        }
-    }
+    // getRarityColor used to be defined here, as a private copy of the ladder that
+    // had already drifted from the shared one in two ways: it rendered `event`
+    // gold where every other surface rendered it orange, and it fell back to
+    // textMuted for unknown tiers where the shared helper fell back to gold — so
+    // the same pull could carry two different colours depending on which panel a
+    // player was looking at. It is imported now; see utils/rarityHelpers.jsx.
 
     function getShowcaseImageUrl(item) {
         if (!item) return `${IMAGE_BASE_URL}/barrier.png`;
@@ -527,10 +524,10 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     50% { filter: brightness(1.2); }
                 }
                 .showcase-mythic {
-                    box-shadow: 0 0 12px ${COLORS.aqua}55, 0 0 20px ${COLORS.purple}33;
+                    box-shadow: 0 0 12px ${COLORS.mythicCycle[0]}55, 0 0 20px ${COLORS.mythicCycle[1]}33;
                 }
                 .showcase-mythic:hover {
-                    box-shadow: 0 0 18px ${COLORS.aqua}77, 0 0 30px ${COLORS.purple}44;
+                    box-shadow: 0 0 18px ${COLORS.mythicCycle[0]}77, 0 0 30px ${COLORS.mythicCycle[1]}44;
                 }
                 /* Completion celebration */
                 @keyframes completionShine {
@@ -1056,19 +1053,21 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     className="rarity-card"
                                     style={{
                                         flex: 1,
+                                        // The slick's stops, not gold — gold is
+                                        // legendary's card, two along in this row.
                                         background: (profile.insane_count || 0) > 0
-                                            ? `linear-gradient(135deg, ${COLORS.insane}20, #FFF5B015)`
-                                            : `linear-gradient(135deg, ${COLORS.insane}10, #FFF5B008)`,
+                                            ? `linear-gradient(135deg, ${COLORS.insaneHolo[0]}20, ${COLORS.insaneHolo[1]}15, ${COLORS.insaneHolo[2]}20)`
+                                            : `linear-gradient(135deg, ${COLORS.insaneHolo[0]}10, ${COLORS.insaneHolo[1]}08, ${COLORS.insaneHolo[2]}10)`,
                                         borderRadius: '12px',
                                         padding: '14px 10px',
-                                        border: `1px solid ${(profile.insane_count || 0) > 0 ? COLORS.insane + '66' : COLORS.insane + '33'}`,
+                                        border: `1px solid ${(profile.insane_count || 0) > 0 ? COLORS.insaneFlat + '66' : COLORS.insaneFlat + '33'}`,
                                         textAlign: 'center',
                                         position: 'relative',
                                         overflow: 'hidden'
                                     }}
                                 >
                                     <div style={{
-                                        color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
+                                        color: (profile.insane_count || 0) > 0 ? COLORS.insaneFlat : COLORS.insaneFlat + '88',
                                         marginBottom: '6px',
                                         display: 'flex',
                                         justifyContent: 'center'
@@ -1076,7 +1075,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         <Crown size={20} />
                                     </div>
                                     <div style={{
-                                        color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
+                                        color: (profile.insane_count || 0) > 0 ? COLORS.insaneFlat : COLORS.insaneFlat + '88',
                                         fontSize: '22px',
                                         fontWeight: '700',
                                         lineHeight: 1
@@ -1084,7 +1083,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         {profile.insane_count || 0}
                                     </div>
                                     <div style={{
-                                        color: (profile.insane_count || 0) > 0 ? COLORS.insane : COLORS.insane + '88',
+                                        color: (profile.insane_count || 0) > 0 ? COLORS.insaneFlat : COLORS.insaneFlat + '88',
                                         fontSize: '9px',
                                         marginTop: '4px',
                                         textTransform: 'uppercase',
@@ -1101,8 +1100,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     style={{
                                         flex: 1,
                                         background: profile.mythic_count > 0
-                                            ? `linear-gradient(135deg, ${COLORS.aqua}20, ${COLORS.purple}15)`
-                                            : `linear-gradient(135deg, ${COLORS.aqua}10, ${COLORS.purple}08)`,
+                                            ? `linear-gradient(135deg, ${COLORS.mythicCycle[0]}20, ${COLORS.mythicCycle[1]}15)`
+                                            : `linear-gradient(135deg, ${COLORS.mythicCycle[0]}10, ${COLORS.mythicCycle[1]}08)`,
                                         borderRadius: '12px',
                                         padding: '14px 10px',
                                         border: `1px solid ${profile.mythic_count > 0 ? COLORS.aqua + '66' : COLORS.aqua + '33'}`,
@@ -1144,15 +1143,27 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     icon={<Star size={16} />}
                                     label="Legendary"
                                     value={profile.legendary_count}
-                                    color={COLORS.purple}
+                                    color={getRarityColor('legendary')}
                                 />
+
+                                {/* Exotic. Renders only once the backend reports a
+                                    count — until then the tier has no items and a
+                                    permanent 0 card would read as a broken stat. */}
+                                {profile.exotic_count != null && (
+                                    <RarityCard
+                                        icon={<Gem size={16} />}
+                                        label="Exotic"
+                                        value={profile.exotic_count}
+                                        color={getRarityInk('exotic')}
+                                    />
+                                )}
 
                                 {/* Rare */}
                                 <RarityCard
                                     icon={<Diamond size={16} />}
                                     label="Rare"
                                     value={profile.rare_count}
-                                    color={COLORS.red}
+                                    color={getRarityInk('rare')}
                                 />
                             </div>
 
@@ -1173,8 +1184,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         <div
                                             className="completion-banner"
                                             style={{
-                                                background: `linear-gradient(135deg, ${COLORS.insane}33, #FFF5B022)`,
-                                                border: `1px solid ${COLORS.insane}66`,
+                                                background: `linear-gradient(135deg, ${COLORS.insaneHolo[0]}33, ${COLORS.insaneHolo[1]}22, ${COLORS.insaneHolo[2]}33)`,
+                                                border: `1px solid ${COLORS.insaneFlat}66`,
                                                 borderRadius: '10px',
                                                 padding: '12px 16px',
                                                 display: 'flex',
@@ -1187,7 +1198,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                             <div style={{
                                                 width: '36px', height: '36px',
                                                 borderRadius: '8px',
-                                                background: `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0)`,
+                                                background: `linear-gradient(135deg, ${COLORS.insaneHolo[0]}, ${COLORS.insaneHolo[1]}, ${COLORS.insaneHolo[2]})`,
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
@@ -1215,7 +1226,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         <div
                                             className="completion-banner"
                                             style={{
-                                                background: `linear-gradient(135deg, ${COLORS.aqua}22, ${COLORS.purple}15)`,
+                                                background: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}22, ${COLORS.mythicCycle[1]}15)`,
                                                 border: `1px solid ${COLORS.aqua}55`,
                                                 borderRadius: '10px',
                                                 padding: '12px 16px',
@@ -1229,7 +1240,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                             <div style={{
                                                 width: '36px', height: '36px',
                                                 borderRadius: '8px',
-                                                background: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple})`,
+                                                background: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}, ${COLORS.mythicCycle[1]})`,
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',

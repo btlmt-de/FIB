@@ -39,14 +39,26 @@ export const AnimationStyles = () => (
         /* ============================================
            RARITY GLOW ANIMATIONS (Preserved + Enhanced)
            ============================================ */
+        /* specialGlow is LEGENDARY. Gold, and deliberately not animated between
+           two colours — legendary holds still so the tiers above it read as rarer
+           by motion as well as by hue. The keyframe is kept rather than deleted
+           because it is referenced by name in several places; it now just holds
+           one state. */
         @keyframes specialGlow {
-            0%, 100% { 
+            0%, 100% {
+                box-shadow: 0 0 15px ${COLORS.insane}88, 0 0 30px ${COLORS.insane}44;
+                border-color: ${COLORS.insane};
+            }
+        }
+        /* EXOTIC keeps the purple->magenta breathe that legendary used to own. */
+        @keyframes exoticGlow {
+            0%, 100% {
                 box-shadow: 0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44;
                 border-color: ${COLORS.purple};
             }
-            50% { 
-                box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
-                border-color: ${COLORS.gold};
+            50% {
+                box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px #FF44FF44;
+                border-color: #FF44FF;
             }
         }
         @keyframes rareGlow {
@@ -59,40 +71,40 @@ export const AnimationStyles = () => (
                 border-color: ${COLORS.orange};
             }
         }
+        /* Mythic shimmers within the cool band only — see COLORS.mythicCycle. */
         @keyframes mythicGlow {
-            0%, 100% { 
-                box-shadow: 0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44;
-                border-color: ${COLORS.aqua};
+            0%, 100% {
+                box-shadow: 0 0 20px ${COLORS.mythicCycle[0]}aa, 0 0 40px ${COLORS.mythicCycle[1]}44;
+                border-color: ${COLORS.mythicCycle[0]};
             }
-            33% { 
-                box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
-                border-color: ${COLORS.purple};
+            33% {
+                box-shadow: 0 0 25px ${COLORS.mythicCycle[1]}aa, 0 0 50px ${COLORS.mythicCycle[2]}44;
+                border-color: ${COLORS.mythicCycle[1]};
             }
-            66% { 
-                box-shadow: 0 0 25px ${COLORS.gold}aa, 0 0 50px ${COLORS.aqua}44;
-                border-color: ${COLORS.gold};
+            66% {
+                box-shadow: 0 0 25px ${COLORS.mythicCycle[2]}aa, 0 0 50px ${COLORS.mythicCycle[0]}44;
+                border-color: ${COLORS.mythicCycle[2]};
             }
         }
+        /* Insane's aura walks the oil-slick ramp — magenta, cyan, gold — rather
+           than pulsing gold to cream, which is now legendary's colour. The four
+           stops are the ramp's own, so this keyframe and .fib-holo in index.css
+           and the canvas renderers all describe the same material. */
         @keyframes insaneGlow {
-            0%, 100% { 
-                box-shadow: 0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044;
-                border-color: ${COLORS.insane};
+            0%, 100% {
+                box-shadow: 0 0 25px ${COLORS.insaneHolo[0]}cc, 0 0 50px ${COLORS.insaneHolo[0]}66, 0 0 75px ${COLORS.insaneFlat}44;
+                border-color: ${COLORS.insaneHolo[0]};
                 filter: brightness(1.1);
             }
-            25% { 
-                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px ${COLORS.insane}33;
-                border-color: #FFF5B0;
-                filter: brightness(1.2);
+            33% {
+                box-shadow: 0 0 30px ${COLORS.insaneHolo[1]}dd, 0 0 60px ${COLORS.insaneHolo[1]}77, 0 0 90px ${COLORS.insaneFlat}33;
+                border-color: ${COLORS.insaneHolo[1]};
+                filter: brightness(1.25);
             }
-            50% { 
-                box-shadow: 0 0 35px ${COLORS.insane}ee, 0 0 70px #FFF5B088, 0 0 105px ${COLORS.insane}44;
-                border-color: ${COLORS.insane};
+            66% {
+                box-shadow: 0 0 35px ${COLORS.insaneHolo[2]}ee, 0 0 70px ${COLORS.insaneHolo[2]}88, 0 0 105px ${COLORS.insaneFlat}44;
+                border-color: ${COLORS.insaneHolo[2]};
                 filter: brightness(1.3);
-            }
-            75% { 
-                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px #FFF5B033;
-                border-color: #FFF5B0;
-                filter: brightness(1.2);
             }
         }
         @keyframes insanePulse {
@@ -227,8 +239,9 @@ export const AnimationStyles = () => (
             50% { box-shadow: 0 0 20px ${COLORS.red}77, 0 0 40px ${COLORS.red}33; }
         }
         @keyframes rarityAuraInsane {
-            0%, 100% { box-shadow: 0 0 25px ${COLORS.insane}88, 0 0 50px #FFF5B044; }
-            50% { box-shadow: 0 0 40px ${COLORS.insane}aa, 0 0 70px #FFF5B066; }
+            0%, 100% { box-shadow: 0 0 25px ${COLORS.insaneHolo[0]}88, 0 0 50px ${COLORS.insaneHolo[1]}44; }
+            33% { box-shadow: 0 0 40px ${COLORS.insaneHolo[1]}aa, 0 0 70px ${COLORS.insaneHolo[2]}66; }
+            66% { box-shadow: 0 0 40px ${COLORS.insaneHolo[2]}aa, 0 0 70px ${COLORS.insaneHolo[0]}66; }
         }
 
         /* ============================================

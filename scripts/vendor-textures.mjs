@@ -34,9 +34,23 @@ const OUT = join(root, 'public/fib-items');
  * `.mcmeta` sidecars are deliberately not copied. They describe vertical
  * animation strips for a handful of textures (knowledge_book, sulfur_locator,
  * trial_locator), and a browser has no idea what to do with one — it would
- * render the strip as a tall static image. Nothing in the app references those
- * three today; if something starts to, it needs a real sprite-sheet renderer,
- * not this file.
+ * render the strip as a tall static image.
+ *
+ * *Something does reference those three now*, and this warning caught it the hard
+ * way. The wheel's Exotic tier is the plugin's custom items, so it wanted all
+ * three locators, and pointing them at these strips rendered each as a single
+ * column 8, 10 and 26 frames tall. The fix was not a sprite-sheet renderer: the
+ * same three items are already vendored into public/fib-items as static
+ * single-frame renders keyed by MATERIAL name — knowledge_book, music_disc_chirp,
+ * wither_rose — which is what the stats item index has always drawn. The Exotic
+ * entries point there (see EXOTIC_ITEMS in src/config/constants.js and
+ * SEED_SPECIAL_ITEMS in the wheel-backend).
+ *
+ * That leaves a dependency worth knowing about: those three sprites survive in
+ * public/fib-items only because KNOWLEDGE_BOOK, MUSIC_DISC_CHIRP and WITHER_ROSE
+ * are still force items in the plugin's pool, and this script vendors by pool
+ * membership. Drop them from ItemDifficultiesManager and the sprites stop being
+ * copied, and the wheel's locator artwork 404s.
  */
 const CUSTOM_SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/item');
 const CUSTOM_OUT = join(root, 'public/fib-custom');
