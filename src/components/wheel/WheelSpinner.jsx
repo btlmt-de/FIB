@@ -17,7 +17,7 @@ import {
     formatChance, getMinecraftHeadUrl, getItemRarity,
     isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem
 } from '../../utils/helpers.js';
-import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
+import { RARITY, getRarityInk, getRarityOnColor } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
@@ -2126,7 +2126,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 <span style={{
                                     backgroundImage: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}, ${COLORS.mythicCycle[1]}, ${COLORS.mythicCycle[2]})`,
                                     backgroundSize: '200% 200%',
-                                    color: '#fff', fontSize: '9px', fontWeight: '700', padding: '4px 12px',
+                                    // Dark ink: mythic's ramp is aqua/azure/teal now, all light.
+                                    // White here was 1.2:1 on the aqua stop.
+                                    color: getRarityOnColor('mythic'), fontSize: '9px', fontWeight: '700', padding: '4px 12px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both, mythicBadge 2s ease-in-out 0.5s infinite',
                                     textShadow: '0 0 10px rgba(0,0,0,0.5)'
                                 }}>MYTHIC</span>
@@ -3008,17 +3010,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     zIndex: 1,
                                 }}>
                                     {(() => {
+                                        // Only these two survive as predicates: the badge pulses
+                                        // for insane and mythic specifically. Everything else
+                                        // this block needs comes from luckyTier.
                                         const isMythic = isMythicItem(luckyResult);
-                                        const isSpecial = isSpecialItem(luckyResult);
-                                        const isExotic = isExoticItem(luckyResult);
-                                        const isRare = isRareItem(luckyResult);
                                         const isInsane = isInsaneItem(luckyResult);
                                         const luckyTier = getItemRarity(luckyResult);
                                         const itemColor = luckyTier === 'common' ? COLORS.green : getRarityInk(luckyTier);
                                         const rarityLabel = luckyTier === 'common' || luckyTier === 'event'
                                             ? null
                                             : RARITY[luckyTier].label.toUpperCase();
-                                        const isHighRarity = isInsane || isMythic || isSpecial || isExotic || isRare;
 
                                         return (
                                             <div style={{
@@ -3042,7 +3043,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         left: '50%',
                                                         transform: 'translateX(-50%)',
                                                         backgroundImage: `linear-gradient(135deg, ${itemColor}, ${itemColor}cc)`,
-                                                        color: itemColor === COLORS.insane ? '#1a1a1a' : '#fff',
+                                                        // Was `itemColor === COLORS.insane`, which only ever
+                                                        // caught legendary (whose fill IS COLORS.insane) and
+                                                        // left white text on mythic's aqua and insane's own
+                                                        // platinum.
+                                                        color: getRarityOnColor(luckyTier),
                                                         fontSize: '10px',
                                                         fontWeight: '800',
                                                         padding: '4px 14px',

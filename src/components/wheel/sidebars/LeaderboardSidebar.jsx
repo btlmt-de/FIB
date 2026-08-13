@@ -3,7 +3,7 @@ import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
-import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk, isIridescentRarity } from '../../../utils/rarityHelpers.jsx';
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
     Trophy, RefreshCw, ExternalLink, Crown, Medal, Award,
@@ -968,11 +968,17 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                         {getValueForTab(entry).toLocaleString()}
                                     </div>
 
-                                    {/* Rarity badges */}
+                                    {/* Rarity badges.
+                                        Content-sized, not a fixed 140px. Measured in a 392px
+                                        rail: four chips come to ~126px, so the old fixed width
+                                        reserved dead space from the name column on every row,
+                                        and five chips need ~161px, so it would have clipped the
+                                        moment anyone owned an exotic. Sizing to content gives
+                                        the name MORE room in the common case (a player with two
+                                        tiers) and takes what it needs in the rare one. */}
                                     <div style={{
                                         display: 'flex',
-                                        gap: '3px',
-                                        width: '140px',
+                                        gap: '2px',
                                         justifyContent: 'flex-end',
                                         flexShrink: 0
                                     }}>
@@ -1044,20 +1050,32 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                                 <>
                                                     {tierBadges.map(({ key, count }) => {
                                                         const ink = getRarityInk(key);
+                                                        // Insane takes the holo chip: a real gradient border
+                                                        // carrying all three ramp hues at once, so it reads as
+                                                        // the top tier at 10px instead of as plain white.
+                                                        const holo = isIridescentRarity(key);
                                                         return (
-                                                            <span key={key} title={RARITY[key].label} style={{
-                                                                color: ink,
-                                                                fontSize: '10px',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '2px',
-                                                                background: `${ink}15`,
-                                                                padding: '3px 5px',
-                                                                borderRadius: '4px',
-                                                                border: `1px solid ${ink}30`,
-                                                                fontWeight: '600'
-                                                            }}>
-                                                                {getRarityIcon(key, 9, false)}{count}
+                                                            <span
+                                                                key={key}
+                                                                title={RARITY[key].label}
+                                                                className={holo ? 'fib-holo-chip' : undefined}
+                                                                style={{
+                                                                    color: ink,
+                                                                    fontSize: '10px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '2px',
+                                                                    padding: '3px 4px',
+                                                                    fontWeight: '600',
+                                                                    whiteSpace: 'nowrap',
+                                                                    ...(holo ? {} : {
+                                                                        background: `${ink}15`,
+                                                                        borderRadius: '4px',
+                                                                        border: `1px solid ${ink}30`,
+                                                                    }),
+                                                                }}
+                                                            >
+                                                                {getRarityIcon(key, 9)}{count}
                                                             </span>
                                                         );
                                                     })}

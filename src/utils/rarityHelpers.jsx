@@ -46,13 +46,25 @@ export const RARITY = {
     // the stops drive its shimmer, while the flat aqua is what a badge, a legend
     // swatch or a label uses. Insane has no flat colour at all, which is what
     // isIridescentRarity distinguishes.
-    mythic: { order: 1, label: 'Mythic', color: COLORS.aqua, stops: COLORS.mythicCycle },
-    legendary: { order: 2, label: 'Legendary', color: COLORS.insane },
+    mythic: { order: 1, label: 'Mythic', color: COLORS.aqua, stops: COLORS.mythicCycle, lightFill: true },
+    legendary: { order: 2, label: 'Legendary', color: COLORS.insane, lightFill: true },
     exotic: { order: 3, label: 'Exotic', color: COLORS.purple, ink: COLORS.purpleInk },
     rare: { order: 4, label: 'Rare', color: COLORS.red, ink: COLORS.redInk },
     event: { order: 5, label: 'Event', color: COLORS.orange },
     common: { order: 99, label: 'Common', color: COLORS.neutralInk },
 };
+
+// `lightFill` above marks the tiers whose *fill* is bright enough that dark text
+// beats white on it. Measured against #1a1a1a vs #ffffff, worst stop of each
+// gradient: insane's platinum 15.1:1 and its holo stops 6.6–14.2, mythic's ramp
+// 4.95–14.2 (the azure stop is the floor), legendary's gold 12.4. Exotic's
+// #AA00AA is the one tier that genuinely wants white, at 6.4:1.
+//
+// Rare (#FF5555) and event (#FF8800) are deliberately NOT flagged, and that is a
+// judgement call rather than a measurement: dark ink would actually score better
+// on both (5.54 and 7.27, against white's 3.14 and 2.39), but flipping them is a
+// visible restyle of surfaces nobody asked about. Flag them here if that restyle
+// is ever wanted — the fix is one word each.
 
 /** Tier keys, rarest first. Use this to build legends, filters and odds tables. */
 export const RARITY_KEYS = Object.keys(RARITY).sort((a, b) => RARITY[a].order - RARITY[b].order);
@@ -78,6 +90,22 @@ export function getRarityColor(rarity) {
 export function getRarityInk(rarity) {
     const t = tier(rarity);
     return t.ink || t.color;
+}
+
+/**
+ * The text colour to put ON a tier's own fill — a badge label, a count chip, a
+ * glyph drawn inside the rarity's colour.
+ *
+ * Not the same question as getRarityInk, which is the tier's colour used AS text
+ * on the panel. This is the inverse: the panel is the tier's colour and the text
+ * has to survive on top of it. Both exist because getting them the wrong way
+ * round is invisible until someone reads a badge.
+ *
+ * @param {string} rarity
+ * @returns {string} '#1a1a1a' on light fills, '#fff' otherwise
+ */
+export function getRarityOnColor(rarity) {
+    return tier(rarity).lightFill ? '#1a1a1a' : '#fff';
 }
 
 /**
@@ -198,7 +226,14 @@ export function getRarityIcon(rarity, size = 14, colored = true) {
     const color = colored ? getRarityInk(rarity) : undefined;
 
     switch (rarity) {
-        case 'insane': return <Crown size={size} color={color} />;
+        // Insane's glyph is stroked with the shared SVG gradient rather than its
+        // flat colour, because that flat colour is platinum and at 9–12px it just
+        // looks white — the rarest tier reading as no tier at all. `color` is still
+        // passed so the icon degrades to platinum if the gradient's <defs> is not
+        // mounted, which is the case anywhere outside the wheel tree.
+        case 'insane': return colored
+            ? <Crown size={size} color={color} className="fib-holo-icon" />
+            : <Crown size={size} />;
         case 'mythic': return <Sparkles size={size} color={color} />;
         case 'legendary': return <Star size={size} color={color} />;
         case 'exotic': return <Gem size={size} color={color} />;

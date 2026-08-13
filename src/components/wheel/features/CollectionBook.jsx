@@ -504,7 +504,11 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     <span style={{ color: COLORS.orange, fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><Zap size={10} /> Avg/Special</span>
                                     <div style={{ color: COLORS.orange, fontWeight: '600', fontSize: '16px' }}>
                                         {(() => {
-                                            const totalSpecials = (stats?.insaneCount || 0) + (stats?.mythicCount || 0) + (stats?.legendaryCount || 0) + (stats?.rareCount || 0);
+                                            // Every tier the label calls "Rare+", exotic included —
+                                            // leaving it out inflated the average, since the spins
+                                            // that produced an exotic still counted in the numerator.
+                                            const totalSpecials = (stats?.insaneCount || 0) + (stats?.mythicCount || 0)
+                                                + (stats?.legendaryCount || 0) + (stats?.exoticCount || 0) + (stats?.rareCount || 0);
                                             if (totalSpecials === 0) return '-';
                                             return (stats.totalSpins / totalSpecials).toFixed(1);
                                         })()}
@@ -515,19 +519,23 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                             {/* Dry Streaks Section */}
                             <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${COLORS.border}` }}>
                                 <span style={{ color: COLORS.textMuted, fontSize: '11px', display: 'block', marginBottom: '8px' }}>Spins Since Last...</span>
+                                {/* Only the three tiers the backend actually tracks a streak
+                                    for — dry_streaks has no exotic key, so there is nothing
+                                    to show for it and a hardcoded 0 would read as "just got
+                                    one". Colours come from the ladder; legendary was still
+                                    painted in COLORS.purple here, which is exotic's. */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                                    <div style={{ padding: '8px', background: `${COLORS.aqua}15`, borderRadius: '6px', border: `1px solid ${COLORS.aqua}33` }}>
-                                        <span style={{ color: COLORS.aqua, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}><Sparkles size={10} /> Mythic</span>
-                                        <div style={{ color: COLORS.aqua, fontWeight: '700', fontSize: '18px' }}>{dryStreaks.mythic}</div>
-                                    </div>
-                                    <div style={{ padding: '8px', background: `${COLORS.purple}15`, borderRadius: '6px', border: `1px solid ${COLORS.purple}33` }}>
-                                        <span style={{ color: COLORS.purple, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}><Star size={10} /> Legendary</span>
-                                        <div style={{ color: COLORS.purple, fontWeight: '700', fontSize: '18px' }}>{dryStreaks.legendary}</div>
-                                    </div>
-                                    <div style={{ padding: '8px', background: `${COLORS.red}15`, borderRadius: '6px', border: `1px solid ${COLORS.red}33` }}>
-                                        <span style={{ color: COLORS.red, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}><Diamond size={10} /> Rare</span>
-                                        <div style={{ color: COLORS.red, fontWeight: '700', fontSize: '18px' }}>{dryStreaks.rare}</div>
-                                    </div>
+                                    {['mythic', 'legendary', 'rare'].map(key => {
+                                        const ink = getRarityInk(key);
+                                        return (
+                                            <div key={key} style={{ padding: '8px', background: `${ink}15`, borderRadius: '6px', border: `1px solid ${ink}33` }}>
+                                                <span style={{ color: ink, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                                                    {getRarityIcon(key, 10, false)} {RARITY[key].label}
+                                                </span>
+                                                <div style={{ color: ink, fontWeight: '700', fontSize: '18px' }}>{dryStreaks[key]}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

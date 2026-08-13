@@ -1,7 +1,48 @@
 import React from 'react';
 import { COLORS } from '../config/constants';
 
+/**
+ * The gradient the Insane tier's icons are stroked with.
+ *
+ * Insane has no flat colour — it is the oil-slick — but a Lucide glyph is an SVG
+ * stroke, and CSS cannot put a gradient on a stroke. It can point the stroke at
+ * an SVG paint server, so this mounts one: `stroke: url(#fib-holo-grad)`, applied
+ * by the .fib-holo-icon class in index.css and set by getRarityIcon.
+ *
+ * Without it, insane rendered as flat platinum everywhere it appeared as a small
+ * icon — technically its fallback colour, but it read as "white", i.e. as no tier
+ * at all, which is the opposite of what the top of the ladder should look like.
+ *
+ * The three stops are static. Animating them with CSS was tried and does not
+ * work — a paint server has no box, so the keyframes register but their clock
+ * never advances; see the note beside .fib-holo-stop-a in index.css. That is
+ * fine: at icon scale the point is the material, not the motion.
+ *
+ * One instance is enough for the whole page — an id reference resolves document
+ * wide — so it lives here, next to the other global wheel chrome, and is hidden
+ * from layout and from assistive tech.
+ */
+const HoloIconGradient = () => (
+    <svg
+        aria-hidden="true"
+        focusable="false"
+        width="0"
+        height="0"
+        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+    >
+        <defs>
+            <linearGradient id="fib-holo-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" className="fib-holo-stop-a" />
+                <stop offset="50%" className="fib-holo-stop-b" />
+                <stop offset="100%" className="fib-holo-stop-c" />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
 export const AnimationStyles = () => (
+    <>
+    <HoloIconGradient />
     <style>{`
         /* ============================================
            CORE ANIMATIONS (Preserved)
@@ -772,4 +813,5 @@ export const AnimationStyles = () => (
             }
         }
     `}</style>
+    </>
 );

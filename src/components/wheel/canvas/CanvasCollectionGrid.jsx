@@ -8,7 +8,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
-import { getRarityColor, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
+import { getRarityColor, getRarityOnColor, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -438,10 +438,9 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         // rather than falling through to rare's diamond, which is what the old
         // chain did the moment the tier existed.
         //
-        // Dark ink on the light fills (insane's slick, legendary's gold, mythic's
-        // aqua) and white on the dark ones; white on #55FFFF is 1.2:1.
-        const lightBadge = isInsane || isLegendary || isMythic;
-        ctx.fillStyle = !isCollected ? COLORS.textMuted : lightBadge ? '#1a1a1a' : '#fff';
+        // Foreground comes from the shared ladder — see getRarityOnColor. White on
+        // mythic's #55FFFF is 1.2:1.
+        ctx.fillStyle = isCollected ? getRarityOnColor(item.type) : COLORS.textMuted;
         ctx.font = 'bold 8px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -465,10 +464,8 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.fillStyle = rarityColor;
         ctx.fill();
 
-        // Same light/dark split as the rarity badge above — the count sits on
-        // rarityColor, and legendary's gold and mythic's aqua are as light as
-        // insane's platinum.
-        ctx.fillStyle = (isInsane || isLegendary || isMythic) ? '#1a1a1a' : '#fff';
+        // The count sits on rarityColor, so it takes the same on-fill foreground.
+        ctx.fillStyle = getRarityOnColor(item.type);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(countText, badgeX + badgeWidth/2, badgeY + COUNT_BADGE_HEIGHT/2);

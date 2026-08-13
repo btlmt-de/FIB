@@ -2,7 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
-import { getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { RARITY_KEYS, getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+
+/**
+ * The tiers that go into a collection: everything on the ladder except `common`
+ * (not a special item) and `event` (a bonus-wheel trigger, never collected).
+ */
+const COLLECTABLE_TIERS = RARITY_KEYS.filter(key => key !== 'common' && key !== 'event');
+
+/** Zeroed counts for every collectable tier — the initial state for both counters. */
+const EMPTY_TIER_COUNTS = Object.fromEntries(COLLECTABLE_TIERS.map(key => [key, 0]));
 import { Achievements } from './Achievements.jsx';
 import { LuckInfoModal } from '../modals/LuckInfoModal.jsx';
 import { CollectionBook } from './CollectionBook.jsx';
@@ -21,8 +30,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const [activeTab, setActiveTab] = useState('collection');
     const [showLuckInfoModal, setShowLuckInfoModal] = useState(false);
     const [rankings, setRankings] = useState({ spins: null, events: null });
-    const [specialItemTotals, setSpecialItemTotals] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
-    const [uniqueCollected, setUniqueCollected] = useState({ insane: 0, mythic: 0, legendary: 0, rare: 0 });
+    const [specialItemTotals, setSpecialItemTotals] = useState(EMPTY_TIER_COUNTS);
+    const [uniqueCollected, setUniqueCollected] = useState(EMPTY_TIER_COUNTS);
     const [showAchievements, setShowAchievements] = useState(false);
     const [showCollectionBook, setShowCollectionBook] = useState(false);
     const [collectionBookData, setCollectionBookData] = useState(null);
@@ -97,34 +106,24 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
             const specialData = await specialRes.json();
             const items = specialData.items || [];
 
-            const insaneItems = items.filter(i => i.rarity === 'insane');
-            const mythicItems = items.filter(i => i.rarity === 'mythic');
-            const legendaryItems = items.filter(i => i.rarity === 'legendary');
-            const rareItems = items.filter(i => i.rarity === 'rare');
-
-            setSpecialItemTotals({
-                insane: insaneItems.length,
-                mythic: mythicItems.length,
-                legendary: legendaryItems.length,
-                rare: rareItems.length
-            });
+            // Per tier, from the shared ladder rather than four hand-written
+            // filters — which is why exotic was missing from both objects and its
+            // completion condition could never evaluate true.
+            const byTier = Object.fromEntries(
+                COLLECTABLE_TIERS.map(key => [key, items.filter(i => i.rarity === key)])
+            );
+            setSpecialItemTotals(
+                Object.fromEntries(COLLECTABLE_TIERS.map(key => [key, byTier[key].length]))
+            );
 
             // Get user's collection to count unique collected per rarity
             const collectionData = await collectionRes.json();
             const userCollectionMap = collectionData.collection || {};
 
-            // Count how many unique items of each rarity the user has
-            const collectedInsane = insaneItems.filter(item => userCollectionMap[item.texture] > 0).length;
-            const collectedMythic = mythicItems.filter(item => userCollectionMap[item.texture] > 0).length;
-            const collectedLegendary = legendaryItems.filter(item => userCollectionMap[item.texture] > 0).length;
-            const collectedRare = rareItems.filter(item => userCollectionMap[item.texture] > 0).length;
-
-            setUniqueCollected({
-                insane: collectedInsane,
-                mythic: collectedMythic,
-                legendary: collectedLegendary,
-                rare: collectedRare
-            });
+            setUniqueCollected(Object.fromEntries(COLLECTABLE_TIERS.map(key => [
+                key,
+                byTier[key].filter(item => userCollectionMap[item.texture] > 0).length,
+            ])));
         } catch (e) {
             console.error('Failed to load profile:', e);
         } finally {
@@ -267,6 +266,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     insaneCount: profile?.insane_count || 0,
                     mythicCount: profile?.mythic_count || 0,
                     legendaryCount: profile?.legendary_count || 0,
+                    exoticCount: profile?.exotic_count || 0,
                     rareCount: profile?.rare_count || 0,
                     eventTriggers: profile?.event_triggers || 0,
                     totalDuplicates: profile?.total_duplicates || 0

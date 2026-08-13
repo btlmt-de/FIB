@@ -125,16 +125,82 @@ html, body {
   background: #1a1a2e;
 }
 
+/* ── Insane at icon and chip scale ──────────────────────────────────────────
+ *
+ * The slick works at tile size, where there is room for a gradient to travel.
+ * At 9–12px — a leaderboard badge, a legend row — insane fell back to its flat
+ * platinum, which reads as plain white: the top of the ladder looked like the
+ * absence of a tier rather than the rarest thing on it.
+ *
+ * Two treatments, because the two contexts differ:
+ *
+ *   .fib-holo-icon  strokes the glyph itself with the shared SVG gradient (see
+ *                   HoloIconGradient in effects/AnimationStyles.jsx). This is a
+ *                   graphic, not text, so a gradient fill is legitimate here in
+ *                   a way it would not be on a label — and every stop clears 3:1
+ *                   on the wheel's panels, so the icon stays discernible.
+ *
+ *   .fib-holo-chip  wraps a whole badge: a true gradient BORDER via the
+ *                   padding-box/border-box two-layer trick, so all three hues are
+ *                   present at once and the chip can never impersonate exotic's
+ *                   magenta or legendary's gold the way a single sampled colour
+ *                   would.
+ */
+/* The icon gradient is STATIC, and that is a measured decision rather than an
+ * oversight. Animating `stop-color` with CSS keyframes was tried first and does
+ * not work: a <linearGradient> is a paint server and is never rendered, so while
+ * the animation registers on the stops — getAnimations() reports it, playState
+ * says "running" — its currentTime stays pinned at 0 and the colours never move.
+ * Taking the gradient out of <defs> makes no difference; it is the lack of a box,
+ * not the <defs>. SMIL would work, but it cannot be switched off by
+ * prefers-reduced-motion without extra JS.
+ *
+ * It costs nothing worth having. At 9–12px a hue cycle is closer to noise than to
+ * spectacle, the tier already animates at tile and rim scale where there is room
+ * for it, and in the one place these icons sit inside a chip the chip's own
+ * border is doing the moving. Three hues across the glyph is what makes it read
+ * as a material instead of as white. */
+.fib-holo-stop-a { stop-color: #FF55FF; }
+.fib-holo-stop-b { stop-color: #55FFFF; }
+.fib-holo-stop-c { stop-color: #FFD700; }
+
+/* Lucide glyphs are stroked paths with stroke="currentColor"; repointing the
+ * stroke at the paint server is all that is needed. `fill` is left alone — the
+ * few filled Lucide icons would otherwise lose their interior. */
+.fib-holo-icon {
+  stroke: url(#fib-holo-grad);
+  filter: drop-shadow(0 0 3px rgba(255, 190, 255, 0.45));
+}
+
+.fib-holo-chip {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  /* Layer one paints the chip's own dark ground over the padding box; layer two
+   * shows through only where the border sits. Order matters — the first listed
+   * background is on top. */
+  background:
+    linear-gradient(rgba(20, 20, 36, 0.88), rgba(20, 20, 36, 0.88)) padding-box,
+    linear-gradient(115deg, #FF55FF 0%, #55FFFF 33%, #FFD700 66%, #FF55FF 100%) border-box;
+  background-size: auto, 300% 100%;
+  animation: fib-holo-drift 4.5s linear infinite;
+  box-shadow: 0 0 8px rgba(255, 130, 255, 0.22);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fib-holo,
-  .fib-holo-rim {
+  .fib-holo-rim,
+  .fib-holo-chip {
     animation: none;
     /* Park the gradient mid-sweep so the frozen state shows all three hues
      * rather than the seam where magenta meets magenta. */
     background-position: -45% 50%;
   }
 
-  .fib-holo-rim {
+  .fib-holo-rim,
+  .fib-holo-chip {
     box-shadow: none;
   }
+
+  /* Nothing needed for .fib-holo-icon: its gradient never moved in the first
+   * place, so there is no motion here to opt out of. */
 }

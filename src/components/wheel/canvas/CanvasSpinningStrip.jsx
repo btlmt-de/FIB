@@ -8,7 +8,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { ITEM_WIDTH, IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
-import { getRarityColor, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
+import { sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -17,12 +17,12 @@ import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 const MOBILE_ITEM_WIDTH = 70;
 
-// This was a local RARITY_COLORS table — the fifth independent copy of the rarity
-// ladder in the codebase, and one of the ones that had drifted. The canvas cannot
-// use the .fib-holo CSS class, but it can read the same tokens, so the ladder is
-// resolved through the shared helper and only the recursion spin mode (not a
-// rarity tier) is special-cased here.
-const RECURSION_COLOR = COLORS.recursion;
+// There used to be a local RARITY_COLORS table here — an independent copy of the
+// rarity ladder that had drifted from the shared one. It is gone: drawItem reads
+// tier colours from utils/rarityHelpers.jsx, and the canvas gets the animated
+// tiers through sampleRamp/createHoloGradient since it cannot use the .fib-holo
+// CSS class. COLORS.recursion is used directly where the recursion spin mode
+// (not a rarity tier) needs it.
 
 // ============================================
 // IMAGE CACHE
@@ -93,14 +93,11 @@ function hexToRgb(hex) {
     };
 }
 
-function getItemRarityColor(item) {
-    if (isRecursionItem(item)) return RECURSION_COLOR;
-    return getRarityColor(getItemRarity(item));
-}
-
-function isHighRarity(item) {
-    return isInsaneItem(item) || isMythicItem(item) || isSpecialItem(item) || isExoticItem(item) || isRareItem(item) || isEventItem(item) || isRecursionItem(item);
-}
+// getItemRarityColor and isHighRarity used to live here. Both were dead — nothing
+// in this file or any other called them — and both carried their own copy of the
+// tier list, so they had to be updated alongside every ladder change while
+// affecting nothing on screen. drawItem computes what it needs inline from the
+// predicates directly.
 
 // ============================================
 // ROUNDED RECT HELPER (browser compatibility)
@@ -452,7 +449,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         } else if (isMythic) {
             innerGradient.addColorStop(0, `${COLORS.mythicCycle[0]}18`);
             innerGradient.addColorStop(0.5, `${COLORS.mythicCycle[1]}18`);
-            innerGradient.addColorStop(1, `${COLORS.gold}18`);
+            innerGradient.addColorStop(1, `${COLORS.mythicCycle[2]}18`);
         } else if (isSpecial) {
             // Legendary — pure gold gradient
             innerGradient.addColorStop(0, `${COLORS.insane}20`);

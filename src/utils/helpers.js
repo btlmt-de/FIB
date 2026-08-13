@@ -177,11 +177,14 @@ export function getItemImageUrl(item) {
     // branch further down and render a Minecraft head for a nether star.
     if (type === 'exotic' || texture?.startsWith('exotic_')) {
         if (item.imageUrl) return item.imageUrl;
+        // The API's own spelling. A spin result arrives camelCased because spin.js
+        // maps it, but a row straight off /api/items keeps the column name
+        // `image_url` — and the backend is the authoritative roster, so an exotic
+        // item it knows about and EXOTIC_ITEMS does not would have fallen all the
+        // way through to the barrier despite carrying a perfectly good URL.
+        if (item.image_url) return item.image_url;
         const exotic = EXOTIC_ITEMS?.find(e => e.texture === texture);
         if (exotic?.imageUrl) return exotic.imageUrl;
-        // A pull the client's list has not heard of — the backend is authoritative
-        // and may have added one. Its image_url comes down with the payload, so this
-        // only bites if that is null too.
         return `${IMAGE_BASE_URL}/barrier.png`;
     }
 
