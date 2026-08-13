@@ -231,8 +231,18 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
         ?? globalEventStatus?.data?.participationReward
         ?? 0;
 
-    const reachedTier = [...tiers].reverse().find(t => progress >= t.threshold) || null;
-    const nextTier = tiers.find(t => progress < t.threshold) || null;
+    // A stage costs points AND rare-or-better drops, and either half can be the one still
+    // outstanding. Mirror the server's rule exactly (globalEvents.js
+    // getReachedCommunityGoalTier) rather than reading the bar alone - a full bar that has
+    // not paid needs an explanation, not a contradiction.
+    const specialDrops = communityGoal?.specialDrops ?? 0;
+    const tierMet = t => progress >= t.threshold && specialDrops >= (t.specials || 0);
+    const reachedTier = [...tiers].reverse().find(tierMet) || null;
+    const nextTier = tiers.find(t => !tierMet(t)) || null;
+    // What the next stage is still waiting on. Points and specials are reported separately
+    // because the fix for each is different: spin more, or hope.
+    const nextTierPointsShort = nextTier ? Math.max(0, nextTier.threshold - progress) : 0;
+    const nextTierSpecialsShort = nextTier ? Math.max(0, (nextTier.specials || 0) - specialDrops) : 0;
     const currentPayout = communityGoal?.payout ?? (participationReward + (reachedTier?.bonus || 0));
 
     // The stage thresholds climb whenever someone takes their first spin of the event, so
@@ -548,7 +558,31 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                     <strong style={{ color: CG_TEXT }}>{communityGoalResult.progress}</strong> points by{' '}
                                     <strong style={{ color: CG_TEXT }}>{communityGoalResult.participantCount}</strong>{' '}
                                     player{communityGoalResult.participantCount !== 1 ? 's' : ''}
+                                    {communityGoalResult.specialDrops > 0 && (
+                                        <>
+                                            , <strong style={{ color: '#EF4444' }}>
+                                                {communityGoalResult.specialDrops}
+                                            </strong> rare{communityGoalResult.specialDrops !== 1 ? 's' : ''}
+                                        </>
+                                    )}
                                 </span>
+                                {/* The server had the points for a higher stage and was held
+                                    back by the rare requirement. Saying so turns a stage that
+                                    silently failed to arrive into a result they can argue with
+                                    down the line - which is the whole reason the gate is a
+                                    stated rule rather than an emergent one. */}
+                                {communityGoalResult.gatedTierName && (
+                                    <>
+                                        <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
+                                        <span style={{ color: CG_FAIL }}>
+                                            <strong>{communityGoalResult.gatedTierName}</strong> was in reach on points
+                                            {' '}&mdash; it needed{' '}
+                                            <strong>{communityGoalResult.gatedTierSpecials}</strong> rare
+                                            {communityGoalResult.gatedTierSpecials !== 1 ? 's' : ''}, the server found{' '}
+                                            <strong>{communityGoalResult.specialDrops}</strong>
+                                        </span>
+                                    </>
+                                )}
                                 {communityGoalReward && (
                                     <>
                                         <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
@@ -658,9 +692,17 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                             why is in the bar's own tooltip. */}
                                         {goalRaised
                                             ? 'goal raised'
-                                            : nextTier
-                                                ? <>{nextTier.threshold - progress} to {nextTier.name}</>
-                                                : 'all stages clear'}
+                                            : !nextTier
+                                                ? 'all stages clear'
+                                                /* Points outstanding: the ordinary case, and
+                                                   spinning fixes it. */
+                                                : nextTierPointsShort > 0
+                                                    ? <>{nextTierPointsShort} to {nextTier.name}</>
+                                                    /* Points are in and the stage still has not
+                                                       paid, so the specials are what is missing.
+                                                       Without this the bar just sits full and
+                                                       nothing happens. */
+                                                    : <>{nextTier.name} needs {nextTierSpecialsShort} rare{nextTierSpecialsShort !== 1 ? 's' : ''}</>}
                                     </span>
                                 </div>
                             )}
@@ -736,25 +778,49 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                 Every spin scores - <strong style={{ color: '#EF4444' }}>rarer is worth more</strong>
                             </span>
                             <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
-                            {tiers.map(tier => (
-                                <span
-                                    key={tier.key}
-                                    style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '3px',
-                                        // Stages already cleared read as done rather than pending
-                                        opacity: progress >= tier.threshold ? 1 : 0.75,
-                                        fontWeight: progress >= tier.threshold ? 700 : 400,
-                                    }}
-                                >
-                                    <Gem size={isMobile ? 10 : 12} color={tierColor(tier.key)} />
-                                    {tier.name} {tier.threshold}
-                                    <strong style={{ color: tierColor(tier.key) }}>
-                                        &rarr; {participationReward + tier.bonus}
-                                    </strong>
-                                </span>
-                            ))}
+                            {/* A stage's price is points AND rares, so the legend has to show
+                                both or the specials gate looks like the bar failing to pay.
+                                The rare requirement is only printed where there is one, which
+                                keeps Iron reading as the plain "turn up" marker it is. */}
+                            {tiers.map(tier => {
+                                const met = tierMet(tier);
+                                const needsSpecials = (tier.specials || 0) > 0;
+                                return (
+                                    <span
+                                        key={tier.key}
+                                        style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                            // Stages already cleared read as done rather than pending
+                                            opacity: met ? 1 : 0.75,
+                                            fontWeight: met ? 700 : 400,
+                                        }}
+                                    >
+                                        <Gem size={isMobile ? 10 : 12} color={tierColor(tier.key)} />
+                                        {tier.name} {tier.threshold}
+                                        {needsSpecials && (
+                                            <span
+                                                title={`${tier.name} also needs ${tier.specials} rare or better across the server`}
+                                                style={{
+                                                    // Dimmed once the server has enough - a
+                                                    // requirement already satisfied should stop
+                                                    // competing for attention with the number
+                                                    // still being chased.
+                                                    opacity: specialDrops >= tier.specials ? 0.55 : 1,
+                                                    color: '#EF4444',
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                +{tier.specials}&#9733;
+                                            </span>
+                                        )}
+                                        <strong style={{ color: tierColor(tier.key) }}>
+                                            &rarr; {participationReward + tier.bonus}
+                                        </strong>
+                                    </span>
+                                );
+                            })}
                             <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                 <Sparkles size={isMobile ? 10 : 12} color="#22C55E" />
@@ -765,6 +831,16 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                     <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                         <Users size={12} color={CG_ACCENT} /> {participants} spinning
+                                    </span>
+                                    <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
+                                    {/* The running special count, so the gate is something the
+                                        server can watch rather than only discover at the end. */}
+                                    <span
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                        title="Rare or better found by anyone this event"
+                                    >
+                                        <span style={{ color: '#EF4444', fontWeight: 700 }}>&#9733;</span>
+                                        {specialDrops} rare{specialDrops !== 1 ? 's' : ''} found
                                     </span>
                                 </>
                             )}

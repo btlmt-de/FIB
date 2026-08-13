@@ -219,6 +219,9 @@ export function ActivityProvider({ children }) {
                                         payout: data.payout ?? prev?.payout ?? data.participationReward ?? 0,
                                         participationReward: data.participationReward ?? prev?.participationReward ?? 0,
                                         participants: data.participants ?? prev?.participants ?? 0,
+                                        // Stages gate on rare-or-better drops as well as on points,
+                                        // so the bar being full is not on its own enough to pay.
+                                        specialDrops: data.specialDrops ?? prev?.specialDrops ?? 0,
                                     }));
                                 }
                                 setGlobalEventStatus(prev => {
@@ -353,6 +356,7 @@ export function ActivityProvider({ children }) {
                                     tierReached: data.tierReached ?? null,
                                     payout: data.payout ?? prev?.payout ?? 0,
                                     participants: data.participants,
+                                    specialDrops: data.specialDrops ?? prev?.specialDrops ?? 0,
                                 }));
                                 break;
 
