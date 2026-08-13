@@ -1,4 +1,4 @@
-// ============================================
+﻿// ============================================
 // CommunityGoalBanner.jsx
 // ============================================
 // Community Goal event banner - the whole server works staged targets together
@@ -198,6 +198,15 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
     const isActive = isCommunityGoal && globalEventStatus?.active;
     const isPending = isCommunityGoal && globalEventStatus?.pending;
 
+    // The window between the event ending server-side and the summary being shown. The
+    // result is held back so it cannot land mid-spin, and the banner deliberately does
+    // not change during it: the running layout stays exactly as it was, frozen, and then
+    // flips straight to the result. Any intermediate state announces the end of the event
+    // over a wheel that has not finished spinning.
+    const showResult = !!communityGoalResult;
+    const isSettling = communityGoalResultPending && !showResult;
+    const showLiveLayout = isActive || isSettling;
+
     const progress = communityGoal?.progress ?? 0;
     const participants = communityGoal?.participants ?? 0;
     const tiers = communityGoal?.tiers?.length ? communityGoal.tiers : (globalEventStatus?.data?.tiers || []);
@@ -267,13 +276,16 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
     // end message never arrives
     useEffect(() => {
         if (!isActive || !globalEventStatus?.expiresAt) {
-            setRemainingTime(0);
+            // Hold the last value while the result is being announced - see isSettling.
+            // An admin ending the event early would otherwise snap the clock to 0:00
+            // while somebody's wheel is still turning.
+            if (!isSettling) setRemainingTime(0);
             return;
         }
         const update = () => {
             const remaining = Math.max(0, globalEventStatus.expiresAt - Date.now());
             setRemainingTime(remaining);
-            if (remaining <= 0 && isVisible) {
+            if (remaining <= 0 && isVisible && !isSettling) {
                 setIsVisible(false);
                 hasPlayedSoundRef.current = false;
                 wasActiveRef.current = false;
@@ -284,7 +296,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
         update();
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
-    }, [isActive, globalEventStatus?.expiresAt, isVisible, stopCommunityGoalSoundtrack]);
+    }, [isActive, isSettling, globalEventStatus?.expiresAt, isVisible, stopCommunityGoalSoundtrack]);
 
     // Admin test controls
     const triggerTestEvent = async () => {
@@ -317,12 +329,8 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
 
-    const showResult = !!communityGoalResult;
-    // The stretch between the event ending and its summary being ready. The banner keeps
-    // showing the final state of the bar rather than disappearing and popping back a few
-    // seconds later, which read as a glitch.
-    const isSettling = communityGoalResultPending && !showResult;
-    const showLiveLayout = isActive || isSettling;
+    // showResult / isSettling / showLiveLayout are declared near the top of the component,
+    // because the active-timer effect needs isSettling too.
     const shouldShowBanner = isVisible || showResult || isSettling;
     if (!shouldShowBanner) return null;
 
@@ -378,12 +386,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                     from { opacity: 0; transform: translateY(-10px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
-                /* The bar holds its final position while the tally comes in, so the
-                   hand-off to the result reads as one continuous banner. */
-                @keyframes settleDots {
-                    0%   { clip-path: inset(0 100% 0 0); }
-                    100% { clip-path: inset(0 0 0 0); }
-                }
+
             `}</style>
 
             <div style={{
@@ -577,51 +580,34 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                         color: CG_ACCENT,
                                         whiteSpace: 'nowrap',
                                     }}>
-                                        {isSettling
-                                            ? 'time up'
-                                            : nextTier
-                                                ? <>{nextTier.threshold - progress} to {nextTier.name}</>
-                                                : 'all stages clear'}
+                                        {nextTier
+                                            ? <>{nextTier.threshold - progress} to {nextTier.name}</>
+                                            : 'all stages clear'}
                                     </span>
                                 </div>
                             )}
 
-                            {/* Timer, or the hand-off once the clock has run out */}
+                            {/* Timer - frozen, not replaced, while settling. The banner must
+                                not change state until the player has visibly got their own
+                                result; anything else announces the end of the event over a
+                                wheel that is still spinning. */}
                             {showLiveLayout && (
-                                isSettling ? (
-                                    <div style={pill(`${CG_PRIMARY}88`, { gap: '8px', pad: '6px 14px', padMobile: '5px 10px' })}>
-                                        <Timer size={isMobile ? 16 : 20} color={CG_PRIMARY} style={{
-                                            animation: 'goalPulse 1s ease-in-out infinite',
-                                        }} />
-                                        <span style={{
-                                            fontSize: isMobile ? '11px' : '13px',
-                                            fontWeight: 600,
-                                            color: CG_ACCENT,
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '1px',
-                                        }}>
-                                            Counting up
-                                            <span style={{ animation: 'settleDots 1.2s steps(4, end) infinite' }}>...</span>
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div style={pill(`${isCriticalTime ? '#ff4444' : CG_PRIMARY}88`, {
-                                        gap: '6px',
-                                        pad: '6px 14px',
-                                        padMobile: '5px 10px',
-                                        background: isCriticalTime ? 'rgba(255,68,68,0.2)' : CG_BG_DARK,
-                                    })}>
-                                        <Timer size={isMobile ? 16 : 20} color={isCriticalTime ? '#ff4444' : CG_PRIMARY} />
-                                        <span style={{
-                                            fontSize: isMobile ? '14px' : '18px',
-                                            fontWeight: 700,
-                                            color: isCriticalTime ? '#ff4444' : CG_TEXT,
-                                            fontFamily: 'monospace',
-                                        }}>
-                                            {formatTime(remainingTime)}
-                                        </span>
-                                    </div>
-                                )
+                                <div style={pill(`${isCriticalTime ? '#ff4444' : CG_PRIMARY}88`, {
+                                    gap: '6px',
+                                    pad: '6px 14px',
+                                    padMobile: '5px 10px',
+                                    background: isCriticalTime ? 'rgba(255,68,68,0.2)' : CG_BG_DARK,
+                                })}>
+                                    <Timer size={isMobile ? 16 : 20} color={isCriticalTime ? '#ff4444' : CG_PRIMARY} />
+                                    <span style={{
+                                        fontSize: isMobile ? '14px' : '18px',
+                                        fontWeight: 700,
+                                        color: isCriticalTime ? '#ff4444' : CG_TEXT,
+                                        fontFamily: 'monospace',
+                                    }}>
+                                        {formatTime(remainingTime)}
+                                    </span>
+                                </div>
                             )}
 
                             {/* Prize indicator. During the countdown there is no progress yet, so
