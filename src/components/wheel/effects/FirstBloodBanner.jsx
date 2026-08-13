@@ -111,6 +111,13 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
     const isActive = isFirstBlood && globalEventStatus?.active;
     const isPending = isFirstBlood && globalEventStatus?.pending;
 
+    // The window between the race being claimed server-side and the winner being shown.
+    // The result is held back so it cannot land mid-spin, and the banner deliberately
+    // does not change during it: it keeps the running layout, frozen, and then flips
+    // straight to the winner. Anything else here - a "deciding" state, a stopped clock -
+    // tells the player the race is over seconds before their own spin has resolved.
+    const isSettling = firstBloodResultPending && !showWinnerInBanner;
+
     // Start/stop First Blood soundtrack when event starts/ends
     useEffect(() => {
         if (isActive && !hasSoundtrackStartedRef.current) {
@@ -210,7 +217,11 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
     // Active timer
     useEffect(() => {
         if (!isActive || !globalEventStatus?.expiresAt) {
-            setRemainingTime(0);
+            // While settling, leave the clock on its last value. The race ends the moment
+            // someone claims it, which is typically mid-spin for everyone else - zeroing
+            // the timer there would announce "time ran out" when it did not, and would
+            // tell the player the race is over before their own wheel has landed.
+            if (!isSettling) setRemainingTime(0);
             return;
         }
 
@@ -234,7 +245,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
         updateTimer();
         const interval = setInterval(updateTimer, 100);
         return () => clearInterval(interval);
-    }, [isActive, globalEventStatus?.expiresAt, isVisible, showWinnerInBanner, stopFirstBloodSoundtrack]);
+    }, [isActive, isSettling, globalEventStatus?.expiresAt, isVisible, showWinnerInBanner, stopFirstBloodSoundtrack]);
 
     // Admin trigger function
     const triggerTestEvent = useCallback(async (duration = 2) => {
@@ -287,11 +298,10 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
     const isCriticalTime = remainingTime > 0 && remainingTime < 30000;
     const countdownSecs = Math.ceil(countdownTime / 1000);
 
-    // Determine if we should show the banner.
-    // firstBloodResultPending covers the stretch between the race ending and the winner
-    // being announced - the result is held back so it cannot land mid-spin, and without
-    // this the banner would disappear for those seconds and then slide back in.
-    const isSettling = firstBloodResultPending && !showWinnerInBanner;
+    // Determine if we should show the banner. isSettling (declared above) keeps it up
+    // through the gap between the race being claimed and the winner being announced,
+    // instead of the banner vanishing for those seconds and then sliding back in.
+    const showLiveLayout = isActive || isSettling;
     const shouldShowBanner = isVisible || showWinnerInBanner || isSettling;
 
     if (!shouldShowBanner) return null;
@@ -521,35 +531,10 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
                                         </div>
                                     )}
 
-                                    {/* Race over, winner not announced yet - hold the banner
-                                        rather than letting it blink out and back */}
-                                    {isSettling && (
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            padding: isMobile ? '6px 12px' : '8px 16px',
-                                            background: FB_BG_DARK,
-                                            borderRadius: '8px',
-                                            border: `2px solid ${FB_PRIMARY}66`,
-                                        }}>
-                                            <Swords size={isMobile ? 16 : 20} color={FB_ACCENT} style={{
-                                                animation: 'bloodPulse 1s ease-in-out infinite',
-                                            }} />
-                                            <span style={{
-                                                fontSize: isMobile ? '11px' : '14px',
-                                                fontWeight: 600,
-                                                color: FB_ACCENT,
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '1px',
-                                            }}>
-                                                Deciding
-                                            </span>
-                                        </div>
-                                    )}
-
-                                    {/* Status indicator (during active) */}
-                                    {isActive && (
+                                    {/* Status indicator - stays put through the settling
+                                        window so the banner does not change before the
+                                        player's own spin has resolved */}
+                                    {showLiveLayout && (
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -574,8 +559,8 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
                                         </div>
                                     )}
 
-                                    {/* Timer (during active) */}
-                                    {isActive && (
+                                    {/* Timer - frozen, not hidden, while settling */}
+                                    {showLiveLayout && (
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -633,7 +618,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
                             )}
 
                             {/* Explanation text - shows during active phase */}
-                            {isActive && !showWinnerInBanner && (
+                            {showLiveLayout && !showWinnerInBanner && (
                                 <div style={{
                                     display: 'flex',
                                     alignItems: 'center',

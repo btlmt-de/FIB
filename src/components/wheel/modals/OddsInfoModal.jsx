@@ -31,6 +31,56 @@ const BONUS_EVENT = {
     }
 };
 
+// Server-wide events, triggered by a spin milestone rather than by any one player.
+// Every value here mirrors globalEvents.js - if you change it there, change it here.
+const GLOBAL_EVENTS = {
+    minSpins: 300,          // MIN_SPINS_BETWEEN_EVENTS
+    maxSpins: 600,          // MAX_SPINS_BETWEEN_EVENTS
+    durationMinutes: 5,     // all four run for 5 minutes
+    countdownSeconds: 5,    // ACTIVATION_DELAY_MS
+    // EVENT_TYPES are all weight 1, so each firing is an even pick between the four
+    chanceEach: 25,
+};
+
+const EVENT_DETAILS = [
+    {
+        key: 'gold_rush',
+        name: 'Gold Rush',
+        color: '#F59E0B',
+        tagline: 'Better odds for everyone',
+        body: 'One rarity is picked at random and its drop rate is doubled for the whole server. Nothing to do but spin.',
+        stat: '2x odds',
+        statLabel: 'on rare, legendary, mythic or insane',
+    },
+    {
+        key: 'king_of_wheel',
+        name: 'King of the Wheel',
+        color: '#F43F5E',
+        tagline: 'Highest score wins',
+        body: 'Every spin scores: 1 point for a common, far more for anything rare (roughly 1,000,000 ÷ its weight). The top scorer takes the prize.',
+        stat: '6-24',
+        statLabel: 'lucky spins to the winner',
+    },
+    {
+        key: 'first_blood',
+        name: 'First Blood',
+        color: '#DC2626',
+        tagline: 'A race to one drop',
+        body: 'The first player to land rare or better wins outright and ends the event on the spot. Rarer pull, bigger reward.',
+        stat: '9-25',
+        statLabel: 'lucky spins, by rarity pulled',
+    },
+    {
+        key: 'community_goal',
+        name: 'Community Goal',
+        color: '#2DD4BF',
+        tagline: 'Everyone against the target',
+        body: 'The server counts rare-or-better drops together through three stages. Turning up pays; clearing stages pays more. Nobody competes.',
+        stat: '3-12',
+        statLabel: 'lucky spins to every participant',
+    },
+];
+
 export function OddsInfoModal({
                                   onClose,
                                   dynamicItems,
@@ -628,6 +678,128 @@ export function OddsInfoModal({
                         <div style={{ color: COLORS.textMuted, fontSize: '11px', lineHeight: 1.4 }}>
                             5 spins with normal odds
                         </div>
+                    </div>
+                </div>
+
+                {/* Global Events */}
+                <div style={{ marginBottom: '20px' }}>
+                    <div style={{
+                        color: COLORS.textMuted,
+                        fontSize: '11px',
+                        marginBottom: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                    }}>
+                        <Server size={12} /> Global Events
+                    </div>
+
+                    {/* How they fire - shared by all four */}
+                    <div style={{
+                        background: COLORS.bgLight,
+                        borderRadius: '10px',
+                        border: `1px solid ${COLORS.border}`,
+                        padding: '12px 14px',
+                        marginBottom: '10px'
+                    }}>
+                        <div style={{ color: COLORS.textMuted, fontSize: '12px', lineHeight: 1.6 }}>
+                            Every <span style={{ color: COLORS.text }}>{GLOBAL_EVENTS.minSpins}-{GLOBAL_EVENTS.maxSpins} spins</span> across
+                            the whole server, one of four events fires at random. They are not tied to your spins
+                            or your luck &mdash; everyone online gets the same event at the same time, after a{' '}
+                            <span style={{ color: COLORS.text }}>{GLOBAL_EVENTS.countdownSeconds} second</span> countdown,
+                            and it runs for <span style={{ color: COLORS.text }}>{GLOBAL_EVENTS.durationMinutes} minutes</span>.
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            gap: '6px',
+                            marginTop: '10px',
+                            flexWrap: 'wrap'
+                        }}>
+                            {EVENT_DETAILS.map(e => (
+                                <div key={e.key} style={{
+                                    flex: '1 1 auto',
+                                    textAlign: 'center',
+                                    padding: '6px 8px',
+                                    background: `${e.color}15`,
+                                    border: `1px solid ${e.color}33`,
+                                    borderRadius: '6px',
+                                }}>
+                                    <div style={{ color: e.color, fontSize: '13px', fontWeight: '700', fontFamily: 'monospace' }}>
+                                        {GLOBAL_EVENTS.chanceEach}%
+                                    </div>
+                                    <div style={{ color: COLORS.textMuted, fontSize: '9px', whiteSpace: 'nowrap' }}>
+                                        {e.name}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* One card per event */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {EVENT_DETAILS.map(e => (
+                            <div key={e.key} style={{
+                                background: `linear-gradient(135deg, ${e.color}0D 0%, ${COLORS.bg} 100%)`,
+                                borderRadius: '10px',
+                                border: `1px solid ${e.color}44`,
+                                overflow: 'hidden'
+                            }}>
+                                <div style={{
+                                    padding: '10px 14px',
+                                    borderBottom: `1px solid ${e.color}22`,
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    gap: '10px'
+                                }}>
+                                    <span style={{ color: e.color, fontSize: '13px', fontWeight: '600' }}>
+                                        {e.name}
+                                    </span>
+                                    <span style={{
+                                        color: COLORS.textMuted,
+                                        fontSize: '11px',
+                                        fontStyle: 'italic',
+                                        textAlign: 'right'
+                                    }}>
+                                        {e.tagline}
+                                    </span>
+                                </div>
+                                <div style={{ padding: '12px 14px' }}>
+                                    <div style={{ color: COLORS.textMuted, fontSize: '12px', lineHeight: 1.6 }}>
+                                        {e.body}
+                                    </div>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'baseline',
+                                        gap: '8px',
+                                        marginTop: '10px',
+                                        padding: '8px 10px',
+                                        background: `${e.color}11`,
+                                        borderRadius: '8px',
+                                        border: `1px solid ${e.color}22`
+                                    }}>
+                                        <span style={{
+                                            color: e.color,
+                                            fontSize: '15px',
+                                            fontWeight: '700',
+                                            fontFamily: 'monospace',
+                                            whiteSpace: 'nowrap'
+                                        }}>
+                                            {e.stat}
+                                        </span>
+                                        <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                                            {e.statLabel}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ color: COLORS.textMuted, fontSize: '11px', marginTop: '10px', fontStyle: 'italic' }}>
+                        Lucky spins won from any event give an equal chance for ALL items &mdash; including Insane.
                     </div>
                 </div>
 

@@ -710,6 +710,40 @@ function AddItemForm({ onAdd, poolStats, adding }) {
 }
 
 // Main Admin Panel Component
+// ============================================
+// Global events the admin panel can trigger
+// ============================================
+// Ids must match EVENT_TYPES in server/services/globalEvents.js - the server rejects
+// anything else with "Unknown event type". Colours match each event's banner.
+const EVENT_TYPES = [
+    {
+        id: 'gold_rush',
+        label: 'Gold Rush',
+        color: '#F59E0B',
+        blurb: 'Doubles the drop rate of one rarity for everyone.',
+    },
+    {
+        id: 'king_of_wheel',
+        label: 'King of the Wheel',
+        color: '#F43F5E',
+        blurb: 'Scored competition. Highest points when time runs out wins.',
+    },
+    {
+        id: 'first_blood',
+        label: 'First Blood',
+        color: '#DC2626',
+        blurb: 'First player to land rare or better wins and ends it early.',
+    },
+    {
+        id: 'community_goal',
+        label: 'Community Goal',
+        color: '#2DD4BF',
+        blurb: 'Server-wide target in three stages. Everyone who spins is paid.',
+    },
+];
+
+const BOOSTABLE_RARITIES = ['rare', 'legendary', 'mythic', 'insane'];
+
 export function AdminPanel({ onClose, allItems }) {
     const [tab, setTab] = useState('pending');
     const [pending, setPending] = useState([]);
@@ -729,6 +763,13 @@ export function AdminPanel({ onClose, allItems }) {
     const [submittingNotification, setSubmittingNotification] = useState(false);
     const [notificationError, setNotificationError] = useState('');
 
+    // Global event state
+    const [eventStatus, setEventStatus] = useState(null);
+    const [eventBusy, setEventBusy] = useState(false);
+    const [eventDuration, setEventDuration] = useState(5);
+    const [goldRushRarity, setGoldRushRarity] = useState('');   // '' = let the server pick
+    const [communityTarget, setCommunityTarget] = useState('');  // '' = scale to players online
+
     useEffect(() => {
         if (tab === 'pending') fetchPending();
         if (tab === 'users') fetchUsers();
@@ -736,6 +777,15 @@ export function AdminPanel({ onClose, allItems }) {
             Promise.all([fetchSpecialItems(), fetchPoolStats()]);
         }
         if (tab === 'notifications') fetchNotifications();
+        if (tab === 'events') fetchEventStatus();
+    }, [tab]);
+
+    // Keep the events tab live while it is open - an event started here runs on a server
+    // timer, so without polling the panel would still claim it is running after it ended.
+    useEffect(() => {
+        if (tab !== 'events') return;
+        const interval = setInterval(fetchEventStatus, 3000);
+        return () => clearInterval(interval);
     }, [tab]);
 
     async function fetchPending() {
@@ -750,6 +800,68 @@ export function AdminPanel({ onClose, allItems }) {
             setPending(data.pending || []);
         } catch (error) { console.error('Failed to fetch pending:', error); }
         finally { setLoading(false); }
+    }
+
+    // ============================================
+    // Global events
+    // ============================================
+    // Note the base: these live under /api, unlike the /admin/* endpoints above.
+
+    async function fetchEventStatus() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
+            if (!res.ok) return;
+            setEventStatus(await res.json());
+        } catch (error) { console.error('Failed to fetch event status:', error); }
+    }
+
+    async function triggerEvent(eventType) {
+        setEventBusy(true);
+        setMessage({ text: '', type: '' });
+        try {
+            const body = { eventType, duration: eventDuration };
+            // Only send the optional knobs when they are actually set, so the server
+            // keeps its own behaviour (random rarity, target scaled to players online).
+            if (eventType === 'gold_rush' && goldRushRarity) body.rarity = goldRushRarity;
+            if (eventType === 'community_goal' && communityTarget) body.target = Number(communityTarget);
+
+            const res = await fetch(`${API_BASE_URL}/api/admin/global-event/trigger`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                setMessage({ text: data.error || 'Failed to trigger event', type: 'error' });
+            } else {
+                setMessage({ text: `${EVENT_TYPES.find(e => e.id === eventType)?.label} starting in 5 seconds`, type: 'success' });
+                await fetchEventStatus();
+            }
+        } catch (error) {
+            setMessage({ text: 'Failed to trigger event', type: 'error' });
+            console.error('Failed to trigger event:', error);
+        } finally { setEventBusy(false); }
+    }
+
+    async function endEvent() {
+        setEventBusy(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/admin/global-event/end`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                setMessage({ text: data.error || 'Failed to end event', type: 'error' });
+            } else {
+                setMessage({ text: 'Event ended', type: 'success' });
+                await fetchEventStatus();
+            }
+        } catch (error) {
+            setMessage({ text: 'Failed to end event', type: 'error' });
+            console.error('Failed to end event:', error);
+        } finally { setEventBusy(false); }
     }
 
     async function fetchUsers() {
@@ -1025,6 +1137,7 @@ export function AdminPanel({ onClose, allItems }) {
         { id: 'pending', label: 'Pending', count: pending.length },
         { id: 'users', label: 'Users' },
         { id: 'special', label: 'Item Pool' },
+        { id: 'events', label: 'Events', icon: <Zap size={14} /> },
         { id: 'notifications', label: 'Notifications', icon: <Bell size={14} /> }
     ];
 
@@ -1401,6 +1514,224 @@ export function AdminPanel({ onClose, allItems }) {
                     )}
 
                     {/* Notifications Tab */}
+                    {tab === 'events' && (
+                        <div style={{
+                            background: COLORS.bgLight,
+                            borderRadius: '12px',
+                            border: `1px solid ${COLORS.border}`,
+                            overflow: 'hidden'
+                        }}>
+                            {/* Header + what is running right now */}
+                            <div style={{
+                                padding: '16px 20px',
+                                borderBottom: `1px solid ${COLORS.border}`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '12px',
+                                flexWrap: 'wrap'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Zap size={18} color={COLORS.accent} />
+                                    <span style={{ color: COLORS.text, fontWeight: '600' }}>Global Events</span>
+                                </div>
+
+                                {(() => {
+                                    const running = eventStatus?.active || eventStatus?.pending;
+                                    const current = EVENT_TYPES.find(e => e.id === eventStatus?.type);
+                                    if (!running) {
+                                        return (
+                                            <span style={{
+                                                fontSize: '12px',
+                                                color: COLORS.textMuted,
+                                                background: COLORS.bg,
+                                                padding: '4px 10px',
+                                                borderRadius: '10px'
+                                            }}>
+                                                Nothing running
+                                            </span>
+                                        );
+                                    }
+                                    const color = current?.color || COLORS.accent;
+                                    return (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <span style={{
+                                                fontSize: '12px',
+                                                color,
+                                                background: `${color}18`,
+                                                border: `1px solid ${color}44`,
+                                                padding: '4px 10px',
+                                                borderRadius: '10px',
+                                                fontWeight: '600'
+                                            }}>
+                                                {current?.label || eventStatus.type}
+                                                {eventStatus.pending ? ' — starting' : ' — live'}
+                                            </span>
+                                            <button
+                                                onClick={endEvent}
+                                                disabled={eventBusy}
+                                                style={{
+                                                    padding: '6px 12px',
+                                                    background: 'transparent',
+                                                    border: `1px solid ${COLORS.red}66`,
+                                                    borderRadius: '6px',
+                                                    color: COLORS.red,
+                                                    cursor: eventBusy ? 'not-allowed' : 'pointer',
+                                                    fontSize: '12px',
+                                                    opacity: eventBusy ? 0.5 : 1
+                                                }}
+                                            >
+                                                End now
+                                            </button>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Options */}
+                            <div style={{
+                                padding: '16px 20px',
+                                borderBottom: `1px solid ${COLORS.border}`,
+                                background: COLORS.bg,
+                                display: 'flex',
+                                gap: '20px',
+                                flexWrap: 'wrap',
+                                alignItems: 'flex-end'
+                            }}>
+                                <div>
+                                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                        Duration (minutes)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="60"
+                                        value={eventDuration}
+                                        onChange={e => setEventDuration(Math.max(1, Math.min(60, Number(e.target.value) || 1)))}
+                                        style={{
+                                            width: '90px',
+                                            padding: '8px 10px',
+                                            background: COLORS.bgLight,
+                                            border: `1px solid ${COLORS.border}`,
+                                            borderRadius: '6px',
+                                            color: COLORS.text,
+                                            fontSize: '13px'
+                                        }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                        Gold Rush rarity
+                                    </label>
+                                    <select
+                                        value={goldRushRarity}
+                                        onChange={e => setGoldRushRarity(e.target.value)}
+                                        style={{
+                                            padding: '8px 10px',
+                                            background: COLORS.bgLight,
+                                            border: `1px solid ${COLORS.border}`,
+                                            borderRadius: '6px',
+                                            color: COLORS.text,
+                                            fontSize: '13px'
+                                        }}
+                                    >
+                                        <option value="">Random</option>
+                                        {BOOSTABLE_RARITIES.map(r => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
+                                        Community Goal target
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        placeholder="auto"
+                                        value={communityTarget}
+                                        onChange={e => setCommunityTarget(e.target.value)}
+                                        style={{
+                                            width: '90px',
+                                            padding: '8px 10px',
+                                            background: COLORS.bgLight,
+                                            border: `1px solid ${COLORS.border}`,
+                                            borderRadius: '6px',
+                                            color: COLORS.text,
+                                            fontSize: '13px'
+                                        }}
+                                    />
+                                </div>
+
+                                <div style={{ color: COLORS.textMuted, fontSize: '11px', flex: '1 1 200px', lineHeight: 1.5 }}>
+                                    Leave the last two blank for normal behaviour: a random rarity, and a
+                                    target scaled to how many players are online. A low target makes all
+                                    three Community Goal stages reachable quickly for testing.
+                                </div>
+                            </div>
+
+                            {/* Trigger buttons */}
+                            <div style={{
+                                padding: '16px 20px',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: '10px'
+                            }}>
+                                {EVENT_TYPES.map(e => {
+                                    const busy = eventBusy;
+                                    const blocked = !!(eventStatus?.active || eventStatus?.pending);
+                                    const disabled = busy || blocked;
+                                    return (
+                                        <button
+                                            key={e.id}
+                                            onClick={() => triggerEvent(e.id)}
+                                            disabled={disabled}
+                                            title={blocked ? 'End the running event first' : `Start ${e.label} now`}
+                                            style={{
+                                                textAlign: 'left',
+                                                padding: '14px',
+                                                background: disabled ? COLORS.bg : `linear-gradient(135deg, ${e.color}18 0%, ${COLORS.bg} 100%)`,
+                                                border: `1px solid ${disabled ? COLORS.border : `${e.color}55`}`,
+                                                borderRadius: '10px',
+                                                color: COLORS.text,
+                                                cursor: disabled ? 'not-allowed' : 'pointer',
+                                                opacity: disabled ? 0.45 : 1,
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                marginBottom: '6px'
+                                            }}>
+                                                <Zap size={14} color={e.color} />
+                                                <span style={{ color: e.color, fontSize: '14px', fontWeight: '600' }}>
+                                                    {e.label}
+                                                </span>
+                                            </div>
+                                            <div style={{ color: COLORS.textMuted, fontSize: '11px', lineHeight: 1.5 }}>
+                                                {e.blurb}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <div style={{
+                                padding: '0 20px 16px 20px',
+                                color: COLORS.textMuted,
+                                fontSize: '11px',
+                                fontStyle: 'italic'
+                            }}>
+                                Events start after a 5 second countdown and are visible to every player
+                                online. Only one can run at a time.
+                            </div>
+                        </div>
+                    )}
+
                     {tab === 'notifications' && (
                         <div style={{
                             background: COLORS.bgLight,

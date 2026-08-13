@@ -1,4 +1,4 @@
-// ============================================
+﻿// ============================================
 // KingOfWheelBanner.jsx
 // ============================================
 // King of the Wheel event banner with competition leaderboard
@@ -428,6 +428,14 @@ function KingOfWheelBanner({
     const isActive = isKotw && globalEventStatus?.active;
     const isPending = isKotw && globalEventStatus?.pending;
 
+    // The window between the competition ending server-side and the winner being shown.
+    // The result is held back so it cannot land mid-spin, and the banner deliberately
+    // does not change during it: the running layout stays as it was, with the clock
+    // frozen, and then flips straight to the winner. Declared here rather than beside
+    // shouldShowBanner because the active-timer effect needs it too.
+    const isSettling = kotwWinnerPending && !showWinnerInBanner;
+    const showLiveLayout = isActive || isSettling;
+
     // Check if we've already shown this winner (persisted in localStorage)
     const getShownWinnerId = () => {
         try {
@@ -546,12 +554,8 @@ function KingOfWheelBanner({
     // Also check if the event has expired based on timestamp (fallback)
     const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt;
 
-    // The stretch between the competition ending and the winner being announced. The
-    // result is held back so it cannot land mid-spin; without this the banner would go
-    // out the moment the clock hit zero and slide back in seconds later, which reads as
-    // a glitch rather than a hand-off. eventExpired alone would hide it during that gap.
-    const isSettling = kotwWinnerPending && !showWinnerInBanner;
-
+    // isSettling is declared near isActive above. eventExpired alone would hide the
+    // banner during that gap, so it has to be checked before that branch.
     const shouldShowBanner = hasShownWinner
         ? showWinnerInBanner
         : isSettling
@@ -580,7 +584,8 @@ function KingOfWheelBanner({
     // Active timer
     useEffect(() => {
         if (!isActive || !globalEventStatus?.expiresAt) {
-            setRemainingTime(0);
+            // Hold the last value while the winner is being announced - see isSettling.
+            if (!isSettling) setRemainingTime(0);
             return;
         }
 
@@ -593,7 +598,7 @@ function KingOfWheelBanner({
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [isActive, globalEventStatus?.expiresAt]);
+    }, [isActive, isSettling, globalEventStatus?.expiresAt]);
 
     // Admin test functions
     const triggerTestEvent = useCallback(async () => {
@@ -860,8 +865,8 @@ function KingOfWheelBanner({
                                             </div>
                                         )}
 
-                                        {/* Timer (active) */}
-                                        {isActive && (
+                                        {/* Timer - frozen, not hidden, while settling */}
+                                        {showLiveLayout && (
                                             <div style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -894,8 +899,8 @@ function KingOfWheelBanner({
                                         />
                                     </div>
 
-                                    {/* Point system explanation - only show during active phase */}
-                                    {isActive && (
+                                    {/* Point system explanation - kept through settling too */}
+                                    {showLiveLayout && (
                                         <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -945,13 +950,13 @@ function KingOfWheelBanner({
                                                         }}>
                                                             <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
                                                             <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
-                                                                6 + (pts ÷ (pts + 500)) × 18
+                                                                6 + (pts Ã· (pts + 500)) Ã— 18
                                                             </div>
                                                             <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
-                                                                <span>50pts → <strong style={{ color: '#22C55E' }}>8</strong></span>
-                                                                <span>350pts → <strong style={{ color: '#22C55E' }}>13</strong></span>
-                                                                <span>700pts → <strong style={{ color: '#22C55E' }}>17</strong></span>
-                                                                <span>1400pts → <strong style={{ color: '#22C55E' }}>19</strong></span>
+                                                                <span>50pts â†’ <strong style={{ color: '#22C55E' }}>8</strong></span>
+                                                                <span>350pts â†’ <strong style={{ color: '#22C55E' }}>13</strong></span>
+                                                                <span>700pts â†’ <strong style={{ color: '#22C55E' }}>17</strong></span>
+                                                                <span>1400pts â†’ <strong style={{ color: '#22C55E' }}>19</strong></span>
                                                             </div>
                                                             {/* Tooltip arrow pointing up */}
                                                             <div style={{
