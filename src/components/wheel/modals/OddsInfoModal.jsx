@@ -75,7 +75,7 @@ const EVENT_DETAILS = [
         name: 'Community Goal',
         color: '#2DD4BF',
         tagline: 'Everyone against the target',
-        body: 'Every spin adds to one shared score, and rarer items add far more. The server climbs three stages together; the target grows as more players join, but so does what they bring. Turning up pays, clearing stages pays more, and nobody competes.',
+        body: 'Every spin adds to one shared score, and rarer items add far more. The server climbs three stages together; the target grows as more players join, but so does what they bring. Iron is pure effort, but Gold and Diamond also need the server to actually find rares - one for Gold, two for Diamond - so no amount of spinning alone will take the top stages. Turning up pays, clearing stages pays more, and nobody competes.',
         stat: '2-14',
         statLabel: 'lucky spins to every participant',
     },
