@@ -318,7 +318,7 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
 // ============================================
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
-    const { kotwWinner, firstBloodWinner } = useActivity();
+    const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     const [collection, setCollection] = useState({});
@@ -396,6 +396,39 @@ function WheelOfFortunePage({ onBack }) {
             }
         }
     }, [firstBloodWinner, user?.id]);
+
+    // Same for the Community Goal, which pays every participant rather than one winner.
+    //
+    // This was missing entirely, and its absence was visible: the balance stayed stale
+    // until something else happened to refresh it, so the first a player heard of their
+    // payout was their *next* spin coming back marked as a lucky spin with a count they
+    // had never been shown. The reward broadcast carries the post-award balance for
+    // exactly this, and nothing was reading it.
+    //
+    // Keyed on communityGoalResult, not on the reward. The reward lands the instant the
+    // event ends, which is mid-spin as often as not; the result is the already-delayed
+    // moment the banner flips to the summary that announces the payout. Updating the
+    // counter then keeps the number and its explanation on screen together, and keeps the
+    // event from tipping its hand over a wheel that is still turning. The server sends the
+    // reward first, so it is always present by the time the result is applied.
+    const processedCommunityGoalRewardRef = useRef(null);
+    useEffect(() => {
+        if (!communityGoalResult || !communityGoalReward || !user?.id) return;
+
+        const newTotal = communityGoalReward.luckySpinsTotal;
+        if (typeof newTotal !== 'number') return;
+
+        // The reward is per-user and carries no event id, so the result's identity is what
+        // distinguishes one payout from the next.
+        const rewardKey = `${communityGoalResult.progress}-${communityGoalResult.participantCount}-${newTotal}`;
+        if (processedCommunityGoalRewardRef.current === rewardKey) return;
+        processedCommunityGoalRewardRef.current = rewardKey;
+
+        console.log('[WheelPage] Community Goal paid out', communityGoalReward.luckySpinsAwarded, 'lucky spins');
+        // The server's figure verbatim, for the reason given on the two handlers above.
+        kotwLuckySpinsRef.current = newTotal;
+        setKotwLuckySpins(newTotal);
+    }, [communityGoalResult, communityGoalReward, user?.id]);
 
     // Check for mobile on mount and resize
     useEffect(() => {

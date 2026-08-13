@@ -75,8 +75,8 @@ const EVENT_DETAILS = [
         name: 'Community Goal',
         color: '#2DD4BF',
         tagline: 'Everyone against the target',
-        body: 'The server counts rare-or-better drops together through three stages. Turning up pays; clearing stages pays more. Nobody competes.',
-        stat: '3-12',
+        body: 'Every spin adds to one shared score, and rarer items add far more. The server climbs three stages together; the target grows as more players join, but so does what they bring. Turning up pays, clearing stages pays more, and nobody competes.',
+        stat: '2-14',
         statLabel: 'lucky spins to every participant',
     },
 ];

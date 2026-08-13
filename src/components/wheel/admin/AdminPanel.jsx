@@ -738,7 +738,7 @@ const EVENT_TYPES = [
         id: 'community_goal',
         label: 'Community Goal',
         color: '#2DD4BF',
-        blurb: 'Server-wide target in three stages. Everyone who spins is paid.',
+        blurb: 'Shared score in three stages, every spin adding to it. Everyone who spins is paid.',
     },
 ];
 
@@ -1667,8 +1667,10 @@ export function AdminPanel({ onClose, allItems }) {
 
                                 <div style={{ color: COLORS.textMuted, fontSize: '11px', flex: '1 1 200px', lineHeight: 1.5 }}>
                                     Leave the last two blank for normal behaviour: a random rarity, and a
-                                    target scaled to how many players are online. A low target makes all
-                                    three Community Goal stages reachable quickly for testing.
+                                    Community Goal target that starts low and grows as players take their
+                                    first spin. The target is in points &mdash; every spin scores 1, up to
+                                    1000 for an insane &mdash; so 15 is about 15 spins. Setting it also
+                                    pins it, so it will not climb while you test.
                                 </div>
                             </div>
 
