@@ -3,6 +3,7 @@ import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
+import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
     Trophy, RefreshCw, ExternalLink, Crown, Medal, Award,
@@ -1019,79 +1020,47 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                                 );
                                             }
 
-                                            // Show totals on duplicates tab, unique counts otherwise
+                                            // Show totals on duplicates tab, unique counts otherwise.
+                                            //
+                                            // One badge per tier, derived from the shared ladder. This
+                                            // was four hand-written spans differing only in tier, which
+                                            // is why exotic was missing here and legendary was still
+                                            // rendering in purple long after the colours moved. The
+                                            // chips use the ink step for all three of text, tint and
+                                            // border: exotic's #AA00AA at 12% alpha is invisible on
+                                            // this panel, and insane has no flat colour at all.
                                             const showTotals = activeTab === 'duplicates';
-                                            const insane = showTotals ? (entry.total_insane || 0) : (entry.insane_count || 0);
-                                            const mythic = showTotals ? (entry.total_mythic || 0) : (entry.mythic_count || 0);
-                                            const legendary = showTotals ? (entry.total_legendary || 0) : (entry.legendary_count || 0);
-                                            const rare = showTotals ? (entry.total_rare || 0) : (entry.rare_count || 0);
+                                            const tierBadges = RARITY_KEYS
+                                                .filter(key => key !== 'common' && key !== 'event')
+                                                .map(key => ({
+                                                    key,
+                                                    count: showTotals
+                                                        ? (entry[`total_${key}`] || 0)
+                                                        : (entry[`${key}_count`] || 0),
+                                                }))
+                                                .filter(t => t.count > 0);
 
                                             return (
                                                 <>
-                                                    {insane > 0 && (
-                                                        <span style={{
-                                                            color: COLORS.insane,
-                                                            fontSize: '10px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '2px',
-                                                            background: `${COLORS.insane}15`,
-                                                            padding: '3px 5px',
-                                                            borderRadius: '4px',
-                                                            border: `1px solid ${COLORS.insane}30`,
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            <Crown size={9} />{insane}
-                                                        </span>
-                                                    )}
-                                                    {mythic > 0 && (
-                                                        <span style={{
-                                                            color: COLORS.aqua,
-                                                            fontSize: '10px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '2px',
-                                                            background: `${COLORS.aqua}12`,
-                                                            padding: '3px 5px',
-                                                            borderRadius: '4px',
-                                                            border: `1px solid ${COLORS.aqua}30`,
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            <Sparkles size={9} />{mythic}
-                                                        </span>
-                                                    )}
-                                                    {legendary > 0 && (
-                                                        <span style={{
-                                                            color: COLORS.purple,
-                                                            fontSize: '10px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '2px',
-                                                            background: `${COLORS.purple}12`,
-                                                            padding: '3px 5px',
-                                                            borderRadius: '4px',
-                                                            border: `1px solid ${COLORS.purple}30`,
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            <Star size={9} />{legendary}
-                                                        </span>
-                                                    )}
-                                                    {rare > 0 && (
-                                                        <span style={{
-                                                            color: COLORS.red,
-                                                            fontSize: '10px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '2px',
-                                                            background: `${COLORS.red}12`,
-                                                            padding: '3px 5px',
-                                                            borderRadius: '4px',
-                                                            border: `1px solid ${COLORS.red}30`,
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            <Diamond size={9} />{rare}
-                                                        </span>
-                                                    )}
+                                                    {tierBadges.map(({ key, count }) => {
+                                                        const ink = getRarityInk(key);
+                                                        return (
+                                                            <span key={key} title={RARITY[key].label} style={{
+                                                                color: ink,
+                                                                fontSize: '10px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '2px',
+                                                                background: `${ink}15`,
+                                                                padding: '3px 5px',
+                                                                borderRadius: '4px',
+                                                                border: `1px solid ${ink}30`,
+                                                                fontWeight: '600'
+                                                            }}>
+                                                                {getRarityIcon(key, 9, false)}{count}
+                                                            </span>
+                                                        );
+                                                    })}
                                                 </>
                                             );
                                         })()}

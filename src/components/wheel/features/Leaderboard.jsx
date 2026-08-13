@@ -3,11 +3,26 @@ import { API_BASE_URL, IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
+import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { UserProfile } from './UserProfile.jsx';
 import {
     X, Trophy, BookOpen, Zap, Layers, Sparkles, Star, Diamond,
     Medal, Crown, Award, Users, TrendingUp
 } from 'lucide-react';
+
+/**
+ * Server-wide totals come back from getGlobalStats under pluralised names that do
+ * not follow the per-player `<tier>_count` / `total_<tier>` pattern, so the
+ * mapping has to be written out. Kept next to the ladder it maps rather than
+ * inlined, because a missing entry here renders a silent zero, not an error.
+ */
+const GLOBAL_TOTAL_FIELD = {
+    insane: 'total_insanes',
+    mythic: 'total_mythics',
+    legendary: 'total_legendaries',
+    exotic: 'total_exotics',
+    rare: 'total_rares',
+};
 
 // Tab Button Component
 function TabButton({ active, onClick, children, icon }) {
@@ -252,7 +267,12 @@ export function Leaderboard({ onClose }) {
                         borderBottom: `1px solid ${COLORS.border}`,
                         background: COLORS.bgLight,
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(6, 1fr)',
+                        // auto-fit, not a fixed count. This was `repeat(6, 1fr)`,
+                        // matching the two fixed cells plus four tiers exactly — so
+                        // adding exotic pushed rare onto a second row on its own.
+                        // The column count now follows the ladder's length and the
+                        // available width instead of being a number to remember.
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
                         gap: '10px'
                     }}>
                         <div style={{ textAlign: 'center' }}>
@@ -276,66 +296,32 @@ export function Leaderboard({ onClose }) {
                             </div>
                             <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Total Spins</div>
                         </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{
-                                color: COLORS.insane,
-                                fontSize: '14px',
-                                fontWeight: '700',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                            }}>
-                                <Crown size={11} />
-                                {globalStats.total_insanes || 0}
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Insane</div>
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{
-                                color: COLORS.aqua,
-                                fontSize: '14px',
-                                fontWeight: '700',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                            }}>
-                                <Sparkles size={11} />
-                                {globalStats.total_mythics || 0}
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Mythics</div>
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{
-                                color: COLORS.purple,
-                                fontSize: '14px',
-                                fontWeight: '700',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                            }}>
-                                <Star size={11} />
-                                {globalStats.total_legendaries?.toLocaleString() || 0}
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Legendaries</div>
-                        </div>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{
-                                color: COLORS.red,
-                                fontSize: '14px',
-                                fontWeight: '700',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                            }}>
-                                <Diamond size={11} />
-                                {globalStats.total_rares?.toLocaleString() || 0}
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>Rares</div>
-                        </div>
+                        {/* One cell per tier, derived from the shared ladder. Note the
+                            field names here are pluralised and differ from the per-player
+                            ones (total_insanes vs insane_count) — they come from
+                            getGlobalStats, a separate query. The plural label is the
+                            tier's own, so Insane stays "Insane" rather than "Insanes". */}
+                        {RARITY_KEYS
+                            .filter(key => key !== 'common' && key !== 'event')
+                            .map(key => (
+                                <div key={key} style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        color: getRarityInk(key),
+                                        fontSize: '14px',
+                                        fontWeight: '700',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '4px'
+                                    }}>
+                                        {getRarityIcon(key, 11, false)}
+                                        {(globalStats[GLOBAL_TOTAL_FIELD[key]] || 0).toLocaleString()}
+                                    </div>
+                                    <div style={{ color: COLORS.textMuted, fontSize: '9px', marginTop: '2px' }}>
+                                        {RARITY[key].label}
+                                    </div>
+                                </div>
+                            ))}
                     </div>
                 )}
 
@@ -463,61 +449,36 @@ export function Leaderboard({ onClose }) {
                                         </td>
                                         <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                {(entry.insane_count || 0) > 0 && (
-                                                    <span style={{
-                                                        color: COLORS.insane,
-                                                        fontSize: '12px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '3px',
-                                                        fontWeight: '600'
-                                                    }}>
-                                                            <Crown size={12} />
-                                                        {entry.insane_count}
+                                                {(() => {
+                                                    // Derived from the shared ladder, so a new tier needs
+                                                    // no edit here. The em-dash fallback keys off the same
+                                                    // list rather than a hand-written chain of negations —
+                                                    // that chain silently stopped covering every tier the
+                                                    // moment exotic existed, so a player with only exotic
+                                                    // items would have shown both a badge and a "—".
+                                                    const owned = RARITY_KEYS
+                                                        .filter(key => key !== 'common' && key !== 'event')
+                                                        .map(key => ({ key, count: entry[`${key}_count`] || 0 }))
+                                                        .filter(t => t.count > 0);
+
+                                                    if (owned.length === 0) {
+                                                        return <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>—</span>;
+                                                    }
+
+                                                    return owned.map(({ key, count }) => (
+                                                        <span key={key} title={RARITY[key].label} style={{
+                                                            color: getRarityInk(key),
+                                                            fontSize: '12px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '3px',
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            {getRarityIcon(key, 12, false)}
+                                                            {count}
                                                         </span>
-                                                )}
-                                                {entry.mythic_count > 0 && (
-                                                    <span style={{
-                                                        color: COLORS.aqua,
-                                                        fontSize: '12px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '3px',
-                                                        fontWeight: '600'
-                                                    }}>
-                                                            <Sparkles size={12} />
-                                                        {entry.mythic_count}
-                                                        </span>
-                                                )}
-                                                {entry.legendary_count > 0 && (
-                                                    <span style={{
-                                                        color: COLORS.purple,
-                                                        fontSize: '12px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '3px',
-                                                        fontWeight: '600'
-                                                    }}>
-                                                            <Star size={12} />
-                                                        {entry.legendary_count}
-                                                        </span>
-                                                )}
-                                                {entry.rare_count > 0 && (
-                                                    <span style={{
-                                                        color: COLORS.red,
-                                                        fontSize: '12px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '3px',
-                                                        fontWeight: '600'
-                                                    }}>
-                                                            <Diamond size={12} />
-                                                        {entry.rare_count}
-                                                        </span>
-                                                )}
-                                                {!(entry.insane_count || 0) && !entry.mythic_count && !entry.legendary_count && !entry.rare_count && (
-                                                    <span style={{ color: COLORS.textMuted, fontSize: '12px' }}>—</span>
-                                                )}
+                                                    ));
+                                                })()}
                                             </div>
                                         </td>
                                     </tr>

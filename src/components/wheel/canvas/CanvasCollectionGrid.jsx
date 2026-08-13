@@ -433,12 +433,19 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Badge icon (simplified)
-        ctx.fillStyle = isInsane && isCollected ? '#1a1a1a' : isCollected ? '#fff' : COLORS.textMuted;
+        // Badge icon (simplified). Canvas cannot draw the Lucide glyphs the DOM
+        // uses, so these are the nearest unicode stand-ins — exotic gets a gem
+        // rather than falling through to rare's diamond, which is what the old
+        // chain did the moment the tier existed.
+        //
+        // Dark ink on the light fills (insane's slick, legendary's gold, mythic's
+        // aqua) and white on the dark ones; white on #55FFFF is 1.2:1.
+        const lightBadge = isInsane || isLegendary || isMythic;
+        ctx.fillStyle = !isCollected ? COLORS.textMuted : lightBadge ? '#1a1a1a' : '#fff';
         ctx.font = 'bold 8px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : '◆';
+        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : isExotic ? '❖' : '◆';
         ctx.fillText(iconChar, badgeX, badgeY + BADGE_SIZE/2);
     }
 
@@ -458,7 +465,10 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.fillStyle = rarityColor;
         ctx.fill();
 
-        ctx.fillStyle = isInsane ? '#1a1a1a' : '#fff';
+        // Same light/dark split as the rarity badge above — the count sits on
+        // rarityColor, and legendary's gold and mythic's aqua are as light as
+        // insane's platinum.
+        ctx.fillStyle = (isInsane || isLegendary || isMythic) ? '#1a1a1a' : '#fff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(countText, badgeX + badgeWidth/2, badgeY + COUNT_BADGE_HEIGHT/2);
