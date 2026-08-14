@@ -563,11 +563,20 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                         onChange={e => setItemData({ ...itemData, rarity: e.target.value })}
                         style={{ width: '100%', padding: '10px 12px', background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: '6px', color: COLORS.text, fontSize: '14px' }}
                     >
+                        {/* Ascending ladder, matching SPECIAL_PULL_RARITIES on the server —
+                            which is also what the create endpoint validates against, so a
+                            tier absent here is simply uncreatable, and one present but
+                            unaccepted is silently stored as rare. Exotic was the former. */}
                         <option value="rare">💎 Rare</option>
+                        <option value="exotic">🔮 Exotic</option>
                         <option value="legendary">⭐ Legendary</option>
                         <option value="mythic">✨ Mythic</option>
                         <option value="insane">👑 Insane</option>
-                        <option value="event">⚡ Event</option>
+                        {/* No Event option. It was here, and it never worked: `event` is not
+                            a collectible tier, so the server stored the item as a rare. The
+                            bonus wheel is driven by the single seeded BONUS EVENT row and a
+                            second one would just add trigger weight, which is a weight edit,
+                            not a new item. */}
                     </select>
                 </div>
 
@@ -717,7 +726,11 @@ const EVENT_TYPES = [
     },
 ];
 
-const BOOSTABLE_RARITIES = ['rare', 'legendary', 'mythic', 'insane'];
+// Mirrors BOOSTABLE_RARITIES in the backend's services/globalEvents.js — this only fills
+// the manual-trigger dropdown, so a tier listed here that the server refuses to boost (or
+// missing here while the server can pick it, which is what happened to exotic) makes the
+// panel lie about what an event can do.
+const BOOSTABLE_RARITIES = ['rare', 'exotic', 'legendary', 'mythic', 'insane'];
 
 export function AdminPanel({ onClose, allItems }) {
     const [tab, setTab] = useState('pending');

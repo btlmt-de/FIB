@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
-import { RARITY_KEYS, getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import {
+    RARITY, RARITY_KEYS, getRarityColor, getRarityInk, getRarityOnColor,
+    getRarityStops, getRarityIcon,
+} from '../../../utils/rarityHelpers.jsx';
 
 /**
  * The tiers that go into a collection: everything on the ladder except `common`
@@ -467,6 +470,15 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     const luckRating = profile.luckRating || extendedStats?.luckRating;
     const luckInfo = getLuckInfo(luckRating?.rating, luckRating?.percentile);
     const luckiestDay = extendedStats?.luckiestDay;
+    // Tiers the player has finished, rarest first (COLLECTABLE_TIERS is already in
+    // ladder order). Derived rather than written out per tier: the banners below used
+    // to be four hand-copied blocks and exotic never got a fifth, so a completed exotic
+    // collection - eight items, the hardest tier on the wheel to finish - showed nothing
+    // at all. `total > 0` guards the window before the special-items request lands,
+    // when both sides are 0 and every tier would otherwise read as complete.
+    const completedTiers = COLLECTABLE_TIERS.filter(
+        key => specialItemTotals[key] > 0 && uniqueCollected[key] >= specialItemTotals[key]
+    );
     const chartData = getChartData();
     const maxSpins = Math.max(...chartData.map(d => d.spins), 1);
 
@@ -1168,186 +1180,20 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             </div>
 
                             {/* Collection Completion Banners */}
-                            {(
-                                (specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane) ||
-                                (specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic) ||
-                                (specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary) ||
-                                (specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare)
-                            ) && (
+                            {completedTiers.length > 0 && (
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: '10px',
                                     marginBottom: '16px'
                                 }}>
-                                    {specialItemTotals.insane > 0 && uniqueCollected.insane >= specialItemTotals.insane && (
-                                        <div
-                                            className="completion-banner"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${COLORS.insaneHolo[0]}33, ${COLORS.insaneHolo[1]}22, ${COLORS.insaneHolo[2]}33)`,
-                                                border: `1px solid ${COLORS.insaneFlat}66`,
-                                                borderRadius: '10px',
-                                                padding: '12px 16px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '36px', height: '36px',
-                                                borderRadius: '8px',
-                                                background: `linear-gradient(135deg, ${COLORS.insaneHolo[0]}, ${COLORS.insaneHolo[1]}, ${COLORS.insaneHolo[2]})`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: `0 0 15px ${COLORS.insane}66`
-                                            }}>
-                                                <Trophy size={18} color="#1a1a1a" />
-                                            </div>
-                                            <div>
-                                                <div style={{
-                                                    color: COLORS.insane,
-                                                    fontSize: '13px',
-                                                    fontWeight: '700',
-                                                    textShadow: `0 0 10px ${COLORS.insane}44`
-                                                }}>
-                                                    Insane Collection Complete!
-                                                </div>
-                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                                    All {specialItemTotals.insane} insane items collected
-                                                </div>
-                                            </div>
-                                            <Crown size={16} color={COLORS.insane} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                                        </div>
-                                    )}
-                                    {specialItemTotals.mythic > 0 && uniqueCollected.mythic >= specialItemTotals.mythic && (
-                                        <div
-                                            className="completion-banner"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}22, ${COLORS.mythicCycle[1]}15)`,
-                                                border: `1px solid ${COLORS.aqua}55`,
-                                                borderRadius: '10px',
-                                                padding: '12px 16px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '36px', height: '36px',
-                                                borderRadius: '8px',
-                                                background: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}, ${COLORS.mythicCycle[1]})`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: `0 0 15px ${COLORS.aqua}66`
-                                            }}>
-                                                <Trophy size={18} color="#1a1a1a" />
-                                            </div>
-                                            <div>
-                                                <div style={{
-                                                    color: COLORS.aqua,
-                                                    fontSize: '13px',
-                                                    fontWeight: '700',
-                                                    textShadow: `0 0 10px ${COLORS.aqua}44`
-                                                }}>
-                                                    Mythic Collection Complete!
-                                                </div>
-                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                                    All {specialItemTotals.mythic} mythic items collected
-                                                </div>
-                                            </div>
-                                            <Sparkles size={16} color={COLORS.aqua} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                                        </div>
-                                    )}
-                                    {specialItemTotals.legendary > 0 && uniqueCollected.legendary >= specialItemTotals.legendary && (
-                                        <div
-                                            className="completion-banner"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${COLORS.purple}22, ${COLORS.purple}11)`,
-                                                border: `1px solid ${COLORS.purple}55`,
-                                                borderRadius: '10px',
-                                                padding: '12px 16px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '36px', height: '36px',
-                                                borderRadius: '8px',
-                                                background: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.purple}bb)`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: `0 0 15px ${COLORS.purple}66`
-                                            }}>
-                                                <Trophy size={18} color="#fff" />
-                                            </div>
-                                            <div>
-                                                <div style={{
-                                                    color: COLORS.purple,
-                                                    fontSize: '13px',
-                                                    fontWeight: '700',
-                                                    textShadow: `0 0 10px ${COLORS.purple}44`
-                                                }}>
-                                                    Legendary Collection Complete!
-                                                </div>
-                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                                    All {specialItemTotals.legendary} legendary items collected
-                                                </div>
-                                            </div>
-                                            <Star size={16} color={COLORS.purple} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                                        </div>
-                                    )}
-                                    {specialItemTotals.rare > 0 && uniqueCollected.rare >= specialItemTotals.rare && (
-                                        <div
-                                            className="completion-banner"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${COLORS.red}22, ${COLORS.red}11)`,
-                                                border: `1px solid ${COLORS.red}55`,
-                                                borderRadius: '10px',
-                                                padding: '12px 16px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '36px', height: '36px',
-                                                borderRadius: '8px',
-                                                background: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.red}bb)`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: `0 0 15px ${COLORS.red}66`
-                                            }}>
-                                                <Trophy size={18} color="#fff" />
-                                            </div>
-                                            <div>
-                                                <div style={{
-                                                    color: COLORS.red,
-                                                    fontSize: '13px',
-                                                    fontWeight: '700',
-                                                    textShadow: `0 0 10px ${COLORS.red}44`
-                                                }}>
-                                                    Rare Collection Complete!
-                                                </div>
-                                                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
-                                                    All {specialItemTotals.rare} rare items collected
-                                                </div>
-                                            </div>
-                                            <Diamond size={16} color={COLORS.red} style={{ marginLeft: 'auto', opacity: 0.7 }} />
-                                        </div>
-                                    )}
+                                    {completedTiers.map(key => (
+                                        <CompletionBanner
+                                            key={key}
+                                            rarity={key}
+                                            total={specialItemTotals[key]}
+                                        />
+                                    ))}
                                 </div>
                             )}
 
@@ -1676,62 +1522,46 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     }}>
                                         Spins Since Last...
                                     </div>
+                                    {/* Same four tiers as the collection book's panel, in the
+                                        same order, from the same ladder — this was three
+                                        hand-written cells with exotic missing and Legendary
+                                        wearing COLORS.purple, which is exotic's colour.
+                                        Insane is omitted here too: a single item at
+                                        0.000001% makes the streak equal the account's whole
+                                        spin count. */}
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <div style={{
-                                            flex: 1,
-                                            padding: '10px 8px',
-                                            background: `${COLORS.aqua}12`,
-                                            borderRadius: '8px',
-                                            border: `1px solid ${COLORS.aqua}30`,
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
-                                                <Sparkles size={12} color={COLORS.aqua} />
-                                                <span style={{ color: COLORS.aqua, fontSize: '10px', fontWeight: '500' }}>Mythic</span>
-                                            </div>
-                                            <div style={{ color: COLORS.aqua, fontSize: '18px', fontWeight: '700' }}>
-                                                {extendedStats.dryStreaks.mythic}
-                                            </div>
-                                        </div>
-                                        <div style={{
-                                            flex: 1,
-                                            padding: '10px 8px',
-                                            background: `${COLORS.purple}12`,
-                                            borderRadius: '8px',
-                                            border: `1px solid ${COLORS.purple}30`,
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
-                                                <Star size={12} color={COLORS.purple} />
-                                                <span style={{ color: COLORS.purple, fontSize: '10px', fontWeight: '500' }}>Legendary</span>
-                                            </div>
-                                            <div style={{ color: COLORS.purple, fontSize: '18px', fontWeight: '700' }}>
-                                                {extendedStats.dryStreaks.legendary}
-                                            </div>
-                                        </div>
-                                        <div style={{
-                                            flex: 1,
-                                            padding: '10px 8px',
-                                            background: `${COLORS.red}12`,
-                                            borderRadius: '8px',
-                                            border: `1px solid ${COLORS.red}30`,
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
-                                                <Diamond size={12} color={COLORS.red} />
-                                                <span style={{ color: COLORS.red, fontSize: '10px', fontWeight: '500' }}>Rare</span>
-                                            </div>
-                                            <div style={{ color: COLORS.red, fontSize: '18px', fontWeight: '700' }}>
-                                                {extendedStats.dryStreaks.rare}
-                                            </div>
-                                        </div>
+                                        {['mythic', 'legendary', 'exotic', 'rare'].map(key => {
+                                            const ink = getRarityInk(key);
+                                            return (
+                                                <div key={key} style={{
+                                                    flex: 1,
+                                                    padding: '10px 8px',
+                                                    background: `${ink}12`,
+                                                    borderRadius: '8px',
+                                                    border: `1px solid ${ink}30`,
+                                                    textAlign: 'center'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '4px' }}>
+                                                        {getRarityIcon(key, 12)}
+                                                        <span style={{ color: ink, fontSize: '10px', fontWeight: '500' }}>{RARITY[key].label}</span>
+                                                    </div>
+                                                    <div style={{ color: ink, fontSize: '18px', fontWeight: '700' }}>
+                                                        {extendedStats.dryStreaks[key] ?? 0}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
 
                             {/* Average Spins Between Special Finds */}
                             {(() => {
-                                const totalSpecialFinds = (profile.insane_count || 0) + profile.mythic_count + profile.legendary_count + profile.rare_count;
+                                // Exotic counts as a special find like every other tier. It
+                                // was omitted here while the stat card above already showed
+                                // it, so a player's exotics made "avg. between special
+                                // finds" read longer than their own collection said.
+                                const totalSpecialFinds = (profile.insane_count || 0) + profile.mythic_count + profile.legendary_count + (profile.exotic_count || 0) + profile.rare_count;
                                 const avgSpinsBetween = totalSpecialFinds > 0
                                     ? Math.round(profile.total_spins / totalSpecialFinds)
                                     : null;
@@ -1773,7 +1603,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             })()}
 
                             {/* Best Day - Simplified */}
-                            {luckiestDay && luckiestDay.spins > 0 && ((luckiestDay.insane_count || 0) > 0 || luckiestDay.mythic_count > 0 || luckiestDay.legendary_count > 0 || luckiestDay.rare_count > 0) && (
+                            {luckiestDay && luckiestDay.spins > 0 && ((luckiestDay.insane_count || 0) > 0 || luckiestDay.mythic_count > 0 || luckiestDay.legendary_count > 0 || (luckiestDay.exotic_count || 0) > 0 || luckiestDay.rare_count > 0) && (
                                 <div style={{
                                     background: COLORS.bgLight,
                                     borderRadius: '12px',
@@ -1833,20 +1663,33 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     <div style={{ color: COLORS.aqua, fontSize: '9px', textTransform: 'uppercase' }}>Mythic</div>
                                                 </div>
                                             )}
+                                            {/* Legendary and rare read their colour from the
+                                                ladder rather than COLORS.purple / COLORS.red:
+                                                purple belongs to EXOTIC since the rework, and
+                                                the exotic column below sits right next to
+                                                this one. */}
                                             {luckiestDay.legendary_count > 0 && (
                                                 <div style={{ textAlign: 'center' }}>
-                                                    <div style={{ color: COLORS.purple, fontSize: '20px', fontWeight: '700' }}>
+                                                    <div style={{ color: getRarityInk('legendary'), fontSize: '20px', fontWeight: '700' }}>
                                                         {luckiestDay.legendary_count}
                                                     </div>
-                                                    <div style={{ color: COLORS.purple, fontSize: '9px', textTransform: 'uppercase' }}>Legend</div>
+                                                    <div style={{ color: getRarityInk('legendary'), fontSize: '9px', textTransform: 'uppercase' }}>Legend</div>
+                                                </div>
+                                            )}
+                                            {(luckiestDay.exotic_count || 0) > 0 && (
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{ color: getRarityInk('exotic'), fontSize: '20px', fontWeight: '700' }}>
+                                                        {luckiestDay.exotic_count}
+                                                    </div>
+                                                    <div style={{ color: getRarityInk('exotic'), fontSize: '9px', textTransform: 'uppercase' }}>Exotic</div>
                                                 </div>
                                             )}
                                             {luckiestDay.rare_count > 0 && (
                                                 <div style={{ textAlign: 'center' }}>
-                                                    <div style={{ color: COLORS.red, fontSize: '20px', fontWeight: '700' }}>
+                                                    <div style={{ color: getRarityInk('rare'), fontSize: '20px', fontWeight: '700' }}>
                                                         {luckiestDay.rare_count}
                                                     </div>
-                                                    <div style={{ color: COLORS.red, fontSize: '9px', textTransform: 'uppercase' }}>Rare</div>
+                                                    <div style={{ color: getRarityInk('rare'), fontSize: '9px', textTransform: 'uppercase' }}>Rare</div>
                                                 </div>
                                             )}
                                         </div>
@@ -2350,6 +2193,84 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     viewingUser={!isOwnProfile ? profile?.custom_username : null}
                 />
             )}
+        </div>
+    );
+}
+
+/**
+ * "<Tier> Collection Complete!" banner, one per finished tier.
+ *
+ * This was four near-identical blocks of inline JSX, one per tier, each ~40 lines
+ * of hand-tuned colour. Exotic shipped without a fifth, so finishing the exotic
+ * tier - eight items and the hardest set on the wheel to complete - announced
+ * nothing. Everything a banner needs is already on the ladder, so it is one
+ * component driven by `rarity` and the tier list decides how many exist.
+ *
+ * Colours come from RARITY, never from COLORS directly. The blocks this replaces
+ * painted Legendary with COLORS.purple, which the ladder rework had reassigned to
+ * EXOTIC - so a player who finished both tiers would have seen two identically
+ * magenta banners with different words on them.
+ */
+function CompletionBanner({ rarity, total }) {
+    const stops = getRarityStops(rarity);
+    const color = getRarityColor(rarity);
+    const ink = getRarityInk(rarity);
+
+    // An animated tier is painted with its WHOLE ramp, never one sampled point off
+    // it - a single stop off the insane ramp is some other tier's colour two thirds
+    // of the time. Flat tiers get the same two-step gradient they had before.
+    const medallion = stops
+        ? `linear-gradient(135deg, ${stops.join(', ')})`
+        : `linear-gradient(135deg, ${color}, ${color}bb)`;
+    const wash = stops
+        ? `linear-gradient(135deg, ${stops.map(stop => `${stop}22`).join(', ')})`
+        : `linear-gradient(135deg, ${color}22, ${color}11)`;
+
+    return (
+        <div
+            className="completion-banner"
+            style={{
+                background: wash,
+                border: `1px solid ${color}55`,
+                borderRadius: '10px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                position: 'relative',
+                overflow: 'hidden'
+            }}
+        >
+            <div style={{
+                width: '36px', height: '36px',
+                borderRadius: '8px',
+                background: medallion,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: `0 0 15px ${color}66`
+            }}>
+                {/* The trophy sits ON the tier's own fill, so it takes the on-color
+                    step rather than the ink step - the opposite question, and the
+                    two are only distinguishable by reading them. */}
+                <Trophy size={18} color={getRarityOnColor(rarity)} />
+            </div>
+            <div>
+                <div style={{
+                    color: ink,
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    textShadow: `0 0 10px ${color}44`
+                }}>
+                    {RARITY[rarity].label} Collection Complete!
+                </div>
+                <div style={{ color: COLORS.textMuted, fontSize: '11px' }}>
+                    All {total} {RARITY[rarity].label.toLowerCase()} items collected
+                </div>
+            </div>
+            <div style={{ marginLeft: 'auto', opacity: 0.7, display: 'flex' }}>
+                {getRarityIcon(rarity, 16)}
+            </div>
         </div>
     );
 }
