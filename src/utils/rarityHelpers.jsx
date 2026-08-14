@@ -49,22 +49,30 @@ export const RARITY = {
     mythic: { order: 1, label: 'Mythic', color: COLORS.aqua, stops: COLORS.mythicCycle, lightFill: true },
     legendary: { order: 2, label: 'Legendary', color: COLORS.insane, lightFill: true },
     exotic: { order: 3, label: 'Exotic', color: COLORS.purple, ink: COLORS.purpleInk },
-    rare: { order: 4, label: 'Rare', color: COLORS.red, ink: COLORS.redInk },
-    event: { order: 5, label: 'Event', color: COLORS.orange },
+    rare: { order: 4, label: 'Rare', color: COLORS.red, ink: COLORS.redInk, lightFill: true },
+    event: { order: 5, label: 'Event', color: COLORS.orange, lightFill: true },
     common: { order: 99, label: 'Common', color: COLORS.neutralInk },
 };
 
 // `lightFill` above marks the tiers whose *fill* is bright enough that dark text
-// beats white on it. Measured against #1a1a1a vs #ffffff, worst stop of each
-// gradient: insane's platinum 15.1:1 and its holo stops 6.6–14.2, mythic's ramp
-// 4.95–14.2 (the azure stop is the floor), legendary's gold 12.4. Exotic's
-// #AA00AA is the one tier that genuinely wants white, at 6.4:1.
+// beats white on it. Measured as #1a1a1a vs #ffffff against the worst stop of
+// each gradient:
 //
-// Rare (#FF5555) and event (#FF8800) are deliberately NOT flagged, and that is a
-// judgement call rather than a measurement: dark ink would actually score better
-// on both (5.54 and 7.27, against white's 3.14 and 2.39), but flipping them is a
-// visible restyle of surfaces nobody asked about. Flag them here if that restyle
-// is ever wanted — the fix is one word each.
+//   insane     platinum 15.1:1, holo stops 6.6–14.2   dark
+//   mythic     ramp 4.95–14.2 (azure is the floor)    dark
+//   legendary  gold 12.4:1                            dark
+//   rare       #FF5555 — dark 5.54, white 3.14        dark
+//   event      #FF8800 — dark 7.27, white 2.39        dark
+//   exotic     #AA00AA — dark 2.73, white 6.38        WHITE
+//
+// Exotic is the only tier that genuinely wants white; every Minecraft chat colour
+// above it is a bright hue, and bright hues take dark ink.
+//
+// Rare and event were briefly left unflagged on the grounds that changing them
+// was a restyle nobody asked for. That was the wrong call: white on both *fails*
+// AA (3.14 and 2.39 against a 4.5 floor), so it was a contrast defect being
+// preserved for the sake of not changing anything, and the "restyle" is a badge
+// label becoming legible.
 
 /** Tier keys, rarest first. Use this to build legends, filters and odds tables. */
 export const RARITY_KEYS = Object.keys(RARITY).sort((a, b) => RARITY[a].order - RARITY[b].order);
@@ -232,7 +240,12 @@ export function getRarityIcon(rarity, size = 14, colored = true) {
         // passed so the icon degrades to platinum if the gradient's <defs> is not
         // mounted, which is the case anywhere outside the wheel tree.
         case 'insane': return colored
-            ? <Crown size={size} color={color} className="fib-holo-icon" />
+            // `style` sets the CSS color property, which is what the class's
+            // `stroke: url(...) currentColor` falls back to when the gradient's
+            // <defs> is not on the page. lucide sets a stroke *attribute* from
+            // `color`, and a CSS stroke overrides that outright, so the attribute
+            // alone is not a fallback.
+            ? <Crown size={size} color={color} style={{ color }} className="fib-holo-icon" />
             : <Crown size={size} />;
         case 'mythic': return <Sparkles size={size} color={color} />;
         case 'legendary': return <Star size={size} color={color} />;

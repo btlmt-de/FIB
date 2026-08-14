@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
-import { RARITY, getRarityColor, getRarityInk, getRarityIcon, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
+import { RARITY, getRarityColor, getRarityInk, getRarityIcon, getRarityOnColor, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
 import { X, Sparkles, Star, Diamond, Zap, BookOpen, Search, Crown, ChevronDown, ChevronUp, BarChart3, Coins } from 'lucide-react';
 import { CanvasCollectionGrid } from '../canvas/CanvasCollectionGrid.jsx';
 
@@ -91,12 +91,11 @@ function ItemDetailModal({ item, details, onClose }) {
                                             : isExotic
                                                 ? `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.red})`
                                                 : `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                                // Dark ink on the light tiers, white on the dark
-                                // ones. Insane, legendary and mythic are all light
-                                // fills — mythic's ramp is aqua/azure/teal now, and
-                                // white on #55FFFF is 1.2:1 — so they take the dark
-                                // ink. Exotic and rare are dark enough for white.
-                                color: (isInsane || isLegendary || isMythic) ? '#1a1a1a' : '#fff',
+                                // From the shared ladder, not a local list of which
+                                // tiers happen to be light — that list was a copy of
+                                // getRarityOnColor's job and had already gone stale
+                                // for rare.
+                                color: getRarityOnColor(item.type),
                                 fontSize: '10px',
                                 fontWeight: '700',
                                 padding: '4px 12px',

@@ -2116,7 +2116,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 // rule that cancels the drift only reaches the class.
                                 // The parent span already runs the fade-in.
                                 <span className="fib-holo" style={{
-                                    color: '#1a1a1a', fontSize: '10px', fontWeight: '800', padding: '5px 14px',
+                                    color: getRarityOnColor('insane'), fontSize: '10px', fontWeight: '800', padding: '5px 14px',
                                     borderRadius: '4px',
                                     textShadow: '0 0 10px rgba(255,255,255,0.5)',
                                     boxShadow: `0 0 20px ${COLORS.insaneHolo[0]}88`,
@@ -2137,19 +2137,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     // Flat gold, dark ink. The old purple->gold blend
                                     // was half exotic's colour and half legendary's.
                                     background: COLORS.insane,
-                                    color: '#1a1a1a', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
+                                    color: getRarityOnColor('legendary'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
                                 }}>LEGENDARY</span>
                             ) : isExoticItem(result) ? (
                                 <span style={{
                                     backgroundImage: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.red})`,
-                                    color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
+                                    color: getRarityOnColor('exotic'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
                                 }}>EXOTIC</span>
                             ) : isRareItem(result) ? (
                                 <span style={{
                                     backgroundImage: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                                    color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
+                                    color: getRarityOnColor('rare'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
                                 }}>RARE</span>
                             ) : isNewItem ? (

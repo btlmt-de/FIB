@@ -168,7 +168,16 @@ html, body {
  * stroke at the paint server is all that is needed. `fill` is left alone — the
  * few filled Lucide icons would otherwise lose their interior. */
 .fib-holo-icon {
-  stroke: url(#fib-holo-grad);
+  /* The `currentColor` after the url() is a fallback, and it is load-bearing.
+   * A paint-server reference that resolves to nothing does not fall back to the
+   * element's stroke attribute — it renders NOTHING, so without this the crown
+   * vanishes entirely anywhere the <defs> is absent (anything outside the wheel
+   * tree, where AnimationStyles is not mounted). Verified by rendering the two
+   * forms side by side: only the one with a fallback drew.
+   *
+   * getRarityIcon sets `color` on the icon so currentColor resolves to insane's
+   * platinum rather than to whatever the surrounding text happens to be. */
+  stroke: url(#fib-holo-grad) currentColor;
   filter: drop-shadow(0 0 3px rgba(255, 190, 255, 0.45));
 }
 
