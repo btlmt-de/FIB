@@ -1,7 +1,48 @@
 import React from 'react';
 import { COLORS } from '../config/constants';
 
+/**
+ * The gradient the Insane tier's icons are stroked with.
+ *
+ * Insane has no flat colour — it is the oil-slick — but a Lucide glyph is an SVG
+ * stroke, and CSS cannot put a gradient on a stroke. It can point the stroke at
+ * an SVG paint server, so this mounts one: `stroke: url(#fib-holo-grad)`, applied
+ * by the .fib-holo-icon class in index.css and set by getRarityIcon.
+ *
+ * Without it, insane rendered as flat platinum everywhere it appeared as a small
+ * icon — technically its fallback colour, but it read as "white", i.e. as no tier
+ * at all, which is the opposite of what the top of the ladder should look like.
+ *
+ * The three stops are static. Animating them with CSS was tried and does not
+ * work — a paint server has no box, so the keyframes register but their clock
+ * never advances; see the note beside .fib-holo-stop-a in index.css. That is
+ * fine: at icon scale the point is the material, not the motion.
+ *
+ * One instance is enough for the whole page — an id reference resolves document
+ * wide — so it lives here, next to the other global wheel chrome, and is hidden
+ * from layout and from assistive tech.
+ */
+const HoloIconGradient = () => (
+    <svg
+        aria-hidden="true"
+        focusable="false"
+        width="0"
+        height="0"
+        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+    >
+        <defs>
+            <linearGradient id="fib-holo-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" className="fib-holo-stop-a" />
+                <stop offset="50%" className="fib-holo-stop-b" />
+                <stop offset="100%" className="fib-holo-stop-c" />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
 export const AnimationStyles = () => (
+    <>
+    <HoloIconGradient />
     <style>{`
         /* ============================================
            CORE ANIMATIONS (Preserved)
@@ -39,14 +80,26 @@ export const AnimationStyles = () => (
         /* ============================================
            RARITY GLOW ANIMATIONS (Preserved + Enhanced)
            ============================================ */
+        /* specialGlow is LEGENDARY. Gold, and deliberately not animated between
+           two colours — legendary holds still so the tiers above it read as rarer
+           by motion as well as by hue. The keyframe is kept rather than deleted
+           because it is referenced by name in several places; it now just holds
+           one state. */
         @keyframes specialGlow {
-            0%, 100% { 
+            0%, 100% {
+                box-shadow: 0 0 15px ${COLORS.insane}88, 0 0 30px ${COLORS.insane}44;
+                border-color: ${COLORS.insane};
+            }
+        }
+        /* EXOTIC keeps the purple->magenta breathe that legendary used to own. */
+        @keyframes exoticGlow {
+            0%, 100% {
                 box-shadow: 0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44;
                 border-color: ${COLORS.purple};
             }
-            50% { 
-                box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
-                border-color: ${COLORS.gold};
+            50% {
+                box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px #FF44FF44;
+                border-color: #FF44FF;
             }
         }
         @keyframes rareGlow {
@@ -59,40 +112,40 @@ export const AnimationStyles = () => (
                 border-color: ${COLORS.orange};
             }
         }
+        /* Mythic shimmers within the cool band only — see COLORS.mythicCycle. */
         @keyframes mythicGlow {
-            0%, 100% { 
-                box-shadow: 0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44;
-                border-color: ${COLORS.aqua};
+            0%, 100% {
+                box-shadow: 0 0 20px ${COLORS.mythicCycle[0]}aa, 0 0 40px ${COLORS.mythicCycle[1]}44;
+                border-color: ${COLORS.mythicCycle[0]};
             }
-            33% { 
-                box-shadow: 0 0 25px ${COLORS.purple}aa, 0 0 50px ${COLORS.gold}44;
-                border-color: ${COLORS.purple};
+            33% {
+                box-shadow: 0 0 25px ${COLORS.mythicCycle[1]}aa, 0 0 50px ${COLORS.mythicCycle[2]}44;
+                border-color: ${COLORS.mythicCycle[1]};
             }
-            66% { 
-                box-shadow: 0 0 25px ${COLORS.gold}aa, 0 0 50px ${COLORS.aqua}44;
-                border-color: ${COLORS.gold};
+            66% {
+                box-shadow: 0 0 25px ${COLORS.mythicCycle[2]}aa, 0 0 50px ${COLORS.mythicCycle[0]}44;
+                border-color: ${COLORS.mythicCycle[2]};
             }
         }
+        /* Insane's aura walks the oil-slick ramp — magenta, cyan, gold — rather
+           than pulsing gold to cream, which is now legendary's colour. The four
+           stops are the ramp's own, so this keyframe and .fib-holo in index.css
+           and the canvas renderers all describe the same material. */
         @keyframes insaneGlow {
-            0%, 100% { 
-                box-shadow: 0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044;
-                border-color: ${COLORS.insane};
+            0%, 100% {
+                box-shadow: 0 0 25px ${COLORS.insaneHolo[0]}cc, 0 0 50px ${COLORS.insaneHolo[0]}66, 0 0 75px ${COLORS.insaneFlat}44;
+                border-color: ${COLORS.insaneHolo[0]};
                 filter: brightness(1.1);
             }
-            25% { 
-                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px ${COLORS.insane}33;
-                border-color: #FFF5B0;
-                filter: brightness(1.2);
+            33% {
+                box-shadow: 0 0 30px ${COLORS.insaneHolo[1]}dd, 0 0 60px ${COLORS.insaneHolo[1]}77, 0 0 90px ${COLORS.insaneFlat}33;
+                border-color: ${COLORS.insaneHolo[1]};
+                filter: brightness(1.25);
             }
-            50% { 
-                box-shadow: 0 0 35px ${COLORS.insane}ee, 0 0 70px #FFF5B088, 0 0 105px ${COLORS.insane}44;
-                border-color: ${COLORS.insane};
+            66% {
+                box-shadow: 0 0 35px ${COLORS.insaneHolo[2]}ee, 0 0 70px ${COLORS.insaneHolo[2]}88, 0 0 105px ${COLORS.insaneFlat}44;
+                border-color: ${COLORS.insaneHolo[2]};
                 filter: brightness(1.3);
-            }
-            75% { 
-                box-shadow: 0 0 30px #FFF5B0dd, 0 0 60px ${COLORS.insane}77, 0 0 90px #FFF5B033;
-                border-color: #FFF5B0;
-                filter: brightness(1.2);
             }
         }
         @keyframes insanePulse {
@@ -227,8 +280,9 @@ export const AnimationStyles = () => (
             50% { box-shadow: 0 0 20px ${COLORS.red}77, 0 0 40px ${COLORS.red}33; }
         }
         @keyframes rarityAuraInsane {
-            0%, 100% { box-shadow: 0 0 25px ${COLORS.insane}88, 0 0 50px #FFF5B044; }
-            50% { box-shadow: 0 0 40px ${COLORS.insane}aa, 0 0 70px #FFF5B066; }
+            0%, 100% { box-shadow: 0 0 25px ${COLORS.insaneHolo[0]}88, 0 0 50px ${COLORS.insaneHolo[1]}44; }
+            33% { box-shadow: 0 0 40px ${COLORS.insaneHolo[1]}aa, 0 0 70px ${COLORS.insaneHolo[2]}66; }
+            66% { box-shadow: 0 0 40px ${COLORS.insaneHolo[2]}aa, 0 0 70px ${COLORS.insaneHolo[0]}66; }
         }
 
         /* ============================================
@@ -759,4 +813,5 @@ export const AnimationStyles = () => (
             }
         }
     `}</style>
+    </>
 );

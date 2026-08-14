@@ -9,6 +9,7 @@ import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
+import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown } from 'lucide-react';
 
 // ============================================
@@ -24,13 +25,12 @@ const FB_BG_DARK = '#0C0A09';      // Darker background
 const FB_TEXT = '#FAFAF9';         // Light text
 const FB_GOLD = '#F59E0B';         // Gold for rewards
 
-// Rarity colors for winner item display
-const RARITY_COLORS = {
-    rare: COLORS.red || '#EF4444',
-    legendary: COLORS.purple || '#A855F7',
-    mythic: COLORS.aqua || '#06B6D4',
-    insane: COLORS.insane || '#F59E0B',
-};
+// Rarity colours come from the shared ladder — see utils/rarityHelpers.jsx. This
+// was a local RARITY_COLORS map that still had legendary on purple (now exotic's
+// colour) and no exotic entry at all, so an exotic win rendered in the banner's
+// fallback orange.
+//
+// The winner's name is set as text over the banner, so it takes the ink step.
 
 // ============================================
 // Floating Target Decorations
@@ -464,8 +464,8 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false }) {
                                         }}>
                                             Unboxed{' '}
                                             <strong style={{
-                                                color: RARITY_COLORS[firstBloodWinner.winner.itemRarity] || FB_PRIMARY,
-                                                textShadow: `0 0 8px ${RARITY_COLORS[firstBloodWinner.winner.itemRarity] || FB_PRIMARY}66`,
+                                                color: getRarityInk(firstBloodWinner.winner.itemRarity),
+                                                textShadow: `0 0 8px ${getRarityInk(firstBloodWinner.winner.itemRarity)}66`,
                                             }}>
                                                 {firstBloodWinner.winner.item}
                                             </strong>

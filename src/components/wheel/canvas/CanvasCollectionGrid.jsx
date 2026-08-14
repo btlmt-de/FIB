@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
+import { getRarityColor, getRarityOnColor, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -148,15 +149,15 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
     const isInsane = item.type === 'insane';
     const isMythic = item.type === 'mythic';
     const isLegendary = item.type === 'legendary';
+    const isExotic = item.type === 'exotic';
     const isRare = item.type === 'rare';
-    const isSpecialType = isInsane || isMythic || isLegendary || isRare;
+    const isSpecialType = isInsane || isMythic || isLegendary || isExotic || isRare;
 
-    // Get rarity color
-    const rarityColor = isInsane ? COLORS.insane
-        : isMythic ? COLORS.aqua
-            : isLegendary ? COLORS.purple
-                : isRare ? COLORS.red
-                    : COLORS.gold;
+    // Rarity colour comes from the shared ladder (utils/rarityHelpers.jsx); the
+    // local ternary this replaced was one of the copies that had to be kept in
+    // sync by hand. Note `item.type` is the persisted tier string, so an unknown
+    // value falls through to common rather than throwing.
+    const rarityColor = getRarityColor(item.type);
 
     const radius = 10;
 
@@ -179,21 +180,21 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         let intensity;
 
         if (isInsane) {
-            const phase = (time % 1.5) / 1.5;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.15 + pulse * 0.1; // Reduced from 0.4 + 0.3
-            glowColor = lerpColor(COLORS.insane, '#FFF5B0', pulse);
+            // Travels the oil-slick ramp rather than pulsing between two colours.
+            const phase = (time % 2.4) / 2.4;
+            intensity = 0.18 + Math.sin(phase * Math.PI * 4) * 0.06;
+            glowColor = sampleHolo(phase);
         } else if (isMythic) {
             const phase = (time % 2) / 2;
             intensity = 0.12 + Math.sin(phase * Math.PI * 2) * 0.08; // Reduced
-            if (phase < 0.33) {
-                glowColor = lerpColor(COLORS.aqua, COLORS.purple, phase / 0.33);
-            } else if (phase < 0.66) {
-                glowColor = lerpColor(COLORS.purple, COLORS.gold, (phase - 0.33) / 0.33);
-            } else {
-                glowColor = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.66) / 0.34);
-            }
+            glowColor = sampleRamp(COLORS.mythicCycle, phase);
         } else if (isLegendary) {
+            // Steady gold — see the note in CanvasSpinningStrip. Legendary took
+            // insane's colour, not insane's pulse; motion belongs to the tier
+            // above it now.
+            intensity = 0.17;
+            glowColor = hexToRgb(COLORS.insane);
+        } else if (isExotic) {
             const phase = (time % 2.5) / 2.5;
             const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
             intensity = 0.1 + pulse * 0.08; // Reduced
@@ -229,16 +230,23 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         // Create subtle gradient background
         const bgGradient = ctx.createLinearGradient(x, y, x + size, y + size);
         if (isInsane) {
-            bgGradient.addColorStop(0, `${COLORS.insane}22`);
-            bgGradient.addColorStop(0.5, '#FFF5B015');
-            bgGradient.addColorStop(1, `${COLORS.insane}18`);
+            // All three slick hues at once, so a collected insane tile is
+            // recognisable in a grid even when it is not the one being hovered.
+            bgGradient.addColorStop(0, `${COLORS.insaneHolo[0]}22`);
+            bgGradient.addColorStop(0.5, `${COLORS.insaneHolo[1]}1A`);
+            bgGradient.addColorStop(1, `${COLORS.insaneHolo[2]}22`);
         } else if (isMythic) {
-            bgGradient.addColorStop(0, `${COLORS.aqua}22`);
-            bgGradient.addColorStop(0.5, `${COLORS.purple}18`);
-            bgGradient.addColorStop(1, `${COLORS.gold}18`);
+            bgGradient.addColorStop(0, `${COLORS.mythicCycle[0]}22`);
+            bgGradient.addColorStop(0.5, `${COLORS.mythicCycle[1]}18`);
+            bgGradient.addColorStop(1, `${COLORS.mythicCycle[2]}18`);
         } else if (isLegendary) {
+            // One hue, two alphas — a plain gold wash rather than the gold->amber
+            // blend it used to carry.
+            bgGradient.addColorStop(0, `${COLORS.insane}22`);
+            bgGradient.addColorStop(1, `${COLORS.insane}18`);
+        } else if (isExotic) {
             bgGradient.addColorStop(0, `${COLORS.purple}22`);
-            bgGradient.addColorStop(1, `${COLORS.gold}18`);
+            bgGradient.addColorStop(1, `${COLORS.red}18`);
         } else if (isRare) {
             bgGradient.addColorStop(0, `${COLORS.red}22`);
             bgGradient.addColorStop(1, `${COLORS.orange}18`);
@@ -264,24 +272,32 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
     if (isSpecialType && isCollected) {
         // Animated border colors for special items
         if (isInsane) {
-            const phase = (time % 1.2) / 1.2;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            const bc = lerpColor(COLORS.insane, '#FFF5B0', pulse);
+            // The border is a gradient, not a sampled colour.
+            //
+            // Sampling one point off the ramp per frame was the first attempt and
+            // it is actively wrong: the ramp passes through magenta, aqua and gold,
+            // which are exactly exotic, mythic and legendary. A tile that cycles
+            // through the other tiers' colours reads as those tiers, one at a time
+            // — caught in review with an insane tile sitting aqua next to a real
+            // mythic and looking identical to it. Stroking the whole ramp keeps all
+            // three hues present at once, which no other tier can imitate.
+            //
+            // animatedBorderColor stays a flat colour because shadowColor cannot
+            // take a gradient; it feeds the bloom only.
+            const bc = sampleHolo((time % 2.4) / 2.4);
             animatedBorderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
-            borderColor = animatedBorderColor;
+            borderColor = createHoloGradient(ctx, x, size, (time % 2.4) / 2.4);
         } else if (isMythic) {
-            const phase = (time % 1.5) / 1.5;
-            let bc;
-            if (phase < 0.33) {
-                bc = lerpColor(COLORS.aqua, COLORS.purple, phase / 0.33);
-            } else if (phase < 0.66) {
-                bc = lerpColor(COLORS.purple, COLORS.gold, (phase - 0.33) / 0.33);
-            } else {
-                bc = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.66) / 0.34);
-            }
+            const bc = sampleRamp(COLORS.mythicCycle, (time % 1.5) / 1.5);
             animatedBorderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
             borderColor = animatedBorderColor;
         } else if (isLegendary) {
+            // Flat gold, no cycle. animatedBorderColor is still set because it is
+            // what gates the multi-pass glow strokes below — legendary keeps its
+            // bloom, it just no longer breathes.
+            animatedBorderColor = COLORS.insane;
+            borderColor = animatedBorderColor;
+        } else if (isExotic) {
             const phase = (time % 2) / 2;
             const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
             const bc = lerpColor(COLORS.purple, '#FF44FF', pulse);
@@ -295,15 +311,10 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
             borderColor = animatedBorderColor;
         }
     } else {
-        // Static border colors
-        if (isInsane) {
-            borderColor = isCollected ? COLORS.insane : `${COLORS.insane}44`;
-        } else if (isMythic) {
-            borderColor = isCollected ? COLORS.aqua : `${COLORS.aqua}44`;
-        } else if (isLegendary) {
-            borderColor = isCollected ? COLORS.purple : `${COLORS.purple}44`;
-        } else if (isRare) {
-            borderColor = isCollected ? COLORS.red : `${COLORS.red}44`;
+        // Static border colours. Uncollected tiles keep the tier's colour at 44
+        // alpha, so the silhouette of what is still missing reads as its rarity.
+        if (isSpecialType) {
+            borderColor = isCollected ? rarityColor : `${rarityColor}44`;
         } else {
             borderColor = isCollected ? `${COLORS.gold}66` : COLORS.border;
         }
@@ -311,10 +322,14 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
 
     // Draw glowing border for collected special items (multiple passes for glow effect)
     if (isSpecialType && isCollected && animatedBorderColor) {
-        // Outer glow layer
+        // shadowColor needs a flat colour (it cannot take a gradient), so the bloom
+        // uses the sampled point while the stroke itself uses borderColor — which
+        // is the full slick for insane and the same sampled colour for every other
+        // tier. Stroking animatedBorderColor here instead is what made the earlier
+        // gradient border silently do nothing.
         ctx.shadowColor = animatedBorderColor;
         ctx.shadowBlur = isInsane ? 20 : isMythic ? 18 : 14;
-        ctx.strokeStyle = animatedBorderColor;
+        ctx.strokeStyle = borderColor;
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -385,18 +400,25 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.arc(badgeX, badgeY + BADGE_SIZE/2, BADGE_SIZE/2, 0, Math.PI * 2);
 
         if (isCollected) {
+            // The corner badge follows the tier's own palette. Every branch here
+            // was still on the pre-rebuild colours: insane gold, mythic running
+            // through purple and gold, legendary purple->gold, and exotic falling
+            // through to rare's red because it had no branch at all.
             const badgeGradient = ctx.createLinearGradient(badgeX - 7, badgeY, badgeX + 7, badgeY + 14);
             if (isInsane) {
-                badgeGradient.addColorStop(0, COLORS.insane);
-                badgeGradient.addColorStop(0.5, '#FFF5B0');
-                badgeGradient.addColorStop(1, COLORS.insane);
+                badgeGradient.addColorStop(0, COLORS.insaneHolo[0]);
+                badgeGradient.addColorStop(0.5, COLORS.insaneHolo[1]);
+                badgeGradient.addColorStop(1, COLORS.insaneHolo[2]);
             } else if (isMythic) {
-                badgeGradient.addColorStop(0, COLORS.aqua);
-                badgeGradient.addColorStop(0.5, COLORS.purple);
-                badgeGradient.addColorStop(1, COLORS.gold);
+                badgeGradient.addColorStop(0, COLORS.mythicCycle[0]);
+                badgeGradient.addColorStop(0.5, COLORS.mythicCycle[1]);
+                badgeGradient.addColorStop(1, COLORS.mythicCycle[2]);
             } else if (isLegendary) {
+                badgeGradient.addColorStop(0, COLORS.insane);
+                badgeGradient.addColorStop(1, COLORS.insane);
+            } else if (isExotic) {
                 badgeGradient.addColorStop(0, COLORS.purple);
-                badgeGradient.addColorStop(1, COLORS.gold);
+                badgeGradient.addColorStop(1, COLORS.red);
             } else {
                 badgeGradient.addColorStop(0, COLORS.red);
                 badgeGradient.addColorStop(1, COLORS.red);
@@ -411,12 +433,18 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Badge icon (simplified)
-        ctx.fillStyle = isInsane && isCollected ? '#1a1a1a' : isCollected ? '#fff' : COLORS.textMuted;
+        // Badge icon (simplified). Canvas cannot draw the Lucide glyphs the DOM
+        // uses, so these are the nearest unicode stand-ins — exotic gets a gem
+        // rather than falling through to rare's diamond, which is what the old
+        // chain did the moment the tier existed.
+        //
+        // Foreground comes from the shared ladder — see getRarityOnColor. White on
+        // mythic's #55FFFF is 1.2:1.
+        ctx.fillStyle = isCollected ? getRarityOnColor(item.type) : COLORS.textMuted;
         ctx.font = 'bold 8px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : '◆';
+        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : isExotic ? '❖' : '◆';
         ctx.fillText(iconChar, badgeX, badgeY + BADGE_SIZE/2);
     }
 
@@ -436,7 +464,8 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
         ctx.fillStyle = rarityColor;
         ctx.fill();
 
-        ctx.fillStyle = isInsane ? '#1a1a1a' : '#fff';
+        // The count sits on rarityColor, so it takes the same on-fill foreground.
+        ctx.fillStyle = getRarityOnColor(item.type);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(countText, badgeX + badgeWidth/2, badgeY + COUNT_BADGE_HEIGHT/2);

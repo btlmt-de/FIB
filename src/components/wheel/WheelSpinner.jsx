@@ -10,13 +10,14 @@ import { CanvasBonusStrip } from './canvas/CanvasBonusStrip.jsx';
 import {
     API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
     ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
-    TEAM_MEMBERS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
+    TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
 import { COLORS } from './config/constants';
 import {
-    formatChance, getMinecraftHeadUrl,
-    isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem
+    formatChance, getMinecraftHeadUrl, getItemRarity,
+    isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem
 } from '../../utils/helpers.js';
+import { RARITY, getRarityInk, getRarityOnColor } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
@@ -96,6 +97,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
     // Track if current spin is using KOTW lucky (set at spin start, cleared at idle)
     const [currentSpinIsKotwLucky, setCurrentSpinIsKotwLucky] = useState(false);
+
+    // The winning item's tier colour, as text.
+    //
+    // This was an eight-times-repeated inline ternary chain
+    // (`isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? ...`), one
+    // per style property on the result screen. Every copy had to be edited in
+    // lockstep, and when the ladder was rebuilt they were missed, leaving
+    // legendary rendering in purple — exotic's colour — on the one screen a
+    // player actually reads after a spin. It is derived once now.
+    const resultInk = result ? getRarityInk(getItemRarity(result)) : COLORS.gold;
 
     // Track if the CURRENT spin animation is a recursion lucky spin
     // This prevents visual effects from changing mid-animation when spinsRemaining updates
@@ -187,7 +198,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
         // Not awaited, and deliberately not cancelled on unmount — an in-flight
         // sweep that outlives the component is just cache the next mount inherits.
-        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...TEAM_MEMBERS]);
+        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...EXOTIC_ITEMS, ...TEAM_MEMBERS]);
 
         return () => {
             isMounted = false;
@@ -303,6 +314,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         const shuffledInsane = shuffleArray([...INSANE_ITEMS]);
         const shuffledMythic = shuffleArray([...MYTHIC_ITEMS]);
         const shuffledRare = shuffleArray([...RARE_MEMBERS]);
+        const shuffledExotic = shuffleArray([...EXOTIC_ITEMS]);
         const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
         // Use indices to iterate through shuffled arrays (guarantees distribution)
@@ -310,6 +322,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         let insaneIndex = 0;
         let mythicIndex = 0;
         let rareIndex = 0;
+        let exoticIndex = 0;
         let legendaryIndex = 0;
 
         for (let i = 0; i < length; i++) {
@@ -335,8 +348,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     const rare = shuffledRare[rareIndex % shuffledRare.length];
                     rareIndex++;
                     newItem = { ...rare, isRare: true, texture: `rare_${rare.username}` };
+                } else if (roll < 0.043 && shuffledExotic.length > 0) {
+                    // 1% chance for exotic. These bands are decoration only — they
+                    // decide what flashes past during the spin, not what is won,
+                    // which the server already decided. Exotic takes its 1% out of
+                    // the band that used to be legendary's rather than lengthening
+                    // the run of specials, so the strip's overall density of
+                    // non-common tiles is unchanged.
+                    // Exotic items carry their own whole texture, unlike the member
+                    // tiers whose texture is built from a username.
+                    const exotic = shuffledExotic[exoticIndex % shuffledExotic.length];
+                    exoticIndex++;
+                    newItem = { ...exotic, isExotic: true };
                 } else if (roll < 0.053 && shuffledLegendary.length > 0) {
-                    // 2% chance for legendary
+                    // 1% chance for legendary
                     const member = shuffledLegendary[legendaryIndex % shuffledLegendary.length];
                     legendaryIndex++;
                     newItem = {
@@ -1156,138 +1181,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // totalItemCount includes both regular items and dynamic items (team members, special items)
     const totalItemCount = allItems.length + (dynamicItems?.length || 0);
 
-    // Render item box with proper styling matching old_wheel.jsx
-    const renderItemBox = (item, idx, isWinning, size = 52, disableAnimation = false) => {
-        if (!item) return null;
-        const isInsane = isInsaneItem(item);
-        const isSpecial = isSpecialItem(item);
-        const isMythic = isMythicItem(item);
-        const isRare = isRareItem(item);
-        const isEvent = isEventItem(item);
-        const isRecursion = isRecursionItem(item);
-
-        // Enable glow animations for special items even during spinning (looks better)
-        // disableAnimation only affects regular items for performance
-        const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent || isRecursion;
-        const shouldAnimate = isSpecialType || (!disableAnimation && (isWinning || state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult'));
-
-        // During recursion spin, ALL items get a green aura while spinning
-        // Use the ref to check if THIS spin is a recursion spin (not the live state)
-        const isSpinning = state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning';
-        const spinIsRecursion = currentSpinIsRecursionRef.current;
-        // Disable rarity aura on mobile during spinning for better performance
-        const showRarityAura = !isMobile && isSpinning && (isSpecialType || spinIsRecursion);
-
-        // Get rarity-specific aura animation
-        const getRarityAura = () => {
-            if (spinIsRecursion && !isSpecialType) return 'rarityAuraGreen 1s ease-in-out infinite';
-            if (isInsane) return 'rarityAuraInsane 0.8s ease-in-out infinite';
-            if (isMythic) return 'rarityAuraAqua 1s ease-in-out infinite';
-            if (isSpecial) return 'rarityAuraPurple 1.2s ease-in-out infinite';
-            if (isRare) return 'rarityAuraRed 1.2s ease-in-out infinite';
-            if (isEvent) return 'rarityAuraGold 1s ease-in-out infinite';
-            if (isRecursion) return 'rarityAuraGreen 0.8s ease-in-out infinite';
-            return 'none';
-        };
-
-        return (
-            <div style={{
-                position: 'relative',
-            }}>
-                {/* Rarity aura glow behind item during spin */}
-                {showRarityAura && (
-                    <div style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        left: '-4px',
-                        right: '-4px',
-                        bottom: '-4px',
-                        borderRadius: '10px',
-                        animation: getRarityAura(),
-                        pointerEvents: 'none',
-                        zIndex: 0,
-                    }} />
-                )}
-                <div style={{
-                    position: 'relative',
-                    zIndex: 1,
-                    width: `${size}px`, height: `${size}px`,
-                    background: isRecursion
-                        ? `linear-gradient(135deg, ${COLORS.recursion}55, ${COLORS.recursionDark}55, ${COLORS.recursion}55)`
-                        : isEvent
-                            ? `linear-gradient(135deg, ${COLORS.red}33, ${COLORS.orange}33, ${COLORS.gold}33, ${COLORS.green}33, ${COLORS.aqua}33, ${COLORS.purple}33)`
-                            : isInsane
-                                ? `linear-gradient(135deg, ${COLORS.insane}55, #FFF5B0 44, ${COLORS.insane}55)`
-                                : isMythic
-                                    ? `linear-gradient(135deg, ${COLORS.aqua}44, ${COLORS.purple}44, ${COLORS.gold}44)`
-                                    : isSpecial
-                                        ? `linear-gradient(135deg, ${COLORS.purple}44, ${COLORS.gold}44)`
-                                        : isRare
-                                            ? `linear-gradient(135deg, ${COLORS.red}44, ${COLORS.orange}44)`
-                                            : (isSpinning && spinIsRecursion)
-                                                ? `${COLORS.recursionDark}`
-                                                : COLORS.bgLight,
-                    borderRadius: '6px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `2px solid ${
-                        isRecursion ? COLORS.recursion
-                            : isEvent ? COLORS.gold
-                                : isWinning ? (state === 'luckyResult' || state === 'tripleLuckyResult' ? COLORS.green : COLORS.gold)
-                                    : isInsane ? COLORS.insane
-                                        : isMythic ? COLORS.aqua
-                                            : isSpecial ? COLORS.purple
-                                                : isRare ? COLORS.red
-                                                    : (isSpinning && spinIsRecursion) ? `${COLORS.recursion}44`
-                                                        : COLORS.border
-                    }`,
-                    // Simplify box shadows on mobile during spinning for better performance
-                    boxShadow: (isMobile && isSpinning && !isWinning) ? 'none' : (shouldAnimate ? (
-                        isRecursion
-                            ? `0 0 20px ${COLORS.recursion}cc, 0 0 40px ${COLORS.recursion}66, 0 0 60px ${COLORS.recursionDark}44`
-                            : isEvent
-                                ? `0 0 15px ${COLORS.gold}88, 0 0 30px ${COLORS.purple}44`
-                                : isInsane
-                                    ? `0 0 25px ${COLORS.insane}cc, 0 0 50px ${COLORS.insane}66, 0 0 75px #FFF5B044`
-                                    : isMythic
-                                        ? `0 0 20px ${COLORS.aqua}aa, 0 0 40px ${COLORS.purple}44`
-                                        : isSpecial
-                                            ? `0 0 15px ${COLORS.purple}88, 0 0 30px ${COLORS.purple}44`
-                                            : isRare
-                                                ? `0 0 12px ${COLORS.red}88, 0 0 24px ${COLORS.red}44`
-                                                : isWinning
-                                                    ? (state === 'luckyResult' || state === 'tripleLuckyResult'
-                                                        ? `0 0 20px ${COLORS.green}66`
-                                                        : `0 0 20px ${COLORS.gold}66`)
-                                                    : 'none'
-                    ) : 'none'),
-                    // Disable glow animations on mobile during spinning for performance
-                    animation: (isMobile && isSpinning) ? 'none' : (shouldAnimate ? (
-                        isRecursion ? 'recursionGlow 0.5s ease-in-out infinite'
-                            : isEvent ? 'eventGlow 1.5s ease-in-out infinite'
-                                : isInsane ? 'insaneGlow 0.8s ease-in-out infinite'
-                                    : isMythic ? 'mythicGlow 1s ease-in-out infinite'
-                                        : isSpecial ? 'specialGlow 1.5s ease-in-out infinite'
-                                            : isRare ? 'rareGlow 1.5s ease-in-out infinite'
-                                                : 'none'
-                    ) : 'none')
-                }}>
-                    <img
-                        src={getItemImageUrl(item)}
-                        alt={item.name}
-                        loading="lazy"
-                        style={{
-                            width: isEvent ? `${size * 1.1}px` : isRecursion ? `${size * 0.9}px` : `${size * 0.77}px`,
-                            height: isEvent ? `${size * 1.1}px` : isRecursion ? `${size * 0.9}px` : `${size * 0.77}px`,
-                            imageRendering: (isInsane || isSpecial || isRare || item.username || isEvent || isRecursion) ? 'auto' : 'pixelated',
-                            borderRadius: (isInsane || isSpecial || isRare || item.username) ? '4px' : '0',
-                            filter: isRecursion ? `drop-shadow(0 0 10px ${COLORS.recursion})` : 'none',
-                        }}
-                        onError={(e) => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                    />
-                </div>
-            </div>
-        );
-    };
 
     // Compute recursion effects flag - must be before any early returns
     // Use ref during spinning/result to persist styling even after spin count decreases
@@ -2041,11 +1934,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         : resultWasKotwLuckySpin
                                             ? `linear-gradient(135deg, ${KOTW_CRIMSON}0a 0%, transparent 30%, ${KOTW_GOLD}08 50%, transparent 70%, ${KOTW_CRIMSON}06 100%)`
                                             : isInsaneItem(result)
-                                                ? `linear-gradient(135deg, ${COLORS.insane}0a 0%, transparent 30%, #FFF5B008 50%, transparent 70%, ${COLORS.insane}06 100%)`
+                                                ? `linear-gradient(135deg, ${COLORS.insaneHolo[0]}0a 0%, transparent 30%, ${COLORS.insaneHolo[1]}08 50%, transparent 70%, ${COLORS.insaneHolo[2]}06 100%)`
                                                 : isMythicItem(result)
-                                                    ? `linear-gradient(135deg, ${COLORS.aqua}08 0%, transparent 40%, ${COLORS.purple}06 60%, transparent 100%)`
+                                                    ? `linear-gradient(135deg, ${COLORS.mythicCycle[0]}08 0%, transparent 40%, ${COLORS.mythicCycle[1]}06 60%, transparent 100%)`
                                                     : isSpecialItem(result)
-                                                        ? `linear-gradient(135deg, ${COLORS.purple}08 0%, transparent 50%, ${COLORS.gold}05 100%)`
+                                                        ? `linear-gradient(135deg, ${COLORS.insane}08 0%, transparent 50%, ${COLORS.insane}05 100%)`
+                                                        : isExoticItem(result)
+                                                            ? `linear-gradient(135deg, ${COLORS.purple}08 0%, transparent 50%, ${COLORS.red}05 100%)`
                                                         : isRareItem(result)
                                                             ? `linear-gradient(135deg, ${COLORS.red}08 0%, transparent 50%, ${COLORS.orange}05 100%)`
                                                             : `linear-gradient(135deg, ${COLORS.gold}05 0%, transparent 50%, ${COLORS.gold}03 100%)`,
@@ -2170,10 +2065,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             background: resultWasRecursionSpin
                                                 ? COLORS.recursion
                                                 : isInsaneItem(result)
-                                                    ? (i % 4 === 0 ? COLORS.insane : i % 4 === 1 ? '#FFF5B0' : i % 4 === 2 ? '#FFEC8B' : '#FFE135')
+                                                    // Particles cycle the slick's own stops plus platinum.
+                                                    ? (i % 4 === 3 ? COLORS.insaneFlat : COLORS.insaneHolo[i % 3])
                                                     : isMythicItem(result)
-                                                        ? (i % 3 === 0 ? COLORS.aqua : i % 3 === 1 ? COLORS.purple : COLORS.gold)
-                                                        : isSpecialItem(result) ? (i % 2 === 0 ? COLORS.purple : COLORS.gold)
+                                                        ? COLORS.mythicCycle[i % 3]
+                                                        : isSpecialItem(result) ? COLORS.insane
+                                                            : isExoticItem(result) ? (i % 2 === 0 ? COLORS.purple : COLORS.red)
                                                             : isRareItem(result) ? (i % 2 === 0 ? COLORS.red : COLORS.orange)
                                                                 : COLORS.gold,
                                             borderRadius: '50%',
@@ -2183,13 +2080,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             '--drift-x': `${driftX}px`,
                                             '--drift-x2': `${driftX2}px`,
                                             animation: `floatParticleDrift ${isInsaneItem(result) ? '1.8s' : isMythicItem(result) ? '2.2s' : '2.8s'} ease-out ${i * 0.12}s infinite`,
-                                            boxShadow: `0 0 ${size}px ${
-                                                isInsaneItem(result) ? COLORS.insane
-                                                    : isMythicItem(result) ? COLORS.aqua
-                                                        : isSpecialItem(result) ? COLORS.purple
-                                                            : isRareItem(result) ? COLORS.red
-                                                                : COLORS.gold
-                                            }`,
+                                            boxShadow: `0 0 ${size}px ${resultInk}`,
                                             zIndex: 1,
                                         }} />
                                     );
@@ -2217,33 +2108,48 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 }}>
                         <span style={{ animation: 'textFadeUp 0.4s ease-out 0.1s both' }}>
                             {isInsaneItem(result) ? (
-                                <span style={{
-                                    backgroundImage: `linear-gradient(135deg, ${COLORS.insane}, #FFF5B0, ${COLORS.insane})`,
-                                    backgroundSize: '200% 200%',
-                                    color: '#1a1a1a', fontSize: '10px', fontWeight: '800', padding: '5px 14px',
-                                    borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both, mythicBadge 1.5s ease-in-out 0.5s infinite',
+                                // The slick, via the shared class — was a gold/cream
+                                // gradient, which now belongs to legendary. Dark ink
+                                // on it, since the ramp is light at every stop.
+                                // No inline `animation` on purpose: it would beat the
+                                // class's drift on specificity, and the reduced-motion
+                                // rule that cancels the drift only reaches the class.
+                                // The parent span already runs the fade-in.
+                                <span className="fib-holo" style={{
+                                    color: getRarityOnColor('insane'), fontSize: '10px', fontWeight: '800', padding: '5px 14px',
+                                    borderRadius: '4px',
                                     textShadow: '0 0 10px rgba(255,255,255,0.5)',
-                                    boxShadow: `0 0 20px ${COLORS.insane}88`,
+                                    boxShadow: `0 0 20px ${COLORS.insaneHolo[0]}88`,
                                     display: 'inline-flex', alignItems: 'center', gap: '6px'
                                 }}><Crown size={12} /> INSANE <Crown size={12} /></span>
                             ) : isMythicItem(result) ? (
                                 <span style={{
-                                    backgroundImage: `linear-gradient(135deg, ${COLORS.aqua}, ${COLORS.purple}, ${COLORS.gold})`,
+                                    backgroundImage: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}, ${COLORS.mythicCycle[1]}, ${COLORS.mythicCycle[2]})`,
                                     backgroundSize: '200% 200%',
-                                    color: '#fff', fontSize: '9px', fontWeight: '700', padding: '4px 12px',
+                                    // Dark ink: mythic's ramp is aqua/azure/teal now, all light.
+                                    // White here was 1.2:1 on the aqua stop.
+                                    color: getRarityOnColor('mythic'), fontSize: '9px', fontWeight: '700', padding: '4px 12px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both, mythicBadge 2s ease-in-out 0.5s infinite',
                                     textShadow: '0 0 10px rgba(0,0,0,0.5)'
                                 }}>MYTHIC</span>
                             ) : isSpecialItem(result) ? (
                                 <span style={{
-                                    backgroundImage: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.gold})`,
-                                    color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
+                                    // Flat gold, dark ink. The old purple->gold blend
+                                    // was half exotic's colour and half legendary's.
+                                    background: COLORS.insane,
+                                    color: getRarityOnColor('legendary'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
                                 }}>LEGENDARY</span>
+                            ) : isExoticItem(result) ? (
+                                <span style={{
+                                    backgroundImage: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.red})`,
+                                    color: getRarityOnColor('exotic'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
+                                    borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
+                                }}>EXOTIC</span>
                             ) : isRareItem(result) ? (
                                 <span style={{
                                     backgroundImage: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                                    color: '#fff', fontSize: '9px', fontWeight: '700', padding: '3px 10px',
+                                    color: getRarityOnColor('rare'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
                                     borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
                                 }}>RARE</span>
                             ) : isNewItem ? (
@@ -2288,9 +2194,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         maxWidth: isMobile ? '100%' : 'auto',
                                     }}>
                             <span style={{
-                                color: isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold,
+                                color: resultInk,
                                 fontSize: isMobile ? '18px' : '24px', fontWeight: '600',
-                                textShadow: `0 0 20px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : isRareItem(result) ? COLORS.red : COLORS.gold}44`,
+                                textShadow: `0 0 20px ${resultInk}44`,
                                 animation: 'textFadeUp 0.4s ease-out 0.3s both',
                                 wordBreak: 'break-word',
                             }}>
@@ -2300,15 +2206,15 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         {(isInsaneItem(result) || isMythicItem(result) || isSpecialItem(result) || isRareItem(result)) && result.chance ? (
                                             <span style={{
                                                 fontSize: isMobile ? '12px' : '14px',
-                                                color: isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red,
+                                                color: resultInk,
                                                 fontWeight: '700',
-                                                background: `${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}25`,
+                                                background: `${resultInk}25`,
                                                 padding: isMobile ? '3px 8px' : '4px 12px',
                                                 borderRadius: '6px',
                                                 marginTop: isMobile ? '4px' : '6px',
-                                                textShadow: `0 0 10px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}88`,
-                                                boxShadow: `0 0 15px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}33, inset 0 0 10px ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}15`,
-                                                border: `1px solid ${isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? COLORS.aqua : isSpecialItem(result) ? COLORS.purple : COLORS.red}44`,
+                                                textShadow: `0 0 10px ${resultInk}88`,
+                                                boxShadow: `0 0 15px ${resultInk}33, inset 0 0 10px ${resultInk}15`,
+                                                border: `1px solid ${resultInk}44`,
                                                 animation: 'textFadeUp 0.4s ease-out 0.45s both',
                                             }}>
                                     {(resultWasRecursionSpin || resultWasKotwLuckySpin) && result.equalChance
@@ -3104,13 +3010,16 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     zIndex: 1,
                                 }}>
                                     {(() => {
+                                        // Only these two survive as predicates: the badge pulses
+                                        // for insane and mythic specifically. Everything else
+                                        // this block needs comes from luckyTier.
                                         const isMythic = isMythicItem(luckyResult);
-                                        const isSpecial = isSpecialItem(luckyResult);
-                                        const isRare = isRareItem(luckyResult);
                                         const isInsane = isInsaneItem(luckyResult);
-                                        const itemColor = isInsane ? COLORS.insane : isMythic ? COLORS.aqua : isSpecial ? COLORS.purple : isRare ? COLORS.red : COLORS.green;
-                                        const rarityLabel = isInsane ? 'INSANE' : isMythic ? 'MYTHIC' : isSpecial ? 'LEGENDARY' : isRare ? 'RARE' : null;
-                                        const isHighRarity = isInsane || isMythic || isSpecial || isRare;
+                                        const luckyTier = getItemRarity(luckyResult);
+                                        const itemColor = luckyTier === 'common' ? COLORS.green : getRarityInk(luckyTier);
+                                        const rarityLabel = luckyTier === 'common' || luckyTier === 'event'
+                                            ? null
+                                            : RARITY[luckyTier].label.toUpperCase();
 
                                         return (
                                             <div style={{
@@ -3134,7 +3043,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                         left: '50%',
                                                         transform: 'translateX(-50%)',
                                                         backgroundImage: `linear-gradient(135deg, ${itemColor}, ${itemColor}cc)`,
-                                                        color: itemColor === COLORS.insane ? '#1a1a1a' : '#fff',
+                                                        // Was `itemColor === COLORS.insane`, which only ever
+                                                        // caught legendary (whose fill IS COLORS.insane) and
+                                                        // left white text on mythic's aqua and insane's own
+                                                        // platinum.
+                                                        color: getRarityOnColor(luckyTier),
                                                         fontSize: '10px',
                                                         fontWeight: '800',
                                                         padding: '4px 14px',
@@ -3574,15 +3487,15 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             if (!item) return null;
                                             const isMythic = isMythicItem(item);
                                             const isSpecial = isSpecialItem(item);
+                                            const isExotic = isExoticItem(item);
                                             const isRare = isRareItem(item);
                                             const isInsane = isInsaneItem(item);
-                                            const itemColor = isInsane ? COLORS.insane
-                                                : isMythic ? COLORS.aqua
-                                                    : isSpecial ? COLORS.purple
-                                                        : isRare ? COLORS.red
-                                                            : isTripleLucky ? COLORS.green : COLORS.gold;
-                                            const isHighRarity = isInsane || isMythic || isSpecial || isRare;
-                                            const rarityLabel = isInsane ? 'INSANE' : isMythic ? 'MYTHIC' : isSpecial ? 'LEGENDARY' : isRare ? 'RARE' : null;
+                                            const tier = getItemRarity(item);
+                                            const itemColor = tier === 'common'
+                                                ? (isTripleLucky ? COLORS.green : COLORS.gold)
+                                                : getRarityInk(tier);
+                                            const isHighRarity = isInsane || isMythic || isSpecial || isExotic || isRare;
+                                            const rarityLabel = isHighRarity ? RARITY[tier].label.toUpperCase() : null;
                                             const showChance = !isTripleLucky && isHighRarity;
                                             return (
                                                 <div key={originalIdx} style={{

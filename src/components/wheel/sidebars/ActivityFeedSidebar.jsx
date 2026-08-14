@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { COLORS } from '../config/constants';
 import { Activity, Sparkles, Crown, Radio } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl, parseActivityDate } from '../../../utils/helpers.js';
-import { getRarityIcon, getRarityColor } from '../../../utils/rarityHelpers.jsx';
+import { RARITY, RARITY_KEYS, getRarityIcon, getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 
 // Format exact timestamp for Mythic & Insane tab
@@ -299,7 +299,7 @@ export function ActivityFeedSidebar() {
                             border: activeTab === 'special' ? `1px solid ${COLORS.aqua}50` : `1px solid ${COLORS.border}`,
                             borderRadius: '8px',
                             background: activeTab === 'special'
-                                ? `linear-gradient(135deg, ${COLORS.aqua}15, ${COLORS.purple}10)`
+                                ? `linear-gradient(135deg, ${COLORS.mythicCycle[0]}15, ${COLORS.mythicCycle[1]}10)`
                                 : 'transparent',
                             color: activeTab === 'special' ? COLORS.aqua : COLORS.textMuted,
                             fontSize: '12px',
@@ -372,14 +372,17 @@ export function ActivityFeedSidebar() {
                                     padding: isInsane ? '12px' : isMythic ? '11px' : '10px',
                                     marginBottom: '6px',
                                     borderRadius: '10px',
+                                    // Insane carries all three slick hues even at
+                                    // 7% alpha, so the row is identifiable as the
+                                    // top tier without reading the badge.
                                     background: isInsane
-                                        ? `linear-gradient(135deg, ${COLORS.insane}12, ${COLORS.insane}06)`
+                                        ? `linear-gradient(135deg, ${COLORS.insaneHolo[0]}12, ${COLORS.insaneHolo[1]}0A, ${COLORS.insaneHolo[2]}12)`
                                         : isMythic
-                                            ? `linear-gradient(135deg, ${COLORS.aqua}10, ${COLORS.purple}06)`
+                                            ? `linear-gradient(135deg, ${COLORS.mythicCycle[0]}10, ${COLORS.mythicCycle[1]}06)`
                                             : `linear-gradient(135deg, ${rarityColor}08, ${rarityColor}04)`,
                                     border: `1px solid ${rarityColor}${isInsane ? '35' : isMythic ? '30' : '25'}`,
                                     boxShadow: isInsane
-                                        ? `0 4px 20px ${COLORS.insane}15, inset 0 1px 0 ${COLORS.insane}15`
+                                        ? `0 4px 20px ${COLORS.insaneHolo[0]}18, inset 0 1px 0 ${COLORS.insaneFlat}20`
                                         : isMythic
                                             ? `0 4px 16px ${COLORS.aqua}10, inset 0 1px 0 ${COLORS.aqua}10`
                                             : `inset 0 1px 0 ${rarityColor}08`,
@@ -390,17 +393,18 @@ export function ActivityFeedSidebar() {
                                     transition: 'all 0.2s ease',
                                 }}
                             >
-                                {/* Shimmer effect for insane */}
+                                {/* The oil-slick drifting across an insane row.
+                                    This was a static overlay with `animation:
+                                    'none'` hardcoded — a shimmer that had never
+                                    shimmered. It takes the shared .fib-holo class
+                                    now, which also gets it the reduced-motion path
+                                    for free: the gradient stays, the drift stops. */}
                                 {isInsane && (
-                                    <div style={{
+                                    <div className="fib-holo" style={{
                                         position: 'absolute',
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        backgroundImage: `linear-gradient(90deg, transparent 0%, ${rarityColor}10 50%, transparent 100%)`,
-                                        backgroundSize: '200% 100%',
-                                        animation: 'none',
+                                        inset: 0,
+                                        opacity: 0.14,
+                                        mixBlendMode: 'screen',
                                         pointerEvents: 'none'
                                     }} />
                                 )}
@@ -576,30 +580,25 @@ export function ActivityFeedSidebar() {
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                gap: '12px',
+                flexWrap: 'wrap',
+                rowGap: '6px',
+                columnGap: '12px',
                 fontSize: '10px',
                 color: COLORS.textMuted,
                 background: `linear-gradient(180deg, transparent 0%, ${COLORS.bgLighter}30 100%)`,
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('insane', 11)}
-                    <span style={{ color: COLORS.insane }}>Insane</span>
-                </div>
-                <div style={{ width: '1px', height: '12px', background: COLORS.border }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('mythic', 11)}
-                    <span style={{ color: COLORS.aqua }}>Mythic</span>
-                </div>
-                <div style={{ width: '1px', height: '12px', background: COLORS.border }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('legendary', 11)}
-                    <span style={{ color: COLORS.purple }}>Legendary</span>
-                </div>
-                <div style={{ width: '1px', height: '12px', background: COLORS.border }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {getRarityIcon('rare', 11)}
-                    <span style={{ color: COLORS.red }}>Rare</span>
-                </div>
+                {/* Legend, derived from the shared ladder. This was four hardcoded
+                    blocks with their colours written out beside the labels, which
+                    is how the feed and its own legend could disagree. Five tiers no
+                    longer fit one line in a 300px rail, so it wraps and the
+                    dividers are dropped — a wrapped row with dangling separators
+                    reads worse than spacing alone. */}
+                {RARITY_KEYS.filter(key => key !== 'common' && key !== 'event').map(key => (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {getRarityIcon(key, 11)}
+                        <span style={{ color: getRarityInk(key) }}>{RARITY[key].label}</span>
+                    </div>
+                ))}
             </div>
 
             {/* Bottom corner accents */}

@@ -2,7 +2,8 @@
 // Client-side utility functions
 // ============================================
 
-import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
+import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, EXOTIC_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
+import { getRarityColor } from './rarityHelpers.jsx';
 
 // Format chance as a readable percentage (strips trailing zeros)
 export function formatChance(chance) {
@@ -114,8 +115,16 @@ export function isValidId(id) {
 // Item Type Detection Functions
 // ============================================
 
-// Insane color constant - bright gold, distinct from all other rarities
-export const INSANE_COLOR = '#FFD700';
+// Insane color constant.
+//
+// This was "bright gold, distinct from all other rarities" and is neither any
+// more: #FFD700 now belongs to LEGENDARY, and insane has no flat colour at all —
+// it renders as the iridescent slick (see .fib-holo in index.css). What remains
+// here is the platinum fallback for the handful of places that can only take one
+// hex. Prefer getRarityColor('insane') / getRarityStops('insane') from
+// utils/rarityHelpers.jsx; this export is kept only so existing importers do not
+// silently pick up legendary's gold.
+export const INSANE_COLOR = '#F2ECFF';
 
 export function isInsaneItem(item) {
     return item?.isInsane || item?.type === 'insane' || item?.texture?.startsWith('insane_');
@@ -123,6 +132,13 @@ export function isInsaneItem(item) {
 
 export function isSpecialItem(item) {
     return item?.isSpecial || item?.type === 'legendary' || item?.texture?.startsWith('special_');
+}
+
+// Exotic sits between legendary and rare. Note the prefix is `exotic_`, matching
+// the tier name — `special_` means legendary here for historical reasons and that
+// mismatch is not worth repeating.
+export function isExoticItem(item) {
+    return item?.isExotic || item?.type === 'exotic' || item?.texture?.startsWith('exotic_');
 }
 
 export function isRareItem(item) {
@@ -153,6 +169,24 @@ export function getItemImageUrl(item) {
     const texture = item.texture || item.item_texture;
     const type = item.type || item.item_type || item.item_rarity;
     const username = item.username || (texture?.includes('_') ? texture.split('_').slice(1).join('_') : null);
+
+    // Exotic items are the plugin's custom items, drawn from the vendored pack
+    // textures in public/fib-custom. Checked before everything else because their
+    // textures are whole names rather than `<tier>_<username>`, and the username
+    // split above would otherwise hand "wheel_of_fortune" to the player-head
+    // branch further down and render a Minecraft head for a nether star.
+    if (type === 'exotic' || texture?.startsWith('exotic_')) {
+        if (item.imageUrl) return item.imageUrl;
+        // The API's own spelling. A spin result arrives camelCased because spin.js
+        // maps it, but a row straight off /api/items keeps the column name
+        // `image_url` — and the backend is the authoritative roster, so an exotic
+        // item it knows about and EXOTIC_ITEMS does not would have fallen all the
+        // way through to the barrier despite carrying a perfectly good URL.
+        if (item.image_url) return item.image_url;
+        const exotic = EXOTIC_ITEMS?.find(e => e.texture === texture);
+        if (exotic?.imageUrl) return exotic.imageUrl;
+        return `${IMAGE_BASE_URL}/barrier.png`;
+    }
 
     // Insane items have custom image URLs
     if (type === 'insane' || texture?.startsWith('insane_')) {
@@ -249,13 +283,33 @@ export function getItemImageUrl(item) {
     return `${IMAGE_BASE_URL}/barrier.png`;
 }
 
-// Get color for item based on rarity
+/**
+ * The rarity key for an item, resolved from the predicates above.
+ *
+ * Order matters and is rarest-first: an item can satisfy more than one predicate
+ * (a legendary team member also carries `type` on some payloads), and the first
+ * match wins so a pull is never demoted. `recursion` is not a rarity tier — it is
+ * a lucky-spin mode — so it is not returned here; ask isRecursionItem directly.
+ *
+ * @param {object} item
+ * @returns {string} a key of RARITY in utils/rarityHelpers.jsx
+ */
+export function getItemRarity(item) {
+    if (isInsaneItem(item)) return 'insane';
+    if (isMythicItem(item)) return 'mythic';
+    if (isSpecialItem(item)) return 'legendary';
+    if (isExoticItem(item)) return 'exotic';
+    if (isRareItem(item)) return 'rare';
+    if (isEventItem(item)) return 'event';
+    return 'common';
+}
+
+// Get color for item based on rarity.
+//
+// This used to carry its own copy of the rarity→colour table. It now delegates,
+// so the ladder is defined once. Recursion keeps its special case because it is
+// a spin mode rather than a tier and has no entry in RARITY.
 export function getItemColor(item) {
-    if (isInsaneItem(item)) return INSANE_COLOR;
-    if (isMythicItem(item)) return COLORS.aqua;
-    if (isSpecialItem(item)) return COLORS.purple;
-    if (isRareItem(item)) return COLORS.red;
     if (isRecursionItem(item)) return COLORS.recursion;
-    if (isEventItem(item)) return COLORS.gold;
-    return COLORS.gold;
+    return getRarityColor(getItemRarity(item));
 }

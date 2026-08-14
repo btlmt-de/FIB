@@ -16,6 +16,24 @@ import { UserProfile } from './features/UserProfile.jsx';
 import { LiveActivityToast } from './sidebars/LiveActivityToast.jsx';
 import { PixiMythicCelebration as MythicCelebration } from './effects/PixiMythicCelebration.jsx';
 import { RecursionOverlay } from './effects/RecursionOverlay.jsx';
+
+/**
+ * Which `stats` counter a spin result increments, by tier.
+ *
+ * The optimistic local update only has to agree with what /api/collection sends
+ * back on the next refetch — these are the camelCase names that endpoint uses.
+ * `event` is counted as a trigger rather than a collected item, because an event
+ * result opens the bonus wheel instead of going into the collection. Commons are
+ * absent on purpose: they advance totalSpins and nothing else.
+ */
+const COUNTER_FOR_TIER = {
+    insane: 'insaneCount',
+    mythic: 'mythicCount',
+    legendary: 'legendaryCount',
+    exotic: 'exoticCount',
+    rare: 'rareCount',
+    event: 'eventTriggers',
+};
 import GoldRushBanner from './effects/GoldRushBanner.jsx';
 import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
 import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
@@ -324,7 +342,7 @@ function WheelOfFortunePage({ onBack }) {
     const [collection, setCollection] = useState({});
     const [collectionDetails, setCollectionDetails] = useState({});
     const [history, setHistory] = useState([]);
-    const [stats, setStats] = useState({ totalSpins: 0, mythicCount: 0, legendaryCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 });
+    const [stats, setStats] = useState({ totalSpins: 0, insaneCount: 0, mythicCount: 0, legendaryCount: 0, exoticCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 });
     const [kotwLuckySpins, setKotwLuckySpins] = useState(0); // KOTW winner lucky spins
     const kotwLuckySpinsRef = useRef(0); // Ref for immediate access (bypasses React batching)
     const [loading, setLoading] = useState(true);
@@ -459,8 +477,10 @@ function WheelOfFortunePage({ onBack }) {
             setCollectionDetails(data.collectionDetails || {});
             setStats({
                 totalSpins: data.totalSpins || 0,
+                insaneCount: data.insaneCount || 0,
                 mythicCount: data.mythicCount || 0,
                 legendaryCount: data.legendaryCount || 0,
+                exoticCount: data.exoticCount || 0,
                 rareCount: data.rareCount || 0,
                 eventTriggers: data.eventTriggers || 0,
                 totalDuplicates: data.totalDuplicates || 0
@@ -524,15 +544,16 @@ function WheelOfFortunePage({ onBack }) {
             [result.texture]: (prev[result.texture] || 0) + 1
         }));
 
-        // Update stats
-        if (result.type === 'mythic' || result.type === 'insane') {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, mythicCount: prev.mythicCount + 1 }));
-        } else if (result.type === 'legendary') {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, legendaryCount: prev.legendaryCount + 1 }));
-        } else if (result.type === 'rare') {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, rareCount: prev.rareCount + 1 }));
-        } else if (result.type === 'event') {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, eventTriggers: prev.eventTriggers + 1 }));
+        // Update stats.
+        //
+        // One counter per tier, keyed off the result's own type. This used to fold
+        // insane into mythicCount — so an insane pull optimistically bumped the
+        // mythic figure until the next refetch corrected it — and had no branch at
+        // all for exotic. COUNTER_FOR_TIER maps tier to the field it increments;
+        // anything not in it (common) only advances totalSpins.
+        const counterField = COUNTER_FOR_TIER[result.type];
+        if (counterField) {
+            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, [counterField]: (prev[counterField] || 0) + 1 }));
         } else {
             setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1 }));
         }

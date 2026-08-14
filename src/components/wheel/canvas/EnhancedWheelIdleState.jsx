@@ -1,7 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Info, Zap, Crown, Star, Diamond } from 'lucide-react';
+import { Sparkles, Info, Zap, Crown, Star, Gem, Diamond } from 'lucide-react';
 import { WHEEL_TEXTURE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
+import { RARITY, RARITY_KEYS, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+
+// RarityIndicator takes an icon *component* rather than a rendered element, so it
+// cannot use getRarityIcon. Only the glyph is declared here; label and colour come
+// from the shared ladder.
+const RARITY_ICON = {
+    insane: Crown,
+    mythic: Sparkles,
+    legendary: Star,
+    exotic: Gem,
+    rare: Diamond,
+};
 
 // ============================================
 // ORBITAL RING COMPONENT
@@ -400,10 +412,19 @@ export function EnhancedWheelIdleState({
                         gap: '16px',
                         marginBottom: '12px',
                     }}>
-                        <RarityIndicator color={COLORS.insane} label="Insane" icon={Crown} delay={0} />
-                        <RarityIndicator color={COLORS.aqua} label="Mythic" icon={Sparkles} delay={0.1} />
-                        <RarityIndicator color={COLORS.purple} label="Legendary" icon={Star} delay={0.2} />
-                        <RarityIndicator color={COLORS.red} label="Rare" icon={Diamond} delay={0.3} />
+                        {/* Derived from the shared ladder. Was four hardcoded rows with
+                            legendary on purple — exotic's colour — and no exotic row. */}
+                        {RARITY_KEYS
+                            .filter(key => key !== 'common' && key !== 'event')
+                            .map((key, index) => (
+                                <RarityIndicator
+                                    key={key}
+                                    color={getRarityInk(key)}
+                                    label={RARITY[key].label}
+                                    icon={RARITY_ICON[key]}
+                                    delay={index * 0.1}
+                                />
+                            ))}
                     </div>
                 )}
 

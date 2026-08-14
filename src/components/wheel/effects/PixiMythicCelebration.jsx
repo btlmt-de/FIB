@@ -19,18 +19,20 @@ const CONFETTI_COUNT = 500;
 // Color schemes for each rarity - exact match
 const RARITY_THEMES = {
     insane: {
-        primary: COLORS.insane,
-        secondary: COLORS.gold,
-        accent: '#FFF5B0',
-        confettiColors: [COLORS.insane, COLORS.gold, '#FFF5B0', '#FFE55C', '#FFCC00'],
+        // Kept in step with MythicCelebration's theme — see the note there.
+        primary: COLORS.insaneHolo[0],
+        secondary: COLORS.insaneHolo[1],
+        accent: COLORS.insaneFlat,
+        confettiColors: [...COLORS.insaneHolo.slice(0, 3), COLORS.insaneFlat, '#FFFFFF'],
         icon: Crown,
         label: 'INSANE PULL!'
     },
     mythic: {
-        primary: COLORS.aqua,
-        secondary: '#00DDFF',
-        accent: '#88FFFF',
-        confettiColors: [COLORS.aqua, '#00DDFF', '#88FFFF', '#00BBDD', COLORS.purple],
+        // Kept in step with MythicCelebration's theme — see the note there.
+        primary: COLORS.mythicCycle[0],
+        secondary: COLORS.mythicCycle[1],
+        accent: COLORS.mythicCycle[2],
+        confettiColors: [...COLORS.mythicCycle.slice(0, 3), '#00DDFF', '#88FFFF'],
         icon: Sparkles,
         label: 'MYTHIC PULL!'
     }

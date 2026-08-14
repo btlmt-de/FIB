@@ -7,7 +7,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { getItemImageUrl, isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { getItemImageUrl, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -121,14 +122,15 @@ export function CanvasResultItem({
     const isInsane = isInsaneItem(item);
     const isMythic = isMythicItem(item);
     const isSpecial = isSpecialItem(item);
+    const isExotic = isExoticItem(item);
     const isRare = isRareItem(item);
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
 
     // For lucky spins, common items should show green instead of gold
-    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isRare && !isEvent && !isRecursionType;
+    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRare && !isEvent && !isRecursionType;
 
-    const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent || isRecursionType || isLuckyCommon;
+    const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRare || isEvent || isRecursionType || isLuckyCommon;
 
     // Canvas dimensions (extra space for glow)
     const canvasSize = size + GLOW_PADDING * 2;
@@ -232,22 +234,18 @@ export function CanvasResultItem({
 
                 let glowColor;
                 if (isInsane) {
-                    const insanePhase = (time % 1.2) / 1.2;
-                    const insanePulse = Math.sin(insanePhase * Math.PI * 2) * 0.5 + 0.5;
-                    glowColor = lerpColor(COLORS.insane, '#FFFEF0', insanePulse);
+                    // Travels the slick. Was a gold->cream pulse, which is now
+                    // legendary's colour.
+                    glowColor = sampleHolo((time % 2.4) / 2.4);
                 } else if (isMythic) {
-                    const mythicPhase = (time % 1.5) / 1.5;
-                    if (mythicPhase < 0.33) {
-                        glowColor = lerpColor(COLORS.aqua, COLORS.purple, mythicPhase / 0.33);
-                    } else if (mythicPhase < 0.66) {
-                        glowColor = lerpColor(COLORS.purple, COLORS.gold, (mythicPhase - 0.33) / 0.33);
-                    } else {
-                        glowColor = lerpColor(COLORS.gold, COLORS.aqua, (mythicPhase - 0.66) / 0.34);
-                    }
+                    glowColor = sampleRamp(COLORS.mythicCycle, (time % 1.5) / 1.5);
                 } else if (isSpecial) {
-                    const specialPhase = (time % 2.25) / 2.25;
-                    const specialPulse = Math.sin(specialPhase * Math.PI * 2) * 0.5 + 0.5;
-                    glowColor = lerpColor(COLORS.purple, '#FF44FF', specialPulse);
+                    // Legendary — steady gold, no cycle.
+                    glowColor = hexToRgb(COLORS.insane);
+                } else if (isExotic) {
+                    const exoticPhase = (time % 2.25) / 2.25;
+                    const exoticPulse = Math.sin(exoticPhase * Math.PI * 2) * 0.5 + 0.5;
+                    glowColor = lerpColor(COLORS.purple, '#FF44FF', exoticPulse);
                 } else if (isRare) {
                     const rarePhase = (time % 2.25) / 2.25;
                     const rarePulse = Math.sin(rarePhase * Math.PI * 2) * 0.5 + 0.5;
@@ -289,25 +287,23 @@ export function CanvasResultItem({
                 let glowColor1, glowColor2, intensity;
 
                 if (isInsane) {
-                    const phase = (time % 1.2) / 1.2;
-                    const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-                    intensity = 0.7 + pulse * 0.3;
-                    glowColor1 = lerpColor(COLORS.insane, '#FFFEF0', pulse);
-                    glowColor2 = hexToRgb(COLORS.insane);
+                    const phase = (time % 2.4) / 2.4;
+                    intensity = 0.85 + Math.sin(phase * Math.PI * 4) * 0.15;
+                    // Two points a third of a cycle apart, so the bloom is never
+                    // one flat hue — same treatment as the strip.
+                    glowColor1 = sampleHolo(phase);
+                    glowColor2 = sampleHolo(phase + 0.33);
                 } else if (isMythic) {
                     const phase = (time % 1.5) / 1.5;
                     intensity = 0.6 + Math.sin(phase * Math.PI * 2) * 0.2 + 0.2;
-                    if (phase < 0.33) {
-                        glowColor1 = lerpColor(COLORS.aqua, COLORS.purple, phase / 0.33);
-                        glowColor2 = lerpColor(COLORS.purple, COLORS.gold, phase / 0.33);
-                    } else if (phase < 0.66) {
-                        glowColor1 = lerpColor(COLORS.purple, COLORS.gold, (phase - 0.33) / 0.33);
-                        glowColor2 = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.33) / 0.33);
-                    } else {
-                        glowColor1 = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.66) / 0.34);
-                        glowColor2 = lerpColor(COLORS.aqua, COLORS.purple, (phase - 0.66) / 0.34);
-                    }
+                    glowColor1 = sampleRamp(COLORS.mythicCycle, phase);
+                    glowColor2 = sampleRamp(COLORS.mythicCycle, phase + 0.33);
                 } else if (isSpecial) {
+                    // Legendary — steady gold.
+                    intensity = 0.8;
+                    glowColor1 = hexToRgb(COLORS.insane);
+                    glowColor2 = hexToRgb(COLORS.insane);
+                } else if (isExotic) {
                     const phase = (time % 2.25) / 2.25;
                     const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
                     intensity = 0.5 + pulse * 0.35;
@@ -371,14 +367,18 @@ export function CanvasResultItem({
             // Background gradient
             const bgGradient = ctx.createLinearGradient(boxX, boxY, boxX + size, boxY + size);
             if (isInsane) {
-                bgGradient.addColorStop(0, `${COLORS.insane}44`);
-                bgGradient.addColorStop(0.5, '#FFF5B044');
-                bgGradient.addColorStop(1, `${COLORS.insane}44`);
+                bgGradient.addColorStop(0, `${COLORS.insaneHolo[0]}44`);
+                bgGradient.addColorStop(0.5, `${COLORS.insaneHolo[1]}3A`);
+                bgGradient.addColorStop(1, `${COLORS.insaneHolo[2]}44`);
             } else if (isMythic) {
-                bgGradient.addColorStop(0, `${COLORS.aqua}33`);
-                bgGradient.addColorStop(0.5, `${COLORS.purple}33`);
-                bgGradient.addColorStop(1, `${COLORS.gold}33`);
+                bgGradient.addColorStop(0, `${COLORS.mythicCycle[0]}33`);
+                bgGradient.addColorStop(0.5, `${COLORS.mythicCycle[1]}33`);
+                bgGradient.addColorStop(1, `${COLORS.mythicCycle[2]}33`);
             } else if (isSpecial) {
+                // Legendary — gold, one hue, two alphas.
+                bgGradient.addColorStop(0, `${COLORS.insane}33`);
+                bgGradient.addColorStop(1, `${COLORS.insane}22`);
+            } else if (isExotic) {
                 bgGradient.addColorStop(0, `${COLORS.purple}33`);
                 bgGradient.addColorStop(1, `${COLORS.purple}22`);
             } else if (isRare) {
@@ -402,24 +402,27 @@ export function CanvasResultItem({
             // ============================================
             // 4. BORDER (animated color)
             // ============================================
-            let borderColor;
+            // borderColor is what gets stroked and may be a CanvasGradient.
+            // borderGlowColor is always a flat colour string, because shadowColor
+            // rejects a gradient — assigning one is a silent no-op that leaves the
+            // previous shadow colour in place.
+            let borderColor, borderGlowColor;
             if (isInsane) {
-                const phase = (time % 1.2) / 1.2;
-                const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-                const bc = lerpColor(COLORS.insane, '#FFFEF0', pulse);
-                borderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
+                // The whole slick, not a point sampled off it — a single sampled
+                // colour cycles through exotic's magenta, mythic's aqua and
+                // legendary's gold in turn, so the winning card would impersonate
+                // a lesser tier for two thirds of every cycle.
+                const phase = (time % 2.4) / 2.4;
+                borderColor = createHoloGradient(ctx, boxX, size, phase);
+                const bc = sampleHolo(phase);
+                borderGlowColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
             } else if (isMythic) {
-                const phase = (time % 1.5) / 1.5;
-                let bc;
-                if (phase < 0.33) {
-                    bc = lerpColor(COLORS.aqua, COLORS.purple, phase / 0.33);
-                } else if (phase < 0.66) {
-                    bc = lerpColor(COLORS.purple, COLORS.gold, (phase - 0.33) / 0.33);
-                } else {
-                    bc = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.66) / 0.34);
-                }
+                const bc = sampleRamp(COLORS.mythicCycle, (time % 1.5) / 1.5);
                 borderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
             } else if (isSpecial) {
+                // Legendary — flat gold, no cycle.
+                borderColor = COLORS.insane;
+            } else if (isExotic) {
                 const phase = (time % 2.25) / 2.25;
                 const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
                 const bc = lerpColor(COLORS.purple, '#FF44FF', pulse);
@@ -449,13 +452,17 @@ export function CanvasResultItem({
                 borderColor = COLORS.gold;
             }
 
+            // Every branch except insane sets a flat colour, so it doubles as the
+            // glow; insane already supplied its own sampled point above.
+            borderGlowColor = borderGlowColor || borderColor;
+
             ctx.strokeStyle = borderColor;
             ctx.lineWidth = 3;
             ctx.stroke();
 
             // Border glow
             if (isSpecialType) {
-                ctx.shadowColor = borderColor;
+                ctx.shadowColor = borderGlowColor;
                 ctx.shadowBlur = 10;
                 ctx.stroke();
                 ctx.shadowBlur = 0;
@@ -512,7 +519,7 @@ export function CanvasResultItem({
 
                 // Drop shadow
                 if (isSpecialType) {
-                    ctx.shadowColor = borderColor;
+                    ctx.shadowColor = borderGlowColor;
                     ctx.shadowBlur = 8;
                 }
 

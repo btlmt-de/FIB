@@ -100,6 +100,59 @@ export const TEAM_MEMBERS = [
     { name: 'ChromaRGBDirt',   username: null,               chance: 0.0002,   rarity: 'legendary', imageUrl: '/chromargbdirt.gif' },
 ];
 
+/**
+ * EXOTIC — the tier between legendary and rare: the plugin's custom items.
+ *
+ * Item-shaped, not member-shaped. Every other special tier below is a list of
+ * people (a username resolves to a player head); exotic is the one tier made of
+ * objects, so it follows INSANE_ITEMS/MYTHIC_ITEMS instead and carries an
+ * explicit imageUrl into the vendored pack textures.
+ *
+ * These are all eight entries of the plugin's CustomMaterials enum. Six of them
+ * were already spinning as ordinary commons under their vanilla Minecraft names —
+ * the Wheel of Fortune arriving as "Nether Star" — because the wheel's common
+ * pool is the raw Minecraft item registry and knows nothing about the plugin.
+ * The backend excludes those six materials from the pool now.
+ *
+ * The last two share their material with a genuine force item: a plain BRUSH is a
+ * real EARLY pool item and a plain TOTEM_OF_UNDYING a LATE one, so both keep
+ * their vanilla names and stay common, and these two ride alongside them under
+ * synthetic textures. That is why they were never in the wheel at all.
+ *
+ * This list mirrors SEED_SPECIAL_ITEMS in the wheel-backend and is used only for
+ * the strip's visual filler and the offline collection-book fallback; the live
+ * roster and the real odds come from `/api/items`. Textures must match the
+ * backend's exactly or the collection book files a pull under a texture it has no
+ * entry for.
+ */
+export const EXOTIC_ITEMS = [
+    { name: 'Wheel of Fortune', texture: 'exotic_wheel_of_fortune', chance: 0.00055, type: 'exotic',
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/wheel.png` },
+    { name: 'Eye of Antimatter', texture: 'exotic_eye_of_antimatter', chance: 0.00055, type: 'exotic',
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/eye_of_antimatter.png` },
+    // The three locators are animated in the pack — their /fib-custom textures are
+    // vertical sprite strips (8, 26 and 10 frames) with a .mcmeta sidecar, and an
+    // <img> or a canvas drawImage of one renders a single very tall picture rather
+    // than an animation. IMAGE_BASE_URL has the same three already vendored as
+    // static single-frame renders, keyed by MATERIAL name, which is what the stats
+    // item index draws. Point at those. See scripts/vendor-textures.mjs.
+    { name: 'Antimatter Locator', texture: 'exotic_antimatter_locator', chance: 0.00055, type: 'exotic',
+        imageUrl: `${IMAGE_BASE_URL}/knowledge_book.png` },
+    { name: 'Trial Locator', texture: 'exotic_trial_locator', chance: 0.00055, type: 'exotic',
+        imageUrl: `${IMAGE_BASE_URL}/wither_rose.png` },
+    { name: 'Sulfur Locator', texture: 'exotic_sulfur_locator', chance: 0.00055, type: 'exotic',
+        imageUrl: `${IMAGE_BASE_URL}/music_disc_chirp.png` },
+    // A TORCHFLOWER wearing the pack's old_book model, hence the texture name.
+    { name: "Weathered Captain's Journal", texture: 'exotic_weathered_captains_journal', chance: 0.00055, type: 'exotic',
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/old_book.png` },
+    { name: 'Totem of Antimatter', texture: 'exotic_totem_of_antimatter', chance: 0.00055, type: 'exotic',
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/totem_of_antimatter.png` },
+    // The plugin's own name for it. "Trail Ruins" is the structure this locator
+    // finds, not what the item is called.
+    { name: 'Kiln-Fired Brush', texture: 'exotic_kiln_fired_brush', chance: 0.00055, type: 'exotic',
+        imageUrl: `${CUSTOM_IMAGE_BASE_URL}/kiln_fired_brush.png` },
+];
+
 export const RARE_MEMBERS = [
     { name: 'shabana02',    username: 'shabana02',    chance: 0.0007,  rarity: 'rare' },
     { name: 'McPlayHD',     username: 'McPlayHD',     chance: 0.00067, rarity: 'rare' },

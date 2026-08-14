@@ -7,7 +7,8 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { ITEM_WIDTH, IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { getItemImageUrl, isInsaneItem, isSpecialItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -16,16 +17,12 @@ import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 const MOBILE_ITEM_WIDTH = 70;
 
-// Rarity colors (matching your constants)
-const RARITY_COLORS = {
-    insane: COLORS.insane || '#FFD700',
-    mythic: COLORS.aqua || '#55FFFF',
-    legendary: COLORS.purple || '#AA00AA',
-    rare: COLORS.red || '#FF5555',
-    event: COLORS.gold || '#FFAA00',
-    recursion: COLORS.recursion || '#00FF00',
-    common: COLORS.gold || '#FFAA00',
-};
+// There used to be a local RARITY_COLORS table here — an independent copy of the
+// rarity ladder that had drifted from the shared one. It is gone: drawItem reads
+// tier colours from utils/rarityHelpers.jsx, and the canvas gets the animated
+// tiers through sampleRamp/createHoloGradient since it cannot use the .fib-holo
+// CSS class. COLORS.recursion is used directly where the recursion spin mode
+// (not a rarity tier) needs it.
 
 // ============================================
 // IMAGE CACHE
@@ -96,19 +93,11 @@ function hexToRgb(hex) {
     };
 }
 
-function getItemRarityColor(item) {
-    if (isInsaneItem(item)) return RARITY_COLORS.insane;
-    if (isMythicItem(item)) return RARITY_COLORS.mythic;
-    if (isSpecialItem(item)) return RARITY_COLORS.legendary;
-    if (isRareItem(item)) return RARITY_COLORS.rare;
-    if (isEventItem(item)) return RARITY_COLORS.event;
-    if (isRecursionItem(item)) return RARITY_COLORS.recursion;
-    return RARITY_COLORS.common;
-}
-
-function isHighRarity(item) {
-    return isInsaneItem(item) || isMythicItem(item) || isSpecialItem(item) || isRareItem(item) || isEventItem(item) || isRecursionItem(item);
-}
+// getItemRarityColor and isHighRarity used to live here. Both were dead — nothing
+// in this file or any other called them — and both carried their own copy of the
+// tier list, so they had to be updated alongside every ladder change while
+// affecting nothing on screen. drawItem computes what it needs inline from the
+// predicates directly.
 
 // ============================================
 // ROUNDED RECT HELPER (browser compatibility)
@@ -143,18 +132,19 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     const isInsane = isInsaneItem(item);
     const isSpecial = isSpecialItem(item);
     const isMythic = isMythicItem(item);
+    const isExotic = isExoticItem(item);
     const isRare = isRareItem(item);
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
 
     // Check if this item's rarity is boosted by Gold Rush
-    const itemRarity = isInsane ? 'insane' : isMythic ? 'mythic' : isSpecial ? 'legendary' : isRare ? 'rare' : null;
+    const itemRarity = isRecursionType ? null : getItemRarity(item);
     const isGoldRushBoosted = goldRushBoostedRarity && itemRarity === goldRushBoostedRarity;
 
     // For lucky spins, common items should use green styling (recursion) or gold styling (KOTW)
-    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isRare && !isEvent && !isRecursionType;
+    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRare && !isEvent && !isRecursionType;
 
-    const isSpecialType = isInsane || isMythic || isSpecial || isRare || isEvent || isRecursionType || isLuckyCommon;
+    const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRare || isEvent || isRecursionType || isLuckyCommon;
 
     // KOTW theme colors
     const KOTW_CRIMSON = '#F43F5E';
@@ -279,32 +269,41 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         let glowColor1, glowColor2, intensity;
 
         if (isInsane) {
-            // 1.2s cycle - gold pulses to bright white/cream
-            const phase = (time % 1.2) / 1.2;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.7 + pulse * 0.3;
+            // 2.4s oil-slick cycle. Insane is the only tier whose glow travels the
+            // ramp instead of pulsing between two colours, and the two halo stops
+            // are read a third of a cycle apart so the bloom is never one flat hue
+            // — that offset is what makes it read as iridescence rather than as a
+            // colour-changing light.
+            const phase = (time % 2.4) / 2.4;
+            intensity = 0.85 + Math.sin(phase * Math.PI * 4) * 0.15;
 
-            // Gold -> Bright cream/white -> Gold
-            glowColor1 = lerpColor(COLORS.insane, '#FFFEF0', pulse);
-            glowColor2 = hexToRgb(COLORS.insane);
+            glowColor1 = sampleHolo(phase);
+            glowColor2 = sampleHolo(phase + 0.33);
 
         } else if (isMythic) {
-            // 1.5s cycle through aqua -> purple -> gold (magical prismatic)
+            // 1.5s cycle through the mythic ramp (aqua -> azure -> teal). The
+            // hand-rolled three-branch lerp this replaces walked aqua -> purple ->
+            // gold, i.e. straight through exotic's and legendary's colours.
             const phase = (time % 1.5) / 1.5;
             intensity = 0.6 + Math.sin(phase * Math.PI * 2) * 0.2 + 0.2;
 
-            if (phase < 0.33) {
-                glowColor1 = lerpColor(COLORS.aqua, COLORS.purple, phase / 0.33);
-                glowColor2 = lerpColor(COLORS.purple, COLORS.gold, phase / 0.33);
-            } else if (phase < 0.66) {
-                glowColor1 = lerpColor(COLORS.purple, COLORS.gold, (phase - 0.33) / 0.33);
-                glowColor2 = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.33) / 0.33);
-            } else {
-                glowColor1 = lerpColor(COLORS.gold, COLORS.aqua, (phase - 0.66) / 0.34);
-                glowColor2 = lerpColor(COLORS.aqua, COLORS.purple, (phase - 0.66) / 0.34);
-            }
+            glowColor1 = sampleRamp(COLORS.mythicCycle, phase);
+            glowColor2 = sampleRamp(COLORS.mythicCycle, phase + 0.33);
 
         } else if (isSpecial) {
+            // Legendary — a steady gold glow. Not animated, on purpose.
+            //
+            // This branch inherited insane's gold *and* insane's pulse when the
+            // colours moved down a rung. The pulse was not supposed to come with
+            // it: motion is now the thing that marks the top of the ladder, so
+            // legendary holding still is what makes the slick above it read as
+            // rarer rather than merely as a different colour. Gold alone is the
+            // signal here.
+            intensity = 0.8;
+            glowColor1 = hexToRgb(COLORS.insane);
+            glowColor2 = hexToRgb(COLORS.insane);
+
+        } else if (isExotic) {
             // 2.25s cycle - purple pulses to bright magenta/pink
             const phase = (time % 2.25) / 2.25;
             const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
@@ -426,6 +425,17 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         ctx.beginPath();
         drawRoundedRectPath(ctx, boxX + 2, boxY + 2, boxSize - 4, boxSize - 4, radius - 1);
 
+        // Insane gets the slick itself rather than a two-stop tint: the gradient
+        // travels across the tile, which is the one gesture no other tier uses
+        // (they all pulse in place). Drawn at low alpha so the sprite still reads.
+        if (isInsane) {
+            ctx.save();
+            ctx.globalAlpha = 0.22;
+            ctx.fillStyle = createHoloGradient(ctx, boxX, boxSize, (time % 2.4) / 2.4);
+            ctx.fill();
+            ctx.restore();
+        }
+
         const innerGradient = ctx.createLinearGradient(boxX, boxY, boxX + boxSize, boxY + boxSize);
 
         if (isRecursionType) {
@@ -435,13 +445,16 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
             innerGradient.addColorStop(0, `${COLORS.gold}20`);
             innerGradient.addColorStop(1, `${COLORS.gold}10`);
         } else if (isInsane) {
-            innerGradient.addColorStop(0, `${COLORS.insane}22`);
-            innerGradient.addColorStop(1, `${COLORS.insane}11`);
+            // Already filled above; nothing further to tint.
         } else if (isMythic) {
-            innerGradient.addColorStop(0, `${COLORS.aqua}18`);
-            innerGradient.addColorStop(0.5, `${COLORS.purple}18`);
-            innerGradient.addColorStop(1, `${COLORS.gold}18`);
+            innerGradient.addColorStop(0, `${COLORS.mythicCycle[0]}18`);
+            innerGradient.addColorStop(0.5, `${COLORS.mythicCycle[1]}18`);
+            innerGradient.addColorStop(1, `${COLORS.mythicCycle[2]}18`);
         } else if (isSpecial) {
+            // Legendary — pure gold gradient
+            innerGradient.addColorStop(0, `${COLORS.insane}20`);
+            innerGradient.addColorStop(1, `${COLORS.insane}10`);
+        } else if (isExotic) {
             // Pure purple gradient
             innerGradient.addColorStop(0, `${COLORS.purple}20`);
             innerGradient.addColorStop(1, `${COLORS.purple}10`);
@@ -489,14 +502,24 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         borderColor = '#FFD700';
     }
 
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = isGoldRushBoosted ? 3 : (isKotwLucky && !isSpecialType) ? 2.5 : 2;
+    // Insane strokes the whole slick around the tile rather than one sampled
+    // colour off it, so all three hues are present in the rim at once — the same
+    // thing .fib-holo-rim does in the DOM. Gold Rush still overrides, because a
+    // boosted tile has to be identifiable at a glance during the event.
+    const useHoloBorder = isInsane && !isGoldRushBoosted;
+
+    ctx.strokeStyle = useHoloBorder
+        ? createHoloGradient(ctx, boxX, boxSize, (time % 2.4) / 2.4)
+        : borderColor;
+    ctx.lineWidth = isGoldRushBoosted ? 3 : useHoloBorder ? 2.5 : (isKotwLucky && !isSpecialType) ? 2.5 : 2;
     ctx.beginPath();
     drawRoundedRectPath(ctx, boxX, boxY, boxSize, boxSize, radius);
     ctx.stroke();
 
     // Add glow to border for special items, gold rush boosted, or KOTW lucky
     if (isSpecialType || isGoldRushBoosted || isKotwLucky) {
+        // shadowColor takes a colour, never a gradient, so the holo rim's bloom is
+        // sampled from the ramp — borderColor already travels it for insane.
         ctx.shadowColor = isKotwLucky && !isSpecialType && !isGoldRushBoosted ? KOTW_CRIMSON : borderColor;
         ctx.shadowBlur = isGoldRushBoosted ? 12 : (isKotwLucky && !isSpecialType) ? 10 : 8;
         ctx.stroke();
@@ -521,7 +544,7 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
         else if (isEvent) imgScale = 0.92;
         else if (isRecursionType) imgScale = 0.88;
         else if (isInsane || isMythic) imgScale = 0.85;
-        else if (isSpecial || isRare) imgScale = 0.85;
+        else if (isSpecial || isExotic || isRare) imgScale = 0.85;
 
         const imgSize = boxSize * imgScale;
         const imgX = boxX + (boxSize - imgSize) / 2;
