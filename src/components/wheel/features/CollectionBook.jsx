@@ -518,20 +518,31 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                             {/* Dry Streaks Section */}
                             <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${COLORS.border}` }}>
                                 <span style={{ color: COLORS.textMuted, fontSize: '11px', display: 'block', marginBottom: '8px' }}>Spins Since Last...</span>
-                                {/* Only the three tiers the backend actually tracks a streak
-                                    for — dry_streaks has no exotic key, so there is nothing
-                                    to show for it and a hardcoded 0 would read as "just got
-                                    one". Colours come from the ladder; legendary was still
-                                    painted in COLORS.purple here, which is exotic's. */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                                    {['mythic', 'legendary', 'rare'].map(key => {
+                                {/* Exotic is here now. It used to be absent because the
+                                    backend had no dry_streak_exotic column, so there was
+                                    nothing to show and a hardcoded 0 would have read as
+                                    "just got one" — that column exists as of the
+                                    dry_streak_exotic migration and is seeded from history,
+                                    so the omission no longer applies.
+
+                                    Insane stays out, and that IS still deliberate: one item
+                                    at 0.000001% means the streak is every player's entire
+                                    spin count, which tells nobody anything.
+
+                                    Colours come from the ladder; legendary was once painted
+                                    in COLORS.purple here, which is exotic's. */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                                    {['mythic', 'legendary', 'exotic', 'rare'].map(key => {
                                         const ink = getRarityInk(key);
                                         return (
                                             <div key={key} style={{ padding: '8px', background: `${ink}15`, borderRadius: '6px', border: `1px solid ${ink}33` }}>
                                                 <span style={{ color: ink, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
                                                     {getRarityIcon(key, 10, false)} {RARITY[key].label}
                                                 </span>
-                                                <div style={{ color: ink, fontWeight: '700', fontSize: '18px' }}>{dryStreaks[key]}</div>
+                                                {/* ?? 0 rather than a bare read: during a deploy
+                                                    where the API is briefly older than the page,
+                                                    a missing key would render an empty cell. */}
+                                                <div style={{ color: ink, fontWeight: '700', fontSize: '18px' }}>{dryStreaks[key] ?? 0}</div>
                                             </div>
                                         );
                                     })}

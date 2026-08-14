@@ -4,10 +4,17 @@
 
 import React from 'react';
 import { COLORS } from '../config/constants';
+import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import {
     X, TrendingUp, Target, Calculator, Award, Info,
-    Crown, Sparkles, Star, Diamond, Shuffle
+    Crown, Sparkles, Star, Diamond, Gem, Shuffle
 } from 'lucide-react';
+
+// The two pull breakdowns below take their colours from getRarityInk rather than naming
+// COLORS entries directly. They used to name them, and the names had gone stale: this
+// modal painted Legendary with COLORS.purple, which the ladder rework reassigned to
+// EXOTIC. Adding an exotic row on top of that would have put two magentas side by side
+// labelled differently. Icons are text for contrast purposes, so ink is correct here.
 
 export function LuckInfoModal({ onClose, luckRating, isMobile }) {
 
@@ -207,32 +214,40 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 <div style={{ padding: '12px 14px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
                                     {luckRating.peakWindowPulls.insane > 0 && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Crown size={14} color={COLORS.insane} />
-                                            <span style={{ color: COLORS.insane, fontSize: '13px', fontWeight: '600' }}>
+                                            <Crown size={14} color={getRarityInk('insane')} />
+                                            <span style={{ color: getRarityInk('insane'), fontSize: '13px', fontWeight: '600' }}>
                                                 {luckRating.peakWindowPulls.insane}× Insane
                                             </span>
                                         </div>
                                     )}
                                     {luckRating.peakWindowPulls.mythic > 0 && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Sparkles size={14} color={COLORS.aqua} />
-                                            <span style={{ color: COLORS.aqua, fontSize: '13px', fontWeight: '600' }}>
+                                            <Sparkles size={14} color={getRarityInk('mythic')} />
+                                            <span style={{ color: getRarityInk('mythic'), fontSize: '13px', fontWeight: '600' }}>
                                                 {luckRating.peakWindowPulls.mythic}× Mythic
                                             </span>
                                         </div>
                                     )}
                                     {luckRating.peakWindowPulls.legendary > 0 && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Star size={14} color={COLORS.purple} />
-                                            <span style={{ color: COLORS.purple, fontSize: '13px', fontWeight: '600' }}>
+                                            <Star size={14} color={getRarityInk('legendary')} />
+                                            <span style={{ color: getRarityInk('legendary'), fontSize: '13px', fontWeight: '600' }}>
                                                 {luckRating.peakWindowPulls.legendary}× Legendary
+                                            </span>
+                                        </div>
+                                    )}
+                                    {luckRating.peakWindowPulls.exotic > 0 && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            <Gem size={14} color={getRarityInk('exotic')} />
+                                            <span style={{ color: getRarityInk('exotic'), fontSize: '13px', fontWeight: '600' }}>
+                                                {luckRating.peakWindowPulls.exotic}× Exotic
                                             </span>
                                         </div>
                                     )}
                                     {luckRating.peakWindowPulls.rare > 0 && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Diamond size={14} color={COLORS.red} />
-                                            <span style={{ color: COLORS.red, fontSize: '13px' }}>
+                                            <Diamond size={14} color={getRarityInk('rare')} />
+                                            <span style={{ color: getRarityInk('rare'), fontSize: '13px' }}>
                                                 {luckRating.peakWindowPulls.rare}× Rare
                                             </span>
                                         </div>
@@ -376,7 +391,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                 </div>
 
                 {/* Lifetime Stats */}
-                {luckRating?.stats && (luckRating.stats.insane > 0 || luckRating.stats.mythic > 0 || luckRating.stats.legendary > 0 || luckRating.stats.rare > 0) && (
+                {luckRating?.stats && (luckRating.stats.insane > 0 || luckRating.stats.mythic > 0 || luckRating.stats.legendary > 0 || luckRating.stats.exotic > 0 || luckRating.stats.rare > 0) && (
                     <div style={{ marginBottom: '16px' }}>
                         <div style={{
                             color: COLORS.textMuted,
@@ -390,9 +405,11 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                         }}>
                             <Star size={12} /> Lifetime Pulls
                         </div>
+                        {/* Five tiers now, so the row is three-up on a phone rather than
+                            five 60px slivers. */}
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(4, 1fr)',
+                            gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)',
                             gap: '8px'
                         }}>
                             <div style={{
@@ -402,7 +419,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 border: `1px solid ${COLORS.border}`,
                                 textAlign: 'center'
                             }}>
-                                <div style={{ color: COLORS.insane, fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                <div style={{ color: getRarityInk('insane'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
                                     {luckRating.stats.insane || 0}
                                 </div>
                                 <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Insane</div>
@@ -414,7 +431,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 border: `1px solid ${COLORS.border}`,
                                 textAlign: 'center'
                             }}>
-                                <div style={{ color: COLORS.aqua, fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                <div style={{ color: getRarityInk('mythic'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
                                     {luckRating.stats.mythic || 0}
                                 </div>
                                 <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Mythic</div>
@@ -426,7 +443,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 border: `1px solid ${COLORS.border}`,
                                 textAlign: 'center'
                             }}>
-                                <div style={{ color: COLORS.purple, fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                <div style={{ color: getRarityInk('legendary'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
                                     {luckRating.stats.legendary || 0}
                                 </div>
                                 <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Legend</div>
@@ -438,7 +455,19 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                 border: `1px solid ${COLORS.border}`,
                                 textAlign: 'center'
                             }}>
-                                <div style={{ color: COLORS.red, fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                <div style={{ color: getRarityInk('exotic'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                    {luckRating.stats.exotic || 0}
+                                </div>
+                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Exotic</div>
+                            </div>
+                            <div style={{
+                                padding: '12px',
+                                background: COLORS.bgLight,
+                                borderRadius: '8px',
+                                border: `1px solid ${COLORS.border}`,
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ color: getRarityInk('rare'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
                                     {luckRating.stats.rare || 0}
                                 </div>
                                 <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Rare</div>
