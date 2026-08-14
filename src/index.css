@@ -168,7 +168,8 @@ html, body {
  * stroke at the paint server is all that is needed. `fill` is left alone — the
  * few filled Lucide icons would otherwise lose their interior. */
 .fib-holo-icon {
-  stroke: url(#fib-holo-grad);
+  color: inherit;
+  stroke: url(#fib-holo-grad) currentColor;
   filter: drop-shadow(0 0 3px rgba(255, 190, 255, 0.45));
 }
 

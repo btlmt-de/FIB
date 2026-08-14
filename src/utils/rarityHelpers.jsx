@@ -49,22 +49,17 @@ export const RARITY = {
     mythic: { order: 1, label: 'Mythic', color: COLORS.aqua, stops: COLORS.mythicCycle, lightFill: true },
     legendary: { order: 2, label: 'Legendary', color: COLORS.insane, lightFill: true },
     exotic: { order: 3, label: 'Exotic', color: COLORS.purple, ink: COLORS.purpleInk },
-    rare: { order: 4, label: 'Rare', color: COLORS.red, ink: COLORS.redInk },
-    event: { order: 5, label: 'Event', color: COLORS.orange },
+    rare: { order: 4, label: 'Rare', color: COLORS.red, ink: COLORS.redInk, lightFill: true },
+    event: { order: 5, label: 'Event', color: COLORS.orange, lightFill: true },
     common: { order: 99, label: 'Common', color: COLORS.neutralInk },
 };
 
 // `lightFill` above marks the tiers whose *fill* is bright enough that dark text
 // beats white on it. Measured against #1a1a1a vs #ffffff, worst stop of each
 // gradient: insane's platinum 15.1:1 and its holo stops 6.6–14.2, mythic's ramp
-// 4.95–14.2 (the azure stop is the floor), legendary's gold 12.4. Exotic's
-// #AA00AA is the one tier that genuinely wants white, at 6.4:1.
-//
-// Rare (#FF5555) and event (#FF8800) are deliberately NOT flagged, and that is a
-// judgement call rather than a measurement: dark ink would actually score better
-// on both (5.54 and 7.27, against white's 3.14 and 2.39), but flipping them is a
-// visible restyle of surfaces nobody asked about. Flag them here if that restyle
-// is ever wanted — the fix is one word each.
+// 4.95–14.2 (the azure stop is the floor), legendary's gold 12.4, rare's red
+// 5.54, event's orange 7.27. Exotic's #AA00AA is the one tier that genuinely
+// wants white, at 6.4:1.
 
 /** Tier keys, rarest first. Use this to build legends, filters and odds tables. */
 export const RARITY_KEYS = Object.keys(RARITY).sort((a, b) => RARITY[a].order - RARITY[b].order);
