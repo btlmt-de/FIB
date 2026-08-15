@@ -5,7 +5,7 @@
 // Renders 80 items on a single canvas for massive performance gains
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { ITEM_WIDTH, IMAGE_BASE_URL } from '../../../config/constants.js';
+import { ITEM_WIDTH, STRIP_HEIGHT, IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 import { sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
@@ -122,11 +122,51 @@ function drawRoundedRectPath(ctx, x, y, w, h, r) {
     }
 }
 
+/**
+ * A stable 0..1 number from a string.
+ *
+ * Used to offset each slot's pulse and ember timings. It has to key off the item
+ * and not the slot's x position: x changes every frame while the strip travels,
+ * so a position-seeded value would make the effects swim sideways across the
+ * tile they belong to.
+ */
+function hashUnit(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 10000) / 10000;
+}
+
 // ============================================
 // CANVAS ITEM RENDERER - Full Detail Version
 // ============================================
 
-function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEffects, images, time, isMobileDevice, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false) {
+/**
+ * One reel slot, drawn as a column of light.
+ *
+ * This replaced a boxed tile: a rounded rect of `size * 0.70` with a 2px tier
+ * border, sitting in the middle of the band. That design put the tier in a 1px
+ * outline around a dark box, which meant the rarity — the only thing anyone is
+ * actually watching for — was the least visible property of the tile, and at
+ * speed the whole strip read as a row of identical grey squares.
+ *
+ * Now the slot IS the tier. A vertical wash of the rarity colour fills the full
+ * height of the band, weakest at the top and strongest at the floor, over a
+ * bright base bar. The item sprite floats in it. Rarity stays legible while the
+ * strip is moving fast, which is the whole job.
+ *
+ * The two animated tiers keep their identity and gain from the change: insane
+ * and mythic sample their ramps at three offsets down the column, so the hues
+ * travel vertically as well as cycling. Every other tier is a flat hue, so a
+ * moving column is unambiguously one of the top two — a distinction that used to
+ * rest on a border you had to look at directly.
+ *
+ * `bandHeight` is passed in because the column spans the whole band, not the
+ * tile. `y` remains the tile's top edge and still positions the sprite.
+ */
+function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEffects, images, time, isMobileDevice, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0) {
     if (!item) return;
 
     const isInsane = isInsaneItem(item);
@@ -137,431 +177,248 @@ function drawItem(ctx, item, x, y, size, isWinning, isSpinning, showRecursionEff
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
 
-    // Check if this item's rarity is boosted by Gold Rush
     const itemRarity = isRecursionType ? null : getItemRarity(item);
     const isGoldRushBoosted = goldRushBoostedRarity && itemRarity === goldRushBoostedRarity;
 
-    // For lucky spins, common items should use green styling (recursion) or gold styling (KOTW)
+    // On a lucky spin commons take the spin's own colour rather than grey, so the
+    // whole strip reads as "this one is different" before it even lands.
     const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRare && !isEvent && !isRecursionType;
-
     const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRare || isEvent || isRecursionType || isLuckyCommon;
 
-    // KOTW theme colors
     const KOTW_CRIMSON = '#F43F5E';
     const KOTW_GOLD = '#F59E0B';
 
-    // Box dimensions - smaller box = more room for glow
-    const boxRatio = isMobileDevice ? 0.82 : 0.70;
-    const boxSize = size * boxRatio;
-    const boxX = x + (size - boxSize) / 2;
-    const boxY = y + (size - boxSize) / 2;
-    const centerX = boxX + boxSize / 2;
-    const centerY = boxY + boxSize / 2;
-    const radius = 6;
+    const H = bandHeight || size;
+    const phase = (time % 3.2) / 3.2;
 
-    // Smooth interpolation helpers
-    const lerp = (a, b, t) => a + (b - a) * t;
-    const lerpColor = (c1, c2, t) => {
-        const rgb1 = hexToRgb(c1);
-        const rgb2 = hexToRgb(c2);
-        return {
-            r: Math.round(lerp(rgb1.r, rgb2.r, t)),
-            g: Math.round(lerp(rgb1.g, rgb2.g, t)),
-            b: Math.round(lerp(rgb1.b, rgb2.b, t))
-        };
-    };
+    // ── The column's colour ──────────────────────────────────────────────────
+    // Three samples down the column. For the animated tiers those are three
+    // points on the ramp, so the hue shifts vertically and drifts over time; for
+    // everything else all three are the same flat colour and the column is a
+    // single hue fading upward.
+    let stops;
+    if (isRecursionType) {
+        const c = hexToRgb(COLORS.recursion);
+        stops = [c, c, c];
+    } else if (isInsane && !isGoldRushBoosted) {
+        stops = [sampleRamp(COLORS.insaneHolo, phase),
+                 sampleRamp(COLORS.insaneHolo, phase + 0.16),
+                 sampleRamp(COLORS.insaneHolo, phase + 0.32)];
+    } else if (isMythic) {
+        stops = [sampleRamp(COLORS.mythicCycle, phase),
+                 sampleRamp(COLORS.mythicCycle, phase + 0.16),
+                 sampleRamp(COLORS.mythicCycle, phase + 0.32)];
+    } else {
+        let flat;
+        if (isGoldRushBoosted) flat = '#FFD700';
+        else if (isEvent) flat = COLORS.gold;
+        else if (isSpecial) flat = COLORS.insane;           // legendary
+        else if (isExotic) flat = COLORS.purple;
+        else if (isRare) flat = COLORS.red;
+        else if (isLuckyCommon) flat = isKotwLucky ? KOTW_CRIMSON : COLORS.green;
+        else if (isKotwLucky) flat = KOTW_GOLD;
+        else if (showRecursionEffects) flat = COLORS.recursion;
+        else flat = '#6E7391';                              // common — a cool grey
+        const c = hexToRgb(flat);
+        stops = [c, c, c];
+    }
+    const rgb = (c, a) => `rgba(${c.r}, ${c.g}, ${c.b}, ${a})`;
 
     ctx.save();
 
-    // Local variable for animated border color (avoids mutating ctx)
-    let animatedBorderColor = null;
-
-    // ============================================
-    // WINNING ITEM PULSE - subtle scale animation
-    // ============================================
+    // The winner breathes. Scaled about the column's centre so the whole shaft
+    // swells rather than just the sprite.
     if (isWinning) {
-        const pulse = 1 + Math.sin(time * 5) * 0.025; // 2.5% gentle pulse
-        ctx.translate(centerX, centerY);
-        ctx.scale(pulse, pulse);
-        ctx.translate(-centerX, -centerY);
+        const pulse = 1 + Math.sin(time * 5) * 0.03;
+        ctx.translate(x + size / 2, H / 2);
+        ctx.scale(1, pulse);
+        ctx.translate(-(x + size / 2), -H / 2);
     }
 
-    // ============================================
-    // GOLD RUSH INDICATOR - Golden shimmer for boosted items
-    // ============================================
-    if (isGoldRushBoosted) {
-        // Outer golden glow
-        const glowSize = boxSize * 2.5;
-        const glowX = centerX - glowSize / 2;
-        const glowY = centerY - glowSize / 2;
+    // Each column is inset so the slots do not touch.
+    //
+    // The boxed tiles this replaced had dark gaps between them, so the strip read
+    // as a row of separate objects. Columns drawn edge to edge across their full
+    // slot width lose that: the washes meet, and the band becomes one continuous
+    // ribbon spanning the screen rather than a sequence of things you could count.
+    // A few pixels of unlit space between slots is what puts the rhythm back —
+    // the band is exactly as wide as it was, it just breathes again.
+    const gap = Math.max(2.5, size * 0.045);
+    const colX = x + gap;
+    const colW = size - gap * 2;
 
-        // Animated golden pulse
-        const phase = (time % 1.0) / 1.0;
-        const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-        const intensity = 0.6 + pulse * 0.4;
+    // Commons are quiet so the rare ones carry; the top tiers run close to
+    // saturated at the floor. The winning column is lifted whatever its tier.
+    const weight = isInsane ? 1 : isMythic ? 0.92 : isSpecialType ? 0.8 : 0.42;
+    const lift = isWinning ? 1.35 : 1;
 
-        const gradient = ctx.createRadialGradient(
-            centerX, centerY, 0,
-            centerX, centerY, glowSize / 2
+    // How much of the treatment below a tier earns. Commons sit at 0 and stay
+    // completely inert — that is the point of the ladder, and a strip where every
+    // slot shimmers says nothing about any of them.
+    const energy = isInsane ? 1
+        : isMythic ? 0.88
+            : isSpecial ? 0.74            // legendary
+                : isEvent || isRecursionType ? 0.7
+                    : isExotic ? 0.62
+                        : isRare ? 0.48
+                            : isLuckyCommon || isGoldRushBoosted ? 0.4
+                                : 0;
+
+    // A slow breath on the glow. Offset per item so neighbouring rare slots are
+    // not in lockstep, which would read as one wide pulsing block rather than
+    // several separate valuable things.
+    const seed = hashUnit(item.texture || item.item_name || item.name || String(item.id ?? 0));
+    const breathe = 1 + Math.sin(time * 2.1 + seed * Math.PI * 2) * 0.16 * energy;
+
+    // ── The wash ─────────────────────────────────────────────────────────────
+    const glow = weight * lift * breathe;
+    const wash = ctx.createLinearGradient(0, 0, 0, H);
+    wash.addColorStop(0, rgb(stops[0], 0));
+    wash.addColorStop(0.35, rgb(stops[1], 0.06 * glow));
+    wash.addColorStop(0.72, rgb(stops[1], 0.20 * glow));
+    wash.addColorStop(1, rgb(stops[2], 0.52 * glow));
+    ctx.fillStyle = wash;
+    ctx.fillRect(colX, 0, colW, H);
+
+    // A matching wash hanging from the ceiling, much weaker. Without it the
+    // column reads as sitting inside a box; with it the light belongs to the
+    // whole slot.
+    const crown = ctx.createLinearGradient(0, 0, 0, H * 0.42);
+    crown.addColorStop(0, rgb(stops[0], 0.16 * glow));
+    crown.addColorStop(1, rgb(stops[0], 0));
+    ctx.fillStyle = crown;
+    ctx.fillRect(colX, 0, colW, H * 0.42);
+
+    // ── The base bar ─────────────────────────────────────────────────────────
+    // The floor of the column, and the one element that is fully saturated. This
+    // is what actually registers when the strip is moving too fast for anything
+    // else to.
+    const barH = isSpecialType ? 4 : 3;
+    ctx.shadowColor = rgb(stops[2], 0.9);
+    ctx.shadowBlur = (isInsane ? 22 : isSpecialType ? 16 : 7) * breathe;
+    ctx.fillStyle = rgb(stops[2], isWinning ? 1 : 0.92);
+    ctx.fillRect(colX, H - barH, colW, barH);
+    ctx.shadowBlur = 0;
+
+    // ── Everything below is what makes a rare slot feel rare ─────────────────
+    //
+    // Colour alone was not carrying it. The boxed design this replaced had a
+    // pulsing, glowing border on special tiers, and losing that made the columns
+    // correct but inert — you could see a slot was exotic, you did not feel it.
+    // The wash gives a tier its identity; this gives it energy, and all of it is
+    // scaled by `energy` so a common stays completely still and only the top of
+    // the ladder gets the full treatment.
+
+    // Shaft walls. Two vertical edges turn a soft wash into a beam with a defined
+    // form. Brightest at the floor, gone by the halfway mark, so they read as the
+    // column's own light rather than as a border drawn around a box — which is
+    // exactly the thing this design set out to get rid of.
+    if (energy > 0.35) {
+        const wall = ctx.createLinearGradient(0, H, 0, H * 0.35);
+        wall.addColorStop(0, rgb(stops[2], 0.55 * energy * breathe));
+        wall.addColorStop(1, rgb(stops[1], 0));
+        ctx.fillStyle = wall;
+        ctx.fillRect(colX, H * 0.35, 1.5, H * 0.65);
+        ctx.fillRect(colX + colW - 1.5, H * 0.35, 1.5, H * 0.65);
+    }
+
+    // Floor flare. A hot spot where the column meets the base bar, so the light
+    // looks like it is being emitted from the floor rather than painted on it.
+    if (energy > 0.3) {
+        const flare = ctx.createRadialGradient(
+            x + size / 2, H, 0,
+            x + size / 2, H, size * 0.75,
         );
-        gradient.addColorStop(0, `rgba(255, 215, 0, ${intensity * 0.8})`);
-        gradient.addColorStop(0.3, `rgba(255, 170, 0, ${intensity * 0.5})`);
-        gradient.addColorStop(0.6, `rgba(255, 140, 0, ${intensity * 0.2})`);
-        gradient.addColorStop(1, 'transparent');
+        flare.addColorStop(0, rgb(stops[2], 0.5 * energy * breathe));
+        flare.addColorStop(1, rgb(stops[2], 0));
+        ctx.fillStyle = flare;
+        ctx.fillRect(colX, H * 0.4, colW, H * 0.6);
+    }
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(glowX, glowY, glowSize, glowSize);
-
-        // Draw golden sparkle particles
-        const sparkleCount = 6;
-        for (let i = 0; i < sparkleCount; i++) {
-            const angle = (time * 2 + i * (Math.PI * 2 / sparkleCount)) % (Math.PI * 2);
-            const distance = boxSize * 0.6 + Math.sin(time * 3 + i) * 5;
-            const sparkleX = centerX + Math.cos(angle) * distance;
-            const sparkleY = centerY + Math.sin(angle) * distance;
-            const sparkleSize = 2 + Math.sin(time * 5 + i * 2) * 1;
-
-            ctx.fillStyle = `rgba(255, 255, 200, ${0.6 + pulse * 0.4})`;
+    // Embers. A few motes climbing the shaft, fading as they rise.
+    //
+    // Seeded off the item rather than off `x`, which matters: `x` changes every
+    // frame as the strip travels, so a position-seeded mote would swim sideways
+    // across the tile it belongs to. Seeded off the item, each slot's embers stay
+    // that slot's for the whole spin.
+    if (energy >= 0.6) {
+        const count = isInsane ? 5 : isMythic ? 4 : 3;
+        for (let i = 0; i < count; i++) {
+            const s = (seed + i * 0.37) % 1;
+            // Different speeds per mote so they never form a rising rank.
+            const climb = (time * (0.16 + s * 0.12) + s) % 1;
+            const my = H - climb * H * 0.85;
+            const mx = x + size * (0.18 + s * 0.64);
+            // Fade in off the floor, out at the top; nothing pops into existence.
+            const fade = Math.sin(climb * Math.PI);
+            const r = (isInsane ? 1.9 : 1.5) * (0.6 + s * 0.7);
             ctx.beginPath();
-            ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+            ctx.arc(mx, my, r, 0, Math.PI * 2);
+            ctx.fillStyle = rgb(stops[1], 0.75 * fade * energy);
             ctx.fill();
         }
     }
 
-    // ============================================
-    // KOTW LUCKY SPIN GLOW - Crimson glow for ALL items
-    // ============================================
-    if (isKotwLucky && !isSpecialType && !isGoldRushBoosted) {
-        const glowSize = boxSize * 1.5;
-        const glowX = centerX - glowSize / 2;
-        const glowY = centerY - glowSize / 2;
+    // The winner gets the whole shaft lit: full-height walls at full strength and
+    // a crown of light at the top. This is the payoff frame, so it is the one
+    // place the restraint above is dropped.
+    if (isWinning) {
+        const rim = ctx.createLinearGradient(0, H, 0, 0);
+        rim.addColorStop(0, rgb(stops[2], 0.95));
+        rim.addColorStop(0.55, rgb(stops[1], 0.5));
+        rim.addColorStop(1, rgb(stops[0], 0.12));
+        ctx.fillStyle = rim;
+        ctx.fillRect(colX, 0, 2, H);
+        ctx.fillRect(colX + colW - 2, 0, 2, H);
 
-        // Animated crimson pulse
-        const phase = (time % 2.0) / 2.0;
-        const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-        const intensity = 0.35 + pulse * 0.25;
-
-        // Crimson glow
-        const kotwCrimsonRgb = hexToRgb(KOTW_CRIMSON);
-
-        const gradient = ctx.createRadialGradient(
-            centerX, centerY, 0,
-            centerX, centerY, glowSize / 2
-        );
-        gradient.addColorStop(0, `rgba(${kotwCrimsonRgb.r}, ${kotwCrimsonRgb.g}, ${kotwCrimsonRgb.b}, ${intensity * 0.6})`);
-        gradient.addColorStop(0.5, `rgba(${kotwCrimsonRgb.r}, ${kotwCrimsonRgb.g}, ${kotwCrimsonRgb.b}, ${intensity * 0.3})`);
-        gradient.addColorStop(1, 'transparent');
-
-        ctx.fillStyle = gradient;
-        ctx.fillRect(glowX, glowY, glowSize, glowSize);
+        const crownFlare = ctx.createLinearGradient(0, 0, 0, H * 0.3);
+        crownFlare.addColorStop(0, rgb(stops[0], 0.4 * breathe));
+        crownFlare.addColorStop(1, rgb(stops[0], 0));
+        ctx.fillStyle = crownFlare;
+        ctx.fillRect(colX, 0, colW, H * 0.3);
     }
 
-    // ============================================
-    // 1. ANIMATED GLOW (drawn as radial gradients BEHIND the box)
-    // This runs ALWAYS for special items, not just during spin
-    // ============================================
-    if (isSpecialType) {
-        const glowSize = boxSize * 1.8; // Glow extends well beyond box
-        const glowX = centerX - glowSize / 2;
-        const glowY = centerY - glowSize / 2;
-
-        // Get animated color and intensity
-        let glowColor1, glowColor2, intensity;
-
-        if (isInsane) {
-            // 2.4s oil-slick cycle. Insane is the only tier whose glow travels the
-            // ramp instead of pulsing between two colours, and the two halo stops
-            // are read a third of a cycle apart so the bloom is never one flat hue
-            // — that offset is what makes it read as iridescence rather than as a
-            // colour-changing light.
-            const phase = (time % 2.4) / 2.4;
-            intensity = 0.85 + Math.sin(phase * Math.PI * 4) * 0.15;
-
-            glowColor1 = sampleHolo(phase);
-            glowColor2 = sampleHolo(phase + 0.33);
-
-        } else if (isMythic) {
-            // 1.5s cycle through the mythic ramp (aqua -> azure -> teal). The
-            // hand-rolled three-branch lerp this replaces walked aqua -> purple ->
-            // gold, i.e. straight through exotic's and legendary's colours.
-            const phase = (time % 1.5) / 1.5;
-            intensity = 0.6 + Math.sin(phase * Math.PI * 2) * 0.2 + 0.2;
-
-            glowColor1 = sampleRamp(COLORS.mythicCycle, phase);
-            glowColor2 = sampleRamp(COLORS.mythicCycle, phase + 0.33);
-
-        } else if (isSpecial) {
-            // Legendary — a steady gold glow. Not animated, on purpose.
-            //
-            // This branch inherited insane's gold *and* insane's pulse when the
-            // colours moved down a rung. The pulse was not supposed to come with
-            // it: motion is now the thing that marks the top of the ladder, so
-            // legendary holding still is what makes the slick above it read as
-            // rarer rather than merely as a different colour. Gold alone is the
-            // signal here.
-            intensity = 0.8;
-            glowColor1 = hexToRgb(COLORS.insane);
-            glowColor2 = hexToRgb(COLORS.insane);
-
-        } else if (isExotic) {
-            // 2.25s cycle - purple pulses to bright magenta/pink
-            const phase = (time % 2.25) / 2.25;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.5 + pulse * 0.35;
-
-            // Purple -> Bright magenta -> Purple
-            glowColor1 = lerpColor(COLORS.purple, '#FF44FF', pulse);
-            glowColor2 = hexToRgb(COLORS.purple);
-
-        } else if (isRare) {
-            // 2.25s cycle - red pulses to bright coral/pink
-            const phase = (time % 2.25) / 2.25;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.5 + pulse * 0.35;
-
-            // Red -> Bright coral/salmon -> Red
-            glowColor1 = lerpColor(COLORS.red, '#FF7777', pulse);
-            glowColor2 = hexToRgb(COLORS.red);
-
-        } else if (isRecursionType) {
-            // 0.75s pulse - green pulses to bright lime (matrix energy)
-            const phase = (time % 0.75) / 0.75;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.7 + pulse * 0.3;
-
-            // Green -> Bright lime -> Green
-            glowColor1 = lerpColor(COLORS.recursion, '#88FF88', pulse);
-            glowColor2 = hexToRgb(COLORS.recursion);
-
-        } else if (isEvent) {
-            // 2.25s cycle - gold pulses to bright yellow
-            const phase = (time % 2.25) / 2.25;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.5 + pulse * 0.3;
-
-            // Gold -> Bright yellow -> Gold
-            glowColor1 = lerpColor(COLORS.gold, '#FFFF66', pulse);
-            glowColor2 = hexToRgb(COLORS.gold);
-        } else if (isLuckyCommon) {
-            // 2.25s cycle - for lucky spin common items
-            const phase = (time % 2.25) / 2.25;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.5 + pulse * 0.3;
-
-            if (isKotwLucky) {
-                // Crimson -> Bright pink -> Crimson (KOTW theme)
-                glowColor1 = lerpColor(KOTW_CRIMSON, '#FF6B8A', pulse);
-                glowColor2 = hexToRgb(KOTW_CRIMSON);
-            } else {
-                // Green -> Bright lime -> Green (Recursion theme)
-                glowColor1 = lerpColor(COLORS.green, '#88FF88', pulse);
-                glowColor2 = hexToRgb(COLORS.green);
-            }
-        }
-
-        // Draw multiple glow layers using radial gradients
-        // Layer 1: Outer soft glow
-        const gradient1 = ctx.createRadialGradient(centerX, centerY, boxSize * 0.2, centerX, centerY, glowSize * 0.7);
-        gradient1.addColorStop(0, `rgba(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b}, ${intensity * 0.65})`);
-        gradient1.addColorStop(0.4, `rgba(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b}, ${intensity * 0.35})`);
-        gradient1.addColorStop(0.7, `rgba(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b}, ${intensity * 0.12})`);
-        gradient1.addColorStop(1, `rgba(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b}, 0)`);
-
-        ctx.fillStyle = gradient1;
-        ctx.fillRect(glowX, glowY, glowSize, glowSize);
-
-        // Layer 2: Inner bright glow
-        const gradient2 = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, boxSize * 0.8);
-        gradient2.addColorStop(0, `rgba(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b}, ${intensity * 0.7})`);
-        gradient2.addColorStop(0.3, `rgba(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b}, ${intensity * 0.45})`);
-        gradient2.addColorStop(0.6, `rgba(${glowColor2.r}, ${glowColor2.g}, ${glowColor2.b}, ${intensity * 0.25})`);
-        gradient2.addColorStop(1, `rgba(${glowColor2.r}, ${glowColor2.g}, ${glowColor2.b}, 0)`);
-
-        ctx.fillStyle = gradient2;
-        ctx.fillRect(boxX - 15, boxY - 15, boxSize + 30, boxSize + 30);
-
-        // Store border color in local variable (not on ctx to maintain reentrability)
-        animatedBorderColor = `rgb(${glowColor1.r}, ${glowColor1.g}, ${glowColor1.b})`;
-    }
-
-    // ============================================
-    // 2. BACKGROUND (semi-transparent, SMALLER to show glow)
-    // ============================================
-    ctx.beginPath();
-    drawRoundedRectPath(ctx, boxX, boxY, boxSize, boxSize, radius);
-
-    // Dark background so glow shows through
-    if (isSpecialType) {
-        // Darker, more transparent background for special items
-        const bgAlpha = 0.85;
-        // Use themed background for lucky spin common items
-        if (isLuckyCommon) {
-            if (isKotwLucky) {
-                // Slate-tinted for KOTW
-                ctx.fillStyle = `rgba(15, 23, 42, ${bgAlpha})`;
-            } else {
-                // Green-tinted for recursion
-                ctx.fillStyle = `rgba(10, 21, 10, ${bgAlpha})`;
-            }
-        } else {
-            ctx.fillStyle = showRecursionEffects
-                ? `rgba(10, 21, 10, ${bgAlpha})`
-                : `rgba(20, 20, 26, ${bgAlpha})`;
-        }
-    } else if (showRecursionEffects) {
-        ctx.fillStyle = COLORS.recursionDark || '#0a150a';
-    } else if (isKotwLucky) {
-        // Slate background for KOTW lucky spins
-        ctx.fillStyle = '#0F172A';
-    } else {
-        ctx.fillStyle = COLORS.bgLight || '#252542';
-    }
-    ctx.fill();
-
-    // ============================================
-    // 3. INNER GRADIENT (subtle color tint)
-    // ============================================
-    if (isSpecialType) {
-        ctx.beginPath();
-        drawRoundedRectPath(ctx, boxX + 2, boxY + 2, boxSize - 4, boxSize - 4, radius - 1);
-
-        // Insane gets the slick itself rather than a two-stop tint: the gradient
-        // travels across the tile, which is the one gesture no other tier uses
-        // (they all pulse in place). Drawn at low alpha so the sprite still reads.
-        if (isInsane) {
-            ctx.save();
-            ctx.globalAlpha = 0.22;
-            ctx.fillStyle = createHoloGradient(ctx, boxX, boxSize, (time % 2.4) / 2.4);
-            ctx.fill();
-            ctx.restore();
-        }
-
-        const innerGradient = ctx.createLinearGradient(boxX, boxY, boxX + boxSize, boxY + boxSize);
-
-        if (isRecursionType) {
-            innerGradient.addColorStop(0, `${COLORS.recursion}22`);
-            innerGradient.addColorStop(1, `${COLORS.recursion}11`);
-        } else if (isEvent) {
-            innerGradient.addColorStop(0, `${COLORS.gold}20`);
-            innerGradient.addColorStop(1, `${COLORS.gold}10`);
-        } else if (isInsane) {
-            // Already filled above; nothing further to tint.
-        } else if (isMythic) {
-            innerGradient.addColorStop(0, `${COLORS.mythicCycle[0]}18`);
-            innerGradient.addColorStop(0.5, `${COLORS.mythicCycle[1]}18`);
-            innerGradient.addColorStop(1, `${COLORS.mythicCycle[2]}18`);
-        } else if (isSpecial) {
-            // Legendary — pure gold gradient
-            innerGradient.addColorStop(0, `${COLORS.insane}20`);
-            innerGradient.addColorStop(1, `${COLORS.insane}10`);
-        } else if (isExotic) {
-            // Pure purple gradient
-            innerGradient.addColorStop(0, `${COLORS.purple}20`);
-            innerGradient.addColorStop(1, `${COLORS.purple}10`);
-        } else if (isRare) {
-            // Pure red gradient
-            innerGradient.addColorStop(0, `${COLORS.red}20`);
-            innerGradient.addColorStop(1, `${COLORS.red}10`);
-        } else if (isLuckyCommon) {
-            // Crimson/Green gradient for lucky spin common items
-            if (isKotwLucky) {
-                innerGradient.addColorStop(0, `${KOTW_CRIMSON}20`);
-                innerGradient.addColorStop(1, `${KOTW_CRIMSON}10`);
-            } else {
-                innerGradient.addColorStop(0, `${COLORS.green}20`);
-                innerGradient.addColorStop(1, `${COLORS.green}10`);
-            }
-        }
-
-        ctx.fillStyle = innerGradient;
-        ctx.fill();
-    }
-
-    // ============================================
-    // 4. BORDER (animated color for special items)
-    // ============================================
-    let borderColor = animatedBorderColor || COLORS.border;
-    if (!isSpecialType) {
-        if (isWinning) {
-            borderColor = COLORS.gold;
-        } else if (showRecursionEffects) {
-            borderColor = `${COLORS.recursion}66`;
-        } else if (isKotwLucky) {
-            // KOTW lucky spins get crimson/gold animated border
-            const phase = (time % 2.0) / 2.0;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            const kotwBorderColor = lerpColor(KOTW_CRIMSON, KOTW_GOLD, pulse);
-            borderColor = `rgb(${kotwBorderColor.r}, ${kotwBorderColor.g}, ${kotwBorderColor.b})`;
-        } else {
-            borderColor = COLORS.border;
-        }
-    }
-
-    // Gold rush boosted items get golden border
-    if (isGoldRushBoosted) {
-        borderColor = '#FFD700';
-    }
-
-    // Insane strokes the whole slick around the tile rather than one sampled
-    // colour off it, so all three hues are present in the rim at once — the same
-    // thing .fib-holo-rim does in the DOM. Gold Rush still overrides, because a
-    // boosted tile has to be identifiable at a glance during the event.
-    const useHoloBorder = isInsane && !isGoldRushBoosted;
-
-    ctx.strokeStyle = useHoloBorder
-        ? createHoloGradient(ctx, boxX, boxSize, (time % 2.4) / 2.4)
-        : borderColor;
-    ctx.lineWidth = isGoldRushBoosted ? 3 : useHoloBorder ? 2.5 : (isKotwLucky && !isSpecialType) ? 2.5 : 2;
-    ctx.beginPath();
-    drawRoundedRectPath(ctx, boxX, boxY, boxSize, boxSize, radius);
-    ctx.stroke();
-
-    // Add glow to border for special items, gold rush boosted, or KOTW lucky
-    if (isSpecialType || isGoldRushBoosted || isKotwLucky) {
-        // shadowColor takes a colour, never a gradient, so the holo rim's bloom is
-        // sampled from the ramp — borderColor already travels it for insane.
-        ctx.shadowColor = isKotwLucky && !isSpecialType && !isGoldRushBoosted ? KOTW_CRIMSON : borderColor;
-        ctx.shadowBlur = isGoldRushBoosted ? 12 : (isKotwLucky && !isSpecialType) ? 10 : 8;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-    }
-
-    // ============================================
-    // 5. ITEM IMAGE (centered with padding)
-    // ============================================
+    // ── The sprite ───────────────────────────────────────────────────────────
     const imgSrc = getItemImageUrl(item);
     const img = images.get(imgSrc);
-
     // The atlas covers the item pool, which is almost every cell in the strip.
     // `img` only has to exist for the stragglers it does not pack — player heads,
     // event and recursion art, the custom items.
     const atlasSprite = getAtlasSprite(item);
 
     if (img || atlasSprite) {
-        // Image scale - larger values fill more of the box
-        let imgScale = 0.82; // Default: 82% of box
-        if (item.username) imgScale = 0.68; // Player heads - keep smaller
-        else if (isEvent) imgScale = 0.92;
-        else if (isRecursionType) imgScale = 0.88;
-        else if (isInsane || isMythic) imgScale = 0.85;
-        else if (isSpecial || isExotic || isRare) imgScale = 0.85;
+        let imgScale = 0.62;
+        if (item.username) imgScale = 0.52;          // player heads read small
+        else if (isEvent) imgScale = 0.7;
+        else if (isRecursionType) imgScale = 0.66;
+        else if (isSpecialType) imgScale = 0.66;
 
-        const imgSize = boxSize * imgScale;
-        const imgX = boxX + (boxSize - imgSize) / 2;
-        const imgY = boxY + (boxSize - imgSize) / 2;
+        const imgSize = size * imgScale;
+        const imgX = x + (size - imgSize) / 2;
+        // Seated slightly above centre. The base bar and its glow pull the eye
+        // down, so a geometrically centred sprite optically reads as low.
+        const imgY = (H - imgSize) / 2 - H * 0.04;
 
-        // Pixelated for regular Minecraft items
+        // A pool of the tier's light under the item, so it sits in the column
+        // rather than floating in front of it.
+        const pool = ctx.createRadialGradient(
+            x + size / 2, imgY + imgSize * 0.9, 0,
+            x + size / 2, imgY + imgSize * 0.9, imgSize * 0.85,
+        );
+        pool.addColorStop(0, rgb(stops[1], 0.32 * glow));
+        pool.addColorStop(1, rgb(stops[1], 0));
+        ctx.fillStyle = pool;
+        ctx.fillRect(colX, imgY - imgSize * 0.2, colW, imgSize * 1.9);
+
         const useSmooth = isInsane || isSpecial || isRare || isMythic || item.username || isEvent || isRecursionType;
         ctx.imageSmoothingEnabled = useSmooth;
         ctx.imageSmoothingQuality = useSmooth ? 'high' : 'low';
 
-        // Drop shadow for special items
-        if (isRecursionType) {
-            ctx.shadowColor = COLORS.recursion;
-            ctx.shadowBlur = 12;
-        } else if (isSpecialType) {
-            ctx.shadowColor = animatedBorderColor || borderColor;
-            ctx.shadowBlur = 6;
+        if (isSpecialType || isGoldRushBoosted) {
+            // shadowColor takes a colour and never a gradient, so the animated
+            // tiers bloom in whatever hue they are currently passing through.
+            ctx.shadowColor = rgb(stops[1], 1);
+            ctx.shadowBlur = isInsane ? 16 : isMythic ? 13 : 9;
         }
 
         drawItemSprite(ctx, item, img, imgX, imgY, imgSize);
@@ -836,7 +693,7 @@ export function CanvasSpinningStrip({
     const imagesRef = useRef(new Map());
     const timeRef = useRef(0);
     const [imagesLoaded, setImagesLoaded] = useState(false);
-    const [containerWidth, setContainerWidth] = useState(stripWidth || (isMobile ? 140 : 800));
+    const [containerWidth, setContainerWidth] = useState(stripWidth || (isMobile ? 140 : 1600));
 
     // Refs for props that change during animation (so render loop always has current values)
     // Note: offset is read from offsetRef if provided, otherwise from offsetProp
@@ -848,7 +705,7 @@ export function CanvasSpinningStrip({
 
     const itemWidth = itemWidthOverride || (isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH);
     const width = stripWidth || containerWidth;
-    const height = stripHeight || (isMobile ? 260 : 100);
+    const height = stripHeight || (isMobile ? 260 : STRIP_HEIGHT);
 
     // Measure container width on mount and resize
     useEffect(() => {
@@ -1046,7 +903,7 @@ export function CanvasSpinningStrip({
                     // Only draw visible items
                     if (itemY > -itemWidth && itemY < height + itemWidth) {
                         const isWinning = idx === finalIndex && isResult;
-                        drawItem(ctx, item, itemCenterX, itemY, itemWidth, isWinning, isSpinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isMobile, isLuckySpin, goldRushBoostedRarity, isKotwTheme);
+                        drawItem(ctx, item, itemCenterX, itemY, itemWidth, isWinning, isSpinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isMobile, isLuckySpin, goldRushBoostedRarity, isKotwTheme, isMobile ? itemWidth : height);
 
                         // Separator line - use accentColor
                         ctx.strokeStyle = `${accentColor}33`;
@@ -1068,15 +925,16 @@ export function CanvasSpinningStrip({
                     // Only draw visible items
                     if (itemX > -itemWidth && itemX < width + itemWidth) {
                         const isWinning = idx === finalIndex && isResult;
-                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isSpinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isMobile, isLuckySpin, goldRushBoostedRarity, isKotwTheme);
+                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isSpinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isMobile, isLuckySpin, goldRushBoostedRarity, isKotwTheme, isMobile ? itemWidth : height);
 
-                        // Separator line - use accentColor
-                        ctx.strokeStyle = `${accentColor}33`;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(itemX + itemWidth, 0);
-                        ctx.lineTo(itemX + itemWidth, height);
-                        ctx.stroke();
+                        // The slot seam that used to be drawn here is gone.
+                        //
+                        // It began as a full-height rule between every pair of
+                        // tiles, was cut back to a short tick at the floor when
+                        // the columns arrived, and is now unnecessary entirely:
+                        // the columns are inset, so the unlit gap between them IS
+                        // the seam. A line down the middle of that gap only put
+                        // back the grid the inset exists to replace.
                     }
                 });
             }

@@ -7,8 +7,18 @@ import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk, isIridescentRarity } 
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
     Trophy, RefreshCw, ExternalLink, Crown, Medal, Award,
-    Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info
+    Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X, Users
 } from 'lucide-react';
+
+/** Global-totals field names. Pluralised, and distinct from the per-player
+ *  `*_count` fields — these come from getGlobalStats, a separate query. */
+const GLOBAL_TOTAL_FIELD = {
+    insane: 'total_insanes',
+    mythic: 'total_mythics',
+    legendary: 'total_legendaries',
+    exotic: 'total_exotics',
+    rare: 'total_rares',
+};
 
 // KOTW Colors - Crimson Obsidian theme (aggressive/competitive)
 const KOTW_BG = '#1E293B';        // Cool Slate Grey
@@ -36,7 +46,22 @@ function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     }
 }
 
-export function LeaderboardSidebar({ onOpenFull }) {
+/**
+ * `asModal` turns this panel into the full leaderboard.
+ *
+ * There used to be two leaderboards: this one and features/Leaderboard.jsx, which
+ * the nav button opened. They had drifted apart in both directions — this panel
+ * grew the whole King of the Wheel mode (live KOTW standings, your points and
+ * rank, the countdown) which the modal never had, while the modal had the global
+ * totals strip which this never had. Neither was a superset, so "open the full
+ * leaderboard" showed you *fewer* features than the panel beside it.
+ *
+ * They are one component now. `asModal` widens it, drops the row cap, shows the
+ * global totals and swaps the expand button for a close button. Everything else —
+ * the KOTW mode, the rank badges, the tabs, the profile drill-in — is shared,
+ * which is the point: there is no longer a version of this that lags behind.
+ */
+export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
     const [leaderboard, setLeaderboard] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(null);
@@ -112,6 +137,19 @@ export function LeaderboardSidebar({ onOpenFull }) {
             // Don't clear kotwExpiryTimeoutRef here - let it complete its task
         };
     }, [isKotwActive, showKotwMode, globalEventStatus?.expiresAt, globalEventStatus?.activatesAt, globalEventStatus?.pending]);
+
+    // Global totals, ported from the modal this replaced. Only fetched in modal
+    // mode: the 380px panel has nowhere to put a six-column strip, and firing the
+    // request for a view that will not render it is a wasted round trip on a page
+    // that already preloads an entire item atlas.
+    const [globalStats, setGlobalStats] = useState(null);
+    useEffect(() => {
+        if (!asModal) return;
+        fetch(`${API_BASE_URL}/api/stats/global`)
+            .then(res => res.json())
+            .then(data => setGlobalStats(data))
+            .catch(err => console.error('Failed to fetch global stats:', err));
+    }, [asModal]);
 
     const loadLeaderboard = useCallback(async () => {
         try {
@@ -601,10 +639,22 @@ export function LeaderboardSidebar({ onOpenFull }) {
     return (
         <>
             <div style={{
-                width: '420px',
-                height: '520px',
+                // 380px wide, matching the other sidebar exactly, and full height rather
+                // than a fixed 520px.
+                //
+                // The widths were 340 and 420. Same total, but unequal fixed children in a
+                // centred row put everything between them (420-340)/2 = 40px left of the
+                // viewport's own axis — on a page where the title, the reel's centre
+                // indicator and the nav are all centred, that is wrongness you feel without
+                // being able to name. Equal widths make the arithmetic disappear.
+                //
+                // The height comes from the HUD's `1fr` row now: the panel fills whatever is
+                // left below the reel and scrolls internally, so it is always fully visible
+                // instead of being a fixed block that the page had to find room for.
+                width: asModal ? 'min(1000px, 94vw)' : '380px',
+                height: asModal ? 'min(86vh, 800px)' : '100%',
                 background: `linear-gradient(180deg, ${COLORS.bgLight}f8 0%, ${COLORS.bg}fc 100%)`,
-                borderRadius: '16px',
+                borderRadius: asModal ? '20px' : '16px',
                 border: `1px solid ${COLORS.border}`,
                 display: 'flex',
                 flexDirection: 'column',
@@ -676,7 +726,12 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                     color: COLORS.textMuted,
                                     marginTop: '2px'
                                 }}>
-                                    Top 12 players
+                                    {/* The 12 is the panel's row cap, so it cannot
+                                        be hardcoded now that the modal shows the
+                                        whole board. */}
+                                    {asModal
+                                        ? `${leaderboard.length} player${leaderboard.length === 1 ? '' : 's'}`
+                                        : 'Top 12 players'}
                                 </div>
                             </div>
                         </div>
@@ -728,9 +783,9 @@ export function LeaderboardSidebar({ onOpenFull }) {
                             >
                                 <RefreshCw size={14} />
                             </button>
-                            {onOpenFull && (
+                            {(asModal ? onClose : onOpenFull) && (
                                 <button
-                                    onClick={onOpenFull}
+                                    onClick={asModal ? onClose : onOpenFull}
                                     style={{
                                         background: `${COLORS.bgLighter}60`,
                                         border: `1px solid ${COLORS.border}`,
@@ -752,14 +807,75 @@ export function LeaderboardSidebar({ onOpenFull }) {
                                         e.currentTarget.style.color = COLORS.textMuted;
                                         e.currentTarget.style.borderColor = COLORS.border;
                                     }}
-                                    title="Open full view"
+                                    title={asModal ? 'Close' : 'Open full view'}
                                 >
-                                    <ExternalLink size={14} />
+                                    {asModal ? <X size={16} /> : <ExternalLink size={14} />}
                                 </button>
                             )}
                         </div>
                     </div>
 
+                    {/* Global totals — modal only.
+                     *
+                     * Carried over from features/Leaderboard.jsx so that folding the
+                     * two leaderboards together lost nothing in either direction.
+                     * The panel form has no room for it; the modal does.
+                     *
+                     * `auto-fit` rather than a fixed column count: the previous
+                     * version was `repeat(6, 1fr)`, matching two fixed cells plus
+                     * four tiers exactly, so adding exotic pushed rare onto a
+                     * second row by itself. The count follows the ladder's length
+                     * now instead of being a number to remember.
+                     *
+                     * The field names are pluralised and differ from the per-player
+                     * ones (total_insanes vs insane_count) — they come from
+                     * getGlobalStats, a separate query. Labels are the tier's own,
+                     * so Insane stays "Insane" rather than "Insanes". */}
+                    {asModal && globalStats && (
+                        <div style={{
+                            marginTop: '14px',
+                            padding: '12px 14px',
+                            borderRadius: '12px',
+                            background: `${COLORS.bg}99`,
+                            border: `1px solid ${COLORS.border}60`,
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(88px, 1fr))',
+                            gap: '10px',
+                        }}>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                    color: COLORS.text, fontSize: '15px', fontWeight: '700',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                                }}>
+                                    <Users size={12} color={COLORS.textMuted} />
+                                    {globalStats.total_players?.toLocaleString() || 0}
+                                </div>
+                                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Players</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ color: COLORS.gold, fontSize: '15px', fontWeight: '700' }}>
+                                    {globalStats.total_spins?.toLocaleString() || 0}
+                                </div>
+                                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Total Spins</div>
+                            </div>
+                            {RARITY_KEYS
+                                .filter(key => key !== 'common' && key !== 'event')
+                                .map(key => (
+                                    <div key={key} style={{ textAlign: 'center' }}>
+                                        <div style={{
+                                            color: getRarityInk(key), fontSize: '15px', fontWeight: '700',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                                        }}>
+                                            {getRarityIcon(key, 12, false)}
+                                            {(globalStats[GLOBAL_TOTAL_FIELD[key]] || 0).toLocaleString()}
+                                        </div>
+                                        <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
+                                            {RARITY[key].label}
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    )}
                     {/* Tab buttons - Enhanced pill design */}
                     <div style={{
                         display: 'flex',
@@ -892,7 +1008,10 @@ export function LeaderboardSidebar({ onOpenFull }) {
                             <div style={{ fontSize: '13px' }}>No data yet</div>
                         </div>
                     ) : (
-                        leaderboard.slice(0, 12).map((entry, idx) => {
+                        // The cap is a panel constraint, not a data one: twelve
+                        // rows is what fits beside the reel. In modal mode there is
+                        // room for the whole board.
+                        leaderboard.slice(0, asModal ? 100 : 12).map((entry, idx) => {
                             const rank = idx + 1;
                             const isCurrentUser = user?.id === entry.id;
                             const isTopThree = rank <= 3;

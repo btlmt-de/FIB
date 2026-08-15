@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
+import { SpinResult } from './spin/SpinResult.jsx';
+import { KotwReelBoard } from './spin/KotwReelBoard.jsx';
 import { EnhancedWheelIdleState } from './canvas/EnhancedWheelIdleState.jsx';
 import { CanvasSpinningStrip, preloadItemImages, warmImageCache } from './canvas/CanvasSpinningStrip.jsx';
 import { loadAtlas } from './canvas/atlas.js';
@@ -9,10 +11,10 @@ import { CanvasBonusStrip } from './canvas/CanvasBonusStrip.jsx';
 
 import {
     API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
-    ITEM_WIDTH, STRIP_LENGTH, FINAL_INDEX,
+    ITEM_WIDTH, STRIP_HEIGHT, STRIP_LENGTH, FINAL_INDEX,
     TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
-import { COLORS } from './config/constants';
+import { COLORS, SPACE, Z } from './config/constants';
 import {
     formatChance, getMinecraftHeadUrl, getItemRarity,
     isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem
@@ -23,7 +25,31 @@ import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 
 
-function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate }) {
+/**
+ * The states that render a card into the stage instead of using the reel row.
+ *
+ * Kept as an explicit set rather than the negative list this used to be. The old
+ * guard was `state !== 'event' && state !== 'bonusWheel' && ...`, which had two
+ * problems: it silently included any state nobody remembered to add (that is how
+ * 'recursion' ended up rendering two stacked cards at once), and it had to be
+ * repeated and kept in sync wherever the question was asked.
+ */
+const CARD_VARIANT_STATES = new Set([
+    'event',
+    'recursion',
+    'bonusWheel',
+    'bonusResult',
+]);
+
+/** The 3x / 5x grids, which live in their own wrapper after the lucky spin. */
+const TRIPLE_VARIANT_STATES = new Set([
+    'tripleSpinning',
+    'tripleResult',
+    'tripleLuckySpinning',
+    'tripleLuckyResult',
+]);
+
+function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2 }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
@@ -34,6 +60,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
         ? globalEventStatus.data?.boostedRarity
         : null;
+
 
     // Get sound functions
     const { startSoundtrack, stopSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
@@ -304,6 +331,59 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         }
         return shuffled;
     }
+
+    // ── Dormant reel ─────────────────────────────────────────────────────────
+    //
+    // While idle the reel still has to show something, or the band is an empty
+    // 170px stripe across the page that reads as a loading state. It shows a
+    // sample of the real pool, drifting slowly, so the surface looks alive and
+    // advertises what is in it.
+    //
+    // Built once per pool rather than per render: `buildStrip` shuffles, so
+    // rebuilding it on every render would make the dormant reel flicker between
+    // different items every frame.
+    const dormantStrip = useMemo(
+        () => (allItems.length ? buildStrip(allItems[0]) : []),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [allItems.length],
+    );
+
+    // The drift itself. Writes the same ref the spin animation writes, so the two
+    // never fight: starting a spin cancels this loop and takes the offset over
+    // from wherever the drift left it, which is why the reel appears to accelerate
+    // out of its idle state rather than snapping back to zero first.
+    //
+    // `prefers-reduced-motion` stops the drift entirely. A still reel is fine — it
+    // keeps its identity, it is just parked. Permanent unrequested motion on an
+    // otherwise static page is not.
+    useEffect(() => {
+        if (state !== 'idle' || dormantStrip.length === 0) return;
+        if (typeof window === 'undefined') return;
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+        // Start mid-strip. The canvas draws tile `idx` at
+        // `centre + idx * ITEM_WIDTH - offset`, so at offset 0 index 0 sits on the
+        // centre line and the entire left half of the band is empty. Half a strip
+        // in, tiles run off both edges and the band looks continuous.
+        if (canvasOffsetRef.current === 0) {
+            canvasOffsetRef.current = (dormantStrip.length / 2) * ITEM_WIDTH;
+        }
+
+        let raf = null;
+        let last = null;
+        const PX_PER_SECOND = 14;   // slow enough to read, fast enough to notice
+        const wrap = dormantStrip.length * ITEM_WIDTH;
+
+        const tick = (now) => {
+            if (last === null) last = now;
+            const dt = (now - last) / 1000;
+            last = now;
+            canvasOffsetRef.current = (canvasOffsetRef.current + PX_PER_SECOND * dt) % wrap;
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => { if (raf) cancelAnimationFrame(raf); };
+    }, [state, dormantStrip.length]);
 
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
@@ -1202,6 +1282,40 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // KOTW Lucky: Crimson (#F43F5E) + Gold (#F59E0B) + Slate (#1E293B) - royal aesthetic
     const KOTW_CRIMSON = '#F43F5E';
     const KOTW_GOLD = '#F59E0B';
+
+    // ── Event mode ───────────────────────────────────────────────────────────
+    //
+    // While an event runs the reel takes its colour: the rules above and below the
+    // band, the centre indicator, the pointers and the band's own glow all shift
+    // to the event's hue. The banner sits flush on top of the band, so without
+    // this the two read as unrelated — a coloured announcement pasted above a
+    // surface that carries on as though nothing is happening.
+    //
+    // This is presentation only. Gold Rush's actual mechanic still travels through
+    // `goldRushBoostedRarity` into drawItem, which is what makes the boosted tier's
+    // columns light up; the accent here does not change any tile's rarity.
+    //
+    // A lucky spin outranks it. Recursion and KOTW lucky spins are things happening
+    // to *you*, and for those four seconds they own the band — an ambient event
+    // tint underneath would just muddy the colour that is telling you something.
+    //
+    // Declared here, below KOTW_CRIMSON and the lucky-spin flags, because it reads
+    // all three. It was first written up beside the goldRushBoostedRarity lookup
+    // near the top of the component, which put every one of those references in the
+    // temporal dead zone — the build was clean and the page rendered blank.
+    const EVENT_ACCENT = {
+        king_of_wheel: KOTW_CRIMSON,
+        gold_rush: COLORS.gold,
+        first_blood: COLORS.red,
+        community_goal: COLORS.aqua,
+    };
+    const eventAccent = globalEventStatus?.active ? EVENT_ACCENT[globalEventStatus.type] : null;
+    const bandAccent = showSpinRecursionEffects
+        ? COLORS.recursion
+        : showSpinKotwLuckyEffects
+            ? KOTW_GOLD
+            : eventAccent || COLORS.gold;
+
     const KOTW_SLATE = '#1E293B';
     const KOTW_SLATE_DARK = '#0F172A';
 
@@ -1211,50 +1325,54 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
 
     // Idle state - show clickable wheel with enhanced cosmic visuals
-    if (state === 'idle') {
-        return (
-            <div style={{ position: 'relative' }}>
-                <EnhancedWheelIdleState
-                    user={user}
-                    allItems={allItems}
-                    totalItemCount={totalItemCount}
-                    recursionActive={recursionActive}
-                    recursionSpinsRemaining={recursionSpinsRemaining}
-                    kotwLuckySpins={kotwLuckySpins}
-                    error={error}
-                    onSpin={spin}
-                    onShowOddsInfo={() => setShowOddsInfo(true)}
-                    isMobile={isMobile}
-                    isLoading={!atlasReady}
-                />
-
-                {/* Odds Info Modal */}
-                {showOddsInfo && (
-                    <OddsInfoModal
-                        onClose={() => setShowOddsInfo(false)}
-                        dynamicItems={dynamicItems}
-                        allItems={allItems}
-                        isMobile={isMobile}
-                    />
-                )}
-            </div>
-        );
-    }
+    // Idle used to return here, rendering a completely different tree: no reel, no
+    // status line, just the tarot card. That made the reel appear and disappear
+    // between states, which a fixed-height grid row cannot do — the row would
+    // collapse and every other row would jump.
+    //
+    // So idle now renders the same two rows as every other state. The reel is
+    // simply dormant: dimmed and drifting rather than absent. Spinning does not
+    // rebuild the layout, it wakes the reel up, and nothing on the page moves.
 
     return (
-        <div style={{
+        // `display: contents` dissolves this wrapper so its children become direct
+        // children of WheelPage's grid, which is what lets the reel occupy a
+        // full-width row while the result sits between the sidebars — without
+        // lifting any spin state out of this component.
+        //
+        // The cost is that this element no longer generates a box: its padding,
+        // `position: relative` and `minHeight` stop applying, so every child must
+        // place itself explicitly (`gridRow` / `gridColumn`) rather than relying on
+        // flow. Anything added here needs its own placement or it will be
+        // auto-placed into whatever grid cell happens to be free.
+        //
+        // Mobile keeps the flex column: below 600px the page is a single column,
+        // the reel runs vertically, and there is no multi-row grid to participate
+        // in.
+        <div style={isMobile ? {
             width: '100%',
             boxSizing: 'border-box',
-            minHeight: isMobile ? '320px' : '440px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            padding: isMobile ? '8px 12px' : '16px 20px',
+            padding: '8px 12px',
             position: 'relative',
-        }}>
+            gridRow: '2 / 6',
+            gridColumn: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+        } : { display: 'contents' }}>
             {/* Event Lucky Spins Badge - Persistent across all states - crimson theme */}
             {kotwLuckySpins > 0 && (
                 <div style={{
+                    // Explicit placement: with the root at `display: contents`
+                    // this badge is a grid item, and without a row it would be
+                    // auto-placed into whatever cell happened to be free.
+                    gridRow: 5,
+                    gridColumn: stageColumn,
+                    justifySelf: 'center',
+                    alignSelf: 'start',
+                    zIndex: Z.content,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1325,211 +1443,63 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 />
             )}
 
-            {/* Unified Card Container - holds header, strip, and result */}
-            {state !== 'event' && state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && state !== 'tripleSpinning' && state !== 'tripleResult' && state !== 'tripleLuckySpinning' && state !== 'tripleLuckyResult' && (
-                <div style={{
-                    width: '100%',
-                    maxWidth: isMobile ? `${MOBILE_CARD_WIDTH}px` : '100%',
-                    position: 'relative',
-                }}>
-                    {/* Outer glow ring - animated - ENHANCED for lucky spins */}
-                    <div style={{
-                        position: 'absolute',
-                        inset: showAnySpinLuckyEffects && state === 'spinning' ? '-4px' : '-2px',
-                        borderRadius: '22px',
-                        backgroundImage: showSpinRecursionEffects
-                            ? `linear-gradient(135deg, ${COLORS.recursion}70 0%, ${COLORS.recursion}40 25%, transparent 40%, transparent 60%, ${COLORS.recursion}40 75%, ${COLORS.recursion}70 100%)`
-                            : showSpinKotwLuckyEffects
-                                ? `linear-gradient(135deg, ${KOTW_CRIMSON}70 0%, ${KOTW_GOLD}50 25%, transparent 40%, transparent 60%, ${KOTW_GOLD}50 75%, ${KOTW_CRIMSON}70 100%)`
-                                : state === 'spinning'
-                                    ? `linear-gradient(135deg, ${COLORS.gold}40 0%, transparent 40%, transparent 60%, ${COLORS.gold}40 100%)`
-                                    : `linear-gradient(135deg, ${COLORS.gold}25 0%, transparent 40%, transparent 60%, ${COLORS.gold}25 100%)`,
-                        backgroundSize: '200% 200%',
-                        animation: showAnySpinLuckyEffects && state === 'spinning'
-                            ? 'borderGlowSpin 1.5s linear infinite'
-                            : state === 'spinning'
-                                ? 'borderGlowSpin 3s linear infinite'
-                                : 'borderGlowIdle 8s ease-in-out infinite',
-                        opacity: state === 'spinning' ? 1 : 0.8,
-                        zIndex: 0,
-                        transition: 'inset 0.3s ease',
-                    }} />
+            {/* The main spin surface, split across two grid rows.
 
-                    {/* Additional pulsing glow for lucky spins */}
-                    {showAnySpinLuckyEffects && state === 'spinning' && (
-                        <div style={{
-                            position: 'absolute',
-                            inset: '-8px',
-                            borderRadius: '26px',
-                            boxShadow: showSpinRecursionEffects
-                                ? `0 0 40px ${COLORS.recursion}44, 0 0 80px ${COLORS.recursion}22`
-                                : `0 0 40px ${KOTW_CRIMSON}44, 0 0 80px ${KOTW_GOLD}33`,
-                            animation: showSpinRecursionEffects
-                                ? 'recursionSpinPulse 1s ease-in-out infinite'
-                                : 'kotwSpinPulse 1s ease-in-out infinite',
-                            zIndex: -1,
-                            pointerEvents: 'none',
-                        }} />
-                    )}
+                This used to be one "unified card": a bordered box holding the
+                status header, the reel and the result stacked vertically, sitting
+                in the middle of a centred column. The card was what capped the
+                reel — the reel could never be wider than the box it was inside,
+                and the box could never be wider than the column, and the column
+                could never be wider than what the sidebars left it.
 
-                    {/* Main card */}
+                So the box is gone. The status line and the reel are a full-width
+                band across the page; the result drops into the stage below,
+                between the sidebars. Nothing is nested inside anything that
+                constrains it, which is why the reel can simply be as wide as the
+                screen without a single layout trick.
+
+                Deleted with the card: its four corner accents, its top edge
+                highlight and its outer glow ring. Those framed a box that no
+                longer exists — the reel is now a band between two rules, and a
+                band does not have corners. The three full-surface washes that
+                were also anchored to the card (recursion scanlines, KOTW shimmer,
+                the data stream) move up to the shell, which is closer to their
+                intent anyway: a recursion spin should tint the whole surface, not
+                a rectangle in the middle of it. */}
+            {state !== 'event' && state !== 'recursion' && state !== 'bonusWheel' && state !== 'bonusResult' && state !== 'luckySpinning' && state !== 'luckyResult' && state !== 'tripleSpinning' && state !== 'tripleResult' && state !== 'tripleLuckySpinning' && state !== 'tripleLuckyResult' && (
+                <>
+                    {/* ── Row 2: the reel band ─────────────────────────────── */}
                     <div style={{
+                        gridRow: 4,
+                        gridColumn: '1 / -1',
                         position: 'relative',
+                        zIndex: Z.reel,
+                        borderBlock: showSpinRecursionEffects
+                            ? `1px solid ${COLORS.recursion}40`
+                            : showSpinKotwLuckyEffects
+                                ? `1px solid ${KOTW_CRIMSON}50`
+                                : eventAccent
+                                    ? `1px solid ${eventAccent}55`
+                                    : `1px solid ${COLORS.gold}22`,
                         background: showSpinRecursionEffects
-                            ? `linear-gradient(180deg, rgba(10,25,10,0.95) 0%, rgba(5,18,5,0.98) 100%)`
+                            ? 'linear-gradient(180deg, #0a150a 0%, #0f1a0f 100%)'
                             : showSpinKotwLuckyEffects
-                                ? `linear-gradient(180deg, ${KOTW_SLATE}f2 0%, ${KOTW_SLATE_DARK}fa 100%)`
-                                : `linear-gradient(180deg, rgba(28,28,32,0.92) 0%, rgba(22,22,26,0.95) 100%)`,
-                        borderRadius: '20px',
-                        border: showSpinRecursionEffects
-                            ? `2px solid ${COLORS.recursion}50`
-                            : showSpinKotwLuckyEffects
-                                ? `2px solid ${KOTW_CRIMSON}60`
-                                : `1px solid rgba(255,255,255,0.1)`,
-                        boxShadow: showSpinRecursionEffects
-                            ? `0 8px 40px rgba(0,0,0,0.6), 0 0 100px ${COLORS.recursion}20, inset 0 0 60px ${COLORS.recursion}08, inset 0 1px 0 ${COLORS.recursion}40`
-                            : showSpinKotwLuckyEffects
-                                ? `0 8px 40px rgba(0,0,0,0.6), 0 0 80px ${KOTW_CRIMSON}25, 0 0 40px ${KOTW_GOLD}15, inset 0 1px 0 rgba(248,250,252,0.1)`
-                                : `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${COLORS.gold}08, inset 0 1px 0 rgba(255,255,255,0.08)`,
-                        overflow: 'hidden',
-                        zIndex: 1,
-                        animation: showSpinRecursionEffects && state === 'spinning' ? 'matrixFlicker 0.5s infinite' : 'none',
+                                ? `linear-gradient(180deg, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 100%)`
+                                : eventAccent
+                                    // A wash, not a fill. The tiles are the thing
+                                    // being read; the event tints the room they are
+                                    // in rather than repainting them.
+                                    ? `linear-gradient(180deg, ${eventAccent}14 0%, ${eventAccent}08 55%, #14141a 100%)`
+                                    : 'linear-gradient(180deg, #14141a 0%, #1a1a22 100%)',
+                        // During an event the band glows even at rest, so the
+                        // surface looks live rather than only reacting on a spin.
+                        boxShadow: state === 'spinning'
+                            ? `0 0 60px -20px ${bandAccent}`
+                            : eventAccent
+                                ? `0 0 46px -26px ${eventAccent}`
+                                : 'none',
+                        transition: 'box-shadow 0.3s ease-out, background 0.4s ease-out',
                     }}>
-                        {/* Matrix scanlines overlay - Recursion only */}
-                        {showSpinRecursionEffects && (
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                background: `repeating-linear-gradient(0deg, transparent 0px, transparent 2px, ${COLORS.recursion}05 2px, ${COLORS.recursion}05 4px)`,
-                                pointerEvents: 'none',
-                                zIndex: 20,
-                            }} />
-                        )}
-
-                        {/* KOTW Royal shimmer overlay */}
-                        {showSpinKotwLuckyEffects && (
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                background: `linear-gradient(135deg, ${KOTW_CRIMSON}08 0%, transparent 30%, transparent 70%, ${KOTW_GOLD}08 100%)`,
-                                pointerEvents: 'none',
-                                zIndex: 20,
-                            }} />
-                        )}
-
-                        {/* Data stream effect for Recursion spinning */}
-                        {showSpinRecursionEffects && state === 'spinning' && (
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                backgroundImage: `linear-gradient(180deg, ${COLORS.recursion}08 0%, transparent 20%, transparent 80%, ${COLORS.recursion}08 100%)`,
-                                backgroundSize: '100% 200%',
-                                animation: 'binaryStream 1s linear infinite',
-                                pointerEvents: 'none',
-                                zIndex: 19,
-                            }} />
-                        )}
-
-                        {/* Shimmer sweep effect - only on spin */}
-                        {state === 'spinning' && (
-                            <div style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: '-100%',
-                                width: '50%',
-                                height: '100%',
-                                backgroundImage: showSpinRecursionEffects
-                                    ? `linear-gradient(90deg, transparent, ${COLORS.recursion}15, transparent)`
-                                    : showSpinKotwLuckyEffects
-                                        ? `linear-gradient(90deg, transparent, ${KOTW_CRIMSON}15, ${KOTW_GOLD}10, transparent)`
-                                        : `linear-gradient(90deg, transparent, ${COLORS.gold}15, transparent)`,
-                                transform: 'skewX(-20deg)',
-                                animation: 'cardShimmerOnce 0.8s ease-out forwards',
-                                pointerEvents: 'none',
-                                zIndex: 10,
-                            }} />
-                        )}
-
-                        {/* Top edge highlight */}
-                        <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: '5%',
-                            right: '5%',
-                            height: '1px',
-                            background: showSpinRecursionEffects
-                                ? `linear-gradient(90deg, transparent, ${COLORS.recursion}60 50%, transparent)`
-                                : showSpinKotwLuckyEffects
-                                    ? `linear-gradient(90deg, transparent, ${KOTW_CRIMSON}60 30%, ${KOTW_GOLD}60 70%, transparent)`
-                                    : `linear-gradient(90deg, transparent, ${COLORS.gold}40 50%, transparent)`,
-                            zIndex: 5,
-                        }} />
-
-                        {/* Corner accents */}
-                        <div style={{
-                            position: 'absolute',
-                            top: '10px',
-                            left: '10px',
-                            width: '20px',
-                            height: '20px',
-                            borderTop: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
-                            borderLeft: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
-                            borderRadius: '6px 0 0 0',
-                            zIndex: 5,
-                        }} />
-                        <div style={{
-                            position: 'absolute',
-                            top: '10px',
-                            right: '10px',
-                            width: '20px',
-                            height: '20px',
-                            borderTop: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
-                            borderRight: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
-                            borderRadius: '0 6px 0 0',
-                            zIndex: 5,
-                        }} />
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '10px',
-                            left: '10px',
-                            width: '20px',
-                            height: '20px',
-                            borderBottom: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
-                            borderLeft: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_GOLD : COLORS.gold}60`,
-                            borderRadius: '0 0 0 6px',
-                            zIndex: 5,
-                        }} />
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '10px',
-                            right: '10px',
-                            width: '20px',
-                            height: '20px',
-                            borderBottom: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
-                            borderRight: `2px solid ${showSpinRecursionEffects ? COLORS.recursion : showSpinKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}60`,
-                            borderRadius: '0 0 6px 0',
-                            zIndex: 5,
-                        }} />
-
-                        {/* Ambient glow from top - only during spinning */}
-                        {state === 'spinning' && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '-30%',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                width: '80%',
-                                height: '150px',
-                                background: showSpinRecursionEffects
-                                    ? `radial-gradient(ellipse, ${COLORS.recursion}28 0%, transparent 70%)`
-                                    : showSpinKotwLuckyEffects
-                                        ? `radial-gradient(ellipse, ${KOTW_CRIMSON}20 0%, ${KOTW_GOLD}15 30%, transparent 70%)`
-                                        : `radial-gradient(ellipse, ${COLORS.gold}25 0%, transparent 70%)`,
-                                pointerEvents: 'none',
-                                animation: 'glowPulse 1.5s ease-in-out infinite',
-                            }} />
-                        )}
-
                         {/* Header */}
                         <div style={{
                             display: 'flex',
@@ -1586,10 +1556,24 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                                                 state === 'luckyResult' ? 'Lucky Win!' :
                                                                     state === 'tripleLuckySpinning' ? 'Triple Lucky Spinning...' :
                                                                         state === 'tripleLuckyResult' ? 'Triple Lucky Win!' :
-                                                                            'Gamba!'}
+                                                                            state === 'idle' ? 'Ready to spin' :
+                                                                                'Gamba!'}
                             </span>
                             </div>
 
+                            {/* KOTW standings, in the status bar.
+                                
+                                This row already spans the full width and carries
+                                only a label on the left and two buttons on the
+                                right, so the middle is the largest piece of empty
+                                horizontal space on the surface — and unlike the
+                                band's headroom it has no tiles to avoid and no
+                                moving reel behind it.
+                                
+                                Returns null unless a King of the Wheel event is
+                                running, so the row is unchanged the rest of the
+                                time. */}
+                            <KotwReelBoard />
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 {/* Info button */}
                                 <button
@@ -1630,8 +1614,13 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             </div>
                         </div>
 
-                        {/* Strip Container */}
-                        <div style={{ padding: isMobile ? '12px' : '20px' }}>
+                        {/* Strip Container.
+
+                            Horizontal padding is zero on desktop: the band runs to
+                            both screen edges, and padding would show as a gap at
+                            the very edge of the viewport, which is the one thing an
+                            edge-to-edge band cannot have. */}
+                        <div style={{ padding: isMobile ? '12px' : `${SPACE.md}px 0` }}>
                             <div
                                 onClick={() => {
                                     if (!isMobile || !user || allItems.length === 0) return;
@@ -1643,10 +1632,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 }}
                                 style={{
                                     position: 'relative',
-                                    height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : '100px',
+                                    height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : `${STRIP_HEIGHT}px`,
                                     width: isMobile ? `${MOBILE_STRIP_WIDTH}px` : '100%',
                                     overflow: 'hidden',
-                                    borderRadius: '10px',
+                                    // No corners on desktop: the band leaves
+                                    // the screen on both sides.
+                                    borderRadius: isMobile ? '10px' : 0,
                                     background: showSpinRecursionEffects
                                         ? `linear-gradient(${isMobile ? '0deg' : '90deg'}, #0a150a 0%, #0f1a0f 50%, #0a150a 100%)`
                                         : showSpinKotwLuckyEffects
@@ -1692,17 +1683,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)',
                                         width: '3px'
                                     }),
-                                    backgroundImage: showSpinRecursionEffects
-                                        ? `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${COLORS.recursion}, transparent)`
-                                        : showSpinKotwLuckyEffects
-                                            ? `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${KOTW_GOLD}, transparent)`
-                                            : `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${COLORS.gold}, transparent)`,
+                                    // bandAccent already resolves the precedence:
+                                    // lucky spin, then active event, then gold.
+                                    backgroundImage: `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${bandAccent}, transparent)`,
                                     zIndex: 10,
-                                    boxShadow: showSpinRecursionEffects
-                                        ? `0 0 12px ${COLORS.recursion}, 0 0 24px ${COLORS.recursion}88`
-                                        : showSpinKotwLuckyEffects
-                                            ? `0 0 12px ${KOTW_GOLD}, 0 0 24px ${KOTW_GOLD}88`
-                                            : `0 0 12px ${COLORS.gold}, 0 0 24px ${COLORS.gold}88`,
+                                    boxShadow: `0 0 12px ${bandAccent}, 0 0 24px ${bandAccent}88`,
                                     animation: state === 'spinning' && spinProgress > 0.7 ? 'centerLinePulse 0.3s ease-in-out infinite' : 'none',
                                     transition: 'all 0.3s ease-out',
                                 }} />
@@ -1793,7 +1778,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             ...(isMobile ? {
                                                 left: '-3px', top: '50%', transform: 'translateY(-50%)',
                                                 borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
-                                                borderLeft: `14px solid ${COLORS.gold}`
+                                                borderLeft: `14px solid ${bandAccent}`
                                             } : {
                                                 top: '-3px', left: '50%', transform: 'translateX(-50%)',
                                                 borderLeft: '10px solid transparent', borderRight: '10px solid transparent',
@@ -1801,7 +1786,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             }),
                                             width: 0, height: 0,
                                             zIndex: 11,
-                                            filter: `drop-shadow(0 0 6px ${COLORS.gold}) drop-shadow(0 0 12px ${COLORS.gold}66)`,
+                                            filter: `drop-shadow(0 0 6px ${bandAccent}) drop-shadow(0 0 12px ${bandAccent}66)`,
                                             animation: state === 'spinning' && spinProgress > 0.7
                                                 ? (isMobile ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite' : 'indicatorHeartbeat 0.4s ease-in-out infinite')
                                                 : 'none',
@@ -1811,7 +1796,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             ...(isMobile ? {
                                                 right: '-3px', top: '50%', transform: 'translateY(-50%)',
                                                 borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
-                                                borderRight: `14px solid ${COLORS.gold}`
+                                                borderRight: `14px solid ${bandAccent}`
                                             } : {
                                                 bottom: '-3px', left: '50%', transform: 'translateX(-50%)',
                                                 borderLeft: '10px solid transparent', borderRight: '10px solid transparent',
@@ -1819,7 +1804,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             }),
                                             width: 0, height: 0,
                                             zIndex: 11,
-                                            filter: `drop-shadow(0 0 6px ${COLORS.gold}) drop-shadow(0 0 12px ${COLORS.gold}66)`,
+                                            filter: `drop-shadow(0 0 6px ${bandAccent}) drop-shadow(0 0 12px ${bandAccent}66)`,
                                             animation: state === 'spinning' && spinProgress > 0.7
                                                 ? (isMobile ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite' : 'indicatorHeartbeat 0.4s ease-in-out infinite')
                                                 : 'none',
@@ -1873,9 +1858,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     </>
                                 )}
 
-                                {/* Item Strip */}
                                 <CanvasSpinningStrip
-                                    items={strip}
+                                    items={state === 'idle' ? dormantStrip : strip}
                                     offsetRef={canvasOffsetRef}
                                     isMobile={isMobile}
                                     isSpinning={state === 'spinning'}
@@ -1883,9 +1867,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     spinProgress={spinProgress}
                                     isRecursion={showSpinRecursionEffects}
                                     themeType={showSpinKotwLuckyEffects ? 'kotw' : null}
-                                    accentColor={showSpinKotwLuckyEffects ? KOTW_GOLD : null}
+                                    accentColor={showSpinKotwLuckyEffects ? KOTW_GOLD : eventAccent || null}
                                     stripWidth={isMobile ? MOBILE_STRIP_WIDTH : undefined}
-                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : 100}
+                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : STRIP_HEIGHT}
                                     finalIndex={FINAL_INDEX}
                                     goldRushBoostedRarity={goldRushBoostedRarity}
                                     isLuckySpin={showAnySpinLuckyEffects}
@@ -1893,366 +1877,108 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             </div>
                         </div>
 
-                        {/* Result Display - Inside unified container */}
+                    </div>
+
+                    {/* ── Row 3: the stage ─────────────────────────────────── */}
+                    <div style={{
+                        gridRow: 5,
+                        gridColumn: stageColumn,
+                        minHeight: 0,
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        // `flex-start`, not `center`. A centred flex column that
+                        // overflows its box overflows in BOTH directions, and the
+                        // part above the top edge cannot be scrolled to — the
+                        // scroll range only covers the bottom. On a short viewport
+                        // that silently ate the top of the idle wheel. Top-aligned,
+                        // any overflow goes downward where the scrollbar can reach
+                        // it, and the result still reads as sitting under the reel
+                        // because that is where it starts.
+                        justifyContent: 'flex-start',
+                        paddingTop: `${SPACE.md}px`,
+                        zIndex: Z.content,
+                    }}>
+                        {/* Idle — the spin CTA lives in the stage now.
+
+                            It used to be the whole page while idle: a 240px wheel
+                            with orbital rings, sitting where the reel now is. In
+                            the HUD the reel owns that row permanently, so the tarot
+                            card becomes what it always functionally was — the spin
+                            button — and moves down here with its CTA, rarity legend
+                            and keyboard hint. */}
+                        {state === 'idle' && (
+                            <EnhancedWheelIdleState
+                                user={user}
+                                allItems={allItems}
+                                totalItemCount={totalItemCount}
+                                recursionActive={recursionActive}
+                                recursionSpinsRemaining={recursionSpinsRemaining}
+                                kotwLuckySpins={kotwLuckySpins}
+                                error={error}
+                                onSpin={spin}
+                                onShowOddsInfo={() => setShowOddsInfo(true)}
+                                isMobile={isMobile}
+                                isLoading={!atlasReady}
+                            />
+                        )}
+
+
+                        {/* The result panel lives in its own component now.
+
+                            It was ~350 lines inline here, including six
+                            hand-written rarity badges that each re-specified their
+                            own gradient, padding and text colour — the exact
+                            duplication the shared rarity ladder exists to prevent,
+                            and it had already drifted. SpinResult reads every tier
+                            from RARITY instead. */}
                         {state === 'result' && result && (
-                            <div style={{
-                                padding: isMobile ? '16px 12px' : '24px 20px',
-                                borderTop: resultWasRecursionSpin
-                                    ? `2px solid ${COLORS.recursion}50`
-                                    : resultWasKotwLuckySpin
-                                        ? `2px solid ${KOTW_CRIMSON}50`
-                                        : `1px solid rgba(255,255,255,0.08)`,
-                                background: resultWasRecursionSpin
-                                    ? `radial-gradient(ellipse at 50% 0%, ${COLORS.recursion}22 0%, transparent 50%), linear-gradient(180deg, rgba(0,20,0,0.3) 0%, transparent 100%)`
-                                    : resultWasKotwLuckySpin
-                                        ? `radial-gradient(ellipse at 50% 0%, ${KOTW_CRIMSON}18 0%, ${KOTW_GOLD}08 30%, transparent 60%)`
-                                        : isInsaneItem(result)
-                                            ? `radial-gradient(ellipse at 50% 0%, ${COLORS.insane}20 0%, transparent 60%)`
-                                            : isMythicItem(result)
-                                                ? `radial-gradient(ellipse at 50% 0%, ${COLORS.aqua}15 0%, transparent 60%)`
-                                                : isSpecialItem(result)
-                                                    ? `radial-gradient(ellipse at 50% 0%, ${COLORS.purple}18 0%, transparent 60%)`
-                                                    : isRareItem(result)
-                                                        ? `radial-gradient(ellipse at 50% 0%, ${COLORS.red}15 0%, transparent 60%)`
-                                                        : `radial-gradient(ellipse at 50% 0%, ${COLORS.gold}10 0%, transparent 60%)`,
-                                textAlign: 'center',
-                                position: 'relative',
-                                overflow: 'hidden',
-                                animation: resultWasRecursionSpin
-                                    ? 'recursionReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                                    : resultWasKotwLuckySpin
-                                        ? 'kotwReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                                        : 'resultContainerSmooth 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                            }}>
-
-                                {/* Animated background aurora - subtle moving gradient */}
-                                <div style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    backgroundImage: resultWasRecursionSpin
-                                        ? `linear-gradient(135deg, ${COLORS.recursion}0c 0%, transparent 30%, ${COLORS.recursion}08 50%, transparent 70%, ${COLORS.recursion}06 100%)`
-                                        : resultWasKotwLuckySpin
-                                            ? `linear-gradient(135deg, ${KOTW_CRIMSON}0a 0%, transparent 30%, ${KOTW_GOLD}08 50%, transparent 70%, ${KOTW_CRIMSON}06 100%)`
-                                            : isInsaneItem(result)
-                                                ? `linear-gradient(135deg, ${COLORS.insaneHolo[0]}0a 0%, transparent 30%, ${COLORS.insaneHolo[1]}08 50%, transparent 70%, ${COLORS.insaneHolo[2]}06 100%)`
-                                                : isMythicItem(result)
-                                                    ? `linear-gradient(135deg, ${COLORS.mythicCycle[0]}08 0%, transparent 40%, ${COLORS.mythicCycle[1]}06 60%, transparent 100%)`
-                                                    : isSpecialItem(result)
-                                                        ? `linear-gradient(135deg, ${COLORS.insane}08 0%, transparent 50%, ${COLORS.insane}05 100%)`
-                                                        : isExoticItem(result)
-                                                            ? `linear-gradient(135deg, ${COLORS.purple}08 0%, transparent 50%, ${COLORS.red}05 100%)`
-                                                        : isRareItem(result)
-                                                            ? `linear-gradient(135deg, ${COLORS.red}08 0%, transparent 50%, ${COLORS.orange}05 100%)`
-                                                            : `linear-gradient(135deg, ${COLORS.gold}05 0%, transparent 50%, ${COLORS.gold}03 100%)`,
-                                    backgroundSize: '200% 200%',
-                                    animation: resultWasRecursionSpin ? 'matrixResultContainer 3s ease-in-out infinite' : resultWasKotwLuckySpin ? 'kotwResultContainer 3s ease-in-out infinite' : (isInsaneItem(result) || isMythicItem(result)) ? 'auroraShift 4s ease-in-out infinite' : 'none',
-                                    pointerEvents: 'none',
-                                    zIndex: 0,
-                                }} />
-
-                                {/* Recursion scanlines overlay - enhanced */}
-                                {resultWasRecursionSpin && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        inset: 0,
-                                        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.04) 2px, rgba(0,255,0,0.04) 4px)',
-                                        pointerEvents: 'none',
-                                        zIndex: 1,
-                                    }} />
-                                )}
-
-                                {/* Matrix hex code decoration for recursion */}
-                                {resultWasRecursionSpin && (
-                                    <>
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: '8px',
-                                            left: '8px',
-                                            fontFamily: 'monospace',
-                                            fontSize: '9px',
-                                            color: COLORS.recursion,
-                                            opacity: 0.4,
-                                            animation: 'hexFloat 3s ease-in-out infinite',
-                                        }}>
-                                            0x{Math.random().toString(16).substr(2, 4).toUpperCase()}
-                                        </div>
-                                        <div style={{
-                                            position: 'absolute',
-                                            bottom: '8px',
-                                            left: '8px',
-                                            fontFamily: 'monospace',
-                                            fontSize: '9px',
-                                            color: COLORS.recursion,
-                                            opacity: 0.4,
-                                            animation: 'hexFloat 3s ease-in-out infinite 1s',
-                                        }}>
-                                            0x{Math.random().toString(16).substr(2, 4).toUpperCase()}
-                                        </div>
-                                        <div style={{
-                                            position: 'absolute',
-                                            bottom: '8px',
-                                            right: '8px',
-                                            fontFamily: 'monospace',
-                                            fontSize: '9px',
-                                            color: COLORS.recursion,
-                                            opacity: 0.4,
-                                            animation: 'hexFloat 3s ease-in-out infinite 2s',
-                                        }}>
-                                            0x{Math.random().toString(16).substr(2, 4).toUpperCase()}
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Recursion Lucky Spin badge - enhanced */}
-                                {resultWasRecursionSpin && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: '10px',
-                                        right: '10px',
-                                        backgroundImage: `linear-gradient(135deg, ${COLORS.recursion} 0%, ${COLORS.recursionDark} 100%)`,
-                                        color: '#000',
-                                        fontSize: '11px',
-                                        fontWeight: '900',
-                                        padding: '5px 12px',
-                                        borderRadius: '4px',
-                                        fontFamily: 'monospace',
-                                        boxShadow: `0 0 15px ${COLORS.recursion}88, 0 2px 8px rgba(0,0,0,0.3)`,
-                                        zIndex: 10,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '5px',
-                                        animation: 'textFadeUp 0.4s ease-out 0.3s both',
-                                        letterSpacing: '1px',
-                                    }}>
-                                        <Zap size={12} /> LUCKY SPIN
-                                    </div>
-                                )}
-
-                                {/* Event Lucky Spin badge */}
-                                {resultWasKotwLuckySpin && !resultWasRecursionSpin && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: '10px',
-                                        right: '10px',
-                                        backgroundImage: `linear-gradient(135deg, ${KOTW_CRIMSON} 0%, ${KOTW_GOLD} 100%)`,
-                                        color: '#fff',
-                                        fontSize: '11px',
-                                        fontWeight: '900',
-                                        padding: '5px 12px',
-                                        borderRadius: '4px',
-                                        boxShadow: `0 0 15px ${KOTW_CRIMSON}88, 0 0 25px ${KOTW_GOLD}44, 0 2px 8px rgba(0,0,0,0.3)`,
-                                        zIndex: 10,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '5px',
-                                        animation: 'textFadeUp 0.4s ease-out 0.3s both',
-                                        letterSpacing: '1px',
-                                    }}>
-                                        <Crown size={12} /> EVENT REWARD
-                                    </div>
-                                )}
-
-                                {/* Enhanced floating particles with drift */}
-                                {[...Array(resultWasRecursionSpin ? 24 : isInsaneItem(result) ? 35 : isMythicItem(result) ? 25 : isSpecialItem(result) ? 18 : isRareItem(result) ? 15 : 10)].map((_, i) => {
-                                    const driftX = (Math.random() - 0.5) * 30;
-                                    const driftX2 = (Math.random() - 0.5) * 40;
-                                    const size = resultWasRecursionSpin ? (4 + Math.random() * 5) : isInsaneItem(result) ? (6 + Math.random() * 6) : isMythicItem(result) ? (5 + Math.random() * 5) : (4 + Math.random() * 4);
-                                    return (
-                                        <div key={i} style={{
-                                            position: 'absolute',
-                                            width: `${size}px`,
-                                            height: `${size}px`,
-                                            background: resultWasRecursionSpin
-                                                ? COLORS.recursion
-                                                : isInsaneItem(result)
-                                                    // Particles cycle the slick's own stops plus platinum.
-                                                    ? (i % 4 === 3 ? COLORS.insaneFlat : COLORS.insaneHolo[i % 3])
-                                                    : isMythicItem(result)
-                                                        ? COLORS.mythicCycle[i % 3]
-                                                        : isSpecialItem(result) ? COLORS.insane
-                                                            : isExoticItem(result) ? (i % 2 === 0 ? COLORS.purple : COLORS.red)
-                                                            : isRareItem(result) ? (i % 2 === 0 ? COLORS.red : COLORS.orange)
-                                                                : COLORS.gold,
-                                            borderRadius: '50%',
-                                            left: `${5 + Math.random() * 90}%`,
-                                            bottom: '10%',
-                                            opacity: 0,
-                                            '--drift-x': `${driftX}px`,
-                                            '--drift-x2': `${driftX2}px`,
-                                            animation: `floatParticleDrift ${isInsaneItem(result) ? '1.8s' : isMythicItem(result) ? '2.2s' : '2.8s'} ease-out ${i * 0.12}s infinite`,
-                                            boxShadow: `0 0 ${size}px ${resultInk}`,
-                                            zIndex: 1,
-                                        }} />
-                                    );
-                                })}
-
-                                {/* Extra shimmer overlay for insane */}
-                                {isInsaneItem(result) && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 0, left: 0, right: 0, bottom: 0,
-                                        backgroundImage: `linear-gradient(90deg, transparent 0%, ${COLORS.insane}15 50%, transparent 100%)`,
-                                        backgroundSize: '200% 100%',
-                                        animation: 'insaneShimmer 2s ease-in-out infinite',
-                                        pointerEvents: 'none',
-                                        zIndex: 1,
-                                    }} />
-                                )}
-
-                                {/* Badge Header - staggered timing */}
-                                <div style={{
-                                    color: COLORS.textMuted, fontSize: isMobile ? '10px' : '11px', textTransform: 'uppercase',
-                                    letterSpacing: isMobile ? '1px' : '3px', marginBottom: isMobile ? '12px' : '20px', position: 'relative', zIndex: 2,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? '6px' : '10px',
-                                    flexWrap: 'wrap',
-                                }}>
-                        <span style={{ animation: 'textFadeUp 0.4s ease-out 0.1s both' }}>
-                            {isInsaneItem(result) ? (
-                                // The slick, via the shared class — was a gold/cream
-                                // gradient, which now belongs to legendary. Dark ink
-                                // on it, since the ramp is light at every stop.
-                                // No inline `animation` on purpose: it would beat the
-                                // class's drift on specificity, and the reduced-motion
-                                // rule that cancels the drift only reaches the class.
-                                // The parent span already runs the fade-in.
-                                <span className="fib-holo" style={{
-                                    color: getRarityOnColor('insane'), fontSize: '10px', fontWeight: '800', padding: '5px 14px',
-                                    borderRadius: '4px',
-                                    textShadow: '0 0 10px rgba(255,255,255,0.5)',
-                                    boxShadow: `0 0 20px ${COLORS.insaneHolo[0]}88`,
-                                    display: 'inline-flex', alignItems: 'center', gap: '6px'
-                                }}><Crown size={12} /> INSANE <Crown size={12} /></span>
-                            ) : isMythicItem(result) ? (
-                                <span style={{
-                                    backgroundImage: `linear-gradient(135deg, ${COLORS.mythicCycle[0]}, ${COLORS.mythicCycle[1]}, ${COLORS.mythicCycle[2]})`,
-                                    backgroundSize: '200% 200%',
-                                    // Dark ink: mythic's ramp is aqua/azure/teal now, all light.
-                                    // White here was 1.2:1 on the aqua stop.
-                                    color: getRarityOnColor('mythic'), fontSize: '9px', fontWeight: '700', padding: '4px 12px',
-                                    borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both, mythicBadge 2s ease-in-out 0.5s infinite',
-                                    textShadow: '0 0 10px rgba(0,0,0,0.5)'
-                                }}>MYTHIC</span>
-                            ) : isSpecialItem(result) ? (
-                                <span style={{
-                                    // Flat gold, dark ink. The old purple->gold blend
-                                    // was half exotic's colour and half legendary's.
-                                    background: COLORS.insane,
-                                    color: getRarityOnColor('legendary'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
-                                    borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
-                                }}>LEGENDARY</span>
-                            ) : isExoticItem(result) ? (
-                                <span style={{
-                                    backgroundImage: `linear-gradient(135deg, ${COLORS.purple}, ${COLORS.red})`,
-                                    color: getRarityOnColor('exotic'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
-                                    borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
-                                }}>EXOTIC</span>
-                            ) : isRareItem(result) ? (
-                                <span style={{
-                                    backgroundImage: `linear-gradient(135deg, ${COLORS.red}, ${COLORS.orange})`,
-                                    color: getRarityOnColor('rare'), fontSize: '9px', fontWeight: '700', padding: '3px 10px',
-                                    borderRadius: '4px', animation: 'textFadeUp 0.4s ease-out 0.1s both'
-                                }}>RARE</span>
-                            ) : isNewItem ? (
-                                <span style={{
-                                    background: COLORS.green, color: COLORS.bg, fontSize: '9px', fontWeight: '700',
-                                    padding: '3px 8px', borderRadius: '4px',
-                                    animation: 'textFadeUp 0.4s ease-out 0.1s both'
-                                }}>NEW</span>
-                            ) : null}
-                        </span>
-                                    <span style={{ animation: 'textFadeUp 0.4s ease-out 0.2s both' }}>
-                            You received
-                        </span>
-                                </div>
-
-                                {/* Item Display */}
-                                <div style={{
-                                    display: 'flex', flexDirection: isMobile ? 'column' : 'row',
-                                    alignItems: 'center', justifyContent: 'center', gap: isMobile ? '10px' : '24px',
-                                    position: 'relative', zIndex: 2
-                                }}>
-                                    {/* Item container with Canvas-based glow */}
-                                    <div style={{
-                                        position: 'relative',
-                                        animation: 'itemBoxReveal 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.15s both',
-                                        width: '80px',
-                                        height: '80px',
-                                    }}>
-                                        <CanvasResultItem
-                                            item={result}
-                                            size={80}
-                                            isRecursionSpin={resultWasRecursionSpin}
-                                            showAnimation={true}
-                                        />
-                                    </div>
-
-                                    {/* Name and drop rate - staggered fade */}
-                                    <div style={{
-                                        display: 'flex', flexDirection: 'column',
-                                        alignItems: isMobile ? 'center' : 'flex-start', gap: '4px',
-                                        textAlign: isMobile ? 'center' : 'left',
-                                        maxWidth: isMobile ? '100%' : 'auto',
-                                    }}>
-                            <span style={{
-                                color: resultInk,
-                                fontSize: isMobile ? '18px' : '24px', fontWeight: '600',
-                                textShadow: `0 0 20px ${resultInk}44`,
-                                animation: 'textFadeUp 0.4s ease-out 0.3s both',
-                                wordBreak: 'break-word',
-                            }}>
-                                {result.name}
-                            </span>
-
-                                        {(isInsaneItem(result) || isMythicItem(result) || isSpecialItem(result) || isRareItem(result)) && result.chance ? (
-                                            <span style={{
-                                                fontSize: isMobile ? '12px' : '14px',
-                                                color: resultInk,
-                                                fontWeight: '700',
-                                                background: `${resultInk}25`,
-                                                padding: isMobile ? '3px 8px' : '4px 12px',
-                                                borderRadius: '6px',
-                                                marginTop: isMobile ? '4px' : '6px',
-                                                textShadow: `0 0 10px ${resultInk}88`,
-                                                boxShadow: `0 0 15px ${resultInk}33, inset 0 0 10px ${resultInk}15`,
-                                                border: `1px solid ${resultInk}44`,
-                                                animation: 'textFadeUp 0.4s ease-out 0.45s both',
-                                            }}>
-                                    {(resultWasRecursionSpin || resultWasKotwLuckySpin) && result.equalChance
-                                        ? `${formatChance(result.equalChance)}% (equal chance)`
-                                        : `${formatChance(result.chance)}% drop rate`
-                                    }
-                                </span>
-                                        ) : (resultWasRecursionSpin || resultWasKotwLuckySpin) && result.equalChance ? (
-                                            <span style={{
-                                                fontSize: '11px',
-                                                color: resultWasKotwLuckySpin ? KOTW_GOLD : COLORS.recursion,
-                                                fontWeight: '600',
-                                                background: resultWasKotwLuckySpin ? `${KOTW_GOLD}22` : `${COLORS.recursion}22`,
-                                                padding: '2px 8px',
-                                                borderRadius: '4px',
-                                                marginTop: '4px',
-                                                animation: 'textFadeUp 0.4s ease-out 0.45s both',
-                                            }}>
-                                    {formatChance(result.equalChance)}% (equal chance)
-                                </span>
-                                        ) : !isNewItem && collection[result.texture] > 1 && (
-                                            <span style={{
-                                                fontSize: '12px',
-                                                color: COLORS.textMuted,
-                                                fontWeight: '500',
-                                                animation: 'textFadeUp 0.4s ease-out 0.45s both',
-                                            }}>
-                                    x{collection[result.texture]} in collection
-                                </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            <SpinResult
+                                result={result}
+                                isNewItem={isNewItem}
+                                collection={collection}
+                                resultWasRecursionSpin={resultWasRecursionSpin}
+                                resultWasKotwLuckySpin={resultWasKotwLuckySpin}
+                                isMobile={isMobile}
+                            />
                         )}
                     </div>
-                </div>
+                </>
             )}
 
+            {/* The remaining spin variants — event, recursion, bonus wheel, lucky
+                and the 3x/5x grids — all render into the stage.
+
+                They keep their own cards. Only the normal spin and its reel were
+                pulled apart into rows; these are self-contained takeover moments
+                that want to be a panel in the middle of the screen, and a bonus
+                event reading as a distinct object rather than another band is the
+                point of it. They need this wrapper because the root is
+                `display: contents`: without an explicit row they would each be
+                auto-placed into a separate grid cell.
+
+                It is mounted ONLY while one of those states is active. It used to
+                render unconditionally, and because it spans rows 4-6 with
+                `zIndex: Z.content` it sat directly on top of the stage — an
+                invisible, empty, full-size div swallowing every click meant for
+                the spin button underneath. The button was fine; nothing was ever
+                reaching it. `elementFromPoint` at the button's own centre returned
+                this div, which is the giveaway to look for if a control on this
+                page ever stops responding. */}
+            {CARD_VARIANT_STATES.has(state) && (
+            <div style={{
+                gridRow: '4 / 6',
+                gridColumn: stageColumn,
+                minHeight: 0,
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: `${SPACE.md}px 0`,
+                zIndex: Z.content,
+            }}>
             {/* EVENT Display - Enhanced cosmic card announcement */}
             {state === 'event' && (
                 <div style={{
@@ -2748,46 +2474,33 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
 
             {/*Lucky Spin Display */}
+            </div>
+            )}
+            {/* End stage wrapper — the lucky spin below is NOT a stage card; it
+                takes the reel row, so it must not be nested inside this. */}
+
+            {/* Lucky spin — same two rows as the normal spin.
+
+                It was left boxed in the stage when the normal spin was split out,
+                which had it backwards: the lucky spin is the *bonus*, and it was
+                arriving in a smaller frame than an ordinary spin. It is the same
+                single-strip surface wearing a green theme, so it gets the same
+                full-width band, and only the theme distinguishes them. */}
             {(state === 'luckySpinning' || state === 'luckyResult') && (
-                <div style={{
-                    width: '100%',
-                    maxWidth: isMobile ? `${MOBILE_CARD_WIDTH}px` : '100%',
-                    position: 'relative',
-                }}>
-                    {/* Outer glow ring - green */}
+                <>
+                    {/* ── Row 4: the reel band ─────────────────────────────── */}
                     <div style={{
-                        position: 'absolute',
-                        inset: '-2px',
-                        borderRadius: '22px',
-                        backgroundImage: `linear-gradient(135deg, ${COLORS.green}50 0%, transparent 40%, transparent 60%, ${COLORS.green}50 100%)`,
-                        backgroundSize: '200% 200%',
-                        animation: state === 'luckySpinning' ? 'borderGlowSpin 3s linear infinite' : 'borderGlowIdle 8s ease-in-out infinite',
-                        zIndex: 0,
-                    }} />
-
-                    {/* Main card */}
-                    <div style={{
+                        gridRow: 4,
+                        gridColumn: '1 / -1',
                         position: 'relative',
-                        background: `linear-gradient(180deg, rgba(18,28,22,0.95) 0%, rgba(14,22,18,0.98) 100%)`,
-                        borderRadius: '20px',
-                        border: `1px solid ${COLORS.green}30`,
-                        boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 60px ${COLORS.green}15, inset 0 1px 0 ${COLORS.green}20`,
-                        overflow: 'hidden',
-                        zIndex: 1,
+                        zIndex: Z.reel,
+                        borderBlock: `1px solid ${COLORS.green}40`,
+                        background: 'linear-gradient(180deg, rgba(18,28,22,0.98) 0%, rgba(14,22,18,0.99) 100%)',
+                        boxShadow: state === 'luckySpinning'
+                            ? `0 0 60px -20px ${COLORS.green}`
+                            : 'none',
+                        transition: 'box-shadow 0.3s ease-out',
                     }}>
-                        {/* Top edge highlight */}
-                        <div style={{
-                            position: 'absolute', top: 0, left: '5%', right: '5%', height: '1px',
-                            backgroundImage: `linear-gradient(90deg, transparent, ${COLORS.green}50 50%, transparent)`,
-                            zIndex: 5,
-                        }} />
-
-                        {/* Corner accents */}
-                        <div style={{ position: 'absolute', top: '10px', left: '10px', width: '20px', height: '20px', borderTop: `2px solid ${COLORS.green}60`, borderLeft: `2px solid ${COLORS.green}60`, borderRadius: '6px 0 0 0', zIndex: 5 }} />
-                        <div style={{ position: 'absolute', top: '10px', right: '10px', width: '20px', height: '20px', borderTop: `2px solid ${COLORS.green}60`, borderRight: `2px solid ${COLORS.green}60`, borderRadius: '0 6px 0 0', zIndex: 5 }} />
-                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', width: '20px', height: '20px', borderBottom: `2px solid ${COLORS.green}60`, borderLeft: `2px solid ${COLORS.green}60`, borderRadius: '0 0 0 6px', zIndex: 5 }} />
-                        <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '20px', height: '20px', borderBottom: `2px solid ${COLORS.green}60`, borderRight: `2px solid ${COLORS.green}60`, borderRadius: '0 0 6px 0', zIndex: 5 }} />
-
                         {/* Header */}
                         <div style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2808,7 +2521,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         </div>
 
                         {/* Strip Container */}
-                        <div style={{ padding: isMobile ? '12px' : '20px' }}>
+                        <div style={{ padding: isMobile ? '12px' : `${SPACE.md}px 0` }}>
                             <div
                                 onClick={() => {
                                     if (!isMobile || !user || allItems.length === 0) return;
@@ -2818,10 +2531,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 }}
                                 style={{
                                     position: 'relative',
-                                    height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : '100px',
+                                    height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : `${STRIP_HEIGHT}px`,
                                     width: isMobile ? `${MOBILE_STRIP_WIDTH}px` : '100%',
                                     overflow: 'hidden',
-                                    borderRadius: '10px',
+                                    // No corners on desktop: the band leaves
+                                    // the screen on both sides.
+                                    borderRadius: isMobile ? '10px' : 0,
                                     background: `linear-gradient(${isMobile ? '0deg' : '90deg'}, #0a150a 0%, #0f1a0f 50%, #0a150a 100%)`,
                                     border: state === 'luckyResult' ? `2px solid ${COLORS.green}60` : `1px solid ${COLORS.green}40`,
                                     boxShadow: state === 'luckyResult'
@@ -2895,7 +2610,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     spinProgress={spinProgress}
                                     isRecursion={false}
                                     stripWidth={isMobile ? MOBILE_STRIP_WIDTH : undefined}
-                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : 100}
+                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : STRIP_HEIGHT}
                                     finalIndex={FINAL_INDEX}
                                     accentColor={COLORS.green}
                                     isLuckySpin={true}
@@ -2903,6 +2618,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             </div>
                         </div>
 
+                    </div>
+
+                    {/* ── Row 5: the stage ─────────────────────────────────── */}
+                    <div style={{
+                        gridRow: 5,
+                        gridColumn: stageColumn,
+                        minHeight: 0,
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        zIndex: Z.content,
+                    }}>
                         {/* Result Section - inside the card */}
                         {state === 'luckyResult' && luckyResult && (
                             <div style={{
@@ -3108,9 +2836,27 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             </div>
                         )}
                     </div>
-                </div>
+                </>
             )}
 
+            {/* Stage wrapper resumes for the 3x / 5x grids.
+
+                Two wrappers rather than one because the lucky spin sits between
+                them in source order and is NOT a stage card — it takes the reel
+                row like a normal spin does. */}
+            {TRIPLE_VARIANT_STATES.has(state) && (
+            <div style={{
+                gridRow: '4 / 6',
+                gridColumn: stageColumn,
+                minHeight: 0,
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: `${SPACE.md}px 0`,
+                zIndex: Z.content,
+            }}>
             {/* Triple Spin Display (also used for Triple Lucky Spin) */}
             {(state === 'tripleSpinning' || state === 'tripleResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') && (() => {
                 const isTripleLucky = state === 'tripleLuckySpinning' || state === 'tripleLuckyResult';
@@ -3625,16 +3371,27 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 );
             })()}
 
+            </div>
+            )}
         </div>
     );
 }
 
 // Memoize to prevent unnecessary re-renders
 // Animation uses direct DOM manipulation so collection changes won't cause stutter
+//
+// This comparator is an allow-list, so a prop missing from it is silently frozen
+// at its first value. `stageColumn` was exactly that bug: when the viewport
+// crossed 1400px the page switched to a single-column grid and passed
+// stageColumn 1, but this comparator saw no change it cared about, skipped the
+// re-render, and the stage kept asking for column 2. Grid obliged by creating an
+// implicit second column, so the narrow layout came out as two columns with the
+// content crushed into a 291px strip. Add new props here when you add them.
 export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) => {
     // Return true if props are equal (skip re-render)
     // Return false if props are different (re-render)
     return (
+        prevProps.stageColumn === nextProps.stageColumn &&
         prevProps.user?.id === nextProps.user?.id &&
         prevProps.allItems === nextProps.allItems &&
         prevProps.dynamicItems === nextProps.dynamicItems &&

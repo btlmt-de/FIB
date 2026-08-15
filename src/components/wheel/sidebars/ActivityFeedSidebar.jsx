@@ -134,8 +134,21 @@ export function ActivityFeedSidebar() {
 
     return (
         <div style={{
-            width: '340px',
-            height: '520px',
+            // 380px wide, and `height: 100%` rather than a fixed 520px.
+            //
+            // This component no longer sits beside the reel — the desktop feed is
+            // ActivityTicker, a horizontal strip above it. The only thing that
+            // renders this now is the "All drops" drawer in WheelPage.
+            //
+            // `height: 100%` therefore depends entirely on that drawer giving it a
+            // definite height to resolve against. It briefly did not, and the
+            // percentage collapsed to `auto`: the feed grew to its full content
+            // length, ran off the bottom of the screen, and could not be scrolled,
+            // because the element that would have scrolled was the one growing.
+            // If this is ever mounted somewhere new, that container needs a real
+            // height, not just a maxHeight.
+            width: '380px',
+            height: '100%',
             background: `linear-gradient(180deg, ${COLORS.bgLight}f8 0%, ${COLORS.bg}fc 100%)`,
             borderRadius: '16px',
             border: `1px solid ${COLORS.border}`,

@@ -190,7 +190,7 @@ function StagedBar({ progress, tiers, isMobile, raised }) {
 // ============================================
 // Main Community Goal Banner Component
 // ============================================
-function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
+function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false }) {
     const {
         globalEventStatus,
         updateGlobalEventStatus,
@@ -407,11 +407,17 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
 
     return (
         <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
+            // `inline` is what moved this out of the viewport's top
+            // edge and into the page. It used to be `position: fixed;
+            // top: 0`, which on a HUD with a permanent topbar covered it
+            // for the whole event, and made two simultaneous events
+            // overlap each other. In flow it sits in the gap between the
+            // live ticker and the reel, which is space the layout already
+            // had spare — so the banner keeps every detail it ever had
+            // instead of being reduced to fit somewhere it did not belong.
+            ...(inline
+                ? { position: 'relative' }
+                : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }),
             animation: 'slideDownCG 0.4s ease-out forwards',
         }}>
             <style>{`

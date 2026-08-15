@@ -1,3 +1,55 @@
+/**
+ * Spacing scale for the wheel's page shell.
+ *
+ * A layout audit of this page counted eighteen distinct spacing values across
+ * WheelPage and WheelSpinner — essentially every even number up to 40 — and two
+ * different implied scales contradicting each other and DESIGN.md. DESIGN.md's
+ * frontmatter declares xs 4 / sm 8 / md 14 / lg 20 / xl 28, but the wheel had
+ * already voted with its feet for an 8-based rhythm (8/16/24/40 dominate the
+ * shell), while 5, 6, 10, 11, 18, 26, 32 and 36 belonged to neither. DESIGN.md
+ * §5 grants the wheel an exception for *glow and spectacle*; it does not license
+ * an arbitrary spacing scale, so this ratifies the majority rhythm rather than
+ * inventing a third one.
+ *
+ * Scope is the shell — the HUD's rows, the gaps between the reel, the sidebars
+ * and the stage. Component interiors are not retrofitted; that is a much larger
+ * sweep and would bury the layout work.
+ */
+export const SPACE = {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 40,
+};
+
+/**
+ * Stacking order for the HUD, in one place.
+ *
+ * The wheel surface currently reaches 10000, via a 9996–10000 run across the
+ * effects overlays plus one-off 900 / 950 / 999 / 1001 / 101 and an orphaned 19
+ * sitting next to a pair of 20s. Nothing in that range is reasoned about; the
+ * numbers just had to be bigger than whatever was already there.
+ *
+ * This scale covers the shell and the reel, which is what the HUD rebuild
+ * touches. It matters more than it used to: the reel's pointers used to paint
+ * below the card's own overlays purely because they shared one stacking context,
+ * and once the overlays move to the shell that relationship has to be stated
+ * rather than inherited. The `effects/` range above is deliberately left alone —
+ * untangling it is a separate job across roughly two dozen files — so `banner`
+ * and `modal` here are documentation of where those live, not a re-basing of
+ * them.
+ */
+export const Z = {
+    base: 0,        // shell background, cosmic canvas
+    content: 1,     // topbar, stage, sidebars — normal HUD furniture
+    reel: 2,        // the reel row sits above the stage's ambient glow
+    pointer: 4,     // centre line and pointers, above the reel's own fades
+    overlay: 6,     // full-surface spin-mode washes (recursion, KOTW shimmer)
+    banner: 100,    // FirstBlood / CommunityGoal, the better-behaved banners
+    modal: 10000,   // EventSelectionWheel and the celebration stack
+};
+
 export const COLORS = {
     bg: '#1a1a2e',
     bgLight: '#252542',

@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
-import { COLORS } from './config/constants';
+import { COLORS, SPACE, Z } from './config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
 import { ActivityProvider, useActivity } from '../../context/ActivityContext';
 import { SoundProvider } from '../../context/SoundContext.jsx';
 import { AnimationStyles } from './effects/AnimationStyles.jsx';
 import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal } from './modals';
-import { Leaderboard } from './features/Leaderboard.jsx';
 import { CollectionBook } from './features/CollectionBook.jsx';
 import { SpinHistory } from './modals/SpinHistory.jsx';
 import { AdminPanel } from './admin/AdminPanel.jsx';
@@ -40,6 +39,8 @@ import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
+import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
+import { LeaderboardPill } from './sidebars/LeaderboardPill.jsx';
 import { LeaderboardSidebar } from './sidebars/LeaderboardSidebar.jsx';
 import { NotificationBell, NotificationCenter } from './modals/NotificationCenter.jsx';
 import { LiveChat } from './features/LiveChat.jsx';
@@ -119,7 +120,7 @@ const CosmicLoader = () => (
 // ============================================
 // ENHANCED NAV BUTTON
 // ============================================
-function NavButton({ onClick, icon, label, highlight = false }) {
+function NavButton({ onClick, icon, label, highlight = false, tooltipBelow = false }) {
     const [isHovered, setIsHovered] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
 
@@ -160,10 +161,13 @@ function NavButton({ onClick, icon, label, highlight = false }) {
             {showTooltip && (
                 <div style={{
                     position: 'absolute',
-                    bottom: '100%',
+                    // In the topbar there is no room above the button, so the
+                    // tooltip hangs below instead of off the top of the viewport.
+                    ...(tooltipBelow
+                        ? { top: '100%', marginTop: '8px' }
+                        : { bottom: '100%', marginBottom: '8px' }),
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    marginBottom: '8px',
                     padding: '6px 12px',
                     background: COLORS.bgLighter,
                     border: `1px solid ${COLORS.border}`,
@@ -601,19 +605,108 @@ function WheelOfFortunePage({ onBack }) {
 
     return (
         <div style={{
-            height: '100vh',
+            // The HUD shell.
+            //
+            // This page is a task surface, not a document: you come to it to spin,
+            // watch, and read the result. It was built as a centred column of
+            // stacked sections inside `height: 100vh; overflow: hidden`, which is a
+            // document's shape, and the mismatch is what made a bigger reel
+            // impossible. In a stack the reel can only get wider by taking width
+            // from the sidebars beside it, and only get taller by pushing the nav
+            // and footer off the bottom of a page that cannot scroll to reach them.
+            // Two attempts failed on exactly that.
+            //
+            // As a grid the reel is a row, and a row spanning `1 / -1` is full
+            // width by construction — no 100vw, no negative margins, no measuring
+            // the viewport, no card for it to burst out of.
+            //
+            // `100dvh`, not `100vh`: on mobile `100vh` is the height with the
+            // address bar collapsed, so it is taller than what you can actually
+            // see. On a surface that deliberately cannot scroll, that difference
+            // is the nav row sitting below the fold with no way to reach it.
+            //
+            // The rows are: topbar, reel, stage (1fr), nav. Columns are the two
+            // sidebars either side of the stage, collapsing to a single column
+            // below 1400px. `minmax(0, 1fr)` rather than `1fr` on the centre
+            // column — a bare `1fr` is `minmax(auto, 1fr)`, which refuses to
+            // shrink below its content and would let a wide result push the grid
+            // past the viewport.
+            // Rows: topbar, live ticker, spacer, reel, stage, nav.
+            //
+            // The two `minmax(0, 1fr)` rows either side of the reel are what puts
+            // it in the middle of the screen. They are equal, so whatever vertical
+            // slack the viewport has is split evenly above and below the band, and
+            // the reel sits on the centre line at any height instead of riding in
+            // the upper third. The stage lives in the lower flexible row and
+            // top-aligns inside it, so the result appears directly under the reel
+            // rather than drifting to the bottom of the page.
+            //
+            // One column now. Both sidebars have left this axis — the feed is the
+            // ticker in row 2, the leaderboard is a pill in the topbar — which is
+            // the whole reason the reel can be the full width of the screen and
+            // still be the thing in the middle of it.
+            height: '100dvh',
+            display: 'grid',
+            // 0.34fr above, 1fr below. Not symmetric on purpose: an even split
+            // reads as centred but gives the empty gap the same height as the
+            // stage, and the stage has the result panel and the spin CTA in it
+            // while the gap has nothing. This ratio is tuned, not guessed — it is
+            // what lands the band's midpoint on the viewport's midpoint while
+            // leaving the stage enough for the idle block at its tallest.
+            //
+            // Sensitive to the rows above it: if the topbar or the ticker change
+            // height, re-measure. The band's centre should land within a few px of
+            // `innerHeight / 2`.
+            gridTemplateRows: 'auto auto 0.34fr auto minmax(0, 1fr)',
+            gridTemplateColumns: 'minmax(0, 1fr)',
             background: COLORS.bg,
             color: COLORS.text,
-            padding: '0',
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             position: 'relative',
             overflow: 'hidden',
             boxSizing: 'border-box',
+            // KNOWN ISSUE, unchanged by this work: the four top banners (Gold
+            // Rush, KOTW, First Blood, Community Goal) are `position: fixed;
+            // top: 0` and reserve no layout space, so while one is showing it
+            // covers the topbar. They also stack on each other — two firing at
+            // once overlap, and z-index 9999 simply wins over 100.
+            //
+            // A reserved slot was drafted here (`padding-top: var(--fib-banner-h)`)
+            // and removed again: nothing published the variable, and each of the
+            // four banners decides its own visibility internally, so making it real
+            // means touching all four. Left as a follow-up rather than shipped as a
+            // variable that is always 0px and looks like it works.
         }}>
             <AnimationStyles />
             <CanvasCosmicBackground />
 
-            {/* Back Button - Fixed position in corner */}
+            {/* Topbar — row 1.
+
+                Replaces a 52px gradient-filled `Wheel of Fortune` headline, a
+                decorative divider, a subtitle, a floating user chip and a
+                fixed-position Back button, which between them cost about 210px of
+                vertical space at the top of a surface that had none to spare. They
+                also lost the page its own squint test: blurred, the gold headline
+                and the gold wheel sprite ten pixels below it read as one mass with
+                the type on top, so the largest thing on the page was its caption
+                rather than the wheel.
+
+                What is left says the same things in one 56px row: where you are,
+                who you are, and how to leave. The headline's `background-clip:
+                text` gradient went with it — decorative, encoding nothing the
+                weight and colour do not, and a flat ban in the design system. */}
+            <header style={{
+                gridRow: 1,
+                gridColumn: '1 / -1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: `${SPACE.md}px`,
+                padding: `${SPACE.sm}px ${SPACE.lg}px`,
+                borderBottom: `1px solid ${COLORS.border}44`,
+                position: 'relative',
+                zIndex: Z.content,
+            }}>
             <button
                 onClick={(e) => {
                     e.preventDefault();
@@ -624,22 +717,19 @@ function WheelOfFortunePage({ onBack }) {
                     }
                 }}
                 style={{
-                    position: 'fixed',
-                    top: '20px',
-                    left: '20px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    gap: `${SPACE.sm}px`,
                     color: COLORS.textMuted,
                     textDecoration: 'none',
                     fontSize: '14px',
                     padding: '10px 16px',
                     borderRadius: '10px',
                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    zIndex: 100,
                     background: 'rgba(20, 20, 25, 0.8)',
                     border: `1px solid ${COLORS.border}`,
                     cursor: 'pointer',
+                    flexShrink: 0,
                 }}
                 onMouseEnter={e => {
                     e.currentTarget.style.color = COLORS.text;
@@ -658,106 +748,76 @@ function WheelOfFortunePage({ onBack }) {
                 <span>Back</span>
             </button>
 
-            {/* Main layout with sidebars */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '40px',
-                padding: '20px',
-                paddingBottom: '10px',
-                height: '100vh',
-                boxSizing: 'border-box',
-                position: 'relative',
-                zIndex: 1,
-            }}>
-                {/* Left Sidebar - Activity Feed */}
+                {/* Wordmark */}
                 <div style={{
-                    display: 'none',
-                    flexShrink: 0,
+                    display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-                     className="sidebar-left"
-                >
-                    {user && <ActivityFeedSidebar />}
+                    gap: `${SPACE.sm}px`,
+                    minWidth: 0,
+                    marginRight: 'auto',
+                }}>
+                    <Sparkles size={16} style={{ color: COLORS.gold, opacity: 0.8, flexShrink: 0 }} />
+                    <h1 style={{
+                        margin: 0,
+                        fontSize: '17px',
+                        fontWeight: '700',
+                        color: COLORS.gold,
+                        letterSpacing: '0.01em',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                    }}>
+                        Wheel of Fortune
+                    </h1>
                 </div>
 
-                {/* Center Content */}
-                <div style={{
-                    maxWidth: '900px',
-                    width: '100%',
-                    position: 'relative',
-                    zIndex: 1,
-                }}>
-                    {/* Header */}
+                {/* Navigation — in the topbar, not a floating cluster below.
+
+                    It was its own grid row under the stage, which cost 82px of a
+                    fixed-height surface and left the idle block overflowing by
+                    ~57px, taking the rarity legend below the fold. It also meant
+                    the page taught two different vocabularies for "icon button":
+                    44px rounded squares down there, 38px circles in the user chip
+                    up here. One row, one vocabulary, and the stage gets the space.
+
+                    Tooltips hang below — there is nothing above them here. */}
+                {user && (
                     <div style={{
-                        textAlign: 'center',
-                        marginBottom: '16px',
-                        paddingTop: '8px',
-                        animation: 'sectionFadeIn 0.6s ease-out',
+                        display: 'flex',
+                        gap: '6px',
+                        alignItems: 'center',
+                        flexShrink: 0,
                     }}>
-                        {/* Main Title */}
-                        <h1 style={{
-                            margin: '0 0 8px 0',
-                            fontSize: '52px',
-                            fontWeight: '800',
-                            backgroundImage: `linear-gradient(135deg, ${COLORS.gold} 0%, ${COLORS.orange} 40%, ${COLORS.gold} 80%, #fff 100%)`,
-                            backgroundSize: '300% auto',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                            color: 'transparent',
-                            letterSpacing: '-2px',
-                            animation: 'none',
-                            lineHeight: 1.1,
-                        }}>
-                            Wheel of Fortune
-                        </h1>
-
-                        {/* Decorative divider */}
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '12px',
-                            margin: '10px 0',
-                        }}>
-                            <div style={{
-                                width: '60px',
-                                height: '1px',
-                                backgroundImage: `linear-gradient(90deg, transparent, ${COLORS.gold}66)`,
-                                animation: 'lineDrawIn 0.8s ease-out 0.2s both',
-                            }} />
-                            <Sparkles size={16} style={{ color: COLORS.gold, opacity: 0.7 }} />
-                            <div style={{
-                                width: '60px',
-                                height: '1px',
-                                backgroundImage: `linear-gradient(90deg, ${COLORS.gold}66, transparent)`,
-                                animation: 'lineDrawIn 0.8s ease-out 0.2s both',
-                            }} />
-                        </div>
-
-                        {/* Subtitle */}
-                        <p style={{
-                            margin: 0,
-                            color: COLORS.textMuted,
-                            fontSize: '15px',
-                            letterSpacing: '0.5px',
-                            animation: 'sectionFadeIn 0.6s ease-out 0.1s both',
-                        }}>
-                            Spin the wheel to collect rare and legendary items
-                        </p>
+                        <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={20} />} label="Collection" tooltipBelow />
+                        <NavButton onClick={() => setShowHistory(true)} icon={<ScrollText size={20} />} label="History" tooltipBelow />
+                        <NavButton onClick={() => setShowLeaderboard(true)} icon={<Trophy size={20} />} label="Leaderboard" tooltipBelow />
+                        <NavButton onClick={() => setShowAchievements(true)} icon={<Award size={20} />} label="Achievements" tooltipBelow />
+                        {/* Only reachable this way once the ticker folds away */}
+                        {isMobile && (
+                            <NavButton
+                                onClick={() => setShowMobileActivity(true)}
+                                icon={<Activity size={20} />}
+                                label="Live"
+                                highlight={true}
+                                tooltipBelow
+                            />
+                        )}
                     </div>
+                )}
 
-                    {/* User Bar */}
+
+                {/* Leaderboard, reduced to a pill. Sits next to the user chip
+                    because it answers the same question the chip does — who am I
+                    here — rather than being a separate panel about other people. */}
+                {user && <LeaderboardPill onOpenFull={() => setShowLeaderboard(true)} />}
+
+                {/* User Bar */}
                     {!user ? (
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '16px',
-                            marginBottom: '24px',
                             flexWrap: 'wrap',
                             animation: 'sectionFadeIn 0.6s ease-out 0.15s both',
                         }}>
@@ -796,7 +856,6 @@ function WheelOfFortunePage({ onBack }) {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '24px',
                             animation: 'sectionFadeIn 0.6s ease-out 0.15s both',
                         }}>
                             {/* Extended user pill with all controls */}
@@ -998,115 +1057,69 @@ function WheelOfFortunePage({ onBack }) {
                         </div>
                     )}
 
-                    {/* Wheel - Floating without container */}
-                    <div style={{
-                        marginBottom: '16px',
-                        minHeight: '420px',
-                    }}>
-                        <WheelSpinner
-                            allItems={allItems}
-                            collection={collection}
-                            onSpinComplete={handleSpinComplete}
-                            user={user}
-                            dynamicItems={dynamicItems}
-                            wheelSize={180}
-                            kotwLuckySpins={kotwLuckySpins}
-                            kotwLuckySpinsRef={kotwLuckySpinsRef}
-                            onKotwLuckySpinsUpdate={handleKotwLuckySpinsUpdate}
-                        />
-                    </div>
+            </header>
+            {/* End topbar */}
 
-                    {/* Navigation buttons */}
-                    {user && (
-                        <div style={{
-                            display: 'flex',
-                            gap: '8px',
-                            justifyContent: 'center',
-                            marginBottom: '16px',
-                            padding: '10px 14px',
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            borderRadius: '16px',
-                            width: 'fit-content',
-                            margin: '0 auto 16px',
-                            flexWrap: 'wrap',
-                            border: '1px solid rgba(255, 255, 255, 0.04)',
-                            animation: 'sectionFadeIn 0.6s ease-out 0.4s both',
-                        }}>
-                            <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={20} />} label="Collection" />
-                            <NavButton onClick={() => setShowHistory(true)} icon={<ScrollText size={20} />} label="History" />
-                            <NavButton onClick={() => setShowLeaderboard(true)} icon={<Trophy size={20} />} label="Leaderboard" />
-                            <NavButton onClick={() => setShowAchievements(true)} icon={<Award size={20} />} label="Achievements" />
-                            {/* Mobile-only activity button */}
-                            {isMobile && (
-                                <NavButton
-                                    onClick={() => setShowMobileActivity(true)}
-                                    icon={<Activity size={20} />}
-                                    label="Live"
-                                    highlight={true}
-                                />
-                            )}
-                        </div>
-                    )}
+            {/* Rows 2 and 3 are emitted by WheelSpinner itself.
 
-                    {/* Footer */}
-                    <div style={{
-                        marginTop: '24px',
-                        paddingTop: '16px',
-                        borderTop: `1px solid ${COLORS.border}33`,
-                        textAlign: 'center',
-                        animation: 'sectionFadeIn 0.6s ease-out 0.5s both',
-                    }}>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            marginBottom: '8px',
-                        }}>
-                            <Diamond size={14} style={{ color: COLORS.gold, opacity: 0.6 }} />
-                            <span style={{
-                                fontSize: '13px',
-                                color: COLORS.textMuted,
-                                letterSpacing: '0.5px',
-                            }}>
-                                FIB Wheel of Fortune
-                            </span>
-                            <Diamond size={14} style={{ color: COLORS.gold, opacity: 0.6 }} />
-                        </div>
-                        <p style={{
-                            margin: 0,
-                            fontSize: '11px',
-                            color: `${COLORS.textMuted}88`,
-                            letterSpacing: '0.3px',
-                        }}>
-                            Collect them all — Good luck spinning!
-                        </p>
-                    </div>
-                </div>
-                {/* End Center Content */}
+                Its root is `display: contents` on desktop, so its children become
+                direct children of this grid and can be placed in different rows —
+                the reel spanning the full width, the stage sitting between the two
+                sidebars. That is what lets the reel be a genuine grid row without
+                lifting the spin state out of the component: nothing crosses a
+                component boundary, so the rAF offset refs and the 60fps
+                spinProgress tick stay exactly where they were. */}
+            <WheelSpinner
+                allItems={allItems}
+                collection={collection}
+                onSpinComplete={handleSpinComplete}
+                user={user}
+                dynamicItems={dynamicItems}
+                wheelSize={150}
+                kotwLuckySpins={kotwLuckySpins}
+                kotwLuckySpinsRef={kotwLuckySpinsRef}
+                onKotwLuckySpinsUpdate={handleKotwLuckySpinsUpdate}
+                isMobile={isMobile}
+                stageColumn={1}
+            />
 
-                {/* Right Sidebar - Leaderboard */}
+            {/* Live activity — row 2, a horizontal ticker.
+
+                It was a 380px column beside the reel. That column was width the
+                reel could not have, on the one page where width is the whole
+                point, and it was buying vertical history nobody reads mid-spin.
+                As a strip it costs ~86px of height, which this layout has, and
+                returns 380px of width, which it did not.
+
+                The vertical ActivityFeedSidebar is still what the Live drawer
+                opens on narrow viewports — see ActivityTicker's note on why there
+                are two presentations rather than one responsive component. */}
+            {user && (
                 <div style={{
-                    display: 'none',
-                    flexShrink: 0,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-                     className="sidebar-right"
-                >
-                    {user && <LeaderboardSidebar onOpenFull={() => setShowLeaderboard(true)} />}
+                    gridRow: 2,
+                    gridColumn: 1,
+                    borderBottom: `1px solid ${COLORS.border}33`,
+                    minWidth: 0,
+                    zIndex: Z.content,
+                }}>
+                    <ActivityTicker onOpenFull={() => setShowMobileActivity(true)} />
                 </div>
-            </div>
-            {/* End Main Layout */}
+            )}
 
-            {/* CSS for responsive sidebars */}
-            <style>{`
-                @media (min-width: 1400px) {
-                    .sidebar-left, .sidebar-right {
-                        display: flex !important;
-                    }
-                }
-            `}</style>
+
+
+            {/* The `.sidebar-left / .sidebar-right` media query that used to live
+                here is gone. The sidebars were rendered always and then hidden by
+                a `@media (min-width: 1400px) { display: flex !important }`, while
+                a separate `isMobile` state watched the same 1400px threshold to
+                decide whether to show the Live button that replaces the folded
+                feed. Two mechanisms tracking one number is how they drift, and
+                they did: an earlier pass moved the media query without moving
+                isMobile, opening a 300px band of widths with no sidebar and no
+                button to reach it either.
+
+                The grid needs the breakpoint in JS anyway — it decides the column
+                template — so `isMobile` is now the only place it is written. */}
 
             {/* Modals */}
             {showUsernameModal && (
@@ -1116,8 +1129,35 @@ function WheelOfFortunePage({ onBack }) {
                 />
             )}
 
+            {/* The full leaderboard is LeaderboardSidebar in modal mode.
+                
+                It used to be features/Leaderboard.jsx, a second implementation that
+                had drifted behind the panel: the panel had grown the entire King of
+                the Wheel mode — live standings, your points and rank, the countdown
+                — and the modal had none of it, so "open the full leaderboard"
+                showed you fewer features than the panel beside the reel did. The
+                modal's one advantage, the global totals strip, moved across, so
+                nothing was lost in the fold. */}
             {showLeaderboard && (
-                <Leaderboard onClose={() => setShowLeaderboard(false)} />
+                <div
+                    onClick={(e) => { if (e.target === e.currentTarget) setShowLeaderboard(false); }}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: `${SPACE.lg}px`,
+                        zIndex: 1100,
+                        animation: 'fadeIn 0.25s ease-out',
+                    }}
+                >
+                    <LeaderboardSidebar
+                        asModal
+                        onClose={() => setShowLeaderboard(false)}
+                    />
+                </div>
             )}
 
             {showCollection && (
@@ -1183,17 +1223,47 @@ function WheelOfFortunePage({ onBack }) {
             {/* Recursion Overlay */}
             <RecursionOverlay currentUserId={user?.id} />
 
-            {/* Gold Rush Banner */}
-            <GoldRushBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
-
-            {/* King of the Wheel Banner */}
-            <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} />
-
-            {/* First Blood Banner */}
-            <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
-
-            {/* Community Goal Banner */}
-            <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} />
+            {/* Live events — row 3, the gap between the ticker and the reel.
+                
+                The banners are unchanged: same countdowns, progress bars, counters
+                and detail they always had. Only where they sit changed. They used
+                to be `position: fixed; top: 0`, which on a HUD with a permanent
+                topbar covered it for the whole event and let two simultaneous
+                events overlap each other.
+                
+                A brief attempt at replacing them with a single minimal bar is
+                what this reverts. It fixed the overlap and lost everything that
+                made the banners worth looking at — the timer, the progress, the
+                per-event detail. The gap above the reel is roughly 118px of space
+                the layout already keeps spare in order to centre the reel, which
+                is enough to hold a real banner. Fix the position, keep the design.
+                
+                They stay mounted whether or not an event is running: each owns its
+                event's countdown, soundtrack, settle/winner handling and updates to
+                the global event status, so unmounting one would switch the event
+                off rather than hide it. Each renders null on its own when idle. */}
+            <div style={{
+                gridRow: 3,
+                gridColumn: 1,
+                // Bottom-aligned, so the banner always sits flush on top of the
+                // reel rather than floating in the middle of the gap. Community
+                // Goal happened to do this already because it is taller than the
+                // gap; this makes it true of all four, and the banner reads as
+                // attached to the reel instead of hovering near it — which matters
+                // now that the reel takes the event's colour underneath it.
+                alignSelf: 'end',
+                justifySelf: 'stretch',
+                minWidth: 0,
+                zIndex: Z.content,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: `${SPACE.sm}px`,
+            }}>
+                <GoldRushBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
+                <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
+                <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
+                <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
+            </div>
 
             <EventSelectionWheel isMobile={isMobile} />
 
@@ -1240,7 +1310,23 @@ function WheelOfFortunePage({ onBack }) {
                         position: 'relative',
                         width: '100%',
                         maxWidth: '380px',
-                        maxHeight: '90vh',
+                        // A definite height, not just a maxHeight.
+                        //
+                        // ActivityFeedSidebar is `height: 100%` so it can fill the
+                        // HUD's flexible row. A percentage height resolves against
+                        // a parent that HAS a height — against an auto-height
+                        // parent it collapses to `auto`, so in here the feed grew
+                        // to its full content length, ran off the bottom of the
+                        // screen, and could not be scrolled because the element
+                        // that would have scrolled was the one doing the growing.
+                        // `maxHeight` alone does not fix that: it caps this box
+                        // without giving the child anything to measure against.
+                        //
+                        // Capped at 640px as well as 90vh so the panel does not
+                        // become a full-height column on a tall monitor, which is
+                        // not what a drawer over a dimmed page should look like.
+                        height: 'min(90vh, 640px)',
+                        minHeight: 0,
                         animation: 'slideUp 0.3s ease-out'
                     }}>
                         {/* Close button */}

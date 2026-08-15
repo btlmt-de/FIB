@@ -100,6 +100,33 @@ export function ActivityProvider({ children }) {
             }
 
             setGlobalEventStatus(data);
+
+            // King of the Wheel standings, for anyone arriving mid-event.
+            //
+            // kotwLeaderboard was only ever populated from the `kotw_leaderboard`
+            // SSE message, which is pushed when somebody spins. That is fine once
+            // you are watching, but it means a page loaded during a live
+            // competition showed an empty board until the next spin happened
+            // anywhere on the server — which, late in a quiet event, can be a long
+            // time. The standings existed; nothing had asked for them.
+            //
+            // Fetched here rather than in its own effect because this function
+            // already knows whether a KOTW event is running, and it is called both
+            // on mount and whenever the tab becomes visible again — the two moments
+            // where the client can be behind.
+            if (data?.active && data?.type === 'king_of_wheel') {
+                try {
+                    const kotwRes = await fetch(`${API_BASE_URL}/api/kotw/leaderboard`, { credentials: 'include' });
+                    const kotwData = await kotwRes.json();
+                    if (kotwData?.leaderboard) setKotwLeaderboard(kotwData.leaderboard);
+                    // The endpoint returns the caller's own row when signed in, so
+                    // your rank and points come back with it rather than needing a
+                    // second request.
+                    if (kotwData?.userStats) setKotwUserStats(kotwData.userStats);
+                } catch (e) {
+                    console.error('[ActivityContext] Failed to fetch KOTW leaderboard:', e);
+                }
+            }
         } catch (e) {
             console.error('[ActivityContext] Failed to fetch global event status:', e);
         }

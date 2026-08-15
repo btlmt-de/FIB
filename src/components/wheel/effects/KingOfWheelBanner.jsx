@@ -411,6 +411,7 @@ function KingOfWheelBanner({
                                isMobile = false,
                                isAdmin = false,
                                currentUserId = null,
+                               inline = false,
                            }) {
     const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner, kotwWinnerPending } = useActivity();
     const { playSfx, startKotwSoundtrack, stopKotwSoundtrack } = useSound();
@@ -646,7 +647,8 @@ function KingOfWheelBanner({
     const countdownSecs = Math.ceil(countdownTime / 1000);
     const isCriticalTime = remainingTime > 0 && remainingTime < 60000;
 
-    // Don't render if not visible
+    // Don't render if not visible.
+    //
     if (!shouldShowBanner) return null;
 
     return (
@@ -654,11 +656,17 @@ function KingOfWheelBanner({
             {/* Banner - only render when should show */}
             {shouldShowBanner && (
                 <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    zIndex: 100,
+                    // `inline` is what moved this out of the viewport's top
+                    // edge and into the page. It used to be `position: fixed;
+                    // top: 0`, which on a HUD with a permanent topbar covered it
+                    // for the whole event, and made two simultaneous events
+                    // overlap each other. In flow it sits in the gap between the
+                    // live ticker and the reel, which is space the layout already
+                    // had spare — so the banner keeps every detail it ever had
+                    // instead of being reduced to fit somewhere it did not belong.
+                    ...(inline
+                        ? { position: 'relative' }
+                        : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }),
                     animation: 'slideDown 0.4s ease-out forwards',
                 }}>
                     <style>{`

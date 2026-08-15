@@ -433,6 +433,7 @@ function GoldParticles({ intensity = 1 }) {
 function GoldRushBanner({
                             isMobile = false,
                             isAdmin = false,
+                            inline = false,
                         }) {
     const { globalEventStatus, updateGlobalEventStatus, feed } = useActivity();
     const { playSound, startGoldRushSoundtrack, stopGoldRushSoundtrack } = useSound();
@@ -806,13 +807,17 @@ function GoldRushBanner({
                 }} />
             )}
 
-            {/* Main Banner */}
+            {/* Main Banner.
+                
+                `inline` places it in the gap above the reel instead of pinning it
+                to the viewport's top edge, where it covered the HUD's topbar for
+                the whole event. The screen-edge glow above stays fixed either way:
+                that is ambient light across the whole surface rather than a bar,
+                and it is the part of Gold Rush that reads best in the HUD. */}
             <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 9999,
+                ...(inline
+                    ? { position: 'relative' }
+                    : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }),
             }}>
                 {/* Progress Bar (only when active) */}
                 {isActive && (

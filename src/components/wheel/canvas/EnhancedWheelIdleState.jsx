@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Info, Zap, Crown, Star, Gem, Diamond } from 'lucide-react';
-import { WHEEL_TEXTURE_URL } from '../../../config/constants.js';
+import { Sparkles, Info, Zap, Crown, Star, Gem, Diamond, RotateCw } from 'lucide-react';
 import { COLORS } from '../config/constants';
 import { RARITY, RARITY_KEYS, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 
@@ -159,23 +158,32 @@ export function EnhancedWheelIdleState({
 
     // Particle colors based on state
     const particleColor = showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_GOLD : COLORS.gold;
+    // The spin button's accent. Same source as the particles so the whole idle
+    // block shifts together when a recursion or KOTW spin is queued — the button
+    // is the thing being offered, so it should be the first to say which kind.
+    const accentColor = particleColor;
 
     return (
         <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: isMobile ? '12px' : '20px',
+            gap: isMobile ? '12px' : '14px',
             position: 'relative',
-            minHeight: isMobile ? '320px' : '440px',
+            // No minHeight any more. This 440 used to be what held the wheel
+            // row open — the page's own reservation never bound because this was
+            // larger. In the HUD the grid owns vertical space: this sits in a
+            // flexible row that is already sized, and a floor here would push that
+            // row past the viewport on short screens, which is the one thing a
+            // surface that cannot scroll must never do.
             justifyContent: 'center',
             padding: isMobile ? '8px 12px' : '16px 20px',
         }}>
             {/* Wheel Container with Effects */}
             <div style={{
                 position: 'relative',
-                width: isMobile ? '180px' : '240px',
-                height: isMobile ? '180px' : '240px',
+                width: isMobile ? '150px' : '130px',
+                height: isMobile ? '150px' : '130px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -254,48 +262,154 @@ export function EnhancedWheelIdleState({
                     />
                 ))}
 
-                {/* The Wheel Button */}
+                {/* The spin button.
+                 *
+                 * Was the tarot card itself: a sprite you clicked. Artwork is a
+                 * weak affordance for the page's only verb — nothing about a
+                 * picture says "press me", and it carried no disabled or loading
+                 * appearance beyond going translucent.
+                 *
+                 * The first replacement was a flat tinted rectangle, which read as
+                 * cheap next to a reel made of animated light. This one is built
+                 * from the same material as the reel: a lit plinth rather than a
+                 * filled box. The card sits on a dark well so it looks placed on
+                 * the button rather than pasted into it; the accent lives in a
+                 * gradient rim and a floor glow instead of a wash over the whole
+                 * shape; and the whole thing lifts and brightens on hover with a
+                 * sweep across it, so pressing it feels like an action rather than
+                 * a form submit.
+                 */}
                 <button
                     onClick={onSpin}
                     disabled={isDisabled}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                     style={{
-                        background: 'transparent',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        // The halo around this is a fixed 130px square, and a flex
+                        // item shrinks below its content by default — so the button
+                        // was being squeezed to 130px and its label wrapped onto
+                        // two lines. It overflows the halo now, which is correct:
+                        // the halo is a glow behind the button, not a box holding
+                        // it.
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        gap: isMobile ? '12px' : '16px',
+                        padding: isMobile ? '13px 24px' : '16px 32px',
+                        borderRadius: '18px',
                         border: 'none',
-                        padding: 0,
+                        // Two layers: a near-black plinth, then the tier accent as
+                        // a rim and a pool of light at the floor. Nothing is a flat
+                        // fill — that was what made the old one look printed.
+                        background: isDisabled
+                            ? 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))'
+                            : `radial-gradient(120% 140% at 50% 118%, ${accentColor}55 0%, ${accentColor}18 38%, transparent 70%),
+                               linear-gradient(180deg, rgba(255,255,255,0.07) 0%, rgba(0,0,0,0.28) 100%),
+                               linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
+                        color: isDisabled ? COLORS.textMuted : '#fff',
+                        fontSize: isMobile ? '17px' : '20px',
+                        fontWeight: 800,
+                        letterSpacing: '0.01em',
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         position: 'relative',
+                        overflow: 'hidden',
                         zIndex: 2,
-                        opacity: (isDisabled && !isLoading) ? 0.5 : 1,
-                        transform: isHovered && !isDisabled ? 'scale(1.08)' : 'scale(1)',
-                        transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        // Simplified filter for GPU performance (was multiple drop-shadows)
-                        filter: 'none',
-                        animation: 'none',
+                        transform: isHovered && !isDisabled ? 'translateY(-3px)' : 'translateY(0)',
+                        transition: 'transform 0.22s cubic-bezier(0.34,1.4,0.64,1), box-shadow 0.22s, filter 0.22s',
+                        filter: isHovered && !isDisabled ? 'brightness(1.14)' : 'none',
+                        // The rim is a gradient, so it catches the light along its
+                        // top edge the way a physical bevel would. `inset` keeps it
+                        // inside the radius without a second element.
+                        boxShadow: isDisabled
+                            ? 'inset 0 0 0 1px rgba(255,255,255,0.08)'
+                            : [
+                                `inset 0 0 0 1px ${accentColor}66`,
+                                'inset 0 1px 0 rgba(255,255,255,0.22)',
+                                `inset 0 -14px 24px -14px ${accentColor}`,
+                                isHovered
+                                    ? `0 14px 40px -12px ${accentColor}, 0 0 0 5px ${accentColor}1F`
+                                    : `0 8px 26px -14px ${accentColor}`,
+                            ].join(', '),
                     }}
                 >
-                    <img
-                        src={WHEEL_TEXTURE_URL}
-                        alt="Spin the wheel"
+                    {/* Sheen. A single diagonal highlight that slides across on
+                        hover — the cheapest way to say "this is a physical thing
+                        you can press" without animating anything expensive. Sits
+                        under the content, above the plinth. */}
+                    {!isDisabled && (
+                        <span
+                            aria-hidden="true"
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                bottom: 0,
+                                width: '55%',
+                                left: isHovered ? '75%' : '-60%',
+                                background: 'linear-gradient(100deg, transparent, rgba(255,255,255,0.16), transparent)',
+                                transition: 'left 0.55s cubic-bezier(0.4,0,0.2,1)',
+                                pointerEvents: 'none',
+                            }}
+                        />
+                    )}
+
+                    {/* A glyph, not the card.
+                     *
+                     * The tarot card lived here at 46px and was the wrong asset for
+                     * the job: it is a detailed illustration — border, title text,
+                     * figures, the wheel motif — and at button size all of that
+                     * collapses into an unreadable smudge. Shrinking artwork past
+                     * the size it reads at does not make a small version of it, it
+                     * makes noise.
+                     *
+                     * A line glyph is drawn for this size and scales cleanly at any
+                     * other. The card's identity is not lost: the wordmark carries
+                     * it in the topbar and the status bar keeps its icon, so the
+                     * button does not have to say it a third time.
+                     */}
+                    <RotateCw
+                        size={isMobile ? 22 : 26}
+                        strokeWidth={2.6}
+                        aria-hidden="true"
                         style={{
-                            width: isMobile ? '140px' : '180px',
-                            height: 'auto',
-                            imageRendering: 'pixelated',
+                            flexShrink: 0,
+                            color: isDisabled ? COLORS.textMuted : accentColor,
+                            filter: isDisabled ? 'none' : `drop-shadow(0 0 10px ${accentColor}88)`,
+                            transform: isHovered && !isDisabled ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.45s cubic-bezier(0.34,1.3,0.64,1), filter 0.22s',
                         }}
                     />
 
-                    {/* Hover Glow Ring */}
-                    {isHovered && !isDisabled && (
-                        <div style={{
-                            position: 'absolute',
-                            inset: '-20px',
-                            borderRadius: '50%',
-                            border: `2px solid ${showRecursionEffects ? COLORS.recursion : showKotwLuckyEffects ? KOTW_CRIMSON : COLORS.gold}44`,
-                            animation: 'none',
-                            pointerEvents: 'none',
-                        }} />
-                    )}
+                    <span style={{
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        lineHeight: 1.15,
+                    }}>
+                        <span style={{
+                            whiteSpace: 'nowrap',
+                            textShadow: isDisabled ? 'none' : `0 0 18px ${accentColor}55`,
+                        }}>
+                            {isLoading ? 'Loading…' : isMobile ? 'Tap to spin' : 'Spin'}
+                        </span>
+                        {/* The secondary line the CTA text underneath used to
+                            carry. On the button it is where the eye already is. */}
+                        {!isLoading && !isDisabled && (
+                            <span style={{
+                                fontSize: isMobile ? '10px' : '11px',
+                                fontWeight: 600,
+                                letterSpacing: '0.09em',
+                                textTransform: 'uppercase',
+                                color: accentColor,
+                                opacity: 0.85,
+                                whiteSpace: 'nowrap',
+                            }}>
+                                {totalItemCount ? `${totalItemCount.toLocaleString()} items` : 'Good luck'}
+                            </span>
+                        )}
+                    </span>
                 </button>
             </div>
 
@@ -320,7 +434,7 @@ export function EnhancedWheelIdleState({
                                 Loading items... {clampedProgress}%
                             </div>
                             <div style={{
-                                width: isMobile ? '140px' : '180px',
+                                width: isMobile ? '140px' : '120px',
                                 height: '6px',
                                 background: 'rgba(255,255,255,0.1)',
                                 borderRadius: '3px',
@@ -365,7 +479,15 @@ export function EnhancedWheelIdleState({
                                                 <Crown size={isMobile ? 16 : 18} /> {kotwLuckySpins} Event Lucky Spin{kotwLuckySpins !== 1 ? 's' : ''}!
                                             </span>
                                         )
-                                        : isMobile ? 'Tap to spin!' : 'Click to spin!'}
+                                        // Nothing here any more. The button
+                                        // directly above says "Spin"; a line
+                                        // under it reading "Click to spin!" was
+                                        // the same instruction twice. This line
+                                        // survives for what the button cannot
+                                        // carry — not signed in, pool still
+                                        // loading, and the two lucky-spin states,
+                                        // which announce how many you hold.
+                                        : null}
                     </div>
                 )}
 
@@ -399,9 +521,11 @@ export function EnhancedWheelIdleState({
                                 borderRadius: '4px',
                             }}>KING OF THE WHEEL</span>
                         </span>
-                    ) : allItems.length > 0 && (
-                        <span>Win one of <strong style={{ color: COLORS.text }}>{totalItemCount}</strong> items!</span>
-                    )}
+                    ) : null}
+                    {/* "Win one of N items!" used to sit here. The count moved
+                        onto the spin button, where the eye already is — having it
+                        in both places was the same number twice, six pixels
+                        apart. */}
                 </div>
 
                 {/* Rarity Indicators */}
@@ -448,40 +572,15 @@ export function EnhancedWheelIdleState({
                     </div>
                 )}
 
-                {/* Odds Info Button */}
-                <button
-                    onClick={onShowOddsInfo}
-                    style={{
-                        marginTop: isMobile ? '8px' : '16px',
-                        padding: isMobile ? '8px 16px' : '10px 20px',
-                        borderRadius: '20px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${COLORS.border}`,
-                        color: COLORS.textMuted,
-                        fontSize: isMobile ? '11px' : '12px',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                        // backdropFilter removed for GPU performance
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = COLORS.aqua;
-                        e.currentTarget.style.color = COLORS.aqua;
-                        e.currentTarget.style.background = `${COLORS.aqua}11`;
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = COLORS.border;
-                        e.currentTarget.style.color = COLORS.textMuted;
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                >
-                    <Info size={isMobile ? 12 : 14} />
-                    How odds work
-                </button>
+                {/* The "How odds work" button used to sit here.
+                    
+                    Removed rather than restyled: the reel's status bar carries a
+                    `?` that opens the very same OddsInfoModal, and it is on screen
+                    in every state rather than only while idle. Two controls for one
+                    modal, one of which disappears the moment you spin, is the kind
+                    of duplicate affordance a fixed-height surface cannot afford —
+                    this block was overflowing the stage and taking the rarity
+                    legend below the fold with it. */}
             </div>
         </div>
     );
