@@ -302,10 +302,18 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     // a column that will not sit still is hard to actually look at, which is the
     // opposite of what the payoff frame is for.
     //
-    // The winner is still unmistakable without it: `lift` below runs its wash and
-    // glow 35% hotter than any other slot, its base bar goes fully opaque, and it
-    // gets full-height shaft walls plus a crown of light that no other column
-    // draws. All of that is static.
+    // The verdict stands for the column — it holds still — and for the sprite,
+    // whose scale pulse was tried in its turn and removed for the same reason in
+    // different clothes: geometry that will not sit still reads mechanical (see
+    // the pulse note in the sprite block). The winner stays alive through light
+    // instead: `winnerLightPulse` breathes the pool and bloom without moving a
+    // pixel. This note is the scar from when the whole column breathed, so the
+    // distinction does not get re-litigated.
+    //
+    // The winner is still unmistakable without the column breathing: `lift` below
+    // runs its wash and glow 35% hotter than any other slot, its base bar goes
+    // fully opaque, and it gets full-height shaft walls plus a crown of light
+    // that no other column draws. All of that is static.
 
     // Each column is inset so the slots do not touch — but only just.
     //
@@ -745,19 +753,42 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         else if (isRecursionType) imgScale = 0.66;
         else if (isSpecialType) imgScale = 0.66;
 
-        const imgSize = size * imgScale;
+        // The winner's sprite grows out of its seat. Everything else about the
+        // slot already inflates on the winning frame — the wash lifts 35%, the
+        // shaft runs full height, the crown lights — but the art stayed the same
+        // size as every other slot, so the payoff read as "this column got lit"
+        // rather than "this item came up". 6% is the smallest zoom that shows at
+        // a glance, and the extra lift is the same optical correction the
+        // standing seat applies, restated for the larger size: the base bar pulls
+        // the eye down, so a sprite re-centred after a scale-up would still sit
+        // low. The pool is computed from imgY/imgSize and tracks both.
+        //
+        // The sprite itself holds still from here; it was tried breathing — a
+        // sine on its scale, 1.06 × 1±0.05 — and read as a balloon being
+        // inflated, because it broke the surface's one physics rule: geometry
+        // holds still, light breathes (the column's own breathing was removed
+        // for the same reason, see the note above). The prize stays alive
+        // instead through `winnerLightPulse` below: the pool of light under it
+        // and its bloom swell and ease without a pixel of the art moving.
+        const winnerZoom = isWinning ? 1.06 : 1;
+        const winnerLift = isWinning ? H * 0.02 : 0;
+
+        const imgSize = size * imgScale * winnerZoom;
         const imgX = x + (size - imgSize) / 2;
         // Seated slightly above centre. The base bar and its glow pull the eye
         // down, so a geometrically centred sprite optically reads as low.
-        const imgY = T + (F - T - imgSize) / 2 - H * 0.04;
+        const imgY = T + (F - T - imgSize) / 2 - H * 0.04 - winnerLift;
 
         // A pool of the tier's light under the item, so it sits in the column
-        // rather than floating in front of it.
+        // rather than floating in front of it. The winner's share swells and
+        // eases on a slow beat — light, not geometry (see the pulse note above).
+        // Frozen dead centre under reduced motion like every other ambient beat.
+        const winnerLightPulse = isWinning && !calm ? 1 + Math.sin(time * 1.6) * 0.18 : 1;
         const pool = ctx.createRadialGradient(
             x + size / 2, imgY + imgSize * 0.9, 0,
             x + size / 2, imgY + imgSize * 0.9, imgSize * 0.85,
         );
-        pool.addColorStop(0, rgb(stops[1], 0.32 * glow));
+        pool.addColorStop(0, rgb(stops[1], 0.32 * glow * winnerLightPulse));
         pool.addColorStop(1, rgb(stops[1], 0));
         ctx.fillStyle = pool;
         ctx.fillRect(colX, imgY - imgSize * 0.2, colW, imgSize * 1.9);
@@ -787,7 +818,10 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
             // shadowColor takes a colour and never a gradient, so the animated
             // tiers bloom in whatever hue they are currently passing through.
             ctx.shadowColor = rgb(stops[1], 1);
-            ctx.shadowBlur = isInsane ? 16 : isMythic ? 13 : 9;
+            // The winner's bloom swells with the same beat as the pool. Won by a
+            // common (no bloom path) the pool alone carries the pulse; tiered
+            // winners get both layers moving together.
+            ctx.shadowBlur = (isInsane ? 16 : isMythic ? 13 : 9) * (isWinning ? winnerLightPulse : 1);
         }
 
         drawItemSprite(ctx, item, img, imgX, imgY, imgSize);

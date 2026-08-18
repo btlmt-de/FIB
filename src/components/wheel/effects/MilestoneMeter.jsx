@@ -75,6 +75,39 @@ export function MilestoneMeter({ isMobile }) {
             paddingBottom: `${SPACE.sm}px`,
             zIndex: Z.content,
         }}>
+            {/*
+             * The two keyframes are defined here, in the component, because the
+             * wheel's effects each own their animation vocabulary — see the
+             * countdownPulse* keyframes in the event banners. Both are frozen by
+             * the media query below, matching the surface's rule: light and
+             * motion may breathe, geometry and data may not.
+             *
+             * `fibMeterTick` is the number's "something just moved" pop. It runs
+             * exactly once per update because the <strong> remounts on
+             * `key={remaining}` — a 20s poll snap turns into a visible tick
+             * without inventing any data in between.
+             *
+             * `fibMeterBreath` is the imminent fill's glow. The static 8px
+             * shadow that the rest of the time says "status" gives way to a
+             * slow swell — the one moment this component is allowed to raise
+             * its voice, and it spends it on light, never on layout.
+             */}
+            <style>{`
+                @keyframes fibMeterTick {
+                    0% { transform: scale(1); }
+                    40% { transform: scale(1.06); }
+                    100% { transform: scale(1); }
+                }
+                @keyframes fibMeterBreath {
+                    0%, 100% { box-shadow: 0 0 6px ${COLORS.gold}55; }
+                    50% { box-shadow: 0 0 16px ${COLORS.gold}AA; }
+                }
+                .fib-meter-tick { animation: fibMeterTick 220ms ease-out; }
+                .fib-meter-breath { animation: fibMeterBreath 1.8s ease-in-out infinite; }
+                @media (prefers-reduced-motion: reduce) {
+                    .fib-meter-tick, .fib-meter-breath { animation: none; }
+                }
+            `}</style>
             <div
                 // The full sentence lives here rather than on screen. The visible
                 // copy has to carry "server-wide" in three words; the tooltip can
@@ -83,7 +116,7 @@ export function MilestoneMeter({ isMobile }) {
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '7px',
+                    gap: '5px',
                     width: isMobile ? 'min(340px, 92vw)' : '460px',
                     padding: isMobile ? '9px 14px 11px' : '10px 18px 12px',
                     borderRadius: '10px',
@@ -99,11 +132,17 @@ export function MilestoneMeter({ isMobile }) {
                     ].join(', '),
                 }}
             >
+                {/*
+                 * The number is the product, the label is the margin note. It
+                 * used to be the other way around — 11px bold caps against 13px
+                 * regular — so the only datum that ever changes was the quietest
+                 * thing on the card. Now the count reads as an instrument
+                 * readout and the prose around it recedes.
+                 */}
                 <div style={{
                     display: 'flex',
-                    alignItems: 'baseline',
-                    justifyContent: 'space-between',
-                    gap: `${SPACE.md}px`,
+                    flexDirection: 'column',
+                    gap: '1px',
                 }}>
                     <span style={{
                         fontSize: '11px',
@@ -116,25 +155,44 @@ export function MilestoneMeter({ isMobile }) {
                         Next global event
                     </span>
 
-                    <span style={{
-                        fontSize: isMobile ? '12px' : '13px',
-                        color: COLORS.textMuted,
-                        whiteSpace: 'nowrap',
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        gap: '7px',
+                        flexWrap: 'wrap',
                     }}>
-                        <strong style={{
-                            color: imminent ? COLORS.gold : COLORS.text,
-                            fontWeight: 700,
-                            fontVariantNumeric: 'tabular-nums',
-                        }}>
+                        <strong
+                            key={remaining}
+                            className="fib-meter-tick"
+                            style={{
+                                fontSize: isMobile ? '22px' : '26px',
+                                fontWeight: 800,
+                                lineHeight: 1.1,
+                                fontVariantNumeric: 'tabular-nums',
+                                color: imminent ? COLORS.gold : COLORS.text,
+                                textShadow: imminent ? `0 0 14px ${COLORS.gold}44` : 'none',
+                            }}
+                        >
                             {remaining.toLocaleString('en-US')}
                         </strong>
-                        {' '}spins to go, server-wide
-                    </span>
+                        <span style={{
+                            fontSize: isMobile ? '12px' : '13px',
+                            color: COLORS.textMuted,
+                            whiteSpace: 'nowrap',
+                        }}>
+                            spins to go, server-wide
+                        </span>
+                    </div>
                 </div>
 
-                {/* The meter. A pill track with the fill scaled rather than widened:
-                    this updates on a timer, and `width` would lay the row out again
-                    every time — see the same call in the spin control's loading bar. */}
+                {/*
+                 * The meter. A pill track with the fill scaled rather than widened:
+                 * this updates on a timer, and `width` would lay the row out again
+                 * every time — see the same call in the spin control's loading bar.
+                 * 7px rather than the 4px it used to be: the fill's glide is the
+                 * only motion on the card, and at 4px on a 460px track it was
+                 * invisible from the couch.
+                 */}
                 <div
                     role="progressbar"
                     aria-valuenow={Math.round(progress)}
@@ -142,25 +200,29 @@ export function MilestoneMeter({ isMobile }) {
                     aria-valuemax={100}
                     aria-label="Progress to the next global event"
                     style={{
-                        height: '4px',
+                        height: '7px',
+                        marginTop: '4px',
                         borderRadius: '999px',
                         background: 'rgba(206,214,236,0.08)',
                         overflow: 'hidden',
                     }}
                 >
-                    <div style={{
-                        height: '100%',
-                        width: '100%',
-                        transformOrigin: 'left center',
-                        transform: `scaleX(${progress / 100})`,
-                        borderRadius: '999px',
-                        background: `linear-gradient(90deg, ${COLORS.gold}77, ${COLORS.gold})`,
-                        boxShadow: `0 0 8px ${COLORS.gold}${imminent ? '99' : '55'}`,
-                        // Long, because the value only moves every 20s and in jumps:
-                        // a slow glide reads as a meter filling, where a snap reads
-                        // as the number having been wrong a moment ago.
-                        transition: 'transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
-                    }} />
+                    <div
+                        className={imminent ? 'fib-meter-breath' : undefined}
+                        style={{
+                            height: '100%',
+                            width: '100%',
+                            transformOrigin: 'left center',
+                            transform: `scaleX(${progress / 100})`,
+                            borderRadius: '999px',
+                            background: `linear-gradient(90deg, ${COLORS.gold}77, ${COLORS.gold})`,
+                            boxShadow: `0 0 8px ${COLORS.gold}${imminent ? '99' : '55'}`,
+                            // Long, because the value only moves every 20s and in
+                            // jumps: a slow glide reads as a meter filling, where a
+                            // snap reads as the number having been wrong a moment ago.
+                            transition: 'transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
+                        }}
+                    />
                 </div>
             </div>
         </div>
