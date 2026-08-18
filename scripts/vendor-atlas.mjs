@@ -57,6 +57,29 @@ const OUT_JSON = join(root, 'public/fib-atlas.json');
 /** Past roughly this area mobile Safari subsamples decoded images. */
 const MAX_MEGAPIXELS = 16.7;
 
+/**
+ * Transparent-safe gutter between tiles, in pixels per side.
+ *
+ * Tiles used to be packed edge to edge, and that was correct for exactly as long
+ * as the canvas drew them with `imageSmoothingEnabled = false`: nearest neighbour
+ * samples one texel and can never read outside the source rect handed to
+ * drawImage. The moment smoothing was turned on — which it had to be, because the
+ * strip *downscales* these and nearest-neighbour downscaling makes sprites crawl
+ * — the sampler started reading across tile boundaries, and items picked up
+ * fringes of whatever happened to be packed beside them alphabetically.
+ *
+ * The gutter is filled by **extrusion**, not by transparency. Repeating each
+ * sprite's own edge pixel outward means a sampler that reaches past the boundary
+ * pulls in more of that sprite instead of its neighbour, so the bleed becomes
+ * invisible rather than merely different. Padding with transparent pixels would
+ * swap coloured fringes for dark ones — the same bug wearing a different colour.
+ *
+ * 2px rather than 1: at a 1.3x downscale the browser's filter kernel is wider
+ * than a single texel, and the cost is only area. Keep an eye on the megapixel
+ * warning below when changing it.
+ */
+const PAD = 2;
+
 const tileArg = process.argv.indexOf('--tile');
 const TILE = tileArg === -1 ? 96 : Number(process.argv[tileArg + 1]);
 
@@ -91,8 +114,9 @@ async function main() {
   // every deploy churns a 5 MB binary in git for no reason.
   const cols = Math.ceil(Math.sqrt(files.length));
   const rows = Math.ceil(files.length / cols);
-  const width = cols * TILE;
-  const height = rows * TILE;
+  const CELL = TILE + PAD * 2;
+  const width = cols * CELL;
+  const height = rows * CELL;
 
   // Composed by blitting raw RGBA rather than through sharp's composite(): 1,500
   // composite operations in one pipeline is far slower and much heavier on
@@ -111,15 +135,26 @@ async function main() {
       .raw()
       .toBuffer({ resolveWithObject: true });
 
+    // Written cell by cell with the source coordinate clamped, which draws the
+    // sprite and extrudes its border in one pass: inside the cell's padding the
+    // clamp resolves to the nearest real edge pixel, so the gutter is a smear of
+    // the sprite's own outline. See PAD.
     const col = i % cols;
     const row = Math.floor(i / cols);
-    for (let y = 0; y < TILE; y++) {
-      data.copy(
-        atlas,
-        ((row * TILE + y) * width + col * TILE) * 4,
-        y * TILE * 4,
-        (y + 1) * TILE * 4,
-      );
+    const cellX = col * CELL;
+    const cellY = row * CELL;
+
+    for (let y = 0; y < CELL; y++) {
+      const sy = Math.min(TILE - 1, Math.max(0, y - PAD));
+      for (let x = 0; x < CELL; x++) {
+        const sx = Math.min(TILE - 1, Math.max(0, x - PAD));
+        const from = (sy * TILE + sx) * 4;
+        const to = ((cellY + y) * width + cellX + x) * 4;
+        atlas[to] = data[from];
+        atlas[to + 1] = data[from + 1];
+        atlas[to + 2] = data[from + 2];
+        atlas[to + 3] = data[from + 3];
+      }
     }
 
     // Keyed by name, holding the flat index. The index is meaningless without
@@ -137,7 +172,11 @@ async function main() {
     .webp({ lossless: true, effort: 6 })
     .toFile(OUT_IMAGE);
 
-  const meta = { tile: TILE, cols, rows, width, height, count: files.length, sprites };
+  // `pad` and `cell` are what the client needs to address a sprite now that the
+  // grid pitch is no longer the tile size. Both are written explicitly rather
+  // than derived, so an atlas built before the gutter existed (no `pad` key) is
+  // still readable — atlas.js defaults them to 0 and TILE.
+  const meta = { tile: TILE, pad: PAD, cell: CELL, cols, rows, width, height, count: files.length, sprites };
   await writeFile(OUT_JSON, JSON.stringify(meta));
 
   const { size } = await stat(OUT_IMAGE);
@@ -145,7 +184,8 @@ async function main() {
   const megapixels = (width * height) / 1e6;
 
   console.log(
-    `Packed ${files.length} sprites at ${TILE}px into ${cols}x${rows} ` +
+    `Packed ${files.length} sprites at ${TILE}px (+${PAD}px extruded gutter, ` +
+    `${CELL}px cell) into ${cols}x${rows} ` +
     `(${width}x${height}, ${megapixels.toFixed(1)} MP) -> public/fib-atlas.webp ` +
     `(${bytes(size)}) + fib-atlas.json (${bytes(jsonSize)})`,
   );

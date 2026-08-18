@@ -10,6 +10,27 @@ import {
     Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X, Users
 } from 'lucide-react';
 
+/**
+ * The modal table's geometry, in one place.
+ *
+ * The header and the rows are separate elements that must line up exactly, and
+ * they did not: the rows carry `margin: 0 8px` from `.sidebar-leaderboard-row`
+ * while the header had none, so the header sat 8px to the left AND — because the
+ * rows were consequently 16px narrower — its `1fr` name column resolved 28px
+ * wider, throwing every column after it out too.
+ *
+ * Two elements, one set of numbers. Anything that changes the table's columns,
+ * padding or inset changes it here and both follow.
+ */
+const MODAL_TABLE = {
+    gridTemplateColumns: '46px 34px minmax(0, 1fr) 96px 96px 96px 232px',
+    columnGap: '14px',
+    // Matches .sidebar-leaderboard-row's own margin. Without it the two elements
+    // have different content widths and the flexible column cannot agree.
+    marginInline: '8px',
+    paddingInline: '20px',
+};
+
 /** Global-totals field names. Pluralised, and distinct from the per-player
  *  `*_count` fields — these come from getGlobalStats, a separate query. */
 const GLOBAL_TOTAL_FIELD = {
@@ -984,6 +1005,58 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
                     overflow: 'auto',
                     padding: '8px 0'
                 }}>
+                    {/* Column headings.
+
+                        Inside the scroller, not above it. Outside, the scrollbar
+                        narrowed the rows by its own width and not the header, so
+                        the flexible name column resolved ~10px wider up there and
+                        every column after it was thrown out — after the margin and
+                        padding had already been matched. Sharing the scroll box
+                        means sharing whatever the scrollbar takes, whether or not
+                        one is present and whatever width the platform gives it.
+
+                        Sticky so it survives scrolling, which is what a header on a
+                        100-row table is for.
+
+                        Three numeric columns without labels is a table asking you
+                        to guess. The rail cannot afford these — one number per row,
+                        and the header would cost more than it explains — but the
+                        modal can. */}
+                    {asModal && (
+                        <div style={{
+                            position: 'sticky',
+                            top: 0,
+                            zIndex: 1,
+                            display: 'grid',
+                            gridTemplateColumns: MODAL_TABLE.gridTemplateColumns,
+                            columnGap: MODAL_TABLE.columnGap,
+                            alignItems: 'center',
+                            marginInline: MODAL_TABLE.marginInline,
+                            paddingInline: MODAL_TABLE.paddingInline,
+                            paddingBlock: '10px',
+                            // Matches the rows', which carry one for their selected
+                            // state. A pixel each side is enough to shift a column.
+                            border: '1px solid transparent',
+                            borderBottom: `1px solid ${COLORS.border}`,
+                            background: COLORS.bg,
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            letterSpacing: '0.09em',
+                            textTransform: 'uppercase',
+                            color: COLORS.textMuted,
+                        }}>
+                            <span>#</span>
+                            <span />
+                            <span>Player</span>
+                            <span style={{ textAlign: 'right', color: sortOptions[activeTab].color }}>
+                                {sortOptions[activeTab].label}
+                            </span>
+                            <span style={{ textAlign: 'right' }}>Spins</span>
+                            <span style={{ textAlign: 'right' }}>Dupes</span>
+                            <span style={{ textAlign: 'right' }}>Collection</span>
+                        </div>
+                    )}
+
                     {loading ? (
                         <div style={{
                             display: 'flex',
@@ -1022,10 +1095,30 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
                                     className="sidebar-leaderboard-row"
                                     onClick={() => setSelectedUser(entry.id)}
                                     style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '10px',
-                                        padding: '10px 12px',
+                                        // A grid in modal mode, a flex row in the rail.
+                                        //
+                                        // Flex sizes every cell to its content, which is
+                                        // right at 380px and wrong at 1000px: the tier
+                                        // chips vary in number per player, so with the
+                                        // right-hand group content-sized the score landed
+                                        // at a different x on every row and the column did
+                                        // not read as a column. Fixed tracks put each value
+                                        // in the same place down the table, and give the
+                                        // middle of the row something to do besides be
+                                        // empty.
+                                        ...(asModal ? {
+                                            display: 'grid',
+                                            gridTemplateColumns: MODAL_TABLE.gridTemplateColumns,
+                                            alignItems: 'center',
+                                            columnGap: MODAL_TABLE.columnGap,
+                                            paddingInline: MODAL_TABLE.paddingInline,
+                                            paddingBlock: '11px',
+                                        } : {
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            padding: '10px 12px',
+                                        }),
                                         background: isCurrentUser
                                             ? `linear-gradient(90deg, ${COLORS.accent}18 0%, transparent 100%)`
                                             : isTopThree
@@ -1063,9 +1156,9 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
 
                                     {/* Name */}
                                     <div style={{
-                                        flex: 1,
+                                        ...(asModal ? {} : { flex: 1 }),
                                         minWidth: 0,
-                                        fontSize: '13px',
+                                        fontSize: asModal ? '14px' : '13px',
                                         fontWeight: isCurrentUser ? '700' : isTopThree ? '600' : '500',
                                         color: isCurrentUser ? COLORS.accent : COLORS.text,
                                         whiteSpace: 'nowrap',
@@ -1077,15 +1170,42 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
 
                                     {/* Value */}
                                     <div style={{
-                                        width: '50px',
-                                        fontSize: '12px',
-                                        fontWeight: '600',
+                                        ...(asModal ? {} : { width: '50px' }),
+                                        fontSize: asModal ? '15px' : '12px',
+                                        fontWeight: '700',
                                         color: sortOptions[activeTab].color,
                                         textAlign: 'right',
                                         fontFamily: 'monospace',
+                                        // Tabular figures, so digits sit in columns
+                                        // instead of drifting with each glyph's width.
+                                        fontVariantNumeric: 'tabular-nums',
                                     }}>
                                         {getValueForTab(entry).toLocaleString()}
                                     </div>
+
+                                    {/* Two further measures, modal only. The rail has
+                                        nowhere to put these; at 1000px the row was mostly
+                                        empty without them. */}
+                                    {asModal && (
+                                        <div style={{
+                                            fontSize: '13px',
+                                            color: COLORS.textMuted,
+                                            textAlign: 'right',
+                                            fontVariantNumeric: 'tabular-nums',
+                                        }}>
+                                            {(entry.total_spins || 0).toLocaleString()}
+                                        </div>
+                                    )}
+                                    {asModal && (
+                                        <div style={{
+                                            fontSize: '13px',
+                                            color: COLORS.textMuted,
+                                            textAlign: 'right',
+                                            fontVariantNumeric: 'tabular-nums',
+                                        }}>
+                                            {(entry.total_duplicates || 0).toLocaleString()}
+                                        </div>
+                                    )}
 
                                     {/* Rarity badges.
                                         Content-sized, not a fixed 140px. Measured in a 392px
@@ -1096,10 +1216,15 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
                                         the name MORE room in the common case (a player with two
                                         tiers) and takes what it needs in the rare one. */}
                                     <div style={{
-                                        display: 'flex',
-                                        gap: '2px',
+                                        display: asModal ? 'grid' : 'flex',
+                                        ...(asModal ? { gridTemplateColumns: 'repeat(5, 1fr)' } : {}),
+                                        gap: asModal ? '4px' : '2px',
                                         justifyContent: 'flex-end',
-                                        flexShrink: 0
+                                        flexShrink: 0,
+                                        // Its own grid track in modal mode, so a player
+                                        // holding five tiers no longer shoves the score
+                                        // column left on that one row.
+                                        ...(asModal ? { minWidth: 0, overflow: 'hidden' } : {}),
                                     }}>
                                         {(() => {
                                             // Show event stats for events tab
@@ -1163,7 +1288,14 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
                                                         ? (entry[`total_${key}`] || 0)
                                                         : (entry[`${key}_count`] || 0),
                                                 }))
-                                                .filter(t => t.count > 0);
+                                                // The rail drops empty tiers because it has no room
+                                                // to spare. The modal keeps them: with one fixed slot
+                                                // per tier the chips line up in columns down the
+                                                // table, which is the whole point of a table. Dropping
+                                                // them there meant every row started its chips at a
+                                                // different x depending on which tiers that player
+                                                // happened to own.
+                                                .filter(t => asModal || t.count > 0);
 
                                             return (
                                                 <>
@@ -1173,6 +1305,27 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
                                                         // carrying all three ramp hues at once, so it reads as
                                                         // the top tier at 10px instead of as plain white.
                                                         const holo = isIridescentRarity(key);
+                                                        // A tier the player has none of holds its slot but
+                                                        // says nothing — an empty column reads as absence,
+                                                        // whereas a lit "0" reads as a score.
+                                                        if (asModal && count === 0) {
+                                                            return (
+                                                                <span
+                                                                    key={key}
+                                                                    title={`${RARITY[key].label}: none`}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        fontSize: '10px',
+                                                                        color: `${COLORS.textMuted}55`,
+                                                                        padding: '3px 4px',
+                                                                    }}
+                                                                >
+                                                                    &middot;
+                                                                </span>
+                                                            );
+                                                        }
                                                         return (
                                                             <span
                                                                 key={key}

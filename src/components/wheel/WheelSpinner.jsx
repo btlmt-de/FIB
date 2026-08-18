@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
+import { StageFlanks } from './spin/StageFlanks.jsx';
 import { KotwReelBoard } from './spin/KotwReelBoard.jsx';
+import { EventPayout } from './spin/EventPayout.jsx';
 import { EnhancedWheelIdleState } from './canvas/EnhancedWheelIdleState.jsx';
 import { CanvasSpinningStrip, preloadItemImages, warmImageCache } from './canvas/CanvasSpinningStrip.jsx';
 import { loadAtlas } from './canvas/atlas.js';
@@ -15,9 +17,12 @@ import {
     TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
 import { COLORS, SPACE, Z } from './config/constants';
+// getMinecraftHeadUrl, isEventItem and isRecursionItem left with the local
+// getItemImageUrl copy above — they were its inputs and nothing else here read
+// them.
 import {
-    formatChance, getMinecraftHeadUrl, getItemRarity,
-    isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem
+    formatChance, getItemRarity,
+    isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem
 } from '../../utils/helpers.js';
 import { RARITY, getRarityInk, getRarityOnColor } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
@@ -49,7 +54,65 @@ const TRIPLE_VARIANT_STATES = new Set([
     'tripleLuckyResult',
 ]);
 
-function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2 }) {
+/**
+ * How far off the slot's centre a spin comes to rest, in pixels.
+ *
+ * The reel lands on the winning slot, never between two — the server decided the
+ * result and the strip is built around it — but *where inside that slot* is the
+ * only randomness the player can actually see, and it is what makes one spin feel
+ * different from the last. Landing dead centre every time reads as a slideshow
+ * advancing rather than a wheel coming to rest.
+ *
+ * This used to be a fixed pixel spread: ±25–37px. Two problems with that. It was
+ * written against the 120px desktop pitch and applied unchanged to the 70px
+ * mobile and 90px triple reels, where the same numbers mean something completely
+ * different. And even at its widest it left ~23px of slot beyond the indicator,
+ * so the winner never came near its own edge and every landing looked centred.
+ * It is a fraction of the pitch now, and it goes much closer to the edge.
+ *
+ * **The distribution is flat across the whole range.** It began as two hardcoded
+ * branches — a third of spins in a 0.30–0.41 "near miss" band and the rest inside
+ * 0.22 — which had two problems. Offsets between 0.22 and 0.30 of a pitch could
+ * never occur at all, a dead band nobody would consciously spot but which is an
+ * artifact of the branches rather than a decision. And a spin drawn from one of
+ * two clusters is only ever one of two kinds of spin. Uniform, every landing is
+ * its own, and near misses arrive because the reel genuinely stopped there rather
+ * than because a coin came up saying to stage one.
+ *
+ * **The ceiling is a clearance in pixels, not a fraction of the pitch**, because
+ * what limits it is the width of the line the slot is coming to rest against and
+ * not the size of the slot. The line is 1px with a ~4px bleed either side, so
+ * `LINE_CLEARANCE` is what keeps the seam a distinct thing from the indicator
+ * rather than something the indicator is sitting on. A fraction alone was wrong
+ * here: 0.41 left 12px on the 120px desktop pitch but only 6px on the 58px 5x
+ * mobile reel, so the same number meant "close" on one reel and "touching" on
+ * another. The fraction survives only as a backstop for a pitch large enough that
+ * a fixed clearance would stop being the binding limit.
+ *
+ * **4px is the floor, established by looking rather than by arithmetic.** Forcing
+ * every spin to the extreme and screenshotting it: at 3px the line, the winning
+ * column's rim and the seam merge into a single band and the reel stops looking
+ * like it is pointing at anything. 4px holds — but only because the winning slot
+ * now keeps a base bar with defined ends whatever its tier (see `drawItem`). The
+ * hard case is a *common* winner, which is ~90% of results: two dim grey columns
+ * either side of a line sitting on their shared seam, with no tier colour to say
+ * which one won. The bar's end against the line is what answers that, and without
+ * it the honest floor was 7px.
+ *
+ * The limit being backed away from is half a pitch. There the line sits exactly
+ * on the seam and the item under it is genuinely ambiguous — not a near miss, a
+ * bug that looks like one. It matters more here than on a slot machine because
+ * the result panel underneath *names* the winner, so an ambiguous reel reads as
+ * the reel contradicting the result.
+ */
+const LINE_CLEARANCE = 4;
+
+function landingVariance(itemWidth) {
+    const max = Math.min(itemWidth * 0.46, itemWidth / 2 - LINE_CLEARANCE);
+    return (Math.random() * 2 - 1) * max;
+}
+
+function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
@@ -63,7 +126,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
 
     // Get sound functions
-    const { startSoundtrack, stopSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
+    // `stopSoundtrack` is deliberately not pulled out of here: the soundtrack is
+    // stopped by the settings modal and by SoundContext's own teardown, never by
+    // the spinner, and destructuring it left an unused handle that read as though
+    // this component owned the stopping too.
+    const { startSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
 
     const [state, setState] = useState('idle');
     const [strip, setStrip] = useState([]);
@@ -88,8 +155,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const MOBILE_ITEM_WIDTH = 70;
     const MOBILE_CARD_WIDTH = 300;  // Wider card to fit result text
 
-    // Use refs for animation offsets to avoid re-renders during animation
-    const stripRef = useRef(null);
+    // Use refs for animation offsets to avoid re-renders during animation.
+    // `stripRef` and `tripleStripRefs` used to sit alongside these: DOM handles
+    // from the pre-canvas strip, which was a row of absolutely-positioned divs
+    // this component translated by hand. The canvas renderer owns its own element
+    // and takes its offset through `canvasOffsetRef`, so both have been holding
+    // null since that swap.
     const offsetRef = useRef(0);
 
     // Triple spin state
@@ -98,7 +169,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [tripleNewItems, setTripleNewItems] = useState([false, false, false, false, false]);
     // Use refs for triple offsets to avoid re-renders during animation
     const tripleAnimationRefs = useRef([null, null, null, null, null]);
-    const tripleStripRefs = useRef([null, null, null, null, null]);
     const tripleOffsetRefs = useRef([0, 0, 0, 0, 0]);
 
     // Bonus wheel state - using horizontal strip like main wheel
@@ -125,15 +195,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Track if current spin is using KOTW lucky (set at spin start, cleared at idle)
     const [currentSpinIsKotwLucky, setCurrentSpinIsKotwLucky] = useState(false);
 
-    // The winning item's tier colour, as text.
-    //
-    // This was an eight-times-repeated inline ternary chain
+    // `resultInk` used to be derived here: the winning item's tier colour as
+    // text, replacing an eight-times-repeated inline ternary chain
     // (`isInsaneItem(result) ? COLORS.insane : isMythicItem(result) ? ...`), one
     // per style property on the result screen. Every copy had to be edited in
     // lockstep, and when the ladder was rebuilt they were missed, leaving
     // legendary rendering in purple — exotic's colour — on the one screen a
-    // player actually reads after a spin. It is derived once now.
-    const resultInk = result ? getRarityInk(getItemRarity(result)) : COLORS.gold;
+    // player actually reads after a spin.
+    //
+    // It is gone from here because the screen it fed is gone from here: the
+    // result panel is SpinResult.jsx now, and it derives the tier from the shared
+    // ladder itself. The fix outlived the code it fixed, which is the usual way a
+    // deduplicated value turns back into dead weight — recorded rather than
+    // silently deleted, because the eight-copy version is what someone would
+    // rebuild without this note.
 
     // Track if the CURRENT spin animation is a recursion lucky spin
     // This prevents visual effects from changing mid-animation when spinsRemaining updates
@@ -301,26 +376,15 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [state]);
 
-    function getItemImageUrl(item) {
-        if (!item) return `${IMAGE_BASE_URL}/barrier.png`;
-        // Check both camelCase and snake_case since API returns snake_case
-        if (item.imageUrl) return item.imageUrl;
-        if (item.image_url) return item.image_url;
-        if (isEventItem(item)) return EVENT_ITEM.imageUrl;
-        if (isRecursionItem(item)) return RECURSION_ITEM.imageUrl;
-        if (isInsaneItem(item) && !item.username) {
-            const insane = INSANE_ITEMS.find(i => i.texture === item.texture);
-            if (insane) return insane.imageUrl;
-        }
-        if (isMythicItem(item) && !item.username) {
-            // Find matching mythic item by texture
-            const mythic = MYTHIC_ITEMS.find(m => m.texture === item.texture);
-            if (mythic) return mythic.imageUrl;
-            return MYTHIC_ITEM.imageUrl; // Fallback to first mythic
-        }
-        if (item.username) return getMinecraftHeadUrl(item.username);
-        return `${IMAGE_BASE_URL}/${item.texture}.png`;
-    }
+    // A local `getItemImageUrl` used to sit here, a full second copy of the
+    // resolver in utils/helpers.js — same fallback order, same special cases,
+    // maintained separately, and called from nowhere. It was the more dangerous
+    // kind of dead code than an unused constant: a function declaration inside
+    // the component shadows the module import for the whole component body, so
+    // the day anyone added a call in here it would silently have picked up this
+    // copy instead of the shared one. Deleted rather than wired up — the item
+    // pool, the canvas renderers and this component all have to agree on where a
+    // sprite lives, and one resolver is how that stays true.
 
     // Fisher-Yates shuffle helper
     function shuffleArray(array) {
@@ -361,14 +425,20 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         if (typeof window === 'undefined') return;
         if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
-        // Start mid-strip. The canvas draws tile `idx` at
-        // `centre + idx * ITEM_WIDTH - offset`, so at offset 0 index 0 sits on the
-        // centre line and the entire left half of the band is empty. Half a strip
-        // in, tiles run off both edges and the band looks continuous.
-        if (canvasOffsetRef.current === 0) {
-            canvasOffsetRef.current = (dormantStrip.length / 2) * ITEM_WIDTH;
-        }
-
+        // Starting mid-strip used to be necessary and is not any more. The canvas
+        // drew tile `idx` at `centre + idx * ITEM_WIDTH - offset` against the array's
+        // literal indices, so at offset 0 the left half of the band had no tiles to
+        // draw; half a strip in, both edges were covered. That was a workaround for
+        // a finite strip, and it only ever bought about four minutes — past roughly
+        // 8,340px the *right* edge ran out instead, and at one full strip the offset
+        // wrapped back to an empty left edge. That is the reset you can see if you
+        // leave the page open.
+        //
+        // The canvas draws the dormant strip as a cylinder now (`loop`), so every
+        // slot always has an index and any offset is as good as any other. The wrap
+        // below is what makes it endless rather than what breaks it: one whole strip
+        // maps each slot onto an identical index, so the modulo is invisible and the
+        // offset can never grow without bound.
         let raf = null;
         let last = null;
         const PX_PER_SECOND = 14;   // slow enough to read, fast enough to notice
@@ -594,16 +664,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             // Pre-calculate animation parameters (use larger items on mobile)
             const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
             const targetOffset = FINAL_INDEX * itemWidth;
-            let offsetVariance;
-            const edgeRoll = Math.random();
-            if (edgeRoll < 0.15) {
-                offsetVariance = -25 - Math.random() * 12;
-            } else if (edgeRoll < 0.30) {
-                offsetVariance = 25 + Math.random() * 12;
-            } else {
-                offsetVariance = (Math.random() - 0.5) * 30;
-            }
-            const finalOffset = targetOffset + offsetVariance;
+            const finalOffset = targetOffset + landingVariance(itemWidth);
 
             // Start animation IMMEDIATELY (before API returns)
             let startTime = null;
@@ -935,17 +996,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
             const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
             const targetOffset = FINAL_INDEX * itemWidth;
-            // Add "edge" tension - sometimes land very close to adjacent items
-            let offsetVariance;
-            const edgeRoll = Math.random();
-            if (edgeRoll < 0.15) {
-                offsetVariance = -25 - Math.random() * 12;
-            } else if (edgeRoll < 0.30) {
-                offsetVariance = 25 + Math.random() * 12;
-            } else {
-                offsetVariance = (Math.random() - 0.5) * 30;
-            }
-            const finalOffset = targetOffset + offsetVariance;
+            const finalOffset = targetOffset + landingVariance(itemWidth);
             let startTime = null;
 
             const animate = (timestamp) => {
@@ -1057,17 +1108,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             delays.forEach((delay, rowIndex) => {
                 setTimeout(() => {
                     const targetOffset = FINAL_INDEX * tripleItemWidth;
-                    // Add "edge" tension - sometimes land very close to adjacent items
-                    let offsetVariance;
-                    const edgeRoll = Math.random();
-                    if (edgeRoll < 0.15) {
-                        offsetVariance = -25 - Math.random() * 12;
-                    } else if (edgeRoll < 0.30) {
-                        offsetVariance = 25 + Math.random() * 12;
-                    } else {
-                        offsetVariance = (Math.random() - 0.5) * 30;
-                    }
-                    const finalOffset = targetOffset + offsetVariance;
+                    const finalOffset = targetOffset + landingVariance(tripleItemWidth);
                     let startTime = null;
 
                     const animate = (timestamp) => {
@@ -1187,16 +1228,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                 setTimeout(() => {
                     const targetOffset = FINAL_INDEX * tripleItemWidth;
-                    const edgeRoll = Math.random();
-                    let offsetVariance;
-                    if (edgeRoll < 0.15) {
-                        offsetVariance = -25 - Math.random() * 12;
-                    } else if (edgeRoll < 0.30) {
-                        offsetVariance = 25 + Math.random() * 12;
-                    } else {
-                        offsetVariance = (Math.random() - 0.5) * 30;
-                    }
-                    const finalOffset = targetOffset + offsetVariance;
+                    const finalOffset = targetOffset + landingVariance(tripleItemWidth);
                     let startTime = null;
 
                     const animate = (timestamp) => {
@@ -1239,25 +1271,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         }
     }
 
-    const reset = () => {
-        setState('idle');
-        setResult(null);
-        offsetRef.current = 0;
-        canvasOffsetRef.current = 0;
-        setStrip([]);
-        setIsNewItem(false);
-        setTripleStrips([[], [], [], [], []]);
-        tripleOffsetRefs.current = [0, 0, 0, 0, 0];
-        setTripleResults([null, null, null, null, null]);
-        setTripleNewItems([false, false, false, false, false]);
-        setSelectedEvent(null);
-        setBonusStrip([]);
-        bonusOffsetRef.current = 0;
-        setLuckyResult(null);
-        setIsLuckyNew(false);
-    };
+    // A `reset()` used to sit here — sixteen setters returning the whole surface
+    // to idle — and nothing called it. Every path that clears a spin goes through
+    // `respin()` above, which clears the same state and immediately spins again,
+    // so the "back to idle with nothing showing" state this restored is one the
+    // surface never actually enters. Left in place it was a second definition of
+    // what "clean" means, drifting out of step with `respin` every time a new
+    // piece of spin state was added — and three already had been.
+    //
+    // `isDisabled` went with it: also declared here, also read nowhere. The idle
+    // block derives its own disabled state from `user` and `allItems`, which is
+    // where the button that needs it actually lives.
 
-    const isDisabled = !user || allItems.length === 0;
     // totalItemCount includes both regular items and dynamic items (team members, special items)
     const totalItemCount = allItems.length + (dynamicItems?.length || 0);
 
@@ -1319,9 +1344,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const KOTW_SLATE = '#1E293B';
     const KOTW_SLATE_DARK = '#0F172A';
 
-    // Get accent color for glow effects
-    const spinLuckyColor = showSpinRecursionEffects ? COLORS.recursion : KOTW_CRIMSON;
-    const spinLuckyAccent = showSpinRecursionEffects ? COLORS.recursion : KOTW_GOLD;
+    // `spinLuckyColor` and `spinLuckyAccent` were declared here and read nowhere.
+    // Every lucky-spin surface below picks its own colour inline from
+    // `showSpinRecursionEffects`, which is the same decision these two made — a
+    // second source for one answer, which is how the two ended up able to
+    // disagree without anything failing.
 
 
     // Idle state - show clickable wheel with enhanced cosmic visuals
@@ -1362,76 +1389,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             minHeight: 0,
             overflowY: 'auto',
         } : { display: 'contents' }}>
-            {/* Event Lucky Spins Badge - Persistent across all states - crimson theme */}
-            {kotwLuckySpins > 0 && (
-                <div style={{
-                    // Explicit placement: with the root at `display: contents`
-                    // this badge is a grid item, and without a row it would be
-                    // auto-placed into whatever cell happened to be free.
-                    gridRow: 5,
-                    gridColumn: stageColumn,
-                    justifySelf: 'center',
-                    alignSelf: 'start',
-                    zIndex: Z.content,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: isMobile ? '8px 14px' : '10px 18px',
-                    marginBottom: isMobile ? '8px' : '12px',
-                    background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
-                    border: '2px solid #F43F5E60',
-                    borderRadius: '14px',
-                    boxShadow: '0 4px 20px rgba(244, 63, 94, 0.25), inset 0 1px 0 rgba(248, 250, 252, 0.1)',
-                    animation: 'kotwBadgePulse 2s ease-in-out infinite',
-                }}>
-                    {/* Crown icon */}
-                    <Crown
-                        size={isMobile ? 16 : 18}
-                        color="#F43F5E"
-                        style={{ filter: 'drop-shadow(0 0 4px #F43F5E)' }}
-                    />
-
-                    {/* Lucky spin count */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                    }}>
-                        <span style={{
-                            color: KOTW_GOLD,
-                            fontSize: isMobile ? '14px' : '16px',
-                            fontWeight: '700',
-                            textShadow: `0 0 10px ${KOTW_GOLD}88`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                        }}>
-                            <Sparkles size={isMobile ? 14 : 16} color={KOTW_GOLD} /> {kotwLuckySpins}
-                        </span>
-                        <span style={{
-                            color: '#F8FAFC',
-                            fontSize: isMobile ? '12px' : '14px',
-                            fontWeight: '600',
-                        }}>
-                            Lucky Spin{kotwLuckySpins !== 1 ? 's' : ''}
-                        </span>
-                    </div>
-
-                    {/* Event label */}
-                    <span style={{
-                        fontSize: isMobile ? '9px' : '10px',
-                        color: '#F43F5E',
-                        fontWeight: '700',
-                        background: '#F43F5E22',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        letterSpacing: '0.5px',
-                    }}>
-                        EVENT
-                    </span>
-                </div>
-            )}
 
             {/* Odds Info Modal */}
             {showOddsInfo && (
@@ -1512,7 +1469,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     ? `1px solid ${KOTW_CRIMSON}40`
                                     : '1px solid rgba(255,255,255,0.08)',
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {/* Left and right groups each take an equal share of
+                                the slack (`flex: 1 1 0`), which is what keeps the
+                                KOTW board centred on the BAR rather than on
+                                whatever space happens to be left over.
+                                
+                                Centred in the leftover, the board slid ~92px every
+                                time this row's contents changed width — the label
+                                going "Ready to spin" -> "Spinning..." -> "Gamba!",
+                                and above all the "Try Again" button appearing on
+                                the right. Measured: all five chips moving together
+                                by 92px, with zero change in their own widths. */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 0', minWidth: 0 }}>
                                 <img
                                     src={WHEEL_TEXTURE_URL}
                                     alt="Wheel"
@@ -1561,6 +1529,19 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             </span>
                             </div>
 
+                            {/* The status bar's centre slot: standings while a
+                                King of the Wheel event is running, and the lucky
+                                spins it paid out afterwards. Standings during,
+                                payout after — and if both apply, both show, which
+                                is correct during an event you are already winning
+                                spins from.
+                                
+                                The payout used to be a large pulsing badge in the
+                                stage above the spin button, where it competed with
+                                the result panel for space and shifted the button
+                                down whenever it appeared. */}
+                            <EventPayout luckySpins={kotwLuckySpins} isMobile={isMobile} />
+
                             {/* KOTW standings, in the status bar.
                                 
                                 This row already spans the full width and carries
@@ -1574,7 +1555,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 running, so the row is unchanged the rest of the
                                 time. */}
                             <KotwReelBoard />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 0', minWidth: 0, justifyContent: 'flex-end' }}>
                                 {/* Info button */}
                                 <button
                                     onClick={() => setShowOddsInfo(true)}
@@ -1661,6 +1642,18 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
                                 }}>
 
+                                {/* Shutters used to close over the band at idle and
+                                    part when you pressed the card. They worked, and
+                                    they were dropped anyway, because a shut band
+                                    buys its opening moment by hiding the drifting
+                                    reel — and the drifting reel is the better
+                                    permanent state. It is the surface advertising
+                                    what is in the pool to someone who has not
+                                    decided to spin yet, which a dark panel cannot
+                                    do. ReelShutters.jsx is deleted; the idea and its
+                                    material are recorded in DESIGN.md §8 if it is
+                                    ever wanted for a different moment. */}
+
                                 {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
                                     <div style={{
@@ -1673,24 +1666,31 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     }} />
                                 )}
 
-                                {/* Center Indicator Line - Enhanced with pulse */}
-                                <div style={{
-                                    position: 'absolute',
-                                    ...(isMobile ? {
+                                {/* Center Indicator Line — mobile only.
+                                    On desktop the canvas draws a detent instead:
+                                    marks seated in the band's top hairline and
+                                    floor lip, with the hairline between them
+                                    opening out across the middle. This line ran
+                                    straight down the item at the one moment the
+                                    surface exists for, and it was the third thing
+                                    on the band saying "here" — see the indicator
+                                    block in CanvasSpinningStrip.jsx. The vertical
+                                    reel keeps it: its geometry has not been
+                                    reviewed on a real device. */}
+                                {isMobile && (
+                                    <div style={{
+                                        position: 'absolute',
                                         left: 0, right: 0, top: '50%', transform: 'translateY(-50%)',
-                                        height: '3px'
-                                    } : {
-                                        top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)',
-                                        width: '3px'
-                                    }),
-                                    // bandAccent already resolves the precedence:
-                                    // lucky spin, then active event, then gold.
-                                    backgroundImage: `linear-gradient(${isMobile ? '90deg' : '180deg'}, transparent, ${bandAccent}, transparent)`,
-                                    zIndex: 10,
-                                    boxShadow: `0 0 12px ${bandAccent}, 0 0 24px ${bandAccent}88`,
-                                    animation: state === 'spinning' && spinProgress > 0.7 ? 'centerLinePulse 0.3s ease-in-out infinite' : 'none',
-                                    transition: 'all 0.3s ease-out',
-                                }} />
+                                        height: '3px',
+                                        // bandAccent already resolves the precedence:
+                                        // lucky spin, then active event, then gold.
+                                        backgroundImage: `linear-gradient(90deg, transparent, ${bandAccent}, transparent)`,
+                                        zIndex: 10,
+                                        boxShadow: `0 0 12px ${bandAccent}, 0 0 24px ${bandAccent}88`,
+                                        animation: state === 'spinning' && spinProgress > 0.7 ? 'centerLinePulse 0.3s ease-in-out infinite' : 'none',
+                                        transition: 'all 0.3s ease-out',
+                                    }} />
+                                )}
 
                                 {/* Pointer - Enhanced with heartbeat during slowdown */}
                                 {showAnySpinLuckyEffects ? (
@@ -1770,47 +1770,41 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             }} />
                                         </div>
                                     </>
-                                ) : (
-                                    /* Normal triangle pointers for regular spins - with heartbeat */
+                                ) : isMobile ? (
+                                    /* Normal triangle pointers for regular spins — mobile only,
+                                       and mobile only for the same reason as the centre line
+                                       above: the desktop band's detent is seated in its own
+                                       edges, and an arrow parked outside those edges is a
+                                       second indicator arguing with the first. Lucky spins
+                                       keep their brackets on both, because those are a mode
+                                       signal rather than a pointer. */
                                     <>
                                         <div style={{
                                             position: 'absolute',
-                                            ...(isMobile ? {
-                                                left: '-3px', top: '50%', transform: 'translateY(-50%)',
-                                                borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
-                                                borderLeft: `14px solid ${bandAccent}`
-                                            } : {
-                                                top: '-3px', left: '50%', transform: 'translateX(-50%)',
-                                                borderLeft: '10px solid transparent', borderRight: '10px solid transparent',
-                                                borderTop: `14px solid ${COLORS.gold}`
-                                            }),
+                                            left: '-3px', top: '50%', transform: 'translateY(-50%)',
+                                            borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
+                                            borderLeft: `14px solid ${bandAccent}`,
                                             width: 0, height: 0,
                                             zIndex: 11,
                                             filter: `drop-shadow(0 0 6px ${bandAccent}) drop-shadow(0 0 12px ${bandAccent}66)`,
                                             animation: state === 'spinning' && spinProgress > 0.7
-                                                ? (isMobile ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite' : 'indicatorHeartbeat 0.4s ease-in-out infinite')
+                                                ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite'
                                                 : 'none',
                                         }} />
                                         <div style={{
                                             position: 'absolute',
-                                            ...(isMobile ? {
-                                                right: '-3px', top: '50%', transform: 'translateY(-50%)',
-                                                borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
-                                                borderRight: `14px solid ${bandAccent}`
-                                            } : {
-                                                bottom: '-3px', left: '50%', transform: 'translateX(-50%)',
-                                                borderLeft: '10px solid transparent', borderRight: '10px solid transparent',
-                                                borderBottom: `14px solid ${COLORS.gold}`
-                                            }),
+                                            right: '-3px', top: '50%', transform: 'translateY(-50%)',
+                                            borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
+                                            borderRight: `14px solid ${bandAccent}`,
                                             width: 0, height: 0,
                                             zIndex: 11,
                                             filter: `drop-shadow(0 0 6px ${bandAccent}) drop-shadow(0 0 12px ${bandAccent}66)`,
                                             animation: state === 'spinning' && spinProgress > 0.7
-                                                ? (isMobile ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite' : 'indicatorHeartbeat 0.4s ease-in-out infinite')
+                                                ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite'
                                                 : 'none',
                                         }} />
                                     </>
-                                )}
+                                ) : null}
 
                                 {/* Edge fade gradients - Enhanced */}
                                 <div style={{
@@ -1860,6 +1854,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
 
                                 <CanvasSpinningStrip
                                     items={state === 'idle' ? dormantStrip : strip}
+                                    // The dormant reel is a cylinder; the spin strip
+                                    // is a finite sequence with a winning slot in it.
+                                    loop={state === 'idle'}
                                     offsetRef={canvasOffsetRef}
                                     isMobile={isMobile}
                                     isSpinning={state === 'spinning'}
@@ -1899,6 +1896,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         justifyContent: 'flex-start',
                         paddingTop: `${SPACE.md}px`,
                         zIndex: Z.content,
+                        // The box the result flanks pin themselves to. They are
+                        // absolute so that having or not having data cannot shift
+                        // the result panel, which has to stay exactly under the
+                        // reel for the winning column to read as continuing into
+                        // it. See ResultFlanks.jsx.
+                        position: 'relative',
                     }}>
                         {/* Idle — the spin CTA lives in the stage now.
 
@@ -1908,6 +1911,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             card becomes what it always functionally was — the spin
                             button — and moves down here with its CTA, rarity legend
                             and keyboard hint. */}
+                        {/* Idle only. This briefly stayed mounted through the spin
+                            as well, to stop the stage row emptying — a measured
+                            314px hole that it did close. It was still the wrong
+                            answer: it parked a dead, greyed-out control at the
+                            loudest moment on the surface, and closing a gap in a
+                            layout metric is not a reason to put something in front
+                            of someone. The hole is back and is a known open
+                            question; the reel is what should fill it. */}
                         {state === 'idle' && (
                             <EnhancedWheelIdleState
                                 user={user}
@@ -1918,12 +1929,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 kotwLuckySpins={kotwLuckySpins}
                                 error={error}
                                 onSpin={spin}
-                                onShowOddsInfo={() => setShowOddsInfo(true)}
                                 isMobile={isMobile}
                                 isLoading={!atlasReady}
+                                isSpinning={state === 'spinning'}
                             />
                         )}
-
 
                         {/* The result panel lives in its own component now.
 
@@ -1934,15 +1944,50 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             and it had already drifted. SpinResult reads every tier
                             from RARITY instead. */}
                         {state === 'result' && result && (
-                            <SpinResult
-                                result={result}
-                                isNewItem={isNewItem}
-                                collection={collection}
-                                resultWasRecursionSpin={resultWasRecursionSpin}
-                                resultWasKotwLuckySpin={resultWasKotwLuckySpin}
-                                isMobile={isMobile}
-                            />
+                            <>
+                                <SpinResult
+                                    result={result}
+                                    isNewItem={isNewItem}
+                                    collection={collection}
+                                    resultWasRecursionSpin={resultWasRecursionSpin}
+                                    resultWasKotwLuckySpin={resultWasKotwLuckySpin}
+                                    isMobile={isMobile}
+                                />
+                            </>
                         )}
+
+                        {/* The stage flanks: your collection on the left, the
+                            standings on the right.
+
+                            Outside the `state === 'result'` branch on purpose. They
+                            are the page's way into the collection book and the
+                            leaderboard, and a shortcut that only exists in the
+                            seconds after a spin is not a shortcut. Only the one
+                            result line inside the left panel comes and goes. */}
+                        <StageFlanks
+                            showResultLine={state === 'result' && !!result}
+                            isNewItem={isNewItem}
+                            // `collection` is a map of texture -> count, not a
+                            // list, so the number of distinct items owned is its
+                            // key count and the count of this one is a lookup.
+                            // Reading it as an array gives `undefined` and a
+                            // silently empty panel.
+                            owned={result ? (collection?.[result.texture] ?? 0) : 0}
+                            collectedCount={Object.keys(collection || {}).length}
+                            // `totalItemCount`, not `allItems.length`. `allItems`
+                            // is the common pool alone; the special tiers live in
+                            // `dynamicItems`, so a collection containing any of
+                            // them counts higher than the denominator and the
+                            // meter reads past full — it rendered "1,557 / 1,531".
+                            // This is the same total the idle card shows, which is
+                            // also the only way the two agree.
+                            poolSize={totalItemCount}
+                            tierInk={result ? getRarityInk(getItemRarity(result)) : COLORS.text}
+                            userId={user?.id}
+                            isMobile={isMobile}
+                            onOpenCollection={onOpenCollection}
+                            onOpenLeaderboard={onOpenLeaderboard}
+                        />
                     </div>
                 </>
             )}

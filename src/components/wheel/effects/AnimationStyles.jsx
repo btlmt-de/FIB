@@ -356,7 +356,9 @@ export const AnimationStyles = () => (
         /* Glassmorphism shine */
         /* Counter tick animation */
         /* Ambient orb float */
-        /* Tooltip slide in */
+        /* Tooltip slide in — rises into place under a tooltip that sits ABOVE
+           its trigger. A tooltip hanging below has to fall instead; see
+           tooltipDrop. */
         @keyframes tooltipSlide {
             0% {
                 opacity: 0;
@@ -367,7 +369,36 @@ export const AnimationStyles = () => (
                 transform: translateX(-50%) translateY(0);
             }
         }
-        
+
+        /* Tooltip drop in — for tooltips below their trigger, as the topbar's
+           are. Reusing tooltipSlide there made the bubble slide up towards the
+           button it was supposed to be hanging off. */
+        @keyframes tooltipDrop {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-5px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* As tooltipDrop, for the right-aligned variant used by the last control
+           on the topbar. It is positioned by right:0 rather than by a centring
+           translate, so borrowing tooltipDrop would slide it half its own width
+           off the button. */
+        @keyframes tooltipDropEnd {
+            0% {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Ripple effect from center */
         /* Particle explosion */
         /* Confetti fall */

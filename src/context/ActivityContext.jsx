@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
-import { parseActivityDate } from '../utils/helpers.js';
+import { parseActivityDate, spinRevealDelay } from '../utils/helpers.js';
 
 const ActivityContext = createContext(null);
 
@@ -60,6 +60,10 @@ export function ActivityProvider({ children }) {
     const firstBloodClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
+    // A list rather than a single ref: several drops can be in their reveal window
+    // at once — a busy server, or your own spin landing while someone else's is
+    // still held — and each needs its own timer.
+    const feedRevealTimeoutsRef = useRef([]);
 
     // Keep refs in sync with state
     useEffect(() => {
@@ -78,6 +82,34 @@ export function ActivityProvider({ children }) {
             setRecursionStatus(data);
         } catch (e) {
             console.error('[ActivityContext] Failed to fetch recursion status:', e);
+        }
+    }, []);
+
+    /**
+     * Refresh only the milestone — how many spins until the next global event.
+     *
+     * The full status carries this too, but it is only *pushed* when the event
+     * state itself changes, and between events that is exactly never. So a meter
+     * reading off `globalEventStatus.milestone` alone would freeze at whatever the
+     * number was when the tab loaded, which for a figure the whole server moves is
+     * worse than not showing it.
+     *
+     * It writes into the same `globalEventStatus.milestone` the status fetch and
+     * the SSE broadcasts write, so there is still one milestone on the client
+     * rather than a second copy owned by whichever component happens to display it.
+     * `/api/global-event/milestone` is the cheap endpoint — four integers, no
+     * event payload — because this is called on a timer.
+     */
+    const refreshMilestone = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/global-event/milestone`, { credentials: 'include' });
+            if (!res.ok) return;
+            const milestone = await res.json();
+            if (!milestone || typeof milestone.remaining !== 'number') return;
+            setGlobalEventStatus(prev => ({ ...prev, milestone }));
+        } catch {
+            // A stale meter is the failure mode here, and it is a fine one. The
+            // next tick tries again.
         }
     }, []);
 
@@ -461,13 +493,45 @@ export function ActivityProvider({ children }) {
                                     }
                                     // If no serverTime provided, leave it unchanged (don't default to Date.now())
 
-                                    // Prepend to feed
-                                    setFeed(prev => {
+                                    // Prepend to feed — but not before the reel that
+                                    // produced this drop has finished turning.
+                                    //
+                                    // This used to be immediate, and it was the one
+                                    // live surface that was: the toast holds items
+                                    // ~4.5s, the mythic celebration computes its own
+                                    // per-user delay, First Blood waits 5s. The feed
+                                    // prepending on arrival meant the ticker printed
+                                    // your item while your own wheel was still
+                                    // spinning, roughly four seconds before the
+                                    // notification for the same drop — so the strip
+                                    // above the reel was spoiling the reel.
+                                    //
+                                    // `spinRevealDelay` measures from the drop's
+                                    // `created_at`, so a drop that reaches you late
+                                    // is not held for the full window a second time.
+                                    const revealIn = spinRevealDelay(data.item.created_at);
+                                    const prependToFeed = () => setFeed(prev => {
                                         if (prev.some(item => item.id === data.item.id)) return prev;
                                         return [data.item, ...prev].slice(0, 150);
                                     });
 
-                                    // Update lastId
+                                    if (revealIn <= 0) {
+                                        prependToFeed();
+                                    } else {
+                                        const revealTimeout = setTimeout(() => {
+                                            prependToFeed();
+                                            feedRevealTimeoutsRef.current =
+                                                feedRevealTimeoutsRef.current.filter(id => id !== revealTimeout);
+                                        }, revealIn);
+                                        feedRevealTimeoutsRef.current.push(revealTimeout);
+                                    }
+
+                                    // `lastId` moves immediately, unlike the feed
+                                    // itself. It is the high-water mark the catch-up
+                                    // fetch asks "anything after this?" with, and
+                                    // holding it back would let that fetch pull the
+                                    // very drop being delayed and prepend it early —
+                                    // the polling path would quietly undo the reveal.
                                     setLastId(prev => {
                                         if (prev === null || data.item.id > prev) return data.item.id;
                                         return prev;
@@ -589,6 +653,8 @@ export function ActivityProvider({ children }) {
                 clearTimeout(communityGoalClearTimeoutRef.current);
                 communityGoalClearTimeoutRef.current = null;
             }
+            feedRevealTimeoutsRef.current.forEach(clearTimeout);
+            feedRevealTimeoutsRef.current = [];
         };
     }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus]);
 
@@ -626,6 +692,7 @@ export function ActivityProvider({ children }) {
         updateRecursionStatus,
         globalEventStatus,
         updateGlobalEventStatus,
+        refreshMilestone,
         // King of the Wheel
         kotwLeaderboard,
         kotwUserStats,

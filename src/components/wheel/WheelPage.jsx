@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { COLORS, SPACE, Z } from './config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
@@ -37,6 +37,7 @@ import GoldRushBanner from './effects/GoldRushBanner.jsx';
 import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
 import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
+import MilestoneMeter from './effects/MilestoneMeter.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
 import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
@@ -46,6 +47,7 @@ import { NotificationBell, NotificationCenter } from './modals/NotificationCente
 import { LiveChat } from './features/LiveChat.jsx';
 import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
 import { CanvasCosmicBackground } from './canvas/CanvasCosmicBackground.jsx';
+import { TopbarIconButton, TopbarDivider } from './topbar/TopbarControls.jsx';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -117,86 +119,131 @@ const CosmicLoader = () => (
     </div>
 );
 
-// ============================================
-// ENHANCED NAV BUTTON
-// ============================================
-function NavButton({ onClick, icon, label, highlight = false, tooltipBelow = false }) {
-    const [isHovered, setIsHovered] = useState(false);
-    const [showTooltip, setShowTooltip] = useState(false);
+// NavButton lived here — a 44px gradient tile that lifted and cast a shadow on
+// hover. It is gone rather than adapted: it was the largest of the three icon
+// vocabularies the topbar inherited, and everything it did is now
+// `TopbarIconButton` in topbar/TopbarControls.jsx, which the user controls use
+// too. See that file for why the lift went.
+
+/**
+ * Back out of the wheel.
+ *
+ * Keeps a visible container — it is the only control on the row that leaves the
+ * page, so it earns the one border on the left-hand side. Its hover no longer
+ * slides it 2px to the left: in the old layout it was a `position: fixed` button
+ * floating on its own, where a nudge towards the arrow read as a nice touch. In a
+ * row it just looks like the bar is drifting.
+ */
+function BackButton({ onBack }) {
+    const [hovered, setHovered] = useState(false);
 
     return (
-        <div style={{ position: 'relative' }}>
-            <button
-                onClick={onClick}
-                onMouseEnter={() => { setIsHovered(true); setShowTooltip(true); }}
-                onMouseLeave={() => { setIsHovered(false); setShowTooltip(false); }}
+        <button
+            type="button"
+            onClick={(e) => {
+                e.preventDefault();
+                if (onBack) {
+                    onBack();
+                } else {
+                    window.location.href = '/';
+                }
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: `${SPACE.sm}px`,
+                height: '38px',
+                padding: `0 ${SPACE.md}px`,
+                fontSize: '14px',
+                borderRadius: '10px',
+                color: hovered ? COLORS.text : COLORS.textMuted,
+                background: hovered ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${hovered ? COLORS.border : 'rgba(255,255,255,0.08)'}`,
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'background 0.18s ease, color 0.18s ease, border-color 0.18s ease',
+            }}
+        >
+            <ArrowLeft size={17} />
+            <span>Back</span>
+        </button>
+    );
+}
+
+/**
+ * Who you are, as one control.
+ *
+ * The identity is the only part of the old user capsule that is genuinely a
+ * single object — avatar, name, and whether that name has been approved yet — so
+ * it is the only part that kept a container. Everything that used to share the
+ * capsule with it (edit, sound, bell, admin, logout) is an action, and actions
+ * are `TopbarIconButton`s now.
+ *
+ * The radius is 999px rather than the old 32px so it matches the leaderboard pill
+ * it sits beside. Two capsules of nearly-but-not-quite the same roundness,
+ * touching, was one of the things that made this end of the bar look like parts
+ * from different pages pushed together — which is exactly what it was.
+ */
+function UserChip({ avatarUrl, name, approved, pending, onClick }) {
+    const [hovered, setHovered] = useState(false);
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            title="Your profile"
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: `${SPACE.sm}px`,
+                // 4px + 28px avatar + 4px + 1px borders = the 38px the icon
+                // buttons are, so the chip sits on their baseline instead of
+                // setting the row height on its own.
+                padding: `4px ${SPACE.md}px 4px 4px`,
+                borderRadius: '999px',
+                background: hovered ? COLORS.bgLighter : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${COLORS.border}`,
+                color: COLORS.text,
+                cursor: 'pointer',
+                flexShrink: 1,
+                minWidth: 0,
+                transition: 'background 0.18s ease',
+            }}
+        >
+            <img
+                src={avatarUrl}
+                alt=""
+                width={28}
+                height={28}
                 style={{
-                    width: '44px',
-                    height: '44px',
-                    background: highlight
-                        ? `linear-gradient(135deg, ${COLORS.green}22 0%, ${COLORS.green}11 100%)`
-                        : isHovered
-                            ? `linear-gradient(135deg, ${COLORS.bgLighter} 0%, ${COLORS.bgLight} 100%)`
-                            : 'rgba(255, 255, 255, 0.03)',
-                    border: highlight
-                        ? `1px solid ${COLORS.green}44`
-                        : `1px solid ${isHovered ? COLORS.border : 'rgba(255, 255, 255, 0.06)'}`,
-                    borderRadius: '12px',
-                    color: highlight
-                        ? COLORS.green
-                        : isHovered ? COLORS.text : COLORS.textMuted,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: isHovered ? 'translateY(-2px)' : 'translateY(0)',
-                    boxShadow: isHovered
-                        ? '0 8px 24px rgba(0, 0, 0, 0.2)'
-                        : '0 2px 8px rgba(0, 0, 0, 0.1)',
-                }}
-            >
-                {icon}
-            </button>
-            {showTooltip && (
-                <div style={{
-                    position: 'absolute',
-                    // In the topbar there is no room above the button, so the
-                    // tooltip hangs below instead of off the top of the viewport.
-                    ...(tooltipBelow
-                        ? { top: '100%', marginTop: '8px' }
-                        : { bottom: '100%', marginBottom: '8px' }),
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    padding: '6px 12px',
+                    borderRadius: '50%',
                     background: COLORS.bgLighter,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
-                    color: COLORS.text,
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                    pointerEvents: 'none',
-                    zIndex: 10,
-                    animation: 'tooltipSlide 0.2s ease-out',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                }}>
-                    {label}
-                    {/* Tooltip arrow */}
-                    <div style={{
-                        position: 'absolute',
-                        bottom: '-5px',
-                        left: '50%',
-                        transform: 'translateX(-50%) rotate(45deg)',
-                        width: '8px',
-                        height: '8px',
-                        background: COLORS.bgLighter,
-                        borderRight: `1px solid ${COLORS.border}`,
-                        borderBottom: `1px solid ${COLORS.border}`,
-                    }} />
-                </div>
-            )}
-        </div>
+                    flexShrink: 0,
+                }}
+                onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                }}
+            />
+            <span style={{
+                fontSize: '14px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                minWidth: 0,
+            }}>
+                {name}
+            </span>
+            {/* Approval state, in the chip because it is a fact about the name
+                rather than an action you can take on it. */}
+            {approved && <Check size={15} color={COLORS.green} style={{ flexShrink: 0 }} />}
+            {pending && <Clock size={15} color={COLORS.gold} style={{ flexShrink: 0 }} />}
+        </button>
     );
 }
 
@@ -227,7 +274,16 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
                 maxWidth: '400px',
                 width: '100%',
                 textAlign: 'center',
-                animation: 'slideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                // Ease-out-quint, not the overshoot curve this used to carry.
+                //
+                // DESIGN.md §8 grants overshoot easing to the spin control alone,
+                // on the argument that a wheel overshoots and settles and the
+                // button that starts it may borrow that. Nothing else on the
+                // surface has that story, and this is the least likely candidate
+                // for it: a modal that interrupts you to ask for a username, whose
+                // 1.56 control point sent a 400px card past its resting position
+                // and back. A dialog arriving should decelerate and stop.
+                animation: 'slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
                 boxShadow: `0 24px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset`
             }}>
                 <div style={{
@@ -633,13 +689,19 @@ function WheelOfFortunePage({ onBack }) {
             // past the viewport.
             // Rows: topbar, live ticker, spacer, reel, stage, nav.
             //
-            // The two `minmax(0, 1fr)` rows either side of the reel are what puts
-            // it in the middle of the screen. They are equal, so whatever vertical
-            // slack the viewport has is split evenly above and below the band, and
-            // the reel sits on the centre line at any height instead of riding in
-            // the upper third. The stage lives in the lower flexible row and
-            // top-aligns inside it, so the result appears directly under the reel
-            // rather than drifting to the bottom of the page.
+            // The two flexible rows either side of the reel are what puts it in
+            // the middle of the screen: whatever vertical slack the viewport has
+            // is shared between them, so the reel sits near the centre line at any
+            // height instead of riding in the upper third. The stage lives in the
+            // lower flexible row and top-aligns inside it, so the result appears
+            // directly under the reel rather than drifting to the bottom of the
+            // page.
+            //
+            // This paragraph used to say the two rows were "equal" and split the
+            // slack "evenly". They are not and it does not — see the 0.34fr note
+            // below, which is the newer and correct account. Left corrected rather
+            // than deleted because the symmetric version is the obvious thing to
+            // reach for and the ratio underneath it looks arbitrary without this.
             //
             // One column now. Both sidebars have left this axis — the feed is the
             // ticker in row 2, the leaderboard is a pill in the topbar — which is
@@ -700,53 +762,26 @@ function WheelOfFortunePage({ onBack }) {
                 gridColumn: '1 / -1',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                // No `space-between`: the wordmark's `margin-right: auto` is what
+                // splits the row, and with both in play the leftover width was
+                // being distributed twice — the gap between Back and the wordmark
+                // grew with the viewport instead of staying a gap.
                 gap: `${SPACE.md}px`,
-                padding: `${SPACE.sm}px ${SPACE.lg}px`,
+                padding: `${SPACE.xs}px ${SPACE.lg}px`,
+                // The row's height is the tallest control plus its padding. Stated
+                // so the 56px the comment above claims is actually true and does
+                // not drift the moment a control changes size.
+                minHeight: '56px',
+                boxSizing: 'border-box',
                 borderBottom: `1px solid ${COLORS.border}44`,
                 position: 'relative',
                 zIndex: Z.content,
             }}>
-            <button
-                onClick={(e) => {
-                    e.preventDefault();
-                    if (onBack) {
-                        onBack();
-                    } else {
-                        window.location.href = '/';
-                    }
-                }}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: `${SPACE.sm}px`,
-                    color: COLORS.textMuted,
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    background: 'rgba(20, 20, 25, 0.8)',
-                    border: `1px solid ${COLORS.border}`,
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                }}
-                onMouseEnter={e => {
-                    e.currentTarget.style.color = COLORS.text;
-                    e.currentTarget.style.background = `rgba(30, 30, 35, 0.95)`;
-                    e.currentTarget.style.borderColor = COLORS.gold + '50';
-                    e.currentTarget.style.transform = 'translateX(-2px)';
-                }}
-                onMouseLeave={e => {
-                    e.currentTarget.style.color = COLORS.textMuted;
-                    e.currentTarget.style.background = 'rgba(20, 20, 25, 0.8)';
-                    e.currentTarget.style.borderColor = COLORS.border;
-                    e.currentTarget.style.transform = 'translateX(0)';
-                }}
-            >
-                <ArrowLeft size={18} />
-                <span>Back</span>
-            </button>
+                {/* Leave. The one control on the row that is not about the wheel,
+                    so it is the one control that keeps a visible container — and it
+                    no longer slides 2px left on hover, which in a row of buttons
+                    that hold still read as the layout twitching. */}
+                <BackButton onBack={onBack} />
 
                 {/* Wordmark */}
                 <div style={{
@@ -771,291 +806,194 @@ function WheelOfFortunePage({ onBack }) {
                     </h1>
                 </div>
 
-                {/* Navigation — in the topbar, not a floating cluster below.
+                {/* The right-hand cluster: everything that is about you.
 
-                    It was its own grid row under the stage, which cost 82px of a
-                    fixed-height surface and left the idle block overflowing by
-                    ~57px, taking the rarity legend below the fold. It also meant
-                    the page taught two different vocabularies for "icon button":
-                    44px rounded squares down there, 38px circles in the user chip
-                    up here. One row, one vocabulary, and the stage gets the space.
+                    The redesign moved three things up here — the nav grid that
+                    used to float under the stage, the 380px leaderboard board, and
+                    the user chip — and for a while that was literally all it did.
+                    They landed in a row, each still wearing the container and the
+                    button sizes it had in its old home, so the right end of the bar
+                    read as one undifferentiated run of a dozen controls in three
+                    styles rather than three groups of related ones.
 
-                    Tooltips hang below — there is nothing above them here. */}
-                {user && (
+                    What makes it legible is not more spacing, it is stated
+                    structure: one flex row, one button vocabulary
+                    (`TopbarIconButton`), and hairline dividers marking the three
+                    questions the cluster answers, in order —
+
+                        where can I go  |  where do I stand  |  who am I
+
+                    Tooltips hang below; there is nothing above them here. */}
+                {!user ? (
+                    <button onClick={login} style={{
+                        padding: '10px 20px',
+                        background: 'linear-gradient(135deg, #5865F2, #4752C4)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: '#fff',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: `${SPACE.sm}px`,
+                        flexShrink: 0,
+                        transition: 'filter 0.2s ease',
+                    }}
+                        // Was 14px/28px with a lift and a coloured 24px shadow —
+                        // sized for the centre of an empty page, which is where it
+                        // used to sit. In a 56px bar it was taller than the bar's
+                        // content box and the only thing on the row that moved.
+                        onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.12)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}
+                    >
+                        <svg width="18" height="18" viewBox="0 0 71 55" fill="currentColor">
+                            <path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1-5 .9-9.9 2.4-14.4 4.5 0 0 0 0-.1.1C1.6 18.7-.9 32.1.3 45.4c0 .1 0 .1.1.2 6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .3-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.8-3.8-1.7-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.8-.6 1.1-.9.1-.1.2-.1.2 0 11.6 5.3 24.2 5.3 35.7 0 .1 0 .2 0 .2.1.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 1.9-5.6 2.7-.1 0-.2.2-.1.3 1.1 2.1 2.3 4 3.6 5.9.1.1.2.1.3.1 5.8-1.8 11.7-4.5 17.8-9 0 0 .1-.1.1-.2 1.5-15.3-2.5-28.6-10.5-40.4 0 0 0-.1-.1-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.4 3.2 6.4 7.2s-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.5 3.2 6.4 7.2s-2.8 7.2-6.4 7.2z"/>
+                        </svg>
+                        Login with Discord
+                    </button>
+                ) : (
                     <div style={{
                         display: 'flex',
-                        gap: '6px',
                         alignItems: 'center',
+                        // 2px inside a group, a divider between groups. The old row
+                        // used one 6px gap for everything, which spaced unrelated
+                        // controls exactly as far apart as related ones.
+                        gap: '2px',
                         flexShrink: 0,
+                        minWidth: 0,
                     }}>
-                        <NavButton onClick={() => setShowCollection(true)} icon={<BookOpen size={20} />} label="Collection" tooltipBelow />
-                        <NavButton onClick={() => setShowHistory(true)} icon={<ScrollText size={20} />} label="History" tooltipBelow />
-                        <NavButton onClick={() => setShowLeaderboard(true)} icon={<Trophy size={20} />} label="Leaderboard" tooltipBelow />
-                        <NavButton onClick={() => setShowAchievements(true)} icon={<Award size={20} />} label="Achievements" tooltipBelow />
-                        {/* Only reachable this way once the ticker folds away */}
+                        {/* ── Where can I go ───────────────────────────────────
+
+                            Collection and the leaderboard moved into the stage
+                            flanks, which show your actual progress and the current
+                            top five rather than a 19px glyph, and which are on
+                            screen in every state. Keeping them here as well would
+                            have been the duplication the Trophy button was deleted
+                            for.
+
+                            But only on desktop. The flanks need width beside a
+                            centred stage and do not render on a phone, so on mobile
+                            these are still the only way in and they stay. */}
                         {isMobile && (
-                            <NavButton
-                                onClick={() => setShowMobileActivity(true)}
-                                icon={<Activity size={20} />}
-                                label="Live"
-                                highlight={true}
-                                tooltipBelow
+                            <TopbarIconButton
+                                onClick={() => setShowCollection(true)}
+                                icon={<BookOpen size={19} />}
+                                label="Collection"
                             />
                         )}
+                        <TopbarIconButton
+                            onClick={() => setShowHistory(true)}
+                            icon={<ScrollText size={19} />}
+                            label="History"
+                        />
+                        {/* No Trophy button here.
+
+                            The leaderboard pill one group to the right opens the
+                            same modal and says more while doing it — your rank and
+                            the current podium — so a second, blanker entry point to
+                            the identical view was just a duplicate. It became one
+                            when the standalone leaderboard was folded into the
+                            pill; before that they were different destinations. */}
+                        <TopbarIconButton
+                            onClick={() => setShowAchievements(true)}
+                            icon={<Award size={19} />}
+                            label="Achievements"
+                        />
+                        {/* Only reachable this way once the ticker folds away */}
+                        {isMobile && (
+                            <TopbarIconButton
+                                onClick={() => setShowMobileActivity(true)}
+                                icon={<Activity size={19} />}
+                                label="Live activity"
+                                tone="attention"
+                            />
+                        )}
+
+                        {/* ── Where do I stand ─────────────────────────────────
+
+                            Mobile only, for the same reason as Collection above:
+                            the right-hand stage flank carries the top five and your
+                            rank on desktop, and two boards on one screen is what
+                            this group has already been trimmed for twice. */}
+                        {isMobile && (
+                            <>
+                                <TopbarDivider />
+                                <LeaderboardPill onOpenFull={() => setShowLeaderboard(true)} />
+                            </>
+                        )}
+
+                        <TopbarDivider />
+
+                        {/* ── Who am I ───────────────────────────────────────────
+
+                            This group used to be a single bordered 32px-radius
+                            capsule with six controls inside it, parked immediately
+                            next to the leaderboard's 999px-radius capsule — two
+                            pills of different roundness touching, which is what made
+                            the end of the bar look assembled rather than designed.
+
+                            The container is now only around the identity itself.
+                            The actions next to it are plain topbar buttons like
+                            every other button on the row, which is what they always
+                            were behaviourally. */}
+                        <UserChip
+                            avatarUrl={getDiscordAvatarUrl()}
+                            name={user.customUsername || 'Player'}
+                            approved={!!user.usernameApproved}
+                            pending={!!user.customUsername && !user.usernameApproved}
+                            onClick={() => setShowProfile(true)}
+                        />
+                        <TopbarIconButton
+                            onClick={() => setShowUsernameModal(true)}
+                            icon={<Edit3 size={17} />}
+                            label="Edit name"
+                        />
+                        <SoundButton onClick={() => setShowSoundSettings(true)} />
+                        <TopbarIconButton
+                            onClick={() => setShowNotifications(true)}
+                            icon={<Bell size={17} />}
+                            label="Notifications"
+                            tone={unreadNotificationCount > 0 ? 'attention' : 'default'}
+                            badge={unreadNotificationCount > 0 ? (
+                                <span style={{
+                                    position: 'absolute',
+                                    top: '3px',
+                                    right: '3px',
+                                    background: COLORS.red,
+                                    color: '#fff',
+                                    fontSize: '10px',
+                                    fontWeight: '700',
+                                    lineHeight: 1,
+                                    borderRadius: '999px',
+                                    minWidth: '15px',
+                                    height: '15px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '0 4px',
+                                    boxSizing: 'border-box',
+                                }}>
+                                    {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                                </span>
+                            ) : null}
+                        />
+                        {user.isAdmin && (
+                            <TopbarIconButton
+                                onClick={() => setShowAdmin(true)}
+                                icon={<Settings size={17} />}
+                                label="Admin panel"
+                            />
+                        )}
+                        <TopbarIconButton
+                            onClick={logout}
+                            icon={<LogOut size={17} />}
+                            label="Log out"
+                            tone="danger"
+                            align="end"
+                        />
                     </div>
                 )}
-
-
-                {/* Leaderboard, reduced to a pill. Sits next to the user chip
-                    because it answers the same question the chip does — who am I
-                    here — rather than being a separate panel about other people. */}
-                {user && <LeaderboardPill onOpenFull={() => setShowLeaderboard(true)} />}
-
-                {/* User Bar */}
-                    {!user ? (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '16px',
-                            flexWrap: 'wrap',
-                            animation: 'sectionFadeIn 0.6s ease-out 0.15s both',
-                        }}>
-                            <button onClick={login} style={{
-                                padding: '14px 28px',
-                                background: 'linear-gradient(135deg, #5865F2, #4752C4)',
-                                border: 'none',
-                                borderRadius: '12px',
-                                color: '#fff',
-                                fontSize: '15px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                boxShadow: '0 4px 16px rgba(88, 101, 242, 0.3)'
-                            }}
-                                    onMouseEnter={e => {
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(88, 101, 242, 0.4)';
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 4px 16px rgba(88, 101, 242, 0.3)';
-                                    }}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 71 55" fill="currentColor">
-                                    <path d="M60.1 4.9C55.6 2.8 50.7 1.3 45.7.4c-.1 0-.2 0-.2.1-.6 1.1-1.3 2.6-1.8 3.7-5.5-.8-10.9-.8-16.3 0-.5-1.2-1.2-2.6-1.8-3.7 0-.1-.1-.1-.2-.1-5 .9-9.9 2.4-14.4 4.5 0 0 0 0-.1.1C1.6 18.7-.9 32.1.3 45.4c0 .1 0 .1.1.2 6.1 4.5 12 7.2 17.7 9 .1 0 .2 0 .3-.1 1.4-1.9 2.6-3.8 3.6-5.9.1-.1 0-.3-.1-.3-2-.8-3.8-1.7-5.6-2.7-.1-.1-.1-.3 0-.4.4-.3.8-.6 1.1-.9.1-.1.2-.1.2 0 11.6 5.3 24.2 5.3 35.7 0 .1 0 .2 0 .2.1.4.3.7.6 1.1.9.1.1.1.3 0 .4-1.8 1-3.6 1.9-5.6 2.7-.1 0-.2.2-.1.3 1.1 2.1 2.3 4 3.6 5.9.1.1.2.1.3.1 5.8-1.8 11.7-4.5 17.8-9 0 0 .1-.1.1-.2 1.5-15.3-2.5-28.6-10.5-40.4 0 0 0-.1-.1-.1zM23.7 37.3c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.4 3.2 6.4 7.2s-2.8 7.2-6.4 7.2zm23.6 0c-3.5 0-6.4-3.2-6.4-7.2s2.8-7.2 6.4-7.2c3.6 0 6.5 3.2 6.4 7.2s-2.8 7.2-6.4 7.2z"/>
-                                </svg>
-                                Login with Discord
-                            </button>
-                        </div>
-                    ) : (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            animation: 'sectionFadeIn 0.6s ease-out 0.15s both',
-                        }}>
-                            {/* Extended user pill with all controls */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '2px',
-                                padding: '6px',
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                borderRadius: '32px',
-                                border: `1px solid ${COLORS.border}`,
-                                boxShadow: '0 4px 24px rgba(0, 0, 0, 0.2)',
-                            }}>
-                                {/* Clickable avatar + name section */}
-                                <button
-                                    onClick={() => setShowProfile(true)}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px',
-                                        padding: '8px 16px 8px 8px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '26px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                    <img
-                                        src={getDiscordAvatarUrl()}
-                                        alt="Avatar"
-                                        style={{
-                                            width: '36px',
-                                            height: '36px',
-                                            borderRadius: '50%',
-                                            background: COLORS.bgLighter,
-                                            border: `2px solid ${COLORS.border}`,
-                                        }}
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                                        }}
-                                    />
-                                    <span style={{ color: COLORS.text, fontSize: '15px', fontWeight: '600' }}>
-                                        {user.customUsername || 'Player'}
-                                    </span>
-                                    {user.usernameApproved && (
-                                        <Check size={16} color={COLORS.green} />
-                                    )}
-                                    {user.customUsername && !user.usernameApproved && (
-                                        <Clock size={16} color={COLORS.gold} />
-                                    )}
-                                </button>
-
-                                {/* Divider */}
-                                <div style={{ width: '1px', height: '28px', background: COLORS.border, opacity: 0.5 }} />
-
-                                {/* Edit button */}
-                                <button
-                                    onClick={() => setShowUsernameModal(true)}
-                                    style={{
-                                        padding: '10px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        color: COLORS.textMuted,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={e => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                        e.currentTarget.style.color = COLORS.accent;
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = COLORS.textMuted;
-                                    }}
-                                    title="Edit Name"
-                                >
-                                    <Edit3 size={18} />
-                                </button>
-
-                                {/* Admin button */}
-                                {user.isAdmin && (
-                                    <button
-                                        onClick={() => setShowAdmin(true)}
-                                        style={{
-                                            padding: '10px',
-                                            background: 'transparent',
-                                            border: 'none',
-                                            borderRadius: '50%',
-                                            color: COLORS.textMuted,
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onMouseEnter={e => {
-                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                            e.currentTarget.style.color = COLORS.accent;
-                                        }}
-                                        onMouseLeave={e => {
-                                            e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = COLORS.textMuted;
-                                        }}
-                                        title="Admin Panel"
-                                    >
-                                        <Settings size={18} />
-                                    </button>
-                                )}
-
-                                {/* Sound settings button */}
-                                <SoundButton onClick={() => setShowSoundSettings(true)} />
-
-                                {/* Notification bell */}
-                                <button
-                                    onClick={() => setShowNotifications(true)}
-                                    style={{
-                                        padding: '10px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        color: unreadNotificationCount > 0 ? COLORS.gold : COLORS.textMuted,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s',
-                                        position: 'relative'
-                                    }}
-                                    onMouseEnter={e => {
-                                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                        e.currentTarget.style.color = COLORS.accent;
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = unreadNotificationCount > 0 ? COLORS.gold : COLORS.textMuted;
-                                    }}
-                                    title="Notifications"
-                                >
-                                    <Bell size={18} />
-                                    {unreadNotificationCount > 0 && (
-                                        <span style={{
-                                            position: 'absolute',
-                                            top: '4px',
-                                            right: '4px',
-                                            background: COLORS.red,
-                                            color: '#fff',
-                                            fontSize: '10px',
-                                            fontWeight: '700',
-                                            borderRadius: '50%',
-                                            minWidth: '16px',
-                                            height: '16px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            padding: '0 4px',
-                                            boxShadow: `0 0 8px ${COLORS.red}88`,
-                                        }}>
-                                            {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                {/* Logout button */}
-                                <button
-                                    onClick={logout}
-                                    style={{
-                                        padding: '10px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        borderRadius: '50%',
-                                        color: COLORS.textMuted,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={e => {
-                                        e.currentTarget.style.background = `${COLORS.red}22`;
-                                        e.currentTarget.style.color = COLORS.red;
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = COLORS.textMuted;
-                                    }}
-                                    title="Logout"
-                                >
-                                    <LogOut size={18} />
-                                </button>
-                            </div>
-                        </div>
-                    )}
 
             </header>
             {/* End topbar */}
@@ -1081,6 +1019,11 @@ function WheelOfFortunePage({ onBack }) {
                 onKotwLuckySpinsUpdate={handleKotwLuckySpinsUpdate}
                 isMobile={isMobile}
                 stageColumn={1}
+                // The stage flanks are the page's entry points to these two views
+                // now — see StageFlanks.jsx. The topbar's own Collection icon and
+                // leaderboard pill were removed rather than kept alongside them.
+                onOpenCollection={() => setShowCollection(true)}
+                onOpenLeaderboard={() => setShowLeaderboard(true)}
             />
 
             {/* Live activity — row 2, a horizontal ticker.
@@ -1263,9 +1206,16 @@ function WheelOfFortunePage({ onBack }) {
                 <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
                 <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
-            </div>
+                {/* The roll, in the same slot the meter counts down in and the
+                    banners open in. It used to be a full-screen scrim at z-index
+                    10000 — see EventSelectionWheel.jsx for why it moved here. */}
+                <EventSelectionWheel isMobile={isMobile} />
 
-            <EventSelectionWheel isMobile={isMobile} />
+                {/* What this slot says when none of the above are firing, which is
+                    most of the time. It renders null during an event and during the
+                    roll, so it never shares the space with them. */}
+                <MilestoneMeter isMobile={isMobile} />
+            </div>
 
             {/* Notification Center */}
             {showNotifications && (

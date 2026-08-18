@@ -12,6 +12,15 @@ const CACHE_NAME = 'fib-textures-v2';
 // wheel wants all ~1,500 of them present before it will let anyone spin.
 const TEXTURE_URL_PATTERN = /\/fib-(items|custom)\/[^/]+\.(png|gif)$/;
 
+// The atlas is packed from the same sprites but lives at its own URL, so it
+// needs its own pattern. It is the wheel's single largest request (6.4 MB),
+// and caching it is survivable if stale: sprites fall out of a stale index one
+// by one, each falling back to its individual file (atlas.js needsOwnImage),
+// and the dimension guard refuses a webp/json pair that disagree. A wheel
+// texture change still gets evicted by the CACHE_NAME rename, like the
+// sprites.
+const ATLAS_URL_PATTERN = /\/fib-atlas\.(webp|json)$/;
+
 // The remote pack, still matched so that anything not yet vendored — and any
 // client running a build from before the move — keeps its cache-first path.
 const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/(fib|item)\/.+\.png$/;
@@ -51,6 +60,7 @@ self.addEventListener('fetch', (event) => {
     // Cache item sprites (local and remote) and player heads
     if (
         TEXTURE_URL_PATTERN.test(url) ||
+        ATLAS_URL_PATTERN.test(url) ||
         REMOTE_TEXTURE_PATTERN.test(url) ||
         HEAD_PATTERN.test(url)
     ) {

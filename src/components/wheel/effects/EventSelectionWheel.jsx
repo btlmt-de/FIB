@@ -1,12 +1,35 @@
 // ============================================
 // EventSelectionWheel.jsx
 // ============================================
-// Animated wheel for selecting global events (Gold Rush, KOTW)
-// Shows when a milestone triggers an event selection
+//
+// Which global event the milestone just picked, rolled in the banner slot.
+//
+// This was a full-screen takeover: `position: fixed`, a 90%-black scrim over the
+// entire page at z-index 10000, a 28px title, a 400x120 strip and a bounce-in
+// result panel. It is now a strip inside the row between the ticker and the reel —
+// the same row the milestone meter counts down in, and the same row the event
+// banner appears in a moment later.
+//
+// Three reasons it moved.
+//
+// It reads as one mechanism now. The meter fills, the roll happens in the same
+// place, and the winning event's banner opens there. Before, the slot counted up to
+// something that then happened somewhere else entirely.
+//
+// It stops covering the page at the exact moment the page is interesting. The scrim
+// blacked out the reel, the ticker and everyone's live drops for four seconds to
+// show a four-item strip; the reel carries on running behind this.
+//
+// And DESIGN.md recorded the takeover as an unreviewed surface running its own
+// undocumented palette — a warm `#1a1814` family that was ratified nowhere. The
+// shell here is the milestone meter's, which is the band's material.
+//
+// The mechanism is untouched: same strip build, same rAF, same quartic ease-out,
+// same phases, same server-supplied `selectionDuration`. Only the frame changed.
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, Sparkles, Zap, Trophy, Crosshair, Target } from 'lucide-react';
-import { COLORS } from '../config/constants';
+import { Crown, Sparkles, Zap, Crosshair, Target } from 'lucide-react';
+import { COLORS, SPACE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 
@@ -42,6 +65,21 @@ const EVENT_CONFIG = {
     },
 };
 
+/**
+ * The cell pitch, in one place because two things need it and they must agree.
+ *
+ * The animation computes how far to travel as `FINAL_INDEX * cellWidth`, and the
+ * strip renders cells of `cellWidth`. When those disagree the reel lands on the
+ * wrong event — silently, because both halves look fine on their own. Resizing the
+ * cells for the inline layout without moving the animation's copy did exactly that:
+ * the roll travelled 29 x 180 = 5,220px across a strip of 132px cells, landing on
+ * index 39 of 40 instead of 29, so the header named one event and the strip stopped
+ * on another.
+ */
+function cellWidth(isMobile) {
+    return isMobile ? 108 : 132;
+}
+
 // Build a strip of events for the spinning animation
 function buildEventStrip(availableEvents, selectedEvent, stripLength = 30) {
     const strip = [];
@@ -65,8 +103,11 @@ function buildEventStrip(availableEvents, selectedEvent, stripLength = 30) {
     return strip;
 }
 
+const PROBE = { selectedEvent: 'king_of_wheel', availableEvents: ['gold_rush', 'king_of_wheel', 'first_blood', 'community_goal'], selectionDuration: 4000 };
+
 function EventSelectionWheel({ isMobile = false }) {
-    const { eventSelection } = useActivity();
+    const { eventSelection: realSelection } = useActivity();
+    const eventSelection = PROBE || realSelection;
     const { playSfx } = useSound();
 
     const [isVisible, setIsVisible] = useState(false);
@@ -142,99 +183,109 @@ function EventSelectionWheel({ isMobile = false }) {
                 setIsVisible(false);
                 setPhase('idle');
                 setResultEvent(null);
-            }, 1500);
+            }, 20000); // TEMP probe: was 1500
             return () => clearTimeout(timeout);
         }
     }, [phase]);
 
     if (!isVisible || strip.length === 0) return null;
 
-    // Item width for rendering (can update with resize)
-    const ITEM_WIDTH = isMobile ? 140 : 180;
+    // 132, down from 180. The slot is one row, not a screen.
+    const ITEM_WIDTH = isMobile ? 108 : 132;
+    const STRIP_HEIGHT = isMobile ? 46 : 52;
     const config = resultEvent ? EVENT_CONFIG[resultEvent] : null;
 
     return (
         <div style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.9)',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 10000,
-            animation: 'fadeIn 0.3s ease-out',
+            paddingBottom: `${SPACE.sm}px`,
+            zIndex: Z.content,
         }}>
             <style>{`
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                @keyframes pulseGlow {
-                    0%, 100% { filter: drop-shadow(0 0 20px currentColor); }
-                    50% { filter: drop-shadow(0 0 40px currentColor); }
-                }
-                @keyframes bounceIn {
-                    0% { transform: scale(0.5); opacity: 0; }
-                    50% { transform: scale(1.1); }
-                    100% { transform: scale(1); opacity: 1; }
+                @keyframes eventRollIn {
+                    from { opacity: 0; transform: translateY(6px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
             `}</style>
 
-            {/* Title */}
             <div style={{
-                fontSize: isMobile ? '20px' : '28px',
-                fontWeight: 900,
-                color: '#fff',
-                marginBottom: '24px',
-                letterSpacing: '3px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
+                // The milestone meter's shell, deliberately. The meter counts up to
+                // this moment in this exact spot, so the roll arriving in the same
+                // frame reads as the same machine continuing rather than a second
+                // widget replacing the first.
+                width: isMobile ? 'min(340px, 92vw)' : '460px',
+                padding: isMobile ? '9px 14px 11px' : '10px 18px 12px',
+                borderRadius: '10px',
+                background: 'linear-gradient(180deg, #1b1b26 0%, #131320 100%)',
+                boxShadow: [
+                    'inset 0 1px 0 rgba(206,214,236,0.10)',
+                    `inset 0 -1px 0 ${config ? config.color : COLORS.gold}88`,
+                    'inset 0 0 0 1px rgba(206,214,236,0.05)',
+                ].join(', '),
+                animation: 'eventRollIn 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
             }}>
-                <Zap size={isMobile ? 24 : 32} color="#F59E0B" />
-                GLOBAL EVENT!
-                <Zap size={isMobile ? 24 : 32} color="#F59E0B" />
-            </div>
+                {/* The header line, in the meter's own format: what this is on the
+                    left, what is happening on the right. While it rolls the right
+                    side says so; when it lands it becomes the event's name in the
+                    event's colour, which is the result — no separate panel. */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    gap: `${SPACE.md}px`,
+                    marginBottom: '7px',
+                }}>
+                    <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.09em',
+                        textTransform: 'uppercase',
+                        color: COLORS.gold,
+                    }}>
+                        <Zap size={12} />
+                        Global event
+                    </span>
+
+                    <span style={{
+                        fontSize: isMobile ? '12px' : '13px',
+                        fontWeight: config ? 700 : 400,
+                        color: config ? config.color : COLORS.textMuted,
+                        textShadow: config ? `0 0 14px ${config.color}66` : 'none',
+                        whiteSpace: 'nowrap',
+                        transition: 'color 0.3s ease-out',
+                    }}>
+                        {config ? config.name : 'Selecting…'}
+                    </span>
+                </div>
 
             {/* Spinning Strip Container */}
             <div style={{
                 position: 'relative',
-                width: isMobile ? '300px' : '400px',
-                height: isMobile ? '100px' : '120px',
-                background: 'linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)',
-                borderRadius: '16px',
-                border: '3px solid #F59E0B',
-                boxShadow: '0 0 40px #F59E0B44, inset 0 0 30px rgba(0,0,0,0.5)',
+                width: '100%',
+                height: `${STRIP_HEIGHT}px`,
+                background: 'linear-gradient(180deg, #14141a 0%, #0f0f16 100%)',
+                borderRadius: '6px',
+                boxShadow: 'inset 0 1px 0 rgba(206,214,236,0.08), inset 0 -2px 0 rgba(0,0,0,0.5)',
                 overflow: 'hidden',
-                marginBottom: '24px',
             }}>
-                {/* Center indicator */}
+                {/* The indicator, built like the reel's detent rather than the reel's
+                    old 4px bar: a mark seated in each edge with the line between
+                    them opening out, so nothing is drawn through the event it is
+                    pointing at. Same reasoning as DESIGN.md's indicator section. */}
                 <div style={{
                     position: 'absolute',
                     top: 0,
                     bottom: 0,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    width: '4px',
-                    background: '#F59E0B',
-                    boxShadow: '0 0 15px #F59E0B',
+                    width: '1px',
+                    background: `linear-gradient(180deg, ${COLORS.gold} 0%, ${COLORS.gold}22 32%, ${COLORS.gold}22 68%, ${COLORS.gold} 100%)`,
+                    boxShadow: `0 0 8px ${COLORS.gold}66`,
                     zIndex: 10,
-                }} />
-
-                {/* Pointer triangle */}
-                <div style={{
-                    position: 'absolute',
-                    top: '-12px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 0,
-                    height: 0,
-                    borderLeft: '12px solid transparent',
-                    borderRight: '12px solid transparent',
-                    borderTop: '16px solid #F59E0B',
-                    zIndex: 10,
-                    filter: 'drop-shadow(0 0 8px #F59E0B)',
                 }} />
 
                 {/* Strip */}
@@ -259,67 +310,63 @@ function EventSelectionWheel({ isMobile = false }) {
                                 key={index}
                                 style={{
                                     width: `${ITEM_WIDTH}px`,
+                                    // Without this the cells collapse. The strip is
+                                    // an absolutely positioned flex container with
+                                    // `left` but no width, so it is shrink-to-fit
+                                    // and bounded by the box it sits in — the cells
+                                    // are flex items, `flex-shrink` defaults to 1,
+                                    // and forty of them divide up 424px instead of
+                                    // taking 132 each. The strip looked half empty
+                                    // because most of it was squeezed into a sliver.
+                                    flexShrink: 0,
                                     height: '100%',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '8px',
+                                    // The reel's own language: light from the floor
+                                    // rather than a box. The winner used to get 3px
+                                    // borders on all four sides plus two glow bars —
+                                    // four edges and a fill, which is the boxed tile
+                                    // §8 spent a rebuild getting rid of.
                                     background: isLanding
-                                        ? `linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)`
-                                        : 'rgba(255,255,255,0.05)',
-                                    borderLeft: isLanding
-                                        ? `3px solid ${eventConfig.color}`
-                                        : '1px solid rgba(255,255,255,0.1)',
-                                    borderRight: isLanding
-                                        ? `3px solid ${eventConfig.color}`
-                                        : 'none',
+                                        ? `linear-gradient(180deg, transparent 30%, ${eventConfig.color}18 76%, ${eventConfig.color}44 100%)`
+                                        : 'transparent',
                                     boxShadow: isLanding
-                                        ? `inset 0 0 30px ${eventConfig.color}44, 0 0 20px ${eventConfig.color}66`
+                                        ? `inset 0 -2px 0 ${eventConfig.color}, 0 0 18px -6px ${eventConfig.color}`
                                         : 'none',
-                                    transition: isLanding ? 'all 0.3s ease' : 'none',
+                                    transition: isLanding ? 'background 0.3s ease-out, box-shadow 0.3s ease-out' : 'none',
                                     position: 'relative',
                                 }}
                             >
-                                {/* Winner glow bar at top and bottom */}
-                                {isLanding && (
-                                    <>
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: eventConfig.color,
-                                            boxShadow: `0 0 10px ${eventConfig.color}`,
-                                        }} />
-                                        <div style={{
-                                            position: 'absolute',
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0,
-                                            height: '3px',
-                                            background: eventConfig.color,
-                                            boxShadow: `0 0 10px ${eventConfig.color}`,
-                                        }} />
-                                    </>
-                                )}
+                                {/* The seam between cells, bottom-weighted for the
+                                    same reason the reel's is: a full-height rule
+                                    repeated at the cell pitch is a grid. */}
+                                <div style={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    width: '1px',
+                                    background: 'linear-gradient(180deg, transparent 45%, rgba(206,214,236,0.10) 100%)',
+                                }} />
                                 <Icon
-                                    size={isMobile ? 28 : 36}
-                                    color={isLanding ? '#fff' : eventConfig.color}
+                                    size={isMobile ? 18 : 20}
+                                    color={eventConfig.color}
                                     style={{
-                                        filter: isLanding
-                                            ? `drop-shadow(0 0 12px ${eventConfig.color})`
-                                            : `drop-shadow(0 0 8px ${eventConfig.color})`,
+                                        filter: `drop-shadow(0 0 ${isLanding ? 10 : 6}px ${eventConfig.color}${isLanding ? 'AA' : '66'})`,
+                                        transition: 'filter 0.3s ease-out',
                                     }}
                                 />
                                 <span style={{
-                                    fontSize: isMobile ? '10px' : '12px',
+                                    fontSize: '9px',
                                     fontWeight: 700,
-                                    color: isLanding ? '#fff' : eventConfig.color,
+                                    color: eventConfig.color,
                                     textAlign: 'center',
-                                    letterSpacing: '1px',
-                                    textShadow: isLanding ? `0 0 10px ${eventConfig.color}` : 'none',
+                                    letterSpacing: '0.06em',
+                                    lineHeight: 1.1,
+                                    padding: '0 6px',
                                 }}>
                                     {eventConfig.name}
                                 </span>
@@ -334,8 +381,8 @@ function EventSelectionWheel({ isMobile = false }) {
                     left: 0,
                     top: 0,
                     bottom: 0,
-                    width: '60px',
-                    background: 'linear-gradient(90deg, #0f0f1a 0%, transparent 100%)',
+                    width: '52px',
+                    background: 'linear-gradient(90deg, #0f0f16 0%, transparent 100%)',
                     pointerEvents: 'none',
                     zIndex: 5,
                 }} />
@@ -344,59 +391,24 @@ function EventSelectionWheel({ isMobile = false }) {
                     right: 0,
                     top: 0,
                     bottom: 0,
-                    width: '60px',
-                    background: 'linear-gradient(270deg, #0f0f1a 0%, transparent 100%)',
+                    width: '52px',
+                    background: 'linear-gradient(270deg, #0f0f16 0%, transparent 100%)',
                     pointerEvents: 'none',
                     zIndex: 5,
                 }} />
             </div>
+            </div>
 
-            {/* Result Display */}
-            {phase === 'result' && config && (
-                <div style={{
-                    animation: 'bounceIn 0.5s ease-out',
-                    textAlign: 'center',
-                }}>
-                    <div style={{
-                        fontSize: isMobile ? '24px' : '32px',
-                        fontWeight: 900,
-                        color: config.color,
-                        textShadow: `0 0 20px ${config.color}`,
-                        marginBottom: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '12px',
-                    }}>
-                        {React.createElement(config.icon, {
-                            size: isMobile ? 28 : 36,
-                            style: { animation: 'pulseGlow 1s ease-in-out infinite' }
-                        })}
-                        {config.name}
-                        {React.createElement(config.icon, {
-                            size: isMobile ? 28 : 36,
-                            style: { animation: 'pulseGlow 1s ease-in-out infinite' }
-                        })}
-                    </div>
-                    <div style={{
-                        fontSize: isMobile ? '14px' : '16px',
-                        color: '#94A3B8',
-                    }}>
-                        {config.description}
-                    </div>
-                </div>
-            )}
+            {/* The separate result panel is gone — a 32px name flanked by two
+                pulsing icons on a `bounceIn`, plus a description line, plus a
+                "Selecting event..." line during the roll. All four are said by the
+                header row above: it reads "Selecting…" while it turns and becomes
+                the event's name in the event's colour when it lands.
 
-            {/* Spinning indicator */}
-            {phase === 'spinning' && (
-                <div style={{
-                    fontSize: isMobile ? '14px' : '16px',
-                    color: '#94A3B8',
-                    animation: 'pulse 1s ease-in-out infinite',
-                }}>
-                    Selecting event...
-                </div>
-            )}
+                Its `bounceIn` was also a 1.1 overshoot, which §8 permits on the spin
+                control alone. The banner that opens a moment later carries the
+                description and everything else about the event, so repeating it here
+                for 1.5 seconds was saying the same thing twice in a row. */}
         </div>
     );
 }

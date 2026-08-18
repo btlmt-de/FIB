@@ -17,6 +17,7 @@ import Navigation from './components/common/Navigation';
 
 // Config
 import { COLORS } from './config/constants';
+import { ATLAS_IMAGE, ATLAS_JSON } from './components/wheel/canvas/atlas.js';
 
 /*
  * The two standalone routes are code-split.
@@ -79,10 +80,21 @@ export default function App() {
 
     // Wheel page is standalone (no nav bar)
     if (currentPage === 'wheel') {
+        /*
+         * The lazy chunk and the atlas are the wheel's two cold-start costs;
+         * preloading the atlas while the chunk downloads overlaps them instead
+         * of serialising. React 19 hoists these <link>s into <head>. The JSON
+         * carries crossOrigin because fetch() is a CORS request even when the
+         * URL is same-origin, and a preload without it would not match.
+         */
         return (
-            <Suspense fallback={<RouteFallback />}>
-                <WheelOfFortune onBack={() => navigate('home')} />
-            </Suspense>
+            <>
+                <link rel="preload" as="image" href={ATLAS_IMAGE} />
+                <link rel="preload" as="fetch" href={ATLAS_JSON} type="application/json" crossOrigin="anonymous" />
+                <Suspense fallback={<RouteFallback />}>
+                    <WheelOfFortune onBack={() => navigate('home')} />
+                </Suspense>
+            </>
         );
     }
 

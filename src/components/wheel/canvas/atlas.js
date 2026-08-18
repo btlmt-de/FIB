@@ -24,8 +24,12 @@ import { getItemImageUrl } from '../../../utils/helpers.js';
 // WebP, not PNG: at this size a lossless WebP atlas is 6.4 MB against 10.1 MB as
 // PNG, for identical pixels. A browser too old to decode it fails loadAtlas() and
 // falls back to individual sprites, so the format costs nothing in reach.
-const ATLAS_IMAGE = '/fib-atlas.webp';
-const ATLAS_JSON = '/fib-atlas.json';
+//
+// Exported so App.jsx can preload the pair as soon as /wheel is requested —
+// 6.4 MB that only starts downloading after the lazy chunk mounts is 6.4 MB
+// the cold start did not need.
+export const ATLAS_IMAGE = '/fib-atlas.webp';
+export const ATLAS_JSON = '/fib-atlas.json';
 
 /** Only /fib-items/<name>.png is packed; everything else resolves per item. */
 const POOL_SPRITE = /^\/fib-items\/([^/]+)\.png$/;
@@ -114,11 +118,21 @@ export function getAtlasSprite(item) {
     const index = atlasMeta.sprites[match[1]];
     if (index === undefined) return null;
 
+    // The grid pitch is the *cell*, not the tile: each sprite sits inside a
+    // gutter of extruded edge pixels so that smoothed sampling cannot reach its
+    // neighbour. See PAD in scripts/vendor-atlas.mjs for why that gutter exists.
+    //
+    // Both keys default for an atlas packed before the gutter did, which keeps a
+    // stale public/fib-atlas.webp rendering correctly rather than shifting every
+    // sprite by two pixels — the failure mode this file already refuses to allow
+    // for the grid dimensions.
     const { tile, cols } = atlasMeta;
+    const pad = atlasMeta.pad ?? 0;
+    const cell = atlasMeta.cell ?? tile;
     return {
         image: atlasImage,
-        sx: (index % cols) * tile,
-        sy: Math.floor(index / cols) * tile,
+        sx: (index % cols) * cell + pad,
+        sy: Math.floor(index / cols) * cell + pad,
         size: tile,
     };
 }
