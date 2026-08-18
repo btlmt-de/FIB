@@ -26,11 +26,21 @@ import { useActivity } from '../../../context/ActivityContext.jsx';
  * "everyone here is doing this together" is the whole character of the feature.
  */
 
-/** How often to re-read the counter while it is on screen. */
+/**
+ * How often the fallback re-reads the counter while it is on screen.
+ *
+ * This is the safety net, not the source of truth. The server now pushes a
+ * `global_event_milestone` SSE event after every spin (see checkMilestoneTrigger
+ * in the wheel backend), so the number moves within a frame of whoever last
+ * spun. The 20s interval only covers a silent stream — a reconnecting SSE or a
+ * server too busy to broadcast — the same reasons this meter ever polled.
+ */
 const REFRESH_MS = 20_000;
 
 export function MilestoneMeter({ isMobile }) {
-    const { globalEventStatus, eventSelection, refreshMilestone } = useActivity();
+    const { globalEventStatus, eventSelection, refreshMilestone,
+        communityGoalResult, communityGoalResultPending, firstBloodWinner,
+        firstBloodResultPending, kotwWinner, kotwWinnerPending } = useActivity();
 
     // `eventSelection` counts as active. The roll happens in this same slot, and it
     // fires *before* the event itself flips to active — so without this the meter
@@ -38,27 +48,44 @@ export function MilestoneMeter({ isMobile }) {
     // stacked in a row that holds one thing at a time. It would also be reading
     // "0 spins to go", which is true and useless.
     const active = globalEventStatus?.active || globalEventStatus?.pending || !!eventSelection;
+
+    // The event's aftermath counts as active too. Once an event ends, its result or
+    // winner sits in this same slot for its display period - a fixed window in the
+    // ActivityContext result handlers (12s community goal, 8s first blood, 30s
+    // king of the wheel), fading out only after that. `global_event_end` clears
+    // `active` the moment the event is over, so without this the meter would pop
+    // in under a result banner that is still saying goodbye, reading "next global
+    // event" while a 0:00-timer banner is on screen. Include the pending flags:
+    // they are the moments between the end broadcast and the result landing, and
+    // that gap is precisely when the old meter used to jump in.
+    const aftermathVisible = !!communityGoalResult || communityGoalResultPending
+        || !!firstBloodWinner || firstBloodResultPending
+        || !!kotwWinner || kotwWinnerPending;
+    const effectiveActive = active || aftermathVisible;
     const milestone = globalEventStatus?.milestone;
 
-    // Polled rather than pushed, and only while it is actually visible: the server
-    // does not broadcast the milestone between events, and a meter nobody is
-    // looking at should not be asking. `document.hidden` covers the backgrounded
-    // tab; the early return below covers a live event, when the banners own this
-    // slot and this component renders nothing.
+    // The number arrives pushed: `global_event_milestone` lands here after every
+    // spin with the fresh count, and the layout below just renders it. Nothing
+    // about the update loop lives in this component any more — the SSE handler in
+    // ActivityContext writes into the same `globalEventStatus.milestone` the
+    // status broadcasts write. All this effect does is keep asking, slowly, in
+    // case the stream went quiet (reconnect gap, quiet-server stall) — and only
+    // while the meter is actually visible; `document.hidden` covers the
+    // backgrounded tab.
     useEffect(() => {
-        if (active) return undefined;
+        if (effectiveActive) return undefined;
 
         refreshMilestone();
         const id = setInterval(() => {
             if (!document.hidden) refreshMilestone();
         }, REFRESH_MS);
         return () => clearInterval(id);
-    }, [active, refreshMilestone]);
+    }, [effectiveActive, refreshMilestone]);
 
     // Nothing to say rather than a placeholder: an event is running and has its own
     // banner, or the server has not told us yet. A skeleton here would be chrome
     // standing in for a number that arrives in a few hundred milliseconds.
-    if (active || !milestone || typeof milestone.remaining !== 'number') return null;
+    if (effectiveActive || !milestone || typeof milestone.remaining !== 'number') return null;
 
     const remaining = Math.max(0, milestone.remaining);
     const progress = Math.min(100, Math.max(0, milestone.progress || 0));
@@ -119,16 +146,15 @@ export function MilestoneMeter({ isMobile }) {
                     gap: '5px',
                     width: isMobile ? 'min(340px, 92vw)' : '460px',
                     padding: isMobile ? '9px 14px 11px' : '10px 18px 12px',
-                    borderRadius: '10px',
-                    // The band's material at a smaller size: a near-black plinth, a
-                    // lit hairline along the top, and the accent entering from the
-                    // floor. Deliberately quieter than the event banners that share
-                    // this slot — this is a status, and they are news.
-                    background: 'linear-gradient(180deg, #1b1b26 0%, #131320 100%)',
+                    // No radius, no ring: this is a detached section of the band's
+                    // viaduct deck (the Nocturne), not a card sitting in the slot —
+                    // square plinth, lit rail along the top, amber entering from
+                    // the floor. Deliberately quieter than the event banners that
+                    // share this slot — this is a status, and they are news.
+                    background: 'linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)',
                     boxShadow: [
                         'inset 0 1px 0 rgba(206,214,236,0.10)',
                         `inset 0 -1px 0 ${COLORS.gold}${imminent ? '55' : '2A'}`,
-                        'inset 0 0 0 1px rgba(206,214,236,0.05)',
                     ].join(', '),
                 }}
             >

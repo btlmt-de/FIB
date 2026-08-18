@@ -22,7 +22,12 @@
 //
 // And DESIGN.md recorded the takeover as an unreviewed surface running its own
 // undocumented palette — a warm `#1a1814` family that was ratified nowhere. The
-// shell here is the milestone meter's, which is the band's material.
+// shell here is the milestone meter's: the Nocturne's viaduct deck (see
+// DESIGN.md §8, THE NOCTURNE). The meter counts down to this moment in this
+// exact spot, so the roll arriving in the same plinth reads as the same machine
+// continuing — the station's departure board naming the next train. The only
+// colours that may signal here are the event identities themselves; everything
+// else is deck and amber.
 //
 // The mechanism is untouched: same strip build, same rAF, same quartic ease-out,
 // same phases, same server-supplied `selectionDuration`. Only the frame changed.
@@ -103,11 +108,8 @@ function buildEventStrip(availableEvents, selectedEvent, stripLength = 30) {
     return strip;
 }
 
-const PROBE = { selectedEvent: 'king_of_wheel', availableEvents: ['gold_rush', 'king_of_wheel', 'first_blood', 'community_goal'], selectionDuration: 4000 };
-
 function EventSelectionWheel({ isMobile = false }) {
-    const { eventSelection: realSelection } = useActivity();
-    const eventSelection = PROBE || realSelection;
+    const { eventSelection } = useActivity();
     const { playSfx } = useSound();
 
     const [isVisible, setIsVisible] = useState(false);
@@ -176,19 +178,23 @@ function EventSelectionWheel({ isMobile = false }) {
         };
     }, [eventSelection, playSfx]);
 
-    // Hide after result is shown
+    // Exit fades rather than pops. The context clears eventSelection about a
+    // second after the landing; that clear is the cue — the event's own banner
+    // slides into this same slot right about then, so the roll dissolves
+    // beneath it instead of vanishing the moment it is beaten. A fresh
+    // selection mid-fade (events queue fast on a busy server) snaps it back:
+    // the reset below is a render-phase state correction, the pattern React
+    // prescribes for deriving state from changing props.
+    const [isGone, setIsGone] = useState(false);
+    const isClosing = isVisible && !eventSelection && !isGone;
+    if (eventSelection && isGone) setIsGone(false);
     useEffect(() => {
-        if (phase === 'result') {
-            const timeout = setTimeout(() => {
-                setIsVisible(false);
-                setPhase('idle');
-                setResultEvent(null);
-            }, 20000); // TEMP probe: was 1500
-            return () => clearTimeout(timeout);
-        }
-    }, [phase]);
+        if (!isClosing) return undefined;
+        const id = setTimeout(() => setIsGone(true), 320);
+        return () => clearTimeout(id);
+    }, [isClosing]);
 
-    if (!isVisible || strip.length === 0) return null;
+    if (isGone || !isVisible || strip.length === 0) return null;
 
     // 132, down from 180. The slot is one row, not a screen.
     const ITEM_WIDTH = isMobile ? 108 : 132;
@@ -210,20 +216,22 @@ function EventSelectionWheel({ isMobile = false }) {
             `}</style>
 
             <div style={{
-                // The milestone meter's shell, deliberately. The meter counts up to
-                // this moment in this exact spot, so the roll arriving in the same
-                // frame reads as the same machine continuing rather than a second
-                // widget replacing the first.
+                // The milestone meter's shell, deliberately — and now the meter's
+                // plinth exactly: square, no ring, the Nocturne's blue-hour deck
+                // material, lit rail on top, a signal entering from the floor.
+                // While the roll runs the signal is amber; the moment it lands it
+                // becomes the event's own colour, which is the result.
                 width: isMobile ? 'min(340px, 92vw)' : '460px',
                 padding: isMobile ? '9px 14px 11px' : '10px 18px 12px',
-                borderRadius: '10px',
-                background: 'linear-gradient(180deg, #1b1b26 0%, #131320 100%)',
+                borderRadius: 0,
+                background: 'linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)',
                 boxShadow: [
                     'inset 0 1px 0 rgba(206,214,236,0.10)',
                     `inset 0 -1px 0 ${config ? config.color : COLORS.gold}88`,
-                    'inset 0 0 0 1px rgba(206,214,236,0.05)',
                 ].join(', '),
-                animation: 'eventRollIn 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
+                animation: isClosing ? 'none' : 'eventRollIn 0.28s cubic-bezier(0.22, 1, 0.36, 1)',
+                opacity: isClosing ? 0 : 1,
+                transition: 'opacity 0.32s ease-in',
             }}>
                 {/* The header line, in the meter's own format: what this is on the
                     left, what is happening on the right. While it rolls the right
@@ -267,9 +275,13 @@ function EventSelectionWheel({ isMobile = false }) {
                 position: 'relative',
                 width: '100%',
                 height: `${STRIP_HEIGHT}px`,
-                background: 'linear-gradient(180deg, #14141a 0%, #0f0f16 100%)',
-                borderRadius: '6px',
-                boxShadow: 'inset 0 1px 0 rgba(206,214,236,0.08), inset 0 -2px 0 rgba(0,0,0,0.5)',
+                // A lit window in the plinth, not a recessed box: no radius, and
+                // the depth is the deck's own darker blue-hour ground rather than
+                // a shadow. The only edges are the rail passing in front above and
+                // the signal below; the cells carry their own floor light.
+                background: 'linear-gradient(180deg, #090c15 0%, #05070d 100%)',
+                borderRadius: 0,
+                boxShadow: 'inset 0 1px 0 rgba(206,214,236,0.06)',
                 overflow: 'hidden',
             }}>
                 {/* The indicator, built like the reel's detent rather than the reel's
@@ -382,7 +394,7 @@ function EventSelectionWheel({ isMobile = false }) {
                     top: 0,
                     bottom: 0,
                     width: '52px',
-                    background: 'linear-gradient(90deg, #0f0f16 0%, transparent 100%)',
+                    background: 'linear-gradient(90deg, #05070d 0%, transparent 100%)',
                     pointerEvents: 'none',
                     zIndex: 5,
                 }} />
@@ -392,7 +404,7 @@ function EventSelectionWheel({ isMobile = false }) {
                     top: 0,
                     bottom: 0,
                     width: '52px',
-                    background: 'linear-gradient(270deg, #0f0f16 0%, transparent 100%)',
+                    background: 'linear-gradient(270deg, #05070d 0%, transparent 100%)',
                     pointerEvents: 'none',
                     zIndex: 5,
                 }} />

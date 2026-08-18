@@ -47,6 +47,7 @@ import { NotificationBell, NotificationCenter } from './modals/NotificationCente
 import { LiveChat } from './features/LiveChat.jsx';
 import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
 import { CanvasCosmicBackground } from './canvas/CanvasCosmicBackground.jsx';
+
 import { TopbarIconButton, TopbarDivider } from './topbar/TopbarControls.jsx';
 import {
     User, Edit3, LogOut, Settings,
@@ -756,12 +757,20 @@ function WheelOfFortunePage({ onBack }) {
                 What is left says the same things in one 56px row: where you are,
                 who you are, and how to leave. The headline's `background-clip:
                 text` gradient went with it — decorative, encoding nothing the
-                weight and colour do not, and a flat ban in the design system. */}
+                weight and colour do not, and a flat ban in the design system.
+
+                The row's bottom border is a soft rule, the one frame the topbar
+                keeps. THE NOCTURNE (WheelSpinner.jsx) removed it and let the
+                rooftop silhouette (`CityCrown`) end the row instead; the owner's
+                review on 2026-08-18 reversed that — the crown is gone and the
+                rule is back. The Nocturne's borderless world starts below this
+                row. */}
             <header style={{
                 gridRow: 1,
                 gridColumn: '1 / -1',
                 display: 'flex',
                 alignItems: 'center',
+                borderBottom: `1px solid ${COLORS.border}44`,
                 // No `space-between`: the wordmark's `margin-right: auto` is what
                 // splits the row, and with both in play the leftover width was
                 // being distributed twice — the gap between Back and the wordmark
@@ -773,7 +782,6 @@ function WheelOfFortunePage({ onBack }) {
                 // not drift the moment a control changes size.
                 minHeight: '56px',
                 boxSizing: 'border-box',
-                borderBottom: `1px solid ${COLORS.border}44`,
                 position: 'relative',
                 zIndex: Z.content,
             }}>

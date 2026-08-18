@@ -72,18 +72,20 @@ function Panel({ side, label, icon, onClick, actionLabel, children }) {
                     gap: '10px',
                     textAlign: 'left',
                     padding: `${SPACE.md}px`,
-                    borderRadius: '10px',
+                    // No radius, no ring: the Nocturne's platform furniture is the
+                    // band's deck material at rest — a square plinth, a lit rail
+                    // along the top, station amber entering from the floor. It is
+                    // the same machine as the reel above, not a card near it.
+                    borderRadius: 0,
                     border: 'none',
                     cursor: 'pointer',
-                    // The band's material again, quietly: a plinth, a lit top
-                    // hairline, and a floor that warms on hover. It is the same
-                    // machine as the reel above, not a card floating near it.
                     background: active
-                        ? 'linear-gradient(180deg, #1f1f2b 0%, #16162200 100%), linear-gradient(180deg, #1c1c27 0%, #141420 100%)'
-                        : 'linear-gradient(180deg, #1a1a24 0%, #12121d 100%)',
+                        // Hover is light, not paint: the street glow's amber rises
+                        // through the plinth instead of the slab changing colour.
+                        ? 'linear-gradient(180deg, rgba(255,183,94,0.05), rgba(255,183,94,0) 55%), linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)'
+                        : 'linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)',
                     boxShadow: [
                         `inset 0 1px 0 rgba(206,214,236,${active ? '0.16' : '0.09'})`,
-                        `inset 0 0 0 1px rgba(206,214,236,${active ? '0.10' : '0.05'})`,
                         `inset 0 -1px 0 ${COLORS.gold}${active ? '66' : '22'}`,
                     ].join(', '),
                     // No lift. The control is seated in the page the same way the

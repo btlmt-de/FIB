@@ -398,16 +398,23 @@ export function ActivityTicker({ onOpenFull }) {
                     flexShrink: 0,
                     alignSelf: 'center',
                     background: 'transparent',
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: '8px',
+                    // Signboard, not a box: the Nocturne has no frames, and this
+                    // readout sits on the open street. One line of amber type that
+                    // lights on hover keeps the affordance without drawing a box
+                    // around it — the label column next door already anchors the
+                    // strip.
+                    border: 'none',
                     color: COLORS.textMuted,
                     fontSize: '11px',
-                    padding: '7px 11px',
+                    fontWeight: 600,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    padding: '7px 4px',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = COLORS.text; e.currentTarget.style.borderColor = COLORS.gold; }}
-                onMouseLeave={e => { e.currentTarget.style.color = COLORS.textMuted; e.currentTarget.style.borderColor = COLORS.border; }}
+                onMouseEnter={e => { e.currentTarget.style.color = COLORS.gold; }}
+                onMouseLeave={e => { e.currentTarget.style.color = COLORS.textMuted; }}
             >
                 All drops
             </button>

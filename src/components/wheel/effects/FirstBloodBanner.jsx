@@ -25,6 +25,11 @@ const FB_BG_DARK = '#0C0A09';      // Darker background
 const FB_TEXT = '#FAFAF9';         // Light text
 const FB_GOLD = '#F59E0B';         // Gold for rewards
 
+// How long after the clock expires the banner waits for the result stream before
+// falling back to hiding itself. See the active-timer effect for why hiding at
+// 0:00 exactly races the end broadcasts.
+const RESULT_GRACE_MS = 3000;
+
 // Rarity colours come from the shared ladder — see utils/rarityHelpers.jsx. This
 // was a local RARITY_COLORS map that still had legendary on purple (now exotic's
 // colour) and no exotic entry at all, so an exotic win rendered in the banner's
@@ -229,8 +234,15 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
             const remaining = Math.max(0, globalEventStatus.expiresAt - Date.now());
             setRemainingTime(remaining);
 
-            // Fallback: if timer hits 0, hide banner and stop music even if SSE hasn't arrived
-            if (remaining <= 0 && isVisible && !showWinnerInBanner) {
+            // Fallback: if timer hits 0, hide banner and stop music even if SSE hasn't arrived.
+            // Not at 0:00 exactly: the end broadcasts land within a moment of the clock
+            // expiring, and hiding here races them — the banner used to fade out at 0:00
+            // and slide back in when first_blood_result arrived a moment later, pinned
+            // between two states. The result stream gets RESULT_GRACE_MS to land (the
+            // settle flag keeps the banner up once it does); only a genuinely silent
+            // stream sees it hide.
+            if (remaining <= 0 && isVisible && !showWinnerInBanner && !isSettling
+                && Date.now() - globalEventStatus.expiresAt > RESULT_GRACE_MS) {
                 console.log('[FirstBlood] Timer expired - hiding banner (fallback)');
                 setIsVisible(false);
                 hasPlayedSoundRef.current = false;
@@ -304,12 +316,29 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
     const showLiveLayout = isActive || isSettling;
     const shouldShowBanner = isVisible || showWinnerInBanner || isSettling;
 
-    if (!shouldShowBanner) return null;
+    // Exit fades rather than pops: the winner block dissolves and the handoff to
+    // the next occupant of this slot reads as a scene change, not a blink.
+    // `isClosing` is derived — the moment shouldShowBanner drops, this render
+    // still paints with the slide-down halted and opacity falling; a timeout
+    // then retires it. A fresh event inside the fade snaps it back: isGone is a
+    // latch, so without the reset below every later event of the session would
+    // be suppressed until a reload (render-phase correction, same pattern as
+    // the EventSelectionWheel's).
+    const [isGone, setIsGone] = useState(false);
+    const isClosing = !shouldShowBanner && !isGone;
+    if (shouldShowBanner && isGone) setIsGone(false);
+    useEffect(() => {
+        if (!isClosing) return undefined;
+        const id = setTimeout(() => setIsGone(true), 320);
+        return () => clearTimeout(id);
+    }, [isClosing]);
+
+    if (isGone) return null;
 
     return (
         <>
             {/* Banner */}
-            {shouldShowBanner && (
+            {(shouldShowBanner || isClosing) && (
                 <div style={{
                     // `inline` is what moved this out of the viewport's top
                     // edge and into the page. It used to be `position: fixed;
@@ -322,7 +351,9 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
                     ...(inline
                         ? { position: 'relative' }
                         : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }),
-                    animation: 'slideDownFB 0.4s ease-out forwards',
+                    animation: isClosing ? 'none' : 'slideDownFB 0.4s ease-out forwards',
+                    opacity: isClosing ? 0 : 1,
+                    transition: 'opacity 0.32s ease-in',
                 }}>
                     <style>{`
                         @keyframes slideDownFB {
@@ -399,7 +430,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
                             gap: isMobile ? '8px' : '12px',
                         }}>
                             {/* Winner Display Mode */}
-                            {showWinnerInBanner && firstBloodWinner?.winner ? (
+                            {(showWinnerInBanner || isClosing) && firstBloodWinner?.winner ? (
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -492,6 +523,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
                                     justifyContent: 'center',
                                     gap: isMobile ? '10px' : '18px',
                                     flexWrap: 'wrap',
+                                    animation: 'fadeInFB 0.35s ease-out',
                                 }}>
                                     {/* Left icon */}
                                     <Crosshair
@@ -523,7 +555,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
                                             background: FB_BG_DARK,
                                             border: `2px solid ${FB_PRIMARY}`,
                                             borderRadius: '8px',
-                                            animation: 'countdownPulseFB 0.5s ease-in-out infinite',
+                                            animation: 'fadeInFB 0.35s ease-out, countdownPulseFB 0.5s ease-in-out infinite',
                                         }}>
                                             <Swords size={isMobile ? 16 : 20} color={FB_PRIMARY} />
                                             <span style={{

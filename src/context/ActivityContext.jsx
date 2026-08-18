@@ -60,6 +60,12 @@ export function ActivityProvider({ children }) {
     const firstBloodClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
+    // True while this client's own wheel is animating. An event result that
+    // arrives mid-spin must not render until the wheel lands — see
+    // deferResultUntilLanding() below.
+    const spinInFlightRef = useRef(false);
+    const deferredResultRevealsRef = useRef([]);
+    const deferredResultGuardsRef = useRef([]);
     // A list rather than a single ref: several drops can be in their reveal window
     // at once — a busy server, or your own spin landing while someone else's is
     // still held — and each needs its own timer.
@@ -238,6 +244,38 @@ export function ActivityProvider({ children }) {
         }
     }, []); // No dependencies - uses refs
 
+    // Event results that arrive while the player's own wheel is still turning
+    // (the event end timers fire mid-spin as often as not) must not render
+    // until the wheel lands: a fixed wait can fire while the wheel is not done,
+    // spoiling the pull. The pending flags the callers set keep their banners
+    // on screen meanwhile. The wheel reports start/landing through
+    // markSpinInFlight()/markSpinLanded(); markSpinLanded drains this queue. A
+    // guard timer guarantees a stranded result is not held forever if the
+    // landing never fires (e.g. the spin request failed and the wheel reset).
+    const deferResultUntilLanding = useCallback((reveal) => {
+        deferredResultRevealsRef.current.push(reveal);
+        const guard = setTimeout(() => {
+            const i = deferredResultRevealsRef.current.indexOf(reveal);
+            if (i >= 0) {
+                deferredResultRevealsRef.current.splice(i, 1);
+                reveal();
+            }
+        }, 15000);
+        deferredResultGuardsRef.current.push(guard);
+    }, []);
+
+    const markSpinInFlight = useCallback(() => {
+        spinInFlightRef.current = true;
+    }, []);
+
+    const markSpinLanded = useCallback(() => {
+        spinInFlightRef.current = false;
+        const reveals = deferredResultRevealsRef.current.splice(0);
+        deferredResultGuardsRef.current.forEach(clearTimeout);
+        deferredResultGuardsRef.current = [];
+        for (const reveal of reveals) reveal();
+    }, []);
+
     // SSE connection - runs once on mount
     useEffect(() => {
         fetchActivity();
@@ -356,6 +394,19 @@ export function ActivityProvider({ children }) {
                                 // over. See communityGoalResultPending.
                                 break;
 
+                            case 'global_event_milestone':
+                                // Pushed after every spin while no event is running.
+                                // The activity feed only broadcasts notable drops, so
+                                // this is the counter's one live signal — without it
+                                // the meter would sit stale until a poll or a special
+                                // drop. Written into the same globalEventStatus.milestone
+                                // as everything else, so there is still one milestone
+                                // on the client.
+                                if (data.milestone && typeof data.milestone.remaining === 'number') {
+                                    setGlobalEventStatus(prev => ({ ...prev, milestone: data.milestone }));
+                                }
+                                break;
+
                             case 'event_selection':
                                 console.log('[SSE] Event selection started:', data);
                                 // Clear any existing timeout
@@ -419,7 +470,7 @@ export function ActivityProvider({ children }) {
                                 }));
                                 break;
 
-                            case 'community_goal_result':
+                            case 'community_goal_result': {
                                 console.log('[SSE] Community Goal result:', data);
                                 if (communityGoalResultTimeoutRef.current) {
                                     clearTimeout(communityGoalResultTimeoutRef.current);
@@ -432,9 +483,8 @@ export function ActivityProvider({ children }) {
                                 // and popping back - the event is over, but the summary is not
                                 // ready to show yet.
                                 setCommunityGoalResultPending(true);
-                                // Same delay as the other events: the goal expires on a
-                                // server timer that lands mid-spin as often as not.
-                                communityGoalResultTimeoutRef.current = setTimeout(() => {
+
+                                const reveal = () => {
                                     setCommunityGoalResult(data);
                                     setCommunityGoalResultPending(false);
                                     setCommunityGoal(null);
@@ -444,8 +494,20 @@ export function ActivityProvider({ children }) {
                                         setCommunityGoalReward(null);
                                         communityGoalClearTimeoutRef.current = null;
                                     }, 12000);
-                                }, 5000);
+                                };
+
+                                if (spinInFlightRef.current) {
+                                    // The end timer fired while this client's wheel was still
+                                    // turning: a fixed wait can land the summary over a wheel
+                                    // that is not done. Defer to the actual landing, which the
+                                    // wheel reports through markSpinLanded().
+                                    deferResultUntilLanding(reveal);
+                                } else {
+                                    // No local spin to spoil - keep the settle rhythm.
+                                    communityGoalResultTimeoutRef.current = setTimeout(reveal, 5000);
+                                }
                                 break;
+                            }
 
                             case 'community_goal_reward':
                                 // Sent only to players who took part - carries their own
@@ -454,7 +516,7 @@ export function ActivityProvider({ children }) {
                                 setCommunityGoalReward(data);
                                 break;
 
-                            case 'first_blood_result':
+                            case 'first_blood_result': {
                                 console.log('[SSE] First Blood result:', data);
                                 // Clear any existing timeouts
                                 if (firstBloodTimeoutRef.current) {
@@ -463,10 +525,9 @@ export function ActivityProvider({ children }) {
                                 if (firstBloodClearTimeoutRef.current) {
                                     clearTimeout(firstBloodClearTimeoutRef.current);
                                 }
-                                // Delay showing winner to allow spin animation to complete first
-                                // Spin animations take ~4-5 seconds, so wait before showing winner
                                 setFirstBloodResultPending(true);
-                                firstBloodTimeoutRef.current = setTimeout(() => {
+
+                                const reveal = () => {
                                     setFirstBloodWinner(data);
                                     setFirstBloodResultPending(false);
                                     firstBloodTimeoutRef.current = null;
@@ -475,8 +536,21 @@ export function ActivityProvider({ children }) {
                                         setFirstBloodWinner(null);
                                         firstBloodClearTimeoutRef.current = null;
                                     }, 8000); // Show winner for 8 seconds before clearing
-                                }, 5000); // Wait for spin animation to complete
+                                };
+
+                                if (spinInFlightRef.current) {
+                                    // Same deal as the Community Goal summary: the end timer
+                                    // can fire while the player's wheel is still turning, and
+                                    // the winner must wait for the landing too.
+                                    deferResultUntilLanding(reveal);
+                                } else {
+                                    // No local spin to spoil - keep the settle rhythm.
+                                    // Spin animations take ~4-5 seconds, so wait before
+                                    // showing winner.
+                                    firstBloodTimeoutRef.current = setTimeout(reveal, 5000); // Wait for spin animation to complete
+                                }
                                 break;
+                            }
 
                             case 'activity':
                                 if (data.item && data.item.id) {
@@ -655,8 +729,11 @@ export function ActivityProvider({ children }) {
             }
             feedRevealTimeoutsRef.current.forEach(clearTimeout);
             feedRevealTimeoutsRef.current = [];
+            deferredResultGuardsRef.current.forEach(clearTimeout);
+            deferredResultGuardsRef.current = [];
+            deferredResultRevealsRef.current = [];
         };
-    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus]);
+    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus, deferResultUntilLanding]);
 
     const clearNewItems = useCallback(() => {
         setNewItems([]);
@@ -701,6 +778,10 @@ export function ActivityProvider({ children }) {
         kotwSpinPending,
         markKotwSpinStart,
         updateKotwUserStats,
+        // Spin lifecycle - lets deferred event results wait for this client's
+        // wheel to land instead of firing over a turning wheel
+        markSpinInFlight,
+        markSpinLanded,
         // Event Selection
         eventSelection,
         // First Blood

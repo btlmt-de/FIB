@@ -1,3 +1,31 @@
+/* THE NOCTURNE — direction contract (impeccable seed 34ecef14,
+   challenger light-shadow-caustics-rain-night-cityscape; chosen by
+   owner 2026-08-18).
+
+   THESIS: the spin surface is one blue-hour city; the reel is the
+   main transit line arriving at its stop. It refuses the panel —
+   the whole page is a single nocturne mass, no boxes, no frames.
+
+   OWN-WORLD: cobalt blue-hour sky over black tower silhouette; the
+   only lit things are the transit vein (the reel), amber station
+   light (the gold accent), and event signal states. Tier colours
+   are the train's own light; rarity hues never change.
+
+   STORY: a player on a second screen watches the city at night;
+   items move past like lit cars; a landing is a train arriving —
+   the result is the arrival at the platform.
+
+   FIRST VIEWPORT: the viaduct band carries the moving strip between
+   rail and street glow, the stage is the platform with the result as
+   the arrival. The topbar keeps its soft rule: the skyline crown was
+   tried as the new topbar end and the owner's review reverted it
+   (2026-08-18) — the Nocturne's borderless world starts below the
+   topbar.
+
+   FORM: rain-night cityscape challenger, seed key 34ecef14.
+
+   FINISH: unreviewed and undocumented is unfinished; this build
+   ends with the finish review, the verdict, and DESIGN.md. */
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Crown, Sparkles, Zap, Gift } from 'lucide-react';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
@@ -117,7 +145,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const { spinDuration } = useWheelConfig();
 
     // Get recursion status from ActivityContext - no separate polling!
-    const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart } = useActivity();
+    const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
+        firstBloodWinner, firstBloodResultPending, communityGoalResult,
+        communityGoalResultPending, kotwWinner, kotwWinnerPending } = useActivity();
 
     // Get Gold Rush boosted rarity if event is active
     const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
@@ -621,6 +651,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             // The spin may still have been processed server-side before we gave up on
             // it, so don't strand a balance we were already told about.
             applyPendingKotwLuckySpins();
+            // Whatever happened, this wheel is no longer turning. Release any
+            // deferred event results waiting for the landing.
+            markSpinLanded();
         };
 
         // Settle the KOTW spin once the animation is done. Applying the pending result
@@ -637,6 +670,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 updateKotwUserStats(kotwUserStats);
             }
             applyPendingKotwLuckySpins();
+            // The wheel has landed - release any deferred event results that were
+            // waiting on it (Community Goal summary, First Blood winner).
+            markSpinLanded();
         };
 
         try {
@@ -647,6 +683,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             if (globalEventStatus?.type === 'king_of_wheel' && globalEventStatus?.active) {
                 markKotwSpinStart();
             }
+
+            // Flag this client's wheel as in flight: event results that arrive
+            // mid-spin (Community Goal ending, First Blood winner) are held back
+            // and drained when the wheel lands via markSpinLanded().
+            markSpinInFlight();
 
             // Start soundtrack when spinning begins
             if (!isMusicPlaying) {
@@ -1334,7 +1375,26 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         first_blood: COLORS.red,
         community_goal: COLORS.aqua,
     };
-    const eventAccent = globalEventStatus?.active ? EVENT_ACCENT[globalEventStatus.type] : null;
+    // An event's colour must outlive its clock. `global_event_end` clears
+    // `globalEventStatus.type` (and `active`) the moment the event is over, but
+    // the result banner keeps this slot for its display period and First Blood's
+    // winner card is literally the unboxing of the special item. Dropping the
+    // accent at 0:00 left the band back on the default gradient while that card
+    // was still open - the wheel said "event over" under a banner that was still
+    // announcing the prize. The aftermath flags below are the same signals the
+    // banners live and die by (their display windows live in the ActivityContext
+    // result handlers: 8s First Blood, 12s Community Goal, 30s KOTW), so the
+    // accent now survives exactly as long as the surface it belongs to.
+    const aftermathEventType = firstBloodResultPending || firstBloodWinner
+        ? 'first_blood'
+        : communityGoalResultPending || communityGoalResult
+            ? 'community_goal'
+            : kotwWinnerPending || kotwWinner
+                ? 'king_of_wheel'
+                : null;
+    const eventAccent = (globalEventStatus?.active || aftermathEventType)
+        ? EVENT_ACCENT[aftermathEventType || globalEventStatus?.type] || null
+        : null;
     const bandAccent = showSpinRecursionEffects
         ? COLORS.recursion
         : showSpinKotwLuckyEffects
@@ -1360,6 +1420,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // So idle now renders the same two rows as every other state. The reel is
     // simply dormant: dimmed and drifting rather than absent. Spinning does not
     // rebuild the layout, it wakes the reel up, and nothing on the page moves.
+
+    // The band's two rules, tinted per state. The old borderBlock computed the
+    // same ternary inline; it is hoisted because the rules are now overlays
+    // painted in two places instead of one border property.
+    const ruleColor = showSpinRecursionEffects
+        ? `${COLORS.recursion}40`
+        : showSpinKotwLuckyEffects
+            ? `${KOTW_CRIMSON}50`
+            : eventAccent
+                ? `${eventAccent}55`
+                : `${COLORS.gold}28`;
 
     return (
         // `display: contents` dissolves this wrapper so its children become direct
@@ -1431,23 +1502,24 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         gridColumn: '1 / -1',
                         position: 'relative',
                         zIndex: Z.reel,
-                        borderBlock: showSpinRecursionEffects
-                            ? `1px solid ${COLORS.recursion}40`
-                            : showSpinKotwLuckyEffects
-                                ? `1px solid ${KOTW_CRIMSON}50`
-                                : eventAccent
-                                    ? `1px solid ${eventAccent}55`
-                                    : `1px solid ${COLORS.gold}22`,
+                        // The band is still "between two rules" — but the rules
+                        // are overlays below, not borders. A constant full-width
+                        // line is a rectangle's edge; these fade to nothing at
+                        // the sides, like the canvas's own machined edges.
                         background: showSpinRecursionEffects
-                            ? 'linear-gradient(180deg, #0a150a 0%, #0f1a0f 100%)'
+                            ? 'linear-gradient(180deg, #0a150a 0%, #12240e 46%, #0a150a 100%)'
                             : showSpinKotwLuckyEffects
-                                ? `linear-gradient(180deg, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 100%)`
+                                ? `linear-gradient(180deg, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 46%, ${KOTW_SLATE_DARK} 100%)`
                                 : eventAccent
                                     // A wash, not a fill. The tiles are the thing
                                     // being read; the event tints the room they are
                                     // in rather than repainting them.
                                     ? `linear-gradient(180deg, ${eventAccent}14 0%, ${eventAccent}08 55%, #14141a 100%)`
-                                    : 'linear-gradient(180deg, #14141a 0%, #1a1a22 100%)',
+                                    // Blue hour, sinking to the street: cobalt at
+                                    // the skyline's base, black at the curb. The
+                                    // city's ground, not a panel's fill — the band
+                                    // is where the viaduct deck sits. THE NOCTURNE.
+                                    : 'linear-gradient(180deg, #0d1322 0%, #0a0d18 44%, #05060a 100%)',
                         // During an event the band glows even at rest, so the
                         // surface looks live rather than only reacting on a spin.
                         boxShadow: state === 'spinning'
@@ -1457,17 +1529,28 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 : 'none',
                         transition: 'box-shadow 0.3s ease-out, background 0.4s ease-out',
                     }}>
-                        {/* Header */}
+                        {/* The band's two rules, as fading hairlines. The old
+                            borderBlock was the blockiest line on the surface:
+                            full width, constant strength, dead straight from one
+                            viewport edge to the other. These are strongest
+                            mid-screen and gone toward the sides — and in THE
+                            NOCTURNE they are the city's own lines, not a frame's:
+                            the top one is the viaduct rail, the bottom the street
+                            glow under the deck.
+                            */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${ruleColor} 14%, ${ruleColor} 86%, transparent)` }} />
+                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${ruleColor} 14%, ${ruleColor} 86%, transparent)` }} />
+
+                        {/* Header.
+                            No divider under it: the seam between the header and
+                            the reel is now the band's own top hairline, drawn by
+                            the canvas. The old 1px rule was a card's edge; a mount
+                            has none — see the strip container below. */}
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             padding: '16px 20px',
-                            borderBottom: showSpinRecursionEffects
-                                ? `1px solid ${COLORS.recursion}30`
-                                : showSpinKotwLuckyEffects
-                                    ? `1px solid ${KOTW_CRIMSON}40`
-                                    : '1px solid rgba(255,255,255,0.08)',
                         }}>
                             {/* Left and right groups each take an equal share of
                                 the slack (`flex: 1 1 0`), which is what keeps the
@@ -1600,8 +1683,26 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             Horizontal padding is zero on desktop: the band runs to
                             both screen edges, and padding would show as a gap at
                             the very edge of the viewport, which is the one thing an
-                            edge-to-edge band cannot have. */}
-                        <div style={{ padding: isMobile ? '12px' : `${SPACE.md}px 0` }}>
+                            edge-to-edge band cannot have.
+
+                            The container is a *mount* now, not a frame. The canvas
+                            inside draws its own machined edges — top hairline, floor
+                            lip, per-slot seams, vignette — so the old frame's
+                            border, inset shadows, edge-fade gradients and vignette
+                            overlay only fought it: four layers of depth sitting on
+                            top of the canvas, extinguishing the very edges it was
+                            drawing. All of that is gone. The last survivor, the
+                            dark bezel, went too: a rectangle drawn around a
+                            rectangle is how the mount still read as a box — two
+                            lines stacked 1px apart at top and bottom. So the
+                            container now draws no line at all; the canvas's own
+                            hairline and lip are the only edges, and the mount is
+                            implied by the row's curved surface around them, this
+                            drop shadow, and the fading rules above/below. The
+                            container is transparent so the row's themed gradient
+                            shows through the gaps — recursion, KOTW and result
+                            tint the whole band, not just the box around it. */}
+                        <div style={{ padding: isMobile ? '12px' : '8px 0 22px' }}>
                             <div
                                 onClick={() => {
                                     if (!isMobile || !user || allItems.length === 0) return;
@@ -1619,26 +1720,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     // No corners on desktop: the band leaves
                                     // the screen on both sides.
                                     borderRadius: isMobile ? '10px' : 0,
-                                    background: showSpinRecursionEffects
-                                        ? `linear-gradient(${isMobile ? '0deg' : '90deg'}, #0a150a 0%, #0f1a0f 50%, #0a150a 100%)`
-                                        : showSpinKotwLuckyEffects
-                                            ? `linear-gradient(${isMobile ? '0deg' : '90deg'}, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 50%, ${KOTW_SLATE_DARK} 100%)`
-                                            : `linear-gradient(${isMobile ? '0deg' : '90deg'}, #14141a 0%, #1a1a22 50%, #14141a 100%)`,
-                                    border: showSpinRecursionEffects
-                                        ? `1px solid ${COLORS.recursion}40`
-                                        : showSpinKotwLuckyEffects
-                                            ? `1px solid ${KOTW_CRIMSON}50`
-                                            : state === 'result'
-                                                ? `1px solid ${COLORS.gold}30`
-                                                : '1px solid rgba(255,255,255,0.06)',
                                     margin: isMobile ? '0 auto' : '0',
-                                    boxShadow: showSpinRecursionEffects
-                                        ? `inset 0 0 40px ${COLORS.recursion}15, inset 0 2px 8px rgba(0,0,0,0.4)`
-                                        : showSpinKotwLuckyEffects
-                                            ? `inset 0 0 30px ${KOTW_CRIMSON}10, inset 0 0 20px ${KOTW_GOLD}08, inset 0 2px 8px rgba(0,0,0,0.4)`
-                                            : state === 'spinning'
-                                                ? `inset 0 0 30px rgba(0,0,0,0.4), inset 0 0 50px ${COLORS.gold}06`
-                                                : `inset 0 0 25px rgba(0,0,0,0.3)`,
+                                    // The mount's shadow, falling onto the page
+                                    // behind it. Everything else inset is gone —
+                                    // depth inside the band is the canvas's job.
+                                    boxShadow: '0 16px 36px -20px rgba(0,0,0,0.85)',
                                     cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
                                 }}>
 
@@ -1653,6 +1739,32 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     do. ReelShutters.jsx is deleted; the idea and its
                                     material are recorded in DESIGN.md §8 if it is
                                     ever wanted for a different moment. */}
+
+                                {/* The street glow — THE NOCTURNE.
+
+                                    Not a screen sheen: the wet street under the
+                                    viaduct bleeding its amber station light up
+                                    across the deck's face. The first version of
+                                    this overlay was a diagonal streak — but a
+                                    streak is a line, and lines are what made the
+                                    old frame blocky; this one lives at the bottom
+                                    of the band, where the street is, and swells
+                                    from the curb rather than across the middle.
+                                    Faint by design — never arguing with the
+                                    detent ticks or the tile washes underneath —
+                                    and static by design, so there is nothing to
+                                    freeze under reduced motion. It is the only
+                                    overlay left over the canvas; the old edge
+                                    fades and vignette are gone because the canvas
+                                    already draws its own vignette, and two depth
+                                    systems on one screen is how the previous frame
+                                    looked smeared. */}
+                                <div style={{
+                                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                    background: 'radial-gradient(ellipse 76% 50% at 50% 84%, rgba(255,183,94,0.05) 0%, rgba(206,214,236,0.02) 40%, transparent 68%)',
+                                    zIndex: 3,
+                                    pointerEvents: 'none',
+                                }} />
 
                                 {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
@@ -1805,24 +1917,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         }} />
                                     </>
                                 ) : null}
-
-                                {/* Edge fade gradients - Enhanced */}
-                                <div style={{
-                                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                                    background: isMobile
-                                        ? `linear-gradient(180deg, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 0%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 5%, transparent 18%, transparent 82%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 95%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 100%)`
-                                        : `linear-gradient(90deg, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 0%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 5%, transparent 15%, transparent 85%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg}dd 95%, ${showSpinRecursionEffects ? '#0a150a' : showSpinKotwLuckyEffects ? KOTW_SLATE_DARK : COLORS.bg} 100%)`,
-                                    zIndex: 5, pointerEvents: 'none'
-                                }} />
-
-                                {/* Vignette overlay */}
-                                <div style={{
-                                    position: 'absolute', inset: 0,
-                                    background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.3) 100%)',
-                                    zIndex: 4, pointerEvents: 'none',
-                                    opacity: state === 'spinning' ? 0.5 : 0.3,
-                                    transition: 'opacity 0.3s ease-out',
-                                }} />
 
                                 {/* Result Shockwave Effect */}
                                 {state === 'result' && (

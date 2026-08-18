@@ -24,6 +24,14 @@ const KOTW_GOLD = '#F59E0B';      // Gold for 1st place
 const KOTW_SILVER = '#94A3B8';    // Silver for 2nd
 const KOTW_BRONZE = '#D97706';    // Bronze for 3rd
 
+// How long after the clock expires the banner waits for the result stream before
+// falling back to hiding itself. Hiding at 0:00 exactly races the end broadcasts -
+// this banner used to fade out at expiry and slide back in when the winner
+// announcement arrived, and the unguarded check below would still do that today.
+// The result stream gets RESULT_GRACE_MS to land; only a genuinely silent stream
+// sees it go.
+const RESULT_GRACE_MS = 3000;
+
 // ============================================
 // Floating Crown Decorations
 // ============================================
@@ -553,7 +561,7 @@ function KingOfWheelBanner({
     const recentlyEnded = eventEndedAt && (Date.now() - eventEndedAt < 60000); // Within 60 seconds of ending
 
     // Also check if the event has expired based on timestamp (fallback)
-    const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt;
+    const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt + RESULT_GRACE_MS;
 
     // isSettling is declared near isActive above. eventExpired alone would hide the
     // banner during that gap, so it has to be checked before that branch.
@@ -647,14 +655,29 @@ function KingOfWheelBanner({
     const countdownSecs = Math.ceil(countdownTime / 1000);
     const isCriticalTime = remainingTime > 0 && remainingTime < 60000;
 
-    // Don't render if not visible.
-    //
-    if (!shouldShowBanner) return null;
+    // Don't render if not visible. When it drops out, fade rather than pop: the
+    // winner block dissolves and the handoff to the next occupant of this slot
+    // reads as a scene change. `isClosing` is derived — the moment shouldShowBanner
+    // drops this render still paints with `slideDown` halted and opacity falling;
+    // a timeout then retires it. A fresh event inside the fade snaps it back:
+    // isGone is a latch, so without the reset below every later event of the
+    // session would be suppressed until a reload (render-phase correction, same
+    // pattern as the EventSelectionWheel's).
+    const [isGone, setIsGone] = useState(false);
+    const isClosing = !shouldShowBanner && !isGone;
+    if (shouldShowBanner && isGone) setIsGone(false);
+    useEffect(() => {
+        if (!isClosing) return undefined;
+        const id = setTimeout(() => setIsGone(true), 320);
+        return () => clearTimeout(id);
+    }, [isClosing]);
+
+    if (isGone) return null;
 
     return (
         <>
             {/* Banner - only render when should show */}
-            {shouldShowBanner && (
+            {(shouldShowBanner || isClosing) && (
                 <div style={{
                     // `inline` is what moved this out of the viewport's top
                     // edge and into the page. It used to be `position: fixed;
@@ -667,7 +690,9 @@ function KingOfWheelBanner({
                     ...(inline
                         ? { position: 'relative' }
                         : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }),
-                    animation: 'slideDown 0.4s ease-out forwards',
+                    animation: isClosing ? 'none' : 'slideDown 0.4s ease-out forwards',
+                    opacity: isClosing ? 0 : 1,
+                    transition: 'opacity 0.32s ease-in',
                 }}>
                     <style>{`
                     @keyframes slideDown {
@@ -734,7 +759,7 @@ function KingOfWheelBanner({
                             gap: isMobile ? '8px' : '12px',
                         }}>
                             {/* Winner Display Mode */}
-                            {showWinnerInBanner && kotwWinner?.winner ? (
+                            {(showWinnerInBanner || isClosing) && kotwWinner?.winner ? (
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -859,7 +884,7 @@ function KingOfWheelBanner({
                                                 background: KOTW_BG_DARK,
                                                 border: `2px solid ${KOTW_PRIMARY}`,
                                                 borderRadius: '8px',
-                                                animation: 'pulse 0.5s ease-in-out infinite',
+                                                animation: 'fadeIn 0.35s ease-out, pulse 0.5s ease-in-out infinite',
                                             }}>
                                                 <Swords size={isMobile ? 16 : 20} color={KOTW_PRIMARY} />
                                                 <span style={{
@@ -883,6 +908,7 @@ function KingOfWheelBanner({
                                                 background: isCriticalTime ? 'rgba(255,68,68,0.2)' : KOTW_BG_DARK,
                                                 border: `2px solid ${isCriticalTime ? '#ff4444' : KOTW_PRIMARY}88`,
                                                 borderRadius: '8px',
+                                                animation: 'fadeIn 0.35s ease-out',
                                             }}>
                                                 <Timer size={isMobile ? 16 : 20} color={isCriticalTime ? '#ff4444' : KOTW_PRIMARY} />
                                                 <span style={{
@@ -918,6 +944,7 @@ function KingOfWheelBanner({
                                             fontSize: isMobile ? '10px' : '12px',
                                             color: KOTW_SILVER,
                                             opacity: 0.9,
+                                            animation: 'fadeIn 0.35s ease-out',
                                         }}>
                                             <span style={{ color: KOTW_TEXT, fontWeight: 600 }}>Points:</span>
                                             <span>Common <strong style={{ color: KOTW_TEXT }}>1pt</strong></span>

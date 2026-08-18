@@ -282,7 +282,7 @@ export function getItemImageUrl(item) {
         return '/jimbo.png';
     }
     if (texture === 'recursion' || texture === 'wheel') {
-        return '/wheel.png';
+        return `${CUSTOM_IMAGE_BASE_URL}/wheel.png`;
     }
 
     // Check if item has image_url field from database (overrides default construction)
@@ -316,7 +316,7 @@ export function getItemImageUrl(item) {
 
     // Recursion items use wheel texture
     if (type === 'recursion' || texture === 'recursion') {
-        return '/wheel.png';
+        return `${CUSTOM_IMAGE_BASE_URL}/wheel.png`;
     }
 
     // Regular items
