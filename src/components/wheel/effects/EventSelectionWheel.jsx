@@ -38,35 +38,45 @@ import { COLORS, SPACE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 
-// Event configurations
+// ── Event configurations ────────────────────────────────────────────────────
+//
+// Name, icon and colour. `bgGradient` and `description` used to be here too and
+// are gone: both belonged to the full-screen takeover this component stopped
+// being. The gradient painted the old scrim's result panel, and the description
+// was the line under the 32px event name — see the note at the bottom of the
+// render for why that panel was removed. Neither had a reader since; they were
+// eight literal colours and four strings that looked like design and were not.
+//
+// What remains is the one thing this file is allowed to signal with. The header
+// comment's rule — "the only colours that may signal here are the event
+// identities themselves" — is about THESE four values, and they are deliberate.
+//
+// They are, however, a fork. GoldRushBanner, KingOfWheelBanner, FirstBloodBanner
+// and CommunityGoalBanner each keep their own copy of their event's identity
+// (FB_PRIMARY, KOTW_PRIMARY and friends), so the same event is spelled out in
+// four files. That is the rarity ladder's story one level up, and it wants the
+// same fix: one table. Not done here because it spans five components and this
+// was a bug fix.
 const EVENT_CONFIG = {
     gold_rush: {
         name: 'GOLD RUSH',
         icon: Sparkles,
         color: '#F59E0B',
-        bgGradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-        description: '2x odds on a random rarity!',
     },
     king_of_wheel: {
         name: 'KING OF THE WHEEL',
         icon: Crown,
         color: '#F43F5E',
-        bgGradient: 'linear-gradient(135deg, #F43F5E 0%, #BE123C 100%)',
-        description: 'Compete for Lucky Spins!',
     },
     first_blood: {
         name: 'FIRST BLOOD',
         icon: Crosshair,
         color: '#DC2626',
-        bgGradient: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
-        description: 'First special drop wins!',
     },
     community_goal: {
         name: 'COMMUNITY GOAL',
         icon: Target,
         color: '#2DD4BF',
-        bgGradient: 'linear-gradient(135deg, #2DD4BF 0%, #0D9488 100%)',
-        description: 'Hit the target together!',
     },
 };
 

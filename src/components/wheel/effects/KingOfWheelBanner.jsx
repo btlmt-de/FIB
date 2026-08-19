@@ -7,6 +7,9 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
+// Exotic's text colour comes from the ladder rather than from a sixth hardcoded
+// hex — see the points legend below.
+import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Crown, Trophy, Medal, Star, Timer, X, Swords, Sparkles, TrendingUp, Info } from 'lucide-react';
@@ -950,6 +953,22 @@ function KingOfWheelBanner({
                                             <span>Common <strong style={{ color: KOTW_TEXT }}>1pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             <span>Rare <strong style={{ color: '#EF4444' }}>~150pt</strong></span>
+                                            <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
+                                            {/* Exotic, which this legend shipped without.
+                                                KOTW does not score off a tier table — it pays
+                                                1,000,000 / weight — and every exotic is seeded
+                                                at a uniform 5,500 (seed.js), so 1e6/5500 = 182.
+                                                Between rare and legendary, which is also where
+                                                its supply sits: the Community Goal table reaches
+                                                the same ordering from the same weights.
+
+                                                Its colour is imported rather than written as a
+                                                sixth hex. The four rows around it are forks of
+                                                the ladder that predate the single RARITY table
+                                                and should be reconciled with it; adding to them
+                                                would make that worse. `Ink`, not `color`, because
+                                                this is text and exotic's #AA00AA is 2.73:1. */}
+                                            <span>Exotic <strong style={{ color: getRarityInk('exotic') }}>~180pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             <span>Legendary <strong style={{ color: '#A855F7' }}>~500pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>

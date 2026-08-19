@@ -10,7 +10,7 @@ import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
-import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown } from 'lucide-react';
+import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown, Gem } from 'lucide-react';
 
 // ============================================
 // CONSTANTS
@@ -672,6 +672,15 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
                                     <span>First to land <strong style={{ color: '#EF4444' }}>Rare</strong> or higher wins!</span>
                                     <span style={{ color: FB_PRIMARY, opacity: 0.5 }}>|</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Diamond size={isMobile ? 10 : 12} color="#EF4444" /> 9-12</span>
+                                    {/* Exotic, which this row shipped without while the
+                                        server was already paying it: FIRST_BLOOD_REWARDS
+                                        has `exotic: { min: 11, max: 14 }`. A player who
+                                        took First Blood with an exotic was awarded a
+                                        number the banner had no row for. `Gem` is the
+                                        ladder's own icon for the tier, and the colour is
+                                        `getRarityInk`, already imported and used by the
+                                        winner line above. */}
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Gem size={isMobile ? 10 : 12} color={getRarityInk('exotic')} /> 11-14</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Star size={isMobile ? 10 : 12} color="#A855F7" /> 13-16</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Sparkles size={isMobile ? 10 : 12} color="#06B6D4" /> 17-20</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Crown size={isMobile ? 10 : 12} color={FB_GOLD} /> 20-25</span>
