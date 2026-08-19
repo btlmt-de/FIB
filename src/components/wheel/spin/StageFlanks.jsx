@@ -1,6 +1,6 @@
 import React from 'react';
 import { BookOpen, Trophy } from 'lucide-react';
-import { COLORS, SPACE, Z } from '../config/constants';
+import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useCollectionLeaderboard } from '../../../hooks/useCollectionLeaderboard.js';
@@ -75,15 +75,18 @@ function Panel({ side, label, icon, onClick, actionLabel, children }) {
                     // No radius, no ring: the Nocturne's platform furniture is the
                     // band's deck material at rest — a square plinth, a lit rail
                     // along the top, station amber entering from the floor. It is
-                    // the same machine as the reel above, not a card near it.
+                    // the same machine as the reel above, not a card near it. The
+                    // grain is SURFACE_NOISE, the concrete's own micro-glitter —
+                    // it sits above the light layers so the amber still rises
+                    // through it, and it never moves.
                     borderRadius: 0,
                     border: 'none',
                     cursor: 'pointer',
-                    background: active
+                    backgroundImage: active
                         // Hover is light, not paint: the street glow's amber rises
                         // through the plinth instead of the slab changing colour.
-                        ? 'linear-gradient(180deg, rgba(255,183,94,0.05), rgba(255,183,94,0) 55%), linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)'
-                        : 'linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)',
+                        ? `${SURFACE_NOISE}, linear-gradient(180deg, rgba(255,183,94,0.05), rgba(255,183,94,0) 55%), linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`
+                        : `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
                     boxShadow: [
                         `inset 0 1px 0 rgba(206,214,236,${active ? '0.16' : '0.09'})`,
                         `inset 0 -1px 0 ${COLORS.gold}${active ? '66' : '22'}`,

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { COLORS, SPACE, Z } from '../config/constants';
+import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 
 /**
@@ -150,8 +150,9 @@ export function MilestoneMeter({ isMobile }) {
                     // viaduct deck (the Nocturne), not a card sitting in the slot —
                     // square plinth, lit rail along the top, amber entering from
                     // the floor. Deliberately quieter than the event banners that
-                    // share this slot — this is a status, and they are news.
-                    background: 'linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)',
+                    // share this slot — this is a status, and they are news. The
+                    // grain is SURFACE_NOISE, the deck's own material.
+                    backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
                     boxShadow: [
                         'inset 0 1px 0 rgba(206,214,236,0.10)',
                         `inset 0 -1px 0 ${COLORS.gold}${imminent ? '55' : '2A'}`,

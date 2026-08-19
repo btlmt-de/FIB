@@ -958,6 +958,18 @@ export function CanvasSpinningStrip({
                                         // Draw the strip as a cylinder rather than a finite array. Only for
                                         // the dormant idle reel — see the loop branch in the render below.
                                         loop = false,
+                                        // One of several tracks abutting inside one band (the 3x/5x
+                                        // takeovers). The reel's edge treatments all assume the canvas IS
+                                        // the band and belong to the band, not to a track in it: the left
+                                        // and right vignettes, and the 10%/90% fade on the top hairline
+                                        // and floor lip. Drawn once per lane they multiply — five lanes
+                                        // meant ten black walls and five broken hairlines, which is both
+                                        // the corduroy failure at lane scale and most of why a 200px lane
+                                        // read as a peephole rather than as a length of track. In lane
+                                        // mode the outer vignette is drawn once by SpinLanes at the row's
+                                        // edges, and the band's own edges run at constant alpha so the
+                                        // hairline and the lip cross every track as one continuous line.
+                                        laneMode = false,
                                     }) {
     const canvasRef = useRef(null);
     const containerRef = useRef(null);
@@ -988,7 +1000,11 @@ export function CanvasSpinningStrip({
 
     // Measure container width on mount and resize
     useEffect(() => {
-        if (!containerRef.current || isMobile) return;
+        // Mobile normally hands the canvas a fixed `stripWidth` and skips the
+        // measurement entirely. Lanes are the exception on both breakpoints:
+        // they flex to fill the band, so their width is only knowable from the
+        // box.
+        if (!containerRef.current || (isMobile && !laneMode)) return;
 
         const updateWidth = () => {
             if (containerRef.current) {
@@ -1018,7 +1034,7 @@ export function CanvasSpinningStrip({
                 window.removeEventListener('resize', updateWidth);
             }
         };
-    }, [isMobile]);
+    }, [isMobile, laneMode]);
 
     // Pre-load all item images - use cache immediately, load missing incrementally
     useEffect(() => {
@@ -1346,18 +1362,25 @@ export function CanvasSpinningStrip({
                 ctx.fillStyle = bottomVignette;
                 ctx.fillRect(0, height * 0.85, width, height * 0.15);
             } else {
-                // Horizontal vignette for desktop
-                const leftVignette = ctx.createLinearGradient(0, 0, width * 0.12, 0);
-                leftVignette.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
-                leftVignette.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                ctx.fillStyle = leftVignette;
-                ctx.fillRect(0, 0, width * 0.12, height);
+                // Horizontal vignette for desktop.
+                //
+                // Skipped in lane mode: this is the *band's* falloff into the
+                // page, and a track is not a band. SpinLanes draws the same
+                // gradient once across the whole row instead, so the five tracks
+                // share one pair of edges rather than owning ten.
+                if (!laneMode) {
+                    const leftVignette = ctx.createLinearGradient(0, 0, width * 0.12, 0);
+                    leftVignette.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+                    leftVignette.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = leftVignette;
+                    ctx.fillRect(0, 0, width * 0.12, height);
 
-                const rightVignette = ctx.createLinearGradient(width * 0.88, 0, width, 0);
-                rightVignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                rightVignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
-                ctx.fillStyle = rightVignette;
-                ctx.fillRect(width * 0.88, 0, width * 0.12, height);
+                    const rightVignette = ctx.createLinearGradient(width * 0.88, 0, width, 0);
+                    rightVignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+                    rightVignette.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+                    ctx.fillStyle = rightVignette;
+                    ctx.fillRect(width * 0.88, 0, width * 0.12, height);
+                }
 
                 // ── The band's own edges ─────────────────────────────────────
                 //
@@ -1377,7 +1400,15 @@ export function CanvasSpinningStrip({
                 // Both fade out into the vignettes rather than running to the
                 // viewport, because a hairline at full strength inside a corner
                 // that is otherwise black is the one place the illusion breaks.
+                //
+                // In lane mode they run at constant alpha instead. The fade
+                // exists to die inside the band's own vignette, and a track has
+                // no vignette to die into — fading per lane would break the
+                // hairline and the lip into five separate segments, which is a
+                // row of five boxes drawn in the one register that is supposed
+                // to say the opposite. The row's outer fade is SpinLanes' job.
                 const edgeGradient = (alpha) => {
+                    if (laneMode) return `rgba(206,214,236,${alpha})`;
                     const g = ctx.createLinearGradient(0, 0, width, 0);
                     g.addColorStop(0, 'rgba(206,214,236,0)');
                     g.addColorStop(0.10, `rgba(206,214,236,${alpha})`);
@@ -1586,7 +1617,7 @@ export function CanvasSpinningStrip({
         // it selects which of two layout branches the loop runs. In practice
         // width and height change with it and would restart the loop anyway; the
         // dependency is what makes that a guarantee rather than a coincidence.
-    }, [items, width, height, imagesLoaded, isMobile]);
+    }, [items, width, height, imagesLoaded, isMobile, laneMode]);
 
     // Keyboard handler for accessibility
     const handleKeyDown = useCallback((e) => {
@@ -1610,16 +1641,18 @@ export function CanvasSpinningStrip({
             // sprites has nothing to read out.
             aria-label={onClick ? 'Spin the wheel' : undefined}
             style={{
-                position: isMobile ? 'relative' : 'absolute',
-                width: isMobile ? `${width}px` : '100%',
+                position: isMobile && !laneMode ? 'relative' : 'absolute',
+                width: isMobile && !laneMode ? `${width}px` : '100%',
                 height: `${height}px`,
-                borderRadius: isMobile ? '14px' : '10px',
+                // A track is square on both breakpoints. Its neighbours are 3px
+                // away, and a radius there is five rounded boxes in a row.
+                borderRadius: laneMode ? 0 : (isMobile ? '14px' : '10px'),
                 overflow: 'hidden',
                 zIndex: 2, // Same z-index as original strip div
                 cursor: onClick ? 'pointer' : 'default',
-                margin: isMobile ? '0 auto' : '0',
-                left: isMobile ? undefined : 0,
-                top: isMobile ? undefined : 0,
+                margin: isMobile && !laneMode ? '0 auto' : '0',
+                left: isMobile && !laneMode ? undefined : 0,
+                top: isMobile && !laneMode ? undefined : 0,
             }}
         >
             <canvas

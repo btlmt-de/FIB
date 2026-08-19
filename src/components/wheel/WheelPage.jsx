@@ -46,7 +46,7 @@ import { LeaderboardSidebar } from './sidebars/LeaderboardSidebar.jsx';
 import { NotificationBell, NotificationCenter } from './modals/NotificationCenter.jsx';
 import { LiveChat } from './features/LiveChat.jsx';
 import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
-import { CanvasCosmicBackground } from './canvas/CanvasCosmicBackground.jsx';
+import { CanvasNocturneField } from './canvas/CanvasNocturneField.jsx';
 
 import { TopbarIconButton, TopbarDivider } from './topbar/TopbarControls.jsx';
 import {
@@ -75,7 +75,7 @@ const CosmicLoader = () => (
         gap: '24px'
     }}>
         <AnimationStyles />
-        <CanvasCosmicBackground />
+        <CanvasNocturneField />
         <div style={{
             position: 'relative',
             width: '80px',
@@ -741,7 +741,7 @@ function WheelOfFortunePage({ onBack }) {
             // variable that is always 0px and looks like it works.
         }}>
             <AnimationStyles />
-            <CanvasCosmicBackground />
+            <CanvasNocturneField />
 
             {/* Topbar — row 1.
 

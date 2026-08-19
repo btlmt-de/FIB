@@ -843,6 +843,36 @@ export const AnimationStyles = () => (
                 box-shadow: 0 4px 30px rgba(244, 63, 94, 0.4), 0 0 15px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(248, 250, 252, 0.15);
             }
         }
+
+        /* ============================================
+           THE STATUS CONSOLE (the band's header row)
+           ============================================ */
+
+        /* The LED stripe's chase: one bright head running along the
+           segments, one segment per 0.1s of a 1.2s cycle, so the twelve
+           segments always hold a single moving highlight. Ambient by the
+           Ambient-Off Rule — the static keyframes under reduced motion
+           leave the stripe lit but standing still, never dark. */
+        @media (prefers-reduced-motion: no-preference) {
+            @keyframes fibLedChase {
+                from { opacity: 1; }
+                to { opacity: 0.18; }
+            }
+            @keyframes fibLedBlink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.25; }
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            @keyframes fibLedChase {
+                from { opacity: 0.75; }
+                to { opacity: 0.75; }
+            }
+            @keyframes fibLedBlink {
+                from { opacity: 1; }
+                to { opacity: 1; }
+            }
+        }
     `}</style>
     </>
 );
