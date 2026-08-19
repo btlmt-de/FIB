@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS, SPACE } from '../config/constants';
+import { COLORS, SPACE, SURFACE_NOISE } from '../config/constants';
 import { formatChance, getItemRarity, getItemImageUrl } from '../../../utils/helpers.js';
 import {
     RARITY,
@@ -94,10 +94,20 @@ export function ShaftResult({ result, isNewItem, collection, centerY }) {
                 borderRadius: 0,
                 pointerEvents: 'none',
                 zIndex: 12,
-                // The row's own ground, so the rows it covers do not read through
-                // it, with the tier's light rising from the floor exactly as the
-                // shaft's rows are lit.
-                background: `linear-gradient(180deg, #0a0d18 0%, #0d1322 42%, #05060a 100%)`,
+                // ── It has to be made of the shaft, not laid on top of it ──────
+                //
+                // This was a flat `#0a0d18 -> #0d1322 -> #05060a` ramp and it read
+                // as a panel pasted over the reel: the rows above and below carry
+                // the deck's grain and their own seams, and against them a smooth
+                // dark slab is obviously a different material. The whole claim of
+                // the in-place result is that the row *opened*, and a row cannot
+                // open into something the band is not made of.
+                //
+                // So it takes the same SURFACE_NOISE the console, the plinths and
+                // the field share — the Nocturne's one wet-night grain — over the
+                // band's own blue-hour ramp. Barely there by contract (4% baked
+                // in): a material is felt, a pattern is seen.
+                backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #0a0d18 0%, #0d1322 42%, #05060a 100%)`,
                 // Closed top and bottom by the row-seam pair — dark under lit —
                 // so the expansion reads as a row of the shaft, not a panel on it.
                 boxShadow: [

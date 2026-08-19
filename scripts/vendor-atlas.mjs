@@ -44,6 +44,7 @@
  *   node scripts/vendor-atlas.mjs --tile 128    # native resolution, 25.6 MP
  */
 
+import { createHash } from 'node:crypto';
 import { readdir, mkdir, writeFile, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,12 +147,23 @@ async function main() {
     process.exit(1);
   }
 
-  // Square-ish, row-major. Sorted by key so the layout is deterministic:
-  // regenerating without adding items must produce a byte-identical atlas, or
-  // every deploy churns a 5 MB binary in git for no reason. Sorting on the
-  // prefixed key rather than the bare filename keeps the two directories in
-  // stable, separate runs.
-  files.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  // Square-ish, row-major. Sorted so the layout is deterministic: regenerating
+  // without adding items must produce a byte-identical atlas, or every deploy
+  // churns a 6 MB binary in git for no reason.
+  //
+  // **The pool sorts first, the custom items after it — never interleaved.**
+  // Sorting on the prefixed key put `custom/...` among the c's, at index 356 of
+  // 1551, which shifted the 1,195 sprites after it by eight positions. That is
+  // harmless while the index and the image are the same build and catastrophic
+  // the moment they are not: every sprite past the insertion point draws its
+  // neighbour's tile. It surfaced as a collection book full of wrong items.
+  //
+  // Appending instead means an index is only ever *added* at the end, so a stale
+  // reader and a fresh one still agree about every sprite they both know. The
+  // version stamp below closes the rest of the gap; this makes the failure mode
+  // benign rather than merely unlikely.
+  const rank = (e) => (e.dir === SRC ? 0 : 1);
+  files.sort((a, b) => rank(a) - rank(b) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const cols = Math.ceil(Math.sqrt(files.length));
   const rows = Math.ceil(files.length / cols);
   const CELL = TILE + PAD * 2;
@@ -212,11 +224,30 @@ async function main() {
     .webp({ lossless: true, effort: 6 })
     .toFile(OUT_IMAGE);
 
+  // ── The version stamp ──────────────────────────────────────────────────────
+  //
+  // The index and the image are one artifact split across two files, and until
+  // now both were fetched from plain unversioned URLs — so a browser was free to
+  // refresh one and keep the other. That is not theoretical: it happened during
+  // development and produced a collection book where every sprite past the first
+  // custom item drew its neighbour, because the cached image was the previous
+  // build and the index was the current one.
+  //
+  // Hashing the *pixels* rather than the file list is deliberate: the point is to
+  // detect that the image a client holds is not the image this index describes,
+  // and only the pixels can answer that. Re-running the packer with no changes
+  // produces the same hash, so the deterministic-output property above survives.
+  //
+  // atlas.js appends this to the image request, and the JSON is fetched first —
+  // so even a stale index pulls the image that matches *it*. The pair is then
+  // always self-consistent; at worst it is uniformly old, which renders correctly.
+  const version = createHash('sha256').update(atlas).digest('hex').slice(0, 12);
+
   // `pad` and `cell` are what the client needs to address a sprite now that the
   // grid pitch is no longer the tile size. Both are written explicitly rather
   // than derived, so an atlas built before the gutter existed (no `pad` key) is
   // still readable — atlas.js defaults them to 0 and TILE.
-  const meta = { tile: TILE, pad: PAD, cell: CELL, cols, rows, width, height, count: files.length, sprites };
+  const meta = { version, tile: TILE, pad: PAD, cell: CELL, cols, rows, width, height, count: files.length, sprites };
   await writeFile(OUT_JSON, JSON.stringify(meta));
 
   const { size } = await stat(OUT_IMAGE);

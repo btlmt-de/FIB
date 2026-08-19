@@ -87,17 +87,40 @@ export function loadAtlas() {
                 throw new Error('atlas index is missing tile/cols/sprites');
             }
 
+            // ── The image is requested at the index's own version ─────────────
+            //
+            // These are two files describing one artifact, and they were both
+            // fetched from plain unversioned URLs — so a browser could refresh
+            // the index and keep a cached image from the previous build. That is
+            // exactly what happened during development: the collection book drew
+            // every sprite past the first custom item as its neighbour, because
+            // the index said 1551 sprites and the cached image held the old 1543.
+            //
+            // Stamping the request with `meta.version` makes the pair
+            // self-consistent by construction. The JSON is fetched first, so
+            // whichever index a client ends up with pulls the image that matches
+            // *it* — worst case both are uniformly old, which renders correctly.
+            const src = meta.version
+                ? `${ATLAS_IMAGE}?v=${encodeURIComponent(meta.version)}`
+                : ATLAS_IMAGE;
+
             const img = await new Promise((resolve, reject) => {
                 const el = new Image();
                 el.onload = () => resolve(el);
                 el.onerror = () => reject(new Error('atlas image failed to load'));
-                el.src = ATLAS_IMAGE;
+                el.src = src;
             });
 
             // A JSON that disagrees with the PNG about the grid does not break one
             // sprite, it shifts every sprite after the insertion point — which
             // looks like a rendering bug rather than a stale asset. Cheaper to
             // refuse the atlas outright and let the per-item path cover it.
+            //
+            // Necessary but NOT sufficient, which is why the version stamp above
+            // exists: the mismatch that shipped had identical dimensions. Both
+            // builds packed a 40x39 grid at 4000x3900 — only the contents of the
+            // cells moved — so this check passed while every sprite after index
+            // 356 drew the wrong tile.
             if (img.naturalWidth !== meta.width || img.naturalHeight !== meta.height) {
                 throw new Error(
                     `atlas is ${img.naturalWidth}x${img.naturalHeight} but its index ` +

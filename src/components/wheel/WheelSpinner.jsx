@@ -1900,7 +1900,21 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     ?
                                 </button>
 
-                                {(state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult' || state === 'recursion') && (
+                                {/* Desktop only. On a phone the reel itself is the
+                                    respin — the same tap that starts a spin from
+                                    idle restarts it from a result, and the caption
+                                    names that gesture — so this was a second
+                                    control for one action, on the narrowest bar on
+                                    the surface. Same call as the Trophy button, the
+                                    leaderboard pill, the live ticker and the chat
+                                    launcher; see the don't in DESIGN.md §8.
+
+                                    It also takes the widest slot in a row that
+                                    reserves its tallest variant to keep the band
+                                    from changing height — so dropping it on the
+                                    phone buys back the space that the `?` and the
+                                    mode label were competing for. */}
+                                {!isMobile && (state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult' || state === 'recursion') && (
                                     <button onClick={respin} style={{
                                         padding: '8px 14px',
                                         borderRadius: 0,
