@@ -51,6 +51,30 @@ import sharp from 'sharp';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(root, 'public/fib-items');
+
+/**
+ * The pack's own custom items, packed alongside the pool.
+ *
+ * They used to be left out on the grounds that they are few and change
+ * independently — true, and it cost them their sharpness. Everything in the
+ * atlas is reduced to TILE **once, with a nearest kernel**, so at runtime the
+ * reel draws a 96px tile at ~90px: a 0.94x resample that is effectively 1:1.
+ * Anything outside the atlas is fetched at its native 128 and downscaled to ~90
+ * by the browser with `imageSmoothingEnabled = true`, because the strip has to
+ * smooth (see the note on the gutter below) — a 0.70x smooth resample of pixel
+ * art, every frame. The Totem of Antimatter, the Eye of Antimatter, the
+ * Kiln-Fired Brush and the Weathered Book were visibly soft next to every
+ * vanilla item for exactly that reason, and raising the source art from 16px to
+ * 128px made it slightly worse rather than better: 16 -> 90 was a clean upscale,
+ * 128 -> 90 is an awkward fractional downscale.
+ *
+ * Keys are prefixed `custom/` because the two directories genuinely collide —
+ * `barrier.png` and `wheel.png` exist in both, and a flat namespace would have
+ * one silently win. `atlas.js` maps `/fib-custom/<name>.png` onto the same
+ * prefix.
+ */
+const CUSTOM_SRC = join(root, 'public/fib-custom');
+const CUSTOM_PREFIX = 'custom/';
 const OUT_IMAGE = join(root, 'public/fib-atlas.webp');
 const OUT_JSON = join(root, 'public/fib-atlas.json');
 
@@ -94,7 +118,9 @@ const bytes = (n) =>
 async function main() {
   let files;
   try {
-    files = (await readdir(SRC)).filter((f) => f.endsWith('.png')).sort();
+    files = (await readdir(SRC))
+      .filter((f) => f.endsWith('.png'))
+      .map((f) => ({ dir: SRC, file: f, key: f.slice(0, -4) }));
   } catch {
     console.error(
       `No vendored sprites at ${SRC}.\n` +
@@ -104,14 +130,28 @@ async function main() {
     process.exit(1);
   }
 
+  // The custom items are optional: a checkout without them still packs the pool
+  // rather than failing, and the client falls back per item exactly as before.
+  try {
+    const custom = (await readdir(CUSTOM_SRC))
+      .filter((f) => f.endsWith('.png'))
+      .map((f) => ({ dir: CUSTOM_SRC, file: f, key: CUSTOM_PREFIX + f.slice(0, -4) }));
+    files = files.concat(custom);
+  } catch {
+    console.warn(`No custom sprites at ${CUSTOM_SRC} — packing the pool only.`);
+  }
+
   if (files.length === 0) {
     console.error(`${SRC} has no PNGs to pack.`);
     process.exit(1);
   }
 
-  // Square-ish, row-major. Sorted by filename so the layout is deterministic:
+  // Square-ish, row-major. Sorted by key so the layout is deterministic:
   // regenerating without adding items must produce a byte-identical atlas, or
-  // every deploy churns a 5 MB binary in git for no reason.
+  // every deploy churns a 5 MB binary in git for no reason. Sorting on the
+  // prefixed key rather than the bare filename keeps the two directories in
+  // stable, separate runs.
+  files.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const cols = Math.ceil(Math.sqrt(files.length));
   const rows = Math.ceil(files.length / cols);
   const CELL = TILE + PAD * 2;
@@ -125,9 +165,9 @@ async function main() {
   const atlas = Buffer.alloc(width * height * 4);
   const sprites = {};
 
-  for (const [i, file] of files.entries()) {
-    const name = file.slice(0, -4);
-    const { data } = await sharp(join(SRC, file))
+  for (const [i, entry] of files.entries()) {
+    const name = entry.key;
+    const { data } = await sharp(join(entry.dir, entry.file))
       // `nearest` is not optional. Any smooth kernel turns pixel art into mush,
       // and these are 8x upscales, so a blurred downscale is very visible.
       .resize(TILE, TILE, { kernel: 'nearest', fit: 'fill' })

@@ -31,8 +31,29 @@ import { getItemImageUrl } from '../../../utils/helpers.js';
 export const ATLAS_IMAGE = '/fib-atlas.webp';
 export const ATLAS_JSON = '/fib-atlas.json';
 
-/** Only /fib-items/<name>.png is packed; everything else resolves per item. */
-const POOL_SPRITE = /^\/fib-items\/([^/]+)\.png$/;
+/**
+ * What is packed, and under which key.
+ *
+ * `/fib-items/<name>.png` is the pool and keys on the bare name.
+ * `/fib-custom/<name>.png` is the pack's own custom items and keys on
+ * `custom/<name>` — the prefix is not decoration: `barrier.png` and `wheel.png`
+ * exist in *both* directories, so a flat namespace would let one silently win.
+ *
+ * The custom items were deliberately excluded once, on the grounds that they are
+ * few and change independently of the pack. That was true and it cost them their
+ * sharpness: everything in the atlas is reduced to the tile size once with a
+ * nearest kernel and then drawn at roughly 1:1, while anything outside it is
+ * smooth-downscaled from 128px to ~90px by the browser on every frame. The four
+ * antimatter-set items were visibly soft next to every vanilla sprite for that
+ * reason alone. See CUSTOM_SRC in scripts/vendor-atlas.mjs.
+ *
+ * Anything else — player heads, Discord avatars, /event.png — still resolves per
+ * item, which is what `needsOwnImage` is for.
+ */
+const POOL_SPRITE = /^\/fib-(items|custom)\/([^/]+)\.png$/;
+
+/** The atlas key for a matched sprite URL: `name`, or `custom/name`. */
+const atlasKey = (match) => (match[1] === 'custom' ? `custom/${match[2]}` : match[2]);
 
 let atlasImage = null;
 let atlasMeta = null;
@@ -115,7 +136,7 @@ export function getAtlasSprite(item) {
     const match = POOL_SPRITE.exec(getItemImageUrl(item));
     if (!match) return null;
 
-    const index = atlasMeta.sprites[match[1]];
+    const index = atlasMeta.sprites[atlasKey(match)];
     if (index === undefined) return null;
 
     // The grid pitch is the *cell*, not the tile: each sprite sits inside a
@@ -155,7 +176,11 @@ export function needsOwnImage(item) {
     const match = POOL_SPRITE.exec(getItemImageUrl(item));
     if (!match) return true;
 
-    return atlasMeta ? atlasMeta.sprites[match[1]] === undefined : false;
+    // An older atlas, packed before the custom items were included, simply has no
+    // `custom/...` keys — so those items report `true` here and fetch their own
+    // image exactly as they used to. The two halves can be out of step without
+    // anything breaking; the sprites are only softer until the atlas is rebuilt.
+    return atlasMeta ? atlasMeta.sprites[atlasKey(match)] === undefined : false;
 }
 
 /**
