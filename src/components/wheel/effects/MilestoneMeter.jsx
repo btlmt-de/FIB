@@ -141,11 +141,29 @@ export function MilestoneMeter({ isMobile }) {
                 // afford to explain the mechanism to whoever wonders.
                 title={`Global events trigger on a server-wide spin count. Every player's spins count toward it — ${remaining.toLocaleString('en-US')} to go.`}
                 style={{
+                    // ── The phone's version is one line ──────────────────────
+                    //
+                    // At 84px this was the third-largest thing on a 800px phone,
+                    // behind only the shaft and the payoff apron — four stacked
+                    // rows (label, 22px number, caption, 7px bar) for a single
+                    // figure that changes every few seconds and that nobody came
+                    // here to read. It cost the reel two thirds of a row.
+                    //
+                    // Compacted to ~32px: the label folds into the sentence, the
+                    // number keeps its instrument treatment because it is still
+                    // the only datum, and the progress bar stops being a row of
+                    // its own — it becomes the plinth's own lit floor edge,
+                    // growing left to right. That is the Nocturne's own move
+                    // rather than a smaller widget: the deck section is lit by
+                    // how close the event is.
+                    position: 'relative',
+                    overflow: 'hidden',
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: '5px',
-                    width: isMobile ? 'min(340px, 92vw)' : '460px',
-                    padding: isMobile ? '9px 14px 11px' : '10px 18px 12px',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    alignItems: isMobile ? 'baseline' : 'stretch',
+                    gap: isMobile ? '6px' : '5px',
+                    width: isMobile ? '100%' : '460px',
+                    padding: isMobile ? '7px 16px 9px' : '10px 18px 12px',
                     // No radius, no ring: this is a detached section of the band's
                     // viaduct deck (the Nocturne), not a card sitting in the slot —
                     // square plinth, lit rail along the top, amber entering from
@@ -168,31 +186,41 @@ export function MilestoneMeter({ isMobile }) {
                  */}
                 <div style={{
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1px',
+                    flexDirection: isMobile ? 'row' : 'column',
+                    alignItems: isMobile ? 'baseline' : 'stretch',
+                    gap: isMobile ? '6px' : '1px',
+                    minWidth: 0,
                 }}>
-                    <span style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.09em',
-                        textTransform: 'uppercase',
-                        color: imminent ? COLORS.gold : COLORS.textMuted,
-                        whiteSpace: 'nowrap',
-                    }}>
-                        Next global event
-                    </span>
+                    {/* The standalone label is desktop-only. On a phone it folds
+                        into the sentence after the number — "283 spins to the next
+                        event" says the same thing in one line, and an uppercase
+                        eyebrow above a figure is exactly the row a 390px screen
+                        cannot afford. */}
+                    {!isMobile && (
+                        <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            letterSpacing: '0.09em',
+                            textTransform: 'uppercase',
+                            color: imminent ? COLORS.gold : COLORS.textMuted,
+                            whiteSpace: 'nowrap',
+                        }}>
+                            Next global event
+                        </span>
+                    )}
 
                     <div style={{
                         display: 'flex',
                         alignItems: 'baseline',
-                        gap: '7px',
-                        flexWrap: 'wrap',
+                        gap: isMobile ? '6px' : '7px',
+                        flexWrap: isMobile ? 'nowrap' : 'wrap',
+                        minWidth: 0,
                     }}>
                         <strong
                             key={remaining}
                             className="fib-meter-tick"
                             style={{
-                                fontSize: isMobile ? '22px' : '26px',
+                                fontSize: isMobile ? '17px' : '26px',
                                 fontWeight: 800,
                                 lineHeight: 1.1,
                                 fontVariantNumeric: 'tabular-nums',
@@ -203,11 +231,18 @@ export function MilestoneMeter({ isMobile }) {
                             {remaining.toLocaleString('en-US')}
                         </strong>
                         <span style={{
-                            fontSize: isMobile ? '12px' : '13px',
+                            fontSize: isMobile ? '11px' : '13px',
                             color: COLORS.textMuted,
                             whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                         }}>
-                            spins to go, server-wide
+                            {/* The phone's copy carries the label the eyebrow used
+                                to. "server-wide" is the word that stops the figure
+                                reading as a personal target — DESIGN.md §8 records
+                                that as the whole character of the feature — so it
+                                is the last thing that would be cut, not the first. */}
+                            {isMobile ? 'spins to the next event, server-wide' : 'spins to go, server-wide'}
                         </span>
                     </div>
                 </div>
@@ -226,13 +261,30 @@ export function MilestoneMeter({ isMobile }) {
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label="Progress to the next global event"
-                    style={{
-                        height: '7px',
-                        marginTop: '4px',
-                        borderRadius: '999px',
-                        background: 'rgba(206,214,236,0.08)',
-                        overflow: 'hidden',
-                    }}
+                    style={isMobile
+                        // On a phone the track is not a row — it is the plinth's
+                        // own floor edge, pinned across the bottom of the deck
+                        // section and growing left to right. Costs nothing in
+                        // height, and it is the more Nocturne answer: the deck is
+                        // lit by how close the event is, rather than carrying a
+                        // widget that reports it. Square, because it is an edge.
+                        ? {
+                            position: 'absolute',
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            height: '3px',
+                            borderRadius: 0,
+                            background: 'rgba(206,214,236,0.08)',
+                            overflow: 'hidden',
+                        }
+                        : {
+                            height: '7px',
+                            marginTop: '4px',
+                            borderRadius: '999px',
+                            background: 'rgba(206,214,236,0.08)',
+                            overflow: 'hidden',
+                        }}
                 >
                     <div
                         className={imminent ? 'fib-meter-breath' : undefined}

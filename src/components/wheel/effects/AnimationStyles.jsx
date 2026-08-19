@@ -518,6 +518,38 @@ export const AnimationStyles = () => (
         }
         
         /* Staggered text reveal */
+        /* The landed row opening into the payoff. It scales from the row's own
+           height rather than fading in, so it reads as the tile growing — the
+           thing it is — instead of a panel arriving on top of one. Transform
+           origin is the centre because the row expands both ways into its
+           neighbours. Decelerator, no overshoot: the spin control owns the only
+           overshoot on this surface. */
+        @keyframes shaftResultOpen {
+            0%   { transform: scaleY(0.54); opacity: 0; }
+            100% { transform: scaleY(1); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            /* It still arrives, it just stops growing to get here — the row is
+               the identity, the expansion is the flourish. */
+            [style*="shaftResultOpen"] { animation: none !important; }
+        }
+
+        /* The phone's overflow sheet. The panel rises and the scrim fades on the
+           surface's recorded decelerator — no overshoot, which is the one easing
+           this page reserves for the spin control. */
+        @keyframes fibSheetRise {
+            0%   { transform: translateY(100%); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes fibSheetScrim {
+            0%   { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            /* The sheet still arrives, it just stops travelling to get here. */
+            [style*="fibSheetRise"] { animation: none !important; }
+        }
+
         @keyframes textFadeUp {
             0% {
                 opacity: 0;

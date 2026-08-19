@@ -76,7 +76,17 @@ export const LANE_PITCH = (isMobile, isTripleLucky) =>
  */
 export const LANE_SEAM = (isMobile) => (isMobile ? 4 : 7);
 
-export const LANE_HEIGHT = (isMobile) => (isMobile ? 260 : STRIP_HEIGHT);
+/**
+ * Desktop's lanes are the band's own height, a design constant. The phone's fill
+ * whatever the surface row can spare — `100%`, not a number.
+ *
+ * They were pinned at 260px, chosen when the phone's reel was a fixed 140×260 box.
+ * The shaft has since grown to take the whole column (~557px at 390×800), so a
+ * 260px lane left roughly three hundred pixels of empty mount below the tracks
+ * before the readout — the "big band with nothing in it". Nothing was wrong with
+ * the lanes; they were simply still measured against a reel that no longer exists.
+ */
+export const LANE_HEIGHT = (isMobile) => (isMobile ? '100%' : `${STRIP_HEIGHT}px`);
 
 /**
  * The seam between two tracks.
@@ -152,7 +162,7 @@ export function SpinLanes({
             display: 'flex',
             alignItems: 'stretch',
             width: '100%',
-            height: `${height}px`,
+            height,
         }}>
             {laneIndices.map((laneIdx) => (
                 <React.Fragment key={laneIdx}>
@@ -184,7 +194,11 @@ export function SpinLanes({
                             // flex row gives it, and the canvas measures its own
                             // box. Passing a number here is what pinned the old
                             // island open.
-                            stripHeight={height}
+                            // Neither axis is a number on a phone any more: the
+                            // tracks fill the surface row, so the canvas measures
+                            // its own box on both. Desktop keeps the band's own
+                            // constant.
+                            stripHeight={isMobile ? undefined : STRIP_HEIGHT}
                             finalIndex={FINAL_INDEX}
                             accentColor={accentColor}
                             itemWidthOverride={pitch}

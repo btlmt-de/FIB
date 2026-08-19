@@ -6,16 +6,49 @@ import { MessageCircle, Send, X, Minimize2, Maximize2, Trash2, Users, ChevronDow
 // ============================================
 // Live Chat Component - With @Mentions
 // ============================================
-export function LiveChat({ user, isAdmin = false }) {
+/**
+ * `openSignal` / `onUnreadChange` / `hideLauncher` exist for the phone's bottom
+ * bar, which carries Chat as one of its four destinations.
+ *
+ * The chat owns its own state and its own fixed launcher, and on a phone that
+ * launcher is a problem twice over: it sits at `bottom: 20px` on `z-index: 900`,
+ * so it floats on top of the bottom bar, and it is a second, competing entry
+ * point to a view the bar already lists. Rather than lift this component's state
+ * out — it is 1,800 lines and the state is deeply woven through them — the page
+ * bumps `openSignal` to open it and reads `onUnreadChange` for the bar's badge.
+ * A counter rather than a boolean, so re-opening after the player closes it works
+ * without the parent having to track and reset a flag.
+ */
+export function LiveChat({ user, isAdmin = false, openSignal = 0, onUnreadChange, hideLauncher = false }) {
     // Check if user can chat (must have approved username OR be admin)
     const canChat = user && (isAdmin || user.usernameApproved || user.username_approved);
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
+
+    // Opened from outside — the phone's bottom bar. Skips the first run so the
+    // chat does not spring open on mount.
+    const openSignalSeen = useRef(openSignal);
+    useEffect(() => {
+        if (openSignal === openSignalSeen.current) return;
+        openSignalSeen.current = openSignal;
+        setIsOpen(true);
+        setIsMinimized(false);
+    }, [openSignal]);
+
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
+
+    // Published upward so the bottom bar can badge its Chat tab. The count still
+    // lives here and is still cleared here — this only mirrors it out. It has to
+    // sit below the declaration rather than beside the other outside-facing
+    // effect above: hooks are not hoisted, and reading `unreadCount` before this
+    // line threw on mount.
+    useEffect(() => {
+        onUnreadChange?.(unreadCount);
+    }, [unreadCount, onUnreadChange]);
     const [hasNewMessage, setHasNewMessage] = useState(false);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [replyingTo, setReplyingTo] = useState(null);
@@ -1008,8 +1041,15 @@ export function LiveChat({ user, isAdmin = false }) {
                 .mention-item:hover, .mention-item.selected { background: rgba(88, 101, 242, 0.2); }
             `}</style>
 
-            {/* Chat Button */}
-            {!isOpen && (
+            {/* Chat Button.
+
+                Hidden on a phone (`hideLauncher`), where the bottom bar carries
+                Chat as one of its four destinations. Two entry points to one view
+                is the duplication this page keeps having to undo — the topbar's
+                Trophy button and the leaderboard pill went the same way — and this
+                one also collided physically: the launcher is `position: fixed;
+                bottom: 20px` on `z-index: 900`, so it floated on top of the bar. */}
+            {!isOpen && !hideLauncher && (
                 <button
                     onClick={() => { trackActivity(); setIsOpen(true); }}
                     style={{

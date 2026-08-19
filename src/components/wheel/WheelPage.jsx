@@ -49,11 +49,14 @@ import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
 import { CanvasNocturneField } from './canvas/CanvasNocturneField.jsx';
 
 import { TopbarIconButton, TopbarDivider } from './topbar/TopbarControls.jsx';
+import { MobileTabBar } from './topbar/MobileTabBar.jsx';
+import { MobileMoreSheet } from './topbar/MobileMoreSheet.jsx';
+import { useWheelViewport } from './config/breakpoints.js';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
-    ArrowLeft, Home, Bell, X
+    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2
 } from 'lucide-react';
 
 // ============================================
@@ -414,6 +417,11 @@ function WheelOfFortunePage({ onBack }) {
     const [showHistory, setShowHistory] = useState(false);
     const [showAdmin, setShowAdmin] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
+    // The bottom bar's link to the chat: a counter it bumps to open the panel,
+    // and the chat's unread count mirrored back out for the tab's badge.
+    const [chatOpenSignal, setChatOpenSignal] = useState(0);
+    const [chatUnread, setChatUnread] = useState(0);
+    const [showMore, setShowMore] = useState(false);
     const [showAchievements, setShowAchievements] = useState(false);
     const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
 
@@ -424,7 +432,10 @@ function WheelOfFortunePage({ onBack }) {
 
     // Mobile activity feed modal state
     const [showMobileActivity, setShowMobileActivity] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    // The surface's only viewport question, answered in one place. See
+    // config/breakpoints.js for what these two lines are and why there used to be
+    // three of them disagreeing.
+    const { isPhone: isMobile, hasFlanks } = useWheelViewport();
 
     // Detect when current user wins KOTW and update lucky spins immediately
     // Use a ref to track if we've already processed this winner event
@@ -509,13 +520,6 @@ function WheelOfFortunePage({ onBack }) {
         setKotwLuckySpins(newTotal);
     }, [communityGoalResult, communityGoalReward, user?.id]);
 
-    // Check for mobile on mount and resize
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 1400);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
 
     // Fetch items and user data
     async function fetchItems() {
@@ -720,8 +724,50 @@ function WheelOfFortunePage({ onBack }) {
             // Sensitive to the rows above it: if the topbar or the ticker change
             // height, re-measure. The band's centre should land within a few px of
             // `innerHeight / 2`.
-            gridTemplateRows: 'auto auto 0.34fr auto minmax(0, 1fr)',
+            // On a phone the whole surface is one flex column inside a single grid
+            // cell (WheelSpinner's mobile wrapper spans rows 2–6), so the desktop
+            // row ratios do not apply and the tuned 0.34fr gap would just be dead
+            // space above a shaft that wants every pixel.
+            // Phone: topbar, ticker, banner/meter slot, then the surface taking
+            // everything left. The desktop template's 0.34fr breathing gap is
+            // dropped — on a phone that is dead space above a shaft that wants
+            // every pixel — and the two stage rows collapse into one, because the
+            // phone renders band and stage as a single flex column.
+            //
+            // The row COUNT matters as much as the sizes: WheelSpinner's mobile
+            // wrapper and the ticker and banners all place themselves explicitly,
+            // and a template with fewer rows than they ask for silently creates
+            // implicit ones at the end. A two-row version of this put the
+            // milestone meter underneath the spin card.
+            // ── The stage's floor (desktop) ──────────────────────────────────
+            //
+            // `minmax(350px, 1fr)`, not `minmax(0, 1fr)`. The 0.34fr gap above
+            // the band is a *flexible* track and the stage was the only one with
+            // a zero minimum, so on a short viewport the gap kept its share and
+            // the stage absorbed the entire shortfall. Measured at 1080×820:
+            // rows came out 56 / 68 / 109.6 / 264 / 322 against an idle block of
+            // 350, so the spin card's keyboard hint sat past the bottom edge.
+            //
+            // The floor is the measured block, and it only ever binds when the
+            // viewport is genuinely too short. The tuned ratio is untouched
+            // wherever it fits: at 1080 tall the free space is 692, the stage
+            // takes 692/1.34 = 516 (well over the floor) and the gap keeps its
+            // 176 — exactly what the ratio gave before. At 820 the stage takes
+            // its 350 and the gap yields the difference, which is the right
+            // order: the gap is empty space and the stage has the control in it.
+            //
+            // Below ~790px tall the floor cannot be met either and the stage
+            // scrolls, which it is already set up to do.
+            gridTemplateRows: isMobile
+                ? 'auto auto auto minmax(0, 1fr)'
+                : 'auto auto 0.34fr auto minmax(350px, 1fr)',
             gridTemplateColumns: 'minmax(0, 1fr)',
+            // Room for the fixed bottom bar, plus the home indicator under it. The
+            // bar is `position: fixed` so it reserves no layout space of its own,
+            // and without this the shaft's last row would sit behind it.
+            ...(isMobile
+                ? { paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }
+                : null),
             background: COLORS.bg,
             color: COLORS.text,
             fontFamily: "'Segoe UI', system-ui, sans-serif",
@@ -883,18 +929,17 @@ function WheelOfFortunePage({ onBack }) {
                             But only on desktop. The flanks need width beside a
                             centred stage and do not render on a phone, so on mobile
                             these are still the only way in and they stay. */}
-                        {isMobile && (
+                        {/* Collection left the topbar on a phone too. The bottom
+                            bar carries it now, and two entry points to one view is
+                            the duplication this row has already been trimmed for
+                            twice. The desktop flanks still own it above 1200px. */}
+                        {!isMobile && (
                             <TopbarIconButton
-                                onClick={() => setShowCollection(true)}
-                                icon={<BookOpen size={19} />}
-                                label="Collection"
+                                onClick={() => setShowHistory(true)}
+                                icon={<ScrollText size={19} />}
+                                label="History"
                             />
                         )}
-                        <TopbarIconButton
-                            onClick={() => setShowHistory(true)}
-                            icon={<ScrollText size={19} />}
-                            label="History"
-                        />
                         {/* No Trophy button here.
 
                             The leaderboard pill one group to the right opens the
@@ -903,20 +948,16 @@ function WheelOfFortunePage({ onBack }) {
                             the identical view was just a duplicate. It became one
                             when the standalone leaderboard was folded into the
                             pill; before that they were different destinations. */}
-                        <TopbarIconButton
-                            onClick={() => setShowAchievements(true)}
-                            icon={<Award size={19} />}
-                            label="Achievements"
-                        />
-                        {/* Only reachable this way once the ticker folds away */}
-                        {isMobile && (
+                        {!isMobile && (
                             <TopbarIconButton
-                                onClick={() => setShowMobileActivity(true)}
-                                icon={<Activity size={19} />}
-                                label="Live activity"
-                                tone="attention"
+                                onClick={() => setShowAchievements(true)}
+                                icon={<Award size={19} />}
+                                label="Achievements"
                             />
                         )}
+                        {/* History, Achievements and Live activity are in the
+                            overflow sheet on a phone — see MobileMoreSheet.jsx for
+                            the three-way split and the count that forced it. */}
 
                         {/* ── Where do I stand ─────────────────────────────────
 
@@ -924,14 +965,11 @@ function WheelOfFortunePage({ onBack }) {
                             the right-hand stage flank carries the top five and your
                             rank on desktop, and two boards on one screen is what
                             this group has already been trimmed for twice. */}
-                        {isMobile && (
-                            <>
-                                <TopbarDivider />
-                                <LeaderboardPill onOpenFull={() => setShowLeaderboard(true)} />
-                            </>
-                        )}
+                        {/* The leaderboard pill is gone from the phone as well —
+                            the bottom bar's Board tab is the way in now, and the
+                            pill was 150px of a 390px bar. */}
 
-                        <TopbarDivider />
+                        {!isMobile && <TopbarDivider />}
 
                         {/* ── Who am I ───────────────────────────────────────────
 
@@ -945,19 +983,27 @@ function WheelOfFortunePage({ onBack }) {
                             The actions next to it are plain topbar buttons like
                             every other button on the row, which is what they always
                             were behaviourally. */}
-                        <UserChip
-                            avatarUrl={getDiscordAvatarUrl()}
-                            name={user.customUsername || 'Player'}
-                            approved={!!user.usernameApproved}
-                            pending={!!user.customUsername && !user.usernameApproved}
-                            onClick={() => setShowProfile(true)}
-                        />
-                        <TopbarIconButton
-                            onClick={() => setShowUsernameModal(true)}
-                            icon={<Edit3 size={17} />}
-                            label="Edit name"
-                        />
-                        <SoundButton onClick={() => setShowSoundSettings(true)} />
+                        {/* The identity chip is desktop-only: the bottom bar's
+                            "You" tab is the phone's profile entry, and the chip is
+                            an avatar plus a name plus an approval badge — the
+                            widest single thing on the row. */}
+                        {!isMobile && (
+                            <>
+                                <UserChip
+                                    avatarUrl={getDiscordAvatarUrl()}
+                                    name={user.customUsername || 'Player'}
+                                    approved={!!user.usernameApproved}
+                                    pending={!!user.customUsername && !user.usernameApproved}
+                                    onClick={() => setShowProfile(true)}
+                                />
+                                <TopbarIconButton
+                                    onClick={() => setShowUsernameModal(true)}
+                                    icon={<Edit3 size={17} />}
+                                    label="Edit name"
+                                />
+                                <SoundButton onClick={() => setShowSoundSettings(true)} />
+                            </>
+                        )}
                         <TopbarIconButton
                             onClick={() => setShowNotifications(true)}
                             icon={<Bell size={17} />}
@@ -986,20 +1032,35 @@ function WheelOfFortunePage({ onBack }) {
                                 </span>
                             ) : null}
                         />
-                        {user.isAdmin && (
+                        {user.isAdmin && !isMobile && (
                             <TopbarIconButton
                                 onClick={() => setShowAdmin(true)}
                                 icon={<Settings size={17} />}
                                 label="Admin panel"
                             />
                         )}
-                        <TopbarIconButton
-                            onClick={logout}
-                            icon={<LogOut size={17} />}
-                            label="Log out"
-                            tone="danger"
-                            align="end"
-                        />
+                        {!isMobile && (
+                            <TopbarIconButton
+                                onClick={logout}
+                                icon={<LogOut size={17} />}
+                                label="Log out"
+                                tone="danger"
+                                align="end"
+                            />
+                        )}
+
+                        {/* The phone's one overflow control. Everything the bar
+                            cannot hold is one tap behind it, and nothing is
+                            unreachable — which is what the row's right-hand end
+                            actually was before, running off the screen edge. */}
+                        {isMobile && (
+                            <TopbarIconButton
+                                onClick={() => setShowMore(true)}
+                                icon={<MoreHorizontal size={19} />}
+                                label="More"
+                                align="end"
+                            />
+                        )}
                     </div>
                 )}
 
@@ -1025,11 +1086,17 @@ function WheelOfFortunePage({ onBack }) {
                 kotwLuckySpins={kotwLuckySpins}
                 kotwLuckySpinsRef={kotwLuckySpinsRef}
                 onKotwLuckySpinsUpdate={handleKotwLuckySpinsUpdate}
+                // Both viewport answers, passed down and actually read. `isMobile`
+                // was already being passed here and WheelSpinner's signature never
+                // destructured it, so the page and the reel disagreed by 800px.
                 isMobile={isMobile}
+                hasFlanks={hasFlanks}
                 stageColumn={1}
                 // The stage flanks are the page's entry points to these two views
                 // now — see StageFlanks.jsx. The topbar's own Collection icon and
                 // leaderboard pill were removed rather than kept alongside them.
+                // Below 1200px the flanks are gone and the phone's bottom bar
+                // carries the same two destinations.
                 onOpenCollection={() => setShowCollection(true)}
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
             />
@@ -1044,8 +1111,21 @@ function WheelOfFortunePage({ onBack }) {
 
                 The vertical ActivityFeedSidebar is still what the Live drawer
                 opens on narrow viewports — see ActivityTicker's note on why there
-                are two presentations rather than one responsive component. */}
-            {user && (
+                are two presentations rather than one responsive component.
+
+                **Desktop only since the phone pass.** The strip costs 68px of
+                height, and on an 800px phone that was the largest remaining piece
+                of chrome above the reel — a twelfth of the surface spent on an
+                ambient readout, while the shaft it sat on top of could only show
+                three rows. The feed is a bottom-bar destination on a phone now
+                (`Live`), which is where the strip's own "All drops" control went
+                anyway, so nothing became unreachable — it moved from a glance
+                surface to a tap.
+
+                This needs no change to the grid: row 2 is an `auto` track, so
+                with nothing rendered into it the row collapses to zero and the
+                68px falls through to the shaft. */}
+            {user && !isMobile && (
                 <div style={{
                     gridRow: 2,
                     gridColumn: 1,
@@ -1315,8 +1395,66 @@ function WheelOfFortunePage({ onBack }) {
                 </div>
             )}
 
-            {/* Live Chat */}
-            {user && <LiveChat user={user} isAdmin={user.isAdmin} />}
+            {/* Live Chat.
+
+                On a phone the bottom bar opens it and the chat's own floating
+                launcher is suppressed — see MobileTabBar.jsx for why the flanks'
+                job becomes a bar down there, and LiveChat.jsx for why this is a
+                signal counter rather than a controlled `open` prop. */}
+            {user && (
+                <LiveChat
+                    user={user}
+                    isAdmin={user.isAdmin}
+                    openSignal={chatOpenSignal}
+                    onUnreadChange={setChatUnread}
+                    hideLauncher={isMobile}
+                />
+            )}
+
+            {/* The phone's four destinations, in the thumb zone. This is where the
+                stage flanks go when there is no room to flank anything, and where
+                the topbar's overflowing icon row goes when the bar is 390px wide. */}
+            {isMobile && (
+                <MobileTabBar
+                    active={
+                        showCollection ? 'collection'
+                            : showLeaderboard ? 'leaderboard'
+                                : showProfile ? 'profile'
+                                    : null
+                    }
+                    unreadChat={chatUnread}
+                    onSelect={(id) => {
+                        if (id === 'collection') setShowCollection(true);
+                        else if (id === 'leaderboard') setShowLeaderboard(true);
+                        else if (id === 'activity') setShowMobileActivity(true);
+                        else if (id === 'profile') setShowProfile(true);
+                        else if (id === 'chat') setChatOpenSignal(n => n + 1);
+                    }}
+                />
+            )}
+
+            {/* Everything the phone's topbar cannot hold. Ordered by how often it
+                is reached, with the destructive action last and alone in red. */}
+            {isMobile && (
+                <MobileMoreSheet
+                    open={showMore}
+                    onClose={() => setShowMore(false)}
+                    items={[
+                        // Live activity is a bottom-bar destination now, not a
+                        // sheet row — one entry point, the rule this page has
+                        // already applied to the Trophy button, the leaderboard
+                        // pill and the chat launcher.
+                        { id: 'history', label: 'Spin history', Icon: ScrollText, onSelect: () => setShowHistory(true) },
+                        { id: 'achievements', label: 'Achievements', Icon: Award, onSelect: () => setShowAchievements(true) },
+                        { id: 'name', label: 'Edit name', Icon: Edit3, onSelect: () => setShowUsernameModal(true) },
+                        { id: 'sound', label: 'Sound', Icon: Volume2, onSelect: () => setShowSoundSettings(true) },
+                        user?.isAdmin
+                            ? { id: 'admin', label: 'Admin panel', Icon: Settings, onSelect: () => setShowAdmin(true) }
+                            : null,
+                        { id: 'logout', label: 'Log out', Icon: LogOut, onSelect: logout, tone: 'danger' },
+                    ]}
+                />
+            )}
         </div>
     );
 }

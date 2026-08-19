@@ -35,6 +35,22 @@ export const BONUS_PITCH = ITEM_WIDTH;
 export const BONUS_STRIP_LENGTH = 80;
 export const BONUS_FINAL_INDEX = BONUS_STRIP_LENGTH - 16;
 
+/**
+ * The board's pitch on a phone, where it runs vertically like the reel.
+ *
+ * The board is the reel's understudy — it replaces it in the same row and says
+ * "here is what you won instead of an item" — so it has to move the way the reel
+ * moves. It kept spinning horizontally after the shaft went vertical, which left
+ * the one takeover that borrows the reel's own slot travelling across a surface
+ * where everything else travels down.
+ *
+ * 104 rather than the shaft's 128: a board slot carries an icon and a word rather
+ * than a sprite, so it needs less height, and a shorter pitch puts one more
+ * destination on screen — which matters when the whole point of the board is to
+ * show you the three things it could land on.
+ */
+export const BONUS_PITCH_MOBILE = 104;
+
 const STRIP_HEIGHT_MOBILE = 90;
 
 // The event identities come from BONUS_IDENTITY in config/constants — the board,
@@ -246,7 +262,11 @@ function drawEventSlot(ctx, event, x, y, width, height, isSelected, time, isMobi
     // A hairline, in the deck's rail register — the old gold gradient seam was
     // the card language's tick. The separators divide the destination signs
     // without framing them.
-    const sepGradient = ctx.createLinearGradient(x + width, y, x + width, y + height);
+    // The cut goes on the edge the next slot is behind: the right edge when the
+    // board runs across, the bottom edge when it runs down.
+    const sepGradient = isMobile
+        ? ctx.createLinearGradient(x, y + height, x + width, y + height)
+        : ctx.createLinearGradient(x + width, y, x + width, y + height);
     sepGradient.addColorStop(0, 'transparent');
     sepGradient.addColorStop(0.5, 'rgba(190,198,220,0.08)');
     sepGradient.addColorStop(1, 'transparent');
@@ -254,8 +274,13 @@ function drawEventSlot(ctx, event, x, y, width, height, isSelected, time, isMobi
     ctx.strokeStyle = sepGradient;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x + width, y + height * 0.1);
-    ctx.lineTo(x + width, y + height * 0.9);
+    if (isMobile) {
+        ctx.moveTo(x + width * 0.1, y + height);
+        ctx.lineTo(x + width * 0.9, y + height);
+    } else {
+        ctx.moveTo(x + width, y + height * 0.1);
+        ctx.lineTo(x + width, y + height * 0.9);
+    }
     ctx.stroke();
 
     // ============================================
@@ -343,13 +368,34 @@ function drawBoard(ctx, { width, height, events, offset, isResult, finalIndex, t
     ctx.fillStyle = deckGradient;
     ctx.fillRect(0, 0, width, height);
 
-    const edgeFade = ctx.createLinearGradient(0, 0, width, 0);
+    // The vignette runs along the travel axis: across on the band, down the shaft.
+    const edgeFade = isMobile
+        ? ctx.createLinearGradient(0, 0, 0, height)
+        : ctx.createLinearGradient(0, 0, width, 0);
     edgeFade.addColorStop(0, 'rgba(5,6,10,0.85)');
     edgeFade.addColorStop(0.14, 'rgba(5,6,10,0)');
     edgeFade.addColorStop(0.86, 'rgba(5,6,10,0)');
     edgeFade.addColorStop(1, 'rgba(5,6,10,0.85)');
     ctx.fillStyle = edgeFade;
     ctx.fillRect(0, 0, width, height);
+
+    if (isMobile) {
+        // ── The board as a shaft ─────────────────────────────────────────────
+        //
+        // Full-width rows travelling downward, exactly as the reel does on a
+        // phone. `drawEventSlot` needs no vertical variant: it already lays a
+        // slot out inside whatever box it is handed — wash top to bottom, icon
+        // centred, label along the lower edge — so a wide short row works as
+        // given. Only the arrangement changes.
+        const centerY = height / 2 - BONUS_PITCH_MOBILE / 2;
+        events.forEach((event, idx) => {
+            const eventY = centerY + idx * BONUS_PITCH_MOBILE - offset;
+            if (eventY > -BONUS_PITCH_MOBILE && eventY < height + BONUS_PITCH_MOBILE) {
+                drawEventSlot(ctx, event, 0, eventY, width, BONUS_PITCH_MOBILE, isResult && idx === finalIndex, time, isMobile);
+            }
+        });
+        return;
+    }
 
     const centerX = width / 2 - BONUS_PITCH / 2;
     events.forEach((event, idx) => {
@@ -378,6 +424,11 @@ export function CanvasBonusStrip({
     const animationRef = useRef(null);
     const timeRef = useRef(0);
     const [containerWidth, setContainerWidth] = useState(800);
+    // Measured, not declared. The board used to be a fixed 90px strip on a phone
+    // and only ever measured its width; now that it fills the shaft's space its
+    // height is whatever the row can spare, and a canvas still sized to 90 draws
+    // a sliver of board inside a 640px mount — which is what "buggy" looked like.
+    const [containerHeight, setContainerHeight] = useState(STRIP_HEIGHT_MOBILE);
 
     // Refs for props that change during animation
     // Note: offset is read from offsetRef if provided, otherwise from offsetProp
@@ -389,7 +440,7 @@ export function CanvasBonusStrip({
     // Helper to get current offset - reads from ref if provided, otherwise uses prop value
     const getOffset = () => offsetRef ? offsetRef.current : offsetProp;
 
-    const height = isMobile ? STRIP_HEIGHT_MOBILE : STRIP_HEIGHT;
+    const height = isMobile ? containerHeight : STRIP_HEIGHT;
     const width = containerWidth;
 
     // Measure container width
@@ -401,6 +452,9 @@ export function CanvasBonusStrip({
                 const rect = containerRef.current.getBoundingClientRect();
                 if (rect && rect.width > 0) {
                     setContainerWidth(rect.width);
+                }
+                if (rect && rect.height > 0) {
+                    setContainerHeight(rect.height);
                 }
             }
         };
@@ -504,7 +558,12 @@ export function CanvasBonusStrip({
             style={{
                 position: 'relative',
                 width: '100%',
-                height: `${height}px`,
+                // Fills its mount on a phone rather than setting its own height
+                // from the value it is measuring — that is a feedback loop the
+                // moment the height stops being a constant. Desktop keeps the
+                // band's own constant, which is a design decision rather than a
+                // leftover.
+                height: isMobile ? '100%' : `${height}px`,
                 overflow: 'hidden',
                 zIndex: 6,
             }}

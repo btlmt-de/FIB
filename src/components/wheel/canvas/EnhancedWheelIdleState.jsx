@@ -307,7 +307,7 @@ export function EnhancedWheelIdleState({
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: isMobile ? '12px' : '14px',
+            gap: isMobile ? '8px' : '14px',
             position: 'relative',
             // No minHeight any more. This 440 used to be what held the wheel
             // row open — the page's own reservation never bound because this was
@@ -343,7 +343,30 @@ export function EnhancedWheelIdleState({
               *
               * `width: fit-content` and no height: the card decides, everything
               * else is measured from it. */}
-            <div style={{
+            {/* ── The card is desktop-only (owner review, phone pass) ─────────
+              *
+              * DESIGN.md §8 records that the card has been designed away twice
+              * and restored twice, and the argument that saved it both times
+              * still holds — on desktop. It is the gamemode's mark, a player
+              * meets the same object in the topbar and here, and a drawn button
+              * reads as a generic control on a page whose identity is a tarot
+              * card.
+              *
+              * None of that survives a phone, for one reason the desktop
+              * argument never had to answer: **the reel is already the spin
+              * control there**. Tapping the band spins — `onClick` on the mobile
+              * reel mount, which DESIGN.md itself calls "the mobile spin
+              * affordance" — so the card was a *second* control for the same
+              * action, 201px tall, sitting in the apron of an 800px screen and
+              * costing the shaft a row and a half. Two controls for one action
+              * is the duplication this surface keeps undoing; this is the same
+              * verdict as the Trophy button and the leaderboard pill, reached on
+              * the same grounds.
+              *
+              * The mark is not lost: it still leads the topbar on every
+              * breakpoint. What goes is the redundant copy of the control.
+              */}
+            {!isMobile && <div style={{
                 position: 'relative',
                 width: 'fit-content',
                 display: 'flex',
@@ -464,7 +487,15 @@ export function EnhancedWheelIdleState({
                             // roomier when 180 was chosen; the grid has taken that
                             // room back since, and the card is what has to give,
                             // because everything under it is text that cannot.
-                            width: isMobile ? '130px' : '150px',
+                            //
+                            // The same argument, measured again on a phone: the
+                            // idle block came to 237px against a 200px apron and
+                            // overflowed by 37, which showed as a scrollbar down
+                            // the stage and a card clipped by the bottom bar. 130
+                            // -> 108 is 29px of that, and the container's gap gives
+                            // the rest. It is still a 108x145 tap target, three
+                            // times the 44px floor.
+                            width: isMobile ? '108px' : '150px',
                             height: 'auto',
                             display: 'block',
                             // The card is 108x152 pixel art and is drawn here at
@@ -478,7 +509,7 @@ export function EnhancedWheelIdleState({
                         }}
                     />
                 </button>
-            </div>
+            </div>}
 
             {/* Text Content */}
             <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
@@ -577,7 +608,7 @@ export function EnhancedWheelIdleState({
                                     // are not shown in the status bar.
                                     : showKotwLuckyEffects
                                         ? null
-                                        // Nothing here any more. The button
+                                        // Nothing here on desktop. The button
                                         // directly above says "Spin"; a line
                                         // under it reading "Click to spin!" was
                                         // the same instruction twice. This line
@@ -585,7 +616,15 @@ export function EnhancedWheelIdleState({
                                         // carry — not signed in, pool still
                                         // loading, and the two lucky-spin states,
                                         // which announce how many you hold.
-                                        : null}
+                                        //
+                                        // On a phone there IS no button above —
+                                        // the card is desktop-only now and the
+                                        // reel itself is the control — so the
+                                        // instruction stops being a duplicate and
+                                        // becomes the only thing naming the
+                                        // gesture. An affordance a player has to
+                                        // guess at is not one.
+                                        : isMobile ? 'Tap the reel to spin' : null}
                     </div>
                 )}
 

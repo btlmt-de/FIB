@@ -15,7 +15,20 @@ import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 // CONSTANTS
 // ============================================
 
-const MOBILE_ITEM_WIDTH = 70;
+/**
+ * The shaft's row pitch, and the sprite size that follows from it.
+ *
+ * This is the same number `MOBILE_ROW_PITCH` names in WheelSpinner, which drives
+ * the spin animation's landing. They are two copies of one value and they have
+ * already disagreed once this pass: the animation moved to 128 while this stayed
+ * at the old square-tile 70, so the shaft drew five-and-a-half rows in the space
+ * the spin thought held three, and the winner came to rest well off the platform
+ * line. It is the identical failure the bonus board had (`ITEM_WIDTH = 160`
+ * shadowing the shared 120) — a geometry constant living in two files.
+ *
+ * Exported so WheelSpinner imports it rather than restating it.
+ */
+export const MOBILE_ROW_PITCH = 128;
 
 /**
  * The band's front lip, in pixels. Desktop only.
@@ -32,6 +45,19 @@ const MOBILE_ITEM_WIDTH = 70;
  * instead of one muddy edge. That is what `floorInset` is for in `drawItem`.
  */
 const LIP_H = 3;
+
+/**
+ * The shaft's sill, in pixels. Phone only.
+ *
+ * `LIP_H`'s counterpart: the horizontal band reserves its last few pixels for its
+ * own front edge so a tier's base bar sits on the shelf behind it rather than
+ * being sliced by it. In the vertical shaft every row has that relationship with
+ * the row beneath it, so each row keeps the same reserve at its floor and the
+ * tier's light stops just short of the cut. Two pixels rather than three: the row
+ * pitch is smaller than the band's height and three would eat a visible slice of
+ * a 128px row.
+ */
+const SILL_H = 2;
 
 /**
  * Whether the viewer has asked for less motion.
@@ -225,7 +251,7 @@ function hashUnit(str) {
  * fixes it; `y` is still the tile's top edge and is what mobile passes as
  * `bandTop`.
  */
-function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0) {
+function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x') {
     if (!item) return;
 
     const isInsane = isInsaneItem(item);
@@ -338,6 +364,12 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     const colX = x + gap;
     const colW = size - gap * 2;
 
+    // Whether this slot is a stacked row (the phone's shaft) rather than a column
+    // in a side-by-side band. It changes where the light lives — see the wash
+    // below — because stacking makes a floor-lit slot meet the next slot's dark
+    // ceiling at every boundary.
+    const rowMode = seamAxis === 'y';
+
     // ── The seam ─────────────────────────────────────────────────────────────
     //
     // A machined groove between slots: one dark line with a lit edge beside it,
@@ -363,19 +395,48 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     // Fading it upward is also just what the light does. Everything on this
     // surface is lit from the floor, so a groove is visible where the light
     // reaches it and gone in the dark at the top.
-    const seamDark = ctx.createLinearGradient(0, T, 0, F);
-    seamDark.addColorStop(0, 'rgba(0,0,0,0)');
-    seamDark.addColorStop(0.55, 'rgba(0,0,0,0)');
-    seamDark.addColorStop(1, 'rgba(0,0,0,0.34)');
-    ctx.fillStyle = seamDark;
-    ctx.fillRect(x - 0.5, T, 1, F - T);
+    //
+    // `seamAxis` picks which way the cut runs. `'x'` is the horizontal reel: the
+    // seam is vertical, at the slot's left edge, fading upward out of the floor
+    // light. `'y'` is the phone's vertical shaft, where slots are full-width rows
+    // stacked downward — there the boundary between two rows *is* the lower row's
+    // floor, so the cut is horizontal and sits exactly where the sill's light
+    // already is. Same rule, turned ninety degrees: a groove is visible where the
+    // light reaches it.
+    //
+    // The row seam fades toward the shaft's left and right edges rather than
+    // running the full width, for the reason the base bar grew soft ends: a
+    // constant full-width line repeating at the slot pitch is a ruled grid, and
+    // at the shaft's pitch there would be five of them on screen at once.
+    if (seamAxis === 'y') {
+        const edge = size * 0.16;
+        const rowSeam = (color, alpha) => {
+            const g = ctx.createLinearGradient(x, 0, x + size, 0);
+            g.addColorStop(0, `rgba(${color},0)`);
+            g.addColorStop(edge / size, `rgba(${color},${alpha})`);
+            g.addColorStop(1 - edge / size, `rgba(${color},${alpha})`);
+            g.addColorStop(1, `rgba(${color},0)`);
+            return g;
+        };
+        ctx.fillStyle = rowSeam('0,0,0', 0.34);
+        ctx.fillRect(x, F - 0.5, size, 1);
+        ctx.fillStyle = rowSeam('190,198,220', 0.10);
+        ctx.fillRect(x, F + 0.5, size, 1);
+    } else if (seamAxis === 'x') {
+        const seamDark = ctx.createLinearGradient(0, T, 0, F);
+        seamDark.addColorStop(0, 'rgba(0,0,0,0)');
+        seamDark.addColorStop(0.55, 'rgba(0,0,0,0)');
+        seamDark.addColorStop(1, 'rgba(0,0,0,0.34)');
+        ctx.fillStyle = seamDark;
+        ctx.fillRect(x - 0.5, T, 1, F - T);
 
-    const seamLight = ctx.createLinearGradient(0, T, 0, F);
-    seamLight.addColorStop(0, 'rgba(190,198,220,0)');
-    seamLight.addColorStop(0.55, 'rgba(190,198,220,0)');
-    seamLight.addColorStop(1, 'rgba(190,198,220,0.10)');
-    ctx.fillStyle = seamLight;
-    ctx.fillRect(x + 0.5, T, 1, F - T);
+        const seamLight = ctx.createLinearGradient(0, T, 0, F);
+        seamLight.addColorStop(0, 'rgba(190,198,220,0)');
+        seamLight.addColorStop(0.55, 'rgba(190,198,220,0)');
+        seamLight.addColorStop(1, 'rgba(190,198,220,0.10)');
+        ctx.fillStyle = seamLight;
+        ctx.fillRect(x + 0.5, T, 1, F - T);
+    }
 
     // Commons are quiet so the rare ones carry; the top tiers run close to
     // saturated at the floor. The winning column is lifted whatever its tier.
@@ -445,16 +506,30 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     if (energy > 0.3) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        const spillR = size * (0.8 + 0.55 * energy);
+        // Sized off the band's shorter axis, for the reason the floor flare
+        // documents below: in the shaft `size` is the whole screen, so a
+        // size-derived radius is several times the row's own height and the rect
+        // clips the gradient while it is still bright — a hard edge instead of a
+        // falloff.
+        const spillR = Math.min(size, H) * (0.8 + 0.55 * energy);
         const spillX = x + size / 2;
-        // Seated near the floor, because that is where the column's light is.
-        const spillY = F - H * 0.12;
+        // Seated near the floor on the band, because that is where the column's
+        // light is; at the row's centre in the shaft, where the light now lives.
+        const spillY = rowMode ? (T + F) / 2 : F - H * 0.12;
         const spillG = ctx.createRadialGradient(spillX, spillY, 0, spillX, spillY, spillR);
         spillG.addColorStop(0, rgb(mixWhite(stops[2], 0.22), 0.13 * energy * breathe));
         spillG.addColorStop(0.4, rgb(stops[1], 0.055 * energy * breathe));
         spillG.addColorStop(1, rgb(stops[1], 0));
         ctx.fillStyle = spillG;
-        ctx.fillRect(spillX - spillR, T, spillR * 2, H);
+        // The whole point of the spill is that it leaves its own slot, so in the
+        // shaft it is drawn to the gradient's full extent rather than clipped to
+        // the row — clipping it vertically put a cut at both row edges, which is
+        // the opposite of light falling on a neighbour.
+        if (rowMode) {
+            ctx.fillRect(spillX - spillR, spillY - spillR, spillR * 2, spillR * 2);
+        } else {
+            ctx.fillRect(spillX - spillR, T, spillR * 2, H);
+        }
         ctx.restore();
     }
 
@@ -514,11 +589,90 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     // saturation and a higher peak than it ever had — and the top third stays
     // clean, which is the part that was actually making it read as a slab.
     const glow = weight * lift * breathe;
+    // ── The falloff is sampled from a curve, not cornered at four points ─────
+    //
+    // This ramp was four hand-placed stops — 0 / 0.05 / 0.22 / 0.58 at 0 / 0.32 /
+    // 0.66 / 1.0 — and canvas interpolates *linearly* between stops. Linear
+    // segments meeting at a point are continuous in value but not in slope, and
+    // the eye reads a slope discontinuity as an edge: Mach banding. Three stops
+    // meant three faint horizontal lines across every tile, at 32%, 66% and the
+    // floor. That is the "clear cut" running top to bottom through the rarity
+    // colour, and it has always been there — it is simply unmissable on the
+    // phone's shaft, where a row is the full width of the screen.
+    //
+    // Two earlier attempts at this fixed things that were not it: the clamped
+    // strip past the gradient's end (real, but a 2-3px artefact at the sill) and
+    // the nested passes' horizontal steps (not real — that is the spine, and
+    // removing it on the shaft flattened the column, which was a regression).
+    // Both are reverted to their correct forms here.
+    //
+    // The curve is the one the four points were already describing: `peak × t^2.33`
+    // passes through 0.041 / 0.22 / 0.58 at 0.32 / 0.66 / 1.0, i.e. within a
+    // rounding of the documented values. So nothing about the tuning changes —
+    // the same falloff is simply sampled densely enough that no segment boundary
+    // is visible. Sixteen stops is well past the point where a 1px-per-segment
+    // step could show on the tallest band this draws.
+    //
+    // Do not go back to a handful of stops. If the curve needs retuning, change
+    // `WASH_PEAK` or `WASH_GAMMA`; the shape stays smooth by construction.
+    // ── Floor-lit for a column, centre-lit for a row ─────────────────────────
+    //
+    // The curve above is `t^2.33`: nothing at the top, peak at the floor. That is
+    // right for the horizontal band, where slots sit side by side and a column's
+    // bright floor only ever meets the band's own lip.
+    //
+    // It is wrong the moment slots **stack**. In the phone's shaft each row's
+    // wash peaks at its floor and the row beneath it starts at zero, so every
+    // boundary puts full-strength tier colour directly against darkness — a hard
+    // horizontal line, the same at every pitch and identical for every tier.
+    // That is the "shiny red / clear cut / smoother red" edge, and no amount of
+    // smoothing the ramp removes it, because the discontinuity is between two
+    // rows rather than inside one. Both earlier attempts missed this by looking
+    // for the fault inside a single tile.
+    //
+    // So a stacked row is lit from its **centre** instead: peak where the item
+    // is, falling to nothing at both edges, which is also what a vertical reel
+    // physically looks like — each tile glowing around its own contents rather
+    // than standing on a floor it shares with nobody. Rows then meet dark against
+    // dark and the boundary is the seam alone, which is what marks it.
+    //
+    // `1 - |2t - 1|` is the symmetric triangle; the gamma shapes its shoulders.
+    // Peak is unchanged, so a tier is exactly as bright at its brightest.
+    // ── The spine needs enough passes to stop being steps ────────────────────
+    //
+    // The horizontal falloff is built from overdraw — nested rects, narrower and
+    // narrower — because a canvas gradient only runs along one axis. Four passes
+    // is right for a 120px column: the steps land ~13px apart and read as a spine.
+    //
+    // At shaft width they are ~35px apart and read as **vertical stripes with
+    // hard edges**, which is the cut. Collapsing them to a single full-width pass
+    // removes the stripes and the spine together, leaving a flat slab of colour —
+    // tried, and wrong in the other direction.
+    //
+    // So: same technique, sampled finely enough that no edge survives. Eighteen
+    // passes across the same span puts a step every ~8px at 390 wide, below the
+    // point where a ~3% alpha increment is visible against the band.
+    //
+    // The divisor follows from the pass count, not from taste. N passes of alpha
+    // `a` in normal compositing accumulate to `1-(1-a)^N`; to land the same 0.58
+    // peak from 18 passes instead of 4, `a` is the peak over ~12.3 rather than
+    // over 3. Change the pass count and this must change with it.
+    const WASH_PEAK = 0.58;
+    const WASH_GAMMA = rowMode ? 1.7 : 2.33;
+    const passes = rowMode ? 18 : 4;
+    const spread = rowMode ? 12.3 : 3;
     const wash = ctx.createLinearGradient(0, T, 0, F);
-    wash.addColorStop(0, rgb(stops[0], 0));
-    wash.addColorStop(0.32, rgb(stops[1], 0.05 * glow / 3));
-    wash.addColorStop(0.66, rgb(stops[1], 0.22 * glow / 3));
-    wash.addColorStop(1, rgb(stops[2], 0.58 * glow / 3));
+    for (let i = 0; i <= 16; i++) {
+        const t = i / 16;
+        const shape = rowMode
+            ? Math.pow(1 - Math.abs(2 * t - 1), WASH_GAMMA)
+            : Math.pow(t, WASH_GAMMA);
+        // The hue also travels: the flat tiers repeat one colour, the two
+        // animated ones sample their ramp at three points down the column, so
+        // this walks stops[0] -> stops[1] -> stops[2] as it descends.
+        const c = t < 0.5 ? stops[t < 0.25 ? 0 : 1] : stops[t < 0.85 ? 1 : 2];
+        wash.addColorStop(t, rgb(c, WASH_PEAK * shape * glow / spread));
+    }
     ctx.fillStyle = wash;
     //
     // The outermost pass stops short of the slot edge rather than filling it.
@@ -527,10 +681,30 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     // the nesting exists to avoid. Ending at 88% means the wash has already faded
     // into the band by the time it reaches the score, so what divides two slots is
     // the seam and not the end of the light.
+    //
+    // The fill stops at the floor `F`, not at the band's bottom `B`. It used to
+    // run the full `H`, which put it `floorInset` pixels past the end of its own
+    // gradient — the clamped flat strip described above. The tier's light stands
+    // on the shelf; the lip and the sill are the band's own material and are not
+    // the tier's to paint.
+    //
+    // The nesting applies on both breakpoints. It was briefly collapsed to a
+    // single full-width pass for the shaft, on the theory that its steps were the
+    // visible cut — they are not, the gradient's stops were — and the result was
+    // a row with no spine at all: a flat horizontal band of colour instead of a
+    // column of light with a bright centre. The overdraw is what gives the tier
+    // its shape across the axis a gradient cannot serve, and a wide row needs
+    // that more than a narrow column does, not less.
     const spine = x + size / 2;
-    for (const frac of [0.88, 0.7, 0.52, 0.34]) {
+    for (let p = 0; p < passes; p++) {
+        // The column keeps its four hand-picked widths; the row walks the same
+        // span in `passes` even steps, so the falloff is continuous rather than
+        // terraced.
+        const frac = passes === 4
+            ? [0.88, 0.7, 0.52, 0.34][p]
+            : 0.94 - (0.94 - 0.26) * (p / (passes - 1));
         const w = colW * frac;
-        ctx.fillRect(spine - w / 2, T, w, H);
+        ctx.fillRect(spine - w / 2, T, w, F - T);
     }
 
     // A matching wash hanging from the ceiling, much weaker.
@@ -587,6 +761,18 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     // with the seams on either side it draws a frame around a common that the
     // common was never supposed to have. The commons are ~90% of a resting
     // strip, so their frames were the pattern the whole band read as.
+    //
+    // **The bar is a column's floor, and a stacked row has no floor to speak of.**
+    // In the shaft the bar would sit at the boundary with the row beneath — a
+    // fully saturated line at every pitch, which is precisely the hard edge the
+    // centre-lit wash above exists to remove, reinstated by the one element that
+    // is opaque. So a row gets no bar; its light peaks at its own middle and the
+    // seam alone marks where it ends. The winner keeps one, because the bar's
+    // ends are what say *which slot* the detent is pointing at, and that argument
+    // is about identification rather than about floors.
+    if (rowMode && !isWinning) {
+        // Skip the bar, the filament and the floor treatments below it.
+    } else {
     const barH = isSpecialType ? 4 : 3;
     ctx.shadowColor = rgb(stops[2], 0.9);
     ctx.shadowBlur = (isInsane ? 22 : isSpecialType ? 16 : 7) * breathe;
@@ -632,6 +818,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         ctx.fillRect(colX, F - barH, colW, 1);
         ctx.restore();
     }
+    } // end of the column-only floor treatments
 
     // ── Everything below is what makes a rare slot feel rare ─────────────────
     //
@@ -668,10 +855,36 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
 
     // Floor flare. A hot spot where the column meets the base bar, so the light
     // looks like it is being emitted from the floor rather than painted on it.
+    //
+    // ── THE HORIZONTAL LINE, AND WHERE IT ACTUALLY CAME FROM ─────────────────
+    //
+    // Its radius was `size * 0.75` and its rect started at 40% of the band's
+    // height. On the horizontal reel those agree: a 120px column gives a 90px
+    // radius, the rect's top edge sits 102px above the floor of a 170px band, and
+    // the gradient has already fallen to nothing by the time the rect clips it.
+    // Nobody ever saw an edge because there was nothing left to cut.
+    //
+    // In the phone's shaft `size` is the **whole screen** — 390 — so the radius
+    // came out at 292px against a row only 128px tall. The glow was still near
+    // full strength when the rect cut it dead at 40% of the row, which is a hard
+    // horizontal line across every tile that has any colour in it, at the same
+    // height every time. That is the "glowing green / clear line / less glowy
+    // green" edge, and it is why it appeared on all tiers at once and got worse
+    // the more saturated the tier was.
+    //
+    // Two corrections, both from the row's own geometry rather than the band's:
+    // the radius is sized off the band's **shorter axis** (the same rule the
+    // sprite already uses), and the rect covers the whole row so the gradient is
+    // never clipped before it has faded. A stacked row is also lit from its
+    // centre rather than its floor — see the wash — so the flare's origin moves
+    // with it; a hot spot at the boundary would just be the old bright-against-
+    // dark seam by another name.
     if (energy > 0.3) {
+        const flareR = Math.min(size, H) * 0.75;
+        const flareY = rowMode ? (T + F) / 2 : F;
         const flare = ctx.createRadialGradient(
-            x + size / 2, F, 0,
-            x + size / 2, F, size * 0.75,
+            x + size / 2, flareY, 0,
+            x + size / 2, flareY, flareR,
         );
         // The energy term has a floor under it. Straight `0.5 * energy` gave rare
         // less than a quarter alpha and left the bottom of the ladder starved of
@@ -680,7 +893,8 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         flare.addColorStop(0, rgb(stops[2], (0.22 + 0.42 * energy) * breathe));
         flare.addColorStop(1, rgb(stops[2], 0));
         ctx.fillStyle = flare;
-        ctx.fillRect(colX, T + H * 0.4, colW, F - (T + H * 0.4));
+        const flareTop = rowMode ? T : T + H * 0.4;
+        ctx.fillRect(colX, flareTop, colW, F - flareTop);
     }
 
     // Embers. A few motes climbing the shaft, fading as they rise.
@@ -773,7 +987,15 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         const winnerZoom = isWinning ? 1.06 : 1;
         const winnerLift = isWinning ? H * 0.02 : 0;
 
-        const imgSize = size * imgScale * winnerZoom;
+        // Sized from the band's *shorter* axis, not from `size`.
+        //
+        // A no-op everywhere it already ran — the horizontal reel is 120 wide in a
+        // 170 band and the old square mobile tile had both equal — but it is what
+        // lets a slot be wide and short. The phone's shaft draws full-width rows,
+        // where `size` is the whole screen and `H` is the row's pitch; sizing the
+        // sprite off `size` there would draw a 270px item into a 128px row.
+        const spriteBase = Math.min(size, H);
+        const imgSize = spriteBase * imgScale * winnerZoom;
         const imgX = x + (size - imgSize) / 2;
         // Seated slightly above centre. The base bar and its glow pull the eye
         // down, so a geometrically centred sprite optically reads as low.
@@ -845,13 +1067,26 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
  * `alpha` carries the detent flash. It scales the whole mark, glow included,
  * because a tick that only brightened its core would look like it was lighting
  * up rather than being struck.
+ *
+ * `axis` picks which edge pair it is seated in. `'x'` is the horizontal band —
+ * `cx` is the position along the band and `edge` is the top hairline or the floor
+ * lip. `'y'` is the phone's shaft, where the marks sit in the left and right
+ * rails instead; the geometry is identical under a transpose, so rather than
+ * write it twice the canvas is rotated about the mark's own seat and the same
+ * path is stroked. One shape, one set of values, two orientations.
  */
-function drawDetentTick(ctx, cx, edgeY, dir, c, alpha) {
+function drawDetentTick(ctx, cx, edgeY, dir, c, alpha, axis = 'x') {
     const A = (a) => `rgba(${c.r}, ${c.g}, ${c.b}, ${Math.min(1, a)})`;
     const BLADE = 11;
     const a = Math.min(1, alpha);
 
     ctx.save();
+
+    // Transpose for the shaft: swap the axes about the origin so every
+    // coordinate below reads as (along-the-edge, into-the-band) either way.
+    if (axis === 'y') {
+        ctx.transform(0, 1, 1, 0, 0, 0);
+    }
 
     // A hard-edged wedge, not a fading bar. The first version of this was a 2px
     // rect with its alpha ramped out along its length, and at any magnification
@@ -984,7 +1219,12 @@ export function CanvasSpinningStrip({
     const lastCentreIndexRef = useRef(null);
     const tickAtRef = useRef(-1);         // when the centre slot last changed
     const [imagesLoaded, setImagesLoaded] = useState(false);
-    const [containerWidth, setContainerWidth] = useState(stripWidth || (isMobile ? 140 : 1600));
+    const [containerWidth, setContainerWidth] = useState(stripWidth || (isMobile ? 390 : 1600));
+    // The shaft's height is whatever the stage row can spare, so it is measured
+    // rather than declared. The horizontal band keeps a fixed STRIP_HEIGHT — its
+    // height is a design constant, not a leftover — so this only ever moves on a
+    // phone.
+    const [containerHeight, setContainerHeight] = useState(stripHeight || 620);
 
     // Refs for props that change during animation (so render loop always has current values)
     // Note: offset is read from offsetRef if provided, otherwise from offsetProp
@@ -994,23 +1234,26 @@ export function CanvasSpinningStrip({
     // Helper to get current offset - reads from ref if provided, otherwise uses prop value
     const getOffset = () => offsetRef ? offsetRef.current : offsetProp;
 
-    const itemWidth = itemWidthOverride || (isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH);
+    const itemWidth = itemWidthOverride || (isMobile ? MOBILE_ROW_PITCH : ITEM_WIDTH);
     const width = stripWidth || containerWidth;
-    const height = stripHeight || (isMobile ? 260 : STRIP_HEIGHT);
+    const height = stripHeight || (isMobile ? containerHeight : STRIP_HEIGHT);
 
     // Measure container width on mount and resize
     useEffect(() => {
-        // Mobile normally hands the canvas a fixed `stripWidth` and skips the
-        // measurement entirely. Lanes are the exception on both breakpoints:
-        // they flex to fill the band, so their width is only knowable from the
-        // box.
-        if (!containerRef.current || (isMobile && !laneMode)) return;
+        // Always measure. Mobile used to skip this and take a fixed 140×260 box;
+        // the shaft fills the viewport and the stage row, so both of its axes are
+        // only knowable from the box. A caller that still wants a fixed size
+        // passes `stripWidth` / `stripHeight` and the measurement is ignored.
+        if (!containerRef.current) return;
 
         const updateWidth = () => {
             if (containerRef.current) {
                 const rect = containerRef.current.getBoundingClientRect();
                 if (rect && rect.width > 0) {
                     setContainerWidth(rect.width);
+                }
+                if (rect && rect.height > 0) {
+                    setContainerHeight(rect.height);
                 }
             }
         };
@@ -1225,56 +1468,63 @@ export function CanvasSpinningStrip({
             // Draw items
             ctx.save();
 
-            if (isMobile && loop) {
-                // The vertical reel's version of the cylinder below. Same bug, same
-                // fix, one axis over: the dormant strip ran out at the bottom and
-                // reset. Written from the same reasoning rather than verified on a
-                // device — the vertical layout has never been reviewable in this
-                // harness — but it is the identical index wrap, and leaving a known
-                // run-out in place on one breakpoint because the other is easier to
-                // look at is not a decision worth defending.
-                const stripCenterY = height / 2 - itemWidth / 2;
-                const itemCenterX = (width - itemWidth) / 2;
-                const firstIdx = Math.floor((offset - stripCenterY - itemWidth) / itemWidth);
-                const lastIdx = Math.ceil((offset - stripCenterY + height + itemWidth) / itemWidth);
+            if (isMobile) {
+                // ── THE SHAFT — the phone's dialect of THE NOCTURNE ──────────
+                //
+                // Portrait gets the city's *elevator*, not its viaduct. Slots are
+                // full-width rows stacked downward, each one a lit sill: the
+                // tier's wash rises out of the row's own floor, the base bar sits
+                // on it, and the row below begins at that same line — so the sill
+                // is the seam, exactly the way the desktop band's lip and its
+                // per-slot seam are one material seen along two edges.
+                //
+                // What this replaced was a rotation rather than a dialect: a
+                // ~180px column of square tiles floating in the middle of a black
+                // box, with a 1px accent rule ruled across the full width at every
+                // pitch — a horizontal grid, i.e. the corduroy failure the
+                // horizontal band spent three passes escaping. The sprite landed
+                // at 49px on the screen where recognition is hardest.
+                //
+                // Now the row is the screen's width and the sprite is sized off
+                // the row's pitch, which is the shorter axis — about 90px on a
+                // 390px phone, near double. Everything else is the ratified
+                // apparatus: `drawItem` draws the identical column of light into a
+                // band that happens to be wide and short, so the energy ladder,
+                // the filament, the spill, the winner's claim and the Inert-Common
+                // Rule all hold without a second implementation to keep in step.
+                const rowPitch = itemWidth;
+                const stripCenterY = height / 2 - rowPitch / 2;
+                const drawRow = (item, idx, itemY, isWinning) => {
+                    drawItem(
+                        ctx, item,
+                        0, itemY, width,
+                        isWinning,
+                        isRecursionTheme && !isKotwTheme,
+                        imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme,
+                        rowPitch, itemY, calm,
+                        SILL_H,
+                        'y',
+                    );
+                };
 
-                for (let idx = firstIdx; idx <= lastIdx; idx++) {
-                    const item = items[((idx % items.length) + items.length) % items.length];
-                    const itemY = stripCenterY + idx * itemWidth - offset;
-                    drawItem(ctx, item, itemCenterX, itemY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, itemWidth, itemY, calm, 0);
-
-                    ctx.strokeStyle = `${accentColor}33`;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(0, itemY + itemWidth);
-                    ctx.lineTo(width, itemY + itemWidth);
-                    ctx.stroke();
-                }
-            } else if (isMobile) {
-                // Vertical strip - items stacked vertically
-                const stripCenterY = height / 2 - itemWidth / 2;
-                const itemCenterX = (width - itemWidth) / 2; // Center item horizontally in strip
-
-                items.forEach((item, idx) => {
-                    const itemY = stripCenterY + idx * itemWidth - offset;
-
-                    // Only draw visible items
-                    if (itemY > -itemWidth && itemY < height + itemWidth) {
-                        const isWinning = idx === finalIndex && isResult;
-                        // Vertical reel: each slot is its own band, starting at
-                        // the slot's own top edge, so the light travels with the
-                        // tile instead of pooling at the top of the canvas.
-                        drawItem(ctx, item, itemCenterX, itemY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, itemWidth, itemY, calm, 0);
-
-                        // Separator line - use accentColor
-                        ctx.strokeStyle = `${accentColor}33`;
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(0, itemY + itemWidth);
-                        ctx.lineTo(width, itemY + itemWidth);
-                        ctx.stroke();
+                if (loop) {
+                    // The dormant shaft is a cylinder, the same fix the horizontal
+                    // reel got one axis over: walk the rows that are on screen and
+                    // wrap the index, so the drift never runs out of array.
+                    const firstIdx = Math.floor((offset - stripCenterY - rowPitch) / rowPitch);
+                    const lastIdx = Math.ceil((offset - stripCenterY + height + rowPitch) / rowPitch);
+                    for (let idx = firstIdx; idx <= lastIdx; idx++) {
+                        const item = items[((idx % items.length) + items.length) % items.length];
+                        drawRow(item, idx, stripCenterY + idx * rowPitch - offset, false);
                     }
-                });
+                } else {
+                    items.forEach((item, idx) => {
+                        const itemY = stripCenterY + idx * rowPitch - offset;
+                        if (itemY > -rowPitch && itemY < height + rowPitch) {
+                            drawRow(item, idx, itemY, idx === finalIndex && isResult);
+                        }
+                    });
+                }
             } else if (loop) {
                 // ── The endless idle reel ────────────────────────────────────
                 //
@@ -1349,18 +1599,57 @@ export function CanvasSpinningStrip({
 
             // ========== EDGE VIGNETTE - soft dark gradient at edges ==========
             if (isMobile) {
-                // Vertical vignette for mobile
-                const topVignette = ctx.createLinearGradient(0, 0, 0, height * 0.15);
-                topVignette.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+                // The shaft's vignette runs along its travel axis, so the rows
+                // arrive out of the dark and leave into it. Deeper than the
+                // horizontal band's 12% because a phone's shaft is long and the
+                // ends are where the eye is not.
+                const topVignette = ctx.createLinearGradient(0, 0, 0, height * 0.18);
+                topVignette.addColorStop(0, 'rgba(0, 0, 0, 0.55)');
                 topVignette.addColorStop(1, 'rgba(0, 0, 0, 0)');
                 ctx.fillStyle = topVignette;
-                ctx.fillRect(0, 0, width, height * 0.15);
+                ctx.fillRect(0, 0, width, height * 0.18);
 
-                const bottomVignette = ctx.createLinearGradient(0, height * 0.85, 0, height);
+                const bottomVignette = ctx.createLinearGradient(0, height * 0.82, 0, height);
                 bottomVignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                bottomVignette.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+                bottomVignette.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
                 ctx.fillStyle = bottomVignette;
-                ctx.fillRect(0, height * 0.85, width, height * 0.15);
+                ctx.fillRect(0, height * 0.82, width, height * 0.18);
+
+                // ── The shaft's rails ────────────────────────────────────────
+                //
+                // The horizontal band is a recess with a lit top hairline and a
+                // front lip along its two long edges. The shaft's long edges are
+                // its left and right, so that is where its machining goes: a lit
+                // hairline down each side with a short falloff inward, dying into
+                // the vignettes at both ends exactly as the band's edges do.
+                //
+                // This is the piece the old vertical reel had none of. It drew no
+                // edges at all, which is why it read as a black box with tiles in
+                // it rather than as a surface — craft is legible at edges, and it
+                // had none.
+                const railFade = (alpha) => {
+                    const g = ctx.createLinearGradient(0, 0, 0, height);
+                    g.addColorStop(0, 'rgba(206,214,236,0)');
+                    g.addColorStop(0.14, `rgba(206,214,236,${alpha})`);
+                    g.addColorStop(0.86, `rgba(206,214,236,${alpha})`);
+                    g.addColorStop(1, 'rgba(206,214,236,0)');
+                    return g;
+                };
+                ctx.fillStyle = railFade(0.14);
+                ctx.fillRect(0, 0, 1, height);
+                ctx.fillRect(width - 1, 0, 1, height);
+
+                const railGlowL = ctx.createLinearGradient(1, 0, 9, 0);
+                railGlowL.addColorStop(0, 'rgba(206,214,236,0.05)');
+                railGlowL.addColorStop(1, 'rgba(206,214,236,0)');
+                ctx.fillStyle = railGlowL;
+                ctx.fillRect(1, 0, 8, height);
+
+                const railGlowR = ctx.createLinearGradient(width - 9, 0, width - 1, 0);
+                railGlowR.addColorStop(0, 'rgba(206,214,236,0)');
+                railGlowR.addColorStop(1, 'rgba(206,214,236,0.05)');
+                ctx.fillStyle = railGlowR;
+                ctx.fillRect(width - 9, 0, 8, height);
             } else {
                 // Horizontal vignette for desktop.
                 //
@@ -1443,25 +1732,73 @@ export function CanvasSpinningStrip({
             // is the spin. Under reduced motion the spin holds at the middle of
             // its range rather than beating.
             //
-            // Desktop no longer takes this path; it draws a detent instead, in
-            // the branch below. The vertical reel keeps the glow line and its DOM
-            // pointers because its geometry has not been reviewed on a real
-            // device and a detent designed against a 1920px band is not a claim
-            // about a phone.
-            const centerPulse = calm ? 0.6 : 0.6 + Math.sin(time * 8) * 0.4;
-            const centerGlowAlpha = isSpinning ? 0.5 + centerPulse * 0.3 : 0.2;
+            // Both breakpoints draw a detent now. The note below explains why the
+            // desktop one replaced a slab of glow; the shaft's is the same object
+            // turned ninety degrees, and it replaced the same mistake — a 40px
+            // band of accent glow lying straight across the item at the one moment
+            // the surface exists for, with a 3px DOM line and two triangles on top
+            // of it. The reason it survived is recorded honestly in the old
+            // comment: "its geometry has not been reviewed on a real device". It
+            // has now.
+            //
+            // `centerPulse` / `centerGlowAlpha` went with it. They drove the glow
+            // band's opacity and nothing else, and the detent's own `tick` — the
+            // per-slot flash that makes a deceleration something you feel — is a
+            // better beat than a free-running sine that ignored where the reel was.
 
             if (isMobile) {
-                // Horizontal center line for mobile (vertical strip)
-                const centerY = height / 2;
-                const lineGlow = ctx.createLinearGradient(0, centerY - 20, 0, centerY + 20);
-                lineGlow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-                lineGlow.addColorStop(0.4, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha * 0.3})`);
-                lineGlow.addColorStop(0.5, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha})`);
-                lineGlow.addColorStop(0.6, `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${centerGlowAlpha * 0.3})`);
-                lineGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                ctx.fillStyle = lineGlow;
-                ctx.fillRect(0, centerY - 20, width, 40);
+                // ── The shaft's detent ───────────────────────────────────────
+                //
+                // Two machined marks seated in the rails, a hairline between them
+                // that opens out across the middle so nothing crosses the sprite,
+                // and a lit aperture rather than a shaded one. Identical grammar
+                // to the desktop detent, mirrored onto the other axis: there the
+                // marks sit in the top hairline and the floor lip, here they sit
+                // in the left and right rails.
+                const cy = Math.round(height / 2);
+                const A = (a) => `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, ${a})`;
+
+                // The aperture: a glow around the line, not a lit slot. Sized off
+                // the row pitch the same way the desktop one is sized off the
+                // column pitch.
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const glowH = itemWidth * 0.42;
+                const aperture = ctx.createLinearGradient(0, cy - glowH, 0, cy + glowH);
+                aperture.addColorStop(0, A(0));
+                aperture.addColorStop(0.5, A((isSpinning ? 0.16 : 0.11) + tick * 0.1));
+                aperture.addColorStop(1, A(0));
+                ctx.fillStyle = aperture;
+                ctx.fillRect(0, cy - glowH, width, glowH * 2);
+                ctx.restore();
+
+                // The line: full strength where it meets the rails, a third of
+                // that across the middle so it carries as one object without
+                // competing with the item it is pointing at.
+                const hairAlpha = (isSpinning ? 0.85 : 0.6) + tick * 0.4;
+                const hair = ctx.createLinearGradient(0, 0, width, 0);
+                hair.addColorStop(0, A(hairAlpha));
+                hair.addColorStop(0.28, A(hairAlpha * 0.34));
+                hair.addColorStop(0.72, A(hairAlpha * 0.34));
+                hair.addColorStop(1, A(hairAlpha));
+                ctx.fillStyle = hair;
+                ctx.fillRect(0, cy - 0.5, width, 1);
+
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const bleed = ctx.createLinearGradient(0, cy - 4, 0, cy + 4);
+                bleed.addColorStop(0, A(0));
+                bleed.addColorStop(0.5, A(hairAlpha * 0.3));
+                bleed.addColorStop(1, A(0));
+                ctx.fillStyle = bleed;
+                ctx.fillRect(0, cy - 4, width, 8);
+                ctx.restore();
+
+                // Each row passing flashes the marks; the gaps stretching out is
+                // what a deceleration feels like.
+                const markAlpha = Math.min(1, (isSpinning ? 0.95 : 0.8) + tick * 0.45);
+                drawDetentTick(ctx, cy, 0, 1, accentRgb, markAlpha, 'y');
+                drawDetentTick(ctx, cy, width, -1, accentRgb, markAlpha, 'y');
             } else {
                 // ── The desktop indicator, as a detent ───────────────────────
                 //
@@ -1641,18 +1978,23 @@ export function CanvasSpinningStrip({
             // sprites has nothing to read out.
             aria-label={onClick ? 'Spin the wheel' : undefined}
             style={{
-                position: isMobile && !laneMode ? 'relative' : 'absolute',
-                width: isMobile && !laneMode ? `${width}px` : '100%',
-                height: `${height}px`,
-                // A track is square on both breakpoints. Its neighbours are 3px
-                // away, and a radius there is five rounded boxes in a row.
-                borderRadius: laneMode ? 0 : (isMobile ? '14px' : '10px'),
+                // The mount fills its parent and the canvas measures the result.
+                // It used to set its own `height: ${height}px` from the very value
+                // it was measuring, which is a feedback loop the moment the height
+                // stops being a constant — and on a phone it now isn't, because the
+                // shaft takes whatever the stage row can spare.
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                // Square everywhere. The band leaves the screen on both sides on
+                // desktop and the shaft does the same on a phone; a radius at the
+                // viewport edge is a notch, and on a lane it would be five rounded
+                // boxes in a row.
+                borderRadius: 0,
                 overflow: 'hidden',
                 zIndex: 2, // Same z-index as original strip div
                 cursor: onClick ? 'pointer' : 'default',
-                margin: isMobile && !laneMode ? '0 auto' : '0',
-                left: isMobile && !laneMode ? undefined : 0,
-                top: isMobile && !laneMode ? undefined : 0,
             }}
         >
             <canvas

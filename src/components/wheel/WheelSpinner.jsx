@@ -46,14 +46,15 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
+import { ShaftResult } from './spin/ShaftResult.jsx';
 import { StageFlanks } from './spin/StageFlanks.jsx';
 import { KotwReelBoard } from './spin/KotwReelBoard.jsx';
 import { EventPayout } from './spin/EventPayout.jsx';
 import { EnhancedWheelIdleState } from './canvas/EnhancedWheelIdleState.jsx';
-import { CanvasSpinningStrip, preloadItemImages, warmImageCache } from './canvas/CanvasSpinningStrip.jsx';
+import { CanvasSpinningStrip, preloadItemImages, warmImageCache, MOBILE_ROW_PITCH } from './canvas/CanvasSpinningStrip.jsx';
 import { loadAtlas } from './canvas/atlas.js';
 import { CanvasResultItem } from './canvas/CanvasResultItem.jsx';
-import { CanvasBonusStrip, BONUS_PITCH, BONUS_STRIP_LENGTH, BONUS_FINAL_INDEX } from './canvas/CanvasBonusStrip.jsx';
+import { CanvasBonusStrip, BONUS_PITCH, BONUS_PITCH_MOBILE, BONUS_STRIP_LENGTH, BONUS_FINAL_INDEX } from './canvas/CanvasBonusStrip.jsx';
 import { SpinLanes, LANE_PITCH } from './spin/SpinLanes.jsx';
 import { BonusEventPlaque } from './spin/BonusEventPlaque.jsx';
 import { LuckyResultPanel } from './spin/LuckyResultPanel.jsx';
@@ -155,7 +156,7 @@ function landingVariance(itemWidth) {
     return (Math.random() * 2 - 1) * max;
 }
 
-function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard }) {
+function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, isMobile = false, hasFlanks = true }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
@@ -181,7 +182,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [strip, setStrip] = useState([]);
     const [result, setResult] = useState(null);
     const [isNewItem, setIsNewItem] = useState(false);
-    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [spinProgress, setSpinProgress] = useState(0); // 0-1 for Phase 2 effects
     // One flag instead of the old imagesPreloaded/preloadProgress pair: the wheel
@@ -194,10 +194,29 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // Track last spin progress to avoid redundant setState calls
     const lastSpinProgressRef = useRef(-1);
 
-    // Mobile-specific dimensions - taller strip with more items visible
-    const MOBILE_STRIP_HEIGHT = 260;
-    const MOBILE_STRIP_WIDTH = 140;
-    const MOBILE_ITEM_WIDTH = 70;
+    // ── The shaft's dimensions (phone) ───────────────────────────────────────
+    //
+    // The reel used to be a 140×260 box with a 70px pitch parked in the middle of
+    // the screen: a column of square tiles floating in black, a 49px sprite on the
+    // one screen where recognition is hardest, and a hundred-odd pixels of dead
+    // page either side of it.
+    //
+    // It is a shaft now — the full width of the viewport, running the height the
+    // stage can spare — so a row IS the screen and the sprite is sized off the
+    // *pitch* rather than the width. `MOBILE_ROW_PITCH` is therefore a height, and
+    // it is the only number deciding how big an item looks on a phone.
+    //
+    // 128 rather than 70: it puts the sprite at ~90px, close to the desktop reel's
+    // 84, and still shows five rows in a 620px shaft — enough runway either side of
+    // the detent for a near miss to read. Fixed rather than derived from the
+    // viewport, because the *item* should not change size between a 360px phone and
+    // a 430px one; what changes is how much shaft there is around it.
+    //
+    // Imported, not restated. This is the pitch the canvas draws at, and the two
+    // had already drifted apart once inside this pass — the animation landing on
+    // 128 while the shaft still drew at 70. Same class of bug as the bonus board's
+    // shadowed `ITEM_WIDTH`, caught the same way: the winner stopped somewhere
+    // other than the line.
     const MOBILE_CARD_WIDTH = 300;  // Wider card to fit result text
 
     // Use refs for animation offsets to avoid re-renders during animation.
@@ -302,11 +321,35 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         lastSpinTimeRef.current = Date.now();
     }
 
+    // ── The shaft's own height, for the in-place result ──────────────────────
+    //
+    // The phone's payoff is drawn over the row the spin landed on (ShaftResult),
+    // and to pin it there we need the two numbers the canvas drew with: the
+    // mount's height and the final offset. The offset is already a ref; this
+    // measures the height.
+    //
+    // A ResizeObserver rather than a read during render, because the mount is
+    // `flex: 1` inside a column whose siblings settle after first paint — reading
+    // it in the same tick would pin the overlay against a stale height.
+    const reelMountRef = useRef(null);
+    const [shaftHeight, setShaftHeight] = useState(0);
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 600);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        const el = reelMountRef.current;
+        if (!el || !isMobile || typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(() => {
+            const h = el.getBoundingClientRect().height;
+            if (h > 0) setShaftHeight(h);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [isMobile, state]);
+
+    // The resize listener that used to live here is gone with the state it fed.
+    // It watched `innerWidth < 600` while WheelPage watched 1400 and passed its
+    // answer down as a prop this component never destructured — so the page and
+    // the reel inside it disagreed about the breakpoint by 800px, and everything
+    // from 600 to 1399 got desktop geometry in a shell with no room for it. The
+    // viewport is one question with one answer now; see config/breakpoints.js.
 
     /**
      * Gate the spin button on the sprite atlas — one request for the whole pool.
@@ -718,7 +761,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             canvasOffsetRef.current = 0;
 
             // Pre-calculate animation parameters (use larger items on mobile)
-            const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
+            const itemWidth = isMobile ? MOBILE_ROW_PITCH : ITEM_WIDTH;
             const targetOffset = FINAL_INDEX * itemWidth;
             const finalOffset = targetOffset + landingVariance(itemWidth);
 
@@ -988,7 +1031,10 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         bonusOffsetRef.current = 0;
 
         // Animate the strip
-        const targetOffset = BONUS_FINAL_INDEX * BONUS_PITCH;
+        // The board travels down on a phone and across on the band, so it lands on
+        // whichever pitch it is drawing at. Same contract as the reel's
+        // MOBILE_ROW_PITCH: the geometry is owned by the component that draws it.
+        const targetOffset = BONUS_FINAL_INDEX * (isMobile ? BONUS_PITCH_MOBILE : BONUS_PITCH);
         const finalOffset = targetOffset + (Math.random() - 0.5) * 20;
         let startTime = null;
         const duration = 3500;
@@ -1060,7 +1106,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             offsetRef.current = 0;
             canvasOffsetRef.current = 0;
 
-            const itemWidth = isMobile ? MOBILE_ITEM_WIDTH : ITEM_WIDTH;
+            const itemWidth = isMobile ? MOBILE_ROW_PITCH : ITEM_WIDTH;
             const targetOffset = FINAL_INDEX * itemWidth;
             const finalOffset = targetOffset + landingVariance(itemWidth);
             let startTime = null;
@@ -1506,21 +1552,35 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // flow. Anything added here needs its own placement or it will be
         // auto-placed into whatever grid cell happens to be free.
         //
-        // Mobile keeps the flex column: below 600px the page is a single column,
-        // the reel runs vertically, and there is no multi-row grid to participate
-        // in.
+        // The phone keeps the flex column: it is a single column, the reel runs
+        // vertically as a shaft, and there is no multi-row grid to participate in.
+        //
+        // It does NOT scroll any more, and that is the layout's whole shape. It was
+        // `overflowY: auto` with a fixed 260px reel, so a phone got a short reel
+        // above the fold and everything else pushed below it — on the one surface
+        // whose entire job happens in a single view. The column is now exactly the
+        // viewport, the shaft takes every pixel the other rows do not claim, and
+        // nothing is ever off screen.
+        //
+        // Horizontal padding is gone with it. The shaft is full-bleed, the same
+        // decision the desktop band made for the same reason: a band that stops
+        // short of the screen edge is a box in the middle of the page.
         <div style={isMobile ? {
             width: '100%',
+            height: '100%',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            padding: '8px 12px',
+            alignItems: 'stretch',
+            padding: 0,
             position: 'relative',
-            gridRow: '2 / 6',
+            // Row 4 of the phone template, under the topbar, the ticker and the
+            // banner/meter slot — not the `2 / 6` span it used to take, which
+            // started in the ticker's own row.
+            gridRow: 4,
             gridColumn: 1,
             minHeight: 0,
-            overflowY: 'auto',
+            overflow: 'hidden',
         } : { display: 'contents' }}>
 
             {/* Odds Info Modal */}
@@ -1564,6 +1624,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         gridColumn: '1 / -1',
                         position: 'relative',
                         zIndex: Z.reel,
+                        // On a phone this row is the shaft and it takes everything
+                        // the rows around it do not claim. `minHeight: 0` because a
+                        // flex child defaults to `min-height: auto` and would
+                        // otherwise refuse to shrink below its content.
+                        ...(isMobile ? { flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' } : null),
                         // The band is still "between two rules" — but the rules
                         // are overlays below, not borders. A constant full-width
                         // line is a rectangle's edge; these fade to nothing at
@@ -1881,8 +1946,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             container is transparent so the row's themed gradient
                             shows through the gaps — recursion, KOTW and result
                             tint the whole band, not just the box around it. */}
-                        <div style={{ padding: isMobile ? '12px' : '8px 0 22px' }}>
-                            <div style={{ position: 'relative' }}>
+                        <div style={isMobile
+                            // Full-bleed and flexing: the shaft's mount is the
+                            // whole width and whatever height is left.
+                            ? { padding: 0, flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }
+                            : { padding: '8px 0 22px' }}>
+                            <div style={isMobile
+                                ? { position: 'relative', flex: '1 1 0', minHeight: 0 }
+                                : { position: 'relative' }}>
                                 {/* The street glow — THE NOCTURNE.
 
                                     Not a screen sheen: the wet street under the
@@ -1927,7 +1998,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                         machine and says so). */
                                     <div style={{
                                         position: 'relative',
-                                        height: isMobile ? '90px' : `${STRIP_HEIGHT}px`,
+                                        // The board fills the shaft's space on a
+                                        // phone, the way the reel it stands in for
+                                        // does. It was a 90px strip — a sliver in a
+                                        // column that is now ~640 — left over from
+                                        // when the phone's reel was a small box.
+                                        height: isMobile ? '100%' : `${STRIP_HEIGHT}px`,
+                                        flex: isMobile ? '1 1 0' : undefined,
+                                        minHeight: isMobile ? 0 : undefined,
                                         width: '100%',
                                         overflow: 'hidden',
                                         borderRadius: 0,
@@ -1943,29 +2021,54 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             // of it from the array's length.
                                             finalIndex={BONUS_FINAL_INDEX}
                                         />
+                                        {/* The platform line, turned to match the
+                                            board's travel: a vertical rule with
+                                            arrows above and below when it runs
+                                            across, a horizontal rule with arrows
+                                            at the sides when it runs down. An
+                                            indicator that points along the axis of
+                                            motion instead of across it is pointing
+                                            at a lane rather than at a slot. */}
                                         <div style={{
                                             position: 'absolute',
-                                            top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)',
-                                            width: '2px',
+                                            ...(isMobile
+                                                ? { left: 0, right: 0, top: '50%', transform: 'translateY(-50%)', height: '2px' }
+                                                : { top: 0, bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '2px' }),
                                             background: COLORS.orange,
                                             zIndex: 10,
                                             boxShadow: `0 0 14px ${COLORS.orange}, 0 0 28px ${COLORS.orange}88`,
                                         }} />
                                         <div style={{
                                             position: 'absolute',
-                                            top: '-1px', left: '50%', transform: 'translateX(-50%)',
                                             width: 0, height: 0,
-                                            borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
-                                            borderTop: `12px solid ${COLORS.orange}`,
+                                            ...(isMobile
+                                                ? {
+                                                    left: '-1px', top: '50%', transform: 'translateY(-50%)',
+                                                    borderTop: '8px solid transparent', borderBottom: '8px solid transparent',
+                                                    borderLeft: `12px solid ${COLORS.orange}`,
+                                                }
+                                                : {
+                                                    top: '-1px', left: '50%', transform: 'translateX(-50%)',
+                                                    borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
+                                                    borderTop: `12px solid ${COLORS.orange}`,
+                                                }),
                                             zIndex: 11,
                                             filter: `drop-shadow(0 0 6px ${COLORS.orange})`,
                                         }} />
                                         <div style={{
                                             position: 'absolute',
-                                            bottom: '-1px', left: '50%', transform: 'translateX(-50%)',
                                             width: 0, height: 0,
-                                            borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
-                                            borderBottom: `12px solid ${COLORS.orange}`,
+                                            ...(isMobile
+                                                ? {
+                                                    right: '-1px', top: '50%', transform: 'translateY(-50%)',
+                                                    borderTop: '8px solid transparent', borderBottom: '8px solid transparent',
+                                                    borderRight: `12px solid ${COLORS.orange}`,
+                                                }
+                                                : {
+                                                    bottom: '-1px', left: '50%', transform: 'translateX(-50%)',
+                                                    borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
+                                                    borderBottom: `12px solid ${COLORS.orange}`,
+                                                }),
                                             zIndex: 11,
                                             filter: `drop-shadow(0 0 6px ${COLORS.orange})`,
                                         }} />
@@ -1988,6 +2091,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     />
                                 ) : (
                             <div
+                                ref={reelMountRef}
                                 onClick={() => {
                                     if (!isMobile || !user || allItems.length === 0) return;
                                     if (state === 'result' || state === 'recursion' || state === 'luckyResult' || state === 'tripleResult' || state === 'tripleLuckyResult') {
@@ -1998,13 +2102,22 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 }}
                                 style={{
                                     position: 'relative',
-                                    height: isMobile ? `${MOBILE_STRIP_HEIGHT}px` : `${STRIP_HEIGHT}px`,
-                                    width: isMobile ? `${MOBILE_STRIP_WIDTH}px` : '100%',
+                                    // The shaft takes the height the stage row can
+                                    // give it and the full width of the viewport.
+                                    // `100%` on both axes, with the row above
+                                    // deciding how tall — a phone in landscape has
+                                    // 390px of height to spend and a phone in
+                                    // portrait has 844, and a fixed 260 served
+                                    // neither.
+                                    height: isMobile ? '100%' : `${STRIP_HEIGHT}px`,
+                                    width: '100%',
                                     overflow: 'hidden',
-                                    // No corners on desktop: the band leaves
-                                    // the screen on both sides.
-                                    borderRadius: isMobile ? '10px' : 0,
-                                    margin: isMobile ? '0 auto' : '0',
+                                    // No corners on either breakpoint now: the band
+                                    // leaves the screen on both sides on desktop,
+                                    // and the shaft does the same on a phone. A
+                                    // radius at the viewport edge is a notch.
+                                    borderRadius: 0,
+                                    margin: 0,
                                     // The mount's shadow, falling onto the page
                                     // behind it. Everything else inset is gone —
                                     // depth inside the band is the canvas's job.
@@ -2024,31 +2137,26 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     }} />
                                 )}
 
-                                {/* Center Indicator Line — mobile only.
-                                    On desktop the canvas draws a detent instead:
-                                    marks seated in the band's top hairline and
-                                    floor lip, with the hairline between them
-                                    opening out across the middle. This line ran
-                                    straight down the item at the one moment the
-                                    surface exists for, and it was the third thing
-                                    on the band saying "here" — see the indicator
-                                    block in CanvasSpinningStrip.jsx. The vertical
-                                    reel keeps it: its geometry has not been
-                                    reviewed on a real device. */}
-                                {isMobile && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        left: 0, right: 0, top: '50%', transform: 'translateY(-50%)',
-                                        height: '3px',
-                                        // bandAccent already resolves the precedence:
-                                        // lucky spin, then active event, then gold.
-                                        backgroundImage: `linear-gradient(90deg, transparent, ${bandAccent}, transparent)`,
-                                        zIndex: 10,
-                                        boxShadow: `0 0 12px ${bandAccent}, 0 0 24px ${bandAccent}88`,
-                                        animation: state === 'spinning' && spinProgress > 0.7 ? 'centerLinePulse 0.3s ease-in-out infinite' : 'none',
-                                        transition: 'all 0.3s ease-out',
-                                    }} />
-                                )}
+                                {/* The DOM centre line and the triangle pointers
+                                    are gone from BOTH breakpoints now.
+
+                                    Desktop lost them when the canvas learned to
+                                    draw a detent; the shaft kept them on the
+                                    honest grounds recorded here at the time — "its
+                                    geometry has not been reviewed on a real
+                                    device". It has been now, and the verdict is the
+                                    one desktop already reached: a 3px bar lying
+                                    across the middle of the band is a bar painted
+                                    over the item you are trying to look at, at the
+                                    one moment the surface exists for, and with two
+                                    triangles parked outside the edges it was three
+                                    things all saying "here".
+
+                                    The shaft draws its own detent instead — the
+                                    same two machined marks and opening hairline,
+                                    seated in the rails rather than in the hairline
+                                    and the lip. See the indicator block in
+                                    CanvasSpinningStrip.jsx. */}
 
                                 {/* Pointer - Enhanced with heartbeat during slowdown */}
                                 {showAnySpinLuckyEffects ? (
@@ -2128,41 +2236,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                             }} />
                                         </div>
                                     </>
-                                ) : isMobile ? (
-                                    /* Normal triangle pointers for regular spins — mobile only,
-                                       and mobile only for the same reason as the centre line
-                                       above: the desktop band's detent is seated in its own
-                                       edges, and an arrow parked outside those edges is a
-                                       second indicator arguing with the first. Lucky spins
-                                       keep their brackets on both, because those are a mode
-                                       signal rather than a pointer. */
-                                    <>
-                                        <div style={{
-                                            position: 'absolute',
-                                            left: '-3px', top: '50%', transform: 'translateY(-50%)',
-                                            borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
-                                            borderLeft: `14px solid ${bandAccent}`,
-                                            width: 0, height: 0,
-                                            zIndex: 11,
-                                            filter: `drop-shadow(0 0 6px ${bandAccent}) drop-shadow(0 0 12px ${bandAccent}66)`,
-                                            animation: state === 'spinning' && spinProgress > 0.7
-                                                ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite'
-                                                : 'none',
-                                        }} />
-                                        <div style={{
-                                            position: 'absolute',
-                                            right: '-3px', top: '50%', transform: 'translateY(-50%)',
-                                            borderTop: '10px solid transparent', borderBottom: '10px solid transparent',
-                                            borderRight: `14px solid ${bandAccent}`,
-                                            width: 0, height: 0,
-                                            zIndex: 11,
-                                            filter: `drop-shadow(0 0 6px ${bandAccent}) drop-shadow(0 0 12px ${bandAccent}66)`,
-                                            animation: state === 'spinning' && spinProgress > 0.7
-                                                ? 'indicatorHeartbeatMobile 0.4s ease-in-out infinite'
-                                                : 'none',
-                                        }} />
-                                    </>
                                 ) : null}
+                                {/* The phone's triangle pointers used to live here.
+                                    They are gone with the centre line above and for
+                                    the same reason — an arrow parked outside the
+                                    shaft's edges is a second indicator arguing with
+                                    the detent seated inside them. Lucky spins keep
+                                    their brackets on both breakpoints, because
+                                    those are a mode signal rather than a pointer. */}
 
                                 {/* Result Shockwave Effect */}
                                 {state === 'result' && (
@@ -2205,12 +2286,88 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     isRecursion={showSpinRecursionEffects}
                                     themeType={showSpinKotwLuckyEffects ? 'kotw' : null}
                                     accentColor={showSpinKotwLuckyEffects ? KOTW_GOLD : isLuckyMode ? COLORS.green : eventAccent || null}
-                                    stripWidth={isMobile ? MOBILE_STRIP_WIDTH : undefined}
-                                    stripHeight={isMobile ? MOBILE_STRIP_HEIGHT : STRIP_HEIGHT}
+                                    // Neither axis is fixed on a phone any more:
+                                    // the shaft fills its mount and the canvas
+                                    // measures its own box, the way the desktop
+                                    // band already did for width.
+                                    stripWidth={undefined}
+                                    stripHeight={isMobile ? undefined : STRIP_HEIGHT}
                                     finalIndex={FINAL_INDEX}
                                     goldRushBoostedRarity={goldRushBoostedRarity}
                                     isLuckySpin={showAnySpinLuckyEffects || isLuckyMode}
                                 />
+
+                                {/* The phone's payoff, drawn over the row it
+                                    landed on. See ShaftResult.jsx for why there is
+                                    no panel below the reel any more.
+
+                                    The row's `top` is the canvas's own formula —
+                                    `stripCentre + finalIndex × pitch − offset` —
+                                    and not the shaft's midpoint, because the spin
+                                    deliberately rests up to 45% of a pitch off
+                                    centre. Pinning this to the middle would float
+                                    the words away from their own sprite by up to
+                                    58px. Reading `canvasOffsetRef` during render is
+                                    safe here and only here: the offset is finished
+                                    moving by the time this state exists. */}
+                                {/* The idle caption, floated over the shaft's own
+                                    bottom vignette rather than given a row of its
+                                    own. That vignette is already the darkest part
+                                    of the reel — rows arrive out of it and leave
+                                    into it — so it is the one place on the surface
+                                    where text can sit over the reel and still be
+                                    the most legible thing in its area. Costs no
+                                    layout, which is the point: the reel now runs
+                                    to the bottom bar. */}
+                                {isMobile && state === 'idle' && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        left: 0, right: 0, bottom: 0,
+                                        paddingBottom: `${SPACE.md}px`,
+                                        textAlign: 'center',
+                                        pointerEvents: 'none',
+                                        zIndex: 12,
+                                    }}>
+                                        <div style={{
+                                            color: COLORS.gold,
+                                            fontSize: '15px',
+                                            fontWeight: 700,
+                                            textShadow: `0 0 20px ${COLORS.gold}44, 0 2px 8px rgba(0,0,0,0.9)`,
+                                        }}>
+                                            {!user ? 'Login to spin!'
+                                                : allItems.length === 0 ? 'Fetching item pool...'
+                                                    : 'Tap the reel to spin'}
+                                        </div>
+                                        <div style={{
+                                            fontSize: '11px',
+                                            color: COLORS.textMuted,
+                                            marginTop: '2px',
+                                            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                                        }}>
+                                            Win one of {totalItemCount.toLocaleString('en-US')} items
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isMobile && (state === 'result' || state === 'luckyResult')
+                                    && (state === 'result' ? result : luckyResult) && shaftHeight > 0 && (
+                                    <ShaftResult
+                                        result={state === 'result' ? result : luckyResult}
+                                        isNewItem={state === 'result' ? isNewItem : isLuckyNew}
+                                        collection={collection}
+                                        // The landed row's centre. The row's top is
+                                        // the canvas's own formula — `stripCentre +
+                                        // finalIndex × pitch − offset` — and not the
+                                        // shaft's midpoint, because the spin
+                                        // deliberately rests up to 45% of a pitch
+                                        // off centre; expanding around the midpoint
+                                        // would open the panel off its own tile.
+                                        centerY={(shaftHeight / 2 - MOBILE_ROW_PITCH / 2)
+                                            + FINAL_INDEX * MOBILE_ROW_PITCH
+                                            - canvasOffsetRef.current
+                                            + MOBILE_ROW_PITCH / 2}
+                                    />
+                                )}
                             </div>
                                 )}
                             </div>
@@ -2238,6 +2395,73 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         justifyContent: 'flex-start',
                         paddingTop: `${SPACE.md}px`,
                         zIndex: Z.content,
+                        // On a phone the stage is a fixed-height apron under the
+                        // shaft rather than the page's leftover space: the shaft
+                        // is the star and takes the slack, and the stage gets
+                        // exactly what the payoff needs. Fixed rather than
+                        // content-sized, so the shaft does not lurch between idle
+                        // and result — the no-collapse rule, applied to the axis a
+                        // phone actually has to spend.
+                        //
+                        // **200, and it is measured rather than picked.** It was
+                        // 266 on a guess, and the guess cost the shaft two rows:
+                        // on a 390×800 phone the surface's column is 536px, so a
+                        // 266px apron plus the 44px status console left the shaft
+                        // 226 — under two rows at a 128px pitch, which rendered as
+                        // a dark panel with one item in it. What the apron
+                        // actually holds is the spin card at 110×147 plus its
+                        // caption (~190px) at idle, and SpinResult's tier line,
+                        // 92px item, name and rate (~210px) at the payoff. 200
+                        // covers both with the name free to wrap to two lines, and
+                        // hands the shaft back 66px.
+                        // **The apron is the idle text and nothing else.**
+                        //
+                        // It ran 266 -> 200 -> 136 while it still had to hold the
+                        // payoff, and every one of those was a compromise between
+                        // two states: ~63px of idle copy against a ~208px result
+                        // panel. Sizing for the payoff wasted 145px of shaft for
+                        // the 99% of the time nothing has landed; sizing for the
+                        // idle overflowed the moment one did; sizing per state
+                        // moved the reel at the exact moment the player is
+                        // watching it.
+                        //
+                        // The tension is gone rather than balanced: the phone's
+                        // result is drawn on the winning row now (ShaftResult), so
+                        // the apron only ever holds the idle caption and the "Tap
+                        // the reel to spin" line. 88px covers those with air.
+                        //
+                        // The takeovers are the exception and keep a taller apron:
+                        // the bonus plaque, the lucky panel and the lane readout
+                        // still answer down here, and they change at the same
+                        // moment the band swaps its own content — so that row
+                        // change happens between modes, never mid-spin.
+                        //
+                        // **Zero for the normal and lucky modes.** With the payoff
+                        // drawn in the shaft there is nothing left down here but
+                        // the idle caption, and reserving 88px permanently to hold
+                        // two lines of text that vanish the moment you spin is the
+                        // same trade this row has already lost three times.
+                        //
+                        // The caption moves into the shaft's own bottom fade
+                        // instead (see the idle overlay in the reel), so the reel
+                        // runs to the bottom bar in every state. Deliberately NOT
+                        // a height that changes between idle and spinning: that
+                        // would resize the canvas at the moment of the press and
+                        // jump the reel. One height, always, and it is nothing.
+                        //
+                        // The takeovers keep their apron: the bonus plaque and the
+                        // lane readout still answer down here, and that row change
+                        // happens when the band swaps its own content, never
+                        // mid-spin.
+                        ...(isMobile
+                            ? {
+                                flex: '0 0 auto',
+                                height: isBonusMode || isTripleMode ? '236px' : '0px',
+                                paddingLeft: `${SPACE.md}px`,
+                                paddingRight: `${SPACE.md}px`,
+                                paddingTop: `${SPACE.sm}px`,
+                            }
+                            : null),
                         // The box the result flanks pin themselves to. They are
                         // absolute so that having or not having data cannot shift
                         // the result panel, which has to stay exactly under the
@@ -2261,7 +2485,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             layout metric is not a reason to put something in front
                             of someone. The hole is back and is a known open
                             question; the reel is what should fill it. */}
-                        {state === 'idle' && (
+                        {/* The phone's idle copy is drawn over the shaft's bottom
+                            fade instead — see the reel — so this stays desktop's. */}
+                        {!isMobile && state === 'idle' && (
                             <EnhancedWheelIdleState
                                 user={user}
                                 allItems={allItems}
@@ -2285,7 +2511,11 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             duplication the shared rarity ladder exists to prevent,
                             and it had already drifted. SpinResult reads every tier
                             from RARITY instead. */}
-                        {state === 'result' && result && (
+                        {/* Desktop only. On a phone the winning row carries the
+                            answer itself (ShaftResult, up in the reel), which is
+                            what lets the apron below shrink to the idle text and
+                            hand the difference to the shaft. */}
+                        {!isMobile && state === 'result' && result && (
                             <>
                                 <SpinResult
                                     result={result}
@@ -2311,7 +2541,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 isMobile={isMobile}
                             />
                         )}
-                        {state === 'luckyResult' && luckyResult && (
+                        {/* Desktop only — the phone's lucky spin lands in the
+                            shaft like an ordinary one. It shares the reel, so it
+                            should share the payoff; a panel below the reel for
+                            this mode and an in-place result for the normal one
+                            would be two answers to one question. */}
+                        {!isMobile && state === 'luckyResult' && luckyResult && (
                             <LuckyResultPanel
                                 result={luckyResult}
                                 isNewItem={isLuckyNew}
@@ -2355,8 +2590,21 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             vanishes in the middle of the moment. The shortcut
                             still exists at idle, through a normal spin, and at a
                             normal result, which is where a player spends almost
-                            all of their time. */}
-                        {!isTripleMode && <StageFlanks
+                            all of their time.
+
+                            `hasFlanks` is the other gate and it is a measurement,
+                            not a device guess: two 272px panels, two
+                            `clamp(20px, 5vw, 96px)` insets and a worst-case 420px
+                            result need about 1156px before anything touches, so
+                            they appear at 1200 and not before. Below that the
+                            desktop layout is correct and simply has no flanks —
+                            they are absolutely positioned and nothing else
+                            depends on them. This is what used to break: they were
+                            gated on `!isMobile` against a 600px threshold, so at
+                            760px both panels rendered on top of the spin control.
+                            On a phone their job moves to the bottom bar, where
+                            they stop being readouts and become destinations. */}
+                        {hasFlanks && !isTripleMode && <StageFlanks
                             showResultLine={state === 'result' && !!result}
                             isNewItem={isNewItem}
                             // `collection` is a map of texture -> count, not a
