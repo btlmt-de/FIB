@@ -73,39 +73,69 @@ const EVENT_CONFIG = {
 /**
  * The cell pitch, in one place because two things need it and they must agree.
  *
- * The animation computes how far to travel as `FINAL_INDEX * cellWidth`, and the
+ * The animation computes how far to travel as `RUN_UP * cellWidth`, and the
  * strip renders cells of `cellWidth`. When those disagree the reel lands on the
  * wrong event — silently, because both halves look fine on their own. Resizing the
  * cells for the inline layout without moving the animation's copy did exactly that:
  * the roll travelled 29 x 180 = 5,220px across a strip of 132px cells, landing on
  * index 39 of 40 instead of 29, so the header named one event and the strip stopped
  * on another.
+ *
+ * That is the bug this function was written to end, and for a while it did not,
+ * because **nothing ever called it.** It was added as the fix and the two
+ * restatements it was meant to replace were both left in place — the animation
+ * kept `isMobile ? 140 : 180` and the render kept `isMobile ? 108 : 132` — so the
+ * roll went on travelling 5,220px across 132px cells and stopping 10 cells past
+ * its own winner, in the dead space after the last cell. What the player saw was
+ * an empty strip; what actually happened is that the header named the event and
+ * the reel pointed at nothing.
+ *
+ * So: one call site each, and the value is captured into `pitch` when the roll
+ * starts. A ref rather than a re-read, because the two halves must agree for the
+ * whole roll and `isMobile` can flip mid-roll if the window is resized — which is
+ * the same disagreement arriving by a different door. Capturing it is what the
+ * "prevent resize mid-spin" comment on the animation always meant to do; it just
+ * captured the wrong number.
  */
 function cellWidth(isMobile) {
     return isMobile ? 108 : 132;
 }
 
-// Build a strip of events for the spinning animation
-function buildEventStrip(availableEvents, selectedEvent, stripLength = 30) {
+/**
+ * The strip's three sections, and the window has to stay full through all of them.
+ *
+ * `RUN_UP` is the travel — the roll moves exactly this many cells, so it is what
+ * the distance is computed from. `RUN_OUT` is what remains to the right of the
+ * winner when it stops; the widest this window ever gets is 460px, so ~2 cells
+ * would cover it and 10 is comfortable.
+ *
+ * `LEAD_IN` is new, and it is the other half of the empty-strip report. The strip
+ * used to begin *at* the pointer: cell 0 was centred at offset 0, with nothing to
+ * its left at all, so the first frames of every roll had a half-empty window on
+ * the left in the same way the mispitched landing had one on the right. Two cells
+ * covers the widest window; three, because a cell arriving exactly on the edge
+ * fade is not the same as one arriving behind it.
+ */
+const LEAD_IN = 3;
+const RUN_UP = 29;
+const RUN_OUT = 10;
+
+/**
+ * The strip, and the index the winner sits at.
+ *
+ * The index is returned rather than derived by the caller, because the caller
+ * deriving it is how the pitch bug happened one field over: two places computing
+ * the same number from different assumptions, both looking correct alone.
+ */
+function buildEventStrip(availableEvents, selectedEvent) {
+    const filler = () => availableEvents[Math.floor(Math.random() * availableEvents.length)];
+
     const strip = [];
-
-    // Fill most of the strip with random events
-    for (let i = 0; i < stripLength - 1; i++) {
-        const randomEvent = availableEvents[Math.floor(Math.random() * availableEvents.length)];
-        strip.push(randomEvent);
-    }
-
-    // The selected event (where it lands)
+    for (let i = 0; i < LEAD_IN + RUN_UP; i++) strip.push(filler());
     strip.push(selectedEvent);
+    for (let i = 0; i < RUN_OUT; i++) strip.push(filler());
 
-    // Add padding items AFTER the selected event so the strip doesn't look empty
-    const paddingCount = 10;
-    for (let i = 0; i < paddingCount; i++) {
-        const randomEvent = availableEvents[Math.floor(Math.random() * availableEvents.length)];
-        strip.push(randomEvent);
-    }
-
-    return strip;
+    return { strip, finalIndex: LEAD_IN + RUN_UP };
 }
 
 function EventSelectionWheel({ isMobile = false }) {
@@ -121,32 +151,58 @@ function EventSelectionWheel({ isMobile = false }) {
     const animationRef = useRef(null);
     const startTimeRef = useRef(null);
 
-    const STRIP_LENGTH = 30;
-    const FINAL_INDEX = STRIP_LENGTH - 1;
+    // ── What this roll was launched against ──────────────────────────────────
+    //
+    // Both of these are facts about the roll currently on screen, fixed when it
+    // starts and never re-derived while it runs. `pitch` is what the travel
+    // distance was computed from, so the cells must be drawn at it (see
+    // cellWidth); `finalIndex` is where the builder put the winner, so the cell
+    // the pointer lands on and the cell that lights up are one statement.
+    //
+    // State and not refs, though a ref is the obvious way to express "captured
+    // once". Both are read while rendering, and a ref read during render is a
+    // value React is not tracking — it would hold the right number and simply
+    // not repaint when it changed. That is the same class of silent
+    // disagreement as the pitch bug itself, so: state.
+    const [pitch, setPitch] = useState(cellWidth(isMobile));
+    const [finalIndex, setFinalIndex] = useState(LEAD_IN + RUN_UP);
 
     // Start animation when eventSelection is received
     useEffect(() => {
         if (eventSelection && eventSelection.selectedEvent) {
-            // Capture item width at animation start to prevent resize mid-spin
-            const itemWidth = isMobile ? 140 : 180;
+            // Capture the pitch at animation start, so a resize mid-roll cannot
+            // move the cells out from under the distance already committed to.
+            const itemWidth = cellWidth(isMobile);
+            setPitch(itemWidth);
 
-            const newStrip = buildEventStrip(
+            const built = buildEventStrip(
                 eventSelection.availableEvents || ['gold_rush', 'king_of_wheel'],
                 eventSelection.selectedEvent,
-                STRIP_LENGTH
             );
-            setStrip(newStrip);
+            setStrip(built.strip);
+            setFinalIndex(built.finalIndex);
             setIsVisible(true);
             setPhase('spinning');
             setOffset(0);
+            // The answer from last time, cleared before this roll starts.
+            //
+            // Same family as the isGone latch below, and missed for the same
+            // reason: this component is only ever *emptied* between events, never
+            // unmounted, so its state survives from one global event to the next.
+            // `resultEvent` is what the header reads, so the second event of a
+            // session opened by naming the FIRST one — the header said "GOLD RUSH"
+            // and the under-rail glowed amber for the whole four seconds a roll
+            // that had not landed yet, instead of saying "Selecting…". Invisible
+            // in a fresh tab, which is where it kept getting tested.
+            setResultEvent(null);
             startTimeRef.current = Date.now();
 
             playSfx?.('spin_start');
 
-            // Calculate total distance to travel
-            // We want to land on FINAL_INDEX (the last item in the strip)
-            // The strip starts with item 0 centered, so we need to move FINAL_INDEX items
-            const totalDistance = FINAL_INDEX * itemWidth;
+            // How far to travel. The strip starts with the cell at LEAD_IN under
+            // the pointer, so the roll moves RUN_UP cells to bring the winner —
+            // which sits RUN_UP further along — into that same spot.
+            const totalDistance = RUN_UP * itemWidth;
             const duration = eventSelection.selectionDuration || 4000;
 
             const animate = () => {
@@ -196,8 +252,9 @@ function EventSelectionWheel({ isMobile = false }) {
 
     if (isGone || !isVisible || strip.length === 0) return null;
 
-    // 132, down from 180. The slot is one row, not a screen.
-    const ITEM_WIDTH = isMobile ? 108 : 132;
+    // 132, down from 180. The slot is one row, not a screen. Read from the pitch
+    // the roll was launched against, never re-derived — see cellWidth().
+    const ITEM_WIDTH = pitch;
     const STRIP_HEIGHT = isMobile ? 46 : 52;
     const config = resultEvent ? EVENT_CONFIG[resultEvent] : null;
 
@@ -306,7 +363,11 @@ function EventSelectionWheel({ isMobile = false }) {
                     display: 'flex',
                     alignItems: 'center',
                     height: '100%',
-                    left: `calc(50% - ${ITEM_WIDTH / 2}px)`,
+                    // Backed off by the lead-in, so the cell under the pointer at
+                    // offset 0 is index LEAD_IN and there are cells to its left.
+                    // The strip used to start here, which left the window's left
+                    // half empty for the opening frames of every roll.
+                    left: `calc(50% - ${ITEM_WIDTH / 2 + LEAD_IN * ITEM_WIDTH}px)`,
                     transform: `translateX(-${offset}px)`,
                     transition: phase === 'result' ? 'none' : undefined,
                 }}>
@@ -315,7 +376,7 @@ function EventSelectionWheel({ isMobile = false }) {
                         if (!eventConfig) return null;
 
                         const Icon = eventConfig.icon;
-                        const isLanding = phase === 'result' && index === FINAL_INDEX;
+                        const isLanding = phase === 'result' && index === finalIndex;
 
                         return (
                             <div
