@@ -59,6 +59,84 @@ let atlasImage = null;
 let atlasMeta = null;
 let loadPromise = null;
 
+// ── The cell cache — why the atlas is never drawn from directly ──────────────
+//
+// The atlas fixed the network cost and created a raster one. A 4000x3900 source
+// is far past what Chrome will keep resident as a canvas texture, so *every*
+// `drawImage` off it pays to get the source rect out of that 62 MB bitmap again.
+// One draw is ~0.6 ms, which is invisible in isolation and ruinous in a loop:
+// the idle reel draws ~22 sprites a frame and spent 12.9 ms of a 16.7 ms budget
+// doing nothing but that. Measured on the running page, 1920px, DPR 1.
+//
+// It is the source's *dimensions* that cost, not its type — copying the atlas
+// into a same-size canvas or an ImageBitmap measured identically slow. Cutting
+// each cell into its own small canvas on first use took the same frame from
+// 13.1 ms to 0.6 ms. Nothing else about the drawing changed.
+//
+// The cache holds whole *cells*, gutter included, and callers still address the
+// tile at `pad` inside it — so sampling at a sprite's edge reaches the same
+// extruded pixels it reached in the atlas. Slicing the bare 96px tile would
+// have been 4% smaller and would have let a smoothed downscale sample past the
+// edge of a lone canvas, which is the exact artefact PAD exists to prevent.
+//
+// The one thing it is not is bit-exact. A canvas stores premultiplied alpha at
+// 8 bits, so a sprite's antialiased edge pixels come back off the cell canvas a
+// step or two from where they went in. Measured over 120 sprites drawn at 74px:
+// mean channel difference 0.24/255, 0.5% of channels off by more than 4, worst
+// pixel 14. The pack is hard-alpha almost everywhere, so most sprites are exact
+// and the rest are off by less than a display can show. Recorded because it is a
+// real difference and the next person to diff two frames should know why.
+//
+// Bounded because the collection book can address all ~1,550 sprites. A Map is
+// insertion-ordered, so re-inserting on hit makes it an LRU for free. The cap is
+// well above any one frame's working set — the reel needs ~22, the book's
+// virtualised grid ~120 — so eviction never happens inside a frame, which is the
+// only place it would cost anything.
+const CELL_CACHE_MAX = 512;
+const cellCache = new Map();
+
+/**
+ * The atlas cell at `index`, as its own small canvas. Cut on first use.
+ *
+ * Returns null when there is nothing to cut into (no DOM, no 2d context), and
+ * callers fall back to the atlas itself — correct, just slow.
+ */
+function getCell(index) {
+    const hit = cellCache.get(index);
+    if (hit !== undefined) {
+        // Touch: delete + set moves the key to the end of the iteration order.
+        cellCache.delete(index);
+        cellCache.set(index, hit);
+        return hit;
+    }
+
+    if (typeof document === 'undefined') return null;
+
+    const { cols } = atlasMeta;
+    const cell = atlasMeta.cell ?? atlasMeta.tile;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cell;
+    canvas.height = cell;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // 1:1, so smoothing cannot apply — but off is the honest declaration of
+    // intent for a copy, and it keeps the cut free of any resampling.
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+        atlasImage,
+        (index % cols) * cell, Math.floor(index / cols) * cell, cell, cell,
+        0, 0, cell, cell,
+    );
+
+    if (cellCache.size >= CELL_CACHE_MAX) {
+        cellCache.delete(cellCache.keys().next().value);
+    }
+    cellCache.set(index, canvas);
+    return canvas;
+}
+
 /**
  * Loads the atlas once per page. Concurrent callers share the same promise, and
  * a failure is remembered rather than retried on every frame — if the atlas is
@@ -173,6 +251,16 @@ export function getAtlasSprite(item) {
     const { tile, cols } = atlasMeta;
     const pad = atlasMeta.pad ?? 0;
     const cell = atlasMeta.cell ?? tile;
+
+    // Off the cell cache when we can — see CELL_CACHE_MAX for why drawing from
+    // the whole atlas is the single most expensive thing on this surface. The
+    // fallback is the atlas itself, so a browser that will not give us a canvas
+    // still renders; it just renders the way it used to.
+    const cutCell = getCell(index);
+    if (cutCell) {
+        return { image: cutCell, sx: pad, sy: pad, size: tile };
+    }
+
     return {
         image: atlasImage,
         sx: (index % cols) * cell + pad,
