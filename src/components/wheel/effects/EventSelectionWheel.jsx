@@ -138,7 +138,16 @@ const RUN_OUT = 10;
  * the same number from different assumptions, both looking correct alone.
  */
 function buildEventStrip(availableEvents, selectedEvent) {
-    const filler = () => availableEvents[Math.floor(Math.random() * availableEvents.length)];
+    // `availableEvents` is the server's list (`EVENT_TYPES.map(e => e.type)`), so
+    // a backend that ships a fifth event before the frontend knows about it sends
+    // a type EVENT_CONFIG has no row for. Such a cell cannot be drawn, and a cell
+    // that is not drawn is a cell of width zero — which slides every cell after it
+    // one pitch left and un-aligns the landing. Filtering here keeps the fillers
+    // to types that can actually be rendered; the placeholder in the render path
+    // covers the same hazard for `selectedEvent`, which we may not drop.
+    const known = availableEvents.filter((type) => EVENT_CONFIG[type]);
+    const pool = known.length ? known : Object.keys(EVENT_CONFIG);
+    const filler = () => pool[Math.floor(Math.random() * pool.length)];
 
     const strip = [];
     for (let i = 0; i < LEAD_IN + RUN_UP; i++) strip.push(filler());
@@ -265,7 +274,16 @@ function EventSelectionWheel({ isMobile = false }) {
     // 132, down from 180. The slot is one row, not a screen. Read from the pitch
     // the roll was launched against, never re-derived — see cellWidth().
     const ITEM_WIDTH = pitch;
-    const STRIP_HEIGHT = isMobile ? 46 : 52;
+    // 50 on a phone, up from 46, and the four extra pixels are load-bearing.
+    //
+    // At 108px wide the longest name ("KING OF THE WHEEL") wraps to two lines, so
+    // the cell needs icon + gap + two lines: 45.8px at the old 9px, against a 46px
+    // strip — 0.2px of headroom, which any font-metric variance or user font
+    // scaling clipped. At the 10px the type ramp actually calls for, it needs 48px.
+    // 50 clears that with 2px to spare and takes the label off the floor breach at
+    // the same time. Owner-approved 2026-08-20; the banner slot grows 4px on a
+    // phone, which is the whole cost.
+    const STRIP_HEIGHT = isMobile ? 50 : 52;
     const config = resultEvent ? EVENT_CONFIG[resultEvent] : null;
 
     return (
@@ -383,7 +401,16 @@ function EventSelectionWheel({ isMobile = false }) {
                 }}>
                     {strip.map((eventType, index) => {
                         const eventConfig = EVENT_CONFIG[eventType];
-                        if (!eventConfig) return null;
+
+                        // An unknown type still has to occupy its slot. Returning
+                        // null here removed the cell from the flex row, so the
+                        // strip lost a pitch and everything after it — including
+                        // the winner — slid one cell toward the pointer. Blank,
+                        // full width, no icon: it reads as an empty slot going
+                        // past rather than as the reel mis-landing.
+                        if (!eventConfig) {
+                            return <div key={index} style={{ width: `${ITEM_WIDTH}px`, flexShrink: 0, height: '100%' }} />;
+                        }
 
                         const Icon = eventConfig.icon;
                         const isLanding = phase === 'result' && index === finalIndex;
@@ -443,7 +470,21 @@ function EventSelectionWheel({ isMobile = false }) {
                                     }}
                                 />
                                 <span style={{
-                                    fontSize: '9px',
+                                    // ── The 9px floor breach is gone here too ──────
+                                    //
+                                    // DESIGN.md says outright "The 9px floor breach is
+                                    // gone", with 10px allowed only for an uppercase
+                                    // letter-spaced badge — which is exactly what this
+                                    // is. One size at both breakpoints, because the
+                                    // rule is about what a person can read and a phone
+                                    // is the harder case, not the easier one.
+                                    //
+                                    // Measured: desktop needs 39px of its 52px strip
+                                    // with every name on one line; mobile wraps the two
+                                    // longest to two lines and needs 48px, which is why
+                                    // STRIP_HEIGHT went to 50 above. Change either one
+                                    // and re-measure both — they are one decision.
+                                    fontSize: '10px',
                                     fontWeight: 700,
                                     color: eventConfig.color,
                                     textAlign: 'center',

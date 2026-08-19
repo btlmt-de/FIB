@@ -176,7 +176,11 @@ export function MobileTabBar({ onSelect, active = null, unreadChat = 0 }) {
                             {label}
                         </span>
                         {unreadChat > 0 && id === 'chat' && (
-                            <span className="sr-only">{unreadChat} unread messages</span>
+                            /* fib-sr-only, not sr-only: there is no Tailwind here and
+                               index.css defines only the prefixed class. Unprefixed,
+                               this span had no styles at all, so the count rendered
+                               as visible text inside the tab. */
+                            <span className="fib-sr-only">{unreadChat} unread messages</span>
                         )}
                     </button>
                 );

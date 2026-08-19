@@ -47,7 +47,14 @@ export function parseServerDate(dateString) {
 
     let dateStr = dateString;
     if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
-        dateStr = dateStr + 'Z';
+        // SQLite writes `YYYY-MM-DD HH:MM:SS` with a space. Appending `Z` to that
+        // gives `2026-08-20 12:34:56Z`, which is NOT the Date Time String Format
+        // the spec requires a parser to accept — it separates date and time with
+        // `T`. Anything else is implementation-defined: V8 shrugs and parses it,
+        // stricter engines return Invalid Date, and the whole feed then renders
+        // its ages as null. Normalising the separator costs nothing and makes the
+        // string one every engine is obliged to read.
+        dateStr = dateStr.replace(' ', 'T') + 'Z';
     }
 
     const date = new Date(dateStr);

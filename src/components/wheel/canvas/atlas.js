@@ -21,15 +21,13 @@
 
 import { getItemImageUrl } from '../../../utils/helpers.js';
 
-// WebP, not PNG: at this size a lossless WebP atlas is 6.4 MB against 10.1 MB as
-// PNG, for identical pixels. A browser too old to decode it fails loadAtlas() and
-// falls back to individual sprites, so the format costs nothing in reach.
-//
-// Exported so App.jsx can preload the pair as soon as /wheel is requested —
-// 6.4 MB that only starts downloading after the lazy chunk mounts is 6.4 MB
-// the cold start did not need.
-export const ATLAS_IMAGE = '/fib-atlas.webp';
-export const ATLAS_JSON = '/fib-atlas.json';
+// The two URLs live in atlasUrls.js — a leaf module with no imports — so that
+// App.jsx can preload the index without pulling this file and utils/helpers.js
+// into the entry chunk. Imported (loadAtlas uses both) and re-exported, so
+// existing importers of atlas.js keep working and there is one definition.
+import { ATLAS_IMAGE, ATLAS_JSON } from './atlasUrls.js';
+
+export { ATLAS_IMAGE, ATLAS_JSON };
 
 /**
  * What is packed, and under which key.

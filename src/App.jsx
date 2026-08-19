@@ -5,7 +5,9 @@ import Navigation from './components/common/Navigation';
 
 // Config
 import { COLORS } from './config/constants';
-import { ATLAS_IMAGE, ATLAS_JSON } from './components/wheel/canvas/atlas.js';
+// A leaf module, deliberately: importing this from atlas.js would pull the
+// wheel's canvas layer and utils/helpers.js into the entry chunk for one string.
+import { ATLAS_JSON } from './components/wheel/canvas/atlasUrls.js';
 
 /*
  * Every route is code-split. There is no page here that a visitor to another
@@ -110,14 +112,32 @@ export default function App() {
     if (currentPage === 'wheel') {
         /*
          * The lazy chunk and the atlas are the wheel's two cold-start costs;
-         * preloading the atlas while the chunk downloads overlaps them instead
-         * of serialising. React 19 hoists these <link>s into <head>. The JSON
-         * carries crossOrigin because fetch() is a CORS request even when the
-         * URL is same-origin, and a preload without it would not match.
+         * preloading the index while the chunk downloads overlaps them instead
+         * of serialising. React 19 hoists this <link> into <head>. It carries
+         * crossOrigin because fetch() is a CORS request even when the URL is
+         * same-origin, and a preload without it would not match.
+         *
+         * ── The image is deliberately NOT preloaded ──────────────────────────
+         *
+         * It was, and it was 6.4 MB of pure waste. atlas.js requests the image
+         * as `/fib-atlas.webp?v=<version>` — the version stamp is load-bearing,
+         * it exists because a cached image once disagreed with a fresh index and
+         * shifted every sprite past #356. A preload of the bare
+         * `/fib-atlas.webp` is a DIFFERENT URL, so the browser fetched 6.4 MB,
+         * used none of it, and then fetched the versioned 6.4 MB for real.
+         *
+         * It cannot be fixed by versioning the link: the version lives inside
+         * the JSON and is not known until that JSON has been fetched and parsed,
+         * which is exactly the thing this preload runs ahead of. Restoring the
+         * overlap properly means baking the version in at build time — vendor
+         * -atlas.mjs would emit it as a module beside public/fib-atlas.json —
+         * and that is a build-pipeline change, not a render-path one.
+         *
+         * The JSON preload below still overlaps the part that can overlap, and
+         * atlas.js starts the image the moment the index parses.
          */
         return (
             <>
-                <link rel="preload" as="image" href={ATLAS_IMAGE} />
                 <link rel="preload" as="fetch" href={ATLAS_JSON} type="application/json" crossOrigin="anonymous" />
                 <Suspense fallback={<RouteFallback />}>
                     <WheelOfFortune onBack={() => navigate('home')} />
