@@ -63,11 +63,12 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { getRarityColor, sampleHolo, createHoloGradient, isIridescentRarity } from '../../../../utils/rarityHelpers.jsx';
-import { prestigeKey, prestigeLabel } from '../../../../utils/prestigeHelpers.js';
+import { prestigeKey, prestigeLabel, prestigeName } from '../../../../utils/prestigeHelpers.js';
 import { getItemImageUrl } from '../../../../utils/helpers.js';
 import { getAtlasSprite, drawItemSprite } from '../../canvas/atlas.js';
 import { FlapText, BoardLabel } from './FlapBoard.jsx';
 import { DECK } from '../../config/constants';
+import { prefersReducedMotion } from '../../../../utils/motion.js';
 
 /*
  * The timeline, in seconds.
@@ -135,11 +136,6 @@ function withAlpha(hex, a) {
 
 function easeInCubic(t) { return t * t * t; }
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-
-function prefersReducedMotion() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 export function PrestigeAscension({ level, items, collection, onDone }) {
     const canvasRef = useRef(null);
@@ -505,20 +501,22 @@ export function PrestigeAscension({ level, items, collection, onDone }) {
             {/* The proclamation. Drums, because this is still the board talking. */}
             {proclaiming && (
                 <div
-                    className={isIridescentRarity(prestigeKey(level)) ? 'fib-holo-text' : undefined}
+                    className={[
+                        'fib-prestige-proclaim',
+                        isIridescentRarity(prestigeKey(level)) ? 'fib-holo-text' : '',
+                    ].filter(Boolean).join(' ')}
                     style={{
                         position: 'absolute', inset: 0,
                         display: 'flex', flexDirection: 'column',
                         alignItems: 'center', justifyContent: 'center', gap: '10px',
                         pointerEvents: 'none',
-                        animation: 'fib-prestige-land 620ms cubic-bezier(0.22, 1, 0.36, 1) both',
                     }}
                 >
                     <BoardLabel size={13} tone={DECK.ink} style={{ letterSpacing: '0.4em' }}>
                         Prestige
                     </BoardLabel>
                     <FlapText
-                        text={prestigeLabel(level)?.replace(' Prestige', '') || ''}
+                        text={prestigeName(level) || ''}
                         size={72}
                         weight={800}
                         plate

@@ -31,6 +31,21 @@ export function prestigeLabel(level) {
     return key ? `${RARITY[key].label} Prestige` : null;
 }
 
+/**
+ * Just the rank's name — "Mythic".
+ *
+ * For the places that already say "prestige" in their own furniture and would
+ * only be repeating themselves: the phone's board title, which sits directly on
+ * top of a lens whose selected option reads PRESTIGE, and the ceremony's
+ * proclamation, which prints the word above it at label size. Both were doing
+ * this with a `.replace(' Prestige', '')` on the full label, which is a string
+ * operation standing in for a missing accessor.
+ */
+export function prestigeName(level) {
+    const key = prestigeKey(level);
+    return key ? RARITY[key].label : null;
+}
+
 /** Fill colour for a level's ring, dot or bar. */
 export function prestigeColor(level) {
     const key = prestigeKey(level);

@@ -400,48 +400,6 @@ html, body {
 }
 
 /*
- * The prestige moment.
- *
- * A concourse board does one thing when the schedule changes: the whole board
- * flips. That is already what happens here for free — every FlapText re-runs its
- * cascade when its value changes, and switching the lens changes every value on
- * the board at once — so this adds only what the drums cannot say: a single sweep
- * of the new level's colour down the deck, and a brief lift of the board's own
- * rail light as the light comes up on the new schedule.
- *
- * One sweep, 1.4s, then nothing. The board does not keep celebrating.
- */
-.fib-board-flip { position: relative; }
-.fib-board-flip::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--fib-flip-tone, #FFAA00) 22%, transparent) 45%,
-    color-mix(in srgb, var(--fib-flip-tone, #FFAA00) 6%, transparent) 60%,
-    transparent 100%
-  );
-  animation: fib-board-sweep 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes fib-board-sweep {
-  0%   { transform: translateY(-100%); opacity: 0; }
-  18%  { opacity: 1; }
-  100% { transform: translateY(100%); opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* The board still changes — it just does not sweep. The drums hold their
-     values immediately under reduced motion, so the new schedule is simply
-     there, which is the correct reading of "reveals never withhold". */
-  .fib-board-flip::after { animation: none; opacity: 0; }
-}
-
-/*
  * THE CONVERGENCE — the prestige moment's DOM half.
  *
  * The canvas does the physics; these two rules do the announcement, because the
@@ -450,6 +408,10 @@ html, body {
 
 /* The level lands. An overshoot is the one place on this surface it is right:
    the word is arriving from the detonation, not easing politely into place. */
+.fib-prestige-proclaim {
+  animation: fib-prestige-land 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes fib-prestige-land {
   0%   { transform: scale(1.9); opacity: 0; filter: blur(14px); }
   55%  { opacity: 1; }
@@ -476,6 +438,10 @@ html, body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fib-holo-text { animation: none; }
-  [style*="fib-prestige-land"] { animation: none !important; }
+  /* The level still arrives — it just does not fly in. Addressed by class:
+     this was an attribute selector matching the animation's name inside an
+     inline style, which worked only for as long as nobody reformatted the
+     style object it was reading. */
+  .fib-holo-text,
+  .fib-prestige-proclaim { animation: none; }
 }

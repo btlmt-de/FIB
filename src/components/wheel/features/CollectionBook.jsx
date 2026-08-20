@@ -68,7 +68,7 @@ import { RARITY, getRarityColor, getRarityInk, getRarityOrder } from '../../../u
 import { X, Search, Sparkles, Coins, Crown } from 'lucide-react';
 import { CanvasCollectionGrid } from '../canvas/CanvasCollectionGrid.jsx';
 import { FlapText, BoardLabel, RowLamp, BoardMeter, Plinth } from './collection/FlapBoard.jsx';
-import { prestigeLabel, prestigeColor, prestigeInk, prestigeIcon, isIridescentPrestige, MAX_PRESTIGE_LEVEL } from '../../../utils/prestigeHelpers.js';
+import { prestigeLabel, prestigeName, prestigeColor, prestigeInk, prestigeIcon, isIridescentPrestige, MAX_PRESTIGE_LEVEL } from '../../../utils/prestigeHelpers.js';
 import { PrestigeAscension } from './collection/PrestigeAscension.jsx';
 import { useWheelViewport } from '../config/breakpoints.js';
 
@@ -84,6 +84,12 @@ const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
 /* One frozen empty object, so "no prestige data yet" has a stable identity and
    does not invalidate a memo simply by being absent. */
 const EMPTY = Object.freeze({});
+
+/* The tiers that count as a special pull. Spelled out rather than derived as
+   "everything that is not common", because the pool's items reach this file
+   under two different names depending on where they were read from — 'regular'
+   from the wheel's own tables, 'common' from the roster this board assembles. */
+const SPECIAL_TYPES = new Set(['insane', 'mythic', 'legendary', 'exotic', 'rare']);
 
 /* Tiers with no dry streak to show. Insane is the decision the old book recorded
    and it is still right: one item at 0.000001% makes the streak every player's
@@ -675,28 +681,86 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
     }, [starting, loadPrestige]);
 
     const filtered = Boolean(tierFilter) || have !== 'all' || search.trim().length > 0;
+    // "LEGENDARY PRESTIGE" is eighteen characters of drum — about 324px at the
+    // phone's 28px step, in a 358px board — so it overflowed its row and the
+    // earned-level badge sat on top of its last letters. The word "Prestige" is
+    // the one part a phone can afford to lose: the lens directly beneath the
+    // title already says it, and says it as the *selected* state.
     const boardTitle = prestigeView
-        ? (prestigeLabel(shownLevel) || 'Prestige')
+        ? ((isPhone ? prestigeName(shownLevel) : prestigeLabel(shownLevel)) || 'Prestige')
         : (viewingUser ? `${viewingUser}` : 'Collection');
 
     // The head's figures. Fixed columns, divided by rules, label under value —
     // the register's own grammar one size up, not a row of stat cards.
-    const headFigures = [
-        { label: 'Held', value: fmt(totals.held), tone: DECK.ink },
-        { label: 'Missing', value: fmt(totals.missing), tone: totals.missing > 0 ? DECK.amber : DECK.inkDim },
-        { label: 'Complete', value: `${totals.pct.toFixed(1)}%`, tone: DECK.ink },
-        { label: 'Spins', value: fmt(totals.spins), tone: DECK.inkMid },
-        { label: 'Duplicates', value: fmt(totals.dupes), tone: DECK.inkMid },
-        {
-            // The long form drives this column ~115px wide, which is what pushed
-            // the phone's spin register onto a second line with one figure
-            // stranded on it. The title carries the full sentence either way.
-            label: isPhone ? 'Per special' : 'Spins per special',
-            value: totals.perSpecial ?? '—',
-            tone: DECK.inkMid,
-            title: 'Total spins divided by every Rare-and-above pull on record',
-        },
-    ];
+    /*
+     * The second register follows the lens.
+     *
+     * On the main board these are the career figures they have always been. On a
+     * prestige board they were *still* the career figures, which put "249 held"
+     * on the same coping as "50,342 duplicates" — two numbers about different
+     * collections, one of them looking very much like a total for the run you are
+     * staring at. A lens that changes the subject has to change the facts with it.
+     *
+     * Everything here is derived from the run's own rows, so nothing new is
+     * fetched and nothing can disagree with the register below it.
+     */
+    const runFacts = useMemo(() => {
+        if (!prestigeView) return null;
+        const counts = Object.values(activeCollection);
+        const unique = counts.length;
+        const dupes = counts.reduce((sum, n) => sum + n, 0) - unique;
+        // Tested against the ladder, NOT against 'common'. A pool item is stored
+        // as `item_type = 'regular'` in the wheel's database and only normalised
+        // to 'common' when this board builds its own roster — so "not common"
+        // was true for every ordinary item and this read 249 specials out of 249
+        // items. Two spellings of the same idea, and the filter met the other one.
+        const specials = Object.entries(activeCollection)
+            .filter(([texture, n]) => n > 0 && SPECIAL_TYPES.has(activeDetails[texture]?.type))
+            .length;
+        const run = prestige?.runs?.find(r => r.level === shownLevel);
+        return { dupes, specials, startedAt: run?.startedAt || null };
+    }, [prestigeView, activeCollection, activeDetails, prestige, shownLevel]);
+
+    const headFigures = prestigeView
+        ? [
+            { label: 'Held', value: fmt(totals.held), tone: DECK.ink },
+            { label: 'Missing', value: fmt(totals.missing), tone: totals.missing > 0 ? DECK.amber : DECK.inkDim },
+            { label: 'Complete', value: `${totals.pct.toFixed(1)}%`, tone: DECK.ink },
+            {
+                label: 'Duplicates',
+                value: fmt(runFacts?.dupes || 0),
+                tone: DECK.inkMid,
+                title: 'Duplicates pulled during this prestige run',
+            },
+            {
+                label: 'Specials',
+                value: fmt(runFacts?.specials || 0),
+                tone: DECK.inkMid,
+                title: 'Rare-and-above items held in this run',
+            },
+            {
+                label: 'Started',
+                value: fmtDate(runFacts?.startedAt) || '—',
+                tone: DECK.inkMid,
+                title: 'When this prestige run was opened',
+            },
+        ]
+        : [
+            { label: 'Held', value: fmt(totals.held), tone: DECK.ink },
+            { label: 'Missing', value: fmt(totals.missing), tone: totals.missing > 0 ? DECK.amber : DECK.inkDim },
+            { label: 'Complete', value: `${totals.pct.toFixed(1)}%`, tone: DECK.ink },
+            { label: 'Spins', value: fmt(totals.spins), tone: DECK.inkMid },
+            { label: 'Duplicates', value: fmt(totals.dupes), tone: DECK.inkMid },
+            {
+                // The long form drives this column ~115px wide, which is what
+                // pushed the phone's spin register onto a second line with one
+                // figure stranded on it. The title carries the full sentence.
+                label: isPhone ? 'Per special' : 'Spins per special',
+                value: totals.perSpecial ?? '—',
+                tone: DECK.inkMid,
+                title: 'Total spins divided by every Rare-and-above pull on record',
+            },
+        ];
 
     // The register's columns, and the order is an argument.
     //
@@ -820,12 +884,20 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                 rather than cleared. Only shown once there is more
                                 than one to choose between. */}
                             {prestigeView && selectableLevels.length > 1 && (
-                                <Segmented
-                                    value={String(shownLevel)}
-                                    onChange={v => setViewLevel(Number(v))}
-                                    options={selectableLevels.map(l => [String(l), ROMAN[l] || String(l)])}
-                                    label="Prestige level"
-                                />
+                                // Labelled like SHOW and SORT below it. Bare
+                                // numerals next to two labelled groups is a
+                                // control that never says what it controls, and
+                                // "I II III" is the least self-describing set on
+                                // the board.
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <BoardLabel>Level</BoardLabel>
+                                    <Segmented
+                                        value={String(shownLevel)}
+                                        onChange={v => setViewLevel(Number(v))}
+                                        options={selectableLevels.map(l => [String(l), ROMAN[l] || String(l)])}
+                                        label="Prestige level"
+                                    />
+                                </span>
                             )}
                         </div>
 
@@ -961,7 +1033,15 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                         collection's completion. It replaces the thin rounded
                         progress bar and needs no label, because HELD and COMPLETE
                         are standing directly above it. */}
-                    <BoardMeter value={totals.pct / 100} tone={DECK.amber} height={3} />
+                    {/* The board's baseline takes the level's colour on a
+                        prestige board, where the title, the badge and the level
+                        selector all already carry it; station amber is the main
+                        board's own signal and stays there. */}
+                    <BoardMeter
+                        value={totals.pct / 100}
+                        tone={(prestigeView && prestigeColor(shownLevel)) || DECK.amber}
+                        height={3}
+                    />
 
                     {/*
                      * The spin figures, folded into one tracked line.

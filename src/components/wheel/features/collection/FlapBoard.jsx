@@ -45,6 +45,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { DECK } from '../../config/constants';
+import { prefersReducedMotion } from '../../../../utils/motion.js';
 
 /*
  * The flap drum's alphabet. A real board carries A–Z, 0–9 and a handful of
@@ -59,11 +60,6 @@ const DIGIT_DRUM = '0123456789';
 
 const STEP_MS = 52;
 const LEAD_FRAMES = 2;
-
-function reducedMotion() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 /** The frame at which cell `i` stops shuffling. */
 function settleFrame(i) {
@@ -97,7 +93,7 @@ export function FlapText({
     const value = String(text);
     // Read once. A media query that changes mid-session re-renders the board
     // anyway, and re-reading it per frame is a layout query in a hot path.
-    const [motionOff] = useState(reducedMotion);
+    const [motionOff] = useState(prefersReducedMotion);
     const [frame, setFrame] = useState(-1);
     const timerRef = useRef(null);
 
