@@ -12,7 +12,7 @@
  * that is loaded but unreferenced costs one cached request and no pixels. The
  * URL is byte-identical to HomePage's so the two share one cache entry.
  */
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
+@import 'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap';
 
 * {
   margin: 0;
@@ -442,6 +442,9 @@ html, body {
      this was an attribute selector matching the animation's name inside an
      inline style, which worked only for as long as nobody reformatted the
      style object it was reading. */
-  .fib-holo-text,
+  .fib-holo-text {
+    animation: none;
+    background-position: -45% 50%;
+  }
   .fib-prestige-proclaim { animation: none; }
 }

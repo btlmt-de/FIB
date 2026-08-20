@@ -718,9 +718,9 @@ export function CanvasCollectionGrid({
         setScrollTop(newScrollTop);
 
         // The cells moved under a pointer that did not, so whatever was hovered
-        // a frame ago is now a different item.
+        // a frame ago is now a different item. Skip if keyboard owns the platform.
         const pt = pointerRef.current;
-        if (pt) {
+        if (pt && focusedIndexRef.current < 0) {
             announce(getItemIndexAtPoint(pt.x, pt.y, e.target.getBoundingClientRect()));
         }
     }, [announce, getItemIndexAtPoint]);
@@ -818,6 +818,11 @@ export function CanvasCollectionGrid({
                 overflow: 'hidden',
             }}
         >
+            {/* Item count for aria-describedby */}
+            <div id="fib-collection-count" className="fib-sr-only">
+                {items.length} items
+            </div>
+
             {/* Canvas layer - underneath, no pointer events */}
             <canvas
                 ref={canvasRef}
@@ -847,10 +852,19 @@ export function CanvasCollectionGrid({
                         announce(0);
                     }
                 }}
-                onBlur={() => { focusedIndexRef.current = -1; announce(-1); }}
+                onBlur={() => {
+                    focusedIndexRef.current = -1;
+                    // Re-announce stationary pointer or clear if none.
+                    const pt = pointerRef.current;
+                    if (pt && scrollerRef.current) {
+                        announce(getItemIndexAtPoint(pt.x, pt.y, scrollerRef.current.getBoundingClientRect()));
+                    } else {
+                        announce(-1);
+                    }
+                }}
                 tabIndex={0}
-                role="grid"
-                aria-label={`${items.length} items`}
+                aria-label="Collection items"
+                aria-describedby="fib-collection-count"
                 className="fib-board-scroll fib-platform-scroll"
                 style={{
                     position: 'absolute',

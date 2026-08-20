@@ -1129,6 +1129,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setStrip(newStrip);
             setLuckyResult(finalItem);
             setIsLuckyNew(spinResult.isNew);
+            setPrestigePull(spinResult.prestige || null);
             offsetRef.current = 0;
             canvasOffsetRef.current = 0;
 

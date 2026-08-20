@@ -1244,10 +1244,14 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                          * shouting at the mouse.
                          */}
                         {readout && (
-                            <span style={{
-                                display: 'flex', alignItems: 'baseline', gap: '8px',
-                                minWidth: 0, overflow: 'hidden',
-                            }}>
+                            <span
+                                role="status"
+                                aria-live="polite"
+                                style={{
+                                    display: 'flex', alignItems: 'baseline', gap: '8px',
+                                    minWidth: 0, overflow: 'hidden',
+                                }}
+                            >
                                 <BoardLabel
                                     size={13}
                                     tone={readout.held ? DECK.ink : DECK.inkDim}

@@ -45,7 +45,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { DECK } from '../../config/constants';
-import { prefersReducedMotion } from '../../../../utils/motion.js';
+import { prefersReducedMotion } from '../../../../pages/Stats/env.js';
 
 /*
  * The flap drum's alphabet. A real board carries A–Z, 0–9 and a handful of

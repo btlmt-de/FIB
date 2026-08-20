@@ -68,7 +68,7 @@ import { getItemImageUrl } from '../../../../utils/helpers.js';
 import { getAtlasSprite, drawItemSprite } from '../../canvas/atlas.js';
 import { FlapText, BoardLabel } from './FlapBoard.jsx';
 import { DECK } from '../../config/constants';
-import { prefersReducedMotion } from '../../../../utils/motion.js';
+import { prefersReducedMotion } from '../../../../pages/Stats/env.js';
 
 /*
  * The timeline, in seconds.
@@ -198,7 +198,6 @@ export function PrestigeAscension({ level, items, collection, onDone }) {
     // Reduced motion: no physics, the announcement holds and then leaves.
     useEffect(() => {
         if (!prefersReducedMotion()) return undefined;
-        setLanded(totalHeld);
         const t = window.setTimeout(finish, 3400);
         return () => window.clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
