@@ -28,21 +28,72 @@ export function formatChance(chance) {
     return formatted.replace(/\.?0+$/, '');
 }
 
-// Format time ago string
-export function formatTimeAgo(dateString) {
-    if (!dateString) return 'Unknown';
+/**
+ * A timestamp as the wheel backend sends it, as a Date — or null if unparseable.
+ *
+ * SQLite returns UTC timestamps with no 'Z' suffix, and a bare "2026-08-16
+ * 12:00:00" is parsed as *local* time by every browser, so every relative time on
+ * the site would be wrong by the viewer's UTC offset. Suffixing it is the fix, and
+ * the check has to tolerate the values that already carry a zone: a trailing 'Z',
+ * a '+hh:mm', or a '-hh:mm' — the last one searched from index 10 so the date's own
+ * hyphens do not count as one.
+ *
+ * Extracted so there is exactly one copy of that rule. It was inline in
+ * formatTimeAgo, and the second caller that needed a different *wording* of the
+ * same instant would otherwise have copied the parsing along with it.
+ */
+export function parseServerDate(dateString) {
+    if (!dateString) return null;
 
-    // Parse the date - SQLite returns UTC timestamps without 'Z' suffix
-    // Add 'Z' if not present to ensure proper UTC parsing
     let dateStr = dateString;
     if (!dateStr.endsWith('Z') && !dateStr.includes('+') && !dateStr.includes('-', 10)) {
-        dateStr = dateStr + 'Z';
+        // SQLite writes `YYYY-MM-DD HH:MM:SS` with a space. Appending `Z` to that
+        // gives `2026-08-20 12:34:56Z`, which is NOT the Date Time String Format
+        // the spec requires a parser to accept — it separates date and time with
+        // `T`. Anything else is implementation-defined: V8 shrugs and parses it,
+        // stricter engines return Invalid Date, and the whole feed then renders
+        // its ages as null. Normalising the separator costs nothing and makes the
+        // string one every engine is obliged to read.
+        dateStr = dateStr.replace(' ', 'T') + 'Z';
     }
 
     const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? null : date;
+}
 
-    // Validate date
-    if (isNaN(date.getTime())) return 'Unknown';
+/**
+ * How long to hold a live drop back before showing it, in ms.
+ *
+ * The server resolves a spin the moment the request lands and broadcasts it over
+ * SSE straight away, but the client animates the reel for ~4s afterwards. So every
+ * surface that renders a live drop is holding the answer to a question the reel has
+ * not finished asking, and anything that renders it immediately is a spoiler: the
+ * ticker was showing you your own item while your wheel was still turning.
+ *
+ * Measured from the drop's own `created_at` rather than from arrival, which is what
+ * makes it correct for the cases that are not a simple local spin — a drop from
+ * another player that reaches you late, a tab that was backgrounded, a reconnect
+ * that replays recent events. An item that is already older than the reveal window
+ * has no animation left to wait for and shows at once.
+ *
+ * This rule existed three times before it existed once: the toast had it inline,
+ * the celebration has its own per-user variant, and First Blood hardcodes 5000. The
+ * feed had no copy at all, which is why it was the surface that leaked.
+ */
+export const SPIN_REVEAL_MS = 4500;
+
+export function spinRevealDelay(dateString, now = Date.now()) {
+    const date = parseServerDate(dateString);
+    if (!date) return SPIN_REVEAL_MS;
+
+    const age = Math.max(0, now - date.getTime());
+    return Math.max(0, SPIN_REVEAL_MS - age);
+}
+
+// Format time ago string
+export function formatTimeAgo(dateString) {
+    const date = parseServerDate(dateString);
+    if (!date) return 'Unknown';
 
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
@@ -238,7 +289,7 @@ export function getItemImageUrl(item) {
         return '/jimbo.png';
     }
     if (texture === 'recursion' || texture === 'wheel') {
-        return '/wheel.png';
+        return `${CUSTOM_IMAGE_BASE_URL}/wheel.png`;
     }
 
     // Check if item has image_url field from database (overrides default construction)
@@ -272,7 +323,7 @@ export function getItemImageUrl(item) {
 
     // Recursion items use wheel texture
     if (type === 'recursion' || texture === 'recursion') {
-        return '/wheel.png';
+        return `${CUSTOM_IMAGE_BASE_URL}/wheel.png`;
     }
 
     // Regular items

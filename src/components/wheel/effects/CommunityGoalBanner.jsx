@@ -54,6 +54,12 @@ const tierColor = key => TIER_COLORS[key] || CG_PRIMARY;
 // How long the "goal raised" notice and its ring stay up after the target climbs.
 const GOAL_RAISED_MS = 2500;
 
+// How long after the clock expires the banner waits for the result stream before
+// falling back to hiding itself. See the active-timer effect: hiding at 0:00
+// exactly races the end broadcasts, and the banner used to fade out and then
+// slide back in when community_goal_result arrived a moment later.
+const RESULT_GRACE_MS = 3000;
+
 // ============================================
 // Floating Decorations
 // ============================================
@@ -190,7 +196,7 @@ function StagedBar({ progress, tiers, isMobile, raised }) {
 // ============================================
 // Main Community Goal Banner Component
 // ============================================
-function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
+function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false }) {
     const {
         globalEventStatus,
         updateGlobalEventStatus,
@@ -338,7 +344,14 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
         const update = () => {
             const remaining = Math.max(0, globalEventStatus.expiresAt - Date.now());
             setRemainingTime(remaining);
-            if (remaining <= 0 && isVisible && !isSettling) {
+            // Fallback: if timer has hit 0 and the result stream has not arrived
+            // within its grace window, hide the banner. Hiding at 0:00 exactly
+            // races the end broadcasts - the banner used to fade out and slide
+            // back in when community_goal_result landed a moment later. isSettling
+            // holds it through the announcement, and the grace covers the gap
+            // before settling even starts; only a genuinely silent stream sees it.
+            if (remaining <= 0 && isVisible && !isSettling
+                && Date.now() - globalEventStatus.expiresAt > RESULT_GRACE_MS) {
                 setIsVisible(false);
                 hasPlayedSoundRef.current = false;
                 wasActiveRef.current = false;
@@ -385,13 +398,42 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
     // showResult / isSettling / showLiveLayout are declared near the top of the component,
     // because the active-timer effect needs isSettling too.
     const shouldShowBanner = isVisible || showResult || isSettling;
-    if (!shouldShowBanner) return null;
+
+    // Exit fades rather than pops: the result block dissolves and the handoff
+    // reads as a scene change, not a blink. `isClosing` is derived — the moment
+    // shouldShowBanner drops, this render still paints with the slide-down
+    // halted and opacity falling; a timeout then retires it. The result is
+    // frozen through the fade (below) so the banner goes out showing what it
+    // came to show, not an empty shell.
+    const [isGone, setIsGone] = useState(false);
+    const isClosing = !shouldShowBanner && !isGone;
+    // Snap back: "a fresh event inside the fade" must actually come back. isGone
+    // is a latch - once a fade completes it stays true, so without this reset
+    // every later event of the session would be suppressed and the banner would
+    // only ever show again after a reload. Render-phase correction, same pattern
+    // as the EventSelectionWheel's.
+    if (shouldShowBanner && isGone) setIsGone(false);
+    useEffect(() => {
+        if (!isClosing) return undefined;
+        const id = setTimeout(() => setIsGone(true), 320);
+        return () => clearTimeout(id);
+    }, [isClosing]);
+
+    // The result may already be gone from context by the time the banner fades;
+    // remembering the last one keeps the fade showing the result, not a
+    // fallback colour. Adjusting state during render is the sanctioned pattern
+    // for "remember what changed" — a ref would trip the render-time ref rules.
+    const [lastResult, setLastResult] = useState(null);
+    if (communityGoalResult && communityGoalResult !== lastResult) setLastResult(communityGoalResult);
+
+    if (isGone) return null;
 
     const countdownSecs = Math.ceil(countdownTime / 1000);
     const isCriticalTime = remainingTime > 0 && remainingTime < 60000;
-    const succeeded = communityGoalResult?.succeeded;
-    const resultColor = succeeded ? tierColor(communityGoalResult?.tierReached) : CG_FAIL;
-    const edgeColor = showResult ? resultColor : (reachedTier ? tierColor(reachedTier.key) : CG_PRIMARY);
+    const resultNow = communityGoalResult || lastResult;
+    const succeeded = resultNow?.succeeded;
+    const resultColor = succeeded ? tierColor(resultNow?.tierReached) : CG_FAIL;
+    const edgeColor = (showResult || isClosing) ? resultColor : (reachedTier ? tierColor(reachedTier.key) : CG_PRIMARY);
 
     // Shared pill styling, matching the other event banners
     const pill = (borderColor, opts = {}) => ({
@@ -407,12 +449,20 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
 
     return (
         <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            animation: 'slideDownCG 0.4s ease-out forwards',
+            // `inline` is what moved this out of the viewport's top
+            // edge and into the page. It used to be `position: fixed;
+            // top: 0`, which on a HUD with a permanent topbar covered it
+            // for the whole event, and made two simultaneous events
+            // overlap each other. In flow it sits in the gap between the
+            // live ticker and the reel, which is space the layout already
+            // had spare — so the banner keeps every detail it ever had
+            // instead of being reduced to fit somewhere it did not belong.
+            ...(inline
+                ? { position: 'relative' }
+                : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }),
+            animation: isClosing ? 'none' : 'slideDownCG 0.4s ease-out forwards',
+            opacity: isClosing ? 0 : 1,
+            transition: 'opacity 0.32s ease-in',
         }}>
             <style>{`
                 @keyframes slideDownCG {
@@ -493,7 +543,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                     alignItems: 'center',
                     gap: isMobile ? '8px' : '12px',
                 }}>
-                    {showResult ? (
+                    {(showResult || (isClosing && resultNow)) ? (
                         /* ---------- Result mode ---------- */
                         <div style={{
                             display: 'flex',
@@ -531,7 +581,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                         color: CG_TEXT,
                                         animation: 'winnerGlowCG 2s ease-in-out infinite',
                                     }}>
-                                        {succeeded ? `${communityGoalResult.tierName} Reached` : 'No Stage Reached'}
+                                        {succeeded ? `${resultNow.tierName} Reached` : 'No Stage Reached'}
                                     </div>
                                 </div>
                                 <Target
@@ -555,14 +605,14 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                 justifyContent: 'center',
                             }}>
                                 <span>
-                                    <strong style={{ color: CG_TEXT }}>{communityGoalResult.progress}</strong> points by{' '}
-                                    <strong style={{ color: CG_TEXT }}>{communityGoalResult.participantCount}</strong>{' '}
-                                    player{communityGoalResult.participantCount !== 1 ? 's' : ''}
-                                    {communityGoalResult.specialDrops > 0 && (
+                                    <strong style={{ color: CG_TEXT }}>{resultNow.progress}</strong> points by{' '}
+                                    <strong style={{ color: CG_TEXT }}>{resultNow.participantCount}</strong>{' '}
+                                    player{resultNow.participantCount !== 1 ? 's' : ''}
+                                    {resultNow.specialDrops > 0 && (
                                         <>
                                             , <strong style={{ color: '#EF4444' }}>
-                                                {communityGoalResult.specialDrops}
-                                            </strong> rare{communityGoalResult.specialDrops !== 1 ? 's' : ''}
+                                                {resultNow.specialDrops}
+                                            </strong> rare{resultNow.specialDrops !== 1 ? 's' : ''}
                                         </>
                                     )}
                                 </span>
@@ -571,15 +621,15 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                     silently failed to arrive into a result they can argue with
                                     down the line - which is the whole reason the gate is a
                                     stated rule rather than an emergent one. */}
-                                {communityGoalResult.gatedTierName && (
+                                {resultNow.gatedTierName && (
                                     <>
                                         <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
                                         <span style={{ color: CG_FAIL }}>
-                                            <strong>{communityGoalResult.gatedTierName}</strong> was in reach on points
+                                            <strong>{resultNow.gatedTierName}</strong> was in reach on points
                                             {' '}&mdash; it needed{' '}
-                                            <strong>{communityGoalResult.gatedTierSpecials}</strong> rare
-                                            {communityGoalResult.gatedTierSpecials !== 1 ? 's' : ''}, the server found{' '}
-                                            <strong>{communityGoalResult.specialDrops}</strong>
+                                            <strong>{resultNow.gatedTierSpecials}</strong> rare
+                                            {resultNow.gatedTierSpecials !== 1 ? 's' : ''}, the server found{' '}
+                                            <strong>{resultNow.specialDrops}</strong>
                                         </span>
                                     </>
                                 )}
@@ -600,7 +650,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                         </span>
                                     </>
                                 )}
-                                {communityGoalResult.topContributors?.length > 0 && (
+                                {resultNow.topContributors?.length > 0 && (
                                     <>
                                         <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
                                         {/* Ranked by points server-side, so the leader is shown by
@@ -610,13 +660,13 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <Trophy size={13} color={COLORS.gold} />{' '}
                                             <strong style={{ color: CG_TEXT }}>
-                                                {communityGoalResult.topContributors[0].username}
+                                                {resultNow.topContributors[0].username}
                                             </strong>{' '}
-                                            {communityGoalResult.topContributors[0].points} pts
-                                            {communityGoalResult.topContributors[0].contributions > 0 && (
+                                            {resultNow.topContributors[0].points} pts
+                                            {resultNow.topContributors[0].contributions > 0 && (
                                                 <span style={{ opacity: 0.7, fontSize: isMobile ? '10px' : '12px' }}>
-                                                    {' '}({communityGoalResult.topContributors[0].contributions} rare
-                                                    {communityGoalResult.topContributors[0].contributions !== 1 ? 's' : ''})
+                                                    {' '}({resultNow.topContributors[0].contributions} rare
+                                                    {resultNow.topContributors[0].contributions !== 1 ? 's' : ''})
                                                 </span>
                                             )}
                                         </span>
@@ -655,7 +705,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                             {isPending && !isActive && (
                                 <div style={{
                                     ...pill(CG_PRIMARY, { pad: '6px 16px', padMobile: '4px 12px' }),
-                                    animation: 'countdownPulseCG 0.5s ease-in-out infinite',
+                                    animation: 'fadeInCG 0.35s ease-out, countdownPulseCG 0.5s ease-in-out infinite',
                                 }}>
                                     <HandHeart size={isMobile ? 16 : 20} color={CG_PRIMARY} />
                                     <span style={{
@@ -671,7 +721,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
 
                             {/* Progress (while running, and frozen while settling) */}
                             {showLiveLayout && (
-                                <div style={pill(`${edgeColor}66`, { pad: '6px 14px', gap: '10px' })}>
+                                <div style={{ ...pill(`${edgeColor}66`, { pad: '6px 14px', gap: '10px' }), animation: 'fadeInCG 0.35s ease-out' }}>
                                     <StagedBar
                                         progress={progress}
                                         tiers={tiers}
@@ -712,12 +762,12 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                                 result; anything else announces the end of the event over a
                                 wheel that is still spinning. */}
                             {showLiveLayout && (
-                                <div style={pill(`${isCriticalTime ? '#ff4444' : CG_PRIMARY}88`, {
+                                <div style={{ ...pill(`${isCriticalTime ? '#ff4444' : CG_PRIMARY}88`, {
                                     gap: '6px',
                                     pad: '6px 14px',
                                     padMobile: '5px 10px',
                                     background: isCriticalTime ? 'rgba(255,68,68,0.2)' : CG_BG_DARK,
-                                })}>
+                                }), animation: 'fadeInCG 0.35s ease-out' }}>
                                     <Timer size={isMobile ? 16 : 20} color={isCriticalTime ? '#ff4444' : CG_PRIMARY} />
                                     <span style={{
                                         fontSize: isMobile ? '14px' : '18px',
@@ -733,7 +783,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false }) {
                             {/* Prize indicator. During the countdown there is no progress yet, so
                                 show the range on offer; once running, show what is actually banked. */}
                             {(payoutRange || isSettling) && (
-                                <div style={pill(`${edgeColor}66`, { gap: '6px' })}>
+                                <div style={{ ...pill(`${edgeColor}66`, { gap: '6px' }), animation: 'fadeInCG 0.35s ease-out' }}>
                                     <Sparkles size={isMobile ? 16 : 20} color={edgeColor} style={{
                                         filter: `drop-shadow(0 0 4px ${edgeColor})`,
                                     }} />

@@ -21,18 +21,119 @@
 
 import { getItemImageUrl } from '../../../utils/helpers.js';
 
-// WebP, not PNG: at this size a lossless WebP atlas is 6.4 MB against 10.1 MB as
-// PNG, for identical pixels. A browser too old to decode it fails loadAtlas() and
-// falls back to individual sprites, so the format costs nothing in reach.
-const ATLAS_IMAGE = '/fib-atlas.webp';
-const ATLAS_JSON = '/fib-atlas.json';
+// The two URLs live in atlasUrls.js — a leaf module with no imports — so that
+// App.jsx can preload the index without pulling this file and utils/helpers.js
+// into the entry chunk. Imported (loadAtlas uses both) and re-exported, so
+// existing importers of atlas.js keep working and there is one definition.
+import { ATLAS_IMAGE, ATLAS_JSON } from './atlasUrls.js';
 
-/** Only /fib-items/<name>.png is packed; everything else resolves per item. */
-const POOL_SPRITE = /^\/fib-items\/([^/]+)\.png$/;
+export { ATLAS_IMAGE, ATLAS_JSON };
+
+/**
+ * What is packed, and under which key.
+ *
+ * `/fib-items/<name>.png` is the pool and keys on the bare name.
+ * `/fib-custom/<name>.png` is the pack's own custom items and keys on
+ * `custom/<name>` — the prefix is not decoration: `barrier.png` and `wheel.png`
+ * exist in *both* directories, so a flat namespace would let one silently win.
+ *
+ * The custom items were deliberately excluded once, on the grounds that they are
+ * few and change independently of the pack. That was true and it cost them their
+ * sharpness: everything in the atlas is reduced to the tile size once with a
+ * nearest kernel and then drawn at roughly 1:1, while anything outside it is
+ * smooth-downscaled from 128px to ~90px by the browser on every frame. The four
+ * antimatter-set items were visibly soft next to every vanilla sprite for that
+ * reason alone. See CUSTOM_SRC in scripts/vendor-atlas.mjs.
+ *
+ * Anything else — player heads, Discord avatars, /event.png — still resolves per
+ * item, which is what `needsOwnImage` is for.
+ */
+const POOL_SPRITE = /^\/fib-(items|custom)\/([^/]+)\.png$/;
+
+/** The atlas key for a matched sprite URL: `name`, or `custom/name`. */
+const atlasKey = (match) => (match[1] === 'custom' ? `custom/${match[2]}` : match[2]);
 
 let atlasImage = null;
 let atlasMeta = null;
 let loadPromise = null;
+
+// ── The cell cache — why the atlas is never drawn from directly ──────────────
+//
+// The atlas fixed the network cost and created a raster one. A 4000x3900 source
+// is far past what Chrome will keep resident as a canvas texture, so *every*
+// `drawImage` off it pays to get the source rect out of that 62 MB bitmap again.
+// One draw is ~0.6 ms, which is invisible in isolation and ruinous in a loop:
+// the idle reel draws ~22 sprites a frame and spent 12.9 ms of a 16.7 ms budget
+// doing nothing but that. Measured on the running page, 1920px, DPR 1.
+//
+// It is the source's *dimensions* that cost, not its type — copying the atlas
+// into a same-size canvas or an ImageBitmap measured identically slow. Cutting
+// each cell into its own small canvas on first use took the same frame from
+// 13.1 ms to 0.6 ms. Nothing else about the drawing changed.
+//
+// The cache holds whole *cells*, gutter included, and callers still address the
+// tile at `pad` inside it — so sampling at a sprite's edge reaches the same
+// extruded pixels it reached in the atlas. Slicing the bare 96px tile would
+// have been 4% smaller and would have let a smoothed downscale sample past the
+// edge of a lone canvas, which is the exact artefact PAD exists to prevent.
+//
+// The one thing it is not is bit-exact. A canvas stores premultiplied alpha at
+// 8 bits, so a sprite's antialiased edge pixels come back off the cell canvas a
+// step or two from where they went in. Measured over 120 sprites drawn at 74px:
+// mean channel difference 0.24/255, 0.5% of channels off by more than 4, worst
+// pixel 14. The pack is hard-alpha almost everywhere, so most sprites are exact
+// and the rest are off by less than a display can show. Recorded because it is a
+// real difference and the next person to diff two frames should know why.
+//
+// Bounded because the collection book can address all ~1,550 sprites. A Map is
+// insertion-ordered, so re-inserting on hit makes it an LRU for free. The cap is
+// well above any one frame's working set — the reel needs ~22, the book's
+// virtualised grid ~120 — so eviction never happens inside a frame, which is the
+// only place it would cost anything.
+const CELL_CACHE_MAX = 512;
+const cellCache = new Map();
+
+/**
+ * The atlas cell at `index`, as its own small canvas. Cut on first use.
+ *
+ * Returns null when there is nothing to cut into (no DOM, no 2d context), and
+ * callers fall back to the atlas itself — correct, just slow.
+ */
+function getCell(index) {
+    const hit = cellCache.get(index);
+    if (hit !== undefined) {
+        // Touch: delete + set moves the key to the end of the iteration order.
+        cellCache.delete(index);
+        cellCache.set(index, hit);
+        return hit;
+    }
+
+    if (typeof document === 'undefined') return null;
+
+    const { cols } = atlasMeta;
+    const cell = atlasMeta.cell ?? atlasMeta.tile;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cell;
+    canvas.height = cell;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // 1:1, so smoothing cannot apply — but off is the honest declaration of
+    // intent for a copy, and it keeps the cut free of any resampling.
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+        atlasImage,
+        (index % cols) * cell, Math.floor(index / cols) * cell, cell, cell,
+        0, 0, cell, cell,
+    );
+
+    if (cellCache.size >= CELL_CACHE_MAX) {
+        cellCache.delete(cellCache.keys().next().value);
+    }
+    cellCache.set(index, canvas);
+    return canvas;
+}
 
 /**
  * Loads the atlas once per page. Concurrent callers share the same promise, and
@@ -62,17 +163,40 @@ export function loadAtlas() {
                 throw new Error('atlas index is missing tile/cols/sprites');
             }
 
+            // ── The image is requested at the index's own version ─────────────
+            //
+            // These are two files describing one artifact, and they were both
+            // fetched from plain unversioned URLs — so a browser could refresh
+            // the index and keep a cached image from the previous build. That is
+            // exactly what happened during development: the collection book drew
+            // every sprite past the first custom item as its neighbour, because
+            // the index said 1551 sprites and the cached image held the old 1543.
+            //
+            // Stamping the request with `meta.version` makes the pair
+            // self-consistent by construction. The JSON is fetched first, so
+            // whichever index a client ends up with pulls the image that matches
+            // *it* — worst case both are uniformly old, which renders correctly.
+            const src = meta.version
+                ? `${ATLAS_IMAGE}?v=${encodeURIComponent(meta.version)}`
+                : ATLAS_IMAGE;
+
             const img = await new Promise((resolve, reject) => {
                 const el = new Image();
                 el.onload = () => resolve(el);
                 el.onerror = () => reject(new Error('atlas image failed to load'));
-                el.src = ATLAS_IMAGE;
+                el.src = src;
             });
 
             // A JSON that disagrees with the PNG about the grid does not break one
             // sprite, it shifts every sprite after the insertion point — which
             // looks like a rendering bug rather than a stale asset. Cheaper to
             // refuse the atlas outright and let the per-item path cover it.
+            //
+            // Necessary but NOT sufficient, which is why the version stamp above
+            // exists: the mismatch that shipped had identical dimensions. Both
+            // builds packed a 40x39 grid at 4000x3900 — only the contents of the
+            // cells moved — so this check passed while every sprite after index
+            // 356 drew the wrong tile.
             if (img.naturalWidth !== meta.width || img.naturalHeight !== meta.height) {
                 throw new Error(
                     `atlas is ${img.naturalWidth}x${img.naturalHeight} but its index ` +
@@ -111,14 +235,34 @@ export function getAtlasSprite(item) {
     const match = POOL_SPRITE.exec(getItemImageUrl(item));
     if (!match) return null;
 
-    const index = atlasMeta.sprites[match[1]];
+    const index = atlasMeta.sprites[atlasKey(match)];
     if (index === undefined) return null;
 
+    // The grid pitch is the *cell*, not the tile: each sprite sits inside a
+    // gutter of extruded edge pixels so that smoothed sampling cannot reach its
+    // neighbour. See PAD in scripts/vendor-atlas.mjs for why that gutter exists.
+    //
+    // Both keys default for an atlas packed before the gutter did, which keeps a
+    // stale public/fib-atlas.webp rendering correctly rather than shifting every
+    // sprite by two pixels — the failure mode this file already refuses to allow
+    // for the grid dimensions.
     const { tile, cols } = atlasMeta;
+    const pad = atlasMeta.pad ?? 0;
+    const cell = atlasMeta.cell ?? tile;
+
+    // Off the cell cache when we can — see CELL_CACHE_MAX for why drawing from
+    // the whole atlas is the single most expensive thing on this surface. The
+    // fallback is the atlas itself, so a browser that will not give us a canvas
+    // still renders; it just renders the way it used to.
+    const cutCell = getCell(index);
+    if (cutCell) {
+        return { image: cutCell, sx: pad, sy: pad, size: tile };
+    }
+
     return {
         image: atlasImage,
-        sx: (index % cols) * tile,
-        sy: Math.floor(index / cols) * tile,
+        sx: (index % cols) * cell + pad,
+        sy: Math.floor(index / cols) * cell + pad,
         size: tile,
     };
 }
@@ -141,7 +285,11 @@ export function needsOwnImage(item) {
     const match = POOL_SPRITE.exec(getItemImageUrl(item));
     if (!match) return true;
 
-    return atlasMeta ? atlasMeta.sprites[match[1]] === undefined : false;
+    // An older atlas, packed before the custom items were included, simply has no
+    // `custom/...` keys — so those items report `true` here and fetch their own
+    // image exactly as they used to. The two halves can be out of step without
+    // anything breaking; the sprites are only softer until the atlas is rebuilt.
+    return atlasMeta ? atlasMeta.sprites[atlasKey(match)] === undefined : false;
 }
 
 /**

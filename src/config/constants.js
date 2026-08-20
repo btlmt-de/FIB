@@ -84,7 +84,33 @@ export const CUSTOM_IMAGE_BASE_URL = '/fib-custom';
  */
 export const REMOTE_IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
 export const WHEEL_TEXTURE_URL  = '/wheel.png';
-export const ITEM_WIDTH         = 80;
+/**
+ * The desktop reel's tile pitch, and the height of the band it runs in.
+ *
+ * Both were smaller (80 / 100), sized when the strip was a row inside a card in
+ * a centred column. That gave ~56px of item art in a 100px band — a thin ribbon
+ * floating in a large empty field, with the tiles, the thing the player actually
+ * watches for four seconds, the smallest element on screen.
+ *
+ * The two are coupled and must stay so. `drawItem` centres a square of
+ * `ITEM_WIDTH * 0.70` inside the band, so a band shorter than the pitch clips the
+ * art and a much taller one strands it; the ~1.4 ratio here leaves the glow room
+ * to bloom without opening a gap. Everything laid over the band — pointers,
+ * centre line, shockwave rings — is sized from STRIP_HEIGHT rather than
+ * hardcoded, so changing this moves the whole assembly together.
+ *
+ * How many tiles are in shot is now a property of the monitor, not of this file.
+ * The reel is a full-width row of the HUD grid, so it spans the page: about 15
+ * tiles at 1920 and 11 at 1440. Two earlier attempts tried to buy that width
+ * from inside a centred column and could not — the ceiling there was 8.5 tiles,
+ * and dropping to 6.2 whenever the sidebars appeared.
+ *
+ * MOBILE_ITEM_WIDTH (70, in CanvasSpinningStrip) is deliberately not derived
+ * from this: mobile runs the reel vertically, where the constraint is the phone
+ * rather than the page.
+ */
+export const ITEM_WIDTH         = 120;
+export const STRIP_HEIGHT       = 170;
 export const SPIN_DURATION      = 4000;
 export const STRIP_LENGTH       = 80;
 export const FINAL_INDEX        = STRIP_LENGTH - 8;

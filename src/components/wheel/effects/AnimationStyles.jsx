@@ -356,7 +356,9 @@ export const AnimationStyles = () => (
         /* Glassmorphism shine */
         /* Counter tick animation */
         /* Ambient orb float */
-        /* Tooltip slide in */
+        /* Tooltip slide in — rises into place under a tooltip that sits ABOVE
+           its trigger. A tooltip hanging below has to fall instead; see
+           tooltipDrop. */
         @keyframes tooltipSlide {
             0% {
                 opacity: 0;
@@ -367,7 +369,36 @@ export const AnimationStyles = () => (
                 transform: translateX(-50%) translateY(0);
             }
         }
-        
+
+        /* Tooltip drop in — for tooltips below their trigger, as the topbar's
+           are. Reusing tooltipSlide there made the bubble slide up towards the
+           button it was supposed to be hanging off. */
+        @keyframes tooltipDrop {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-5px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        /* As tooltipDrop, for the right-aligned variant used by the last control
+           on the topbar. It is positioned by right:0 rather than by a centring
+           translate, so borrowing tooltipDrop would slide it half its own width
+           off the button. */
+        @keyframes tooltipDropEnd {
+            0% {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Ripple effect from center */
         /* Particle explosion */
         /* Confetti fall */
@@ -487,6 +518,38 @@ export const AnimationStyles = () => (
         }
         
         /* Staggered text reveal */
+        /* The landed row opening into the payoff. It scales from the row's own
+           height rather than fading in, so it reads as the tile growing — the
+           thing it is — instead of a panel arriving on top of one. Transform
+           origin is the centre because the row expands both ways into its
+           neighbours. Decelerator, no overshoot: the spin control owns the only
+           overshoot on this surface. */
+        @keyframes shaftResultOpen {
+            0%   { transform: scaleY(0.54); opacity: 0; }
+            100% { transform: scaleY(1); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            /* It still arrives, it just stops growing to get here — the row is
+               the identity, the expansion is the flourish. */
+            [style*="shaftResultOpen"] { animation: none !important; }
+        }
+
+        /* The phone's overflow sheet. The panel rises and the scrim fades on the
+           surface's recorded decelerator — no overshoot, which is the one easing
+           this page reserves for the spin control. */
+        @keyframes fibSheetRise {
+            0%   { transform: translateY(100%); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes fibSheetScrim {
+            0%   { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            /* The sheet still arrives, it just stops travelling to get here. */
+            [style*="fibSheetRise"] { animation: none !important; }
+        }
+
         @keyframes textFadeUp {
             0% {
                 opacity: 0;
@@ -810,6 +873,36 @@ export const AnimationStyles = () => (
             50% {
                 transform: scale(1.02);
                 box-shadow: 0 4px 30px rgba(244, 63, 94, 0.4), 0 0 15px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(248, 250, 252, 0.15);
+            }
+        }
+
+        /* ============================================
+           THE STATUS CONSOLE (the band's header row)
+           ============================================ */
+
+        /* The LED stripe's chase: one bright head running along the
+           segments, one segment per 0.1s of a 1.2s cycle, so the twelve
+           segments always hold a single moving highlight. Ambient by the
+           Ambient-Off Rule — the static keyframes under reduced motion
+           leave the stripe lit but standing still, never dark. */
+        @media (prefers-reduced-motion: no-preference) {
+            @keyframes fibLedChase {
+                from { opacity: 1; }
+                to { opacity: 0.18; }
+            }
+            @keyframes fibLedBlink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.25; }
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            @keyframes fibLedChase {
+                from { opacity: 0.75; }
+                to { opacity: 0.75; }
+            }
+            @keyframes fibLedBlink {
+                from { opacity: 1; }
+                to { opacity: 1; }
             }
         }
     `}</style>

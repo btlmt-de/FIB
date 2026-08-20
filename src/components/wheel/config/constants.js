@@ -1,3 +1,55 @@
+/**
+ * Spacing scale for the wheel's page shell.
+ *
+ * A layout audit of this page counted eighteen distinct spacing values across
+ * WheelPage and WheelSpinner — essentially every even number up to 40 — and two
+ * different implied scales contradicting each other and DESIGN.md. DESIGN.md's
+ * frontmatter declares xs 4 / sm 8 / md 14 / lg 20 / xl 28, but the wheel had
+ * already voted with its feet for an 8-based rhythm (8/16/24/40 dominate the
+ * shell), while 5, 6, 10, 11, 18, 26, 32 and 36 belonged to neither. DESIGN.md
+ * §5 grants the wheel an exception for *glow and spectacle*; it does not license
+ * an arbitrary spacing scale, so this ratifies the majority rhythm rather than
+ * inventing a third one.
+ *
+ * Scope is the shell — the HUD's rows, the gaps between the reel, the sidebars
+ * and the stage. Component interiors are not retrofitted; that is a much larger
+ * sweep and would bury the layout work.
+ */
+export const SPACE = {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 40,
+};
+
+/**
+ * Stacking order for the HUD, in one place.
+ *
+ * The wheel surface currently reaches 10000, via a 9996–10000 run across the
+ * effects overlays plus one-off 900 / 950 / 999 / 1001 / 101 and an orphaned 19
+ * sitting next to a pair of 20s. Nothing in that range is reasoned about; the
+ * numbers just had to be bigger than whatever was already there.
+ *
+ * This scale covers the shell and the reel, which is what the HUD rebuild
+ * touches. It matters more than it used to: the reel's pointers used to paint
+ * below the card's own overlays purely because they shared one stacking context,
+ * and once the overlays move to the shell that relationship has to be stated
+ * rather than inherited. The `effects/` range above is deliberately left alone —
+ * untangling it is a separate job across roughly two dozen files — so `banner`
+ * and `modal` here are documentation of where those live, not a re-basing of
+ * them.
+ */
+export const Z = {
+    base: 0,        // shell background, cosmic canvas
+    content: 1,     // topbar, stage, sidebars — normal HUD furniture
+    reel: 2,        // the reel row sits above the stage's ambient glow
+    pointer: 4,     // centre line and pointers, above the reel's own fades
+    overlay: 6,     // full-surface spin-mode washes (recursion, KOTW shimmer)
+    banner: 100,    // FirstBlood / CommunityGoal, the better-behaved banners
+    modal: 10000,   // EventSelectionWheel and the celebration stack
+};
+
 export const COLORS = {
     bg: '#1a1a2e',
     bgLight: '#252542',
@@ -61,3 +113,50 @@ export const COLORS = {
     // green, which is a spin mode rather than a tier in any case.
     mythicCycle: ['#55FFFF', '#2E86FF', '#3BE8B0', '#55FFFF'],
 };
+
+/**
+ * The three bonus events' identities, in one place.
+ *
+ * There were three hand-maintained copies of this and all three had drifted:
+ * `EVENT_COLORS` in CanvasBonusStrip (the board), `EVENT_IDENTITY` in
+ * BonusEventPlaque (the answer), and `modeAccent` in WheelSpinner (the band and
+ * its lamp while the mode runs). A player met the same event three times and was
+ * told three different colours — the board promised gold for a triple-lucky, the
+ * plaque agreed, and then the spin arrived under a green lamp. It is the same
+ * failure the rarity ladder was consolidated to stop, one surface over.
+ *
+ * `color` is the identity — the tile's wash, the plaque's rail, the label. It
+ * MUST equal the accent the mode executes under, because those are the same
+ * event seen twice. `iconColor` differs only where an identity is literally
+ * two-colour: DESIGN.md §8 defines the triple-lucky as "green with a gold
+ * crown", so the crown is the one gold thing on a green sign.
+ *
+ * Icons themselves are not here: the board strokes canvas paths and the plaque
+ * renders Lucide components, and there is no shared representation of a glyph
+ * that both can take. They agree by drawing the same three shapes — Zap for the
+ * lucky family, Layers for the 5x's parallel lines, Crown for triple lucky.
+ */
+export const BONUS_IDENTITY = {
+    lucky_spin: { color: COLORS.green, iconColor: COLORS.green },
+    triple_spin: { color: COLORS.gold, iconColor: COLORS.gold },
+    triple_lucky_spin: { color: COLORS.green, iconColor: COLORS.gold },
+};
+
+export const BONUS_IDENTITY_FALLBACK = { color: COLORS.orange, iconColor: COLORS.orange };
+
+/**
+ * THE NOCTURNE's material grain — wet-night micro-glitter, as SVG noise.
+ *
+ * "Light is the material": a material is felt, a pattern is seen, so every use
+ * renders this at ≤4% baked-in alpha, on the page field and on the plinth
+ * furniture (the status console, the stage flanks, the milestone meter). It is
+ * the grain of wet asphalt and milled concrete catching the street light —
+ * never a texture to look at. At legible opacity it would be this surface's
+ * poster-texture failure, the same mistake as a visible scanline or a grid:
+ * something drawn on the world instead of the world being there.
+ *
+ * One URI, tuned once, so the whole surface shares one material. Static by
+ * definition — nothing here may animate; the Ambient-Off Rule freezes motion,
+ * never material.
+ */
+export const SURFACE_NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`;

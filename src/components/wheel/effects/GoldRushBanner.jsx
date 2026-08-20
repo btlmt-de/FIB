@@ -433,6 +433,7 @@ function GoldParticles({ intensity = 1 }) {
 function GoldRushBanner({
                             isMobile = false,
                             isAdmin = false,
+                            inline = false,
                         }) {
     const { globalEventStatus, updateGlobalEventStatus, feed } = useActivity();
     const { playSound, startGoldRushSoundtrack, stopGoldRushSoundtrack } = useSound();
@@ -765,10 +766,34 @@ function GoldRushBanner({
     const isLowTime = remainingTime > 0 && remainingTime < 60000;
     const isCriticalTime = remainingTime > 0 && remainingTime < 30000;
 
-    // If no event, render nothing
-    if (!isVisible) return null;
+    // If no event, render nothing. When it drops out, fade rather than pop:
+    // `isClosing` is derived, so this render still paints with opacity falling,
+    // and a timeout then retires it; a fresh event inside the fade snaps back.
+    // isGone is a latch, so without the reset below every later event of the
+    // session would be suppressed until a reload (render-phase correction, same
+    // pattern as the EventSelectionWheel's).
+    const [isGone, setIsGone] = useState(false);
+    const isClosing = !isVisible && !isGone;
+    if (isVisible && isGone) setIsGone(false);
+    useEffect(() => {
+        if (!isClosing) return undefined;
+        const id = setTimeout(() => setIsGone(true), 320);
+        return () => clearTimeout(id);
+    }, [isClosing]);
 
-    const RarityIcon = rarityConfig?.icon || Sparkles;
+    // The rarity the strip landed on is this banner's most meaningful content,
+    // and context drops `data` — and with it boostedRarity — in the same update
+    // that starts the fade. Remembering the last one keeps the badge dissolving
+    // instead of vanishing mid-fade. Adjusting state during render is the
+    // sanctioned pattern for remembering what changed; a ref would trip the
+    // render-time ref rules.
+    const [lastRarity, setLastRarity] = useState(null);
+    if (rarityConfig && rarityConfig !== lastRarity) setLastRarity(rarityConfig);
+    const rarityNow = rarityConfig || (isClosing ? lastRarity : null);
+
+    if (isGone) return null;
+
+    const RarityIcon = rarityNow?.icon || Sparkles;
     const countdownSecs = Math.ceil(countdownTime / 1000);
 
     return (
@@ -790,10 +815,14 @@ function GoldRushBanner({
                     0%, 100% { box-shadow: 0 0 10px ${GOLD_COLOR}; }
                     50% { box-shadow: 0 0 20px ${GOLD_COLOR}, 0 0 30px ${GOLD_COLOR}66; }
                 }
+                @keyframes fadeInGR {
+                    from { opacity: 0; transform: translateY(-8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
             `}</style>
 
             {/* Subtle screen edge glow */}
-            {isActive && (
+            {(isActive || isClosing) && (
                 <div style={{
                     position: 'fixed',
                     top: 0,
@@ -803,16 +832,24 @@ function GoldRushBanner({
                     boxShadow: `inset 0 0 80px ${GOLD_COLOR}08, inset 0 0 150px ${GOLD_COLOR}05`,
                     pointerEvents: 'none',
                     zIndex: 9998,
+                    opacity: isClosing ? 0 : 1,
+                    transition: 'opacity 0.32s ease-in',
                 }} />
             )}
 
-            {/* Main Banner */}
+            {/* Main Banner.
+                
+                `inline` places it in the gap above the reel instead of pinning it
+                to the viewport's top edge, where it covered the HUD's topbar for
+                the whole event. The screen-edge glow above stays fixed either way:
+                that is ambient light across the whole surface rather than a bar,
+                and it is the part of Gold Rush that reads best in the HUD. */}
             <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 9999,
+                ...(inline
+                    ? { position: 'relative' }
+                    : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }),
+                opacity: isClosing ? 0 : 1,
+                transition: 'opacity 0.32s ease-in',
             }}>
                 {/* Progress Bar (only when active) */}
                 {isActive && (
@@ -913,6 +950,7 @@ function GoldRushBanner({
                                     opacity: stripFadingOut ? 0 : 1,
                                     transform: stripFadingOut ? 'scale(0.95)' : 'scale(1)',
                                     transition: 'opacity 0.4s ease-in-out, transform 0.4s ease-in-out',
+                                    animation: 'fadeInGR 0.3s ease-out',
                                 }}>
                                     <RaritySelectionStrip
                                         targetRarity={boostedRarity || 'rare'}
@@ -925,7 +963,7 @@ function GoldRushBanner({
                             )}
 
                             {/* Badge - fades in as strip fades out */}
-                            {rarityConfig && (stripFadingOut || !showStrip) && (
+                            {rarityNow && (stripFadingOut || !showStrip) && (
                                 <div style={{
                                     position: showStrip ? 'absolute' : 'relative',
                                     opacity: showStrip ? (stripFadingOut ? 1 : 0) : 1,
@@ -935,19 +973,19 @@ function GoldRushBanner({
                                     alignItems: 'center',
                                     gap: '8px',
                                     padding: isMobile ? '6px 12px' : '8px 16px',
-                                    background: `linear-gradient(135deg, ${rarityConfig.color}22 0%, ${rarityConfig.color}33 100%)`,
-                                    border: `2px solid ${rarityConfig.color}`,
+                                    background: `linear-gradient(135deg, ${rarityNow.color}22 0%, ${rarityNow.color}33 100%)`,
+                                    border: `2px solid ${rarityNow.color}`,
                                     borderRadius: '8px',
-                                    boxShadow: `0 0 20px ${rarityConfig.color}55`,
+                                    boxShadow: `0 0 20px ${rarityNow.color}55`,
                                 }}>
-                                    <RarityIcon size={isMobile ? 18 : 22} color={rarityConfig.color} style={{
-                                        filter: `drop-shadow(0 0 6px ${rarityConfig.color})`,
+                                    <RarityIcon size={isMobile ? 18 : 22} color={rarityNow.color} style={{
+                                        filter: `drop-shadow(0 0 6px ${rarityNow.color})`,
                                     }} />
                                     <span style={{
                                         fontSize: isMobile ? '13px' : '16px',
                                         fontWeight: 700,
-                                        color: rarityConfig.color,
-                                        textShadow: `0 0 8px ${rarityConfig.color}`,
+                                        color: rarityNow.color,
+                                        textShadow: `0 0 8px ${rarityNow.color}`,
                                     }}>
                                         {rarityConfig.name} ×{multiplier}
                                     </span>
@@ -965,7 +1003,7 @@ function GoldRushBanner({
                                 background: 'rgba(0,0,0,0.6)',
                                 border: `2px solid ${GOLD_COLOR}`,
                                 borderRadius: '8px',
-                                animation: 'countdownPulse 0.5s ease-in-out infinite',
+                                animation: 'fadeInGR 0.35s ease-out, countdownPulse 0.5s ease-in-out infinite',
                             }}>
                                 <span style={{
                                     fontSize: isMobile ? '18px' : '24px',
@@ -991,6 +1029,7 @@ function GoldRushBanner({
                                     background: isCriticalTime ? 'rgba(255,68,68,0.2)' : 'rgba(255,215,0,0.15)',
                                     border: `2px solid ${isCriticalTime ? '#ff4444' : GOLD_COLOR}88`,
                                     borderRadius: '8px',
+                                    animation: 'fadeInGR 0.35s ease-out',
                                 }}>
                                     <Timer size={isMobile ? 16 : 20} color={isCriticalTime ? '#ff4444' : GOLD_COLOR} />
                                     <span style={{

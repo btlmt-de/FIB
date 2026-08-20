@@ -7,6 +7,9 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
+// Exotic's text colour comes from the ladder rather than from a sixth hardcoded
+// hex — see the points legend below.
+import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Crown, Trophy, Medal, Star, Timer, X, Swords, Sparkles, TrendingUp, Info } from 'lucide-react';
@@ -23,6 +26,14 @@ const KOTW_TEXT = '#F8FAFC';      // Ice White
 const KOTW_GOLD = '#F59E0B';      // Gold for 1st place
 const KOTW_SILVER = '#94A3B8';    // Silver for 2nd
 const KOTW_BRONZE = '#D97706';    // Bronze for 3rd
+
+// How long after the clock expires the banner waits for the result stream before
+// falling back to hiding itself. Hiding at 0:00 exactly races the end broadcasts -
+// this banner used to fade out at expiry and slide back in when the winner
+// announcement arrived, and the unguarded check below would still do that today.
+// The result stream gets RESULT_GRACE_MS to land; only a genuinely silent stream
+// sees it go.
+const RESULT_GRACE_MS = 3000;
 
 // ============================================
 // Floating Crown Decorations
@@ -411,6 +422,7 @@ function KingOfWheelBanner({
                                isMobile = false,
                                isAdmin = false,
                                currentUserId = null,
+                               inline = false,
                            }) {
     const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner, kotwWinnerPending } = useActivity();
     const { playSfx, startKotwSoundtrack, stopKotwSoundtrack } = useSound();
@@ -552,7 +564,7 @@ function KingOfWheelBanner({
     const recentlyEnded = eventEndedAt && (Date.now() - eventEndedAt < 60000); // Within 60 seconds of ending
 
     // Also check if the event has expired based on timestamp (fallback)
-    const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt;
+    const eventExpired = globalEventStatus?.expiresAt && Date.now() > globalEventStatus.expiresAt + RESULT_GRACE_MS;
 
     // isSettling is declared near isActive above. eventExpired alone would hide the
     // banner during that gap, so it has to be checked before that branch.
@@ -646,20 +658,44 @@ function KingOfWheelBanner({
     const countdownSecs = Math.ceil(countdownTime / 1000);
     const isCriticalTime = remainingTime > 0 && remainingTime < 60000;
 
-    // Don't render if not visible
-    if (!shouldShowBanner) return null;
+    // Don't render if not visible. When it drops out, fade rather than pop: the
+    // winner block dissolves and the handoff to the next occupant of this slot
+    // reads as a scene change. `isClosing` is derived — the moment shouldShowBanner
+    // drops this render still paints with `slideDown` halted and opacity falling;
+    // a timeout then retires it. A fresh event inside the fade snaps it back:
+    // isGone is a latch, so without the reset below every later event of the
+    // session would be suppressed until a reload (render-phase correction, same
+    // pattern as the EventSelectionWheel's).
+    const [isGone, setIsGone] = useState(false);
+    const isClosing = !shouldShowBanner && !isGone;
+    if (shouldShowBanner && isGone) setIsGone(false);
+    useEffect(() => {
+        if (!isClosing) return undefined;
+        const id = setTimeout(() => setIsGone(true), 320);
+        return () => clearTimeout(id);
+    }, [isClosing]);
+
+    if (isGone) return null;
 
     return (
         <>
             {/* Banner - only render when should show */}
-            {shouldShowBanner && (
+            {(shouldShowBanner || isClosing) && (
                 <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    zIndex: 100,
-                    animation: 'slideDown 0.4s ease-out forwards',
+                    // `inline` is what moved this out of the viewport's top
+                    // edge and into the page. It used to be `position: fixed;
+                    // top: 0`, which on a HUD with a permanent topbar covered it
+                    // for the whole event, and made two simultaneous events
+                    // overlap each other. In flow it sits in the gap between the
+                    // live ticker and the reel, which is space the layout already
+                    // had spare — so the banner keeps every detail it ever had
+                    // instead of being reduced to fit somewhere it did not belong.
+                    ...(inline
+                        ? { position: 'relative' }
+                        : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100 }),
+                    animation: isClosing ? 'none' : 'slideDown 0.4s ease-out forwards',
+                    opacity: isClosing ? 0 : 1,
+                    transition: 'opacity 0.32s ease-in',
                 }}>
                     <style>{`
                     @keyframes slideDown {
@@ -726,7 +762,7 @@ function KingOfWheelBanner({
                             gap: isMobile ? '8px' : '12px',
                         }}>
                             {/* Winner Display Mode */}
-                            {showWinnerInBanner && kotwWinner?.winner ? (
+                            {(showWinnerInBanner || isClosing) && kotwWinner?.winner ? (
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -851,7 +887,7 @@ function KingOfWheelBanner({
                                                 background: KOTW_BG_DARK,
                                                 border: `2px solid ${KOTW_PRIMARY}`,
                                                 borderRadius: '8px',
-                                                animation: 'pulse 0.5s ease-in-out infinite',
+                                                animation: 'fadeIn 0.35s ease-out, pulse 0.5s ease-in-out infinite',
                                             }}>
                                                 <Swords size={isMobile ? 16 : 20} color={KOTW_PRIMARY} />
                                                 <span style={{
@@ -875,6 +911,7 @@ function KingOfWheelBanner({
                                                 background: isCriticalTime ? 'rgba(255,68,68,0.2)' : KOTW_BG_DARK,
                                                 border: `2px solid ${isCriticalTime ? '#ff4444' : KOTW_PRIMARY}88`,
                                                 borderRadius: '8px',
+                                                animation: 'fadeIn 0.35s ease-out',
                                             }}>
                                                 <Timer size={isMobile ? 16 : 20} color={isCriticalTime ? '#ff4444' : KOTW_PRIMARY} />
                                                 <span style={{
@@ -910,11 +947,28 @@ function KingOfWheelBanner({
                                             fontSize: isMobile ? '10px' : '12px',
                                             color: KOTW_SILVER,
                                             opacity: 0.9,
+                                            animation: 'fadeIn 0.35s ease-out',
                                         }}>
                                             <span style={{ color: KOTW_TEXT, fontWeight: 600 }}>Points:</span>
                                             <span>Common <strong style={{ color: KOTW_TEXT }}>1pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             <span>Rare <strong style={{ color: '#EF4444' }}>~150pt</strong></span>
+                                            <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
+                                            {/* Exotic, which this legend shipped without.
+                                                KOTW does not score off a tier table — it pays
+                                                1,000,000 / weight — and every exotic is seeded
+                                                at a uniform 5,500 (seed.js), so 1e6/5500 = 182.
+                                                Between rare and legendary, which is also where
+                                                its supply sits: the Community Goal table reaches
+                                                the same ordering from the same weights.
+
+                                                Its colour is imported rather than written as a
+                                                sixth hex. The four rows around it are forks of
+                                                the ladder that predate the single RARITY table
+                                                and should be reconciled with it; adding to them
+                                                would make that worse. `Ink`, not `color`, because
+                                                this is text and exotic's #AA00AA is 2.73:1. */}
+                                            <span>Exotic <strong style={{ color: getRarityInk('exotic') }}>~180pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             <span>Legendary <strong style={{ color: '#A855F7' }}>~500pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>

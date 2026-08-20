@@ -13,13 +13,13 @@
     "vendor:textures": "node scripts/vendor-textures.mjs && npm run vendor:atlas",
     "vendor:atlas": "node scripts/vendor-atlas.mjs",
     "vendor:pool": "node scripts/vendor-pool.mjs",
-    "sanitize:structures": "node scripts/sanitize-structures.mjs"
+    "sanitize:structures": "node scripts/sanitize-structures.mjs",
+    "simulate:wheel": "node scripts/simulate-wheel.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "three": "^0.184.0"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

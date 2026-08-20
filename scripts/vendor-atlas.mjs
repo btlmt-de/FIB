@@ -44,6 +44,7 @@
  *   node scripts/vendor-atlas.mjs --tile 128    # native resolution, 25.6 MP
  */
 
+import { createHash } from 'node:crypto';
 import { readdir, mkdir, writeFile, stat } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,11 +52,58 @@ import sharp from 'sharp';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(root, 'public/fib-items');
+
+/**
+ * The pack's own custom items, packed alongside the pool.
+ *
+ * They used to be left out on the grounds that they are few and change
+ * independently — true, and it cost them their sharpness. Everything in the
+ * atlas is reduced to TILE **once, with a nearest kernel**, so at runtime the
+ * reel draws a 96px tile at ~90px: a 0.94x resample that is effectively 1:1.
+ * Anything outside the atlas is fetched at its native 128 and downscaled to ~90
+ * by the browser with `imageSmoothingEnabled = true`, because the strip has to
+ * smooth (see the note on the gutter below) — a 0.70x smooth resample of pixel
+ * art, every frame. The Totem of Antimatter, the Eye of Antimatter, the
+ * Kiln-Fired Brush and the Weathered Book were visibly soft next to every
+ * vanilla item for exactly that reason, and raising the source art from 16px to
+ * 128px made it slightly worse rather than better: 16 -> 90 was a clean upscale,
+ * 128 -> 90 is an awkward fractional downscale.
+ *
+ * Keys are prefixed `custom/` because the two directories genuinely collide —
+ * `barrier.png` and `wheel.png` exist in both, and a flat namespace would have
+ * one silently win. `atlas.js` maps `/fib-custom/<name>.png` onto the same
+ * prefix.
+ */
+const CUSTOM_SRC = join(root, 'public/fib-custom');
+const CUSTOM_PREFIX = 'custom/';
 const OUT_IMAGE = join(root, 'public/fib-atlas.webp');
 const OUT_JSON = join(root, 'public/fib-atlas.json');
 
 /** Past roughly this area mobile Safari subsamples decoded images. */
 const MAX_MEGAPIXELS = 16.7;
+
+/**
+ * Transparent-safe gutter between tiles, in pixels per side.
+ *
+ * Tiles used to be packed edge to edge, and that was correct for exactly as long
+ * as the canvas drew them with `imageSmoothingEnabled = false`: nearest neighbour
+ * samples one texel and can never read outside the source rect handed to
+ * drawImage. The moment smoothing was turned on — which it had to be, because the
+ * strip *downscales* these and nearest-neighbour downscaling makes sprites crawl
+ * — the sampler started reading across tile boundaries, and items picked up
+ * fringes of whatever happened to be packed beside them alphabetically.
+ *
+ * The gutter is filled by **extrusion**, not by transparency. Repeating each
+ * sprite's own edge pixel outward means a sampler that reaches past the boundary
+ * pulls in more of that sprite instead of its neighbour, so the bleed becomes
+ * invisible rather than merely different. Padding with transparent pixels would
+ * swap coloured fringes for dark ones — the same bug wearing a different colour.
+ *
+ * 2px rather than 1: at a 1.3x downscale the browser's filter kernel is wider
+ * than a single texel, and the cost is only area. Keep an eye on the megapixel
+ * warning below when changing it.
+ */
+const PAD = 2;
 
 const tileArg = process.argv.indexOf('--tile');
 const TILE = tileArg === -1 ? 96 : Number(process.argv[tileArg + 1]);
@@ -71,7 +119,9 @@ const bytes = (n) =>
 async function main() {
   let files;
   try {
-    files = (await readdir(SRC)).filter((f) => f.endsWith('.png')).sort();
+    files = (await readdir(SRC))
+      .filter((f) => f.endsWith('.png'))
+      .map((f) => ({ dir: SRC, file: f, key: f.slice(0, -4) }));
   } catch {
     console.error(
       `No vendored sprites at ${SRC}.\n` +
@@ -81,18 +131,44 @@ async function main() {
     process.exit(1);
   }
 
+  // The custom items are optional: a checkout without them still packs the pool
+  // rather than failing, and the client falls back per item exactly as before.
+  try {
+    const custom = (await readdir(CUSTOM_SRC))
+      .filter((f) => f.endsWith('.png'))
+      .map((f) => ({ dir: CUSTOM_SRC, file: f, key: CUSTOM_PREFIX + f.slice(0, -4) }));
+    files = files.concat(custom);
+  } catch {
+    console.warn(`No custom sprites at ${CUSTOM_SRC} — packing the pool only.`);
+  }
+
   if (files.length === 0) {
     console.error(`${SRC} has no PNGs to pack.`);
     process.exit(1);
   }
 
-  // Square-ish, row-major. Sorted by filename so the layout is deterministic:
-  // regenerating without adding items must produce a byte-identical atlas, or
-  // every deploy churns a 5 MB binary in git for no reason.
+  // Square-ish, row-major. Sorted so the layout is deterministic: regenerating
+  // without adding items must produce a byte-identical atlas, or every deploy
+  // churns a 6 MB binary in git for no reason.
+  //
+  // **The pool sorts first, the custom items after it — never interleaved.**
+  // Sorting on the prefixed key put `custom/...` among the c's, at index 356 of
+  // 1551, which shifted the 1,195 sprites after it by eight positions. That is
+  // harmless while the index and the image are the same build and catastrophic
+  // the moment they are not: every sprite past the insertion point draws its
+  // neighbour's tile. It surfaced as a collection book full of wrong items.
+  //
+  // Appending instead means an index is only ever *added* at the end, so a stale
+  // reader and a fresh one still agree about every sprite they both know. The
+  // version stamp below closes the rest of the gap; this makes the failure mode
+  // benign rather than merely unlikely.
+  const rank = (e) => (e.dir === SRC ? 0 : 1);
+  files.sort((a, b) => rank(a) - rank(b) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const cols = Math.ceil(Math.sqrt(files.length));
   const rows = Math.ceil(files.length / cols);
-  const width = cols * TILE;
-  const height = rows * TILE;
+  const CELL = TILE + PAD * 2;
+  const width = cols * CELL;
+  const height = rows * CELL;
 
   // Composed by blitting raw RGBA rather than through sharp's composite(): 1,500
   // composite operations in one pipeline is far slower and much heavier on
@@ -101,9 +177,9 @@ async function main() {
   const atlas = Buffer.alloc(width * height * 4);
   const sprites = {};
 
-  for (const [i, file] of files.entries()) {
-    const name = file.slice(0, -4);
-    const { data } = await sharp(join(SRC, file))
+  for (const [i, entry] of files.entries()) {
+    const name = entry.key;
+    const { data } = await sharp(join(entry.dir, entry.file))
       // `nearest` is not optional. Any smooth kernel turns pixel art into mush,
       // and these are 8x upscales, so a blurred downscale is very visible.
       .resize(TILE, TILE, { kernel: 'nearest', fit: 'fill' })
@@ -111,15 +187,26 @@ async function main() {
       .raw()
       .toBuffer({ resolveWithObject: true });
 
+    // Written cell by cell with the source coordinate clamped, which draws the
+    // sprite and extrudes its border in one pass: inside the cell's padding the
+    // clamp resolves to the nearest real edge pixel, so the gutter is a smear of
+    // the sprite's own outline. See PAD.
     const col = i % cols;
     const row = Math.floor(i / cols);
-    for (let y = 0; y < TILE; y++) {
-      data.copy(
-        atlas,
-        ((row * TILE + y) * width + col * TILE) * 4,
-        y * TILE * 4,
-        (y + 1) * TILE * 4,
-      );
+    const cellX = col * CELL;
+    const cellY = row * CELL;
+
+    for (let y = 0; y < CELL; y++) {
+      const sy = Math.min(TILE - 1, Math.max(0, y - PAD));
+      for (let x = 0; x < CELL; x++) {
+        const sx = Math.min(TILE - 1, Math.max(0, x - PAD));
+        const from = (sy * TILE + sx) * 4;
+        const to = ((cellY + y) * width + cellX + x) * 4;
+        atlas[to] = data[from];
+        atlas[to + 1] = data[from + 1];
+        atlas[to + 2] = data[from + 2];
+        atlas[to + 3] = data[from + 3];
+      }
     }
 
     // Keyed by name, holding the flat index. The index is meaningless without
@@ -137,7 +224,30 @@ async function main() {
     .webp({ lossless: true, effort: 6 })
     .toFile(OUT_IMAGE);
 
-  const meta = { tile: TILE, cols, rows, width, height, count: files.length, sprites };
+  // ── The version stamp ──────────────────────────────────────────────────────
+  //
+  // The index and the image are one artifact split across two files, and until
+  // now both were fetched from plain unversioned URLs — so a browser was free to
+  // refresh one and keep the other. That is not theoretical: it happened during
+  // development and produced a collection book where every sprite past the first
+  // custom item drew its neighbour, because the cached image was the previous
+  // build and the index was the current one.
+  //
+  // Hashing the *pixels* rather than the file list is deliberate: the point is to
+  // detect that the image a client holds is not the image this index describes,
+  // and only the pixels can answer that. Re-running the packer with no changes
+  // produces the same hash, so the deterministic-output property above survives.
+  //
+  // atlas.js appends this to the image request, and the JSON is fetched first —
+  // so even a stale index pulls the image that matches *it*. The pair is then
+  // always self-consistent; at worst it is uniformly old, which renders correctly.
+  const version = createHash('sha256').update(atlas).digest('hex').slice(0, 12);
+
+  // `pad` and `cell` are what the client needs to address a sprite now that the
+  // grid pitch is no longer the tile size. Both are written explicitly rather
+  // than derived, so an atlas built before the gutter existed (no `pad` key) is
+  // still readable — atlas.js defaults them to 0 and TILE.
+  const meta = { version, tile: TILE, pad: PAD, cell: CELL, cols, rows, width, height, count: files.length, sprites };
   await writeFile(OUT_JSON, JSON.stringify(meta));
 
   const { size } = await stat(OUT_IMAGE);
@@ -145,7 +255,8 @@ async function main() {
   const megapixels = (width * height) / 1e6;
 
   console.log(
-    `Packed ${files.length} sprites at ${TILE}px into ${cols}x${rows} ` +
+    `Packed ${files.length} sprites at ${TILE}px (+${PAD}px extruded gutter, ` +
+    `${CELL}px cell) into ${cols}x${rows} ` +
     `(${width}x${height}, ${megapixels.toFixed(1)} MP) -> public/fib-atlas.webp ` +
     `(${bytes(size)}) + fib-atlas.json (${bytes(jsonSize)})`,
   );

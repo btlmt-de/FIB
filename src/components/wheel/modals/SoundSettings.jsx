@@ -2,6 +2,7 @@ import React from 'react';
 import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { COLORS } from '../config/constants';
+import { TopbarIconButton } from '../topbar/TopbarControls.jsx';
 
 // ============================================
 // Sound Settings Component
@@ -831,40 +832,34 @@ export function SoundSettingsPanel({ onClose }) {
     );
 }
 
-// Compact sound button for header/navigation
-export function SoundButton({ onClick, isMobile = false }) {
+/**
+ * Compact sound button for the topbar.
+ *
+ * It used to draw itself: a 36px radius-8 tile with a permanent fill, no hover
+ * state and its own border colour. Sitting in the user capsule between five
+ * transparent circles that did have hover states, it was the one control on the
+ * row that looked pressed when it wasn't and dead when you moused over it.
+ *
+ * It is a `TopbarIconButton` now like everything else, and its state is carried
+ * where state belongs — in the icon (Volume2 / VolumeX) and, when music is
+ * actually playing, in the tone. The `isPlaying` accent is kept because it says
+ * something the icon does not: enabled means "will play", playing means "is
+ * playing right now", and muting from the topbar is the reason people reach for
+ * this button mid-spin.
+ */
+export function SoundButton({ onClick }) {
     const { settings, isPlaying } = useSound();
-    const label = settings.enabled ? "Sound settings (enabled)" : "Sound settings (disabled)";
+    const label = settings.enabled
+        ? (isPlaying ? 'Sound settings (playing)' : 'Sound settings (enabled)')
+        : 'Sound settings (muted)';
 
     return (
-        <button
-            type="button"
+        <TopbarIconButton
             onClick={onClick}
-            title="Sound Settings"
-            aria-label={label}
-            style={{
-                width: isMobile ? '32px' : '36px',
-                height: isMobile ? '32px' : '36px',
-                borderRadius: '8px',
-                background: settings.enabled
-                    ? (isPlaying ? `${COLORS.accent}22` : COLORS.bgLighter)
-                    : `${COLORS.red}15`,
-                border: `1px solid ${settings.enabled
-                    ? (isPlaying ? COLORS.accent : COLORS.border)
-                    : COLORS.red}33`,
-                color: settings.enabled
-                    ? (isPlaying ? COLORS.accent : COLORS.textMuted)
-                    : COLORS.red,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-                padding: 0,
-            }}
-        >
-            {settings.enabled ? <Volume2 size={isMobile ? 16 : 18} /> : <VolumeX size={isMobile ? 16 : 18} />}
-        </button>
+            label={label}
+            tone={settings.enabled ? (isPlaying ? 'active' : 'default') : 'muted'}
+            icon={settings.enabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+        />
     );
 }
 

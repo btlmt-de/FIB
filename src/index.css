@@ -213,3 +213,27 @@ html, body {
   /* Nothing needed for .fib-holo-icon: its gradient never moved in the first
    * place, so there is no motion here to opt out of. */
 }
+
+/* ── Screen-reader-only ──────────────────────────────────────────────────────
+ *
+ * The clip-rect pattern rather than `display: none` or `visibility: hidden`,
+ * both of which remove the element from the accessibility tree — which is the
+ * one thing a live region must never be.
+ *
+ * `position: fixed` and not `absolute`: the wheel's announcer lives inside a
+ * `display: contents` wrapper, so an absolutely-positioned child would still be
+ * a grid item and get auto-placed into whatever cell happened to be free. Fixed
+ * takes it out of layout entirely.
+ */
+.fib-sr-only {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { getItemImageUrl, getDiscordAvatarUrl } from '../../../utils/helpers.js';
+import { getItemImageUrl, getDiscordAvatarUrl, spinRevealDelay } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { Trophy, Sparkles } from 'lucide-react';
@@ -39,27 +39,19 @@ export function LiveActivityToast() {
             // Mark as processed
             processedIdsRef.current.add(item.id);
 
-            // Parse created_at
-            let createdAtStr = item.created_at;
-            if (!createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
-            }
-            const now = Date.now();
-            const itemCreatedAt = new Date(createdAtStr).getTime();
-            const safeCreatedAt = Number.isFinite(itemCreatedAt) ? itemCreatedAt : now;
-            const itemAge = Math.max(0, now - safeCreatedAt);
-
-            // If item is very fresh (< 2 seconds), it's from SSE - delay to respect spin animation
-            // If item is older, it's from initial fetch during spin animation - calculate remaining delay
-            let delay;
-            if (itemAge < 2000) {
-                // Fresh SSE item - delay 4.5 seconds to cover spin animations
-                delay = 4500 + (idx * 300);
-            } else {
-                // Older item - apply remaining delay to sync with spin animation
-                const DELAY_AFTER_CREATION = 5000;
-                delay = Math.max(500, DELAY_AFTER_CREATION - itemAge) + (idx * 300);
-            }
+            // The reveal window is `spinRevealDelay`'s now, not this component's.
+            //
+            // It used to be computed here: its own date parsing, its own age
+            // branch, 4500ms for a fresh SSE item and `max(500, 5000 - age)` for an
+            // older one. Two constants for one idea, and — more to the point — the
+            // activity feed had no copy of the rule at all, so the ticker printed a
+            // drop about four seconds before this toast announced the same drop.
+            // Sharing the helper is what makes "synced" a property of the code
+            // rather than of two numbers that happen to be close.
+            //
+            // The stagger stays local. It is about not stacking three toasts on one
+            // frame, which is this component's problem and nobody else's.
+            const delay = spinRevealDelay(item.created_at) + (idx * 300);
 
             const timeoutId = setTimeout(() => {
                 if (isMountedRef.current) {
@@ -173,7 +165,16 @@ export function LiveActivityToast() {
                                 gap: '14px',
                                 minWidth: '320px',
                                 maxWidth: '400px',
-                                animation: 'toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                // Decelerating, not overshooting. DESIGN.md §8
+                                // permits the 1.56-style overshoot on the spin
+                                // control alone — a wheel overshoots and settles,
+                                // and the control that starts one may borrow that —
+                                // and names panels, modals and toasts as taking a
+                                // smooth curve instead. A toast that sails past its
+                                // resting position and springs back is the same
+                                // defect the rule was written for when the username
+                                // modal did it.
+                                animation: 'toastSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
                                 cursor: 'pointer',
                                 pointerEvents: 'auto',
                                 position: 'relative',
@@ -288,7 +289,10 @@ export function LiveActivityToast() {
                             gap: '14px',
                             minWidth: '320px',
                             maxWidth: '400px',
-                            animation: 'toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), toastPulse 2s ease-in-out infinite',
+                            // Same decelerating curve as the ordinary toast above.
+                            // This is the special-pull variant; being the loud one
+                            // is not a reason to be the bouncy one.
+                            animation: 'toastSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1), toastPulse 2s ease-in-out infinite',
                             cursor: 'pointer',
                             pointerEvents: 'auto'
                         }}
