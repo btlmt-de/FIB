@@ -94,7 +94,14 @@ export function MobileTabBar({ onSelect, active = null, unreadChat = 0 }) {
                         key={id}
                         type="button"
                         onClick={() => onSelect?.(id)}
-                        aria-current={isActive ? 'page' : undefined}
+                        // aria-pressed, not aria-current="page": these buttons do
+                        // not navigate anywhere. Each one opens an overlay over the
+                        // wheel and closes it again, which is a toggle, and
+                        // `aria-current="page"` describes the current document
+                        // within a set of documents. Pressed/unpressed is also the
+                        // state a screen reader can report when nothing is open,
+                        // which is the surface's resting state.
+                        aria-pressed={isActive}
                         style={{
                             position: 'relative',
                             display: 'flex',

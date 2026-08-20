@@ -286,6 +286,25 @@ function EventSelectionWheel({ isMobile = false }) {
     const STRIP_HEIGHT = isMobile ? 50 : 52;
     const config = resultEvent ? EVENT_CONFIG[resultEvent] : null;
 
+    // ── The roll must always resolve, even for an event we cannot draw ────────
+    //
+    // The header reads "Selecting…" until `config` exists. For an event type this
+    // build has no row for — a backend shipping a fifth event first, the same skew
+    // the strip's placeholder cell covers — `config` never arrives, so the roll
+    // finished and the panel sat there saying it was still choosing until it faded.
+    // The one thing this component exists to say, it did not say.
+    //
+    // Falling back to the id turns `aurora_hour` into "AURORA HOUR": not the
+    // styled identity, but the truth, and a name the player can repeat to someone.
+    // `landed` is what drives the resolved treatment now, rather than `config` —
+    // an unresolved-looking header on a finished roll was the actual defect.
+    const landed = Boolean(resultEvent);
+    const resultLabel = config
+        ? config.name
+        : landed
+            ? String(resultEvent).replace(/_/g, ' ').toUpperCase()
+            : 'Selecting…';
+
     return (
         <div style={{
             display: 'flex',
@@ -345,13 +364,19 @@ function EventSelectionWheel({ isMobile = false }) {
 
                     <span style={{
                         fontSize: isMobile ? '12px' : '13px',
-                        fontWeight: config ? 700 : 400,
-                        color: config ? config.color : COLORS.textMuted,
+                        // Keyed on `landed`, not on `config`: a finished roll reads
+                        // as finished whether or not we have an identity for what
+                        // it landed on. Only the colour still needs the config —
+                        // an unknown event has no hue to claim, so it resolves in
+                        // the deck's own amber rather than borrowing another
+                        // event's.
+                        fontWeight: landed ? 700 : 400,
+                        color: config ? config.color : (landed ? COLORS.gold : COLORS.textMuted),
                         textShadow: config ? `0 0 14px ${config.color}66` : 'none',
                         whiteSpace: 'nowrap',
                         transition: 'color 0.3s ease-out',
                     }}>
-                        {config ? config.name : 'Selecting…'}
+                        {resultLabel}
                     </span>
                 </div>
 

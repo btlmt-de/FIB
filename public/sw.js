@@ -80,10 +80,18 @@ async function cacheFirst(request) {
     try {
         const response = await fetch(request);
 
-        // Only cache successful responses
+        // Only cache successful responses.
+        //
+        // Storing is best-effort and must stay that way. `cache.put` used to be
+        // fire-and-forget here; awaiting it inside this try — which is what adding
+        // the prune step needed — put cache failures on the same path as fetch
+        // failures, and the catch below rethrows. A QuotaExceededError is not
+        // hypothetical on a 6.4 MB atlas, and the result was that a full cache
+        // stopped meaning "this response is not cached" and started meaning "this
+        // response does not arrive". The bytes are already in hand; nothing about
+        // failing to keep a copy should deny them to the page.
         if (response.ok) {
-            await cache.put(request, response.clone());
-            await pruneSupersededAtlas(cache, request);
+            cacheQuietly(cache, request, response.clone());
         }
 
         return response;
@@ -91,6 +99,20 @@ async function cacheFirst(request) {
         console.error('[SW] Fetch failed:', error);
         throw error;
     }
+}
+
+/**
+ * Store the response and prune superseded atlases, swallowing any failure.
+ *
+ * Deliberately not awaited by the caller: the response is returned the moment it
+ * arrives and the cache catches up behind it. Errors are logged rather than
+ * ignored outright, because a cache that has silently stopped accepting writes is
+ * worth seeing in a console even though it must never break a page.
+ */
+function cacheQuietly(cache, request, response) {
+    cache.put(request, response)
+        .then(() => pruneSupersededAtlas(cache, request))
+        .catch((error) => console.warn('[SW] Cache write skipped:', error));
 }
 
 // Handle fetch events

@@ -1420,8 +1420,18 @@ function WheelOfFortunePage({ onBack }) {
                         showCollection ? 'collection'
                             : showLeaderboard ? 'leaderboard'
                                 : showProfile ? 'profile'
-                                    : null
+                                    // `onSelect` has always answered 'activity';
+                                    // nothing here ever produced it, so tapping Live
+                                    // opened the drawer and left the tab dark. Last in
+                                    // the chain so the existing precedence is untouched.
+                                    : showMobileActivity ? 'activity'
+                                        : null
                     }
+                    // 'chat' is deliberately absent: LiveChat owns whether it is open
+                    // and WheelPage only pokes it through `chatOpenSignal`, which is a
+                    // counter rather than a state. Marking that tab active means
+                    // lifting LiveChat's own open state, which is a bigger change than
+                    // this line.
                     unreadChat={chatUnread}
                     onSelect={(id) => {
                         if (id === 'collection') setShowCollection(true);
