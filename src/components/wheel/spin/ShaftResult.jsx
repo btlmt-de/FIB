@@ -8,6 +8,7 @@ import {
     getRarityIcon,
     isIridescentRarity,
 } from '../../../utils/rarityHelpers.jsx';
+import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
 
 /**
  * The phone's payoff: the winning row grows into the answer.
@@ -52,7 +53,7 @@ import {
  */
 export const SHAFT_RESULT_HEIGHT = 236;
 
-export function ShaftResult({ result, isNewItem, collection, centerY }) {
+export function ShaftResult({ result, isNewItem, prestigePull, collection, centerY }) {
     if (!result) return null;
 
     const rarity = getItemRarity(result);
@@ -183,6 +184,7 @@ export function ShaftResult({ result, isNewItem, collection, centerY }) {
                         NEW
                     </span>
                 )}
+                <PrestigeFlag pull={prestigePull} itemName={result.name} compact />
             </div>
 
             {/* The item, standing in its light. */}
@@ -273,6 +275,7 @@ export function ShaftResult({ result, isNewItem, collection, centerY }) {
                             {owned} in collection
                         </span>
                     )}
+                    <PrestigeCount pull={prestigePull} style={{ fontSize: '11px' }} />
                 </div>
             )}
         </div>

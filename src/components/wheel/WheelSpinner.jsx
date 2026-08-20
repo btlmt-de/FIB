@@ -188,6 +188,17 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     const [strip, setStrip] = useState([]);
     const [result, setResult] = useState(null);
     const [isNewItem, setIsNewItem] = useState(false);
+    /*
+     * The prestige side of the same question.
+     *
+     * `{ level, levelKey, isNew, count }` on a spin taken during a run, and null
+     * for everyone else. It travels beside `isNewItem` rather than inside it
+     * because they are genuinely two different facts: an item can be a duplicate
+     * of a collection you finished months ago and the first of its kind in the
+     * run you started yesterday, and that is the common case once prestige is
+     * running — every pull is a main-collection duplicate by definition.
+     */
+    const [prestigePull, setPrestigePull] = useState(null);
     const [showOddsInfo, setShowOddsInfo] = useState(false);
     const [spinProgress, setSpinProgress] = useState(0); // 0-1 for Phase 2 effects
     // One flag instead of the old imagesPreloaded/preloadProgress pair: the wheel
@@ -642,6 +653,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         // Reset states
         setResult(null);
         setIsNewItem(false);
+        setPrestigePull(null);
         setTripleResults([null, null, null, null, null]);
         setTripleNewItems([false, false, false, false, false]);
         // Note: don't reset currentSpinIsKotwLucky here - performSpin will set it correctly
@@ -803,6 +815,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         setStrip([]);
                         setResult(null);
                         setIsNewItem(false);
+            setPrestigePull(null);
+                        setPrestigePull(null);
+        setPrestigePull(null);
                         setState('idle');
                         flushKotwPending();
                         return null;
@@ -866,6 +881,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                     });
                     setResult(finalItem);
                     setIsNewItem(spinResult.isNew);
+                    setPrestigePull(spinResult.prestige || null);
 
                     return spinResult;
                 } catch (err) {
@@ -951,6 +967,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                         setStrip([]);
                         setResult(null);
                         setIsNewItem(false);
+            setPrestigePull(null);
+                        setPrestigePull(null);
+        setPrestigePull(null);
                         setState('idle');
                         flushKotwPending();
                     });
@@ -968,6 +987,8 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
             setStrip([]);
             setResult(null);
             setIsNewItem(false);
+            setPrestigePull(null);
+        setPrestigePull(null);
             setState('idle');
             flushKotwPending();
         }
@@ -2371,6 +2392,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                     <ShaftResult
                                         result={state === 'result' ? result : luckyResult}
                                         isNewItem={state === 'result' ? isNewItem : isLuckyNew}
+                                        prestigePull={prestigePull}
                                         collection={collection}
                                         // The landed row's centre. The row's top is
                                         // the canvas's own formula — `stripCentre +
@@ -2537,6 +2559,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 <SpinResult
                                     result={result}
                                     isNewItem={isNewItem}
+                                    prestigePull={prestigePull}
                                     collection={collection}
                                     resultWasRecursionSpin={resultWasRecursionSpin}
                                     resultWasKotwLuckySpin={resultWasKotwLuckySpin}

@@ -166,3 +166,53 @@ export const BONUS_IDENTITY_FALLBACK = { color: COLORS.orange, iconColor: COLORS
  * never material.
  */
 export const SURFACE_NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`;
+
+/**
+ * THE NOCTURNE's deck, as tokens.
+ *
+ * The blue-hour ramp (#0d1322 -> #0a0d18 -> #05060a), the rail light
+ * (rgba(206,214,236,a)) and the sky light are the most reused values on this
+ * whole surface, and until now every one of them was a literal. DESIGN.md counts
+ * the rail light alone at 25 uses across 5 files and states the Named-Or-Nothing
+ * Rule about exactly this: a colour that appears in more than one file is a
+ * token or a bug.
+ *
+ * This names them. It deliberately does NOT sweep the six files that already
+ * spell them by hand — that is a mechanical pass across the canvases and the
+ * effects tree, and burying it inside a redesign is how a refactor stops being
+ * reviewable. New work takes the tokens; the sweep is owed separately.
+ *
+ * `rail(alpha)` is a function rather than a scale because the value is always
+ * spent translucent and the alpha is the whole decision: 0.06 for a seam between
+ * two neighbours, 0.10 for a lit top edge, 0.20 for a front lip. Three steps in
+ * practice, but the call site is where the edge is being described, so it is the
+ * call site that should say which edge it is.
+ */
+export const rail = alpha => `rgba(206,214,236,${alpha})`;
+
+export const DECK = {
+    // The band's own ground, top to curb.
+    faceTop: '#0d1322',
+    faceMid: '#0a0d18',
+    faceDeep: '#05060a',
+
+    /** A plinth's material: the deck's ramp under the surface's shared grain. */
+    plinth: `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
+    /** The board's own face — deeper, because things stand on it. */
+    face: `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 46%, #05060a 100%)`,
+
+    /** Blue-hour sky light, falling from the top of a surface. */
+    sky: 'rgba(148,168,212,0.06)',
+    /** Station amber pooling up from a floor. */
+    amberWash: 'rgba(255,183,94,0.07)',
+
+    // Station amber is the board's chrome and its one signal colour. It is the
+    // surface's existing gold (COLORS.gold) named for the job it does here, so
+    // the board and the band's centre line are literally the same lamp.
+    amber: COLORS.gold,
+
+    // The board's ink ladder. Measured on #0a0d18: 15.9:1, 8.6:1, 5.2:1.
+    ink: '#E8ECF6',
+    inkMid: '#A8B0C6',
+    inkDim: '#7C859C',
+};
