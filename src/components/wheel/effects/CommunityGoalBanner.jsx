@@ -636,24 +636,24 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                     player{resultNow.participantCount !== 1 ? 's' : ''}
                                     {resultNow.specialDrops > 0 && (
                                         <>
-                                            , <strong style={{ color: getRarityInk('rare') }}>
+                                            , <strong style={{ color: CG_PRIMARY }}>
                                                 {resultNow.specialDrops}
-                                            </strong> rare{resultNow.specialDrops !== 1 ? 's' : ''}
+                                            </strong> special item{resultNow.specialDrops !== 1 ? 's' : ''}
                                         </>
                                     )}
                                 </span>
                                 {/* The server had the points for a higher stage and was held
-                                    back by the rare requirement. Saying so turns a stage that
-                                    silently failed to arrive into a result they can argue with
-                                    down the line - which is the whole reason the gate is a
-                                    stated rule rather than an emergent one. */}
+                                    back by the special-item requirement. Saying so turns a
+                                    stage that silently failed to arrive into a result they can
+                                    argue with down the line - which is the whole reason the
+                                    gate is a stated rule rather than an emergent one. */}
                                 {resultNow.gatedTierName && (
                                     <>
                                         <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
                                         <span style={{ color: CG_FAIL }}>
                                             <strong>{resultNow.gatedTierName}</strong> was in reach on points
                                             {' '}&mdash; it needed{' '}
-                                            <strong>{resultNow.gatedTierSpecials}</strong> rare
+                                            <strong>{resultNow.gatedTierSpecials}</strong> special item
                                             {resultNow.gatedTierSpecials !== 1 ? 's' : ''}, the server found{' '}
                                             <strong>{resultNow.specialDrops}</strong>
                                         </span>
@@ -680,9 +680,10 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                     <>
                                         <span style={{ color: CG_PRIMARY, opacity: 0.6 }}>|</span>
                                         {/* Ranked by points server-side, so the leader is shown by
-                                            points too. Their rare count is not interchangeable with
-                                            it - the top scorer can perfectly well have pulled none,
-                                            and printing "x0" beside a trophy read as a bug. */}
+                                            points too. Their special-item count is not
+                                            interchangeable with it - the top scorer can perfectly
+                                            well have pulled none, and printing "x0" beside a
+                                            trophy read as a bug. */}
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <Trophy size={13} color={COLORS.gold} />{' '}
                                             <strong style={{ color: CG_TEXT }}>
@@ -691,7 +692,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                             {resultNow.topContributors[0].points} pts
                                             {resultNow.topContributors[0].contributions > 0 && (
                                                 <span style={{ opacity: 0.7, fontSize: isMobile ? '10px' : '12px' }}>
-                                                    {' '}({resultNow.topContributors[0].contributions} rare
+                                                    {' '}({resultNow.topContributors[0].contributions} special item
                                                     {resultNow.topContributors[0].contributions !== 1 ? 's' : ''})
                                                 </span>
                                             )}
@@ -778,7 +779,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                                        paid, so the specials are what is missing.
                                                        Without this the bar just sits full and
                                                        nothing happens. */
-                                                    : <>{nextTier.name} needs {nextTierSpecialsShort} rare{nextTierSpecialsShort !== 1 ? 's' : ''}</>}
+                                                    : <>{nextTier.name} needs {nextTierSpecialsShort} special item{nextTierSpecialsShort !== 1 ? 's' : ''}</>}
                                     </span>
                                 </div>
                             )}
@@ -849,15 +850,29 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                             marginTop: isMobile ? '6px' : '8px',
                             flexWrap: 'wrap',
                         }}>
-                            <span style={{ color: CG_TEXT, fontWeight: 600 }}>Goal:</span>
+                            {/* Label and sentence are one flex item, not two. Every
+                                other boundary in this row has a `|` to explain the
+                                12px gap; this one does not, so a gap here reads as a
+                                typo rather than as separation — "Goal:" adrift from
+                                the clause it introduces. Inside one item they are
+                                separated by an ordinary word space, which is what the
+                                punctuation already implies. */}
                             <span>
+                                <span style={{ color: CG_TEXT, fontWeight: 600 }}>Goal:</span>{' '}
                                 Every spin scores - <strong style={{ color: getRarityInk('rare') }}>rarer is worth more</strong>
                             </span>
                             <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
-                            {/* A stage's price is points AND rares, so the legend has to show
-                                both or the specials gate looks like the bar failing to pay.
-                                The rare requirement is only printed where there is one, which
-                                keeps Iron reading as the plain "turn up" marker it is. */}
+                            {/* A stage's price is points AND special items, so the legend has
+                                to show both or the specials gate looks like the bar failing to
+                                pay. The special-item requirement is only printed where there is
+                                one, which keeps Iron reading as the plain "turn up" marker it
+                                is.
+
+                                "Special item", not "rare", throughout this banner: rare is one
+                                rung of the ladder, and the gate counts five. The server agrees
+                                — `isSpecialPull` in services/rarities.js is
+                                ['insane','mythic','legendary','exotic','rare'] — so the copy
+                                now says what `specialDrops` has always counted. */}
                             {tiers.map(tier => {
                                 const met = tierMet(tier);
                                 const needsSpecials = (tier.specials || 0) > 0;
@@ -877,14 +892,22 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                         {tier.name} {tier.threshold}
                                         {needsSpecials && (
                                             <span
-                                                title={`${tier.name} also needs ${tier.specials} rare or better across the server`}
+                                                title={`${tier.name} also needs ${tier.specials} special item${tier.specials !== 1 ? 's' : ''} (rare or better) across the server`}
                                                 style={{
                                                     // Dimmed once the server has enough - a
                                                     // requirement already satisfied should stop
                                                     // competing for attention with the number
                                                     // still being chased.
                                                     opacity: specialDrops >= tier.specials ? 0.55 : 1,
-                                                    color: getRarityInk('rare'),
+                                                    // The mode's teal, not a tier's ink. This star
+                                                    // counts five rungs of the ladder, so painting
+                                                    // it as one of them says the gate wants rares
+                                                    // specifically - the same claim the copy used
+                                                    // to make in words. Teal belongs to no tier,
+                                                    // which is the point of it, and it stays
+                                                    // distinct from the CG_ACCENT the rest of this
+                                                    // row is set in. 7.8:1 on the banner ground.
+                                                    color: CG_PRIMARY,
                                                     fontWeight: 700,
                                                 }}
                                             >
@@ -898,9 +921,16 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                 );
                             })}
                             <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
+                            {/* The sentence is wrapped so the flex gap has only two
+                                items to sit between: the icon and the text. Left bare,
+                                `<strong>` splits the run into three anonymous flex
+                                items — "Lucky Spins ", "each", ", just for taking
+                                part" — and the 4px gap lands between the word and its
+                                comma, printing "each , just". A gap is for spacing
+                                boxes, and a sentence with emphasis in it is one box. */}
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                 <Sparkles size={isMobile ? 10 : 12} color="#22C55E" />
-                                Lucky Spins <strong style={{ color: '#22C55E' }}>each</strong>, just for taking part
+                                <span>Lucky Spins <strong style={{ color: '#22C55E' }}>each</strong>, just for taking part</span>
                             </span>
                             {!isMobile && (
                                 <>
@@ -913,10 +943,13 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                         server can watch rather than only discover at the end. */}
                                     <span
                                         style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                        title="Rare or better found by anyone this event"
+                                        title="Special items (rare or better) found by anyone this event"
                                     >
-                                        <span style={{ color: getRarityInk('rare'), fontWeight: 700 }}>&#9733;</span>
-                                        {specialDrops} rare{specialDrops !== 1 ? 's' : ''} found
+                                        {/* Matches the +N★ requirement badge on the stage
+                                            markers - the running count and the thing it is
+                                            counting towards have to be the same colour. */}
+                                        <span style={{ color: CG_PRIMARY, fontWeight: 700 }}>&#9733;</span>
+                                        {specialDrops} special item{specialDrops !== 1 ? 's' : ''} found
                                     </span>
                                 </>
                             )}
