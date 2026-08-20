@@ -8,6 +8,7 @@ import {
     getRarityIcon,
     isIridescentRarity,
 } from '../../../utils/rarityHelpers.jsx';
+import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
 
 /**
  * The payoff panel: what you just won.
@@ -31,6 +32,7 @@ import {
 export function SpinResult({
     result,
     isNewItem,
+    prestigePull,
     collection,
     resultWasRecursionSpin,
     resultWasKotwLuckySpin,
@@ -216,6 +218,11 @@ export function SpinResult({
                         NEW
                     </span>
                 )}
+                {/* The prestige twin. During a run the green NEW above can never
+                    light — you prestige with a complete collection, so every pull
+                    is a main-collection duplicate by definition — and this badge
+                    carries the meaning instead. */}
+                <PrestigeFlag pull={prestigePull} itemName={result.name} />
             </div>
 
             {/* The item, standing in the light.
@@ -355,7 +362,7 @@ export function SpinResult({
                 Tier ink rather than the flat tier colour because this is text:
                 several of the ladder's colours are Minecraft chat colours that
                 fail contrast on these panels. */}
-            {(chance || owned > 1) && (
+            {(chance || owned > 1 || (prestigePull && prestigePull.count > 1)) && (
                 <div style={{
                     position: 'relative',
                     zIndex: Z.content,
@@ -390,6 +397,10 @@ export function SpinResult({
                             {owned} in collection
                         </span>
                     )}
+                    <PrestigeCount
+                        pull={prestigePull}
+                        style={{ fontSize: isMobile ? '11px' : '12px' }}
+                    />
                 </div>
             )}
         </div>

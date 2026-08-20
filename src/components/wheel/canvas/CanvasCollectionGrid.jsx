@@ -8,18 +8,18 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
-import { getRarityColor, getRarityOnColor, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
+import { getRarityColor, getRarityInk, getRarityOnColor, getRarityStops, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
 // CONSTANTS
 // ============================================
 
-const ITEM_SIZE = 72; // Base item size
-const ITEM_GAP = 8;   // Gap between items
-const GRID_PADDING = 16; // Padding around grid for glows/badges
-const BADGE_SIZE = 14;
-const COUNT_BADGE_HEIGHT = 16;
+// The platform's geometry lives with the renderer that draws against it — see
+// TARGET_CELL / ITEM_GAP / GRID_PADDING below. Keeping it here as well is how the
+// wheel earned "the constant that outlived its geometry" five times in one
+// session: a second file restating a pitch is a second file that can disagree
+// about it.
 
 // ============================================
 // COLOR HELPERS
@@ -33,16 +33,6 @@ function hexToRgb(hex) {
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
     } : { r: 0, g: 0, b: 0 };
-}
-
-function lerpColor(c1, c2, t) {
-    const rgb1 = typeof c1 === 'string' ? hexToRgb(c1) : c1;
-    const rgb2 = typeof c2 === 'string' ? hexToRgb(c2) : c2;
-    return {
-        r: Math.round(rgb1.r + (rgb2.r - rgb1.r) * t),
-        g: Math.round(rgb1.g + (rgb2.g - rgb1.g) * t),
-        b: Math.round(rgb1.b + (rgb2.b - rgb1.b) * t)
-    };
 }
 
 // ============================================
@@ -119,365 +109,319 @@ function loadImage(src) {
 }
 
 // ============================================
-// ROUNDED RECT HELPER - Browser Compatibility
+// THE PLATFORM — one mounted item
 // ============================================
+//
+// A cell is an object mounted in a case, and its tier is the rim of light around
+// the mount.
+//
+// ── WHY THIS IS NOT THE REEL'S GRAMMAR, AFTER TRYING IT ──────────────────────
+//
+// The first version of this board drew the cell exactly as the band draws a
+// slot: a wash rising from a floor line, a base bar as the emitter, a filament,
+// bottom-weighted seams, no light at all on a common. It is the same rule —
+// DESIGN.md §8's "rarity is light, never a container" — and on the reel it is
+// unarguable. Here it was wrong, and the owner called it on sight.
+//
+// The reason is that the two surfaces do different things with an item. **The
+// reel moves items past a single focal slot; the platform holds them still and
+// on display.** A shaft of light reads as "this one is arriving" — it is
+// directional, it has a floor and a ceiling, and it earns its meaning from
+// travel. Take the travel away and stand fifteen of them in a row and the light
+// has nothing to be about: what you get is a floor-lit strip where the part with
+// the item in it is the dimmest part of the cell. That was already the known
+// weakness in the band ("the empty middle") and the band survives it because
+// each slot is on screen for a moment. A case does not have moments.
+//
+// A display case mounts its objects in a rim. So the tier is a rim here: a lit
+// border around the mount, animated on the tiers whose identity is motion, with
+// a bloom that says the object inside is worth the frame. It is a container, and
+// on this surface that is the correct answer — the ladder still climbs, and it
+// climbs in the one dimension a static grid can actually read at a glance.
+//
+// ── WHAT IS KEPT FROM THE FIRST BUILD ────────────────────────────────────────
+//
+// Two things, because they were never what was wrong:
+//
+//   · **A collected common gets no colour.** The original book gave every held
+//     common a gold rim, which is most of why 1,559 items shouted at one volume.
+//     A common gets a quiet rail-light rim that says "held" and nothing more.
+//   · **A missing item is a recess**, cut darker than the platform, holding its
+//     tier's hue at low alpha so the silhouette of what is still out there reads
+//     as what it is.
+//
+// And the ladder is still the shared one in rarityHelpers.jsx. Not one tier hue
+// is spelled here.
 
-function drawRoundedRectPath(ctx, x, y, w, h, r) {
-    // Feature detect and use native roundRect if available
-    if (typeof ctx.roundRect === 'function') {
-        ctx.roundRect(x, y, w, h, r);
-    } else {
-        // Manual path construction fallback for older browsers
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        ctx.lineTo(x + r, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
+const ITEM_GAP = 8;      // Room for a rim and its bloom to breathe.
+const GRID_PADDING = 14; // So the first row's bloom is not clipped by the mount.
+const TARGET_CELL = 88;  // Cell pitch target; the real pitch fills the platform.
+const BADGE_SIZE = 15;
+
+function rgbaOf(colour, alpha) {
+    const c = typeof colour === 'string' ? hexToRgb(colour) : colour;
+    return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+}
+
+/**
+ * The tier's live rim, as {stroke, bloom, drift}.
+ *
+ * `stroke` is what the border is painted with and may be a gradient; `bloom` is
+ * a flat colour, because canvas `shadowColor` cannot take one. `drift` is how
+ * much the tier moves, 0 for the tiers that hold still.
+ *
+ * The two animated tiers keep the rule DESIGN.md §8 states twice: **paint an
+ * animated tier with the whole gradient, never a single sampled point.** Insane's
+ * ramp passes through magenta, aqua and gold — which are exotic, mythic and
+ * legendary — so a border taking one colour off it spends two thirds of every
+ * cycle impersonating the tiers below it. That bug shipped once here already and
+ * the comment recording it is why this function returns a stroke and a bloom
+ * separately rather than one colour.
+ */
+function tierRim(ctx, type, x, size, time) {
+    switch (type) {
+        case 'insane': {
+            const phase = (time % 2.4) / 2.4;
+            const s = sampleHolo(phase);
+            return {
+                stroke: createHoloGradient(ctx, x, size, phase),
+                bloom: `rgb(${s.r}, ${s.g}, ${s.b})`,
+                drift: 0.18 + Math.sin(phase * Math.PI * 4) * 0.06,
+                blur: 20,
+            };
+        }
+        case 'mythic': {
+            const s = sampleRamp(COLORS.mythicCycle, (time % 1.5) / 1.5);
+            const flat = `rgb(${s.r}, ${s.g}, ${s.b})`;
+            return { stroke: flat, bloom: flat, drift: 0.14 + Math.sin((time % 2) / 2 * Math.PI * 2) * 0.06, blur: 18 };
+        }
+        case 'legendary': {
+            // Steady gold, and deliberately so: motion belongs to the tiers above
+            // it. Legendary took insane's colour when the ladder was rebuilt, not
+            // insane's pulse.
+            const flat = getRarityColor('legendary');
+            return { stroke: flat, bloom: flat, drift: 0.17, blur: 15 };
+        }
+        case 'exotic':
+        case 'rare':
+        case 'event': {
+            const flat = getRarityColor(type);
+            const pulse = Math.sin((time % 2.5) / 2.5 * Math.PI * 2) * 0.5 + 0.5;
+            return { stroke: flat, bloom: flat, drift: 0.10 + pulse * 0.07, blur: 13 };
+        }
+        default:
+            return null;
     }
 }
 
-// ============================================
-// ITEM RENDERER
-// ============================================
+/** The tier's mark, drawn rather than typed. */
+function drawTierGlyph(ctx, type, cx, cy, r) {
+    ctx.beginPath();
+    switch (type) {
+        case 'insane': { // a crown
+            ctx.moveTo(cx - r, cy + r * 0.55);
+            ctx.lineTo(cx - r * 1.05, cy - r * 0.75);
+            ctx.lineTo(cx - r * 0.42, cy - r * 0.05);
+            ctx.lineTo(cx, cy - r * 0.95);
+            ctx.lineTo(cx + r * 0.42, cy - r * 0.05);
+            ctx.lineTo(cx + r * 1.05, cy - r * 0.75);
+            ctx.lineTo(cx + r, cy + r * 0.55);
+            ctx.closePath();
+            break;
+        }
+        case 'mythic': { // a four-point sparkle
+            ctx.moveTo(cx, cy - r);
+            ctx.quadraticCurveTo(cx + r * 0.18, cy - r * 0.18, cx + r, cy);
+            ctx.quadraticCurveTo(cx + r * 0.18, cy + r * 0.18, cx, cy + r);
+            ctx.quadraticCurveTo(cx - r * 0.18, cy + r * 0.18, cx - r, cy);
+            ctx.quadraticCurveTo(cx - r * 0.18, cy - r * 0.18, cx, cy - r);
+            break;
+        }
+        case 'legendary': { // a five-point star
+            for (let i = 0; i < 10; i++) {
+                const rad = i % 2 === 0 ? r : r * 0.45;
+                const a = -Math.PI / 2 + (i * Math.PI) / 5;
+                const px = cx + Math.cos(a) * rad;
+                const py = cy + Math.sin(a) * rad;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            break;
+        }
+        case 'exotic': { // a cut gem
+            ctx.moveTo(cx, cy - r);
+            ctx.lineTo(cx + r * 0.92, cy - r * 0.2);
+            ctx.lineTo(cx, cy + r);
+            ctx.lineTo(cx - r * 0.92, cy - r * 0.2);
+            ctx.closePath();
+            break;
+        }
+        default: { // a rhombus
+            ctx.moveTo(cx, cy - r);
+            ctx.lineTo(cx + r * 0.78, cy);
+            ctx.lineTo(cx, cy + r);
+            ctx.lineTo(cx - r * 0.78, cy);
+            ctx.closePath();
+        }
+    }
+    ctx.fill();
+}
 
-function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHovered) {
-    const isInsane = item.type === 'insane';
-    const isMythic = item.type === 'mythic';
-    const isLegendary = item.type === 'legendary';
-    const isExotic = item.type === 'exotic';
-    const isRare = item.type === 'rare';
-    const isSpecialType = isInsane || isMythic || isLegendary || isExotic || isRare;
-
-    // Rarity colour comes from the shared ladder (utils/rarityHelpers.jsx); the
-    // local ternary this replaced was one of the copies that had to be kept in
-    // sync by hand. Note `item.type` is the persisted tier string, so an unknown
-    // value falls through to common rather than throwing.
-    const rarityColor = getRarityColor(item.type);
-
-    const radius = 10;
+function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHovered, isFocused) {
+    const type = item.type || 'common';
+    const isSpecial = type !== 'common';
+    const tierColor = getRarityColor(type);
+    const rim = isSpecial && isCollected ? tierRim(ctx, type, x, size, time) : null;
 
     ctx.save();
 
-    // Apply hover transform
-    if (isHovered && isCollected) {
-        ctx.translate(0, -4);
+    // Hovering lifts the object in its mount. A small translate, because on a
+    // case the thing that moves is the object and not the light.
+    if (isHovered && isCollected) ctx.translate(0, -3);
+
+    // ── 1. The bloom ─────────────────────────────────────────────────────────
+    // Behind the mount, so the rim's own glow reads as light escaping the case
+    // rather than as a halo pasted over the deck.
+    if (rim) {
+        const spread = size * 1.25;
+        const g = ctx.createRadialGradient(
+            x + size / 2, y + size / 2, size * 0.34,
+            x + size / 2, y + size / 2, spread * 0.55,
+        );
+        g.addColorStop(0, rgbaOf(rim.bloom, rim.drift));
+        g.addColorStop(0.6, rgbaOf(rim.bloom, rim.drift * 0.3));
+        g.addColorStop(1, rgbaOf(rim.bloom, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(x - (spread - size) / 2, y - (spread - size) / 2, spread, spread);
     }
 
-    // ============================================
-    // 1. SUBTLE BACKGROUND GLOW (reduced - border is the star)
-    // ============================================
-    if (isSpecialType && isCollected) {
-        const glowSize = size * 1.2;
-        const glowX = x - (glowSize - size) / 2;
-        const glowY = y - (glowSize - size) / 2;
-
-        let glowColor;
-        let intensity;
-
-        if (isInsane) {
-            // Travels the oil-slick ramp rather than pulsing between two colours.
-            const phase = (time % 2.4) / 2.4;
-            intensity = 0.18 + Math.sin(phase * Math.PI * 4) * 0.06;
-            glowColor = sampleHolo(phase);
-        } else if (isMythic) {
-            const phase = (time % 2) / 2;
-            intensity = 0.12 + Math.sin(phase * Math.PI * 2) * 0.08; // Reduced
-            glowColor = sampleRamp(COLORS.mythicCycle, phase);
-        } else if (isLegendary) {
-            // Steady gold — see the note in CanvasSpinningStrip. Legendary took
-            // insane's colour, not insane's pulse; motion belongs to the tier
-            // above it now.
-            intensity = 0.17;
-            glowColor = hexToRgb(COLORS.insane);
-        } else if (isExotic) {
-            const phase = (time % 2.5) / 2.5;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.1 + pulse * 0.08; // Reduced
-            glowColor = lerpColor(COLORS.purple, '#FF44FF', pulse);
-        } else if (isRare) {
-            const phase = (time % 2.5) / 2.5;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            intensity = 0.08 + pulse * 0.06; // Reduced
-            glowColor = lerpColor(COLORS.red, '#FF7777', pulse);
-        }
-
-        if (glowColor) {
-            const gradient = ctx.createRadialGradient(
-                x + size/2, y + size/2, size * 0.35,
-                x + size/2, y + size/2, glowSize * 0.55
-            );
-            gradient.addColorStop(0, `rgba(${glowColor.r}, ${glowColor.g}, ${glowColor.b}, ${intensity})`);
-            gradient.addColorStop(0.6, `rgba(${glowColor.r}, ${glowColor.g}, ${glowColor.b}, ${intensity * 0.3})`);
-            gradient.addColorStop(1, `rgba(${glowColor.r}, ${glowColor.g}, ${glowColor.b}, 0)`);
-
-            ctx.fillStyle = gradient;
-            ctx.fillRect(glowX, glowY, glowSize, glowSize);
-        }
-    }
-
-    // ============================================
-    // 2. BACKGROUND (subtle - let the border shine)
-    // ============================================
-    ctx.beginPath();
-    drawRoundedRectPath(ctx, x, y, size, size, radius);
-
+    // ── 2. The mount ─────────────────────────────────────────────────────────
+    // Square, like everything else on this board. The rim is the frame; a radius
+    // on top of it would be a second one.
     if (isCollected) {
-        // Create subtle gradient background
-        const bgGradient = ctx.createLinearGradient(x, y, x + size, y + size);
-        if (isInsane) {
-            // All three slick hues at once, so a collected insane tile is
-            // recognisable in a grid even when it is not the one being hovered.
-            bgGradient.addColorStop(0, `${COLORS.insaneHolo[0]}22`);
-            bgGradient.addColorStop(0.5, `${COLORS.insaneHolo[1]}1A`);
-            bgGradient.addColorStop(1, `${COLORS.insaneHolo[2]}22`);
-        } else if (isMythic) {
-            bgGradient.addColorStop(0, `${COLORS.mythicCycle[0]}22`);
-            bgGradient.addColorStop(0.5, `${COLORS.mythicCycle[1]}18`);
-            bgGradient.addColorStop(1, `${COLORS.mythicCycle[2]}18`);
-        } else if (isLegendary) {
-            // One hue, two alphas — a plain gold wash rather than the gold->amber
-            // blend it used to carry.
-            bgGradient.addColorStop(0, `${COLORS.insane}22`);
-            bgGradient.addColorStop(1, `${COLORS.insane}18`);
-        } else if (isExotic) {
-            bgGradient.addColorStop(0, `${COLORS.purple}22`);
-            bgGradient.addColorStop(1, `${COLORS.red}18`);
-        } else if (isRare) {
-            bgGradient.addColorStop(0, `${COLORS.red}22`);
-            bgGradient.addColorStop(1, `${COLORS.orange}18`);
+        if (isSpecial) {
+            const fill = ctx.createLinearGradient(x, y, x + size, y + size);
+            const stops = getRarityStops(type);
+            if (stops && stops.length >= 3) {
+                // An animated tier fills with its whole ramp for the same reason
+                // its border strokes with it — one sampled point is another
+                // tier's colour two thirds of the time.
+                fill.addColorStop(0, `${stops[0]}24`);
+                fill.addColorStop(0.5, `${stops[1]}1A`);
+                fill.addColorStop(1, `${stops[2]}22`);
+            } else {
+                fill.addColorStop(0, `${tierColor}24`);
+                fill.addColorStop(1, `${tierColor}16`);
+            }
+            ctx.fillStyle = fill;
         } else {
-            bgGradient.addColorStop(0, COLORS.bgLight);
-            bgGradient.addColorStop(1, COLORS.bgLight);
-        }
-        ctx.fillStyle = bgGradient;
-    } else {
-        ctx.fillStyle = COLORS.bg;
-    }
-    ctx.fill();
-
-    // ============================================
-    // 3. ANIMATED BORDER (the star of the show!)
-    // ============================================
-    ctx.beginPath();
-    drawRoundedRectPath(ctx, x, y, size, size, radius);
-
-    let borderColor;
-    let animatedBorderColor = null;
-
-    if (isSpecialType && isCollected) {
-        // Animated border colors for special items
-        if (isInsane) {
-            // The border is a gradient, not a sampled colour.
-            //
-            // Sampling one point off the ramp per frame was the first attempt and
-            // it is actively wrong: the ramp passes through magenta, aqua and gold,
-            // which are exactly exotic, mythic and legendary. A tile that cycles
-            // through the other tiers' colours reads as those tiers, one at a time
-            // — caught in review with an insane tile sitting aqua next to a real
-            // mythic and looking identical to it. Stroking the whole ramp keeps all
-            // three hues present at once, which no other tier can imitate.
-            //
-            // animatedBorderColor stays a flat colour because shadowColor cannot
-            // take a gradient; it feeds the bloom only.
-            const bc = sampleHolo((time % 2.4) / 2.4);
-            animatedBorderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
-            borderColor = createHoloGradient(ctx, x, size, (time % 2.4) / 2.4);
-        } else if (isMythic) {
-            const bc = sampleRamp(COLORS.mythicCycle, (time % 1.5) / 1.5);
-            animatedBorderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
-            borderColor = animatedBorderColor;
-        } else if (isLegendary) {
-            // Flat gold, no cycle. animatedBorderColor is still set because it is
-            // what gates the multi-pass glow strokes below — legendary keeps its
-            // bloom, it just no longer breathes.
-            animatedBorderColor = COLORS.insane;
-            borderColor = animatedBorderColor;
-        } else if (isExotic) {
-            const phase = (time % 2) / 2;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            const bc = lerpColor(COLORS.purple, '#FF44FF', pulse);
-            animatedBorderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
-            borderColor = animatedBorderColor;
-        } else if (isRare) {
-            const phase = (time % 2) / 2;
-            const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-            const bc = lerpColor(COLORS.red, '#FF7777', pulse);
-            animatedBorderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
-            borderColor = animatedBorderColor;
+            ctx.fillStyle = 'rgba(206,214,236,0.045)';
         }
     } else {
-        // Static border colours. Uncollected tiles keep the tier's colour at 44
-        // alpha, so the silhouette of what is still missing reads as its rarity.
-        if (isSpecialType) {
-            borderColor = isCollected ? rarityColor : `${rarityColor}44`;
-        } else {
-            borderColor = isCollected ? `${COLORS.gold}66` : COLORS.border;
-        }
+        // Missing: a recess cut deeper than the platform.
+        ctx.fillStyle = 'rgba(0,0,0,0.34)';
     }
+    ctx.fillRect(x, y, size, size);
 
-    // Draw glowing border for collected special items (multiple passes for glow effect)
-    if (isSpecialType && isCollected && animatedBorderColor) {
-        // shadowColor needs a flat colour (it cannot take a gradient), so the bloom
-        // uses the sampled point while the stroke itself uses borderColor — which
-        // is the full slick for insane and the same sampled colour for every other
-        // tier. Stroking animatedBorderColor here instead is what made the earlier
+    // ── 3. The rim ───────────────────────────────────────────────────────────
+    ctx.lineWidth = 2;
+    if (rim) {
+        // Three passes: two blurred for the bloom, one crisp on top. The stroke
+        // is `rim.stroke` every time — which is the full gradient on insane —
+        // while only shadowColor takes the flat sample, because it cannot take
+        // anything else. Stroking the sample instead is what made an earlier
         // gradient border silently do nothing.
-        ctx.shadowColor = animatedBorderColor;
-        ctx.shadowBlur = isInsane ? 20 : isMythic ? 18 : 14;
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Middle glow layer
-        ctx.shadowBlur = isInsane ? 12 : isMythic ? 10 : 8;
-        ctx.stroke();
-
-        // Inner crisp border
+        ctx.strokeStyle = rim.stroke;
+        ctx.shadowColor = rim.bloom;
+        ctx.shadowBlur = rim.blur;
+        ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
+        ctx.shadowBlur = rim.blur * 0.6;
+        ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
         ctx.shadowBlur = 0;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
     } else {
-        // Regular border
-        ctx.strokeStyle = borderColor;
+        ctx.shadowBlur = 0;
+        // A held common says "held" and nothing about rarity — the original book
+        // gave it a gold rim, and gold means legendary one row up.
+        ctx.strokeStyle = isCollected
+            ? 'rgba(206,214,236,0.20)'
+            : (isSpecial ? `${tierColor}44` : 'rgba(206,214,236,0.07)');
+        ctx.lineWidth = isCollected ? 1 : 2;
+        ctx.strokeRect(x + 1, y + 1, size - 2, size - 2);
         ctx.lineWidth = 2;
-        ctx.stroke();
     }
 
-    // ============================================
-    // 4. ITEM IMAGE
-    // ============================================
+    // ── 4. The object ────────────────────────────────────────────────────────
     const imgSrc = getItemImageUrl(item);
     const img = images.get(imgSrc);
-
-    const imgScale = 0.7;
-    const imgSize = size * imgScale;
+    const imgSize = Math.round(size * 0.62);
     const imgX = x + (size - imgSize) / 2;
     const imgY = y + (size - imgSize) / 2;
 
     if (img || getAtlasSprite(item)) {
         ctx.save();
-
-        // Apply grayscale and opacity for uncollected
         if (!isCollected) {
-            ctx.globalAlpha = 0.2;
-            // Feature detect ctx.filter (not supported in Safari)
-            if ('filter' in ctx) {
-                ctx.filter = 'grayscale(100%)';
-            }
-            // Safari fallback: globalAlpha alone provides visual distinction
+            ctx.globalAlpha = 0.18;
+            if ('filter' in ctx) ctx.filter = 'grayscale(100%)';
         }
-
-        // Pixelated for Minecraft items, smooth for player heads
-        const useSmooth = item.username || isInsane || isMythic;
-        ctx.imageSmoothingEnabled = useSmooth;
-        ctx.imageSmoothingQuality = useSmooth ? 'high' : 'low';
-
+        // Every sprite here is a downscale (the atlas tile is 96px), and
+        // nearest-neighbour downscaling drops different source pixels frame to
+        // frame. Unconditional, for the same reason it is in the band.
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         drawItemSprite(ctx, item, img, imgX, imgY, imgSize);
-
-        // Reset filter and alpha (restore handles this, but be explicit)
         ctx.filter = 'none';
         ctx.globalAlpha = 1;
         ctx.restore();
-    } else {
-        // Placeholder while loading
-        ctx.fillStyle = `${rarityColor}22`;
+    } else if (isCollected) {
+        ctx.fillStyle = 'rgba(206,214,236,0.05)';
         ctx.fillRect(imgX, imgY, imgSize, imgSize);
     }
 
-    // ============================================
-    // 5. RARITY BADGE (top-right)
-    // ============================================
-    if (isSpecialType) {
-        const badgeX = x + size - BADGE_SIZE/2 - 2;
-        const badgeY = y - BADGE_SIZE/2 + 2;
+    // ── 5. The tier's mark ───────────────────────────────────────────────────
+    // Vector paths, not unicode stand-ins. The original set these with ♕ ✦ ★ ❖ ◆
+    // in whatever the platform's default sans happened to be, which is a
+    // different glyph on every OS and none of them the shape the DOM draws one
+    // panel over — the same tier is a Lucide Crown in the register and was a
+    // Windows dingbat here.
+    if (isSpecial) {
+        const bx = x + size - BADGE_SIZE / 2 - 1;
+        const by = y + BADGE_SIZE / 2 + 1;
 
         ctx.beginPath();
-        ctx.arc(badgeX, badgeY + BADGE_SIZE/2, BADGE_SIZE/2, 0, Math.PI * 2);
-
-        if (isCollected) {
-            // The corner badge follows the tier's own palette. Every branch here
-            // was still on the pre-rebuild colours: insane gold, mythic running
-            // through purple and gold, legendary purple->gold, and exotic falling
-            // through to rare's red because it had no branch at all.
-            const badgeGradient = ctx.createLinearGradient(badgeX - 7, badgeY, badgeX + 7, badgeY + 14);
-            if (isInsane) {
-                badgeGradient.addColorStop(0, COLORS.insaneHolo[0]);
-                badgeGradient.addColorStop(0.5, COLORS.insaneHolo[1]);
-                badgeGradient.addColorStop(1, COLORS.insaneHolo[2]);
-            } else if (isMythic) {
-                badgeGradient.addColorStop(0, COLORS.mythicCycle[0]);
-                badgeGradient.addColorStop(0.5, COLORS.mythicCycle[1]);
-                badgeGradient.addColorStop(1, COLORS.mythicCycle[2]);
-            } else if (isLegendary) {
-                badgeGradient.addColorStop(0, COLORS.insane);
-                badgeGradient.addColorStop(1, COLORS.insane);
-            } else if (isExotic) {
-                badgeGradient.addColorStop(0, COLORS.purple);
-                badgeGradient.addColorStop(1, COLORS.red);
-            } else {
-                badgeGradient.addColorStop(0, COLORS.red);
-                badgeGradient.addColorStop(1, COLORS.red);
-            }
-            ctx.fillStyle = badgeGradient;
-        } else {
-            ctx.fillStyle = COLORS.bgLighter || '#3a3a5a';
-        }
+        ctx.arc(bx, by, BADGE_SIZE / 2, 0, Math.PI * 2);
+        ctx.fillStyle = isCollected ? (rim ? rim.bloom : tierColor) : 'rgba(10,13,24,0.92)';
         ctx.fill();
-
-        ctx.strokeStyle = isCollected ? rarityColor : COLORS.border;
         ctx.lineWidth = 1;
+        ctx.strokeStyle = isCollected ? 'rgba(0,0,0,0.35)' : `${tierColor}55`;
         ctx.stroke();
 
-        // Badge icon (simplified). Canvas cannot draw the Lucide glyphs the DOM
-        // uses, so these are the nearest unicode stand-ins — exotic gets a gem
-        // rather than falling through to rare's diamond, which is what the old
-        // chain did the moment the tier existed.
-        //
-        // Foreground comes from the shared ladder — see getRarityOnColor. White on
-        // mythic's #55FFFF is 1.2:1.
-        ctx.fillStyle = isCollected ? getRarityOnColor(item.type) : COLORS.textMuted;
-        ctx.font = 'bold 8px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const iconChar = isInsane ? '♕' : isMythic ? '✦' : isLegendary ? '★' : isExotic ? '❖' : '◆';
-        ctx.fillText(iconChar, badgeX, badgeY + BADGE_SIZE/2);
+        ctx.fillStyle = isCollected ? getRarityOnColor(type) : `${tierColor}99`;
+        drawTierGlyph(ctx, type, bx, by, BADGE_SIZE * 0.29);
     }
 
-    // ============================================
-    // 6. COUNT BADGE (bottom-right)
-    // ============================================
+    // ── 6. The count ─────────────────────────────────────────────────────────
     if (count > 1) {
-        const countText = `x${count}`;
-        ctx.font = 'bold 10px sans-serif';
-        const textWidth = ctx.measureText(countText).width;
-        const badgeWidth = Math.max(textWidth + 10, 18);
-        const badgeX = x + size - badgeWidth - 2;
-        const badgeY = y + size - COUNT_BADGE_HEIGHT - 2;
+        ctx.font = "700 11px 'Barlow Condensed', system-ui, sans-serif";
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'alphabetic';
+        ctx.shadowColor = 'rgba(0,0,0,0.9)';
+        ctx.shadowBlur = 3;
+        ctx.fillStyle = isSpecial
+            ? rgbaOf(hexToRgb(getRarityInk(type)), 0.98)
+            : 'rgba(206,214,236,0.48)';
+        ctx.fillText(`${count}`, x + size - 5, y + size - 5);
+        ctx.shadowBlur = 0;
+    }
 
-        ctx.beginPath();
-        drawRoundedRectPath(ctx, badgeX, badgeY, badgeWidth, COUNT_BADGE_HEIGHT, 4);
-        ctx.fillStyle = rarityColor;
-        ctx.fill();
-
-        // The count sits on rarityColor, so it takes the same on-fill foreground.
-        ctx.fillStyle = getRarityOnColor(item.type);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(countText, badgeX + badgeWidth/2, badgeY + COUNT_BADGE_HEIGHT/2);
-    } else if (isCollected && !isSpecialType) {
-        // Check mark for common collected items
-        const checkX = x + size - 14;
-        const checkY = y + size - 14;
-        ctx.fillStyle = COLORS.green;
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('✓', checkX, checkY);
+    // ── 7. Focus ─────────────────────────────────────────────────────────────
+    // The keyboard's caret, in station amber — the reader's cursor, not a claim
+    // about the item, so it never borrows a tier's colour. Drawn outside the rim
+    // so a tier's own border stays readable underneath it.
+    if (isFocused) {
+        ctx.strokeStyle = '#FFAA00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 2, y - 2, size + 4, size + 4);
     }
 
     ctx.restore();
@@ -491,6 +435,7 @@ export function CanvasCollectionGrid({
                                          items = [],
                                          collection = {},
                                          onItemClick,
+                                         onItemFocus,
                                          containerHeight = 400,
                                      }) {
     const canvasRef = useRef(null);
@@ -503,6 +448,12 @@ export function CanvasCollectionGrid({
     const scrollTopRef = useRef(0);
     const containerWidthRef = useRef(400);
     const hoveredIndexRef = useRef(-1);
+    // The keyboard's position on the platform. A ref because the render loop
+    // reads it every frame and a state write per arrow key would tear down the
+    // RAF effect; the scroller is the focusable element, so React never needs to
+    // re-render for the caret to move.
+    const focusedIndexRef = useRef(-1);
+    const scrollerRef = useRef(null);
 
     // State for values that need to trigger re-renders (layout calculation)
     const [containerWidth, setContainerWidth] = useState(400);
@@ -510,14 +461,17 @@ export function CanvasCollectionGrid({
 
     // Calculate grid layout (needs state for useMemo)
     const layout = useMemo(() => {
-        const cellSize = ITEM_SIZE + ITEM_GAP;
-        // Account for padding on both sides
-        const availableWidth = containerWidth - (GRID_PADDING * 2);
-        const cols = Math.max(1, Math.floor((availableWidth + ITEM_GAP) / cellSize));
+        // The pitch still divides the platform exactly — no ragged column of
+        // dead deck on the right — but a cell is now a pitch with a gap in it,
+        // because a rim and its bloom need somewhere to be. `cellSize` is the
+        // pitch; `tileSize` is the mount drawn inside it.
+        const availableWidth = Math.max(TARGET_CELL, containerWidth - GRID_PADDING * 2);
+        const cols = Math.max(1, Math.round(availableWidth / TARGET_CELL));
+        const cellSize = availableWidth / cols;
+        const tileSize = cellSize - ITEM_GAP;
         const rows = Math.ceil(items.length / cols);
-        // Add padding to total height
-        const totalHeight = rows * cellSize + (GRID_PADDING * 2);
-        return { cols, rows, cellSize, totalHeight };
+        const totalHeight = rows * cellSize + GRID_PADDING * 2;
+        return { cols, rows, cellSize, tileSize, totalHeight };
     }, [containerWidth, items.length]);
 
     // Keep layout ref in sync for RAF
@@ -662,7 +616,6 @@ export function CanvasCollectionGrid({
             const currentLayout = layoutRef.current;
             const currentScrollTop = scrollTopRef.current;
             const currentHoveredIndex = hoveredIndexRef.current;
-            const width = containerWidthRef.current;
             const height = containerHeight;
 
             // Clear (use identity transform for clearing, then restore scale)
@@ -672,7 +625,7 @@ export function CanvasCollectionGrid({
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             // Calculate visible range (account for padding)
-            const { cols, cellSize, rows } = currentLayout;
+            const { cols, cellSize, tileSize, rows } = currentLayout;
             const adjustedScrollTop = Math.max(0, currentScrollTop - GRID_PADDING);
             const startRow = Math.floor(adjustedScrollTop / cellSize);
             const visibleRows = Math.ceil(height / cellSize) + 2;
@@ -685,14 +638,14 @@ export function CanvasCollectionGrid({
                     if (idx >= currentItems.length) continue;
 
                     const item = currentItems[idx];
-                    // Add padding offset to positions
-                    const x = GRID_PADDING + col * cellSize;
-                    const y = GRID_PADDING + row * cellSize - currentScrollTop;
+                    const x = GRID_PADDING + col * cellSize + ITEM_GAP / 2;
+                    const y = GRID_PADDING + row * cellSize + ITEM_GAP / 2 - currentScrollTop;
                     const count = currentCollection[item.texture] || 0;
                     const isCollected = count > 0;
                     const isHovered = idx === currentHoveredIndex;
+                    const isFocused = idx === focusedIndexRef.current;
 
-                    drawItem(ctx, item, x, y, ITEM_SIZE, isCollected, count, imagesRef.current, time, isHovered);
+                    drawItem(ctx, item, x, y, tileSize, isCollected, count, imagesRef.current, time, isHovered, isFocused);
                 }
             }
 
@@ -707,13 +660,6 @@ export function CanvasCollectionGrid({
             }
         };
     }, [containerHeight]); // Stable deps - containerHeight is a prop
-
-    // Handle scroll - update both ref (for RAF) and state (for image loading effect)
-    const handleScroll = useCallback((e) => {
-        const newScrollTop = e.target.scrollTop;
-        scrollTopRef.current = newScrollTop;
-        setScrollTop(newScrollTop);
-    }, []);
 
     // Helper to get item index at a point (shared by mouse move and click)
     const getItemIndexAtPoint = useCallback((clientX, clientY, rect) => {
@@ -731,21 +677,128 @@ export function CanvasCollectionGrid({
         return -1;
     }, []); // Stable - reads from refs
 
-    // Handle mouse move for hover - only update ref (no state needed)
-    const handleMouseMove = useCallback((e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
+    /*
+     * Everything that changes what the reader is pointing at goes through here.
+     *
+     * `onItemFocus` fires only when the index actually changes, so sweeping the
+     * pointer across the platform costs one parent render per cell crossed
+     * rather than one per mousemove event — and the RAF loop still reads the
+     * hover from a ref, so the canvas itself never re-mounts.
+     */
+    const announce = useCallback((idx) => {
+        if (idx === hoveredIndexRef.current) return;
         hoveredIndexRef.current = idx;
-    }, [getItemIndexAtPoint]);
+        if (!onItemFocus) return;
+        const item = idx >= 0 ? itemsRef.current[idx] : null;
+        onItemFocus(item
+            ? { name: item.name, type: item.type || 'common', held: collectionRef.current[item.texture] || 0 }
+            : null);
+    }, [onItemFocus]);
 
-    // Handle mouse leave
+    // The last place the pointer was, in client coords. Scrolling the wheel does
+    // not fire a mousemove, so without this the lift stayed on whichever cell
+    // *used* to be under a stationary cursor and the readout named the wrong item.
+    const pointerRef = useRef(null);
+
+    const handleMouseMove = useCallback((e) => {
+        pointerRef.current = { x: e.clientX, y: e.clientY };
+        const rect = e.currentTarget.getBoundingClientRect();
+        announce(getItemIndexAtPoint(e.clientX, e.clientY, rect));
+    }, [getItemIndexAtPoint, announce]);
+
     const handleMouseLeave = useCallback(() => {
-        hoveredIndexRef.current = -1;
+        pointerRef.current = null;
+        announce(-1);
+    }, [announce]);
+
+    // Handle scroll - update both ref (for RAF) and state (for image loading effect)
+    const handleScroll = useCallback((e) => {
+        const newScrollTop = e.target.scrollTop;
+        scrollTopRef.current = newScrollTop;
+        setScrollTop(newScrollTop);
+
+        // The cells moved under a pointer that did not, so whatever was hovered
+        // a frame ago is now a different item. Skip if keyboard owns the platform.
+        const pt = pointerRef.current;
+        if (pt && focusedIndexRef.current < 0) {
+            announce(getItemIndexAtPoint(pt.x, pt.y, e.target.getBoundingClientRect()));
+        }
+    }, [announce, getItemIndexAtPoint]);
+
+    /**
+     * Arrow-key navigation across the platform.
+     *
+     * The grid was a canvas under a scroll container and nothing else: no tab
+     * stop, no caret, no way to open an item without a pointer. 1,559 items is
+     * exactly the case where that matters, and a canvas cannot inherit
+     * roving-tabindex from anywhere — the caret has to be drawn, so it is (see
+     * drawItem's focus block).
+     *
+     * One tab stop for the whole platform, which is the same contract the
+     * segmented controls upstairs have. Home and End go to the ends because a
+     * board this long is unusable without them.
+     */
+    const handleKeyDown = useCallback((e) => {
+        const items = itemsRef.current;
+        if (items.length === 0) return;
+
+        const { cols, cellSize } = layoutRef.current;
+        const current = focusedIndexRef.current;
+        let next = current;
+
+        switch (e.key) {
+            case 'ArrowRight': next = current < 0 ? 0 : Math.min(current + 1, items.length - 1); break;
+            case 'ArrowLeft': next = current < 0 ? 0 : Math.max(current - 1, 0); break;
+            case 'ArrowDown': next = current < 0 ? 0 : Math.min(current + cols, items.length - 1); break;
+            case 'ArrowUp': next = current < 0 ? 0 : Math.max(current - cols, 0); break;
+            case 'Home': next = 0; break;
+            case 'End': next = items.length - 1; break;
+            case 'Enter':
+            case ' ':
+                if (current >= 0 && onItemClick) { e.preventDefault(); onItemClick(items[current]); }
+                return;
+            default: return;
+        }
+
+        e.preventDefault();
+        focusedIndexRef.current = next;
+        announce(next);
+
+        // Keep the caret on screen. Measured against the scroller's own height
+        // rather than a declared one: the platform flexes with the board.
+        const scroller = scrollerRef.current;
+        if (scroller) {
+            const top = GRID_PADDING + Math.floor(next / cols) * cellSize;
+            const view = scroller.clientHeight;
+            if (top < scroller.scrollTop) scroller.scrollTop = top;
+            else if (top + cellSize > scroller.scrollTop + view) scroller.scrollTop = top + cellSize - view;
+        }
+    }, [onItemClick, announce]);
+
+    /*
+     * Tap to open, but not after a fling.
+     *
+     * The scroller handles click over a 1,559-cell touch grid, and a flick that
+     * happens to end on a cell is a scroll, not a choice — the browser fires the
+     * click anyway. Both the finger and the surface have to have stayed put:
+     * eight pixels of movement, or any scrolling between press and release,
+     * means the gesture was a scroll.
+     */
+    const pressRef = useRef(null);
+
+    const handlePointerDown = useCallback((e) => {
+        pressRef.current = { x: e.clientX, y: e.clientY, scroll: scrollTopRef.current };
     }, []);
 
-    // Handle click
     const handleClick = useCallback((e) => {
         if (!onItemClick) return;
+
+        const press = pressRef.current;
+        pressRef.current = null;
+        if (press) {
+            const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+            if (moved > 8 || Math.abs(scrollTopRef.current - press.scroll) > 2) return;
+        }
 
         const rect = e.currentTarget.getBoundingClientRect();
         const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
@@ -765,6 +818,11 @@ export function CanvasCollectionGrid({
                 overflow: 'hidden',
             }}
         >
+            {/* Item count for aria-describedby */}
+            <div id="fib-collection-count" className="fib-sr-only">
+                {items.length} items
+            </div>
+
             {/* Canvas layer - underneath, no pointer events */}
             <canvas
                 ref={canvasRef}
@@ -778,10 +836,36 @@ export function CanvasCollectionGrid({
 
             {/* Scrollable container - on top, handles all interactions */}
             <div
+                ref={scrollerRef}
                 onScroll={handleScroll}
                 onClick={handleClick}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
+                onKeyDown={handleKeyDown}
+                onPointerDown={handlePointerDown}
+                // Tabbing in put the UA ring on the scroller and left the platform
+                // with no caret at all, so the first arrow key appeared to do
+                // nothing. Focus lands on the first cell.
+                onFocus={() => {
+                    if (focusedIndexRef.current < 0 && itemsRef.current.length > 0) {
+                        focusedIndexRef.current = 0;
+                        announce(0);
+                    }
+                }}
+                onBlur={() => {
+                    focusedIndexRef.current = -1;
+                    // Re-announce stationary pointer or clear if none.
+                    const pt = pointerRef.current;
+                    if (pt && scrollerRef.current) {
+                        announce(getItemIndexAtPoint(pt.x, pt.y, scrollerRef.current.getBoundingClientRect()));
+                    } else {
+                        announce(-1);
+                    }
+                }}
+                tabIndex={0}
+                aria-label="Collection items"
+                aria-describedby="fib-collection-count"
+                className="fib-board-scroll fib-platform-scroll"
                 style={{
                     position: 'absolute',
                     top: 0,
@@ -798,19 +882,24 @@ export function CanvasCollectionGrid({
                 <div style={{ height: `${layout.totalHeight}px`, pointerEvents: 'none' }} />
             </div>
 
-            {/* Empty state */}
+            {/*
+             * A fallback only. The board upstairs answers an empty platform with
+             * its own message and a way out of the filters, because the reason a
+             * platform is empty lives with the controls that emptied it, not with
+             * the grid. This covers the case where the grid is mounted with
+             * nothing at all.
+             */}
             {items.length === 0 && (
                 <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: 'center',
-                    color: COLORS.textMuted,
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+                    fontSize: '13px', fontWeight: 700, letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(206,214,236,0.34)',
                     zIndex: 2,
                 }}>
-                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
-                    <div>No items found</div>
+                    No items on this board
                 </div>
             )}
         </div>

@@ -3,6 +3,7 @@ import { BookOpen, Trophy } from 'lucide-react';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { prestigeColor, prestigeLabel, isIridescentPrestige } from '../../../utils/prestigeHelpers.js';
 import { useCollectionLeaderboard } from '../../../hooks/useCollectionLeaderboard.js';
 
 /**
@@ -288,14 +289,53 @@ export function StageFlanks({
                             }}>
                                 {i + 1}
                             </span>
-                            <img
-                                src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar)}
-                                alt=""
-                                width={18}
-                                height={18}
-                                onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
-                                style={{ borderRadius: '50%', flexShrink: 0 }}
-                            />
+                            {/*
+                              * The prestige ring.
+                              *
+                              * A player who has prestiged wears their level around
+                              * their avatar, in the tier's own colour — the ladder
+                              * is the only place a colour comes from, so a ring
+                              * cannot drift from the rarity it is named after.
+                              *
+                              * Level 5 takes the full holo sweep via `.fib-holo`
+                              * and never a sampled point: insane's ramp passes
+                              * through magenta, aqua and gold, which are exotic,
+                              * mythic and legendary, so a ring painted from one
+                              * sample off it would spend two thirds of its cycle
+                              * impersonating a lower prestige. A 2px ring is small
+                              * enough that a wrong colour is the only thing it
+                              * would ever say.
+                              *
+                              * The board's ORDER is untouched: prestige is status,
+                              * not standing, so a prestiged player still sits
+                              * exactly where their collection puts them.
+                              */}
+                            <span
+                                className={isIridescentPrestige(entry.prestige_level) ? 'fib-holo' : undefined}
+                                title={prestigeLabel(entry.prestige_level) || undefined}
+                                style={{
+                                    flexShrink: 0,
+                                    display: 'block',
+                                    padding: entry.prestige_level > 0 ? '2px' : 0,
+                                    borderRadius: '50%',
+                                    background: entry.prestige_level > 0 && !isIridescentPrestige(entry.prestige_level)
+                                        ? prestigeColor(entry.prestige_level)
+                                        : undefined,
+                                    boxShadow: entry.prestige_level > 0 && !isIridescentPrestige(entry.prestige_level)
+                                        ? `0 0 7px ${prestigeColor(entry.prestige_level)}99`
+                                        : undefined,
+                                    lineHeight: 0,
+                                }}
+                            >
+                                <img
+                                    src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar)}
+                                    alt=""
+                                    width={18}
+                                    height={18}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
+                                    style={{ borderRadius: '50%', flexShrink: 0, display: 'block' }}
+                                />
+                            </span>
                             <span style={{
                                 flex: 1,
                                 minWidth: 0,

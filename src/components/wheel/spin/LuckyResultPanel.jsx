@@ -8,6 +8,7 @@ import {
     getRarityIcon,
     isIridescentRarity,
 } from '../../../utils/rarityHelpers.jsx';
+import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
 
 /**
  * The lucky spin's payoff, on the stage.
@@ -22,7 +23,7 @@ import {
  * The old design boxed this in a rounded card with sparkles, corner icons and
  * floating particles; none of that survived the move to the band language.
  */
-export function LuckyResultPanel({ result, isNewItem, collection, isMobile }) {
+export function LuckyResultPanel({ result, isNewItem, prestigePull, collection, isMobile }) {
     if (!result) return null;
 
     const rarity = getItemRarity(result);
@@ -118,6 +119,10 @@ export function LuckyResultPanel({ result, isNewItem, collection, isMobile }) {
                         NEW
                     </span>
                 )}
+                {/* A lucky spin lands in a prestige run like any other, so it owes
+                    the same answer the ordinary result panel gives: is this new to
+                    the collection I am currently filling. */}
+                <PrestigeFlag pull={prestigePull} itemName={result.name} />
             </div>
 
             <div style={{
@@ -203,7 +208,7 @@ export function LuckyResultPanel({ result, isNewItem, collection, isMobile }) {
                 {result.name}
             </h2>
 
-            {(result.equalChance != null || owned > 1) && (
+            {(result.equalChance != null || owned > 1 || (prestigePull && prestigePull.count > 1)) && (
                 <div style={{
                     position: 'relative',
                     zIndex: Z.content,
@@ -238,6 +243,10 @@ export function LuckyResultPanel({ result, isNewItem, collection, isMobile }) {
                             {owned} in collection
                         </span>
                     )}
+                    <PrestigeCount
+                        pull={prestigePull}
+                        style={{ fontSize: isMobile ? '11px' : '12px' }}
+                    />
                 </div>
             )}
         </div>

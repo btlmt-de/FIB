@@ -2190,6 +2190,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                         setShowCollectionBook(false);
                         setCollectionBookData(null);
                     }}
+                    viewingUserId={userId}
                     viewingUser={!isOwnProfile ? profile?.custom_username : null}
                 />
             )}

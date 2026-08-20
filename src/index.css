@@ -1,3 +1,19 @@
+/*
+ * The type system's faces, loaded once for every route.
+ *
+ * This @import used to live inside HomePage.jsx's <style> block, which meant it
+ * only reached a page that mounted HomePage. /wheel and /stats are React.lazy
+ * standalone routes that never do, so the whole wheel surface — a surface whose
+ * DESIGN.md section runs to several thousand words about its material — was
+ * rendering in Arial, the platform sans. Nothing announced it, because every
+ * component states a size and a weight and none of them states a family.
+ *
+ * Moving it here changes nothing that does not ask for Barlow by name: a font
+ * that is loaded but unreferenced costs one cached request and no pixels. The
+ * URL is byte-identical to HomePage's so the two share one cache entry.
+ */
+@import 'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap';
+
 * {
   margin: 0;
   padding: 0;
@@ -236,4 +252,218 @@ html, body {
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/*
+ * THE CONCOURSE — the collection board's material and its states.
+ *
+ * ── WHY THIS IS A STYLESHEET AND NOT A STYLE OBJECT ─────────────────────────
+ *
+ * The board's first build put the plinth's background, its shadow and its hover
+ * overlay's `opacity: 0` in inline styles, and left only the `:hover` / `:focus`
+ * rules here. Inline wins over any class selector, so none of those rules ever
+ * applied: the close button, all six segmented options, the clear-filters
+ * control and every register row had no hover and no focus ring at all. Both
+ * halves were individually correct, which is why it survived review by eye — a
+ * screenshot of a page nobody is hovering looks identical either way.
+ *
+ * So the whole material lives here, states included, and the components pass
+ * layout only.
+ */
+
+:root {
+  /* THE NOCTURNE's grain and deck ramp, shared with wheel/config/constants.js.
+     Two spellings of one material is how they drift, and the two consumers here
+     are a stylesheet and a module, which cannot share a value any other way. */
+  --fib-deck-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  --fib-deck-top: #0d1322;
+  --fib-deck-mid: #0a0d18;
+  --fib-rail-06: rgba(206,214,236,0.06);
+  --fib-rail-10: rgba(206,214,236,0.10);
+  --fib-station-amber: #FFAA00;
+}
+
+/* A plinth: a square section of the deck, lit along its top rail. */
+.fib-plinth {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  background-image: var(--fib-deck-noise), linear-gradient(180deg, var(--fib-deck-top) 0%, var(--fib-deck-mid) 100%);
+  box-shadow: inset 0 1px 0 var(--fib-rail-10), inset 0 -1px 0 rgba(0,0,0,0.45);
+}
+.fib-plinth.is-live { box-shadow: inset 0 1px 0 var(--fib-rail-10), inset 0 -2px 0 var(--fib-station-amber); }
+.fib-board-hit { cursor: pointer; }
+
+/* Light rising through the plinth, never a repaint. */
+.fib-plinth-lift {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(0deg, rgba(255,183,94,0.07) 0%, transparent 72%);
+  transition: opacity 140ms ease-out;
+}
+.fib-board-hit:hover > .fib-plinth-lift,
+.fib-board-hit:focus-visible > .fib-plinth-lift,
+.fib-board-hit:focus-within > .fib-plinth-lift { opacity: 1; }
+
+/*
+ * Focus is an outline, not an inset shadow.
+ *
+ * The shadow version lost twice over: it was outranked by the plinth's own
+ * inline shadow, and where it did apply it tied on specificity with the
+ * register's seam rule and lost on source order, so rows two through six showed
+ * nothing. An outline is painted by the browser above everything, cannot be
+ * outranked by a background, and is square, which the board requires anyway.
+ */
+.fib-board-hit:focus-visible {
+  outline: 2px solid var(--fib-station-amber);
+  outline-offset: -2px;
+}
+/* The search field's own outline is suppressed; the plinth around it takes the
+   ring instead, so the whole control reads as focused rather than the text. */
+.fib-board-search:focus-within {
+  outline: 2px solid var(--fib-station-amber);
+  outline-offset: -2px;
+}
+.fib-board-search input::placeholder { color: #7C859C; opacity: 1; }
+
+/* One flap on the drum: two tones meeting at a lit hinge. */
+.fib-flap-cell {
+  background-image: linear-gradient(
+    180deg,
+    rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.30) calc(50% - 1px),
+    rgba(206,214,236,0.11) calc(50% - 1px), rgba(206,214,236,0.11) 50%,
+    rgba(0,0,0,0.46) 50%, rgba(0,0,0,0.46) 100%
+  );
+}
+
+/* The row lamp. `--due` is a split lamp: two bars with a dark gap, so it differs
+   from a lit tier in form and not only in hue — station amber and legendary gold
+   are two hundredths apart and were indistinguishable at 8px. */
+.fib-lamp {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: rgba(0,0,0,0.5);
+  box-shadow: inset 0 1px 0 var(--fib-rail-10);
+}
+.fib-lamp--due {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: rgba(0,0,0,0.5);
+  box-shadow: none;
+}
+.fib-lamp--due > span {
+  display: block;
+  height: 3px;
+  background: var(--fib-station-amber);
+  box-shadow: 0 0 7px var(--fib-station-amber);
+}
+
+/* The register's rows separate by a seam, never a border. Bottom-weighted, the
+   way every seam on this surface is: a groove is visible where light reaches it,
+   and the light on the board comes from above. */
+.fib-register-row + .fib-register-row { box-shadow: inset 0 1px 0 var(--fib-rail-06); }
+.fib-register-row { background: transparent; transition: background 140ms ease-out; }
+.fib-register-row:hover { background: rgba(148,168,212,0.05); }
+/* An active row keeps its tier wash and base bar; both are per-tier, so they are
+   the one thing here that must come from the component.
+   Order matters and it is a tie, not a win: this selector and the sibling seam
+   rule above have equal specificity, so `is-active` only takes the row because it
+   comes later. Keep it below the seam rule. */
+.fib-register-row.is-active { background: var(--fib-row-wash); box-shadow: inset 0 1px 0 var(--fib-rail-10), inset 0 -2px 0 var(--fib-row-tone); }
+
+/* The platform's own scrollbars, cut into the deck rather than sitting on it. */
+.fib-board-scroll { scrollbar-width: thin; scrollbar-color: rgba(206,214,236,0.16) transparent; }
+.fib-board-scroll::-webkit-scrollbar { width: 10px; }
+.fib-board-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.35); }
+.fib-board-scroll::-webkit-scrollbar-thumb { background: rgba(206,214,236,0.16); border: 0; }
+.fib-board-scroll::-webkit-scrollbar-thumb:hover { background: rgba(206,214,236,0.28); }
+
+/* The item grid is a canvas, so its caret is drawn into the canvas rather than
+   styled — see drawItem's focus block, which paints an amber hairline and base
+   bar on the focused cell and now lands on cell 0 the moment the platform takes
+   focus. The scroller therefore declines a ring of its own: a second one would
+   sit around all 1,559 cells at once and say nothing about which is current.
+   `none` rather than a rail-light hairline, which measured as invisible and was
+   an indicator in name only. */
+.fib-platform-scroll:focus-visible { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fib-plinth-lift,
+  .fib-register-row { transition: none; }
+}
+
+/*
+ * THE CONVERGENCE — the prestige moment's DOM half.
+ *
+ * The canvas does the physics; these two rules do the announcement, because the
+ * announcement is set on the board's own flap drums and those are DOM.
+ */
+
+/* The level lands. An overshoot is the one place on this surface it is right:
+   the word is arriving from the detonation, not easing politely into place. */
+.fib-prestige-proclaim {
+  animation: fib-prestige-land 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fib-prestige-land {
+  0%   { transform: scale(1.9); opacity: 0; filter: blur(14px); }
+  55%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+
+/* Insane's proclamation takes the whole slick rather than a colour, for the
+   reason it always does: any single point off that ramp is another tier. Applied
+   to text via background-clip, so the drums themselves carry the sweep. */
+.fib-holo-text {
+  background-image: linear-gradient(
+    115deg,
+    #FF55FF 0%,
+    #55FFFF 33%,
+    #FFD700 66%,
+    #FF55FF 100%
+  );
+  background-size: 300% 100%;
+  animation: fib-holo-drift 4.5s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/*
+ * Both, when the level is iridescent.
+ *
+ * `.fib-holo-text` and `.fib-prestige-proclaim` each set `animation`, and the
+ * holo rule comes later — so an insane proclamation silently lost its landing
+ * and only drifted. The shorthand cannot be inherited from two rules, so this
+ * states both, and the doubled class raises specificity above either alone.
+ * Non-iridescent levels are untouched.
+ */
+.fib-prestige-proclaim.fib-holo-text {
+  animation:
+    fib-prestige-land 620ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    fib-holo-drift 4.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The level still arrives — it just does not fly in. Addressed by class:
+     this was an attribute selector matching the animation's name inside an
+     inline style, which worked only for as long as nobody reformatted the
+     style object it was reading. */
+  .fib-holo-text {
+    animation: none;
+    background-position: -45% 50%;
+  }
+  /* Listed explicitly: the combined selector above outranks either single
+     class, so silencing only those two would leave an insane proclamation
+     animating for the one reader who asked it not to. */
+  .fib-prestige-proclaim,
+  .fib-prestige-proclaim.fib-holo-text { animation: none; }
 }
