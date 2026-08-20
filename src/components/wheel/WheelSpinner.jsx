@@ -41,8 +41,15 @@
    it, which is what the first version built. The stage answers on the
    same grid, one column under each track. One identity per
    mode: bonus orange, lucky green, 5x gold, triple-lucky gold-on-green.
-   The only card left is the recursion takeover, a genuine full-moment
-   event, and it stays a card until its own pass. */
+   Recursion took its own pass on 2026-08-20 and joined them, so there
+   are no cards on this surface at all now: the band wears recursion's
+   ground and green lamp, the console flashes RECURSION!, the reel keeps
+   the pull that triggered it, and BonusEventPlaque answers on the stage.
+   Its card had been rendering *instead of* the band and the status row,
+   which hid the winning pull, collapsed a row the No-Collapse Rule says
+   must hold, and — because the Try Again button lives in that row and
+   was itself gated on `state === 'recursion'` — left the player with no
+   way out but the spacebar. */
 import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
@@ -61,7 +68,7 @@ import { LuckyResultPanel } from './spin/LuckyResultPanel.jsx';
 import { LaneResultsRow } from './spin/LaneResultsRow.jsx';
 
 import {
-    API_BASE_URL, IMAGE_BASE_URL, WHEEL_TEXTURE_URL,
+    API_BASE_URL, IMAGE_BASE_URL,
     ITEM_WIDTH, STRIP_HEIGHT, STRIP_LENGTH, FINAL_INDEX,
     TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
@@ -79,24 +86,23 @@ import { useSound } from '../../context/SoundContext.jsx';
 
 
 /**
- * The states that render a card into the stage instead of using the reel row.
+ * What the stage says when a pull triggers recursion.
  *
- * Once this held every takeover — the bonus announcement, the bonus board, the
- * lucky spin and the 3x/5x grids all rendered their own cards here. The
- * takeover redesign (2026-08-19) moved every one of them into the shared band:
- * they are now themes of the same three rows the normal spin uses. The only
- * state left is the recursion takeover, which is a genuine full-moment event
- * card and stays one until its own pass.
+ * Shaped like a bonus event because it is answered by the same signboard, and
+ * its colours come from `BONUS_IDENTITY.recursion` for the reason that table
+ * exists at all: the board, the plaque and the lamp a mode runs under are three
+ * views of one identity, and they had three private colour tables between them
+ * once already.
  *
- * Kept as an explicit set rather than the negative list this used to be. The old
- * guard was `state !== 'event' && state !== 'bonusWheel' && ...`, which had two
- * problems: it silently included any state nobody remembered to add (that is how
- * 'recursion' ended up rendering two stacked cards at once), and it had to be
- * repeated and kept in sync wherever the question was asked.
+ * The copy is the old card's, tightened. "You hit the wheel in the wheel!" and
+ * "Global lucky spin event triggered for ALL users!" were two exclamations
+ * saying one thing in a register nothing else on this surface uses.
  */
-const CARD_VARIANT_STATES = new Set([
-    'recursion',
-]);
+const RECURSION_ANNOUNCEMENT = {
+    id: 'recursion',
+    name: 'Recursion',
+    description: 'You hit the wheel inside the wheel. A lucky spin is now running server-wide, for everyone.',
+};
 
 /**
  * How far off the slot's centre a spin comes to rest, in pixels.
@@ -217,7 +223,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // 128 while the shaft still drew at 70. Same class of bug as the bonus board's
     // shadowed `ITEM_WIDTH`, caught the same way: the winner stopped somewhere
     // other than the line.
-    const MOBILE_CARD_WIDTH = 300;  // Wider card to fit result text
 
     // Use refs for animation offsets to avoid re-renders during animation.
     // `stripRef` and `tripleStripRefs` used to sit alongside these: DOM handles
@@ -1616,8 +1621,6 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                 the data stream) move up to the shell, which is closer to their
                 intent anyway: a recursion spin should tint the whole surface, not
                 a rectangle in the middle of it. */}
-            {state !== 'recursion' && (
-                <>
                     {/* ── Row 2: the reel band ─────────────────────────────── */}
                     <div style={{
                         gridRow: 4,
@@ -2555,6 +2558,39 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                                 isMobile={isMobile}
                             />
                         )}
+                        {/* Recursion answers here too, and on both breakpoints.
+
+                            It was the last card on this surface — a 20px-radius
+                            box with its own glow ring, corner accents, matrix
+                            scanlines, a glitching monospace headline and a
+                            spinning wheel icon, rendered *instead of* the band
+                            and the console. Everything the takeover redesign
+                            moved out of cards a day earlier, still standing.
+
+                            Three things were wrong with it and only one was
+                            visual. It replaced the reel, so the pull that
+                            triggered recursion was never shown — the one moment
+                            the surface exists for, hidden by the announcement
+                            about it. It broke the No-Collapse Rule outright, the
+                            band's whole row vanishing for the duration. And it
+                            took the status row with it, which is what stranded
+                            the player: see the note on the row gate above.
+
+                            Now it is what every other takeover is — a theme of
+                            the band (recursion's own ground and green lamp, all
+                            of which the row already knew how to draw) plus one
+                            signboard on the stage. The reel keeps the item that
+                            was pulled, lit under the console's RECURSION! flash,
+                            and the plaque says what it bought. Unlike the item
+                            results this renders on the phone as well, because it
+                            is an announcement rather than a prize: there is no
+                            in-shaft answer for it to duplicate. */}
+                        {state === 'recursion' && (
+                            <BonusEventPlaque
+                                event={RECURSION_ANNOUNCEMENT}
+                                isMobile={isMobile}
+                            />
+                        )}
                         {/* Desktop only — the phone's lucky spin lands in the
                             shaft like an ordinary one. It shares the reel, so it
                             should share the payoff; a panel below the reel for
@@ -2643,161 +2679,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             onOpenLeaderboard={onOpenLeaderboard}
                         />}
                     </div>
-                </>
-            )}
 
-            {/* The recursion takeover — the last card left on this surface.
-
-                The takeover redesign (2026-08-19) moved every other variant
-                into the shared band: the bonus announcement is a console flash,
-                the bonus board replaces the reel in the same row, the lucky
-                spin is the band wearing the green lamp, and the 3x/5x grids are
-                parallel lanes on it. Recursion is a genuine full-moment event
-                card — the whole page pauses on it and a global lucky spin
-                starts — and it keeps its own card until its own pass.
-
-                The wrapper still needs an explicit row because the root is
-                `display: contents`: without one the card would be auto-placed
-                into a separate grid cell.
-
-                It is mounted ONLY while the recursion state is active. It used to
-                render unconditionally, and because it spans rows 4-6 with
-                `zIndex: Z.content` it sat directly on top of the stage — an
-                invisible, empty, full-size div swallowing every click meant for
-                the spin button underneath. The button was fine; nothing was ever
-                reaching it. `elementFromPoint` at the button's own centre returned
-                this div, which is the giveaway to look for if a control on this
-                page ever stops responding. */}
-            {CARD_VARIANT_STATES.has(state) && (
-            <div style={{
-                gridRow: '4 / 6',
-                gridColumn: stageColumn,
-                minHeight: 0,
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: `${SPACE.md}px 0`,
-                zIndex: Z.content,
-            }}>
-            {/* RECURSION Display - Wheel within the wheel! */}
-            {state === 'recursion' && (
-                <div style={{
-                    width: '100%',
-                    maxWidth: isMobile ? `${MOBILE_CARD_WIDTH}px` : '100%',
-                    position: 'relative',
-                }}>
-                    {/* Outer glow ring - matrix green */}
-                    <div style={{
-                        position: 'absolute',
-                        inset: '-2px',
-                        borderRadius: '22px',
-                        backgroundImage: `linear-gradient(135deg, ${COLORS.recursion}60 0%, transparent 40%, transparent 60%, ${COLORS.recursion}60 100%)`,
-                        backgroundSize: '200% 200%',
-                        animation: 'borderGlowSpin 2s linear infinite',
-                        zIndex: 0,
-                    }} />
-
-                    {/* Main card */}
-                    <div style={{
-                        position: 'relative',
-                        background: `linear-gradient(180deg, rgba(10,25,10,0.95) 0%, rgba(5,15,5,0.98) 100%)`,
-                        borderRadius: '20px',
-                        border: `2px solid ${COLORS.recursion}50`,
-                        boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 80px ${COLORS.recursion}25, inset 0 1px 0 ${COLORS.recursion}30`,
-                        overflow: 'hidden',
-                        zIndex: 1,
-                    }}>
-                        {/* Matrix scanlines */}
-                        <div style={{
-                            position: 'absolute',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.03) 2px, rgba(0,255,0,0.03) 4px)',
-                            pointerEvents: 'none',
-                            zIndex: 2,
-                        }} />
-
-                        {/* Glowing inner border */}
-                        <div style={{
-                            position: 'absolute',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            boxShadow: `inset 0 0 40px ${COLORS.recursion}20, inset 0 0 80px ${COLORS.recursion}10`,
-                            pointerEvents: 'none',
-                            zIndex: 1,
-                        }} />
-
-                        {/* Corner accents */}
-                        <div style={{ position: 'absolute', top: '10px', left: '10px', width: '20px', height: '20px', borderTop: `2px solid ${COLORS.recursion}70`, borderLeft: `2px solid ${COLORS.recursion}70`, borderRadius: '6px 0 0 0', zIndex: 5 }} />
-                        <div style={{ position: 'absolute', top: '10px', right: '10px', width: '20px', height: '20px', borderTop: `2px solid ${COLORS.recursion}70`, borderRight: `2px solid ${COLORS.recursion}70`, borderRadius: '0 6px 0 0', zIndex: 5 }} />
-                        <div style={{ position: 'absolute', bottom: '10px', left: '10px', width: '20px', height: '20px', borderBottom: `2px solid ${COLORS.recursion}70`, borderLeft: `2px solid ${COLORS.recursion}70`, borderRadius: '0 0 0 6px', zIndex: 5 }} />
-                        <div style={{ position: 'absolute', bottom: '10px', right: '10px', width: '20px', height: '20px', borderBottom: `2px solid ${COLORS.recursion}70`, borderRight: `2px solid ${COLORS.recursion}70`, borderRadius: '0 0 6px 0', zIndex: 5 }} />
-
-                        {/* Content */}
-                        <div style={{
-                            position: 'relative',
-                            zIndex: 3,
-                            padding: isMobile ? '28px 20px' : '36px 28px',
-                            textAlign: 'center',
-                        }}>
-                            {/* Headline with glitch effect */}
-                            <div style={{
-                                fontSize: isMobile ? '32px' : '42px',
-                                fontWeight: '900',
-                                color: COLORS.recursion,
-                                marginBottom: '16px',
-                                letterSpacing: '10px',
-                                textShadow: `0 0 20px ${COLORS.recursion}, 0 0 40px ${COLORS.recursion}, 0 0 60px ${COLORS.recursion}88`,
-                                fontFamily: 'monospace',
-                                animation: 'recursionTextGlitch 0.5s ease-in-out infinite'
-                            }}>
-                                RECURSION
-                            </div>
-
-                            {/* Wheel icon */}
-                            <div style={{
-                                width: isMobile ? '70px' : '90px',
-                                height: isMobile ? '70px' : '90px',
-                                margin: '0 auto 16px',
-                                animation: 'wheelSpin 2s linear infinite',
-                                filter: `drop-shadow(0 0 20px ${COLORS.recursion})`
-                            }}>
-                                <img
-                                    src={WHEEL_TEXTURE_URL}
-                                    alt="Wheel"
-                                    style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        imageRendering: 'pixelated',
-                                    }}
-                                />
-                            </div>
-
-                            {/* Subtext */}
-                            <div style={{
-                                color: COLORS.recursion,
-                                fontSize: isMobile ? '15px' : '17px',
-                                fontFamily: 'monospace',
-                                textShadow: `0 0 10px ${COLORS.recursion}88`,
-                                marginBottom: '8px',
-                            }}>
-                                You hit the wheel in the wheel!
-                            </div>
-
-                            {/* Info */}
-                            <div style={{
-                                color: `${COLORS.recursion}99`,
-                                fontSize: isMobile ? '12px' : '14px',
-                                fontFamily: 'monospace',
-                            }}>
-                                Global lucky spin event triggered for ALL users!
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            </div>
-            )}
         </div>
     );
 }

@@ -140,6 +140,12 @@ export const BONUS_IDENTITY = {
     lucky_spin: { color: COLORS.green, iconColor: COLORS.green },
     triple_spin: { color: COLORS.gold, iconColor: COLORS.gold },
     triple_lucky_spin: { color: COLORS.green, iconColor: COLORS.gold },
+    // Recursion is not a bonus event — it is a global one, triggered by a pull
+    // rather than selected by the board — but it is answered by the same
+    // signboard and runs the band under the same kind of lamp, so its identity
+    // belongs in the same table. The alternative is a fifth private copy of a
+    // colour, which is the failure this table was created to end.
+    recursion: { color: COLORS.recursion, iconColor: COLORS.recursion },
 };
 
 export const BONUS_IDENTITY_FALLBACK = { color: COLORS.orange, iconColor: COLORS.orange };

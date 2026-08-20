@@ -250,8 +250,124 @@ function hashUnit(str) {
  * mobile reel drew as one overprinted stack. Splitting the origin out is what
  * fixes it; `y` is still the tile's top edge and is what mobile passes as
  * `bandTop`.
+ *
+ * `candidacy` is how much of the indicator this slot currently covers, 0..1 —
+ * see `candidacyOf` in the render loop and the candidacy pass at the sprite.
+ * `lampRgb` is the indicator's own colour, which is what a tierless item glows
+ * with when it passes under it.
  */
-function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x') {
+/**
+ * The candidacy rim, cached per item.
+ *
+ * An outline that follows a sprite's own silhouette is the same geometry every
+ * frame — only its colour and its brightness change — so it is built once and
+ * kept, exactly the way `atlas.js` keeps a cut cell. What is cached is a **white**
+ * rim on transparent, at a canonical `RIM_CAN` box; the tier's colour is applied
+ * at draw time by tinting a scratch copy, which is why the two animated tiers can
+ * drift through their ramps without touching the cache.
+ *
+ * **This exists because the direct version was measured and was catastrophic.**
+ * Stamping the silhouette live cost **17.8 ms per lit slot** — more than a whole
+ * 16.7 ms frame, for one item. Canvas shadows are the entire reason: ten shadowed
+ * `drawImage` calls at ~1.8 ms each. Two things worth writing down, because both
+ * were guesses that turned out wrong:
+ *
+ *   - The 4000px offset used to hide the source is **not** the cost. Hiding it
+ *     straight up instead, a ~110px offset, measured 18.0 ms — identical. The
+ *     shadow filter is priced by the source, not by the distance it is thrown.
+ *   - Dropping `shadowBlur` and stamping a pre-tinted silhouette instead brought
+ *     it to 1.07 ms, and caching the finished rim brings it to **0.168 ms** with a
+ *     one-time 0.3 ms build. Worst case on screen is a straddle, two lit slots, so
+ *     0.34 ms of a frame.
+ *
+ * That is a 105× difference between two builds that look the same, and it means
+ * the shipped version of this effect was quietly costing more than the entire
+ * reel it was drawn on. Measure canvas shadows; never assume them.
+ *
+ * The sprite's own area is punched back out of the cached rim with
+ * `destination-out`, so the rim is *geometrically incapable* of touching the art —
+ * not merely drawn in an order that avoids it. That is what closes the note the
+ * owner opened twice: the light says "this one" without repainting a pixel of the
+ * item it is pointing at, at any alpha.
+ */
+const RIM_CAN = 96;
+const RIM_PAD = 18;
+const RIM_BOX = RIM_CAN + RIM_PAD * 2;
+const RIM_CACHE_MAX = 96;
+const rimCache = new Map();
+let rimScratch = null;
+
+function getRimSprite(item, img) {
+    const key = getItemImageUrl(item) || item.texture || item.item_name || item.name;
+    if (!key) return null;
+
+    const hit = rimCache.get(key);
+    if (hit) {
+        // Touch for LRU.
+        rimCache.delete(key);
+        rimCache.set(key, hit);
+        return hit;
+    }
+
+    const rc = document.createElement('canvas');
+    rc.width = RIM_BOX;
+    rc.height = RIM_BOX;
+    const r = rc.getContext('2d');
+    if (!r) return null;
+    r.imageSmoothingEnabled = true;
+    r.imageSmoothingQuality = 'high';
+    r.globalCompositeOperation = 'lighter';
+    r.shadowColor = 'rgba(255,255,255,1)';
+
+    // The pure-shadow stamp: the sprite is drawn a full box above the canvas and
+    // its shadow thrown back down, so only the shadow lands. A shadow is a solid
+    // fill of the source's alpha, which is what makes this an outline of the
+    // silhouette rather than of the bounding box.
+    const OFF = RIM_BOX;
+    const stamp = (dx, dy) => {
+        r.shadowOffsetX = dx;
+        r.shadowOffsetY = OFF + dy;
+        return drawItemSprite(r, item, img, RIM_PAD, RIM_PAD - OFF, RIM_CAN);
+    };
+
+    // Falloff first, then the crisp ring on top of it. Blur radius is fixed
+    // rather than scaled by tier: the rim is the *lamp's* doing, so how far its
+    // light spreads is a property of the lamp. What rarity changes is the colour
+    // and the brightness, both applied at draw time.
+    r.shadowBlur = RIM_CAN * 0.17;
+    r.globalAlpha = 0.5;
+    if (!stamp(0, 0)) return null;          // sprite not loaded yet; don't cache a blank
+    r.shadowBlur = RIM_CAN * 0.055;
+    r.globalAlpha = 0.55;
+    stamp(0, 0);
+
+    // Eight stamps on a circle. They overlap and composite additively, so the
+    // ring is hottest right against the silhouette and thins outward on its own —
+    // a rim light, not a traced border.
+    r.shadowBlur = 0;
+    r.globalAlpha = 0.3;
+    const d = 0.7071;
+    const rr = RIM_CAN * 0.042;
+    const ring = [[1, 0], [-1, 0], [0, 1], [0, -1], [d, d], [-d, d], [d, -d], [-d, -d]];
+    for (let i = 0; i < ring.length; i++) stamp(ring[i][0] * rr, ring[i][1] * rr);
+
+    // Punch the item's own shape back out. After this the rim exists only outside
+    // the sprite's alpha, so nothing it can ever be composited with will land on
+    // the art — including the soft inner half of the blur, which is the part that
+    // was washing over the sprite's edge pixels in the version before this one.
+    r.shadowOffsetX = 0;
+    r.shadowOffsetY = 0;
+    r.shadowBlur = 0;
+    r.globalAlpha = 1;
+    r.globalCompositeOperation = 'destination-out';
+    drawItemSprite(r, item, img, RIM_PAD, RIM_PAD, RIM_CAN);
+
+    if (rimCache.size >= RIM_CACHE_MAX) rimCache.delete(rimCache.keys().next().value);
+    rimCache.set(key, rc);
+    return rc;
+}
+
+function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x', candidacy = 0, lampRgb = null) {
     if (!item) return;
 
     const isInsane = isInsaneItem(item);
@@ -1036,6 +1152,72 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
+        // ── Candidacy: a lit rim around the item's own silhouette ──────────
+        //
+        // Community suggestion, owner-directed through four builds, and every one
+        // of the rejections was the same note from a different angle: the light
+        // has to say "this one" without touching the thing it is pointing at, and
+        // it has to belong to the object rather than to a box.
+        //
+        //   1. an additive redraw of the sprite's own pixels — too subtle, and it
+        //      repainted the art.
+        //   2. a bloom on the silhouette, drawn after the sprite — read as a glow
+        //      at last, but "changes the texture of the item too much".
+        //   3. a square frame outside the sprite's box — art finally untouched,
+        //      and "a bit blocky", which it is: a rectangle around a pickaxe is a
+        //      rectangle, not a pickaxe.
+        //   4. this: the item's own outline, lit, and cached.
+        //
+        // The rim's geometry is in `getRimSprite` above, along with the measured
+        // reason it is cached rather than stamped live. All this does per frame is
+        // tint a copy and blit it — the tint is why the two animated tiers can
+        // drift through their ramps for free.
+        //
+        // Hue splits hard on `energy > 0`: a tierless item takes the **lamp's**
+        // accent — the colour the line, the aperture and the detent marks are
+        // already drawn in, so it reads as station light catching the object and
+        // nothing more — and anything with light of its own answers in its own
+        // tier colour. Crossing the two was built and reverted: at `energy^0.7` a
+        // rare came out 30% lamp, which is orange, not red, and that is a hue
+        // reassignment by the back door on the one element the eye is on. The mode
+        // themes come free, the lamp being green under recursion and crimson under
+        // KOTW.
+        //
+        // Geometry holds still — the rim never grows or shrinks with candidacy,
+        // only its light rises and falls. That is the rule the winner's sprite
+        // learned the hard way when it was tried breathing and read as a balloon.
+        //
+        // Deliberately not ambient: driven by the reel's position rather than by
+        // the clock, so it survives `prefers-reduced-motion` exactly as the reel's
+        // travel does. Freezing it would freeze the thing that says which item is
+        // under the line — content, not decoration.
+        if (candidacy > 0.002) {
+            const rim = getRimSprite(item, img);
+            if (rim) {
+                if (!rimScratch) {
+                    rimScratch = document.createElement('canvas');
+                    rimScratch.width = RIM_BOX;
+                    rimScratch.height = RIM_BOX;
+                }
+                const rimHue = energy > 0 ? stops[1] : (lampRgb || hexToRgb(COLORS.gold));
+                const sc = rimScratch.getContext('2d');
+                sc.globalCompositeOperation = 'source-over';
+                sc.clearRect(0, 0, RIM_BOX, RIM_BOX);
+                sc.drawImage(rim, 0, 0);
+                sc.globalCompositeOperation = 'source-in';
+                sc.fillStyle = `rgb(${rimHue.r}, ${rimHue.g}, ${rimHue.b})`;
+                sc.fillRect(0, 0, RIM_BOX, RIM_BOX);
+
+                const scale = imgSize / RIM_CAN;
+                const pad = RIM_PAD * scale;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = candidacy * (0.8 + 0.2 * energy);
+                ctx.drawImage(rimScratch, imgX - pad, imgY - pad, RIM_BOX * scale, RIM_BOX * scale);
+                ctx.restore();
+            }
+        }
+
         if (isSpecialType || isGoldRushBoosted) {
             // shadowColor takes a colour and never a gradient, so the animated
             // tiers bloom in whatever hue they are currently passing through.
@@ -1049,6 +1231,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         drawItemSprite(ctx, item, img, imgX, imgY, imgSize);
 
         ctx.shadowBlur = 0;
+
         ctx.imageSmoothingEnabled = true;
     }
 
@@ -1407,6 +1590,80 @@ export function CanvasSpinningStrip({
                 ? 0
                 : Math.exp(-(time - tickAtRef.current) / 0.085);
 
+            // ── Candidacy ────────────────────────────────────────────────────
+            //
+            // How much of the indicator a slot covers, as a number rather than a
+            // yes/no. `tick` above already knows *that* the candidate changed;
+            // this is the same fact made continuous, so it can be spent on the
+            // item instead of on the band's edges.
+            //
+            // The curve is a tent that falls to nothing over one **full** pitch,
+            // smoothstepped.
+            //
+            // It fell over half a pitch first, and that was a real bug rather
+            // than a tuning choice: with `1 - 2d` a slot whose centre sits half a
+            // pitch from the line scores exactly zero — and so does its
+            // neighbour, whose centre is the same half pitch away on the other
+            // side. So the one moment the whole feature exists for, the line
+            // sitting on the seam between two slots, was the moment *nothing*
+            // was lit. A dead zone precisely where the contest should be. Over a
+            // full pitch the pair sums to 1 at every offset: dead centre is
+            // 1 / 0, a boundary straddle is 0.5 / 0.5, and the light genuinely
+            // hands over instead of blinking out in between.
+            //
+            // Smoothstep rather than linear for the flat ends: a slot sitting on
+            // the line has to look *settled* rather than one sample brighter than
+            // its neighbour, and a slot most of a pitch away has to fall to
+            // nothing rather than linger faintly on — a dozen dimly-lit slots is
+            // the ambient shimmer the Inert-Common Rule exists to prevent.
+            const candidacyOf = (centre, line) => {
+                const u = 1 - Math.abs(centre - line) / itemWidth;
+                if (u <= 0) return 0;
+                if (u >= 1) return 1;
+                return u * u * (3 - 2 * u);
+            };
+
+            // The commit. `bloom` decays 1 → 0 over 450ms from the frame the
+            // result lands, so `commit` runs 0 → 1 over that same beat: at the
+            // landing frame candidacy is still exactly what the proximity said —
+            // no jump — and over the next 450ms the light leaves the losing
+            // neighbour and gathers on the slot that actually won.
+            //
+            // This is the moment the mechanic exists for. The reel deliberately
+            // does not stop dead centre (`landingVariance`), so on a near miss
+            // the line comes to rest with two items sharing it, and for a beat
+            // the surface genuinely has not said which. Then it says. Doing this
+            // on the same decay as the landing bloom is what keeps it one event
+            // rather than two effects that happen to fire together.
+            //
+            // Under reduced motion `bloom` is 0, so `commit` is 1 from the first
+            // result frame: the winner is simply lit, with nothing animating.
+            //
+            // It settles just short of full, and the number has moved once. It
+            // was 0.5, to stop the committed light stacking onto a winner that
+            // already carries the whole apparatus — `claim` on its rim and
+            // crown, the 35% `lift`, the pulsing pool — because at full strength
+            // the first build clipped a pale sprite: a lucky-common spawn egg
+            // landed as a white blob you could no longer read as an egg.
+            //
+            // That was a symptom of *how* the glow was drawn, not of how strong
+            // it was. The halo is a pure shadow now, so it never redraws the art
+            // on top of itself and a hot glow costs the sprite no legibility at
+            // all. The backoff that remains is the one real argument: while the
+            // reel moves, candidacy is the only thing saying "this one"; once it
+            // stops, the winner's own apparatus says it better, and the
+            // travelling light should ease off rather than compete. A resting
+            // common winner is the case that needs it most and 0.7 still leaves
+            // it plainly lit.
+            const RESTING_CANDIDACY = 0.7;
+            const commit = isResult ? 1 - bloom : 0;
+            const candidacyAt = (idx, centre, line) => {
+                const prox = candidacyOf(centre, line);
+                if (commit <= 0) return prox;
+                const settled = idx === finalIndex ? RESTING_CANDIDACY : 0;
+                return prox + (settled - prox) * commit;
+            };
+
             // Determine theme colors based on themeType or isRecursion
             const isKotwTheme = themeType === 'kotw';
             const isRecursionTheme = isRecursion || themeType === 'recursion';
@@ -1494,6 +1751,10 @@ export function CanvasSpinningStrip({
                 // Rule all hold without a second implementation to keep in step.
                 const rowPitch = itemWidth;
                 const stripCenterY = height / 2 - rowPitch / 2;
+                // The shaft's indicator lies across the middle of the screen, so
+                // candidacy is measured on y here and on x on the band. Same
+                // number, other axis.
+                const shaftLine = height / 2;
                 const drawRow = (item, idx, itemY, isWinning) => {
                     drawItem(
                         ctx, item,
@@ -1504,6 +1765,8 @@ export function CanvasSpinningStrip({
                         rowPitch, itemY, calm,
                         SILL_H,
                         'y',
+                        candidacyAt(idx, itemY + rowPitch / 2, shaftLine),
+                        accentRgb,
                     );
                 };
 
@@ -1561,7 +1824,7 @@ export function CanvasSpinningStrip({
                     // below the centre, so this genuinely does go negative.
                     const item = items[((idx % items.length) + items.length) % items.length];
                     const itemX = stripCenterX + idx * itemWidth - offset;
-                    drawItem(ctx, item, itemX, itemCenterY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H);
+                    drawItem(ctx, item, itemX, itemCenterY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyOf(itemX + itemWidth / 2, width / 2), accentRgb);
                 }
             } else {
                 // Horizontal strip - items side by side
@@ -1576,7 +1839,7 @@ export function CanvasSpinningStrip({
                         const isWinning = idx === finalIndex && isResult;
                         // Horizontal reel: every slot shares the full-height band,
                         // which is what makes the row read as one lit surface.
-                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H);
+                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyAt(idx, itemX + itemWidth / 2, width / 2), accentRgb);
 
                         // The slot seam that used to be drawn here is gone.
                         //

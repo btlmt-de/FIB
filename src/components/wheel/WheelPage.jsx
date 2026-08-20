@@ -1251,9 +1251,6 @@ function WheelOfFortunePage({ onBack }) {
             {/* Insane Item Celebration */}
             <MythicCelebration currentUserId={user?.id} />
 
-            {/* Recursion Overlay */}
-            <RecursionOverlay currentUserId={user?.id} />
-
             {/* Live events — row 3, the gap between the ticker and the reel.
                 
                 The banners are unchanged: same countdowns, progress bars, counters
@@ -1290,6 +1287,16 @@ function WheelOfFortunePage({ onBack }) {
                 flexDirection: 'column',
                 gap: `${SPACE.sm}px`,
             }}>
+                {/* Recursion joined this row on 2026-08-20. It was mounted
+                    above, outside the layout, still `position: fixed; top: 0` —
+                    the one live-event banner that never made the move the note
+                    above describes, because it was in a different part of the
+                    tree and the sweep did not reach it. So it covered the topbar
+                    for the whole event and stacked on top of whichever global
+                    event was already running, which is precisely the pair of
+                    failures that move was made to fix. Same slot, same rules,
+                    same flush-on-the-reel alignment as the other four. */}
+                <RecursionOverlay inline />
                 <GoldRushBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
                 <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
