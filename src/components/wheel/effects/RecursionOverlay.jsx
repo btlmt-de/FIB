@@ -11,6 +11,7 @@ import { COLORS } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
+import { useWheelViewport } from '../config/breakpoints.js';
 import { Zap, Sparkles, X, Terminal, Cpu } from 'lucide-react';
 
 // Matrix characters for code rain
@@ -131,14 +132,20 @@ function MatrixRainBackground({ hasSpins, isVisible }) {
     );
 }
 
-export function RecursionOverlay() {
+export function RecursionOverlay({ inline = false }) {
     const { recursionStatus, updateRecursionStatus } = useActivity();
     const { playRecursionSound, startRecursionSoundtrack, stopRecursionSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [initialTime, setInitialTime] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
-    const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 600 : false);
+    // One breakpoint for the surface, from the one module that answers the
+    // question. This file kept a private `innerWidth < 600` and a resize
+    // listener — the fourth copy of exactly the bug THE SHAFT pass was written
+    // to end, and it was missed because the banner was mounted outside the
+    // page's layout rather than in it. Every viewport from 600 to 899 was
+    // getting this banner's desktop geometry on a phone-shaped screen.
+    const { isPhone: isMobile } = useWheelViewport();
     const hasPlayedSoundRef = useRef(false);
     const wasActiveRef = useRef(false);
     const recursionStatusRef = useRef(recursionStatus);
@@ -154,14 +161,6 @@ export function RecursionOverlay() {
     useEffect(() => {
         stopRecursionSoundtrackRef.current = stopRecursionSoundtrack;
     }, [stopRecursionSoundtrack]);
-
-    // Handle resize for mobile detection
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const handleResize = () => setIsMobile(window.innerWidth < 600);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
 
     // Handle soundtrack start/stop based on active state only
     useEffect(() => {
@@ -404,20 +403,44 @@ export function RecursionOverlay() {
             {/* Matrix Rain + CRT Scanlines + Edge Glow - All Canvas-based */}
             {hasSpins && <MatrixRainBackground hasSpins={hasSpins} isVisible={isVisible} />}
 
-            {/* Top Banner */}
+            {/* The banner.
+
+                `inline` places it in the banner slot above the reel, which is
+                where Gold Rush, King of the Wheel, First Blood and the Community
+                Goal have all lived since the day they were moved out of
+                `position: fixed; top: 0`. This one was not moved with them — it
+                is mounted from a different place in WheelPage, outside the row
+                the other four share — so it kept pinning itself over the HUD's
+                topbar for the whole event and stacking on top of any global event
+                already running. That is what "behaves not like the event banners"
+                is: not the styling, the placement and the stacking.
+
+                The screen-wide matrix rain above stays fixed either way, exactly
+                as Gold Rush keeps its screen-edge glow fixed: that is ambient
+                light across the surface rather than a bar, and it is the part of
+                recursion that reads best in the HUD.
+
+                The entrance also changes with the slot. Sliding down from
+                `translateY(-100%)` is what a bar pinned to the top edge does; in
+                the banner row it would slide out of the ticker above it. It fades
+                and settles instead, on the surface's own decelerator — and that
+                overshoot curve was a §8 violation besides, since overshoots are
+                permitted on the spin control and nowhere else. */}
             <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 9999,
-                transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
-                transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                ...(inline
+                    ? { position: 'relative' }
+                    : { position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }),
+                opacity: isVisible ? 1 : 0,
+                transform: isVisible ? 'translateY(0)' : 'translateY(-8px)',
+                transition: 'opacity 0.32s ease-in, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
             }}>
-                {/* Progress Bar - Top Edge */}
+                {/* The progress bar sits on whichever edge meets the reel: the
+                    bottom one when the banner is attached to the band, the top
+                    one when it is pinned to the viewport. Same rule the other
+                    four follow. */}
                 <div style={{
                     position: 'absolute',
-                    top: 0,
+                    ...(inline ? { bottom: 0 } : { top: 0 }),
                     left: 0,
                     right: 0,
                     height: '3px',
