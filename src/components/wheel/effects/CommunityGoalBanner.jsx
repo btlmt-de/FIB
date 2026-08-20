@@ -25,6 +25,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
+import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Target, Timer, Users, Sparkles, Gem, HandHeart, Trophy } from 'lucide-react';
@@ -149,16 +150,41 @@ function StagedBar({ progress, tiers, isMobile, raised }) {
                 animation: raised ? `goalRaised ${GOAL_RAISED_MS}ms ease-out` : undefined,
             }}
         >
+            {/* Fills without animating `width`, which relaid out the banner row on
+                every progress broadcast. The three pieces each replace one thing
+                width was doing, because no single property does all of it here:
+
+                  background-size  compresses the gradient into the filled part,
+                                   so the leading edge stays the solid end of the
+                                   ramp instead of fading out as the bar shortens.
+                  clip-path        cuts the element back to `pct`, and `round
+                                   999px` is what keeps the pill caps — a plain
+                                   scaleX would squash them into ellipses, which
+                                   is why the Gold Rush bar's fix does not port
+                                   here: that one is a square 3px rule.
+                  drop-shadow      is the glow. It has to be a filter rather than
+                                   box-shadow, because clip-path clips a
+                                   box-shadow away entirely but is applied before
+                                   a filter — so the glow traces the clipped pill.
+                                   ~half the blur of the box-shadow it replaces.
+
+                All three are paint/composite, none is layout. The old
+                `background 0.6s ease` is gone rather than carried over: gradients
+                do not interpolate, so it never animated the stage-colour change
+                it looked like it was animating. */}
             <div style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 bottom: 0,
-                width: `${pct}%`,
+                width: '100%',
                 background: `linear-gradient(90deg, ${fill}aa, ${fill})`,
+                backgroundRepeat: 'no-repeat',
+                backgroundSize: `${pct}% 100%`,
                 borderRadius: '999px',
-                transition: 'width 0.8s cubic-bezier(0.22, 1, 0.36, 1), background 0.6s ease',
-                boxShadow: `0 0 10px ${fill}88`,
+                clipPath: `inset(0 ${100 - pct}% 0 0 round 999px)`,
+                filter: `drop-shadow(0 0 5px ${fill}88)`,
+                transition: 'background-size 0.8s cubic-bezier(0.22, 1, 0.36, 1), clip-path 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
             }} />
 
             {/* Stage markers - the last is the bar's end, so it needs no divider */}
@@ -610,7 +636,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                     player{resultNow.participantCount !== 1 ? 's' : ''}
                                     {resultNow.specialDrops > 0 && (
                                         <>
-                                            , <strong style={{ color: '#EF4444' }}>
+                                            , <strong style={{ color: getRarityInk('rare') }}>
                                                 {resultNow.specialDrops}
                                             </strong> rare{resultNow.specialDrops !== 1 ? 's' : ''}
                                         </>
@@ -825,7 +851,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                         }}>
                             <span style={{ color: CG_TEXT, fontWeight: 600 }}>Goal:</span>
                             <span>
-                                Every spin scores - <strong style={{ color: '#EF4444' }}>rarer is worth more</strong>
+                                Every spin scores - <strong style={{ color: getRarityInk('rare') }}>rarer is worth more</strong>
                             </span>
                             <span style={{ color: CG_PRIMARY, opacity: 0.5 }}>|</span>
                             {/* A stage's price is points AND rares, so the legend has to show
@@ -858,7 +884,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                                     // competing for attention with the number
                                                     // still being chased.
                                                     opacity: specialDrops >= tier.specials ? 0.55 : 1,
-                                                    color: '#EF4444',
+                                                    color: getRarityInk('rare'),
                                                     fontWeight: 700,
                                                 }}
                                             >
@@ -889,7 +915,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                         style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                         title="Rare or better found by anyone this event"
                                     >
-                                        <span style={{ color: '#EF4444', fontWeight: 700 }}>&#9733;</span>
+                                        <span style={{ color: getRarityInk('rare'), fontWeight: 700 }}>&#9733;</span>
                                         {specialDrops} rare{specialDrops !== 1 ? 's' : ''} found
                                     </span>
                                 </>
