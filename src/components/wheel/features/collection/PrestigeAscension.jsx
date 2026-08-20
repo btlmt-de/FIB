@@ -212,6 +212,13 @@ export function PrestigeAscension({ level, items, collection, onDone }) {
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
         let W = 0, H = 0, cx = 0, cy = 0;
+        // The start ring, recomputed on resize. Movers hold their radius as a
+        // FRACTION of it rather than a pixel length, so a resize moves the whole
+        // swarm with the canvas instead of leaving it sized for a box that no
+        // longer exists — the same "constant that outlived its geometry" shape
+        // DESIGN.md SS8 tables five instances of.
+        let R = 0;
+        let movers = [];
 
         const size = () => {
             const r = wrap.getBoundingClientRect();
@@ -222,20 +229,24 @@ export function PrestigeAscension({ level, items, collection, onDone }) {
             canvas.style.width = `${W}px`;
             canvas.style.height = `${H}px`;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            // The start ring is deliberately wider than the board, so items
+            // arrive from off the edges too — the collection is bigger than the
+            // window showing it.
+            R = Math.hypot(W, H) * 0.62;
+            // Every previous position is in the old canvas's coordinates. Left
+            // in place they would each draw one streak from wherever they used to
+            // be to wherever they are now, straight across the new canvas.
+            for (const m of movers) m.prev = null;
         };
         size();
 
-        // Each mover starts somewhere on the board and spirals in. The start
-        // ring is deliberately wider than the board so items arrive from off the
-        // edges too — the collection is bigger than the window showing it.
-        const R = Math.hypot(W, H) * 0.62;
-        const movers = flyers.map((item, i) => {
+        movers = flyers.map((item, i) => {
             const a = (i / flyers.length) * Math.PI * 2 + Math.random() * 0.6;
-            const rad = R * (0.34 + Math.random() * 0.66);
             return {
                 item,
                 a0: a,
-                r0: rad,
+                rFrac: 0.34 + Math.random() * 0.66,
                 // Staggered so they arrive as a stream, not a wall, and the last
                 // ones land exactly as the gather ends. Offset past the lead-in
                 // so nothing moves during the held breath.
@@ -304,7 +315,7 @@ export function PrestigeAscension({ level, items, collection, onDone }) {
                     // Accelerating inward, and rotating as it goes, so the crowd
                     // reads as a vortex rather than as lines meeting at a point.
                     const k = easeInCubic(t);
-                    const rad = m.r0 * (1 - k);
+                    const rad = m.rFrac * R * (1 - k);
                     const ang = m.a0 + k * 2.4 * m.spin;
                     const x = cx + Math.cos(ang) * rad;
                     const y = cy + Math.sin(ang) * rad;

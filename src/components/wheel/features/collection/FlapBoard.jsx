@@ -382,9 +382,33 @@ export function Plinth({ children, live, onClick, title, style, className = '', 
  * keyboard behaviour, which is the failure DESIGN.md SS7 records in full.
  */
 export function Segmented({ value, onChange, options, label, tone = DECK.amber }) {
+    const groupRef = useRef(null);
+    const index = options.findIndex(([id]) => id === value);
+
+    /*
+     * A radiogroup owes the reader arrow keys and a single tab stop, and
+     * DESIGN.md SS7 says so in as many words — it is the rule that deleted the
+     * `Chip` control the stats module used to carry beside this one. Only the
+     * selected option is tabbable; the arrows move the selection and take focus
+     * with them, wrapping at both ends, which is what ARIA's own radiogroup
+     * pattern specifies. Every other key is left alone.
+     */
+    const onKeyDown = (e) => {
+        const delta = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1
+            : (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1
+            : 0;
+        if (!delta || options.length === 0) return;
+
+        e.preventDefault();
+        const from = index < 0 ? 0 : index;
+        const next = (from + delta + options.length) % options.length;
+        onChange(options[next][0]);
+        groupRef.current?.querySelectorAll('[role="radio"]')[next]?.focus();
+    };
+
     return (
-        <div role="radiogroup" aria-label={label} style={{ display: 'flex' }}>
-            {options.map(([id, text]) => {
+        <div ref={groupRef} role="radiogroup" aria-label={label} style={{ display: 'flex' }}>
+            {options.map(([id, text], i) => {
                 const active = value === id;
                 return (
                     <Plinth
@@ -392,6 +416,11 @@ export function Segmented({ value, onChange, options, label, tone = DECK.amber }
                         as="button"
                         role="radio"
                         aria-checked={active}
+                        // One tab stop for the group: the selected option, or the
+                        // first when nothing matches, so the control is never
+                        // unreachable from the keyboard.
+                        tabIndex={active || (index < 0 && i === 0) ? 0 : -1}
+                        onKeyDown={onKeyDown}
                         className="fib-board-hit"
                         onClick={() => onChange(id)}
                         live={active}

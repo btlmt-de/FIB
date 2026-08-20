@@ -854,6 +854,10 @@ export function LeaderboardSidebar({ onClose }) {
                         const isMe = user && user.id === entry.id;
                         const value = getValueForTab(entry);
                         const level = entry.prestige_level || 0;
+                        // One value for the label and the drums. They had the
+                        // fallback in different places, so a null username was
+                        // announced as "null, rank 4" while the row read "Unknown".
+                        const name = entry.custom_username || 'Unknown';
                         // The medal metals, which DESIGN.md SS8 sanctions for
                         // placings and nothing else. Beyond third the numeral is
                         // ordinary ink: a board where every rank is decorated has
@@ -868,7 +872,7 @@ export function LeaderboardSidebar({ onClose }) {
                                 key={entry.id}
                                 className={`fib-board-hit fib-register-row${isMe ? ' is-active' : ''}`}
                                 onClick={() => setSelectedUser(entry.id)}
-                                aria-label={`${entry.custom_username}, rank ${rank}, ${fmtNum(value)} ${sortOptions[activeTab].label.toLowerCase()}${level > 0 ? `, ${prestigeLabel(level)}` : ''}`}
+                                aria-label={`${name}, rank ${rank}, ${fmtNum(value)} ${sortOptions[activeTab].label.toLowerCase()}${level > 0 ? `, ${prestigeLabel(level)}` : ''}`}
                                 style={{
                                     display: 'grid', gridTemplateColumns: boardColumns,
                                     alignItems: 'center', gap: '0 12px',
@@ -916,7 +920,7 @@ export function LeaderboardSidebar({ onClose }) {
                                 </span>
 
                                 <FlapText
-                                    text={entry.custom_username || 'Unknown'}
+                                    text={name}
                                     size={isPhone ? 14 : 15}
                                     tone={isMe ? DECK.amber : DECK.ink}
                                     weight={isMe ? 800 : 700}

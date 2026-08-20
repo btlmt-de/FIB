@@ -437,6 +437,21 @@ html, body {
   color: transparent;
 }
 
+/*
+ * Both, when the level is iridescent.
+ *
+ * `.fib-holo-text` and `.fib-prestige-proclaim` each set `animation`, and the
+ * holo rule comes later — so an insane proclamation silently lost its landing
+ * and only drifted. The shorthand cannot be inherited from two rules, so this
+ * states both, and the doubled class raises specificity above either alone.
+ * Non-iridescent levels are untouched.
+ */
+.fib-prestige-proclaim.fib-holo-text {
+  animation:
+    fib-prestige-land 620ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    fib-holo-drift 4.5s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* The level still arrives — it just does not fly in. Addressed by class:
      this was an attribute selector matching the animation's name inside an
@@ -446,5 +461,9 @@ html, body {
     animation: none;
     background-position: -45% 50%;
   }
-  .fib-prestige-proclaim { animation: none; }
+  /* Listed explicitly: the combined selector above outranks either single
+     class, so silencing only those two would leave an insane proclamation
+     animating for the one reader who asked it not to. */
+  .fib-prestige-proclaim,
+  .fib-prestige-proclaim.fib-holo-text { animation: none; }
 }

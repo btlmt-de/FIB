@@ -2624,6 +2624,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             <LuckyResultPanel
                                 result={luckyResult}
                                 isNewItem={isLuckyNew}
+                                prestigePull={prestigePull}
                                 collection={collection}
                                 isMobile={isMobile}
                             />
