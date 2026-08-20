@@ -366,3 +366,45 @@ export function Plinth({ children, live, onClick, title, style, className = '', 
         </Tag>
     );
 }
+
+/**
+ * One control for "pick one of N", in the board's material.
+ *
+ * The stats module learned this the expensive way and wrote it down: two
+ * controls doing one job, with different shapes and different keyboard
+ * behaviour, is how a reader loses the ability to learn either. This is a
+ * radiogroup, not tabs — there is no panel being switched, only a lens on the
+ * platform below.
+ *
+ * It lives here rather than in either board because both use it: the collection
+ * board's lens, show and sort, and the leaderboard's "rank by". A second copy is
+ * how two controls doing one job end up with different shapes and different
+ * keyboard behaviour, which is the failure DESIGN.md SS7 records in full.
+ */
+export function Segmented({ value, onChange, options, label, tone = DECK.amber }) {
+    return (
+        <div role="radiogroup" aria-label={label} style={{ display: 'flex' }}>
+            {options.map(([id, text]) => {
+                const active = value === id;
+                return (
+                    <Plinth
+                        key={id}
+                        as="button"
+                        role="radio"
+                        aria-checked={active}
+                        className="fib-board-hit"
+                        onClick={() => onChange(id)}
+                        live={active}
+                        tone={tone}
+                        style={{
+                            padding: '0 11px', height: '30px',
+                            display: 'flex', alignItems: 'center',
+                        }}
+                    >
+                        <BoardLabel tone={active ? tone : DECK.inkDim}>{text}</BoardLabel>
+                    </Plinth>
+                );
+            })}
+        </div>
+    );
+}

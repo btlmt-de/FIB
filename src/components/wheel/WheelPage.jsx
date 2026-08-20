@@ -1175,17 +1175,23 @@ function WheelOfFortunePage({ onBack }) {
                     style={{
                         position: 'fixed',
                         inset: 0,
-                        background: 'rgba(0,0,0,0.85)',
+                        // The scrim ladder's middle step, matching the collection
+                        // board: this pushes the stage back behind a plaque rather
+                        // than blacking it out.
+                        background: 'rgba(0,0,0,0.8)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: `${SPACE.lg}px`,
+                        // Full-bleed on a phone, inset on a desktop — the same
+                        // arrangement the collection board uses. The inset was
+                        // costing the phone 48px of a 390px row, which the board's
+                        // own padding then doubled.
+                        padding: isMobile ? 0 : `${SPACE.lg}px`,
                         zIndex: 1100,
                         animation: 'fadeIn 0.25s ease-out',
                     }}
                 >
                     <LeaderboardSidebar
-                        asModal
                         onClose={() => setShowLeaderboard(false)}
                     />
                 </div>

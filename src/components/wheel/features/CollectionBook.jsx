@@ -67,7 +67,7 @@ import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
 import { RARITY, getRarityColor, getRarityInk, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
 import { X, Search, Sparkles, Coins, Crown } from 'lucide-react';
 import { CanvasCollectionGrid } from '../canvas/CanvasCollectionGrid.jsx';
-import { FlapText, BoardLabel, RowLamp, BoardMeter, Plinth } from './collection/FlapBoard.jsx';
+import { FlapText, BoardLabel, RowLamp, BoardMeter, Plinth, Segmented } from './collection/FlapBoard.jsx';
 import { prestigeLabel, prestigeName, prestigeColor, prestigeInk, prestigeIcon, isIridescentPrestige, MAX_PRESTIGE_LEVEL } from '../../../utils/prestigeHelpers.js';
 import { PrestigeAscension } from './collection/PrestigeAscension.jsx';
 import { useWheelViewport } from '../config/breakpoints.js';
@@ -1441,42 +1441,6 @@ function SpinRegister({ figures, align, size = 20 }) {
                     </div>
                 </div>
             ))}
-        </div>
-    );
-}
-
-/**
- * One control for "pick one of N", in the board's material.
- *
- * The stats module learned this the expensive way and wrote it down: two
- * controls doing one job, with different shapes and different keyboard
- * behaviour, is how a reader loses the ability to learn either. This is a
- * radiogroup, not tabs — there is no panel being switched, only a lens on the
- * platform below.
- */
-function Segmented({ value, onChange, options, label }) {
-    return (
-        <div role="radiogroup" aria-label={label} style={{ display: 'flex' }}>
-            {options.map(([id, text]) => {
-                const active = value === id;
-                return (
-                    <Plinth
-                        key={id}
-                        as="button"
-                        role="radio"
-                        aria-checked={active}
-                        className="fib-board-hit"
-                        onClick={() => onChange(id)}
-                        live={active}
-                        style={{
-                            padding: '0 11px', height: '30px',
-                            display: 'flex', alignItems: 'center',
-                        }}
-                    >
-                        <BoardLabel tone={active ? DECK.amber : DECK.inkDim}>{text}</BoardLabel>
-                    </Plinth>
-                );
-            })}
         </div>
     );
 }
