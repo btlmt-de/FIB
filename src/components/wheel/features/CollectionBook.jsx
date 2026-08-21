@@ -971,7 +971,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                         on the ACTION button below, which is the
                                         abstract idea of prestige; anything naming
                                         a specific level wears that level's icon. */}
-                                    <span className="fib-sr-only">{prestigeLabel(prestige.level)}</span>
+                                    {isPhone && <span className="fib-sr-only">{prestigeLabel(prestige.level)}</span>}
                                     {prestigeIcon(prestige.level, 13)}
                                     {!isPhone && (
                                         <BoardLabel tone="currentColor">

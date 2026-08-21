@@ -68,7 +68,7 @@ import { getItemImageUrl } from '../../../../utils/helpers.js';
 import { getAtlasSprite, drawItemSprite } from '../../canvas/atlas.js';
 import { FlapText, BoardLabel } from './FlapBoard.jsx';
 import { DECK } from '../../config/constants';
-import { prefersReducedMotion } from '../../../../pages/Stats/env.js';
+import { usePrefersReducedMotion } from '../../../../utils/motion.js';
 
 /*
  * The timeline, in seconds.
@@ -138,10 +138,11 @@ function easeInCubic(t) { return t * t * t; }
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
 export function PrestigeAscension({ level, items, collection, onDone }) {
+    const motionOff = usePrefersReducedMotion();
     const canvasRef = useRef(null);
     const wrapRef = useRef(null);
     const rafRef = useRef(null);
-    const [phase, setPhase] = useState(() => (prefersReducedMotion() ? 'proclaim' : 'gather'));
+    const [phase, setPhase] = useState(() => (motionOff ? 'proclaim' : 'gather'));
     const [landed, setLanded] = useState(0);
     const doneRef = useRef(false);
 
@@ -197,14 +198,14 @@ export function PrestigeAscension({ level, items, collection, onDone }) {
 
     // Reduced motion: no physics, the announcement holds and then leaves.
     useEffect(() => {
-        if (!prefersReducedMotion()) return undefined;
+        if (!motionOff) return undefined;
         const t = window.setTimeout(finish, 3400);
         return () => window.clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [totalHeld]);
+    }, [totalHeld, motionOff]);
 
     useEffect(() => {
-        if (prefersReducedMotion()) return undefined;
+        if (motionOff) return undefined;
         const canvas = canvasRef.current;
         const wrap = wrapRef.current;
         if (!canvas || !wrap) return undefined;

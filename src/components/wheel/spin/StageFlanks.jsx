@@ -205,6 +205,8 @@ export function PrestigeRing({ standing, children, pad = 2 }) {
             className={holo ? 'fib-holo' : undefined}
             title={`${prestigeLabel(level)}${earned ? '' : ' — in progress'}`}
             style={{
+                position: 'relative',
+                zIndex: 2,
                 flexShrink: 0,
                 display: 'block',
                 // `pad` IS the ring's thickness, and it is a prop because this
