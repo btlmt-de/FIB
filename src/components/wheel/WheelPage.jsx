@@ -669,11 +669,29 @@ function WheelOfFortunePage({ onBack }) {
         // all for exotic. COUNTER_FOR_TIER maps tier to the field it increments;
         // anything not in it (common) only advances totalSpins.
         const counterField = COUNTER_FOR_TIER[result.type];
-        if (counterField) {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, [counterField]: (prev[counterField] || 0) + 1 }));
-        } else {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1 }));
-        }
+        setStats(prev => ({
+            ...prev,
+            totalSpins: prev.totalSpins + 1,
+            ...(counterField ? { [counterField]: (prev[counterField] || 0) + 1 } : null),
+            /*
+             * Duplicates were never counted here at all.
+             *
+             * The server has always got this right — `total_duplicates` is
+             * `SUM(count) - COUNT(DISTINCT texture)` over the collection, so a
+             * repeat pull moves it the moment it lands. This optimistic update
+             * advanced `totalSpins` and the tier counter and simply left the
+             * duplicate figure alone, so the collection board showed a stale
+             * number until something refetched — and during a prestige run, where
+             * EVERY pull is a main-collection duplicate by definition, it looked
+             * like prestige pulls were not counting toward the main collection at
+             * all. They were; the panel was just not saying so.
+             *
+             * Read from `spinResult.isNew`, which is the server's own verdict, and
+             * not from the local map: deciding "was this new" a second time on the
+             * client is how the two accounts drift apart in the first place.
+             */
+            ...(spinResult.isNew ? null : { totalDuplicates: (prev.totalDuplicates || 0) + 1 }),
+        }));
 
         // A pull that landed in a run moves its count, and the panel is showing it.
         if (spinResult.prestige) refreshPrestige();
