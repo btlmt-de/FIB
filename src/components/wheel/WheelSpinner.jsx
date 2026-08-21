@@ -561,7 +561,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
-        const finalIndex = length - 8; // Position 72 for length 80
+        // The pinned constant, not `length - 8`. The winner's slot is fixed and
+        // the strip's length is derived from it (see config/constants.js); with
+        // the old arithmetic, lengthening the strip to fill a wide viewport just
+        // moved the winner along with it and left the same gap behind.
+        const finalIndex = FINAL_INDEX;
 
         // Shuffle all item pools for better visual randomness
         const shuffledItems = shuffleArray([...allItems]);

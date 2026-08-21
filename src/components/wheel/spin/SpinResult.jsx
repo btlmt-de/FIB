@@ -202,7 +202,27 @@ export function SpinResult({
                             : { color: tierInk }),
                     }}
                 >
-                    {resultWasRecursionSpin ? 'Recursion' : resultWasKotwLuckySpin ? 'King of the Wheel' : label}
+                    {/*
+                      * "Lucky Spin", not the name of an event.
+                      *
+                      * This said "King of the Wheel" for every lucky spin a
+                      * player had banked, and it was wrong for most of them:
+                      * KOTW, First Blood and the Community Goal all pay into the
+                      * same `users.lucky_spins` column, and none of them records
+                      * which event the credit came from. So a player who earned
+                      * their spins from the community goal was told, at the
+                      * moment of the payoff, that they had won a competition
+                      * they may never have entered.
+                      *
+                      * The panel cannot name the source because the data does
+                      * not carry it. It CAN name what the spin is, which is true
+                      * of all three — and a label that is right every time beats
+                      * one that is specific and wrong most of the time. Naming
+                      * the source needs a column on `users` (or a small ledger),
+                      * and is worth doing the day the payouts are worth
+                      * distinguishing.
+                      */}
+                    {resultWasRecursionSpin ? 'Recursion' : resultWasKotwLuckySpin ? 'Lucky Spin' : label}
                 </span>
                 {isNewItem && (
                     <span style={{

@@ -371,6 +371,11 @@ html, body {
 .fib-register-row + .fib-register-row { box-shadow: inset 0 1px 0 var(--fib-rail-06); }
 .fib-register-row { background: transparent; transition: background 140ms ease-out; }
 .fib-register-row:hover { background: rgba(148,168,212,0.05); }
+/* A row that is a readout rather than a control takes the seam and refuses the
+   hover. The player board's register looks exactly like the collection board's
+   and does not filter anything, and a lift under the cursor on a surface where
+   that lift means "this row is a door" is a promise the row cannot keep. */
+.fib-register-row.is-static:hover { background: transparent; }
 /* An active row keeps its tier wash and base bar; both are per-tier, so they are
    the one thing here that must come from the component.
    Order matters and it is a tie, not a win: this selector and the sibling seam
@@ -397,6 +402,156 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .fib-plinth-lift,
   .fib-register-row { transition: none; }
+}
+
+/* ── THE MOUNT ───────────────────────────────────────────────────────────────
+ *
+ * An item in a case: a square mount in a rim of its own tier, used by the
+ * player board's showcase, its recent-finds rows and its showcase editor.
+ *
+ * This is the DOM twin of the cell CanvasCollectionGrid draws, and it exists for
+ * the reason DESIGN.md §9 gives: the reel moves items past a focal slot and
+ * earns its shaft of light from travel, while a case holds objects still and on
+ * display, so the tier is a rim. The rim's terms are that section's table —
+ * the whole slick for insane, the aqua ramp shimmering for mythic, flat gold
+ * STEADY for legendary, a slow pulse for the flat tiers below.
+ *
+ * The tone arrives as `--fib-mount-tone` and nothing else does. Every visual
+ * property is a class because every one of them has a state; the register row
+ * above sets the same precedent with `--fib-row-tone`. */
+.fib-mount {
+  position: relative;
+  display: block;
+  padding: 2px;
+  flex: 0 0 auto;
+  background: var(--fib-mount-tone, rgba(206,214,236,0.20));
+  box-shadow: 0 0 13px -1px var(--fib-mount-tone, transparent);
+}
+.fib-mount-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-image: var(--fib-deck-noise), linear-gradient(180deg, var(--fib-deck-top) 0%, var(--fib-deck-mid) 100%);
+}
+
+/* A mount with nothing in it is a recess cut into the deck, not a dashed box:
+   the silhouette of an empty slot reads as "there is room here" without
+   borrowing the one shape this surface does not draw. */
+.fib-mount--empty {
+  background: rgba(0,0,0,0.45);
+  box-shadow: inset 0 1px 0 var(--fib-rail-06);
+  border: 0;
+}
+
+/* `is-quiet` drops the bloom and keeps the rim — for the places a mount is a
+   line item rather than an exhibit (a recent-find row, an unpicked item in the
+   editor), where twelve blooms in a column is a lit wall, not a signal.
+ *
+ * The pulse variant has to be silenced by NAME, and that is not tidiness. An
+ * animation's computed value beats every normal declaration regardless of
+ * specificity, so `.fib-mount.is-quiet` — which outranks every rule here on
+ * paper — was overridden by `fib-mount-pulse` for the whole of its cycle and
+ * five exotic rims went on blooming down a list that had asked them not to.
+ * Measured, not read: getComputedStyle on a quiet mount returned
+ * `rgb(170,0,170) 0 0 16.2px`. The same trap as the plinth's inline styles, one
+ * cascade layer over. */
+.fib-mount.is-quiet { box-shadow: none; }
+.fib-mount--pulse.is-quiet { animation: none; box-shadow: none; }
+
+/* Legendary is deliberately STILL. It took insane's colour when the ladder was
+   rebuilt, not insane's pulse; motion belongs to the tiers above it. */
+.fib-mount--steady { animation: none; }
+
+/* The flat tiers breathe rather than shimmer — slow enough to read as a lit
+   object and not as a blinking one. */
+.fib-mount--pulse { animation: fib-mount-pulse 3.2s ease-in-out infinite; }
+
+@keyframes fib-mount-pulse {
+  0%, 100% { box-shadow: 0 0 11px -2px var(--fib-mount-tone); }
+  50%      { box-shadow: 0 0 18px 0 var(--fib-mount-tone); }
+}
+
+/* Mythic shimmers within its own cool band. A ramp, not a point: the same
+   Whole-Gradient discipline insane requires, applied one tier down.
+ *
+ * These are COLORS.mythicCycle's own four stops, kept in sync with
+ * components/wheel/config/constants.js exactly as `.fib-holo` is with
+ * insaneHolo. The first build invented a near-miss cool ramp instead
+ * (#00E5FF/#3B82F6/#14B8A6), which is a second mythic — the drift this file's
+ * own header warns about, caught by the design detector rather than by eye,
+ * because two cool blues at 2px are indistinguishable until they are side by
+ * side with the canvas grid drawing the real one. */
+.fib-mount--shimmer {
+  background-image: linear-gradient(115deg, #55FFFF 0%, #2E86FF 33%, #3BE8B0 66%, #55FFFF 100%);
+  background-size: 300% 100%;
+  animation: fib-holo-drift 5.5s linear infinite;
+}
+
+/* Insane takes the whole oil slick and never a sampled point — its ramp passes
+   through magenta, aqua and gold, which are exotic, mythic and legendary, so a
+   rim painted from one stop off it spends two thirds of every cycle
+   impersonating the tiers below. */
+.fib-mount--holo {
+  background-image: linear-gradient(
+    115deg,
+    #FF55FF 0%,
+    #55FFFF 33%,
+    #FFD700 66%,
+    #FF55FF 100%
+  );
+  background-size: 300% 100%;
+  animation: fib-holo-drift 4.5s linear infinite;
+  box-shadow: 0 0 18px 2px rgba(255, 120, 255, 0.28);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Motion stops; identity does not. A tier that rendered as a flat grey rim
+     under reduced motion would have lost the only thing the rim is for, so the
+     gradients park mid-sweep with all their hues present. */
+  .fib-mount--holo,
+  .fib-mount--shimmer,
+  .fib-mount--pulse {
+    animation: none;
+    background-position: -45% 50%;
+  }
+}
+
+/* ── THE COMPLETION BANNER ───────────────────────────────────────────────────
+ *
+ * Kept from the profile that THE CONCOURSE replaced — the one part of it the
+ * owner named as worth saving — and kept as it was: the shine sweep and the
+ * slow swell are the banner's identity, not decoration added to it.
+ *
+ * It lives here rather than in a component `<style>` block because that is where
+ * it used to live, injected on every profile mount, and because a `::before`
+ * cannot be expressed in a style object at all. */
+.completion-banner {
+  animation: fib-completion-pulse 2s ease-in-out infinite;
+}
+.completion-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: fib-completion-shine 3s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes fib-completion-shine {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes fib-completion-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.01); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-banner,
+  .completion-banner::before { animation: none; }
 }
 
 /*

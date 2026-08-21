@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ═══════════════════════════════════════════════════════════════════════════
  * THE CONCOURSE — the collection board
  * ═══════════════════════════════════════════════════════════════════════════
@@ -79,8 +79,6 @@ const REGISTER_ORDER = ['insane', 'mythic', 'legendary', 'exotic', 'rare', 'comm
 
 /* A prestige level is worn as a numeral, not a digit: "II" reads as a rank where
    "2" reads as a quantity, and the badge sits beside counts that are quantities. */
-const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
-
 /* One frozen empty object, so "no prestige data yet" has a stable identity and
    does not invalidate a memo simply by being absent. */
 const EMPTY = Object.freeze({});
@@ -884,17 +882,25 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                 rather than cleared. Only shown once there is more
                                 than one to choose between. */}
                             {prestigeView && selectableLevels.length > 1 && (
-                                // Labelled like SHOW and SORT below it. Bare
-                                // numerals next to two labelled groups is a
-                                // control that never says what it controls, and
-                                // "I II III" is the least self-describing set on
-                                // the board.
+                                // Labelled like SHOW and SORT below it, and the
+                                // options are the levels' NAMES.
+                                //
+                                // Adding the "Level" label fixed half of this:
+                                // bare numerals next to two labelled groups is a
+                                // control that never says what it controls. The
+                                // other half was the options themselves — "I II
+                                // III" is the least self-describing set on the
+                                // board, and a reader has to already know the
+                                // ladder to pick from it. The tier names are the
+                                // ladder, they are one word each, and they match
+                                // what the title says about whichever one is
+                                // selected.
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <BoardLabel>Level</BoardLabel>
                                     <Segmented
                                         value={String(shownLevel)}
                                         onChange={v => setViewLevel(Number(v))}
-                                        options={selectableLevels.map(l => [String(l), ROMAN[l] || String(l)])}
+                                        options={selectableLevels.map(l => [String(l), prestigeName(l) || String(l)])}
                                         label="Prestige level"
                                     />
                                 </span>
@@ -934,14 +940,24 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
 
                             {/* The badge. Worn on the board whose collection earned
                                 it, at every level, and iridescent at the top for
-                                the same reason insane is. */}
+                                the same reason insane is.
+
+                                Spelled out on a desktop head, a bare mark on a
+                                phone. It used to be the mark plus a Roman
+                                numeral, which is the level said twice — the
+                                level picks the icon, so ◇ and I carry the same
+                                one bit — and explained nowhere a phone could
+                                reach. The word is the explanation; the numeral
+                                was never doing anything the mark was not. */}
                             {prestige?.level > 0 && (
                                 <span
                                     className={isIridescentPrestige(prestige.level) ? 'fib-holo' : undefined}
                                     title={prestigeLabel(prestige.level)}
                                     style={{
-                                        display: 'flex', alignItems: 'center', gap: '7px',
-                                        padding: '0 12px', height: '36px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px',
+                                        height: '36px', flex: '0 0 auto',
+                                        padding: isPhone ? 0 : '0 12px',
+                                        width: isPhone ? '36px' : undefined,
                                         background: isIridescentPrestige(prestige.level)
                                             ? undefined
                                             : `${prestigeColor(prestige.level)}22`,
@@ -955,10 +971,13 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                         on the ACTION button below, which is the
                                         abstract idea of prestige; anything naming
                                         a specific level wears that level's icon. */}
+                                    {isPhone && <span className="fib-sr-only">{prestigeLabel(prestige.level)}</span>}
                                     {prestigeIcon(prestige.level, 13)}
-                                    <BoardLabel tone="currentColor">
-                                        {ROMAN[prestige.level] || prestige.level}
-                                    </BoardLabel>
+                                    {!isPhone && (
+                                        <BoardLabel tone="currentColor">
+                                            {prestigeLabel(prestige.level)}
+                                        </BoardLabel>
+                                    )}
                                 </span>
                             )}
 

@@ -3,6 +3,8 @@ import { COLORS } from '../config/constants';
 import { Activity, Sparkles, Crown, Radio } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl, parseActivityDate } from '../../../utils/helpers.js';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { prestigeStanding } from '../../../utils/prestigeHelpers.js';
+import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 
 // Format exact timestamp for Mythic & Insane tab
@@ -437,7 +439,15 @@ export function ActivityFeedSidebar() {
                                     }} />
                                 )}
 
-                                {/* Avatar */}
+                                {/* Avatar. The ring is the player's PRESTIGE, not
+                                    the item's tier — see the note in
+                                    ActivityTicker: a ring around a face means
+                                    one thing everywhere else on this site, and
+                                    the row already states the item's rarity in
+                                    its fill, its border, its glow and the item's
+                                    own name. The per-tier SIZE step stays; that
+                                    one is this row's own hierarchy. */}
+                                <PrestigeRing standing={prestigeStanding(item)}>
                                 <img
                                     src={getDiscordAvatarUrl(item.discord_id, item.discord_avatar)}
                                     alt=""
@@ -446,8 +456,7 @@ export function ActivityFeedSidebar() {
                                         height: isInsane ? '34px' : isMythic ? '32px' : '30px',
                                         borderRadius: '50%',
                                         flexShrink: 0,
-                                        border: isInsane ? `2px solid ${rarityColor}` : isMythic ? `2px solid ${rarityColor}88` : `1.5px solid ${rarityColor}50`,
-                                        boxShadow: isInsane ? `0 0 15px ${rarityColor}50` : isMythic ? `0 0 12px ${rarityColor}40` : `0 0 8px ${rarityColor}20`,
+                                        display: 'block',
                                         position: 'relative',
                                         zIndex: 1
                                     }}
@@ -456,6 +465,7 @@ export function ActivityFeedSidebar() {
                                         e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
                                     }}
                                 />
+                                </PrestigeRing>
 
                                 {/* Content */}
                                 <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
