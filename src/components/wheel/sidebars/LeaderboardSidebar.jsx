@@ -611,6 +611,35 @@ export function LeaderboardSidebar({ onClose }) {
         events: COLORS.orange,
     }[activeTab] || DECK.amber;
 
+    /*
+     * "In prestige" answers whichever metric the lens is on.
+     *
+     * Items come from a count of the run's own rows; the other three are the
+     * player's career total minus the baseline recorded when the run opened.
+     * That baseline is why this works at all — spins cannot be counted from
+     * spin_history (event and recursion spins never write a row), and events have
+     * no timestamped record anywhere, so without it three of the four metrics
+     * would have to be guessed.
+     *
+     * Returns null for "nothing to say": not prestiging, or a run that started
+     * before the baselines were recorded. Null prints as a dot, never as a zero —
+     * a zero here would be a measurement, and there isn't one.
+     */
+    const prestigeValueFor = (entry) => {
+        if (!(entry.prestige_active_level > 0)) return null;
+
+        const since = (total, base) =>
+            (base === null || base === undefined) ? null : Math.max(0, (total || 0) - base);
+
+        switch (activeTab) {
+            case 'collection': return entry.prestige_items ?? null;
+            case 'spins': return since(entry.total_spins, entry.prestige_spins_at_start);
+            case 'duplicates': return since(entry.total_duplicates, entry.prestige_duplicates_at_start);
+            case 'events': return since(entry.event_triggers, entry.prestige_events_at_start);
+            default: return entry.prestige_items ?? null;
+        }
+    };
+
     const rows = leaderboard.slice(0, 100);
 
     /*
@@ -644,7 +673,7 @@ export function LeaderboardSidebar({ onClose }) {
 
     const boardColumns = isPhone
         ? '30px 24px minmax(0, 1fr) 76px'
-        : `46px 30px minmax(0, 1fr) 96px 86px 62px ${marksWidth}px`;
+        : `46px 30px minmax(0, 1fr) 96px 118px 62px ${marksWidth}px`;
 
     return (
         <>
@@ -834,7 +863,13 @@ export function LeaderboardSidebar({ onClose }) {
                         <BoardLabel tone={metricTone} style={{ textAlign: 'right' }}>
                             {sortOptions[activeTab].label}
                         </BoardLabel>
-                        {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>In prestige</BoardLabel>}
+                        {/* Named for the metric, so the column never reads as
+                            "items" while the board is ranked by spins. */}
+                        {!isPhone && (
+                            <BoardLabel tone={metricTone} style={{ textAlign: 'right' }}>
+                                {`${sortOptions[activeTab].label} in prestige`}
+                            </BoardLabel>
+                        )}
                         {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Prestige</BoardLabel>}
                         {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Collection</BoardLabel>}
                     </div>
@@ -856,6 +891,7 @@ export function LeaderboardSidebar({ onClose }) {
                         // fallback in different places, so a null username was
                         // announced as "null, rank 4" while the row read "Unknown".
                         const name = entry.custom_username || 'Unknown';
+                        const prestigeValue = prestigeValueFor(entry);
                         // The medal metals, which DESIGN.md SS8 sanctions for
                         // placings and nothing else. Beyond third the numeral is
                         // ordinary ink: a board where every rank is decorated has
@@ -939,9 +975,9 @@ export function LeaderboardSidebar({ onClose }) {
                                     prestiging — a dot, because an empty cell in a
                                     ruled column reads as a missing value. */}
                                 {!isPhone && (
-                                    standing.level > 0 && entry.prestige_active_level > 0 ? (
+                                    prestigeValue !== null ? (
                                         <FlapText
-                                            text={fmtNum(entry.prestige_items || 0)}
+                                            text={fmtNum(prestigeValue)}
                                             digits
                                             size={15}
                                             tone={prestigeInk(entry.prestige_active_level)}
