@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS, DECK, rail } from '../config/constants';
-import { FlapText, BoardLabel, BoardMeter, Plinth, Segmented } from '../features/collection/FlapBoard.jsx';
-import { prestigeColor, prestigeInk, prestigeIcon, prestigeLabel, isIridescentPrestige } from '../../../utils/prestigeHelpers.js';
+import { FlapText, BoardLabel, Plinth, Segmented } from '../features/collection/FlapBoard.jsx';
+import { prestigeInk, prestigeIcon, prestigeLabel, isIridescentPrestige, prestigeStanding } from '../../../utils/prestigeHelpers.js';
+import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useWheelViewport } from '../config/breakpoints.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
@@ -610,10 +611,6 @@ export function LeaderboardSidebar({ onClose }) {
         events: COLORS.orange,
     }[activeTab] || DECK.amber;
 
-    // The leader's value, for the share meters. Guarded so a board of zeroes
-    // cannot divide by nothing.
-    const topValue = leaderboard.reduce((max, e) => Math.max(max, getValueForTab(e) || 0), 0) || 1;
-
     const rows = leaderboard.slice(0, 100);
 
     /*
@@ -647,7 +644,7 @@ export function LeaderboardSidebar({ onClose }) {
 
     const boardColumns = isPhone
         ? '30px 24px minmax(0, 1fr) 76px'
-        : `46px 30px minmax(0, 1fr) 96px minmax(70px, 0.6fr) 62px ${marksWidth}px`;
+        : `46px 30px minmax(0, 1fr) 96px 86px 62px ${marksWidth}px`;
 
     return (
         <>
@@ -837,7 +834,7 @@ export function LeaderboardSidebar({ onClose }) {
                         <BoardLabel tone={metricTone} style={{ textAlign: 'right' }}>
                             {sortOptions[activeTab].label}
                         </BoardLabel>
-                        {!isPhone && <span />}
+                        {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>In prestige</BoardLabel>}
                         {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Prestige</BoardLabel>}
                         {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Collection</BoardLabel>}
                     </div>
@@ -853,7 +850,8 @@ export function LeaderboardSidebar({ onClose }) {
                         const rank = idx + 1;
                         const isMe = user && user.id === entry.id;
                         const value = getValueForTab(entry);
-                        const level = entry.prestige_level || 0;
+                        const standing = prestigeStanding(entry);
+                        const level = standing.level;
                         // One value for the label and the drums. They had the
                         // fallback in different places, so a null username was
                         // announced as "null, rank 4" while the row read "Unknown".
@@ -897,18 +895,7 @@ export function LeaderboardSidebar({ onClose }) {
                                 {/* The avatar, ringed by prestige. Same treatment
                                     as the stage's standings, so a player wears the
                                     same mark wherever they appear. */}
-                                <span
-                                    className={level > 0 && isIridescentPrestige(level) ? 'fib-holo' : undefined}
-                                    title={level > 0 ? prestigeLabel(level) : undefined}
-                                    style={{
-                                        display: 'block', lineHeight: 0, flexShrink: 0,
-                                        padding: level > 0 ? '2px' : 0,
-                                        borderRadius: '50%',
-                                        background: level > 0 && !isIridescentPrestige(level) ? prestigeColor(level) : undefined,
-                                        boxShadow: level > 0 && !isIridescentPrestige(level)
-                                            ? `0 0 7px ${prestigeColor(level)}99` : undefined,
-                                    }}
-                                >
+                                <PrestigeRing standing={standing}>
                                     <img
                                         src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar)}
                                         alt=""
@@ -917,7 +904,7 @@ export function LeaderboardSidebar({ onClose }) {
                                         onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
                                         style={{ borderRadius: '50%', display: 'block' }}
                                     />
-                                </span>
+                                </PrestigeRing>
 
                                 <FlapText
                                     text={name}
@@ -941,24 +928,47 @@ export function LeaderboardSidebar({ onClose }) {
                                     Spins and Dupes columns were really being asked
                                     to do — say how far ahead first place is — and a
                                     second number in a third column never could. */}
-                                {/* Share of the leader.
-                                    `spent` on everything but first place, and that
-                                    is the point: at full strength seventeen bars in
-                                    the metric's colour made the board one colour
-                                    and the leader indistinguishable inside it. The
-                                    top row reads at full, the rest recede into a
-                                    scale you compare against it. */}
-                                {!isPhone && <BoardMeter value={value / topValue} tone={metricTone} spent={rank > 1} />}
+                                {/* How far this player's current prestige run has
+                                    got.
+                                    A share-of-leader meter lived here first. It was
+                                    honest but it was a bar restating the column
+                                    beside it, and the owner wanted the one number a
+                                    ranking of prestigers actually wants: how many
+                                    items they have collected the second time round.
+                                    Blank for the overwhelming majority who are not
+                                    prestiging — a dot, because an empty cell in a
+                                    ruled column reads as a missing value. */}
+                                {!isPhone && (
+                                    standing.level > 0 && entry.prestige_active_level > 0 ? (
+                                        <FlapText
+                                            text={fmtNum(entry.prestige_items || 0)}
+                                            digits
+                                            size={15}
+                                            tone={prestigeInk(entry.prestige_active_level)}
+                                            delay={90 + Math.min(idx, 12) * 22}
+                                            style={{ justifyContent: 'flex-end' }}
+                                        />
+                                    ) : (
+                                        <BoardLabel tone="rgba(206,214,236,0.22)" style={{ textAlign: 'right' }}>·</BoardLabel>
+                                    )
+                                )}
 
                                 {!isPhone && (
                                     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px' }}>
                                         {level > 0 ? (
                                             <span
-                                                className={isIridescentPrestige(level) ? 'fib-holo-text' : undefined}
-                                                title={prestigeLabel(level)}
+                                                className={isIridescentPrestige(level) && standing.earned ? 'fib-holo-text' : undefined}
+                                                title={`${prestigeLabel(level)}${standing.earned ? '' : ' — in progress'}`}
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: '4px',
-                                                    color: isIridescentPrestige(level) ? undefined : prestigeInk(level),
+                                                    color: isIridescentPrestige(level) && standing.earned ? undefined : prestigeInk(level),
+                                                    // Full strength in both states. This
+                                                    // cell was dimmed to 0.5 for a run in
+                                                    // progress, which muted an ink chosen
+                                                    // to clear AA at full — and the ring on
+                                                    // the same row already says whether the
+                                                    // level is won. Two markers for one
+                                                    // fact, one of them costing legibility.
                                                 }}
                                             >
                                                 {prestigeIcon(level, 12)}

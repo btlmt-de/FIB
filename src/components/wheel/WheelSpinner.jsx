@@ -162,7 +162,7 @@ function landingVariance(itemWidth) {
     return (Math.random() * 2 - 1) * max;
 }
 
-function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, isMobile = false, hasFlanks = true }) {
+function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, isMobile = false, hasFlanks = true }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
@@ -2680,6 +2680,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             On a phone their job moves to the bottom bar, where
                             they stop being readouts and become destinations. */}
                         {hasFlanks && !isTripleMode && <StageFlanks
+                            prestige={prestige}
                             showResultLine={state === 'result' && !!result}
                             isNewItem={isNewItem}
                             // `collection` is a map of texture -> count, not a
@@ -2688,7 +2689,12 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
                             // Reading it as an array gives `undefined` and a
                             // silently empty panel.
                             owned={result ? (collection?.[result.texture] ?? 0) : 0}
-                            collectedCount={Object.keys(collection || {}).length}
+                            // Entries actually held, not map keys. A key with a
+                            // count of zero is not a collected item, and counting
+                            // keys made every stray optimistic write show up as
+                            // progress — which is exactly how a 1,558 collection
+                            // reported 1,559 until the next reload.
+                            collectedCount={Object.values(collection || {}).filter(n => n > 0).length}
                             // `totalItemCount`, not `allItems.length`. `allItems`
                             // is the common pool alone; the special tiers live in
                             // `dynamicItems`, so a collection containing any of
@@ -2729,6 +2735,12 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
         prevProps.dynamicItems === nextProps.dynamicItems &&
         prevProps.onSpinComplete === nextProps.onSpinComplete &&
         prevProps.collection === nextProps.collection &&
+        // Every prop this component reads has to be listed here or it is
+        // invisible: an explicit comparator opts OUT of React's own shallow
+        // compare, so a prop nobody adds to it simply never triggers a re-render.
+        // `prestige` arrives as null and is filled by a fetch, so without this
+        // line the collection panel's lens never appeared at all.
+        prevProps.prestige === nextProps.prestige &&
         prevProps.kotwLuckySpins === nextProps.kotwLuckySpins &&
         prevProps.kotwLuckySpinsRef === nextProps.kotwLuckySpinsRef &&
         prevProps.onKotwLuckySpinsUpdate === nextProps.onKotwLuckySpinsUpdate
