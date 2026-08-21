@@ -403,6 +403,12 @@ function WheelOfFortunePage({ onBack }) {
     const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
+    /*
+     * The signed-in player's prestige state, for the collection panel's lens.
+     * Re-read after every spin that lands in a run, so the panel's count tracks
+     * the run rather than going stale until the next page load.
+     */
+    const [prestige, setPrestige] = useState(null);
     const [collection, setCollection] = useState({});
     const [collectionDetails, setCollectionDetails] = useState({});
     const [history, setHistory] = useState([]);
@@ -599,9 +605,55 @@ function WheelOfFortunePage({ onBack }) {
         setKotwLuckySpins(newCount);
     }, []);
 
+    const refreshPrestige = useCallback(async () => {
+        if (!user) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/prestige`, { credentials: 'include' });
+            if (res.ok) setPrestige(await res.json());
+        } catch {
+            // The panel simply keeps its main-collection lens without this.
+        }
+    }, [user]);
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!user) return undefined;
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/prestige`, { credentials: 'include' });
+                if (res.ok && !cancelled) setPrestige(await res.json());
+            } catch {
+                // Non-fatal: no lens, same panel as before.
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [user]);
+
     const handleSpinComplete = useCallback((spinResult) => {
         if (!spinResult?.result) return;
         const { result } = spinResult;
+
+        /*
+         * A recursion trigger is not a collected item, and the client used to
+         * think it was.
+         *
+         * The server's spin transaction returns early for `isRecursion` — spins,
+         * event triggers and the wheel-fortune counter, and no `upsertCollection`
+         * — because recursion is a mode the pull *starts*, not an entry in the
+         * book. This handler ran anyway and optimistically added the triggering
+         * texture to the local map, so the collection counter went up by one for
+         * an item the player never got, and came back down on the next reload
+         * when the server's own map replaced the guess.
+         *
+         * Reported as "his counter increased despite not getting the item he
+         * needed" and "on prestige it goes to 1560". It looked like a special-item
+         * bug because recursion is triggered by pulling Wheel of Fortune, which is
+         * an exotic.
+         *
+         * The bonus-event branch was already safe: `isEvent` never reaches this
+         * handler at all. Guarding both is cheaper than relying on that.
+         */
+        if (spinResult.isRecursion || spinResult.isEvent) return;
 
         // Update collection
         setCollection(prev => ({
@@ -623,6 +675,9 @@ function WheelOfFortunePage({ onBack }) {
             setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1 }));
         }
 
+        // A pull that landed in a run moves its count, and the panel is showing it.
+        if (spinResult.prestige) refreshPrestige();
+
         // Update history
         setHistory(prev => [{
             item_texture: result.texture,
@@ -640,7 +695,7 @@ function WheelOfFortunePage({ onBack }) {
                 }, 1500);
             }
         }
-    }, [user]);
+    }, [user, refreshPrestige]);
 
     // Helper to get Discord avatar URL
     function getDiscordAvatarUrl() {
@@ -1079,6 +1134,7 @@ function WheelOfFortunePage({ onBack }) {
             <WheelSpinner
                 allItems={allItems}
                 collection={collection}
+                prestige={prestige}
                 onSpinComplete={handleSpinComplete}
                 user={user}
                 dynamicItems={dynamicItems}

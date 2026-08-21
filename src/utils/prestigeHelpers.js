@@ -59,6 +59,37 @@ export function prestigeInk(level) {
 }
 
 /**
+ * What a player should be shown wearing, from a leaderboard row or a state object.
+ *
+ * Two facts, and the site needs both: the level they have EARNED (runs finished)
+ * and the run they are IN. They are wildly different in duration — earning a
+ * level means collecting all 1,559 items again — so a player who prestiged
+ * yesterday has earned nothing and is nonetheless unmistakably prestiging.
+ *
+ * Showing only the earned level is what put nothing at all on the standings, the
+ * leaderboard and the collection board for every player who had prestiged. So
+ * the mark is the highest level they have *touched*, and `earned` says which of
+ * the two it is — a full ring for a level won, a quieter one for a level being
+ * worked toward. Nothing is claimed that has not happened.
+ *
+ * Accepts either shape: a leaderboard row (`prestige_level` /
+ * `prestige_active_level`) or /api/prestige's state (`level` / `activeRun`).
+ */
+export function prestigeStanding(source) {
+    if (!source) return { level: 0, earned: false, inProgress: false };
+
+    const done = source.prestige_level ?? source.level ?? 0;
+    const active = source.prestige_active_level ?? source.activeRun?.level ?? 0;
+    const level = Math.max(done, active);
+
+    return {
+        level,
+        earned: level > 0 && level <= done,
+        inProgress: level > 0 && level > done,
+    };
+}
+
+/**
  * The level's mark: the rarity's own icon, not a generic prestige glyph.
  *
  * Rare Prestige wears rare's diamond, Exotic Prestige wears exotic's gem, and so
