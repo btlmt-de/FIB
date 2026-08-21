@@ -614,16 +614,23 @@ export function LeaderboardSidebar({ onClose }) {
     /*
      * "In prestige" answers whichever metric the lens is on.
      *
-     * Items come from a count of the run's own rows; the other three are the
-     * player's career total minus the baseline recorded when the run opened.
-     * That baseline is why this works at all — spins cannot be counted from
+     * Items and duplicates come from the run's own rows. Spins and events are the
+     * player's career total minus the baseline recorded when the run opened, and
+     * that baseline is why those two work at all — spins cannot be counted from
      * spin_history (event and recursion spins never write a row), and events have
-     * no timestamped record anywhere, so without it three of the four metrics
-     * would have to be guessed.
+     * no timestamped record anywhere, so without it they would have to be guessed.
+     *
+     * Duplicates used to be a baseline subtraction too and it was wrong, not
+     * imprecise: prestige requires a COMPLETE collection, so every pull during a
+     * run is a duplicate for the main collection and the subtraction just returned
+     * the run's spin count (1002 dupes in 1012 spins, as reported). The server now
+     * counts duplicates against the PRESTIGE collection — a second copy this run —
+     * and hands them over ready-made.
      *
      * Returns null for "nothing to say": not prestiging, or a run that started
      * before the baselines were recorded. Null prints as a dot, never as a zero —
-     * a zero here would be a measurement, and there isn't one.
+     * a zero here would be a measurement, and there isn't one. Items and duplicates
+     * are always measurable, so they are the two that never go null.
      */
     const prestigeValueFor = (entry) => {
         if (!(entry.prestige_active_level > 0)) return null;
@@ -634,7 +641,7 @@ export function LeaderboardSidebar({ onClose }) {
         switch (activeTab) {
             case 'collection': return entry.prestige_items ?? null;
             case 'spins': return since(entry.total_spins, entry.prestige_spins_at_start);
-            case 'duplicates': return since(entry.total_duplicates, entry.prestige_duplicates_at_start);
+            case 'duplicates': return entry.prestige_duplicates ?? null;
             case 'events': return since(entry.event_triggers, entry.prestige_events_at_start);
             default: return entry.prestige_items ?? null;
         }
