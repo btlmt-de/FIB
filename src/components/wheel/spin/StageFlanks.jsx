@@ -193,7 +193,7 @@ function RarityTally({ entry }) {
  * is its child, so opacity dims the player's face along with the ring. Alpha
  * belongs in the colour.
  */
-export function PrestigeRing({ standing, children }) {
+export function PrestigeRing({ standing, children, pad = 2 }) {
     const { level, earned } = standing;
     if (!level) return <>{children}</>;
 
@@ -207,13 +207,19 @@ export function PrestigeRing({ standing, children }) {
             style={{
                 flexShrink: 0,
                 display: 'block',
-                padding: '2px',
+                // `pad` IS the ring's thickness, and it is a prop because this
+                // ring now goes on faces from 18px (a live-activity toast) to
+                // 68px (the player board's head). 2px on an 18px avatar is a
+                // fifth of its diameter — a ring that thick stops reading as a
+                // frame around a face and starts reading as a coloured disc with
+                // a face on it. The bloom scales with it for the same reason.
+                padding: `${pad}px`,
                 borderRadius: '50%',
                 lineHeight: 0,
                 // The ring only ever shows in the padding — the avatar covers the
                 // middle — so this background IS the ring.
                 background: holo ? undefined : tone,
-                boxShadow: `0 0 8px ${tone}AA`,
+                boxShadow: `0 0 ${pad * 4}px ${tone}AA`,
             }}
         >
             {children}

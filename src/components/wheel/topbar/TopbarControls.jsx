@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
+import { Check, Clock } from 'lucide-react';
 import { COLORS, SPACE } from '../config/constants';
+import { PrestigeRing } from '../spin/StageFlanks.jsx';
+import { prestigeIcon, prestigeInk, prestigeLabel } from '../../../utils/prestigeHelpers.js';
 
 /**
  * The topbar's shared control vocabulary.
@@ -157,6 +160,148 @@ function TopbarTooltip({ label, align = 'center' }) {
                 borderLeft: `1px solid ${COLORS.border}`,
                 borderTop: `1px solid ${COLORS.border}`,
             }} />
+        </div>
+    );
+}
+
+/**
+ * The identity control: who you are, and the way in to your own board.
+ *
+ * ── WHY IT WAS REDESIGNED ────────────────────────────────────────────────────
+ *
+ * It was a 999px capsule with a 1px border, sitting in a row of 10px-radius
+ * buttons that have no border at all. The file's own opening note describes the
+ * problem it was left in the middle of: the topbar used to speak three dialects,
+ * they were folded into one, and this was the one control that kept its own. Two
+ * roundnesses touching is what made the end of the bar read as assembled rather
+ * than designed, and shrinking the capsule to fit only the identity treated the
+ * symptom.
+ *
+ * So it is a `TopbarIconButton` that happens to be wide: same 38px height, same
+ * 10px radius, same transparent-to-wash hover, same tooltip. What makes it the
+ * identity rather than another icon is what is *inside* it.
+ *
+ * ── AND WHAT IS INSIDE IT ────────────────────────────────────────────────────
+ *
+ * The prestige ring, which is the point of the change. A ring around a player's
+ * face means their prestige level everywhere else on this site, and the one face
+ * that never wore one was the player's own, in the corner of every page. A
+ * player who has prestiged now sees it on themselves — and at the top level it
+ * takes the whole slick, like every insane surface.
+ *
+ * The level's own numeral rides beside the name when there is one, in the
+ * level's tier ink, which is the same badge the collection board and the player
+ * board wear. Nothing here invents a colour: `prestigeHelpers` maps a level to a
+ * rarity and the ladder supplies the rest.
+ */
+export function TopbarUserChip({ avatarUrl, name, approved, pending, standing, onClick }) {
+    const [hovered, setHovered] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const active = hovered || focused;
+    const palette = TONES.default;
+    const level = standing?.level || 0;
+
+    return (
+        <div style={{ position: 'relative', display: 'flex' }}>
+            <button
+                type="button"
+                onClick={onClick}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                // The level rides in the accessible name, not in the tooltip.
+                // See the tooltip line at the end of this component for why.
+                aria-label={level > 0 ? `Open your profile — ${prestigeLabel(level)}` : 'Open your profile'}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: `${SPACE.sm}px`,
+                    height: `${TOPBAR_CONTROL_SIZE}px`,
+                    // 4px + a 28px avatar + 4px is the 36px core; the ring, when
+                    // there is one, spends its 2px inside that gap rather than
+                    // growing the control — so a prestiged player's chip is
+                    // exactly as tall as everyone else's and the row does not
+                    // move when someone earns a level.
+                    padding: `0 ${SPACE.md}px 0 ${level ? 3 : 5}px`,
+                    background: active ? palette.wash : 'transparent',
+                    border: '1px solid transparent',
+                    borderRadius: '10px',
+                    color: active ? palette.hover : COLORS.text,
+                    cursor: 'pointer',
+                    flexShrink: 1,
+                    minWidth: 0,
+                    transition: 'background 0.18s ease, color 0.18s ease',
+                }}
+            >
+                <PrestigeRing standing={standing || { level: 0 }}>
+                    <img
+                        src={avatarUrl}
+                        alt=""
+                        width={28}
+                        height={28}
+                        style={{
+                            display: 'block',
+                            borderRadius: '50%',
+                            background: COLORS.bgLighter,
+                        }}
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                        }}
+                    />
+                </PrestigeRing>
+
+                <span style={{
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    minWidth: 0,
+                }}>
+                    {name}
+                </span>
+
+                {/* The level's mark, in its tier's ink, and nothing else.
+                    A topbar row has no room to spell it out and the numeral that
+                    used to sit beside the mark was carrying the same single bit
+                    — the level determines the icon. The tooltip below names it,
+                    and the two surfaces with room say it on screen. */}
+                {level > 0 && (
+                    <span
+                        aria-hidden="true"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            flexShrink: 0,
+                            color: prestigeInk(level),
+                        }}
+                    >
+                        {prestigeIcon(level, 13)}
+                    </span>
+                )}
+
+                {/* Approval state, in the chip because it is a fact about the
+                    name rather than an action you can take on it. */}
+                {approved && <Check size={15} color={COLORS.green} style={{ flexShrink: 0 }} />}
+                {pending && <Clock size={15} color={COLORS.gold} style={{ flexShrink: 0 }} />}
+            </button>
+
+            {/*
+              * The tooltip names the ACTION, always, and never the status.
+              *
+              * It read "Rare Prestige" for a prestiged player, which is the one
+              * thing a tooltip on a button must not do: every other tooltip in
+              * this row answers "what happens if I click this", and this one
+              * answered "what are you" instead. A player hovering their own name
+              * to find the way into their profile got told their rank.
+              *
+              * The level has three other homes on this control — the ring, the
+              * mark, and the accessible name above — so nothing is lost by
+              * keeping it out of the one slot that belongs to the verb.
+              */}
+            {active && <TopbarTooltip label="Your profile" align="center" />}
         </div>
     );
 }

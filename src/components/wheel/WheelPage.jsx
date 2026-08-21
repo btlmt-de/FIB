@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { COLORS, SPACE, Z } from './config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
@@ -48,7 +48,8 @@ import { LiveChat } from './features/LiveChat.jsx';
 import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
 import { CanvasNocturneField } from './canvas/CanvasNocturneField.jsx';
 
-import { TopbarIconButton, TopbarDivider } from './topbar/TopbarControls.jsx';
+import { TopbarIconButton, TopbarDivider, TopbarUserChip } from './topbar/TopbarControls.jsx';
+import { prestigeStanding } from '../../utils/prestigeHelpers.js';
 import { MobileTabBar } from './topbar/MobileTabBar.jsx';
 import { MobileMoreSheet } from './topbar/MobileMoreSheet.jsx';
 import { useWheelViewport } from './config/breakpoints.js';
@@ -172,81 +173,6 @@ function BackButton({ onBack }) {
         >
             <ArrowLeft size={17} />
             <span>Back</span>
-        </button>
-    );
-}
-
-/**
- * Who you are, as one control.
- *
- * The identity is the only part of the old user capsule that is genuinely a
- * single object — avatar, name, and whether that name has been approved yet — so
- * it is the only part that kept a container. Everything that used to share the
- * capsule with it (edit, sound, bell, admin, logout) is an action, and actions
- * are `TopbarIconButton`s now.
- *
- * The radius is 999px rather than the old 32px so it matches the leaderboard pill
- * it sits beside. Two capsules of nearly-but-not-quite the same roundness,
- * touching, was one of the things that made this end of the bar look like parts
- * from different pages pushed together — which is exactly what it was.
- */
-function UserChip({ avatarUrl, name, approved, pending, onClick }) {
-    const [hovered, setHovered] = useState(false);
-
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            title="Your profile"
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: `${SPACE.sm}px`,
-                // 4px + 28px avatar + 4px + 1px borders = the 38px the icon
-                // buttons are, so the chip sits on their baseline instead of
-                // setting the row height on its own.
-                padding: `4px ${SPACE.md}px 4px 4px`,
-                borderRadius: '999px',
-                background: hovered ? COLORS.bgLighter : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text,
-                cursor: 'pointer',
-                flexShrink: 1,
-                minWidth: 0,
-                transition: 'background 0.18s ease',
-            }}
-        >
-            <img
-                src={avatarUrl}
-                alt=""
-                width={28}
-                height={28}
-                style={{
-                    borderRadius: '50%',
-                    background: COLORS.bgLighter,
-                    flexShrink: 0,
-                }}
-                onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                }}
-            />
-            <span style={{
-                fontSize: '14px',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                minWidth: 0,
-            }}>
-                {name}
-            </span>
-            {/* Approval state, in the chip because it is a fact about the name
-                rather than an action you can take on it. */}
-            {approved && <Check size={15} color={COLORS.green} style={{ flexShrink: 0 }} />}
-            {pending && <Clock size={15} color={COLORS.gold} style={{ flexShrink: 0 }} />}
         </button>
     );
 }
@@ -1062,11 +988,15 @@ function WheelOfFortunePage({ onBack }) {
                             widest single thing on the row. */}
                         {!isMobile && (
                             <>
-                                <UserChip
+                                <TopbarUserChip
                                     avatarUrl={getDiscordAvatarUrl()}
                                     name={user.customUsername || 'Player'}
                                     approved={!!user.usernameApproved}
                                     pending={!!user.customUsername && !user.usernameApproved}
+                                    // The state this page already holds for the
+                                    // collection panel's lens, read through the
+                                    // same helper every other surface uses.
+                                    standing={prestigeStanding(prestige)}
                                     onClick={() => setShowProfile(true)}
                                 />
                                 <TopbarIconButton

@@ -3,6 +3,8 @@ import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl, getDiscordAvatarUrl, spinRevealDelay } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor } from '../../../utils/rarityHelpers.jsx';
+import { prestigeStanding } from '../../../utils/prestigeHelpers.js';
+import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { Trophy, Sparkles } from 'lucide-react';
 import { AchievementIcon } from '../../../utils/achievementIcons.jsx';
@@ -238,19 +240,22 @@ export function LiveActivityToast() {
                                     alignItems: 'center',
                                     gap: '6px'
                                 }}>
-                                    <img
-                                        src={getDiscordAvatarUrl(toast.discord_id, toast.discord_avatar)}
-                                        alt=""
-                                        style={{
-                                            width: '18px',
-                                            height: '18px',
-                                            borderRadius: '50%'
-                                        }}
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                                        }}
-                                    />
+                                    <PrestigeRing standing={prestigeStanding(toast)} pad={1}>
+                                        <img
+                                            src={getDiscordAvatarUrl(toast.discord_id, toast.discord_avatar)}
+                                            alt=""
+                                            style={{
+                                                width: '18px',
+                                                height: '18px',
+                                                borderRadius: '50%',
+                                                display: 'block'
+                                            }}
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                            }}
+                                        />
+                                    </PrestigeRing>
                                     <span style={{
                                         fontSize: '13px',
                                         color: COLORS.text,
@@ -333,19 +338,22 @@ export function LiveActivityToast() {
                                 gap: '6px',
                                 marginBottom: '4px'
                             }}>
-                                <img
-                                    src={getDiscordAvatarUrl(toast.discord_id, toast.discord_avatar)}
-                                    alt=""
-                                    style={{
-                                        width: '20px',
-                                        height: '20px',
-                                        borderRadius: '50%'
-                                    }}
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                                    }}
-                                />
+                                <PrestigeRing standing={prestigeStanding(toast)} pad={1}>
+                                    <img
+                                        src={getDiscordAvatarUrl(toast.discord_id, toast.discord_avatar)}
+                                        alt=""
+                                        style={{
+                                            width: '20px',
+                                            height: '20px',
+                                            borderRadius: '50%',
+                                            display: 'block'
+                                        }}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                        }}
+                                    />
+                                </PrestigeRing>
                                 <span style={{
                                     fontSize: '13px',
                                     color: COLORS.text,

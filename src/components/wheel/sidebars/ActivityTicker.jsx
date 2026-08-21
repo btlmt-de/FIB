@@ -3,6 +3,8 @@ import { COLORS, SPACE } from '../config/constants';
 import { Radio } from 'lucide-react';
 import { formatTimeAgo, parseServerDate, getItemImageUrl, getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { prestigeStanding } from '../../../utils/prestigeHelpers.js';
+import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 
 /**
@@ -231,6 +233,33 @@ export function ActivityTicker({ onOpenFull }) {
                                 }} />
                             )}
 
+                            {/*
+                              * THE RING ON A FACE MEANS PRESTIGE. IT DOES NOT
+                              * MEAN THE ITEM.
+                              *
+                              * This avatar used to be ringed and glowed in the
+                              * *item's* tier — a 2px insane ring, a 1.5px common
+                              * one — and everywhere else on this site a ring
+                              * around a player's face is their prestige level:
+                              * the leaderboard, the stage's standings, the
+                              * player board. One shape, two meanings, both drawn
+                              * in rarity hues, on surfaces a player moves
+                              * between in a single glance.
+                              *
+                              * The item's tier is not lost by the swap; it was
+                              * never carried here. This tile states it four
+                              * times over — the fill, the border, the glow, and
+                              * the item's name in its own ink — and the sprite
+                              * itself is the news. The avatar's ring was the one
+                              * redundant copy and the only one that meant
+                              * something else.
+                              *
+                              * A player with no prestige gets no ring at all,
+                              * which is what `PrestigeRing` already does with a
+                              * level of 0 — the tile is byte-for-byte what it
+                              * was for everyone who has not prestiged.
+                              */}
+                            <PrestigeRing standing={prestigeStanding(item)}>
                             <img
                                 src={getDiscordAvatarUrl(item.discord_id, item.discord_avatar)}
                                 alt=""
@@ -240,20 +269,12 @@ export function ActivityTicker({ onOpenFull }) {
                                 style={{
                                     borderRadius: '50%',
                                     flexShrink: 0,
-                                    border: t.isInsane
-                                        ? `2px solid ${t.color}`
-                                        : t.isMythic
-                                            ? `2px solid ${t.color}99`
-                                            : `1.5px solid ${t.color}55`,
-                                    boxShadow: t.isInsane
-                                        ? `0 0 15px ${t.color}55`
-                                        : t.isMythic
-                                            ? `0 0 12px ${t.color}44`
-                                            : `0 0 8px ${t.color}22`,
+                                    display: 'block',
                                     position: 'relative',
                                     zIndex: 1,
                                 }}
                             />
+                            </PrestigeRing>
 
                             <div style={{
                                 display: 'flex',

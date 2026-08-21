@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS, DECK, rail } from '../config/constants';
 import { FlapText, BoardLabel, Plinth, Segmented } from '../features/collection/FlapBoard.jsx';
@@ -43,9 +43,6 @@ const KOTW_BRONZE = '#D97706';    // Bronze for 3rd
  * not a preference.
  */
 const fmtNum = n => (typeof n === 'number' && isFinite(n) ? n : Number(n) || 0).toLocaleString('en-US');
-
-/* A prestige level is worn as a numeral. Same table as the collection board's. */
-const ROMAN = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V' };
 
 // Helper to get Discord avatar URL
 function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
@@ -1014,8 +1011,21 @@ export function LeaderboardSidebar({ onClose }) {
                                                     // fact, one of them costing legibility.
                                                 }}
                                             >
-                                                {prestigeIcon(level, 12)}
-                                                <BoardLabel tone="currentColor">{ROMAN[level] || level}</BoardLabel>
+                                                {/* The mark alone. This column is
+                                                    62px and cannot spell the
+                                                    level out, and the Roman
+                                                    numeral it used to carry was
+                                                    the same one bit the mark
+                                                    already holds — the level
+                                                    picks the icon. The name is
+                                                    the cell's accessible name
+                                                    and its tooltip; the surfaces
+                                                    with room say it on screen. */}
+                                                {prestigeIcon(level, 13)}
+                                                <span className="fib-sr-only">
+                                                    {prestigeLabel(level)}
+                                                    {standing.earned ? '' : ' — in progress'}
+                                                </span>
                                             </span>
                                         ) : (
                                             // A dot, not a blank: an empty cell in a
