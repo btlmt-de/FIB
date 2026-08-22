@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { API_BASE_URL } from '../config/constants';
-import { visibleInterval, pollMs } from '../config/power.js';
+import { visibleInterval } from '../config/power.js';
 
 /**
  * The collection leaderboard, and where the signed-in player sits in it.
@@ -39,7 +39,7 @@ export function useCollectionLeaderboard(userId) {
 
     useEffect(() => {
         refresh();
-        return visibleInterval(refresh, pollMs(5 * 60 * 1000));
+        return visibleInterval(refresh, 5 * 60 * 1000, { stretch: true });
     }, [refresh]);
 
     const myIndex = userId == null ? -1 : leaderboard.findIndex(e => e.id === userId);

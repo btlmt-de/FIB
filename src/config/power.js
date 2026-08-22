@@ -57,9 +57,13 @@ const STORAGE_KEY = 'fib:saver';
 const OFFER_KEY = 'fib:saver-offered';
 
 /**
- * How much longer a poll waits in saver mode. Applied by `useHeartbeat`, which
- * also refuses to run at all while the tab is hidden — the multiplier is the
- * small half of the saving, the visibility gate is the large half.
+ * How much longer a poll waits in saver mode.
+ *
+ * Applied by `visibleInterval`, and only to callers that pass `stretch: true`.
+ * That same function is what refuses to run at all while the tab is hidden, and
+ * the two savings are not the same size: the multiplier is the small half, the
+ * visibility gate is the large half. A phone in a pocket polls at neither 30s
+ * nor 120s — it polls at nothing.
  */
 const SAVER_POLL_FACTOR = 4;
 
@@ -188,10 +192,29 @@ export function useCalm() {
  *      lights the radio. The interval is torn down on hide and a single catch-up
  *      call runs on show, so the data is fresh the moment it is looked at and
  *      costs nothing while it is not.
- *   2. **Saver mode stretches it**, via `pollMs`, by SAVER_POLL_FACTOR. Applied
- *      by the caller rather than in here, because whether a given poll should be
- *      stretched is a question about what it is for — ActivityTicker's clock is
- *      wrong if it is stretched; NotificationCenter's SSE backstop is not.
+ *   2. **`stretch: true` slows it in saver mode** by SAVER_POLL_FACTOR, and does
+ *      so *live*. Whether a given timer may be stretched is a question about
+ *      what it is for, so it is opt-in per call site: ActivityTicker's "3 minutes
+ *      ago" clock and the event countdowns are wrong if they are stretched;
+ *      NotificationCenter's SSE backstop is not. The default is off, because a
+ *      clock silently running slow is a visible bug and a poll running at its
+ *      normal rate is only a missed saving.
+ *
+ * ── WHY THE SUBSCRIPTION IS IN HERE ──────────────────────────────────────────
+ *
+ * The stretch used to be applied by the caller — `visibleInterval(fn,
+ * pollMs(30000))` — which read the flag exactly once, when the effect ran. Every
+ * one of these timers lives in an effect keyed on its own data, and none of them
+ * has saver mode in its dependency list, so **toggling the setting mid-session
+ * changed nothing until something unrelated happened to re-run that effect**,
+ * which on a quiet page is never. The setting appeared to work (the reel parked,
+ * the animations stopped) while the network half of it silently did not.
+ *
+ * The alternative was `useSaverMode()` plus a dependency in five components, and
+ * a rule that every future poll must remember both. This is the same fix
+ * `countdownInterval` already makes for the same reason — the cadence is re-read
+ * rather than captured — so the timer owns its own period and no call site has
+ * to know that saver mode exists.
  *
  * A plain function rather than a hook, and deliberately: every one of these
  * timers already lives inside an effect that owns listeners and refs it shares
@@ -199,16 +222,15 @@ export function useCalm() {
  *
  * It returns its stop function rather than an interval id, so a caller cannot
  * clear the timer and leave the visibility listener behind — which is the exact
- * leak the id-returning version invited.
+ * leak the id-returning version invited, and there are now two listeners behind
+ * it rather than one.
  */
-export function pollMs(baseMs) {
-    return saverOn ? baseMs * SAVER_POLL_FACTOR : baseMs;
-}
-
-export function visibleInterval(fn, ms) {
+export function visibleInterval(fn, baseMs, { stretch = false } = {}) {
     let id = null;
+    let period = stretch && saverOn ? baseMs * SAVER_POLL_FACTOR : baseMs;
+
     const stop = () => { if (id !== null) { clearInterval(id); id = null; } };
-    const start = () => { stop(); id = setInterval(fn, ms); };
+    const start = () => { stop(); id = setInterval(fn, period); };
 
     const onVisibility = () => {
         if (document.hidden) {
@@ -219,12 +241,26 @@ export function visibleInterval(fn, ms) {
         }
     };
 
+    // A saver toggle changes the period under a running timer. Restart it rather
+    // than waiting for the current tick: at a five-minute poll, "from the next
+    // tick" means the change does not take effect for five minutes, which is
+    // long enough for a player to conclude the setting does nothing.
+    const onSaverChange = (on) => {
+        if (!stretch) return;
+        const next = on ? baseMs * SAVER_POLL_FACTOR : baseMs;
+        if (next === period) return;
+        period = next;
+        if (!document.hidden) start();
+    };
+
     if (!document.hidden) start();
     document.addEventListener('visibilitychange', onVisibility);
+    const unsubscribe = subscribe(onSaverChange);
 
     return () => {
         stop();
         document.removeEventListener('visibilitychange', onVisibility);
+        unsubscribe();
     };
 }
 

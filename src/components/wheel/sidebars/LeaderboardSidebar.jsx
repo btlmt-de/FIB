@@ -13,7 +13,7 @@ import {
     Trophy, RefreshCw, Crown, Medal, Award,
     BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X
 } from 'lucide-react';
-import { visibleInterval, pollMs } from '../../../config/power.js';
+import { visibleInterval } from '../../../config/power.js';
 
 /** Global-totals field names. Pluralised, and distinct from the per-player
  *  `*_count` fields — these come from getGlobalStats, a separate query. */
@@ -189,7 +189,7 @@ export function LeaderboardSidebar({ onClose }) {
 
         // Auto-refresh every 5 minutes (20 in saver mode), and never while the
         // tab is hidden.
-        intervalRef.current = visibleInterval(loadLeaderboard, pollMs(5 * 60 * 1000));
+        intervalRef.current = visibleInterval(loadLeaderboard, 5 * 60 * 1000, { stretch: true });
 
         return () => {
             if (intervalRef.current) {

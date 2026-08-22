@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { pollMs, visibleInterval } from '../../../config/power.js';
+import { visibleInterval } from '../../../config/power.js';
 import { MessageCircle, Send, X, Minimize2, Maximize2, Trash2, Users, ChevronDown, Reply, AtSign, Move, RotateCcw } from 'lucide-react';
 
 // ============================================
@@ -466,17 +466,17 @@ export function LiveChat({ user, isAdmin = false, openSignal = 0, onUnreadChange
             // checked whether the tab was visible, so a phone in a pocket kept
             // announcing its presence and re-fetching a roster nobody could see
             // — 120 requests an hour to keep a green dot lit for a player who
-            // had left. `visibleInterval` gates both on visibility and stretches
-            // them in saver mode; `pollMs` carries the stretch (see
-            // config/power.js for the multiplier and why it is small next to the
+            // had left. `visibleInterval` gates both on visibility, and
+            // `stretch` slows them in saver mode (see config/power.js for the
+            // multiplier and why it is the small half of the saving next to the
             // visibility gate).
             //
             // The heartbeat stopping while hidden is not a bug in the presence
             // model — it is the presence model working. A tab in the background
             // is not somebody who is here, and the server's own timeout is what
             // should decide that, not a timer that lies on the player's behalf.
-            const stopHeartbeat = visibleInterval(sendHeartbeat, pollMs(60000));
-            const stopOnlineRefresh = visibleInterval(fetchOnlineUsers, pollMs(30000));
+            const stopHeartbeat = visibleInterval(sendHeartbeat, 60000, { stretch: true });
+            const stopOnlineRefresh = visibleInterval(fetchOnlineUsers, 30000, { stretch: true });
 
             // Listen for SSE chat messages (real-time)
             const handleSSEMessage = (event) => {

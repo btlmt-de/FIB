@@ -3,7 +3,7 @@ import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { Bell, X, Check, CheckCheck, ChevronDown } from 'lucide-react';
 import { getNotificationTypeIcon, getNotificationTypeColor } from '../../../utils/notificationHelpers.jsx';
-import { visibleInterval, pollMs } from '../../../config/power.js';
+import { visibleInterval } from '../../../config/power.js';
 
 // ============================================
 // Notification Bell (shows in header)
@@ -406,7 +406,7 @@ export function useNotifications() {
         // Poll every 5 minutes as backup (20 in saver mode). SSE is the source;
         // this only covers a stream that went quiet, so it can afford to wait,
         // and it has nothing to back up while the tab is hidden.
-        return visibleInterval(fetchUnreadCount, pollMs(300000));
+        return visibleInterval(fetchUnreadCount, 300000, { stretch: true });
     }, [fetchUnreadCount]);
 
     const refreshCount = () => {

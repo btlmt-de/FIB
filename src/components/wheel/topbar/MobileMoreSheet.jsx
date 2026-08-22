@@ -85,7 +85,14 @@ export function MobileMoreSheet({ open, onClose, items = [] }) {
                         // reader has to hear the state, not just the label —
                         // "Battery saver, off" rather than "Battery saver".
                         aria-pressed={item.value ? Boolean(item.valueActive) : undefined}
-                        onClick={() => { onClose?.(); item.onSelect?.(); }}
+                        // A row that goes somewhere dismisses the sheet on the way
+                        // — you asked for the thing behind it. A row that toggles
+                        // a setting does not: `keepOpen` leaves the sheet up so
+                        // the value beside the label changes under your thumb,
+                        // which is the only confirmation the row gives. Closing
+                        // on a toggle means tapping, watching the sheet vanish,
+                        // and having to reopen it to find out what you just did.
+                        onClick={() => { if (!item.keepOpen) onClose?.(); item.onSelect?.(); }}
                         style={{
                             display: 'flex',
                             alignItems: 'center',

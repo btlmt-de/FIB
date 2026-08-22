@@ -668,10 +668,23 @@ export function ActivityProvider({ children }) {
                     scheduleReconnect();
                 };
 
-                eventSourceRef.current = eventSource;
-                // A connection that opened is a connection that worked, so the
+                // A connection that OPENED is a connection that worked, so the
                 // next failure starts its backoff from the bottom again.
-                reconnectAttemptRef.current = 0;
+                //
+                // This has to hang off `onopen` and nowhere else. It used to sit
+                // below, on the line after the constructor returned — which
+                // reset the counter on every *attempt*, because `new
+                // EventSource(...)` succeeds whether or not anything is
+                // listening on the other end. The result was a backoff that
+                // could never grow past its first step: attempt, reset to 0,
+                // fail, wait 1s, attempt, reset to 0 … which is precisely the
+                // once-a-second reconnect storm the backoff was added to stop,
+                // wearing the backoff's clothes.
+                eventSource.onopen = () => {
+                    reconnectAttemptRef.current = 0;
+                };
+
+                eventSourceRef.current = eventSource;
             } catch (e) {
                 console.error('[SSE] Connect error:', e);
                 scheduleReconnect();

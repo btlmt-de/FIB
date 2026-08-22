@@ -714,7 +714,19 @@ export function CanvasCollectionGrid({
         parkedRef.current = false;
         animationRef.current = requestAnimationFrame(renderRef.current);
     }, []);
-    requestDrawRef.current = requestDraw;
+
+    // Published to the ref in an effect, not in the render body. Writing a ref
+    // during render is a purity violation React can and does punish — under
+    // StrictMode or a re-render that never commits, the ref would carry a
+    // callback from a render that was thrown away. The cleanup only clears the
+    // slot if it still holds *this* callback, so a fast re-render cannot have
+    // its successor's value wiped by its predecessor's teardown.
+    useEffect(() => {
+        requestDrawRef.current = requestDraw;
+        return () => {
+            if (requestDrawRef.current === requestDraw) requestDrawRef.current = null;
+        };
+    }, [requestDraw]);
 
     // A pull lands, a filter changes, or the player leaves saver mode: all three
     // are reasons the board no longer matches what is on the canvas.

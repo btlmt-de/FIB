@@ -30,8 +30,18 @@ import { shouldOfferSaver, markSaverOffered, setSaverMode } from '../../../confi
  * spin button on a page somebody opened to spin has misunderstood which of the
  * two of them is the errand.
  *
- * It appears once, ever. `markSaverOffered` runs on both answers and on the
- * dismiss, because "no" is an answer and re-asking it is nagging.
+ * It appears once, ever — and "once" is counted from the moment it is **shown**,
+ * not from the moment it is answered. Marking on answer was the first version
+ * and it did not mean what the sentence above says: ignoring the panel, or
+ * simply navigating away or reloading with it on screen, left the key unwritten,
+ * so it came back on the next visit and the one after that. Silence is the most
+ * common response to a prompt nobody asked for, and treating it as "not yet
+ * asked" is how a one-time offer becomes a recurring one.
+ *
+ * The cost of this direction is a player who never registers the panel and never
+ * gets offered again. That is the right way round: the toggle is two taps away
+ * in the ⋯ sheet and named in plain words, so the offer is a convenience, while
+ * a prompt that returns every session is the thing people write in about.
  */
 export function SaverOffer({ isMobile }) {
     const [visible, setVisible] = useState(false);
@@ -47,7 +57,11 @@ export function SaverOffer({ isMobile }) {
         // they are being asked to give up.
         const timer = setTimeout(async () => {
             const offer = await shouldOfferSaver();
-            if (!cancelled && offer) setVisible(true);
+            if (cancelled || !offer) return;
+            // Written here, with the panel going up, so the offer is spent
+            // whether or not it is ever answered.
+            markSaverOffered();
+            setVisible(true);
         }, 12000);
 
         return () => { cancelled = true; clearTimeout(timer); };
@@ -56,7 +70,6 @@ export function SaverOffer({ isMobile }) {
     if (!visible) return null;
 
     const answer = (on) => {
-        markSaverOffered();
         if (on) setSaverMode(true);
         setVisible(false);
     };
@@ -65,6 +78,12 @@ export function SaverOffer({ isMobile }) {
         <div
             role="region"
             aria-label="Battery saver"
+            // The panel is inserted 12 seconds in and deliberately does not take
+            // focus, so without this a screen-reader user is never told it
+            // arrived — the two buttons simply appear in the tab order with no
+            // announcement. `polite` rather than `assertive`: it is a suggestion,
+            // and it should wait for a gap rather than interrupt.
+            aria-live="polite"
             style={{
                 position: 'fixed',
                 // Clear of the bottom tab bar (68px) and its safe-area inset —

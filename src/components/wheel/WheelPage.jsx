@@ -1492,6 +1492,11 @@ function WheelOfFortunePage({ onBack }) {
                             Icon: saverMode ? BatteryLow : Battery,
                             value: saverMode ? 'On' : 'Off',
                             valueActive: saverMode,
+                            // The sheet stays up: this is the one row that
+                            // reports rather than navigates, and its On/Off is
+                            // the confirmation. It matches the nav drawer's copy
+                            // of the same toggle, which never closed either.
+                            keepOpen: true,
                             onSelect: toggleSaverMode,
                         },
                         user?.isAdmin
