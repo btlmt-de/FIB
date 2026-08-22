@@ -45,7 +45,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { DECK } from '../../config/constants';
-import { prefersReducedMotion } from '../../../../pages/Stats/env.js';
+import { usePrefersReducedMotion } from '../../../../utils/motion.js';
 
 /*
  * The flap drum's alphabet. A real board carries A–Z, 0–9 and a handful of
@@ -91,9 +91,9 @@ export function FlapText({
     style,
 }) {
     const value = String(text);
-    // Read once. A media query that changes mid-session re-renders the board
-    // anyway, and re-reading it per frame is a layout query in a hot path.
-    const [motionOff] = useState(prefersReducedMotion);
+    // Subscribes to media query changes. When the user enables reduced motion
+    // mid-session, the component re-renders and stops the animation.
+    const motionOff = usePrefersReducedMotion();
     const [frame, setFrame] = useState(-1);
     const timerRef = useRef(null);
 

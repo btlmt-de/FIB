@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+
 /**
  * Motion preferences, asked once and in one place.
  *
@@ -15,4 +17,33 @@
 export function prefersReducedMotion() {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
+ * Hook that subscribes to prefers-reduced-motion changes.
+ *
+ * Returns the current state and updates components when the user changes their
+ * motion preference, ensuring animations stop when reduced motion is enabled
+ * mid-session. Preserves the server-safe fallback for SSR contexts.
+ */
+export function usePrefersReducedMotion() {
+    const [reduced, setReduced] = useState(() => prefersReducedMotion());
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const handleChange = (e) => setReduced(e.matches);
+
+        // Modern browsers
+        if (mediaQuery.addEventListener) {
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
+        // Legacy browsers
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+    }, []);
+
+    return reduced;
 }
