@@ -29,6 +29,7 @@ import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Target, Timer, Users, Sparkles, Gem, HandHeart, Trophy } from 'lucide-react';
+import { countdownInterval, visibleInterval } from '../../../config/power.js';
 
 // ============================================
 // CONSTANTS
@@ -353,8 +354,8 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
         }
         const update = () => setCountdownTime(Math.max(0, globalEventStatus.activatesAt - Date.now()));
         update();
-        const interval = setInterval(update, 100);
-        return () => clearInterval(interval);
+        const stop = countdownInterval(update);
+        return stop;
     }, [isPending, globalEventStatus?.activatesAt]);
 
     // Active timer, with the same expiry fallback the other banners carry in case the
@@ -386,8 +387,8 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
             }
         };
         update();
-        const interval = setInterval(update, 1000);
-        return () => clearInterval(interval);
+        const stop = visibleInterval(update, 1000);
+        return stop;
     }, [isActive, isSettling, globalEventStatus?.expiresAt, isVisible, stopCommunityGoalSoundtrack]);
 
     // Admin test controls

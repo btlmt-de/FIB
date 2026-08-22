@@ -52,12 +52,14 @@ import { TopbarIconButton, TopbarDivider, TopbarUserChip } from './topbar/Topbar
 import { prestigeStanding } from '../../utils/prestigeHelpers.js';
 import { MobileTabBar } from './topbar/MobileTabBar.jsx';
 import { MobileMoreSheet } from './topbar/MobileMoreSheet.jsx';
+import { SaverOffer } from './topbar/SaverOffer.jsx';
+import { useSaverMode, toggleSaverMode } from '../../config/power.js';
 import { useWheelViewport } from './config/breakpoints.js';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
-    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2
+    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2, Battery, BatteryLow
 } from 'lucide-react';
 
 // ============================================
@@ -360,6 +362,10 @@ function WheelOfFortunePage({ onBack }) {
     // Notification state
     const [showNotifications, setShowNotifications] = useState(false);
     const [showSoundSettings, setShowSoundSettings] = useState(false);
+    // Read here rather than inside the sheet: the sheet renders its rows from a
+    // plain array of descriptors and has no state of its own, which is what
+    // keeps it a sheet rather than a menu that knows about the wheel.
+    const saverMode = useSaverMode();
     const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
     // Mobile activity feed modal state
@@ -1475,6 +1481,24 @@ function WheelOfFortunePage({ onBack }) {
                         { id: 'achievements', label: 'Achievements', Icon: Award, onSelect: () => setShowAchievements(true) },
                         { id: 'name', label: 'Edit name', Icon: Edit3, onSelect: () => setShowUsernameModal(true) },
                         { id: 'sound', label: 'Sound', Icon: Volume2, onSelect: () => setShowSoundSettings(true) },
+                        // Directly under Sound, and that pairing is the point:
+                        // these are the two rows that change how the surface
+                        // behaves rather than where you are, and a player
+                        // hunting for "make this stop" looks in the same place
+                        // for both.
+                        {
+                            id: 'saver',
+                            label: 'Battery saver',
+                            Icon: saverMode ? BatteryLow : Battery,
+                            value: saverMode ? 'On' : 'Off',
+                            valueActive: saverMode,
+                            // The sheet stays up: this is the one row that
+                            // reports rather than navigates, and its On/Off is
+                            // the confirmation. It matches the nav drawer's copy
+                            // of the same toggle, which never closed either.
+                            keepOpen: true,
+                            onSelect: toggleSaverMode,
+                        },
                         user?.isAdmin
                             ? { id: 'admin', label: 'Admin panel', Icon: Settings, onSelect: () => setShowAdmin(true) }
                             : null,
@@ -1482,6 +1506,10 @@ function WheelOfFortunePage({ onBack }) {
                     ]}
                 />
             )}
+
+            {/* Asked once, on a phone that looks like it is struggling. See
+                SaverOffer.jsx for why it asks rather than acts. */}
+            <SaverOffer isMobile={isMobile} />
         </div>
     );
 }

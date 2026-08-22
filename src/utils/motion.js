@@ -1,49 +1,39 @@
-import { useState, useEffect } from 'react';
+import { prefersCalm, useCalm } from '../config/power.js';
 
 /**
  * Motion preferences, asked once and in one place.
  *
- * This existed twice, byte for byte, in two files in the same folder — the
- * collection board's flap drums and the prestige ceremony — which is the
- * second-use test the Named-Or-Nothing Rule already applies to colours, met by a
- * function instead. Two copies of a predicate is how one of them eventually
- * stops matching the other, and this particular predicate decides whether an
- * animation runs at all.
+ * ── THIS FILE IS NOW A RE-EXPORT, AND THE REASON IS ITS OWN ARGUMENT ─────────
  *
- * Callers read it once at mount rather than per frame: it is a media query, a
- * change to it re-renders the tree anyway, and asking inside a rAF loop is a
- * layout query in a hot path.
- */
-export function prefersReducedMotion() {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-/**
- * Hook that subscribes to prefers-reduced-motion changes.
+ * It was written because the predicate existed twice, byte for byte, in the
+ * collection board's flap drums and the prestige ceremony — "two copies of a
+ * predicate is how one of them eventually stops matching the other, and this
+ * particular predicate decides whether an animation runs at all". Entirely
+ * right, and it happened again immediately: this file and `config/power.js`
+ * were written on two branches at the same time, each consolidating the same
+ * question, and they met at a merge with three copies where there had been two.
  *
- * Returns the current state and updates components when the user changes their
- * motion preference, ensuring animations stop when reduced motion is enabled
- * mid-session. Preserves the server-safe fallback for SSR contexts.
+ * `power.js` is the one that survives, because it answers a strictly larger
+ * question. It carries saver mode — the battery setting — as well as the OS
+ * motion preference, and it is what `index.css`, the reel, the star field and
+ * every poll on the site already read. Had these two stayed separate, the
+ * prestige ceremony and the flap board would have been the only animated things
+ * on the surface that kept running with saver mode on, and nobody would have
+ * found that except by watching a phone get warm.
+ *
+ * The names stay because ~14 call sites use them and the names are good. What
+ * changes is what they mean: **"reduced motion" here now includes saver mode.**
+ * That is the correct reading for every caller — all of them are asking "should
+ * this animate?", and the answer is no in both cases.
+ *
+ * Callers still read it once at mount rather than per frame: it is a media
+ * query, a change to it re-renders the tree anyway, and asking inside a rAF loop
+ * is a layout query in a hot path. `useCalm` subscribes to both inputs, so a
+ * saver toggle mid-session stops these animations the same way an OS preference
+ * change does.
+ *
+ * New code should import from `config/power.js` directly.
  */
-export function usePrefersReducedMotion() {
-    const [reduced, setReduced] = useState(() => prefersReducedMotion());
+export const prefersReducedMotion = prefersCalm;
 
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-
-        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-        const handleChange = (e) => setReduced(e.matches);
-
-        // Modern browsers
-        if (mediaQuery.addEventListener) {
-            mediaQuery.addEventListener('change', handleChange);
-            return () => mediaQuery.removeEventListener('change', handleChange);
-        }
-        // Legacy browsers
-        mediaQuery.addListener(handleChange);
-        return () => mediaQuery.removeListener(handleChange);
-    }, []);
-
-    return reduced;
-}
+export const usePrefersReducedMotion = useCalm;

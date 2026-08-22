@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
 import { parseActivityDate, spinRevealDelay } from '../utils/helpers.js';
+import { isSaverOn } from '../config/power.js';
 
 const ActivityContext = createContext(null);
 
@@ -49,6 +50,10 @@ export function ActivityProvider({ children }) {
 
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
+    // The SSE reconnect's backoff state. Both live outside the effect's closure
+    // so a re-run cannot strand a pending timer or reset a backoff mid-storm.
+    const reconnectTimerRef = useRef(null);
+    const reconnectAttemptRef = useRef(0);
     const lastIdRef = useRef(null);
     const initializedRef = useRef(false);
 
@@ -655,38 +660,114 @@ export function ActivityProvider({ children }) {
                     }
                 };
 
-                eventSource.onerror = (e) => {
+                eventSource.onerror = () => {
                     // Log more details for debugging
                     console.log('[SSE] Connection error, state:', eventSource.readyState);
                     eventSource.close();
                     eventSourceRef.current = null;
+                    scheduleReconnect();
+                };
 
-                    // Reconnect faster in production - use 1 second instead of 3
-                    // The server is probably fine, it's likely a proxy timeout
-                    setTimeout(() => {
-                        console.log('[SSE] Attempting reconnection...');
-                        connectSSE();
-                        fetchActivity();
-                    }, 1000);
+                // A connection that OPENED is a connection that worked, so the
+                // next failure starts its backoff from the bottom again.
+                //
+                // This has to hang off `onopen` and nowhere else. It used to sit
+                // below, on the line after the constructor returned — which
+                // reset the counter on every *attempt*, because `new
+                // EventSource(...)` succeeds whether or not anything is
+                // listening on the other end. The result was a backoff that
+                // could never grow past its first step: attempt, reset to 0,
+                // fail, wait 1s, attempt, reset to 0 … which is precisely the
+                // once-a-second reconnect storm the backoff was added to stop,
+                // wearing the backoff's clothes.
+                eventSource.onopen = () => {
+                    reconnectAttemptRef.current = 0;
                 };
 
                 eventSourceRef.current = eventSource;
             } catch (e) {
                 console.error('[SSE] Connect error:', e);
-                setTimeout(connectSSE, 3000);
+                scheduleReconnect();
             }
+        };
+
+        /**
+         * ── THE RECONNECT, WHICH WAS THE WORST BATTERY BUG ON THE SITE ───────
+         *
+         * The old version was `setTimeout(connectSSE, 1000)` with a comment
+         * explaining that a fast retry is right because "the server is probably
+         * fine, it's likely a proxy timeout". That reasoning holds for the first
+         * retry and for no other: when the server is *not* fine, or the phone is
+         * on a dead train-tunnel connection, `onerror` fires immediately, the
+         * retry fires a second later, and it fails immediately — one connection
+         * attempt per second, plus a `fetchActivity()` alongside it, forever, in
+         * a tab the player put in their pocket twenty minutes ago. Nothing
+         * capped it and nothing checked whether anyone was looking.
+         *
+         * Three fixes, all of which are correct regardless of saver mode:
+         *
+         *   - **Backoff.** 1s for the first attempt, doubling to a 30s ceiling.
+         *     The fast first retry the original comment wanted is preserved
+         *     exactly; only the tenth one is different.
+         *   - **Nothing retries while hidden.** The attempt is abandoned, not
+         *     deferred, because `visibilitychange` already reconnects on the way
+         *     back in and does it immediately rather than on a stale timer.
+         *   - **One timer.** The old code could stack retries — an error during
+         *     a pending retry scheduled a second one — and each survivor kept
+         *     doubling the traffic.
+         */
+        const scheduleReconnect = () => {
+            if (reconnectTimerRef.current) return;
+            if (document.hidden) return;
+
+            const attempt = reconnectAttemptRef.current;
+            const delay = Math.min(1000 * 2 ** attempt, 30000);
+            reconnectAttemptRef.current = Math.min(attempt + 1, 5);
+
+            reconnectTimerRef.current = setTimeout(() => {
+                reconnectTimerRef.current = null;
+                if (document.hidden) return;
+                console.log('[SSE] Attempting reconnection...');
+                connectSSE();
+                fetchActivity();
+            }, delay);
         };
 
         connectSSE();
 
         const handleVisibilityChange = () => {
             isVisibleRef.current = !document.hidden;
-            if (!document.hidden) {
-                fetchActivity();
-                fetchGlobalEventStatus();
-                if (eventSourceRef.current?.readyState !== EventSource.OPEN) {
-                    connectSSE();
+
+            if (document.hidden) {
+                // ── Saver mode hangs up ──────────────────────────────────────
+                //
+                // An open EventSource is not free on a phone: the connection
+                // holds the radio in a higher power state, and the server's
+                // keepalive comments wake the tab periodically to parse frames
+                // nobody will read. Outside saver mode that is the price of a
+                // live surface and worth paying — a player who tabs away for
+                // eight seconds should come back to a feed that never stopped.
+                // In saver mode it is exactly the ambient cost this setting
+                // exists to remove, and the reconnect below is instant enough
+                // that the seam is invisible.
+                if (isSaverOn()) {
+                    if (reconnectTimerRef.current) {
+                        clearTimeout(reconnectTimerRef.current);
+                        reconnectTimerRef.current = null;
+                    }
+                    if (eventSourceRef.current) {
+                        eventSourceRef.current.close();
+                        eventSourceRef.current = null;
+                    }
                 }
+                return;
+            }
+
+            reconnectAttemptRef.current = 0;
+            fetchActivity();
+            fetchGlobalEventStatus();
+            if (eventSourceRef.current?.readyState !== EventSource.OPEN) {
+                connectSSE();
             }
         };
 
@@ -694,6 +775,10 @@ export function ActivityProvider({ children }) {
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
             if (eventSourceRef.current) {
                 eventSourceRef.current.close();
                 eventSourceRef.current = null;

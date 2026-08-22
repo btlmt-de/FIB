@@ -13,6 +13,7 @@ import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Crown, Trophy, Medal, Star, Timer, X, Swords, Sparkles, TrendingUp, Info } from 'lucide-react';
+import { countdownInterval, visibleInterval } from '../../../config/power.js';
 
 // ============================================
 // CONSTANTS
@@ -596,8 +597,8 @@ function KingOfWheelBanner({
         };
 
         updateCountdown();
-        const interval = setInterval(updateCountdown, 100);
-        return () => clearInterval(interval);
+        const stop = countdownInterval(updateCountdown);
+        return stop;
     }, [isPending, globalEventStatus?.activatesAt]);
 
     // Active timer
@@ -615,8 +616,8 @@ function KingOfWheelBanner({
         };
 
         updateTimer();
-        const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
+        const stop = visibleInterval(updateTimer, 1000);
+        return stop;
     }, [isActive, isSettling, globalEventStatus?.expiresAt]);
 
     // Admin test functions
@@ -1021,13 +1022,13 @@ function KingOfWheelBanner({
                                                         }}>
                                                             <div style={{ fontWeight: 700, color: KOTW_GOLD, marginBottom: '6px' }}>Lucky Spin Formula</div>
                                                             <div style={{ fontFamily: 'monospace', color: '#94A3B8', marginBottom: '8px' }}>
-                                                                6 + (pts Ã· (pts + 500)) Ã— 18
+                                                                6 + (pts ÷ (pts + 500)) × 18
                                                             </div>
                                                             <div style={{ display: 'flex', gap: '12px', color: '#CBD5E1' }}>
-                                                                <span>50pts â†’ <strong style={{ color: '#22C55E' }}>8</strong></span>
-                                                                <span>350pts â†’ <strong style={{ color: '#22C55E' }}>13</strong></span>
-                                                                <span>700pts â†’ <strong style={{ color: '#22C55E' }}>17</strong></span>
-                                                                <span>1400pts â†’ <strong style={{ color: '#22C55E' }}>19</strong></span>
+                                                                <span>50pts → <strong style={{ color: '#22C55E' }}>8</strong></span>
+                                                                <span>350pts → <strong style={{ color: '#22C55E' }}>13</strong></span>
+                                                                <span>700pts → <strong style={{ color: '#22C55E' }}>17</strong></span>
+                                                                <span>1400pts → <strong style={{ color: '#22C55E' }}>19</strong></span>
                                                             </div>
                                                             {/* Tooltip arrow pointing up */}
                                                             <div style={{
