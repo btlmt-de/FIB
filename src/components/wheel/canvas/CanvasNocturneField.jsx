@@ -27,6 +27,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { COLORS, SURFACE_NOISE } from '../config/constants';
+import { useCalm } from '../../../config/power.js';
 
 // ============================================
 // CANVAS STAR FIELD - Low FPS, Low DPR
@@ -35,6 +36,11 @@ export function CanvasStarField({ starCount = 40 }) {
     const canvasRef = useRef(null);
     const animationRef = useRef(null);
     const timeRef = useRef(0);
+    // Saver mode arrives through the same door reduced motion already used, and
+    // wants the same outcome: a sky that is drawn once. It is state rather than
+    // a live read because it has to re-run this effect — a toggle mid-session
+    // must actually cancel the loop, and nothing else here ever re-runs.
+    const calm = useCalm();
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -65,7 +71,9 @@ export function CanvasStarField({ starCount = 40 }) {
         // The Ambient-Off Rule: the stars twinkle (ambient) and freeze under
         // reduced motion — a static sky, drawn once at a fixed phase, not a
         // sky that keeps pulsing for somebody who asked the page to stop.
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // Saver mode wants the identical still sky for a different reason, so
+        // the two share this branch rather than each getting their own.
+        const reduceMotion = calm;
 
         const resize = () => {
             canvas.width = window.innerWidth * dpr;
@@ -158,7 +166,7 @@ export function CanvasStarField({ starCount = 40 }) {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [starCount]);
+    }, [starCount, calm]);
 
     return (
         <canvas

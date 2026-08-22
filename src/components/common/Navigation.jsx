@@ -12,8 +12,11 @@ import Gamepad2     from 'lucide-react/dist/esm/icons/gamepad-2';
 import X            from 'lucide-react/dist/esm/icons/x';
 import Menu         from 'lucide-react/dist/esm/icons/menu';
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
+import Battery      from 'lucide-react/dist/esm/icons/battery';
+import BatteryLow   from 'lucide-react/dist/esm/icons/battery-low';
 import unicodeItems from '../../../unicodeItems.json';
 import { COLORS as C, IMAGE_BASE_URL } from '../../config/constants';
+import { useSaverMode, setSaverMode } from '../../config/power.js';
 
 const mainItems = unicodeItems
     .filter(i => !i.material.endsWith('_tabChat'))
@@ -220,6 +223,26 @@ const CSS = `
   .nav-mobile-item.active .nav-mobile-arr { color: oklch(60% 0.12 68); }
 
   .nav-drawer-sep { height: 1px; background: oklch(26% 0.020 255); margin: 6px 10px; }
+
+  /* The saver toggle's state word: the 10px/2px label treatment the drawer's
+     section headings use, since it is the same kind of caption.
+
+     It is lighter than the row's own label, which inverts the usual hierarchy
+     on purpose — this is the only row in the drawer that answers a question
+     rather than opening a page, and the answer is what the player came to read.
+     It is also what forces the lightness: the drawer's section headings sit at
+     36% and its item labels at 56%, both of which fail AA against this ground,
+     and while that is not this change's problem to solve, adding a ninth piece
+     of unreadable 10px text to it would be. 72% clears 4.5:1; amber (the
+     drawer's own active colour, so "on" looks like everything else in here that
+     is currently true) clears 6:1. */
+  .nav-mobile-state {
+    flex-shrink: 0;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px;
+    color: oklch(72% 0.012 255);
+  }
+  .nav-mobile-item[aria-pressed="true"] .nav-mobile-state { color: oklch(76% 0.16 68); }
 `;
 
 function NavItem({ item, isActive, onClick }) {
@@ -258,6 +281,7 @@ const DRAWER_SECTIONS = [
 export default function Navigation({ currentPage, onNavigate }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const saverMode = useSaverMode();
     const drawerRef = useRef(null);
 
     useEffect(() => {
@@ -373,6 +397,41 @@ export default function Navigation({ currentPage, onNavigate }) {
                                 onClick={() => navigate(item.id)}
                             />
                         ))}
+                    </div>
+
+                    {/*
+                     * Saver mode's second entrance.
+                     *
+                     * The setting is device-wide, so a player who turned it on
+                     * inside the wheel must be able to turn it off from a
+                     * reference page without going back to the wheel to find the
+                     * switch. It is under its own label rather than in the
+                     * navigation list because it is not a place you go — the
+                     * drawer's two sections are both destinations, and a toggle
+                     * dropped among them reads as a page you failed to open.
+                     *
+                     * The drawer stays open on tap. Unlike the wheel's sheet,
+                     * nothing visible changes on a reference page when this
+                     * flips — the nav bar's backdrop blur goes, and that is
+                     * about it — so closing the drawer would leave the player
+                     * with no confirmation that anything happened. The state
+                     * word under their thumb is the confirmation.
+                     */}
+                    <div className="nav-drawer-sep" />
+                    <div className="nav-drawer-section">
+                        <div className="nav-drawer-section-label">Display</div>
+                        <button
+                            type="button"
+                            className="nav-mobile-item"
+                            aria-pressed={saverMode}
+                            onClick={() => setSaverMode(!saverMode)}
+                        >
+                            {saverMode
+                                ? <BatteryLow size={16} className="nav-mobile-icon" />
+                                : <Battery size={16} className="nav-mobile-icon" />}
+                            <span className="nav-mobile-label">Battery saver</span>
+                            <span className="nav-mobile-state">{saverMode ? 'On' : 'Off'}</span>
+                        </button>
                     </div>
                 </div>
             )}

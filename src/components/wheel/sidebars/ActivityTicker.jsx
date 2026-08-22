@@ -4,6 +4,7 @@ import { Radio } from 'lucide-react';
 import { formatTimeAgo, parseServerDate, getItemImageUrl, getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { getRarityIcon, getRarityColor, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
+import { visibleInterval } from '../../../config/power.js';
 
 /**
  * Live drops as a horizontal strip above the reel.
@@ -116,8 +117,11 @@ export function ActivityTicker({ onOpenFull }) {
     // age is never wrong by a whole minute.
     const [, tickAges] = useReducer(n => n + 1, 0);
     useEffect(() => {
-        const id = setInterval(tickAges, AGE_REFRESH_MS);
-        return () => clearInterval(id);
+        // Not stretched in saver mode: the whole point of this timer is that an
+        // age is never wrong by a whole minute, and a stretched one would be.
+        // Visibility is the saving here - ages nobody is looking at do not need
+        // recomputing, and one catch-up tick on return fixes them all at once.
+        return visibleInterval(tickAges, AGE_REFRESH_MS);
     }, []);
 
     // Newest first, achievements excluded — they are not drops and have no item to

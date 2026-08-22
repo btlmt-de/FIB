@@ -9,6 +9,7 @@ import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
 import { getRarityColor, getRarityOnColor, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
+import { isSaverOn, useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -555,7 +556,13 @@ export function CanvasCollectionGrid({
             return loadImage(src).then(img => {
                 if (img) imagesRef.current.set(src, img);
             });
-        })).catch(err => {
+        })).then(() => {
+            // A sprite arriving after the loop parked is the one case where the
+            // canvas is stale and no interaction is coming to fix it: outside
+            // saver mode the next frame picks it up on its own, and in saver
+            // mode there is no next frame until something asks.
+            requestDrawRef.current?.();
+        }).catch(err => {
             console.warn('Failed to preload some collection images:', err);
         });
     }, [items, layout, scrollTop, containerHeight]);
@@ -623,6 +630,14 @@ export function CanvasCollectionGrid({
     // Keep items and collection refs in sync for RAF
     const itemsRef = useRef(items);
     const collectionRef = useRef(collection);
+    // Saver mode's park-and-wake pair — see the loop below and requestDraw.
+    const parkedRef = useRef(false);
+    const renderRef = useRef(null);
+    const saverMode = useSaverMode();
+    // `requestDraw` is declared after the sprite preloader that has to call it,
+    // and hoisting it above would put a callback between two effects that read
+    // as one block. The ref is the seam.
+    const requestDrawRef = useRef(null);
     useEffect(() => {
         itemsRef.current = items;
     }, [items]);
@@ -649,6 +664,23 @@ export function CanvasCollectionGrid({
                 animationRef.current = requestAnimationFrame(render);
                 return;
             }
+
+            // ── Saver mode draws on demand ───────────────────────────────────
+            //
+            // The board is a still picture that happens to redraw sixty times a
+            // second. Everything that makes it change — a scroll, a hover, a new
+            // item arriving — is an event, and events can ask for a frame. Only
+            // the insane tiles' hue drift is genuinely per-frame, and in saver
+            // mode that is the thing being switched off anyway.
+            //
+            // So: draw this frame, then stop, and let `requestDraw` below wake
+            // the loop when something actually moves. A parked grid on the
+            // collection page is a phone doing nothing while the player reads.
+            if (parkedRef.current) {
+                animationRef.current = null;
+                return;
+            }
+            const shouldPark = isSaverOn();
 
             // Use real delta time
             const dt = (timestamp - lastTime) / 1000;
@@ -696,24 +728,52 @@ export function CanvasCollectionGrid({
                 }
             }
 
+            if (shouldPark) {
+                parkedRef.current = true;
+                animationRef.current = null;
+                return;
+            }
+
             animationRef.current = requestAnimationFrame(render);
         };
 
+        renderRef.current = render;
+        parkedRef.current = false;
         animationRef.current = requestAnimationFrame(render);
 
         return () => {
             if (animationRef.current) {
                 cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
             }
         };
     }, [containerHeight]); // Stable deps - containerHeight is a prop
+
+    /**
+     * Ask for a frame.
+     *
+     * Cheap and idempotent by design — the interaction handlers call it on every
+     * scroll event and every pointer move, and outside saver mode it is a single
+     * `if` that does nothing because the loop was never parked.
+     */
+    const requestDraw = useCallback(() => {
+        if (!parkedRef.current || !renderRef.current) return;
+        parkedRef.current = false;
+        animationRef.current = requestAnimationFrame(renderRef.current);
+    }, []);
+    requestDrawRef.current = requestDraw;
+
+    // A pull lands, a filter changes, or the player leaves saver mode: all three
+    // are reasons the board no longer matches what is on the canvas.
+    useEffect(() => { requestDraw(); }, [items, collection, saverMode, requestDraw]);
 
     // Handle scroll - update both ref (for RAF) and state (for image loading effect)
     const handleScroll = useCallback((e) => {
         const newScrollTop = e.target.scrollTop;
         scrollTopRef.current = newScrollTop;
         setScrollTop(newScrollTop);
-    }, []);
+        requestDraw();
+    }, [requestDraw]);
 
     // Helper to get item index at a point (shared by mouse move and click)
     const getItemIndexAtPoint = useCallback((clientX, clientY, rect) => {
@@ -735,13 +795,16 @@ export function CanvasCollectionGrid({
     const handleMouseMove = useCallback((e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const idx = getItemIndexAtPoint(e.clientX, e.clientY, rect);
+        if (idx === hoveredIndexRef.current) return;
         hoveredIndexRef.current = idx;
-    }, [getItemIndexAtPoint]);
+        requestDraw();
+    }, [getItemIndexAtPoint, requestDraw]);
 
     // Handle mouse leave
     const handleMouseLeave = useCallback(() => {
         hoveredIndexRef.current = -1;
-    }, []);
+        requestDraw();
+    }, [requestDraw]);
 
     // Handle click
     const handleClick = useCallback((e) => {

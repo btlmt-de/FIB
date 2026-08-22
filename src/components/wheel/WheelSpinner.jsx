@@ -76,6 +76,7 @@ import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
+import { useCalm } from '../../config/power.js';
 
 
 /**
@@ -177,6 +178,9 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // the spinner, and destructuring it left an unused handle that read as though
     // this component owned the stopping too.
     const { startSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
+
+    // Saver mode or an explicit reduced-motion preference. See config/power.js.
+    const calm = useCalm();
 
     const [state, setState] = useState('idle');
     const [strip, setStrip] = useState([]);
@@ -508,10 +512,14 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
     // `prefers-reduced-motion` stops the drift entirely. A still reel is fine — it
     // keeps its identity, it is just parked. Permanent unrequested motion on an
     // otherwise static page is not.
+    //
+    // Saver mode stops it by the same door (`prefersCalm`), and `calm` is in the
+    // dependency list so toggling the setting starts and stops the drift live
+    // rather than at the next state change — which, on an idle reel, is never.
     useEffect(() => {
         if (state !== 'idle' || dormantStrip.length === 0) return;
         if (typeof window === 'undefined') return;
-        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        if (calm) return;
 
         // Starting mid-strip used to be necessary and is not any more. The canvas
         // drew tile `idx` at `centre + idx * ITEM_WIDTH - offset` against the array's
@@ -541,7 +549,7 @@ function WheelSpinnerComponent({ allItems, collection, onSpinComplete, user, dyn
         };
         raf = requestAnimationFrame(tick);
         return () => { if (raf) cancelAnimationFrame(raf); };
-    }, [state, dormantStrip.length]);
+    }, [state, dormantStrip.length, calm]);
 
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];

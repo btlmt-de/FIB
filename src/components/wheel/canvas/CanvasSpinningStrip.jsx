@@ -9,6 +9,7 @@ import { ITEM_WIDTH, STRIP_HEIGHT, IMAGE_BASE_URL } from '../../../config/consta
 import { COLORS } from '../config/constants';
 import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 import { sampleRamp } from '../../../utils/rarityHelpers.jsx';
+import { prefersCalm, isSaverOn, useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -60,6 +61,15 @@ const LIP_H = 3;
 const SILL_H = 2;
 
 /**
+ * Seconds a landed result keeps the render loop alive in saver mode.
+ *
+ * The bloom decays over ~450ms. This is that plus the margin for a frame budget
+ * that slipped, which on the phones this feature exists for is not a remote
+ * possibility.
+ */
+const PARK_AFTER_RESULT = 1.2;
+
+/**
  * Whether the viewer has asked for less motion.
  *
  * PRODUCT.md commits to respecting this "throughout, including wheel-spin and
@@ -78,11 +88,16 @@ const SILL_H = 2;
  * Read live rather than cached at module load, because the preference can be
  * toggled while the page is open and the render loop is already reading it every
  * frame.
+ *
+ * It now answers for saver mode too, via `prefersCalm()` — see config/power.js
+ * for why the power question and the motion question are two booleans and not
+ * one. This function is the motion one, and it still means exactly what the
+ * paragraphs above say it means. What saver mode adds on top of it, the loop
+ * does for itself further down: calm stops the reel breathing, saver stops the
+ * loop entirely.
  */
 function prefersReducedMotion() {
-    return typeof window !== 'undefined'
-        && typeof window.matchMedia === 'function'
-        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return prefersCalm();
 }
 
 // There used to be a local RARITY_COLORS table here — an independent copy of the
@@ -1218,6 +1233,14 @@ export function CanvasSpinningStrip({
     const resultAtRef = useRef(-1);       // when isResult last went true
     const lastCentreIndexRef = useRef(null);
     const tickAtRef = useRef(-1);         // when the centre slot last changed
+    // Saver mode's park-and-wake pair. `parkedRef` is the loop's own state — it
+    // is the only thing that distinguishes "no frame scheduled because we
+    // stopped" from "no frame scheduled because we unmounted". `renderRef` holds
+    // the live render closure so the wake effect can restart the exact loop the
+    // main effect built, rather than a stale one or a second one.
+    const parkedRef = useRef(false);
+    const renderRef = useRef(null);
+    const saverMode = useSaverMode();
     const [imagesLoaded, setImagesLoaded] = useState(false);
     const [containerWidth, setContainerWidth] = useState(stripWidth || (isMobile ? 390 : 1600));
     // The shaft's height is whatever the stage row can spare, so it is measured
@@ -1354,6 +1377,38 @@ export function CanvasSpinningStrip({
                 animationRef.current = requestAnimationFrame(render);
                 return;
             }
+
+            // ── Saver mode parks the reel ────────────────────────────────────
+            //
+            // The dormant reel is the largest ambient cost on this site: a
+            // sprite-drawing canvas loop that runs for as long as the tab is
+            // open and produces, between spins, a picture that differs from the
+            // last one only by a slow drift and a per-slot breath. Throttling it
+            // was never enough — half of a permanent cost is still permanent.
+            //
+            // So the loop draws one more frame and then stops scheduling. That
+            // one frame matters: stopping before it would leave whatever was on
+            // the canvas at the moment of the toggle, mid-breath. `parkedRef`
+            // going true is what the wake effect below watches, and it is set
+            // *after* the frame rather than before precisely so the frame lands.
+            //
+            // A landed result is not a reason to keep running. The band holds
+            // the winner until the next press, which on a phone put face-down on
+            // a table is indefinitely — "still showing the result" was the
+            // longest-lived animated state on the surface, not the shortest. The
+            // one thing it owes the player is the landing bloom, which decays
+            // over ~450ms; PARK_AFTER_RESULT is that with room to spare, after
+            // which the winner sits there as a picture.
+            if (parkedRef.current) {
+                animationRef.current = null;
+                return;
+            }
+            const { isResult: isCurrentlyResult } = propsRef.current;
+            const bloomSettled = resultAtRef.current >= 0
+                && timeRef.current - resultAtRef.current > PARK_AFTER_RESULT;
+            const shouldPark = isSaverOn()
+                && !isCurrentlySpinning
+                && (!isCurrentlyResult || bloomSettled);
 
             // Use actual delta time for frame-rate independence
             const dt = (timestamp - lastTimestamp) / 1000;
@@ -1937,14 +1992,23 @@ export function CanvasSpinningStrip({
                 }
             }
 
+            if (shouldPark) {
+                parkedRef.current = true;
+                animationRef.current = null;
+                return;
+            }
+
             animationRef.current = requestAnimationFrame(render);
         };
 
+        renderRef.current = render;
+        parkedRef.current = false;
         animationRef.current = requestAnimationFrame(render);
 
         return () => {
             if (animationRef.current) {
                 cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
             }
         };
         // Only restart animation when canvas size or items change, not on every
@@ -1955,6 +2019,26 @@ export function CanvasSpinningStrip({
         // width and height change with it and would restart the loop anyway; the
         // dependency is what makes that a guarantee rather than a coincidence.
     }, [items, width, height, imagesLoaded, isMobile, laneMode]);
+
+    /**
+     * The wake.
+     *
+     * A parked loop cannot restart itself — that is the point of it. Everything
+     * that makes the reel worth drawing again is a prop or the saver flag, all
+     * of which re-render this component, so the restart lives here rather than
+     * inside the loop's own timing.
+     *
+     * `isResult` is in the trigger set alongside `isSpinning` because the
+     * landing bloom decays over ~450ms *after* the spin ends, and a loop that
+     * woke only for `isSpinning` would sleep through the payoff.
+     */
+    useEffect(() => {
+        if (!parkedRef.current || !renderRef.current) return;
+        if (isSpinning || isResult || !saverMode) {
+            parkedRef.current = false;
+            animationRef.current = requestAnimationFrame(renderRef.current);
+        }
+    }, [isSpinning, isResult, saverMode]);
 
     // Keyboard handler for accessibility
     const handleKeyDown = useCallback((e) => {

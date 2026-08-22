@@ -9,6 +9,7 @@ import {
     Trophy, RefreshCw, ExternalLink, Crown, Medal, Award,
     Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X, Users
 } from 'lucide-react';
+import { visibleInterval, pollMs } from '../../../config/power.js';
 
 /**
  * The modal table's geometry, in one place.
@@ -152,9 +153,12 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
         };
 
         updateTimer();
-        const interval = setInterval(updateTimer, 1000);
+        // Visibility-gated: an event clock in a hidden tab is a re-render a
+        // second producing a number nobody can read. It catches up on the way
+        // back in, so the timer is right before it is looked at.
+        const stop = visibleInterval(updateTimer, 1000);
         return () => {
-            clearInterval(interval);
+            stop();
             // Don't clear kotwExpiryTimeoutRef here - let it complete its task
         };
     }, [isKotwActive, showKotwMode, globalEventStatus?.expiresAt, globalEventStatus?.activatesAt, globalEventStatus?.pending]);
@@ -189,12 +193,14 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
     useEffect(() => {
         loadLeaderboard();
 
-        // Auto-refresh every 5 minutes
-        intervalRef.current = setInterval(loadLeaderboard, 5 * 60 * 1000);
+        // Auto-refresh every 5 minutes (20 in saver mode), and never while the
+        // tab is hidden.
+        intervalRef.current = visibleInterval(loadLeaderboard, pollMs(5 * 60 * 1000));
 
         return () => {
             if (intervalRef.current) {
-                clearInterval(intervalRef.current);
+                intervalRef.current();
+                intervalRef.current = null;
             }
         };
     }, [loadLeaderboard]);

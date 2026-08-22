@@ -214,6 +214,77 @@ html, body {
    * place, so there is no motion here to opt out of. */
 }
 
+/* The same freeze, reached the other way. Saver mode implies calm (see
+ * config/power.js), and the holo sweep is the single most-repeated animation on
+ * the surface — one per insane tile, and the collection board can hold dozens. */
+html[data-saver="on"] .fib-holo,
+html[data-saver="on"] .fib-holo-rim,
+html[data-saver="on"] .fib-holo-chip {
+  animation: none;
+  background-position: -45% 50%;
+}
+
+html[data-saver="on"] .fib-holo-rim,
+html[data-saver="on"] .fib-holo-chip {
+  box-shadow: none;
+}
+
+/* ── Saver mode: the blanket ─────────────────────────────────────────────────
+ *
+ * Every CSS animation and transition on the page, stopped in four declarations.
+ * The alternative — a saver branch beside each of the ~90 `animation:` rules
+ * across the wheel's components — is the drift this codebase has already paid
+ * for twice, and most of those animations live in inline `style` objects where a
+ * media query cannot reach them anyway. A `!important` blanket on the root can.
+ *
+ * ── WHY 1ms AND NOT `animation: none` ────────────────────────────────────────
+ *
+ * `animation: none` was the obvious version and it is wrong here. Dozens of
+ * entrances on this surface are written as `someFade 0.4s ease-out both`, and a
+ * few of them animate *from* a state the element is also styled with. Removing
+ * the animation removes the fill, and anything relying on the to-state to be
+ * visible would vanish rather than appear instantly. Collapsing the duration
+ * instead keeps fill-mode semantics exactly: the entrance still runs, still
+ * lands on its final frame, and still holds it — it just takes a millisecond.
+ * Infinite loops run one imperceptible cycle and settle.
+ *
+ * `1ms` and not `0s`: a zero-duration animation does not reliably fire
+ * `animationend`, and there is code on this surface that waits for one.
+ *
+ * ── WHAT IS NOT HERE ─────────────────────────────────────────────────────────
+ *
+ * Static box-shadows stay. They are the material of this world — every plinth,
+ * seam and hairline on the deck is an `inset` shadow, and stripping them would
+ * hand the saver user a flat grey mock of the site rather than the site sitting
+ * still. They cost one composite at paint and nothing thereafter.
+ *
+ * `backdrop-filter` does not stay. It re-samples everything behind the element
+ * on every frame that anything behind it moves, and on a mid-range phone's GPU
+ * it is the most expensive property in this stylesheet. The nav bar carries one
+ * on every reference page, permanently, over a scrolling document — which is
+ * exactly the ambient-cost shape this mode exists to remove. `-webkit-` prefix
+ * included: iOS is most of the affected hardware.
+ *
+ * `filter: blur()` is left alone, and that is deliberate rather than an
+ * oversight. Every blur on this surface belongs to a result panel's glow — it
+ * exists for a few seconds after a spin the player pressed, which is the one
+ * thing this mode promised not to take away. Ambient cost is the target, not
+ * expensive properties as a category.
+ */
+html[data-saver="on"],
+html[data-saver="on"] *,
+html[data-saver="on"] *::before,
+html[data-saver="on"] *::after {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  transition-delay: 0ms !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  scroll-behavior: auto !important;
+}
+
 /* ── Screen-reader-only ──────────────────────────────────────────────────────
  *
  * The clip-rect pattern rather than `display: none` or `visibility: hidden`,
