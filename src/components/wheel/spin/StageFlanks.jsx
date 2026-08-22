@@ -44,6 +44,38 @@ import { useCollectionLeaderboard } from '../../../hooks/useCollectionLeaderboar
 // they read as an optimisation.
 const PANEL_WIDTH = 272;
 
+/**
+ * A plinth you can press, with content inside it that may also be pressable.
+ *
+ * ── WHY THE CONTROL IS AN OVERLAY AND NOT THE PANEL ──────────────────────────
+ *
+ * The panel used to *be* a `<button>`, with the label, the stats and the
+ * progress bar as its children. That broke twice over the moment the prestige
+ * work put a scope toggle inside it:
+ *
+ *   1. **A `<button>` cannot contain a `<button>.`** It is invalid HTML, React
+ *      logs a DOM nesting error on every mount, and the parser is free to hoist
+ *      the inner control out of the outer one — so what the browser ends up with
+ *      is not what the JSX says. The `stopPropagation` that used to sit on the
+ *      toggle's wrapper was treating the click symptom of a structural problem.
+ *   2. **`aria-label` on a button replaces everything inside it.** The panel
+ *      announced as "Open your collection book, button" and nothing else: the
+ *      held count, the completion figure and the progress bar were all
+ *      unreachable to a screen reader. The numbers were the reason for the panel.
+ *
+ * So the plinth is a plain `<div>` again — it keeps every one of its styles,
+ * because the material is the design — and the press target is a transparent
+ * `<button>` stretched across it underneath the content. The content sits above
+ * with `pointer-events: none`, so a click anywhere still lands on the overlay
+ * and the whole panel is still one big target. Anything genuinely interactive
+ * inside opts back in with `pointer-events: auto` and is now a *sibling* of the
+ * press target rather than its descendant, which is what makes it reachable by
+ * keyboard and legal as markup.
+ *
+ * Hover moves to the container so the plinth still lights from anywhere on it;
+ * focus stays on the overlay, and lighting the rail is the focus indicator (the
+ * same one the hover state uses — it is a 272px slab, not a 24px icon).
+ */
 function Panel({ side, label, icon, onClick, actionLabel, children }) {
     const [hovered, setHovered] = React.useState(false);
     const [focused, setFocused] = React.useState(false);
@@ -58,15 +90,11 @@ function Panel({ side, label, icon, onClick, actionLabel, children }) {
             width: `${PANEL_WIDTH}px`,
             zIndex: Z.content,
         }}>
-            <button
-                type="button"
-                onClick={onClick}
+            <div
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                aria-label={actionLabel}
                 style={{
+                    position: 'relative',
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -95,11 +123,44 @@ function Panel({ side, label, icon, onClick, actionLabel, children }) {
                     // No lift. The control is seated in the page the same way the
                     // spin card and the band are; hovering lights it.
                     transition: 'background 0.2s ease-out, box-shadow 0.2s ease-out',
-                    outline: 'none',
                     color: 'inherit',
                 }}
             >
+                {/* The press target. First in source order and at the bottom of
+                    the stack, so the content paints over it — it is a hit area,
+                    not a layer you can see. It carries the accessible name for
+                    the action; the panel's numbers stay as readable content
+                    beside it instead of being swallowed by an aria-label. */}
+                <button
+                    type="button"
+                    onClick={onClick}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    aria-label={actionLabel}
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 0,
+                        border: 'none',
+                        borderRadius: 0,
+                        background: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        // The lit rail above IS the focus indicator, and it is
+                        // driven by `focused`. A default ring would draw a second
+                        // one inside the plinth's own edge.
+                        outline: 'none',
+                    }}
+                />
+
+                {/* Everything below is content over the hit area. `pointer-events:
+                    none` is what keeps the whole 272px slab clickable — without
+                    it the text would eat the clicks the overlay is there to
+                    catch. Interactive children opt back in. */}
                 <span style={{
+                    position: 'relative',
+                    zIndex: 1,
+                    pointerEvents: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '7px',
@@ -114,8 +175,17 @@ function Panel({ side, label, icon, onClick, actionLabel, children }) {
                     {label}
                 </span>
 
-                {children}
-            </button>
+                <div style={{
+                    position: 'relative',
+                    zIndex: 1,
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                }}>
+                    {children}
+                </div>
+            </div>
         </div>
     );
 }
@@ -313,14 +383,24 @@ export function StageFlanks({
                     tone={showing === 'prestige' ? prestigeInk(run.level) : undefined}
                 />
 
-                {/* The lens. Two words, only for a player who has a run open, and
-                    it stops the click from reaching the panel — the panel opens
-                    the collection book, and switching which number you are reading
-                    is not a request to leave. */}
+                {/* The lens. Two words, only for a player who has a run open.
+                    `pointer-events: auto` opts it back out of the content layer's
+                    pass-through: the panel opens the collection book, and
+                    switching which number you are reading is not a request to
+                    leave. This used to be `stopPropagation` on the click, which
+                    was the only tool available while these were nested inside the
+                    panel's own button — they are siblings now, so the toggle
+                    simply receives its own clicks and nothing bubbles anywhere. */}
                 {run && (
                     <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ display: 'flex', gap: '10px', marginTop: '2px' }}
+                        style={{
+                            position: 'relative',
+                            zIndex: 1,
+                            pointerEvents: 'auto',
+                            display: 'flex',
+                            gap: '10px',
+                            marginTop: '2px',
+                        }}
                     >
                         {[['main', 'Collection'], ['prestige', 'Prestige']].map(([id, text]) => {
                             const active = showing === id;
