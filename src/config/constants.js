@@ -112,8 +112,36 @@ export const WHEEL_TEXTURE_URL  = '/wheel.png';
 export const ITEM_WIDTH         = 120;
 export const STRIP_HEIGHT       = 170;
 export const SPIN_DURATION      = 4000;
-export const STRIP_LENGTH       = 80;
-export const FINAL_INDEX        = STRIP_LENGTH - 8;
+/*
+ * The winner's slot is PINNED and the strip's length is derived from it — which
+ * is the opposite of how these two were written, and the reason the band had a
+ * hole in it.
+ *
+ * It was `STRIP_LENGTH = 80` with `FINAL_INDEX = STRIP_LENGTH - 8`, so the
+ * winner sat at 72 with exactly seven tiles behind it: 7 × 120 = 840px of strip
+ * to the right of a winner that comes to rest at the centre of the viewport. Any
+ * viewport wider than 1680px therefore ran out of strip before it ran out of
+ * canvas, and the right-hand edge of the band was empty on every spin — on a
+ * 1920px screen, one tile's worth of nothing. It was in every mode, because
+ * every mode lands the same way: the reel, recursion, lucky and triple spins all
+ * target FINAL_INDEX.
+ *
+ * Lengthening the strip the obvious way would not have fixed it. With the
+ * derivation this way round, `STRIP_LENGTH = 88` moves the winner to 80 and
+ * leaves the same seven tiles behind it — a longer run-up and an identical hole.
+ * The tail is the quantity that matters, so the tail is the constant.
+ *
+ * TAIL_LENGTH covers half the viewport at rest: 16 × 120 = 1920px, good to a
+ * 3840px window. The cost is eight extra decorative tiles per spin, which are
+ * plain objects the renderer already skips when off-screen.
+ *
+ * These MUST match `spin.js`'s copies. The server builds the authoritative strip
+ * and the client verifies achievements against it, so a disagreement here is not
+ * a visual bug — see the note there.
+ */
+export const FINAL_INDEX        = 72;
+export const TAIL_LENGTH        = 16;
+export const STRIP_LENGTH       = FINAL_INDEX + 1 + TAIL_LENGTH;
 
 // ── Special items (unchanged) ─────────────────────────────────────────────────
 

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BookOpen, Trophy } from 'lucide-react';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { prestigeColor, prestigeInk, prestigeLabel, isIridescentPrestige, prestigeStanding } from '../../../utils/prestigeHelpers.js';
 import { useCollectionLeaderboard } from '../../../hooks/useCollectionLeaderboard.js';
 
 /**
@@ -164,6 +165,70 @@ function RarityTally({ entry }) {
     );
 }
 
+/**
+ * The prestige ring around an avatar.
+ *
+ * One treatment: a solid ring in the level's own colour with a real bloom,
+ * whether the level is earned or still being worked toward. The level itself is
+ * the thing worth showing, and the ring shows it.
+ *
+ * ── THREE THINGS THIS WENT THROUGH, ALL RECORDED ────────────────────────────
+ *
+ * It first read only COMPLETED runs, and completing one means collecting all
+ * 1,559 items a second time — so every player who had prestiged wore nothing at
+ * all, and it was reported from production as prestige not showing up.
+ *
+ * Then in-progress was drawn dimmer: thinner ring, dimmer colour, weaker glow.
+ * Reported as looking worse than the earned ring, which it did — dimming is the
+ * wrong axis for "finished" versus "still going".
+ *
+ * Then in-progress was drawn as a dashed ring at full strength, which was
+ * honest and legible and which the owner simply did not like. So the visual
+ * distinction is gone: **earned and in-progress look identical**, and the
+ * difference lives in the tooltip and in the leaderboard's own prestige column.
+ * That is a deliberate trade, not an oversight — a player mid-run reads as
+ * prestiged, because they are.
+ *
+ * The one thing that must never come back: `opacity` on this element. The avatar
+ * is its child, so opacity dims the player's face along with the ring. Alpha
+ * belongs in the colour.
+ */
+export function PrestigeRing({ standing, children, pad = 2 }) {
+    const { level, earned } = standing;
+    if (!level) return <>{children}</>;
+
+    const holo = isIridescentPrestige(level);
+    const tone = prestigeColor(level);
+
+    return (
+        <span
+            className={holo ? 'fib-holo' : undefined}
+            title={`${prestigeLabel(level)}${earned ? '' : ' — in progress'}`}
+            style={{
+                position: 'relative',
+                zIndex: 2,
+                flexShrink: 0,
+                display: 'block',
+                // `pad` IS the ring's thickness, and it is a prop because this
+                // ring now goes on faces from 18px (a live-activity toast) to
+                // 68px (the player board's head). 2px on an 18px avatar is a
+                // fifth of its diameter — a ring that thick stops reading as a
+                // frame around a face and starts reading as a coloured disc with
+                // a face on it. The bloom scales with it for the same reason.
+                padding: `${pad}px`,
+                borderRadius: '50%',
+                lineHeight: 0,
+                // The ring only ever shows in the padding — the avatar covers the
+                // middle — so this background IS the ring.
+                background: holo ? undefined : tone,
+                boxShadow: `0 0 ${pad * 4}px ${tone}AA`,
+            }}
+        >
+            {children}
+        </span>
+    );
+}
+
 /** One figure and its caption. The figure leads; the caption explains it. */
 function Stat({ value, caption, tone }) {
     return (
@@ -193,18 +258,33 @@ export function StageFlanks({
     // Always available.
     collectedCount,
     poolSize,
+    prestige,
     userId,
     isMobile,
     onOpenCollection,
     onOpenLeaderboard,
 }) {
     const { leaderboard, myRank } = useCollectionLeaderboard(userId);
+    /*
+     * Which collection the counter is reading.
+     *
+     * Only offered to a player who has a run open — for everyone else there is
+     * one collection and a toggle between it and nothing is furniture. The
+     * default stays `main` so the panel a player has read a thousand times says
+     * the same thing it always did until they ask it not to.
+     */
+    const [scope, setScope] = useState('main');
+    const run = prestige?.activeRun || null;
+    const showing = scope === 'prestige' && run ? 'prestige' : 'main';
 
     // Never on mobile. These exist because a wide stage has room beside a centred
     // panel; a phone has none, and the topbar keeps its own entry points there.
     if (isMobile) return null;
 
-    const pct = poolSize > 0 ? Math.min(100, (collectedCount / poolSize) * 100) : 0;
+    const held = showing === 'prestige' ? (run?.held ?? 0) : collectedCount;
+    const total = showing === 'prestige' ? (run?.total ?? poolSize) : poolSize;
+    const tone = showing === 'prestige' ? prestigeColor(run.level) : COLORS.gold;
+    const pct = total > 0 ? Math.min(100, (held / total) * 100) : 0;
     const topFive = leaderboard.slice(0, 5);
 
     return (
@@ -228,16 +308,58 @@ export function StageFlanks({
                 )}
 
                 <Stat
-                    value={`${collectedCount.toLocaleString('en-US')} / ${poolSize.toLocaleString('en-US')}`}
-                    caption="items collected"
+                    value={`${held.toLocaleString('en-US')} / ${total.toLocaleString('en-US')}`}
+                    caption={showing === 'prestige' ? `${prestigeLabel(run.level)?.toLowerCase()} items` : 'items collected'}
+                    tone={showing === 'prestige' ? prestigeInk(run.level) : undefined}
                 />
+
+                {/* The lens. Two words, only for a player who has a run open, and
+                    it stops the click from reaching the panel — the panel opens
+                    the collection book, and switching which number you are reading
+                    is not a request to leave. */}
+                {run && (
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: 'flex', gap: '10px', marginTop: '2px' }}
+                    >
+                        {[['main', 'Collection'], ['prestige', 'Prestige']].map(([id, text]) => {
+                            const active = showing === id;
+                            return (
+                                <button
+                                    key={id}
+                                    onClick={() => setScope(id)}
+                                    aria-pressed={active}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: '2px 0',
+                                        cursor: 'pointer',
+                                        font: 'inherit',
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                        letterSpacing: '0.12em',
+                                        textTransform: 'uppercase',
+                                        color: active
+                                            ? (id === 'prestige' ? prestigeInk(run.level) : COLORS.gold)
+                                            : COLORS.textMuted,
+                                        boxShadow: active
+                                            ? `inset 0 -2px 0 ${id === 'prestige' ? prestigeColor(run.level) : COLORS.gold}`
+                                            : 'none',
+                                    }}
+                                >
+                                    {text}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 <div
                     role="progressbar"
                     aria-valuenow={Math.round(pct)}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label="Collection completion"
+                    aria-label={showing === 'prestige' ? 'Prestige run completion' : 'Collection completion'}
                     style={{
                         width: '100%',
                         height: '3px',
@@ -252,7 +374,9 @@ export function StageFlanks({
                         transformOrigin: 'left center',
                         transform: `scaleX(${pct / 100})`,
                         borderRadius: '999px',
-                        background: COLORS.gold,
+                        // The bar follows the lens, so the number and its
+                        // measure are never in two different colours.
+                        background: tone,
                         transition: 'transform 700ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }} />
                 </div>
@@ -288,14 +412,37 @@ export function StageFlanks({
                             }}>
                                 {i + 1}
                             </span>
-                            <img
-                                src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar)}
-                                alt=""
-                                width={18}
-                                height={18}
-                                onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
-                                style={{ borderRadius: '50%', flexShrink: 0 }}
-                            />
+                            {/*
+                              * The prestige ring.
+                              *
+                              * A player who has prestiged wears their level around
+                              * their avatar, in the tier's own colour — the ladder
+                              * is the only place a colour comes from, so a ring
+                              * cannot drift from the rarity it is named after.
+                              *
+                              * Level 5 takes the full holo sweep via `.fib-holo`
+                              * and never a sampled point: insane's ramp passes
+                              * through magenta, aqua and gold, which are exotic,
+                              * mythic and legendary, so a ring painted from one
+                              * sample off it would spend two thirds of its cycle
+                              * impersonating a lower prestige. A 2px ring is small
+                              * enough that a wrong colour is the only thing it
+                              * would ever say.
+                              *
+                              * The board's ORDER is untouched: prestige is status,
+                              * not standing, so a prestiged player still sits
+                              * exactly where their collection puts them.
+                              */}
+                            <PrestigeRing standing={prestigeStanding(entry)}>
+                                <img
+                                    src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar)}
+                                    alt=""
+                                    width={18}
+                                    height={18}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
+                                    style={{ borderRadius: '50%', flexShrink: 0, display: 'block' }}
+                                />
+                            </PrestigeRing>
                             <span style={{
                                 flex: 1,
                                 minWidth: 0,

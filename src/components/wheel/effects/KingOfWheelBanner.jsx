@@ -350,10 +350,17 @@ function WinnerCelebration({ winner, onClose, isMobile }) {
                             </p>
                         </div>
                         <div style={{ textAlign: 'center' }}>
+                            {/* `wheel-positive`, the same green as the "Lucky Spins
+                                Awarded!" line further down this same screen. It was
+                                #50fa7b — a second green for the identical datum, and
+                                the only use of that value anywhere in the app. Not
+                                COLORS.green either: that is #55FF55, the
+                                Minecraft-derived green, which would be a third answer
+                                to the one question. */}
                             <p style={{
                                 fontSize: isMobile ? '32px' : '48px',
                                 fontWeight: 900,
-                                color: '#50fa7b',
+                                color: '#22C55E',
                                 margin: 0,
                             }}>
                                 +{winner.winner.luckySpinsAwarded}
@@ -953,7 +960,7 @@ function KingOfWheelBanner({
                                             <span style={{ color: KOTW_TEXT, fontWeight: 600 }}>Points:</span>
                                             <span>Common <strong style={{ color: KOTW_TEXT }}>1pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
-                                            <span>Rare <strong style={{ color: '#EF4444' }}>~150pt</strong></span>
+                                            <span>Rare <strong style={{ color: getRarityInk('rare') }}>~150pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             {/* Exotic, which this legend shipped without.
                                                 KOTW does not score off a tier table — it pays
@@ -964,16 +971,26 @@ function KingOfWheelBanner({
                                                 the same ordering from the same weights.
 
                                                 Its colour is imported rather than written as a
-                                                sixth hex. The four rows around it are forks of
-                                                the ladder that predate the single RARITY table
-                                                and should be reconciled with it; adding to them
-                                                would make that worse. `Ink`, not `color`, because
-                                                this is text and exotic's #AA00AA is 2.73:1. */}
+                                                sixth hex. `Ink`, not `color`, because this is
+                                                text and exotic's #AA00AA is 2.73:1.
+
+                                                The reconciliation this note asked for happened
+                                                on 2026-08-20: rare, legendary and mythic were
+                                                literals here (#EF4444, #A855F7, #06B6D4) and now
+                                                import the same way. Legendary was the loud one —
+                                                it rendered purple against a ladder where
+                                                legendary is gold, which is the exact defect the
+                                                comment at the top of rarityHelpers.jsx describes.
+                                                Common and Insane still take KOTW_TEXT and
+                                                KOTW_GOLD; those are mode chrome rather than
+                                                wrong tier hues, so they were left deliberately —
+                                                but they are the last two rows here not reading
+                                                from RARITY. */}
                                             <span>Exotic <strong style={{ color: getRarityInk('exotic') }}>~180pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
-                                            <span>Legendary <strong style={{ color: '#A855F7' }}>~500pt</strong></span>
+                                            <span>Legendary <strong style={{ color: getRarityInk('legendary') }}>~500pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
-                                            <span>Mythic <strong style={{ color: '#06B6D4' }}>~3kpt</strong></span>
+                                            <span>Mythic <strong style={{ color: getRarityInk('mythic') }}>~3kpt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             <span>Insane <strong style={{ color: KOTW_GOLD }}>~100k pt</strong></span>
                                             {!isMobile && (

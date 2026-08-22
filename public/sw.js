@@ -4,7 +4,12 @@
 // origin. The activate handler deletes every `fib-` cache that isn't the current
 // one, so the rename is what evicts the old GitHub-keyed entries — without it,
 // returning visitors would carry a dead cache of remote URLs around forever.
-const CACHE_NAME = 'fib-textures-v2';
+//
+// v3 (2026-08-20) evicts the atlas index that this file used to pin. It is a
+// one-shot: it unsticks the clients already broken, and the network-first split
+// below is what stops the next rebuild from doing it again. Both were needed —
+// the rename alone would have bought one good deploy.
+const CACHE_NAME = 'fib-textures-v3';
 
 // Sprites are same-origin now (/fib-items/, /fib-custom/). Keeping cache-first
 // over them is still worth it: files under public/ are not content-hashed, so
@@ -13,12 +18,21 @@ const CACHE_NAME = 'fib-textures-v2';
 const TEXTURE_URL_PATTERN = /\/fib-(items|custom)\/[^/]+\.(png|gif)$/;
 
 // The atlas is packed from the same sprites but lives at its own URL, so it
-// needs its own pattern. It is the wheel's single largest request (6.4 MB),
-// and caching it is survivable if stale: sprites fall out of a stale index one
-// by one, each falling back to its individual file (atlas.js needsOwnImage),
-// and the dimension guard refuses a webp/json pair that disagree. A wheel
-// texture change still gets evicted by the CACHE_NAME rename, like the
-// sprites.
+// needs its own pattern. This one still covers BOTH halves, because
+// pruneSupersededAtlas uses it to ask "is this an atlas path"; routing is what
+// splits them, via ATLAS_INDEX_PATTERN below.
+//
+// It is the wheel's single largest request (6.4 MB), and caching the *image* is
+// survivable if stale: sprites fall out of a stale index one by one, each falling
+// back to its individual file (atlas.js needsOwnImage), and the dimension guard
+// refuses a webp/json pair that disagree. A wheel texture change still gets
+// evicted by the CACHE_NAME rename, like the sprites.
+//
+// That argument was originally written about both halves and it was wrong about
+// the index — "survivable if stale" describes the image, whose staleness the
+// guard can detect and route around. A stale *index* is what makes the pair
+// disagree in the first place, and the fallback it triggers is the whole atlas,
+// not one sprite. See ATLAS_INDEX_PATTERN.
 // Matched against the PATHNAME, not the full URL. atlas.js requests the image
 // as `/fib-atlas.webp?v=<version>` (see the version-stamp note there), and this
 // pattern is `$`-anchored — so tested against `event.request.url` it matched the
@@ -26,6 +40,35 @@ const TEXTURE_URL_PATTERN = /\/fib-(items|custom)\/[^/]+\.(png|gif)$/;
 // The single largest asset on the surface went uncached while the code here
 // said it was cached.
 const ATLAS_URL_PATTERN = /\/fib-atlas\.(webp|json)$/;
+
+// The index is split back out of the cache-first path, because the two halves of
+// the atlas do not have the same cache key shape and therefore cannot be given
+// the same strategy.
+//
+// The image is requested as `/fib-atlas.webp?v=<version>`, so a rebuild produces
+// a new key and the client refetches. The index is requested bare, so its key is
+// the same forever — and cache-first never revalidates. A browser that stored one
+// index kept serving it until CACHE_NAME changed, which happens for unrelated
+// reasons and may not happen for months.
+//
+// What that cost, on 2026-08-20: Firefox held a pre-padding index (width
+// cols*tile = 3840x3744, from before the atlas gained `pad`/`cell`) while the
+// server had moved on to 4000x3900. The stale index carries a stale `version`, so
+// atlas.js asked for `?v=<old>`, missed the cache — pruneSupersededAtlas had
+// collected it — and got the *current* image from the network, because a query
+// string does not select an old build's file. The dimension guard fired and the
+// whole wheel dropped to per-item sprites. Chrome, with no such entry, was fine,
+// which is what made it look like a browser bug.
+//
+// Note the assumption this breaks in atlas.js: "worst case both are uniformly
+// old, which renders correctly". That is only reachable while the old image is
+// still in this cache. The origin only ever has the current one.
+//
+// Network-first, not no-cache: the index must still be there offline, and the
+// wheel is usable offline once the sprites are stored. It is 35 KB against the
+// image's 6.4 MB, so revalidating it on every load costs approximately nothing —
+// and it is the half that decides what the other half means.
+const ATLAS_INDEX_PATTERN = /\/fib-atlas\.json$/;
 
 // The remote pack, still matched so that anything not yet vendored — and any
 // client running a build from before the move — keeps its cache-first path.
@@ -102,6 +145,38 @@ async function cacheFirst(request) {
 }
 
 /**
+ * Network-first, falling back to the stored copy. For the atlas index only.
+ *
+ * The ordering is the whole point: the index is the half that says what the image
+ * means, so a fresh one has to win over a stored one every time. The fallback is
+ * what keeps the wheel working offline, where a stale index is still strictly
+ * better than none — sprites missing from it fall back to their own files one by
+ * one, and the dimension guard refuses the pair outright if it has also gone out
+ * of step with the image.
+ *
+ * Writes go through cacheQuietly for the same reason cacheFirst does it: the
+ * bytes are already in hand and a full cache must never turn into a failed load.
+ */
+async function networkFirst(request) {
+    const cache = await caches.open(CACHE_NAME);
+
+    try {
+        const response = await fetch(request);
+        if (response.ok) {
+            cacheQuietly(cache, request, response.clone());
+        }
+        return response;
+    } catch (error) {
+        const cached = await cache.match(request);
+        if (cached) {
+            console.warn('[SW] Atlas index offline, serving stored copy:', error);
+            return cached;
+        }
+        throw error;
+    }
+}
+
+/**
  * Store the response and prune superseded atlases, swallowing any failure.
  *
  * Deliberately not awaited by the caller: the response is returned the moment it
@@ -130,7 +205,17 @@ self.addEventListener('fetch', (event) => {
         // other pattern here tests anyway.
     }
 
-    // Cache item sprites (local and remote) and player heads
+    // The index is tested first and separately. It also matches
+    // ATLAS_URL_PATTERN — that pattern still covers both halves, because
+    // pruneSupersededAtlas is about "is this an atlas path" — so the order here is
+    // what keeps the index off the cache-first branch. Putting it back into that
+    // `if` is the bug described above, restored.
+    if (ATLAS_INDEX_PATTERN.test(pathname)) {
+        event.respondWith(networkFirst(event.request));
+        return;
+    }
+
+    // Cache item sprites (local and remote), the atlas image, and player heads
     if (
         TEXTURE_URL_PATTERN.test(url) ||
         ATLAS_URL_PATTERN.test(pathname) ||

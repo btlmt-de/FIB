@@ -788,9 +788,14 @@ function GoldRushBanner({
     // instead of vanishing mid-fade. Adjusting state during render is the
     // sanctioned pattern for remembering what changed; a ref would trip the
     // render-time ref rules.
+    // The multiplier rides along for the same reason: it falls back to 2 the
+    // moment `data` goes, so a x5 rush would visibly demote itself mid-fade.
     const [lastRarity, setLastRarity] = useState(null);
+    const [lastMultiplier, setLastMultiplier] = useState(multiplier);
     if (rarityConfig && rarityConfig !== lastRarity) setLastRarity(rarityConfig);
+    if (rarityConfig && multiplier !== lastMultiplier) setLastMultiplier(multiplier);
     const rarityNow = rarityConfig || (isClosing ? lastRarity : null);
+    const multiplierNow = rarityConfig || !isClosing ? multiplier : lastMultiplier;
 
     if (isGone) return null;
 
@@ -863,16 +868,29 @@ function GoldRushBanner({
                         background: GOLD_DARK,
                         zIndex: 10,
                     }}>
+                        {/* Drains on transform, not width: the bar ticks every second for
+                            the whole event, and width would relayout the banner each time.
+                            scaleX off the left edge is the same picture — the 90deg gradient
+                            is painted across the element and compressed either way — while
+                            staying on the compositor. The one thing it costs is the glow:
+                            box-shadow scales with the element, so the horizontal spread
+                            thins out as the bar empties. It reads as the glow tightening
+                            around a shrinking bar rather than as a defect, and the vertical
+                            spread — which is what you actually see on a 3px rule — is
+                            untouched. Don't put a transform in progressGlow; it animates
+                            box-shadow only, and the two would overwrite each other here. */}
                         <div style={{
                             height: '100%',
-                            width: `${progressPercent}%`,
+                            width: '100%',
+                            transformOrigin: 'left center',
+                            transform: `scaleX(${progressPercent / 100})`,
                             background: isCriticalTime
                                 ? `linear-gradient(90deg, #ff4444, #ff6666)`
                                 : isLowTime
                                     ? `linear-gradient(90deg, #ffaa00, ${GOLD_COLOR})`
                                     : `linear-gradient(90deg, ${GOLD_COLOR}, ${GOLD_DARK})`,
                             boxShadow: `0 0 10px ${GOLD_COLOR}`,
-                            transition: 'width 1s linear',
+                            transition: 'transform 1s linear',
                             animation: isCriticalTime ? 'progressGlow 0.5s infinite' : 'progressGlow 2s infinite',
                         }} />
                     </div>
@@ -988,7 +1006,7 @@ function GoldRushBanner({
                                         color: rarityNow.color,
                                         textShadow: `0 0 8px ${rarityNow.color}`,
                                     }}>
-                                        {rarityConfig.name} ×{multiplier}
+                                        {rarityNow.name} ×{multiplierNow}
                                     </span>
                                 </div>
                             )}

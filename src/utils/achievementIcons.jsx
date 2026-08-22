@@ -23,6 +23,12 @@ import {
     Trophy,
     Eclipse,
     Sparkle,
+    // Atom for Exotic Collector (the exotic tier is antimatter-themed), Medal for
+    // Encore. Added to the whitelist rather than left to the Award fallback:
+    // this map exists to keep the bundle off all 1000+ lucide icons, so a new
+    // achievement icon is two lines here, not a missing one.
+    Atom,
+    Medal,
 
     // Spins
     RefreshCw,
@@ -86,6 +92,8 @@ export const ACHIEVEMENT_ICON_MAP = {
     Trophy,
     Eclipse,
     Sparkle,
+    Atom,
+    Medal,
 
     // Spins
     RefreshCw,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { COLORS, SPACE, Z } from './config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
@@ -48,7 +48,8 @@ import { LiveChat } from './features/LiveChat.jsx';
 import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
 import { CanvasNocturneField } from './canvas/CanvasNocturneField.jsx';
 
-import { TopbarIconButton, TopbarDivider } from './topbar/TopbarControls.jsx';
+import { TopbarIconButton, TopbarDivider, TopbarUserChip } from './topbar/TopbarControls.jsx';
+import { prestigeStanding } from '../../utils/prestigeHelpers.js';
 import { MobileTabBar } from './topbar/MobileTabBar.jsx';
 import { MobileMoreSheet } from './topbar/MobileMoreSheet.jsx';
 import { SaverOffer } from './topbar/SaverOffer.jsx';
@@ -174,81 +175,6 @@ function BackButton({ onBack }) {
         >
             <ArrowLeft size={17} />
             <span>Back</span>
-        </button>
-    );
-}
-
-/**
- * Who you are, as one control.
- *
- * The identity is the only part of the old user capsule that is genuinely a
- * single object — avatar, name, and whether that name has been approved yet — so
- * it is the only part that kept a container. Everything that used to share the
- * capsule with it (edit, sound, bell, admin, logout) is an action, and actions
- * are `TopbarIconButton`s now.
- *
- * The radius is 999px rather than the old 32px so it matches the leaderboard pill
- * it sits beside. Two capsules of nearly-but-not-quite the same roundness,
- * touching, was one of the things that made this end of the bar look like parts
- * from different pages pushed together — which is exactly what it was.
- */
-function UserChip({ avatarUrl, name, approved, pending, onClick }) {
-    const [hovered, setHovered] = useState(false);
-
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            title="Your profile"
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: `${SPACE.sm}px`,
-                // 4px + 28px avatar + 4px + 1px borders = the 38px the icon
-                // buttons are, so the chip sits on their baseline instead of
-                // setting the row height on its own.
-                padding: `4px ${SPACE.md}px 4px 4px`,
-                borderRadius: '999px',
-                background: hovered ? COLORS.bgLighter : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.text,
-                cursor: 'pointer',
-                flexShrink: 1,
-                minWidth: 0,
-                transition: 'background 0.18s ease',
-            }}
-        >
-            <img
-                src={avatarUrl}
-                alt=""
-                width={28}
-                height={28}
-                style={{
-                    borderRadius: '50%',
-                    background: COLORS.bgLighter,
-                    flexShrink: 0,
-                }}
-                onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                }}
-            />
-            <span style={{
-                fontSize: '14px',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                minWidth: 0,
-            }}>
-                {name}
-            </span>
-            {/* Approval state, in the chip because it is a fact about the name
-                rather than an action you can take on it. */}
-            {approved && <Check size={15} color={COLORS.green} style={{ flexShrink: 0 }} />}
-            {pending && <Clock size={15} color={COLORS.gold} style={{ flexShrink: 0 }} />}
         </button>
     );
 }
@@ -405,6 +331,12 @@ function WheelOfFortunePage({ onBack }) {
     const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
+    /*
+     * The signed-in player's prestige state, for the collection panel's lens.
+     * Re-read after every spin that lands in a run, so the panel's count tracks
+     * the run rather than going stale until the next page load.
+     */
+    const [prestige, setPrestige] = useState(null);
     const [collection, setCollection] = useState({});
     const [collectionDetails, setCollectionDetails] = useState({});
     const [history, setHistory] = useState([]);
@@ -605,9 +537,55 @@ function WheelOfFortunePage({ onBack }) {
         setKotwLuckySpins(newCount);
     }, []);
 
+    const refreshPrestige = useCallback(async () => {
+        if (!user) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/prestige`, { credentials: 'include' });
+            if (res.ok) setPrestige(await res.json());
+        } catch {
+            // The panel simply keeps its main-collection lens without this.
+        }
+    }, [user]);
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!user) return undefined;
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/prestige`, { credentials: 'include' });
+                if (res.ok && !cancelled) setPrestige(await res.json());
+            } catch {
+                // Non-fatal: no lens, same panel as before.
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [user]);
+
     const handleSpinComplete = useCallback((spinResult) => {
         if (!spinResult?.result) return;
         const { result } = spinResult;
+
+        /*
+         * A recursion trigger is not a collected item, and the client used to
+         * think it was.
+         *
+         * The server's spin transaction returns early for `isRecursion` — spins,
+         * event triggers and the wheel-fortune counter, and no `upsertCollection`
+         * — because recursion is a mode the pull *starts*, not an entry in the
+         * book. This handler ran anyway and optimistically added the triggering
+         * texture to the local map, so the collection counter went up by one for
+         * an item the player never got, and came back down on the next reload
+         * when the server's own map replaced the guess.
+         *
+         * Reported as "his counter increased despite not getting the item he
+         * needed" and "on prestige it goes to 1560". It looked like a special-item
+         * bug because recursion is triggered by pulling Wheel of Fortune, which is
+         * an exotic.
+         *
+         * The bonus-event branch was already safe: `isEvent` never reaches this
+         * handler at all. Guarding both is cheaper than relying on that.
+         */
+        if (spinResult.isRecursion || spinResult.isEvent) return;
 
         // Update collection
         setCollection(prev => ({
@@ -623,11 +601,32 @@ function WheelOfFortunePage({ onBack }) {
         // all for exotic. COUNTER_FOR_TIER maps tier to the field it increments;
         // anything not in it (common) only advances totalSpins.
         const counterField = COUNTER_FOR_TIER[result.type];
-        if (counterField) {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1, [counterField]: (prev[counterField] || 0) + 1 }));
-        } else {
-            setStats(prev => ({ ...prev, totalSpins: prev.totalSpins + 1 }));
-        }
+        setStats(prev => ({
+            ...prev,
+            totalSpins: prev.totalSpins + 1,
+            ...(counterField ? { [counterField]: (prev[counterField] || 0) + 1 } : null),
+            /*
+             * Duplicates were never counted here at all.
+             *
+             * The server has always got this right — `total_duplicates` is
+             * `SUM(count) - COUNT(DISTINCT texture)` over the collection, so a
+             * repeat pull moves it the moment it lands. This optimistic update
+             * advanced `totalSpins` and the tier counter and simply left the
+             * duplicate figure alone, so the collection board showed a stale
+             * number until something refetched — and during a prestige run, where
+             * EVERY pull is a main-collection duplicate by definition, it looked
+             * like prestige pulls were not counting toward the main collection at
+             * all. They were; the panel was just not saying so.
+             *
+             * Read from `spinResult.isNew`, which is the server's own verdict, and
+             * not from the local map: deciding "was this new" a second time on the
+             * client is how the two accounts drift apart in the first place.
+             */
+            ...(spinResult.isNew ? null : { totalDuplicates: (prev.totalDuplicates || 0) + 1 }),
+        }));
+
+        // A pull that landed in a run moves its count, and the panel is showing it.
+        if (spinResult.prestige) refreshPrestige();
 
         // Update history
         setHistory(prev => [{
@@ -646,7 +645,7 @@ function WheelOfFortunePage({ onBack }) {
                 }, 1500);
             }
         }
-    }, [user]);
+    }, [user, refreshPrestige]);
 
     // Helper to get Discord avatar URL
     function getDiscordAvatarUrl() {
@@ -995,11 +994,15 @@ function WheelOfFortunePage({ onBack }) {
                             widest single thing on the row. */}
                         {!isMobile && (
                             <>
-                                <UserChip
+                                <TopbarUserChip
                                     avatarUrl={getDiscordAvatarUrl()}
                                     name={user.customUsername || 'Player'}
                                     approved={!!user.usernameApproved}
                                     pending={!!user.customUsername && !user.usernameApproved}
+                                    // The state this page already holds for the
+                                    // collection panel's lens, read through the
+                                    // same helper every other surface uses.
+                                    standing={prestigeStanding(prestige)}
                                     onClick={() => setShowProfile(true)}
                                 />
                                 <TopbarIconButton
@@ -1085,6 +1088,7 @@ function WheelOfFortunePage({ onBack }) {
             <WheelSpinner
                 allItems={allItems}
                 collection={collection}
+                prestige={prestige}
                 onSpinComplete={handleSpinComplete}
                 user={user}
                 dynamicItems={dynamicItems}
@@ -1181,17 +1185,23 @@ function WheelOfFortunePage({ onBack }) {
                     style={{
                         position: 'fixed',
                         inset: 0,
-                        background: 'rgba(0,0,0,0.85)',
+                        // The scrim ladder's middle step, matching the collection
+                        // board: this pushes the stage back behind a plaque rather
+                        // than blacking it out.
+                        background: 'rgba(0,0,0,0.8)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: `${SPACE.lg}px`,
+                        // Full-bleed on a phone, inset on a desktop — the same
+                        // arrangement the collection board uses. The inset was
+                        // costing the phone 48px of a 390px row, which the board's
+                        // own padding then doubled.
+                        padding: isMobile ? 0 : `${SPACE.lg}px`,
                         zIndex: 1100,
                         animation: 'fadeIn 0.25s ease-out',
                     }}
                 >
                     <LeaderboardSidebar
-                        asModal
                         onClose={() => setShowLeaderboard(false)}
                     />
                 </div>
@@ -1257,9 +1267,6 @@ function WheelOfFortunePage({ onBack }) {
             {/* Insane Item Celebration */}
             <MythicCelebration currentUserId={user?.id} />
 
-            {/* Recursion Overlay */}
-            <RecursionOverlay currentUserId={user?.id} />
-
             {/* Live events — row 3, the gap between the ticker and the reel.
                 
                 The banners are unchanged: same countdowns, progress bars, counters
@@ -1296,6 +1303,16 @@ function WheelOfFortunePage({ onBack }) {
                 flexDirection: 'column',
                 gap: `${SPACE.sm}px`,
             }}>
+                {/* Recursion joined this row on 2026-08-20. It was mounted
+                    above, outside the layout, still `position: fixed; top: 0` —
+                    the one live-event banner that never made the move the note
+                    above describes, because it was in a different part of the
+                    tree and the sweep did not reach it. So it covered the topbar
+                    for the whole event and stacked on top of whichever global
+                    event was already running, which is precisely the pair of
+                    failures that move was made to fix. Same slot, same rules,
+                    same flush-on-the-reel alignment as the other four. */}
+                <RecursionOverlay inline />
                 <GoldRushBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
                 <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />

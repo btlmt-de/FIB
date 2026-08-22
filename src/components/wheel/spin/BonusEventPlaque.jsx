@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, Layers, Zap } from 'lucide-react';
+import { Crown, Layers, Repeat, Zap } from 'lucide-react';
 import { COLORS, SURFACE_NOISE, BONUS_IDENTITY, BONUS_IDENTITY_FALLBACK } from '../config/constants';
 
 /**
@@ -12,7 +12,9 @@ import { COLORS, SURFACE_NOISE, BONUS_IDENTITY, BONUS_IDENTITY_FALLBACK } from '
  * the destination sign carried from the board, not a receipt.
  *
  * Each event owns one icon, the same one the board draws: Zap for the lucky
- * family, Layers for the 5x's parallel lines, Crown for triple lucky.
+ * family, Layers for the 5x's parallel lines, Crown for triple lucky, Repeat
+ * for recursion — which the board never draws, because recursion is triggered
+ * by a pull rather than selected, but which answers on this same signboard.
  */
 /**
  * Only the glyph lives here. The colours come from BONUS_IDENTITY in
@@ -25,6 +27,8 @@ const EVENT_ICON = {
     lucky_spin: Zap,
     triple_spin: Layers,
     triple_lucky_spin: Crown,
+    // Recursion's own glyph: the wheel inside the wheel, which is a loop.
+    recursion: Repeat,
 };
 
 export function BonusEventPlaque({ event, isMobile = false }) {

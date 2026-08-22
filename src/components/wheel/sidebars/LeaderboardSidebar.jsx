@@ -1,36 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
-import { COLORS } from '../config/constants';
+import { COLORS, DECK, rail } from '../config/constants';
+import { FlapText, BoardLabel, Plinth, Segmented } from '../features/collection/FlapBoard.jsx';
+import { prestigeInk, prestigeIcon, prestigeLabel, isIridescentPrestige, prestigeStanding } from '../../../utils/prestigeHelpers.js';
+import { PrestigeRing } from '../spin/StageFlanks.jsx';
+import { useWheelViewport } from '../config/breakpoints.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
-import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk, isIridescentRarity } from '../../../utils/rarityHelpers.jsx';
+import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
-    Trophy, RefreshCw, ExternalLink, Crown, Medal, Award,
-    Sparkles, Star, Diamond, BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X, Users
+    Trophy, RefreshCw, Crown, Medal, Award,
+    BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X
 } from 'lucide-react';
 import { visibleInterval, pollMs } from '../../../config/power.js';
-
-/**
- * The modal table's geometry, in one place.
- *
- * The header and the rows are separate elements that must line up exactly, and
- * they did not: the rows carry `margin: 0 8px` from `.sidebar-leaderboard-row`
- * while the header had none, so the header sat 8px to the left AND — because the
- * rows were consequently 16px narrower — its `1fr` name column resolved 28px
- * wider, throwing every column after it out too.
- *
- * Two elements, one set of numbers. Anything that changes the table's columns,
- * padding or inset changes it here and both follow.
- */
-const MODAL_TABLE = {
-    gridTemplateColumns: '46px 34px minmax(0, 1fr) 96px 96px 96px 232px',
-    columnGap: '14px',
-    // Matches .sidebar-leaderboard-row's own margin. Without it the two elements
-    // have different content widths and the flexible column cannot agree.
-    marginInline: '8px',
-    paddingInline: '20px',
-};
 
 /** Global-totals field names. Pluralised, and distinct from the per-player
  *  `*_count` fields — these come from getGlobalStats, a separate query. */
@@ -51,6 +34,17 @@ const KOTW_GOLD = '#F59E0B';      // Gold for 1st place
 const KOTW_SILVER = '#94A3B8';    // Silver for 2nd
 const KOTW_BRONZE = '#D97706';    // Bronze for 3rd
 
+/*
+ * One number format, forced to en-US.
+ *
+ * `toLocaleString()` with no locale follows the browser, so this board printed
+ * "331.955" on a German machine while the collection board — which passes
+ * 'en-US' explicitly — printed "331,955" two panels away. PRODUCT.md commits the
+ * site to English with no localisation planned, so the separator is a constant,
+ * not a preference.
+ */
+const fmtNum = n => (typeof n === 'number' && isFinite(n) ? n : Number(n) || 0).toLocaleString('en-US');
+
 // Helper to get Discord avatar URL
 function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
     if (avatarHash) {
@@ -69,7 +63,7 @@ function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
 }
 
 /**
- * `asModal` turns this panel into the full leaderboard.
+ * The full leaderboard, as a board.
  *
  * There used to be two leaderboards: this one and features/Leaderboard.jsx, which
  * the nav button opened. They had drifted apart in both directions — this panel
@@ -78,12 +72,12 @@ function getDiscordAvatarUrl(discordId, avatarHash, size = 64) {
  * totals strip which this never had. Neither was a superset, so "open the full
  * leaderboard" showed you *fewer* features than the panel beside it.
  *
- * They are one component now. `asModal` widens it, drops the row cap, shows the
+ * It was once two: a 380px rail and a modal, sharing one component through an
  * global totals and swaps the expand button for a close button. Everything else —
  * the KOTW mode, the rank badges, the tabs, the profile drill-in — is shared,
  * which is the point: there is no longer a version of this that lags behind.
  */
-export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
+export function LeaderboardSidebar({ onClose }) {
     const [leaderboard, setLeaderboard] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(null);
@@ -93,6 +87,7 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
     const intervalRef = useRef(null);
     const kotwExpiryTimeoutRef = useRef(null); // Track expiry-based hide timeout
     const { user } = useAuth();
+    const { isPhone } = useWheelViewport();
     const { globalEventStatus, kotwLeaderboard, kotwUserStats, kotwSpinPending } = useActivity();
 
     // Auto-enable KOTW mode when event is active, auto-disable when it ends
@@ -169,12 +164,11 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
     // that already preloads an entire item atlas.
     const [globalStats, setGlobalStats] = useState(null);
     useEffect(() => {
-        if (!asModal) return;
         fetch(`${API_BASE_URL}/api/stats/global`)
             .then(res => res.json())
             .then(data => setGlobalStats(data))
             .catch(err => console.error('Failed to fetch global stats:', err));
-    }, [asModal]);
+    }, []);
 
     const loadLeaderboard = useCallback(async () => {
         try {
@@ -222,78 +216,6 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
             default: value = entry.unique_items;
         }
         return value ?? 0; // Coerce null/undefined to 0
-    };
-
-    const RankBadge = ({ rank }) => {
-        if (rank === 1) {
-            return (
-                <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #FFE55C, #FFA500)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1.5px solid #FFD700',
-                    boxShadow: '0 0 15px #FFAA0050, inset 0 1px 2px rgba(255,255,255,0.4)'
-                }}>
-                    <Crown size={14} color="#1a1a1a" />
-                </div>
-            );
-        }
-        if (rank === 2) {
-            return (
-                <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #E8E8E8, #B8B8B8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1.5px solid #D0D0D0',
-                    boxShadow: '0 0 15px #C0C0C050, inset 0 1px 2px rgba(255,255,255,0.5)'
-                }}>
-                    <Medal size={14} color="#1a1a1a" />
-                </div>
-            );
-        }
-        if (rank === 3) {
-            return (
-                <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #E8956F, #CD7F32)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1.5px solid #D2691E',
-                    boxShadow: '0 0 15px #CD7F3250, inset 0 1px 2px rgba(255,255,255,0.3)'
-                }}>
-                    <Award size={14} color="#fff" />
-                </div>
-            );
-        }
-        return (
-            <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '8px',
-                background: `linear-gradient(135deg, ${COLORS.bgLighter}, ${COLORS.bg})`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '11px',
-                fontWeight: '700',
-                color: COLORS.textMuted,
-                border: `1px solid ${COLORS.border}`,
-                boxShadow: `0 0 8px ${COLORS.border}40`
-            }}>
-                {rank}
-            </div>
-        );
     };
 
     // Format time for KOTW timer
@@ -663,738 +585,502 @@ export function LeaderboardSidebar({ onOpenFull, asModal = false, onClose }) {
         );
     };
 
+    /*
+     * ── THE BOARD ───────────────────────────────────────────────────────────
+     *
+     * A leaderboard is a departure board with the sort turned round: a concourse
+     * ranks by time, this ranks by whichever measure the lens is on. So it is the
+     * collection board's register, verbatim — the deck's material, ruled rows, no
+     * boxes and no radius, values on split-flap drums — and almost nothing here
+     * had to be invented for it.
+     *
+     * ── WHAT THE OLD TABLE GOT WRONG, AND IT WAS NOT ONLY THE LOOK ──────────
+     *
+     * It showed ITEMS, SPINS and DUPES as three permanent columns *above a row of
+     * filters that select between exactly those measures*. Sorting by Spins gave
+     * you a Spins column twice — once as the highlighted metric, once as its own
+     * column — and players said so. A filter and a column are two answers to the
+     * same question, and the filter is the one that was asked.
+     *
+     * So there is one measure column and the lens names it. What replaces the
+     * width the other two were filling is a share-of-leader meter, which is the
+     * thing a ranking actually wants and a number in a column cannot give: how
+     * far ahead first place is.
+     */
+    const metricTone = {
+        collection: DECK.amber,
+        spins: DECK.ink,
+        duplicates: COLORS.accent,
+        events: COLORS.orange,
+    }[activeTab] || DECK.amber;
+
+    /*
+     * "In prestige" answers whichever metric the lens is on.
+     *
+     * Items and duplicates come from the run's own rows. Spins and events are the
+     * player's career total minus the baseline recorded when the run opened, and
+     * that baseline is why those two work at all — spins cannot be counted from
+     * spin_history (event and recursion spins never write a row), and events have
+     * no timestamped record anywhere, so without it they would have to be guessed.
+     *
+     * Duplicates used to be a baseline subtraction too and it was wrong, not
+     * imprecise: prestige requires a COMPLETE collection, so every pull during a
+     * run is a duplicate for the main collection and the subtraction just returned
+     * the run's spin count (1002 dupes in 1012 spins, as reported). The server now
+     * counts duplicates against the PRESTIGE collection — a second copy this run —
+     * and hands them over ready-made.
+     *
+     * Returns null for "nothing to say": not prestiging, or a run that started
+     * before the baselines were recorded. Null prints as a dot, never as a zero —
+     * a zero here would be a measurement, and there isn't one. Items and duplicates
+     * are always measurable, so they are the two that never go null.
+     */
+    const prestigeValueFor = (entry) => {
+        if (!(entry.prestige_active_level > 0)) return null;
+
+        const since = (total, base) =>
+            (base === null || base === undefined) ? null : Math.max(0, (total || 0) - base);
+
+        switch (activeTab) {
+            case 'collection': return entry.prestige_items ?? null;
+            case 'spins': return since(entry.total_spins, entry.prestige_spins_at_start);
+            case 'duplicates': return entry.prestige_duplicates ?? null;
+            case 'events': return since(entry.event_triggers, entry.prestige_events_at_start);
+            default: return entry.prestige_items ?? null;
+        }
+    };
+
+    const rows = leaderboard.slice(0, 100);
+
+    /*
+     * RANK | avatar | PLAYER | measure | share | prestige | collection
+     *
+     * The phone carries the first four and stops. It began with the collection
+     * marks too and the name column resolved to **zero pixels**: five tier marks
+     * are 130px of fixed width, and on a 390px screen — inset by the modal's own
+     * padding twice over — the fixed columns wanted more than the row had, so the
+     * one flexible column absorbed the whole shortfall and every player on the
+     * board went nameless.
+     *
+     * Dropping the marks rather than shrinking them is the honest trade: a
+     * ranking whose rows have no names is not a smaller ranking, it is a broken
+     * one, and per-tier counts at 10px were the least legible thing on the phone
+     * anyway. They are still on the desktop board and in every player's profile.
+     */
+    /*
+     * The collection column is a LENGTH, not `auto`, and it is derived from the
+     * marks that fill it.
+     *
+     * With `auto` the header and the rows share one template and size that column
+     * to two different contents — the word "Collection" up top, five tier marks
+     * below — so the flexible name column absorbed the difference and every column
+     * after it drifted, measured at 70px and 112px. One template only lines up
+     * when every track resolves the same on both.
+     */
+    const markTiers = RARITY_KEYS.filter(k => GLOBAL_TOTAL_FIELD[k]);
+    const MARK_W = 34;
+    const marksWidth = markTiers.length * MARK_W;
+
+    const boardColumns = isPhone
+        ? '30px 24px minmax(0, 1fr) 76px'
+        : `46px 30px minmax(0, 1fr) 96px 118px 62px ${marksWidth}px`;
+
     return (
         <>
-            <div style={{
-                // 380px wide, matching the other sidebar exactly, and full height rather
-                // than a fixed 520px.
-                //
-                // The widths were 340 and 420. Same total, but unequal fixed children in a
-                // centred row put everything between them (420-340)/2 = 40px left of the
-                // viewport's own axis — on a page where the title, the reel's centre
-                // indicator and the nav are all centred, that is wrongness you feel without
-                // being able to name. Equal widths make the arithmetic disappear.
-                //
-                // The height comes from the HUD's `1fr` row now: the panel fills whatever is
-                // left below the reel and scrolls internally, so it is always fully visible
-                // instead of being a fixed block that the page had to find room for.
-                width: asModal ? 'min(1000px, 94vw)' : '380px',
-                height: asModal ? 'min(86vh, 800px)' : '100%',
-                background: `linear-gradient(180deg, ${COLORS.bgLight}f8 0%, ${COLORS.bg}fc 100%)`,
-                borderRadius: asModal ? '20px' : '16px',
-                border: `1px solid ${COLORS.border}`,
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 60px ${COLORS.accent}08, inset 0 1px 0 rgba(255,255,255,0.05)`,
-                position: 'relative',
-                overflow: 'hidden'
-            }}>
-                {/* Corner accents */}
-                <div style={{ position: 'absolute', top: '8px', left: '8px', width: '16px', height: '16px', borderTop: `2px solid ${COLORS.accent}40`, borderLeft: `2px solid ${COLORS.accent}40`, borderRadius: '4px 0 0 0', zIndex: 5 }} />
-                <div style={{ position: 'absolute', top: '8px', right: '8px', width: '16px', height: '16px', borderTop: `2px solid ${COLORS.accent}40`, borderRight: `2px solid ${COLORS.accent}40`, borderRadius: '0 4px 0 0', zIndex: 5 }} />
-
-                {/* KOTW Overlay */}
+            <div
+                className="fib-board-scroll"
+                style={{
+                    position: 'relative',
+                    width: '100%',
+                    maxWidth: '1180px',
+                    height: isPhone ? '100%' : 'min(88vh, 860px)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    backgroundImage: DECK.face,
+                    // The board's three edges: a lit rail along the top, a front
+                    // lip at the bottom, and the shadow that seats it on the scrim.
+                    boxShadow: [
+                        `inset 0 1px 0 ${rail(0.12)}`,
+                        'inset 0 -2px 0 rgba(0,0,0,0.55)',
+                        `inset 0 -3px 0 ${rail(0.09)}`,
+                        '0 32px 80px rgba(0,0,0,0.65)',
+                    ].join(', '),
+                    overflow: 'hidden',
+                }}
+            >
+                {/* KOTW keeps its own world. It is a spin mode with its own
+                    identity, documented separately, and it overlays this board
+                    rather than restyling it. */}
                 {showKotwMode && isKotwActive && renderKotwLeaderboard()}
 
-                {/* Header */}
+                {/* ── THE HEAD ────────────────────────────────────────────── */}
                 <div style={{
-                    padding: '16px 18px 14px 18px',
-                    borderBottom: `1px solid ${COLORS.border}`,
-                    background: `linear-gradient(180deg, ${COLORS.bgLighter}60 0%, transparent 100%)`,
                     position: 'relative',
-                    overflow: 'hidden',
+                    flex: '0 0 auto',
+                    padding: isPhone ? '16px 16px 0' : '24px 26px 0',
+                    backgroundImage: `linear-gradient(180deg, ${DECK.sky} 0%, transparent 78%)`,
                 }}>
-                    {/* Subtle shimmer effect */}
-                    <div style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: '-100%',
-                        width: '50%',
-                        height: '100%',
-                        backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent)',
-                        animation: 'none',
-                        pointerEvents: 'none',
-                    }} />
-
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '14px',
-                        position: 'relative',
-                        zIndex: 1,
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '10px',
-                                background: `linear-gradient(135deg, ${COLORS.accent}25, ${COLORS.purple}15)`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: `1px solid ${COLORS.accent}30`,
-                                boxShadow: `0 0 20px ${COLORS.accent}15`,
-                            }}>
-                                <Trophy size={18} color={COLORS.gold} />
-                            </div>
-                            <div>
-                                <h3 style={{
-                                    margin: 0,
-                                    color: COLORS.text,
-                                    fontSize: '15px',
-                                    fontWeight: '700',
-                                    letterSpacing: '-0.3px'
-                                }}>
-                                    Leaderboard
-                                </h3>
-                                <div style={{
-                                    fontSize: '11px',
-                                    color: COLORS.textMuted,
-                                    marginTop: '2px'
-                                }}>
-                                    {/* The 12 is the panel's row cap, so it cannot
-                                        be hardcoded now that the modal shows the
-                                        whole board. */}
-                                    {asModal
-                                        ? `${leaderboard.length} player${leaderboard.length === 1 ? '' : 's'}`
-                                        : 'Top 12 players'}
-                                </div>
-                            </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', minWidth: 0 }}>
+                            <FlapText
+                                text="Leaderboard"
+                                size={isPhone ? 26 : 36}
+                                tone={DECK.ink}
+                                weight={800}
+                                plate
+                            />
+                            <BoardLabel tone={DECK.inkDim}>
+                                {leaderboard.length} {leaderboard.length === 1 ? 'player' : 'players'}
+                            </BoardLabel>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {/* KOTW Toggle Button */}
-                            {isKotwActive && !showKotwMode && (
-                                <button
-                                    onClick={() => setShowKotwMode(true)}
-                                    style={{
-                                        background: `linear-gradient(135deg, ${KOTW_PRIMARY}40, ${KOTW_BG_DARK})`,
-                                        border: `1px solid ${KOTW_PRIMARY}80`,
-                                        color: KOTW_PRIMARY,
-                                        cursor: 'pointer',
-                                        padding: '7px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        borderRadius: '8px',
-                                        animation: 'pulse 2s ease-in-out infinite',
-                                    }}
-                                    title="View KOTW Competition"
-                                >
-                                    <Crown size={14} />
-                                </button>
-                            )}
-                            <button
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '0 0 auto' }}>
+                            <Plinth
+                                as="button"
+                                className="fib-board-hit"
                                 onClick={loadLeaderboard}
+                                aria-label="Refresh the leaderboard"
                                 style={{
-                                    background: `${COLORS.bgLighter}60`,
-                                    border: `1px solid ${COLORS.border}`,
-                                    color: COLORS.textMuted,
-                                    cursor: 'pointer',
-                                    padding: '7px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    borderRadius: '8px',
-                                    transition: 'all 0.2s'
+                                    width: '36px', height: '36px',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: DECK.inkMid,
                                 }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = COLORS.bgLighter;
-                                    e.currentTarget.style.color = COLORS.text;
-                                    e.currentTarget.style.borderColor = COLORS.accent + '50';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = `${COLORS.bgLighter}60`;
-                                    e.currentTarget.style.color = COLORS.textMuted;
-                                    e.currentTarget.style.borderColor = COLORS.border;
-                                }}
-                                title="Refresh"
-                            >
-                                <RefreshCw size={14} />
-                            </button>
-                            {(asModal ? onClose : onOpenFull) && (
-                                <button
-                                    onClick={asModal ? onClose : onOpenFull}
+                            ><RefreshCw size={14} /></Plinth>
+                            {onClose && (
+                                <Plinth
+                                    as="button"
+                                    className="fib-board-hit"
+                                    onClick={onClose}
+                                    aria-label="Close the leaderboard"
                                     style={{
-                                        background: `${COLORS.bgLighter}60`,
-                                        border: `1px solid ${COLORS.border}`,
-                                        color: COLORS.textMuted,
-                                        cursor: 'pointer',
-                                        padding: '7px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        borderRadius: '8px',
-                                        transition: 'all 0.2s'
+                                        width: '36px', height: '36px',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: DECK.inkMid,
                                     }}
-                                    onMouseEnter={e => {
-                                        e.currentTarget.style.background = COLORS.bgLighter;
-                                        e.currentTarget.style.color = COLORS.text;
-                                        e.currentTarget.style.borderColor = COLORS.accent + '50';
-                                    }}
-                                    onMouseLeave={e => {
-                                        e.currentTarget.style.background = `${COLORS.bgLighter}60`;
-                                        e.currentTarget.style.color = COLORS.textMuted;
-                                        e.currentTarget.style.borderColor = COLORS.border;
-                                    }}
-                                    title={asModal ? 'Close' : 'Open full view'}
-                                >
-                                    {asModal ? <X size={16} /> : <ExternalLink size={14} />}
-                                </button>
+                                ><X size={16} /></Plinth>
                             )}
                         </div>
                     </div>
 
-                    {/* Global totals — modal only.
-                     *
-                     * Carried over from features/Leaderboard.jsx so that folding the
-                     * two leaderboards together lost nothing in either direction.
-                     * The panel form has no room for it; the modal does.
-                     *
-                     * `auto-fit` rather than a fixed column count: the previous
-                     * version was `repeat(6, 1fr)`, matching two fixed cells plus
-                     * four tiers exactly, so adding exotic pushed rare onto a
-                     * second row by itself. The count follows the ladder's length
-                     * now instead of being a number to remember.
-                     *
-                     * The field names are pluralised and differ from the per-player
-                     * ones (total_insanes vs insane_count) — they come from
-                     * getGlobalStats, a separate query. Labels are the tier's own,
-                     * so Insane stays "Insane" rather than "Insanes". */}
-                    {asModal && globalStats && (
+                    {/* The server's own totals, as the board's second register.
+                        Not a vanity banner: a player's 1,559 means nothing until
+                        you know the field pulled 331,955 spins to get there. */}
+                    {globalStats && (
                         <div style={{
-                            marginTop: '14px',
-                            padding: '12px 14px',
-                            borderRadius: '12px',
-                            background: `${COLORS.bg}99`,
-                            border: `1px solid ${COLORS.border}60`,
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(88px, 1fr))',
-                            gap: '10px',
+                            display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+                            flexWrap: 'wrap', gap: '16px',
+                            margin: isPhone ? '14px 0 10px' : '20px 0 10px',
                         }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{
-                                    color: COLORS.text, fontSize: '15px', fontWeight: '700',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
-                                }}>
-                                    <Users size={12} color={COLORS.textMuted} />
-                                    {globalStats.total_players?.toLocaleString() || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Players</div>
-                            </div>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ color: COLORS.gold, fontSize: '15px', fontWeight: '700' }}>
-                                    {globalStats.total_spins?.toLocaleString() || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>Total Spins</div>
-                            </div>
-                            {RARITY_KEYS
-                                .filter(key => key !== 'common' && key !== 'event')
-                                .map(key => (
-                                    <div key={key} style={{ textAlign: 'center' }}>
-                                        <div style={{
-                                            color: getRarityInk(key), fontSize: '15px', fontWeight: '700',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
-                                        }}>
-                                            {getRarityIcon(key, 12, false)}
-                                            {(globalStats[GLOBAL_TOTAL_FIELD[key]] || 0).toLocaleString()}
-                                        </div>
-                                        <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '2px' }}>
-                                            {RARITY[key].label}
-                                        </div>
+                            <div style={{ display: 'flex' }}>
+                                {[
+                                    { label: 'Players', value: fmtNum(globalStats.total_players ?? leaderboard.length) },
+                                    { label: 'Spins', value: fmtNum(globalStats.total_spins) },
+                                ].map((f, i) => (
+                                    <div
+                                        key={f.label}
+                                        style={{
+                                            padding: i === 0 ? '0 22px 0 0' : '0 22px',
+                                            boxShadow: i > 0 ? `inset 1px 0 0 ${rail(0.07)}` : undefined,
+                                        }}
+                                    >
+                                        <FlapText text={f.value} size={isPhone ? 22 : 27} tone={DECK.ink} plate delay={60 + i * 40} />
+                                        <div style={{ marginTop: '7px' }}><BoardLabel>{f.label}</BoardLabel></div>
                                     </div>
                                 ))}
+                            </div>
+
+                            {/* Every special ever pulled on the server, by tier.
+                                Tier ink, no chips — the ladder's colours are the
+                                only labelling this needs. */}
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 18px' }}>
+                                {markTiers.map(key => (
+                                    <span key={key} style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                                        <BoardLabel size={13} tone={getRarityInk(key)} style={{ letterSpacing: '0.03em' }}>
+                                            {fmtNum(globalStats[GLOBAL_TOTAL_FIELD[key]])}
+                                        </BoardLabel>
+                                        <BoardLabel>{RARITY[key].label}</BoardLabel>
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     )}
-                    {/* Tab buttons - Enhanced pill design */}
+
+                    {/* The board's baseline. A rule and not a meter: a ranking has
+                        no completion to fill one with, and a bar that measures
+                        nothing is the worst thing on a board of real numbers. */}
+                    <div style={{ height: '2px', background: 'rgba(0,0,0,0.45)', boxShadow: `inset 0 1px 0 ${rail(0.10)}` }} />
+                </div>
+
+                {/* ── THE LENS ────────────────────────────────────────────── */}
+                <div style={{
+                    flex: '0 0 auto',
+                    display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+                    padding: isPhone ? '12px 16px' : '14px 26px 12px',
+                }}>
+                    <BoardLabel>Rank by</BoardLabel>
+                    <Segmented
+                        value={activeTab}
+                        onChange={setActiveTab}
+                        options={Object.entries(sortOptions).map(([id, o]) => [id, o.label])}
+                        label="Rank the board by"
+                        tone={metricTone}
+                    />
+                    <div style={{ flex: '1 1 auto' }} />
+                    {lastUpdated && (
+                        <BoardLabel tone={DECK.inkDim}>
+                            Updated {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </BoardLabel>
+                    )}
+                </div>
+
+                {/* ── THE REGISTER ──────────────────────────────────────────
+                    The column headings live INSIDE the scroller, and that is not a
+                    tidiness preference. Outside it, the scrollbar narrows the rows
+                    by its own width and not the header, so the flexible name
+                    column resolves wider up there and every column after it is
+                    thrown out — measured here at 12px of drift before it was moved.
+                    Sharing the scroll box means sharing whatever the scrollbar
+                    takes, on whatever platform, present or not.
+
+                    Sticky, because a header on a hundred-row table that scrolls
+                    away is a header that stops working exactly when it is needed.
+                    It bleeds to the scroller's edges with a negative margin while
+                    keeping the rows' padding, so its ground spans the full width
+                    and its grid still lines up with theirs. */}
+                <div
+                    className="fib-board-scroll"
+                    style={{
+                        flex: '1 1 auto', minHeight: 0, overflowY: 'auto',
+                        padding: isPhone ? '0 16px 12px' : '0 26px 16px',
+                        background: 'rgba(0,0,0,0.30)',
+                        boxShadow: `inset 0 1px 0 ${rail(0.08)}`,
+                    }}
+                >
                     <div style={{
-                        display: 'flex',
-                        gap: '6px',
-                        background: `${COLORS.bg}cc`,
-                        borderRadius: '10px',
-                        padding: '5px',
-                        border: `1px solid ${COLORS.border}50`,
+                        position: 'sticky', top: 0, zIndex: 2,
+                        display: 'grid', gridTemplateColumns: boardColumns,
+                        alignItems: 'center', gap: '0 12px',
+                        marginInline: isPhone ? '-16px' : '-26px',
+                        paddingInline: isPhone ? '16px' : '26px',
+                        paddingBlock: '10px 8px',
+                        backgroundImage: DECK.face,
+                        boxShadow: `inset 0 -1px 0 ${rail(0.08)}`,
                     }}>
-                        {Object.entries(sortOptions).map(([key, { label, icon, color }]) => (
+                        <BoardLabel>#</BoardLabel>
+                        <span />
+                        <BoardLabel>Player</BoardLabel>
+                        {/* One measure column, named by the lens. */}
+                        <BoardLabel tone={metricTone} style={{ textAlign: 'right' }}>
+                            {sortOptions[activeTab].label}
+                        </BoardLabel>
+                        {/* Named for the metric, so the column never reads as
+                            "items" while the board is ranked by spins. */}
+                        {!isPhone && (
+                            <BoardLabel tone={metricTone} style={{ textAlign: 'right' }}>
+                                {`${sortOptions[activeTab].label} in prestige`}
+                            </BoardLabel>
+                        )}
+                        {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Prestige</BoardLabel>}
+                        {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Collection</BoardLabel>}
+                    </div>
+                    {loading && rows.length === 0 ? (
+                        <div style={{ padding: '28px 0', textAlign: 'center' }}>
+                            <BoardLabel tone={DECK.inkDim}>Reading the board…</BoardLabel>
+                        </div>
+                    ) : rows.length === 0 ? (
+                        <div style={{ padding: '28px 0', textAlign: 'center' }}>
+                            <BoardLabel tone={DECK.inkDim}>No players on the board yet</BoardLabel>
+                        </div>
+                    ) : rows.map((entry, idx) => {
+                        const rank = idx + 1;
+                        const isMe = user && user.id === entry.id;
+                        const value = getValueForTab(entry);
+                        const standing = prestigeStanding(entry);
+                        const level = standing.level;
+                        // One value for the label and the drums. They had the
+                        // fallback in different places, so a null username was
+                        // announced as "null, rank 4" while the row read "Unknown".
+                        const name = entry.custom_username || 'Unknown';
+                        const prestigeValue = prestigeValueFor(entry);
+                        // The medal metals, which DESIGN.md SS8 sanctions for
+                        // placings and nothing else. Beyond third the numeral is
+                        // ordinary ink: a board where every rank is decorated has
+                        // no podium.
+                        const rankTone = rank === 1 ? KOTW_GOLD
+                            : rank === 2 ? KOTW_SILVER
+                            : rank === 3 ? KOTW_BRONZE
+                            : DECK.inkDim;
+
+                        return (
                             <button
-                                key={key}
-                                onClick={() => setActiveTab(key)}
+                                key={entry.id}
+                                className={`fib-board-hit fib-register-row${isMe ? ' is-active' : ''}`}
+                                onClick={() => setSelectedUser(entry.id)}
+                                aria-label={`${name}, rank ${rank}, ${fmtNum(value)} ${sortOptions[activeTab].label.toLowerCase()}${level > 0 ? `, ${prestigeLabel(level)}` : ''}`}
                                 style={{
-                                    flex: 1,
-                                    padding: '7px 8px',
-                                    background: activeTab === key
-                                        ? `linear-gradient(135deg, ${COLORS.accent}, ${COLORS.accent}cc)`
-                                        : 'transparent',
-                                    border: activeTab === key
-                                        ? `1px solid ${COLORS.accent}80`
-                                        : '1px solid transparent',
-                                    borderRadius: '6px',
-                                    color: activeTab === key ? '#fff' : COLORS.textMuted,
-                                    cursor: 'pointer',
-                                    fontSize: '11px',
-                                    fontWeight: '600',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '5px',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: activeTab === key
-                                        ? `0 2px 10px ${COLORS.accent}40, inset 0 1px 0 rgba(255,255,255,0.2)`
-                                        : 'none'
-                                }}
-                                onMouseEnter={e => {
-                                    if (activeTab !== key) {
-                                        e.currentTarget.style.background = `${COLORS.bgLighter}`;
-                                        e.currentTarget.style.color = COLORS.text;
-                                    }
-                                }}
-                                onMouseLeave={e => {
-                                    if (activeTab !== key) {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = COLORS.textMuted;
-                                    }
+                                    display: 'grid', gridTemplateColumns: boardColumns,
+                                    alignItems: 'center', gap: '0 12px',
+                                    width: '100%', padding: isPhone ? '9px 0' : '11px 0',
+                                    border: 'none', textAlign: 'left', font: 'inherit',
+                                    // Your own row wears the board's selected state:
+                                    // station amber, the one colour that means "the
+                                    // board is telling you something".
+                                    '--fib-row-wash': `${DECK.amber}12`,
+                                    '--fib-row-tone': DECK.amber,
                                 }}
                             >
-                                {icon}
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                                <FlapText
+                                    text={String(rank)}
+                                    digits
+                                    size={isPhone ? 14 : 16}
+                                    tone={rankTone}
+                                    weight={rank <= 3 ? 800 : 700}
+                                    delay={40 + Math.min(idx, 12) * 22}
+                                />
 
-                <style>{`
-                @keyframes slideIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-4px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                @keyframes shimmerSweep {
-                    0% { transform: translateX(-100%); }
-                    100% { transform: translateX(300%); }
-                }
-                @keyframes pulse {
-                    0%, 100% { background-position: 200% 0; }
-                    50% { background-position: 0% 0; }
-                }
-                .sidebar-leaderboard-row {
-                    transition: all 0.2s ease;
-                    animation: slideIn 0.4s ease-out;
-                    border-radius: 10px;
-                    margin: 0 8px 4px 8px;
-                }
-                .sidebar-leaderboard-row:hover {
-                    background: ${COLORS.bgLighter}aa !important;
-                    transform: translateX(3px);
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 0 20px ${COLORS.accent}08;
-                }
-                .leaderboard-scroll::-webkit-scrollbar {
-                    width: 6px;
-                }
-                .leaderboard-scroll::-webkit-scrollbar-track {
-                    background: transparent;
-                    border-radius: 3px;
-                }
-                .leaderboard-scroll::-webkit-scrollbar-thumb {
-                    background: ${COLORS.border};
-                    border-radius: 3px;
-                }
-                .leaderboard-scroll::-webkit-scrollbar-thumb:hover {
-                    background: ${COLORS.textMuted};
-                }
-            `}</style>
-
-                {/* Leaderboard content */}
-                <div className="leaderboard-scroll" style={{
-                    flex: 1,
-                    overflow: 'auto',
-                    padding: '8px 0'
-                }}>
-                    {/* Column headings.
-
-                        Inside the scroller, not above it. Outside, the scrollbar
-                        narrowed the rows by its own width and not the header, so
-                        the flexible name column resolved ~10px wider up there and
-                        every column after it was thrown out — after the margin and
-                        padding had already been matched. Sharing the scroll box
-                        means sharing whatever the scrollbar takes, whether or not
-                        one is present and whatever width the platform gives it.
-
-                        Sticky so it survives scrolling, which is what a header on a
-                        100-row table is for.
-
-                        Three numeric columns without labels is a table asking you
-                        to guess. The rail cannot afford these — one number per row,
-                        and the header would cost more than it explains — but the
-                        modal can. */}
-                    {asModal && (
-                        <div style={{
-                            position: 'sticky',
-                            top: 0,
-                            zIndex: 1,
-                            display: 'grid',
-                            gridTemplateColumns: MODAL_TABLE.gridTemplateColumns,
-                            columnGap: MODAL_TABLE.columnGap,
-                            alignItems: 'center',
-                            marginInline: MODAL_TABLE.marginInline,
-                            paddingInline: MODAL_TABLE.paddingInline,
-                            paddingBlock: '10px',
-                            // Matches the rows', which carry one for their selected
-                            // state. A pixel each side is enough to shift a column.
-                            border: '1px solid transparent',
-                            borderBottom: `1px solid ${COLORS.border}`,
-                            background: COLORS.bg,
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            letterSpacing: '0.09em',
-                            textTransform: 'uppercase',
-                            color: COLORS.textMuted,
-                        }}>
-                            <span>#</span>
-                            <span />
-                            <span>Player</span>
-                            <span style={{ textAlign: 'right', color: sortOptions[activeTab].color }}>
-                                {sortOptions[activeTab].label}
-                            </span>
-                            <span style={{ textAlign: 'right' }}>Spins</span>
-                            <span style={{ textAlign: 'right' }}>Dupes</span>
-                            <span style={{ textAlign: 'right' }}>Collection</span>
-                        </div>
-                    )}
-
-                    {loading ? (
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            padding: '8px'
-                        }}>
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} style={{
-                                    height: '48px',
-                                    background: `linear-gradient(90deg, ${COLORS.bgLighter}40 0%, ${COLORS.bgLighter}60 50%, ${COLORS.bgLighter}40 100%)`,
-                                    backgroundSize: '200% 100%',
-                                    borderRadius: '10px',
-                                    margin: '0 8px',
-                                    animation: 'none'
-                                }} />
-                            ))}
-                        </div>
-                    ) : leaderboard.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-                            <Trophy size={32} style={{ marginBottom: '12px', opacity: 0.3 }} />
-                            <div style={{ fontSize: '13px' }}>No data yet</div>
-                        </div>
-                    ) : (
-                        // The cap is a panel constraint, not a data one: twelve
-                        // rows is what fits beside the reel. In modal mode there is
-                        // room for the whole board.
-                        leaderboard.slice(0, asModal ? 100 : 12).map((entry, idx) => {
-                            const rank = idx + 1;
-                            const isCurrentUser = user?.id === entry.id;
-                            const isTopThree = rank <= 3;
-
-                            return (
-                                <div
-                                    key={entry.id}
-                                    className="sidebar-leaderboard-row"
-                                    onClick={() => setSelectedUser(entry.id)}
-                                    style={{
-                                        // A grid in modal mode, a flex row in the rail.
-                                        //
-                                        // Flex sizes every cell to its content, which is
-                                        // right at 380px and wrong at 1000px: the tier
-                                        // chips vary in number per player, so with the
-                                        // right-hand group content-sized the score landed
-                                        // at a different x on every row and the column did
-                                        // not read as a column. Fixed tracks put each value
-                                        // in the same place down the table, and give the
-                                        // middle of the row something to do besides be
-                                        // empty.
-                                        ...(asModal ? {
-                                            display: 'grid',
-                                            gridTemplateColumns: MODAL_TABLE.gridTemplateColumns,
-                                            alignItems: 'center',
-                                            columnGap: MODAL_TABLE.columnGap,
-                                            paddingInline: MODAL_TABLE.paddingInline,
-                                            paddingBlock: '11px',
-                                        } : {
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '10px',
-                                            padding: '10px 12px',
-                                        }),
-                                        background: isCurrentUser
-                                            ? `linear-gradient(90deg, ${COLORS.accent}18 0%, transparent 100%)`
-                                            : isTopThree
-                                                ? `${COLORS.bgLighter}30`
-                                                : 'transparent',
-                                        cursor: 'pointer',
-                                        border: isCurrentUser
-                                            ? `1px solid ${COLORS.accent}30`
-                                            : '1px solid transparent',
-                                    }}
-                                >
-                                    <RankBadge rank={rank} />
-
-                                    {/* Avatar */}
+                                {/* The avatar, ringed by prestige. Same treatment
+                                    as the stage's standings, so a player wears the
+                                    same mark wherever they appear. */}
+                                <PrestigeRing standing={standing}>
                                     <img
-                                        src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar, 32)}
+                                        src={getDiscordAvatarUrl(entry.discord_id, entry.discord_avatar)}
                                         alt=""
-                                        style={{
-                                            width: '30px',
-                                            height: '30px',
-                                            borderRadius: '8px',
-                                            flexShrink: 0,
-                                            border: isTopThree
-                                                ? `2px solid ${rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : '#CD7F32'}50`
-                                                : `1.5px solid ${COLORS.border}`,
-                                            boxShadow: isTopThree
-                                                ? `0 0 12px ${rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : '#CD7F32'}30`
-                                                : `0 0 8px ${COLORS.accent}10`
-                                        }}
-                                        onError={(e) => {
-                                            e.target.onerror = null;
-                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                                        }}
+                                        width={isPhone ? 22 : 26}
+                                        height={isPhone ? 22 : 26}
+                                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
+                                        style={{ borderRadius: '50%', display: 'block' }}
                                     />
+                                </PrestigeRing>
 
-                                    {/* Name */}
-                                    <div style={{
-                                        ...(asModal ? {} : { flex: 1 }),
-                                        minWidth: 0,
-                                        fontSize: asModal ? '14px' : '13px',
-                                        fontWeight: isCurrentUser ? '700' : isTopThree ? '600' : '500',
-                                        color: isCurrentUser ? COLORS.accent : COLORS.text,
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis'
-                                    }}>
-                                        {entry.custom_username}
-                                    </div>
+                                <FlapText
+                                    text={name}
+                                    size={isPhone ? 14 : 15}
+                                    tone={isMe ? DECK.amber : DECK.ink}
+                                    weight={isMe ? 800 : 700}
+                                    delay={60 + Math.min(idx, 12) * 22}
+                                    style={{ minWidth: 0, overflow: 'hidden' }}
+                                />
 
-                                    {/* Value */}
-                                    <div style={{
-                                        ...(asModal ? {} : { width: '50px' }),
-                                        fontSize: asModal ? '15px' : '12px',
-                                        fontWeight: '700',
-                                        color: sortOptions[activeTab].color,
-                                        textAlign: 'right',
-                                        fontFamily: 'monospace',
-                                        // Tabular figures, so digits sit in columns
-                                        // instead of drifting with each glyph's width.
-                                        fontVariantNumeric: 'tabular-nums',
-                                    }}>
-                                        {getValueForTab(entry).toLocaleString()}
-                                    </div>
+                                <FlapText
+                                    text={fmtNum(value)}
+                                    digits
+                                    size={isPhone ? 14 : 16}
+                                    tone={metricTone}
+                                    delay={80 + Math.min(idx, 12) * 22}
+                                    style={{ justifyContent: 'flex-end' }}
+                                />
 
-                                    {/* Two further measures, modal only. The rail has
-                                        nowhere to put these; at 1000px the row was mostly
-                                        empty without them. */}
-                                    {asModal && (
-                                        <div style={{
-                                            fontSize: '13px',
-                                            color: COLORS.textMuted,
-                                            textAlign: 'right',
-                                            fontVariantNumeric: 'tabular-nums',
-                                        }}>
-                                            {(entry.total_spins || 0).toLocaleString()}
-                                        </div>
-                                    )}
-                                    {asModal && (
-                                        <div style={{
-                                            fontSize: '13px',
-                                            color: COLORS.textMuted,
-                                            textAlign: 'right',
-                                            fontVariantNumeric: 'tabular-nums',
-                                        }}>
-                                            {(entry.total_duplicates || 0).toLocaleString()}
-                                        </div>
-                                    )}
+                                {/* Share of the leader. This is what the removed
+                                    Spins and Dupes columns were really being asked
+                                    to do — say how far ahead first place is — and a
+                                    second number in a third column never could. */}
+                                {/* How far this player's current prestige run has
+                                    got.
+                                    A share-of-leader meter lived here first. It was
+                                    honest but it was a bar restating the column
+                                    beside it, and the owner wanted the one number a
+                                    ranking of prestigers actually wants: how many
+                                    items they have collected the second time round.
+                                    Blank for the overwhelming majority who are not
+                                    prestiging — a dot, because an empty cell in a
+                                    ruled column reads as a missing value. */}
+                                {!isPhone && (
+                                    prestigeValue !== null ? (
+                                        <FlapText
+                                            text={fmtNum(prestigeValue)}
+                                            digits
+                                            size={15}
+                                            tone={prestigeInk(entry.prestige_active_level)}
+                                            delay={90 + Math.min(idx, 12) * 22}
+                                            style={{ justifyContent: 'flex-end' }}
+                                        />
+                                    ) : (
+                                        <BoardLabel tone="rgba(206,214,236,0.22)" style={{ textAlign: 'right' }}>·</BoardLabel>
+                                    )
+                                )}
 
-                                    {/* Rarity badges.
-                                        Content-sized, not a fixed 140px. Measured in a 392px
-                                        rail: four chips come to ~126px, so the old fixed width
-                                        reserved dead space from the name column on every row,
-                                        and five chips need ~161px, so it would have clipped the
-                                        moment anyone owned an exotic. Sizing to content gives
-                                        the name MORE room in the common case (a player with two
-                                        tiers) and takes what it needs in the rare one. */}
-                                    <div style={{
-                                        display: asModal ? 'grid' : 'flex',
-                                        ...(asModal ? { gridTemplateColumns: 'repeat(5, 1fr)' } : {}),
-                                        gap: asModal ? '4px' : '2px',
-                                        justifyContent: 'flex-end',
-                                        flexShrink: 0,
-                                        // Its own grid track in modal mode, so a player
-                                        // holding five tiers no longer shoves the score
-                                        // column left on that one row.
-                                        ...(asModal ? { minWidth: 0, overflow: 'hidden' } : {}),
-                                    }}>
-                                        {(() => {
-                                            // Show event stats for events tab
-                                            if (activeTab === 'events') {
-                                                const recursion = entry.recursion_triggers || 0;
-                                                const eventRate = entry.total_spins > 0
-                                                    ? ((entry.event_triggers / entry.total_spins) * 100).toFixed(1)
-                                                    : '0.0';
+                                {!isPhone && (
+                                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px' }}>
+                                        {level > 0 ? (
+                                            <span
+                                                className={isIridescentPrestige(level) && standing.earned ? 'fib-holo-text' : undefined}
+                                                title={`${prestigeLabel(level)}${standing.earned ? '' : ' — in progress'}`}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                                    color: isIridescentPrestige(level) && standing.earned ? undefined : prestigeInk(level),
+                                                    // Full strength in both states. This
+                                                    // cell was dimmed to 0.5 for a run in
+                                                    // progress, which muted an ink chosen
+                                                    // to clear AA at full — and the ring on
+                                                    // the same row already says whether the
+                                                    // level is won. Two markers for one
+                                                    // fact, one of them costing legibility.
+                                                }}
+                                            >
+                                                {/* The mark alone. This column is
+                                                    62px and cannot spell the
+                                                    level out, and the Roman
+                                                    numeral it used to carry was
+                                                    the same one bit the mark
+                                                    already holds — the level
+                                                    picks the icon. The name is
+                                                    the cell's accessible name
+                                                    and its tooltip; the surfaces
+                                                    with room say it on screen. */}
+                                                {prestigeIcon(level, 13)}
+                                                <span className="fib-sr-only">
+                                                    {prestigeLabel(level)}
+                                                    {standing.earned ? '' : ' — in progress'}
+                                                </span>
+                                            </span>
+                                        ) : (
+                                            // A dot, not a blank: an empty cell in a
+                                            // ruled column reads as a missing value
+                                            // where the truth is "none".
+                                            <BoardLabel tone="rgba(206,214,236,0.22)">·</BoardLabel>
+                                        )}
+                                    </span>
+                                )}
 
-                                                return (
-                                                    <>
-                                                        {recursion > 0 && (
-                                                            <span title="Recursion Events Triggered" style={{
-                                                                color: '#00FF00',
-                                                                fontSize: '10px',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '2px',
-                                                                background: '#00FF0015',
-                                                                padding: '3px 5px',
-                                                                borderRadius: '4px',
-                                                                border: '1px solid #00FF0030',
-                                                                fontWeight: '600'
-                                                            }}>
-                                                                <RefreshCw size={9} />{recursion}
-                                                            </span>
-                                                        )}
-                                                        <span title="Event trigger rate" style={{
-                                                            color: COLORS.textMuted,
-                                                            fontSize: '10px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '2px',
-                                                            background: `${COLORS.text}10`,
-                                                            padding: '3px 5px',
-                                                            borderRadius: '4px',
-                                                            border: `1px solid ${COLORS.border}`,
-                                                            fontWeight: '500'
-                                                        }}>
-                                                            {eventRate}%
-                                                        </span>
-                                                    </>
-                                                );
-                                            }
-
-                                            // Show totals on duplicates tab, unique counts otherwise.
-                                            //
-                                            // One badge per tier, derived from the shared ladder. This
-                                            // was four hand-written spans differing only in tier, which
-                                            // is why exotic was missing here and legendary was still
-                                            // rendering in purple long after the colours moved. The
-                                            // chips use the ink step for all three of text, tint and
-                                            // border: exotic's #AA00AA at 12% alpha is invisible on
-                                            // this panel, and insane has no flat colour at all.
-                                            const showTotals = activeTab === 'duplicates';
-                                            const tierBadges = RARITY_KEYS
-                                                .filter(key => key !== 'common' && key !== 'event')
-                                                .map(key => ({
-                                                    key,
-                                                    count: showTotals
-                                                        ? (entry[`total_${key}`] || 0)
-                                                        : (entry[`${key}_count`] || 0),
-                                                }))
-                                                // The rail drops empty tiers because it has no room
-                                                // to spare. The modal keeps them: with one fixed slot
-                                                // per tier the chips line up in columns down the
-                                                // table, which is the whole point of a table. Dropping
-                                                // them there meant every row started its chips at a
-                                                // different x depending on which tiers that player
-                                                // happened to own.
-                                                .filter(t => asModal || t.count > 0);
-
+                                {/* The collection, by tier. Icon and count in the
+                                    tier's ink — the ladder's colours are the whole
+                                    label, so the boxed chips this replaced were a
+                                    border around information that already had one. */}
+                                {!isPhone && <span style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: `repeat(${markTiers.length}, ${MARK_W}px)`,
+                                    justifyContent: 'end',
+                                    alignItems: 'center',
+                                }}>
+                                    {markTiers.map(key => {
+                                        const count = entry[`${key}_count`] || 0;
+                                        if (count === 0) {
                                             return (
-                                                <>
-                                                    {tierBadges.map(({ key, count }) => {
-                                                        const ink = getRarityInk(key);
-                                                        // Insane takes the holo chip: a real gradient border
-                                                        // carrying all three ramp hues at once, so it reads as
-                                                        // the top tier at 10px instead of as plain white.
-                                                        const holo = isIridescentRarity(key);
-                                                        // A tier the player has none of holds its slot but
-                                                        // says nothing — an empty column reads as absence,
-                                                        // whereas a lit "0" reads as a score.
-                                                        if (asModal && count === 0) {
-                                                            return (
-                                                                <span
-                                                                    key={key}
-                                                                    title={`${RARITY[key].label}: none`}
-                                                                    style={{
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        fontSize: '10px',
-                                                                        color: `${COLORS.textMuted}55`,
-                                                                        padding: '3px 4px',
-                                                                    }}
-                                                                >
-                                                                    &middot;
-                                                                </span>
-                                                            );
-                                                        }
-                                                        return (
-                                                            <span
-                                                                key={key}
-                                                                title={RARITY[key].label}
-                                                                className={holo ? 'fib-holo-chip' : undefined}
-                                                                style={{
-                                                                    color: ink,
-                                                                    fontSize: '10px',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '2px',
-                                                                    padding: '3px 4px',
-                                                                    fontWeight: '600',
-                                                                    whiteSpace: 'nowrap',
-                                                                    ...(holo ? {} : {
-                                                                        background: `${ink}15`,
-                                                                        borderRadius: '4px',
-                                                                        border: `1px solid ${ink}30`,
-                                                                    }),
-                                                                }}
-                                                            >
-                                                                {getRarityIcon(key, 9)}{count}
-                                                            </span>
-                                                        );
-                                                    })}
-                                                </>
+                                                <span key={key} title={`${RARITY[key].label}: none`} style={{ textAlign: 'center', color: 'rgba(206,214,236,0.18)', fontSize: '11px' }}>·</span>
                                             );
-                                        })()}
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
+                                        }
+                                        return (
+                                            <span
+                                                key={key}
+                                                title={`${RARITY[key].label}: ${count}`}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px',
+                                                    color: getRarityInk(key),
+                                                }}
+                                            >
+                                                {getRarityIcon(key, 10)}
+                                                <BoardLabel tone="currentColor">{count}</BoardLabel>
+                                            </span>
+                                        );
+                                    })}
+                                </span>}
+                            </button>
+                        );
+                    })}
                 </div>
-
-                {/* Footer */}
-                <div style={{
-                    padding: '12px 16px',
-                    borderTop: `1px solid ${COLORS.border}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    fontSize: '11px',
-                    color: COLORS.textMuted,
-                    background: `linear-gradient(180deg, transparent 0%, ${COLORS.bgLighter}30 100%)`,
-                }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Trophy size={12} color={COLORS.gold} />
-                        Sorted by {sortOptions[activeTab].label.toLowerCase()}
-                    </span>
-                    {lastUpdated && (
-                        <span>
-                            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                    )}
-                </div>
-
-                {/* Bottom corner accents */}
-                <div style={{ position: 'absolute', bottom: '8px', left: '8px', width: '16px', height: '16px', borderBottom: `2px solid ${COLORS.accent}40`, borderLeft: `2px solid ${COLORS.accent}40`, borderRadius: '0 0 0 4px', zIndex: 5 }} />
-                <div style={{ position: 'absolute', bottom: '8px', right: '8px', width: '16px', height: '16px', borderBottom: `2px solid ${COLORS.accent}40`, borderRight: `2px solid ${COLORS.accent}40`, borderRadius: '0 0 4px 0', zIndex: 5 }} />
             </div>
 
-            {/* User Profile Modal - rendered outside sidebar container for proper fixed positioning */}
+            {/* User Profile Modal - rendered outside the board for proper fixed positioning */}
             {selectedUser && (
                 <UserProfile
                     userId={selectedUser}
