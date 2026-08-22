@@ -47,6 +47,18 @@ export function ActivityProvider({ children }) {
     const [firstBloodResultPending, setFirstBloodResultPending] = useState(false);
     const [communityGoalReward, setCommunityGoalReward] = useState(null); // This user's payout
 
+    /*
+     * The Arrival.
+     *
+     * Two pieces, and they are deliberately separate. `arrival` is the public
+     * manifest everyone sees — who was on the platform and what landed in front
+     * of them — and it is the whole event. `arrivalCrate` is this player's own
+     * new balance, sent only to them, because a lucky spin count is nobody
+     * else's business; the same split the community goal's payout makes.
+     */
+    const [arrival, setArrival] = useState(null);
+    const [arrivalCrate, setArrivalCrate] = useState(null);
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     const lastIdRef = useRef(null);
@@ -60,6 +72,8 @@ export function ActivityProvider({ children }) {
     const firstBloodClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
+    const arrivalTimeoutRef = useRef(null);
+    const arrivalClearTimeoutRef = useRef(null);
     // True while this client's own wheel is animating. An event result that
     // arrives mid-spin must not render until the wheel lands — see
     // deferResultUntilLanding() below.
@@ -509,6 +523,52 @@ export function ActivityProvider({ children }) {
                                 break;
                             }
 
+                            case 'arrival': {
+                                console.log('[SSE] Arrival:', data);
+                                if (arrivalTimeoutRef.current) clearTimeout(arrivalTimeoutRef.current);
+                                if (arrivalClearTimeoutRef.current) clearTimeout(arrivalClearTimeoutRef.current);
+
+                                const show = () => {
+                                    setArrival(data);
+                                    arrivalTimeoutRef.current = null;
+                                    /*
+                                     * Just after the shutters finish opening
+                                     * (T_LIFT_END = 18.4s in arrivalTimeline).
+                                     *
+                                     * This is also what re-enables spinning —
+                                     * WheelSpinner refuses a spin while
+                                     * `arrival` is set — so it must not fire
+                                     * before the reel is actually back. Clearing
+                                     * at 15.5s handed the wheel back while the
+                                     * band was still shuttered, which is a spin
+                                     * you cannot see.
+                                     */
+                                    arrivalClearTimeoutRef.current = setTimeout(() => {
+                                        setArrival(null);
+                                        setArrivalCrate(null);
+                                        arrivalClearTimeoutRef.current = null;
+                                    }, 18700);
+                                };
+
+                                // A train pulling in over a wheel that is still
+                                // turning steals the player's own result, which
+                                // is the one moment on this page that outranks a
+                                // global event. Same deferral the community goal
+                                // and first blood summaries use.
+                                if (spinInFlightRef.current) {
+                                    deferResultUntilLanding(show);
+                                } else {
+                                    show();
+                                }
+                                break;
+                            }
+
+                            case 'arrival_crate':
+                                // This player's own crate and new balance.
+                                console.log('[SSE] Arrival crate:', data);
+                                setArrivalCrate(data);
+                                break;
+
                             case 'community_goal_reward':
                                 // Sent only to players who took part - carries their own
                                 // new balance, so no arithmetic on this side.
@@ -792,6 +852,8 @@ export function ActivityProvider({ children }) {
         communityGoalResult,
         communityGoalResultPending,
         communityGoalReward,
+        arrival,
+        arrivalCrate,
     };
 
     return (

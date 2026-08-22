@@ -555,6 +555,67 @@ html, body {
 }
 
 /*
+ * THE ARRIVAL — the grade over the platform.
+ *
+ * Vignette and grain, and both are DOM rather than a WebGL post pass. A
+ * full-screen shader here would mean a render target and a second draw of the
+ * whole scene for two effects the compositor does for free, on the only route
+ * that already pays 133KB for three.js.
+ *
+ * They live here rather than in a `style` object because a colour and a state
+ * belong in the stylesheet — §9's named rule, learned when inline declarations
+ * silently outranked every hover and focus rule on the collection board.
+ */
+
+/* The vignette. Two stops, not one: a fast corner falloff alone crushes the
+   ends of a 9:1 band into black, so most of the darkening is carried by a
+   second, much wider stop that only bites past 70%. */
+.fib-arrival-grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 190% at 50% 44%, transparent 34%, rgba(2,4,9,0.32) 70%, rgba(2,4,9,0.66) 100%),
+    linear-gradient(0deg, rgba(2,4,9,0.52) 0%, rgba(2,4,9,0.14) 22%, transparent 40%, transparent 76%, rgba(2,4,9,0.42) 100%);
+}
+
+/*
+ * Grain, as one inline turbulence tile.
+ *
+ * It is what stops a scene built entirely from flat-shaded primitives reading
+ * as vector art: real footage of a dark station is noisy, and banding across
+ * the fog gradient is the single most synthetic thing left in the frame.
+ * `overlay` rather than `screen` so it darkens as well as lifts — screen alone
+ * turned the blacks grey.
+ */
+.fib-arrival-grain {
+  position: absolute;
+  inset: -60px;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: fib-arrival-grain-shift 0.9s steps(6) infinite;
+}
+
+/* Six discrete positions, not a smooth drift: grain that slides is a texture
+   moving across the picture, grain that jumps is grain. */
+@keyframes fib-arrival-grain-shift {
+  0%   { transform: translate3d(0, 0, 0); }
+  16%  { transform: translate3d(-22px, 14px, 0); }
+  33%  { transform: translate3d(18px, -26px, 0); }
+  50%  { transform: translate3d(-30px, -12px, 0); }
+  66%  { transform: translate3d(24px, 22px, 0); }
+  83%  { transform: translate3d(-14px, 28px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The grain stays — it is texture, not motion — but it stops jumping. */
+  .fib-arrival-grain { animation: none; }
+}
+
+/*
  * THE CONVERGENCE — the prestige moment's DOM half.
  *
  * The canvas does the physics; these two rules do the announcement, because the

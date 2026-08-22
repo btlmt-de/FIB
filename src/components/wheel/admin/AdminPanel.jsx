@@ -701,10 +701,10 @@ function AddItemForm({ onAdd, poolStats, adding }) {
 // anything else with "Unknown event type". Colours match each event's banner.
 const EVENT_TYPES = [
     {
-        id: 'gold_rush',
-        label: 'Gold Rush',
-        color: '#F59E0B',
-        blurb: 'Doubles the drop rate of one rarity for everyone.',
+        id: 'arrival',
+        label: 'The Arrival',
+        color: '#FFAA00',
+        blurb: 'A train pulls in and unloads a crate of lucky spins per player on the platform.',
     },
     {
         id: 'king_of_wheel',
@@ -725,12 +725,6 @@ const EVENT_TYPES = [
         blurb: 'Shared score in three stages, every spin adding to it. Everyone who spins is paid.',
     },
 ];
-
-// Mirrors BOOSTABLE_RARITIES in the backend's services/globalEvents.js — this only fills
-// the manual-trigger dropdown, so a tier listed here that the server refuses to boost (or
-// missing here while the server can pick it, which is what happened to exotic) makes the
-// panel lie about what an event can do.
-const BOOSTABLE_RARITIES = ['rare', 'exotic', 'legendary', 'mythic', 'insane'];
 
 export function AdminPanel({ onClose, allItems }) {
     const [tab, setTab] = useState('pending');
@@ -755,7 +749,6 @@ export function AdminPanel({ onClose, allItems }) {
     const [eventStatus, setEventStatus] = useState(null);
     const [eventBusy, setEventBusy] = useState(false);
     const [eventDuration, setEventDuration] = useState(5);
-    const [goldRushRarity, setGoldRushRarity] = useState('');   // '' = let the server pick
     const [communityTarget, setCommunityTarget] = useState('');  // '' = scale to players online
 
     useEffect(() => {
@@ -809,8 +802,7 @@ export function AdminPanel({ onClose, allItems }) {
         try {
             const body = { eventType, duration: eventDuration };
             // Only send the optional knobs when they are actually set, so the server
-            // keeps its own behaviour (random rarity, target scaled to players online).
-            if (eventType === 'gold_rush' && goldRushRarity) body.rarity = goldRushRarity;
+            // keeps its own behaviour (target scaled to players online).
             if (eventType === 'community_goal' && communityTarget) body.target = Number(communityTarget);
 
             const res = await fetch(`${API_BASE_URL}/api/admin/global-event/trigger`, {
@@ -1608,28 +1600,13 @@ export function AdminPanel({ onClose, allItems }) {
                                     />
                                 </div>
 
-                                <div>
-                                    <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
-                                        Gold Rush rarity
-                                    </label>
-                                    <select
-                                        value={goldRushRarity}
-                                        onChange={e => setGoldRushRarity(e.target.value)}
-                                        style={{
-                                            padding: '8px 10px',
-                                            background: COLORS.bgLight,
-                                            border: `1px solid ${COLORS.border}`,
-                                            borderRadius: '6px',
-                                            color: COLORS.text,
-                                            fontSize: '13px'
-                                        }}
-                                    >
-                                        <option value="">Random</option>
-                                        {BOOSTABLE_RARITIES.map(r => (
-                                            <option key={r} value={r}>{r}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {/* The Gold Rush rarity picker went with the event
+                                    it configured. The Arrival has no knobs by
+                                    design — one crate per player on the platform,
+                                    rolled server-side — so there is nothing here
+                                    to set, and Duration does not apply to it
+                                    either: its length is the animation's, not a
+                                    window players act inside. */}
 
                                 <div>
                                     <label style={{ display: 'block', color: COLORS.textMuted, fontSize: '12px', marginBottom: '6px' }}>
