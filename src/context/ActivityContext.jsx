@@ -7,6 +7,15 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
 import { parseActivityDate, spinRevealDelay } from '../utils/helpers.js';
+/*
+ * The arrival's own end, imported rather than copied.
+ *
+ * This used to be a hardcoded 18700ms with a comment naming the constant it was
+ * tracking, and the comment was already out of date once: the timeline moved and
+ * this did not, which hands the wheel back while the band is still shuttered —
+ * a spin you cannot see. It is three bytes of import to make that impossible.
+ */
+import { T_LIFT_END } from '../components/wheel/effects/arrivalTimeline.js';
 
 const ActivityContext = createContext(null);
 
@@ -532,8 +541,7 @@ export function ActivityProvider({ children }) {
                                     setArrival(data);
                                     arrivalTimeoutRef.current = null;
                                     /*
-                                     * Just after the shutters finish opening
-                                     * (T_LIFT_END = 18.4s in arrivalTimeline).
+                                     * Just after the shutters finish opening.
                                      *
                                      * This is also what re-enables spinning —
                                      * WheelSpinner refuses a spin while
@@ -547,7 +555,7 @@ export function ActivityProvider({ children }) {
                                         setArrival(null);
                                         setArrivalCrate(null);
                                         arrivalClearTimeoutRef.current = null;
-                                    }, 18700);
+                                    }, T_LIFT_END * 1000 + 300);
                                 };
 
                                 // A train pulling in over a wheel that is still

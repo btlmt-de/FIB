@@ -1,7 +1,7 @@
 /*
- * ═══════════════════════════════════════════════════════════════════════════
+ * ══════════════════════════════════════════════════════════════════════════
  * THE ARRIVAL — the manifest board
- * ═══════════════════════════════════════════════════════════════════════════
+ * ══════════════════════════════════════════════════════════════════════════
  *
  * A train pulls into the concourse, unloads one crate per player on the
  * platform, and leaves. This is the half that carries the meaning: the arrivals
@@ -22,61 +22,68 @@
  * that shipped on three other surfaces, which is why it reads as this site's
  * event rather than a feature bolted to it.
  *
- * ── WHAT IT REPLACED, AND THE NUMBER THAT RETIRED IT ─────────────────────────
+ * ── IT HANGS IN THE STATION NOW, IT DOES NOT SIT ABOVE IT ────────────────────
  *
- * Gold Rush doubled one randomly chosen tier's odds for five minutes. Measured
- * against the real drop table that is +0.01pp on insane and +0.49pp on mythic —
- * two of its five outcomes were literally imperceptible, and it was the only
- * event that could pay nothing at all. It was not too small; it was invisible.
- * This event is the opposite by construction: it is nothing but visible, and
- * every player on the platform gets something.
+ * It used to be a 440px card in the banner slot above the reel: the train ran
+ * in the band and the numbers arrived in a panel over the top of it, and the
+ * whole event was two objects on a page rather than one thing happening. The
+ * owner's note was that it "shifts the strip down and shows the lucky spin
+ * distribution above" — a fair description of a caption stacked on a picture.
+ *
+ * The board is now signage INSIDE the theatre frame: hung from the top edge on
+ * two rods, in the same air the telegraph poles and the canopy are in, with the
+ * spins from every crate flying up out of the platform and landing on its rows.
+ * Nothing above the reel moves, because there is no longer anything above the
+ * reel. See ArrivalTheatre.jsx.
  *
  * ── THE ORDER THE ROWS LAND IN ───────────────────────────────────────────────
  *
  * Smallest crate first, biggest last. A board that resolved in server order
  * would spend its best moment somewhere in the middle; climbing means the last
  * drum to settle is the largest number on the board, and on the ~42% of
- * arrivals where somebody clears ten it ends on that. The delay per row is what
- * makes it a cascade rather than a table appearing.
+ * arrivals where somebody clears ten it ends on that.
+ *
+ * That order is now the UNLOAD order too, and this is why the sort lives in the
+ * theatre rather than here: the theatre hands the same sorted array to this
+ * board and to the crates, so wagon `i` carries row `i`'s crate, the smallest
+ * payout comes off the train first, and the biggest number on the board is both
+ * the last thing unloaded and the last drum to settle.
+ *
+ * ── AND THE ROWS WAIT FOR THEIR OWN SPINS ────────────────────────────────────
+ *
+ * `rowLandsAt` is derived from when that row's crate opens and how long its
+ * spins take to fly here, so a number never resolves before the light that pays
+ * for it has arrived. The clock is the SCENE's — read out of `emitRef` — and not
+ * this component's, because three.js is fetched when the train is announced and
+ * on a slow connection the scene starts its own clock a second late. A board
+ * running on its own would resolve into an empty frame.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { DECK, rail, COLORS } from '../config/constants';
 import { FlapText, BoardLabel, BoardMeter } from '../features/collection/FlapBoard.jsx';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { prefersReducedMotion } from '../../../utils/motion.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
-import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useWheelViewport } from '../config/breakpoints.js';
 import { Sparkles } from 'lucide-react';
 
-import {
-    T_UNLOAD, MANIFEST_HEAD_MS, ROW_STEP_MAX_MS, ROW_CASCADE_BUDGET_MS,
-} from './arrivalTimeline.js';
+import { rowLandsAt, totalLandsAt, T_IRIS } from './arrivalTimeline.js';
 
-export function ArrivalBoard() {
-    const { arrival, arrivalCrate } = useActivity();
+const GRID = '24px minmax(64px, 1fr) minmax(48px, 0.66fr) 44px';
+
+export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }) {
     const { user } = useAuth();
     const { isPhone } = useWheelViewport();
     const [motionOff] = useState(prefersReducedMotion);
-    const [landed, setLanded] = useState(0);
-
-    /*
-     * Smallest first, and ties broken by name so the order is stable rather than
-     * dependent on however the server happened to enumerate the platform.
-     */
-    const rows = useMemo(() => {
-        if (!arrival?.manifest) return [];
-        return [...arrival.manifest].sort(
-            (a, b) => a.crate - b.crate || String(a.username).localeCompare(String(b.username))
-        );
-    }, [arrival]);
+    const [landed, setLanded] = useState(() => (motionOff ? rows.length : 0));
+    const [totalIn, setTotalIn] = useState(motionOff);
 
     /*
      * Resetting the cascade for a new arrival is a render-phase adjustment, not
      * an effect — the same pattern `FlapText` uses and for the same reason:
      * React documents this as the way to adjust state from props, and it leaves
-     * the interval below as the only thing that ever writes `landed`
+     * the loop below as the only thing that ever writes `landed`
      * asynchronously. Doing it inside the effect is the cascading render the
      * lint rule is named after.
      */
@@ -84,227 +91,243 @@ export function ArrivalBoard() {
     if (shownFor !== arrival) {
         setShownFor(arrival);
         setLanded(motionOff ? rows.length : 0);
+        setTotalIn(motionOff);
     }
 
-    /*
-     * The rows wait for the crates.
-     *
-     * A number resolving on the drums for a crate still in the air is the
-     * animation contradicting itself, so the cascade starts only after the
-     * train's last crate has landed — `T_UNLOAD` from the shared timeline, which
-     * the canvas animates against too. It was a callback from the canvas until
-     * the canvas moved into the reel mount and the two ended up in different
-     * parts of the tree; one table read twice cannot drift.
-     */
+    const n = rows.length;
     useEffect(() => {
-        if (!arrival || motionOff) return undefined;
+        if (motionOff || n === 0) return undefined;
 
-        const step = Math.min(ROW_STEP_MAX_MS, ROW_CASCADE_BUDGET_MS / Math.max(1, rows.length));
-        const timers = rows.map((_, i) =>
-            window.setTimeout(
-                () => setLanded(n => Math.max(n, i + 1)),
-                T_UNLOAD * 1000 + MANIFEST_HEAD_MS + i * step
-            )
-        );
-        return () => timers.forEach(window.clearTimeout);
-    }, [arrival, rows, motionOff]);
+        /*
+         * The scene's clock where there is one, and this component's where there
+         * is not. `emitRef.t` only exists once three.js has loaded, mounted and
+         * drawn a frame; if the chunk never arrives at all the board still has
+         * to pay out, so it falls back to its own mount and runs the same
+         * timings against it. That is a board resolving over a dark band, which
+         * is the right failure — the numbers are the event.
+         */
+        const own = performance.now();
+        const last = totalLandsAt(n);
+        let raf = 0;
+        let running = true;
 
-    if (!arrival || rows.length === 0) return null;
+        const tick = () => {
+            if (!running) return;
+            const t = emitRef?.current?.t ?? (performance.now() - own) / 1000;
+            let count = 0;
+            for (let i = 0; i < n; i++) if (t >= rowLandsAt(i, n)) count = i + 1;
+            setLanded(v => (v >= count ? v : count));
+            if (t >= last) setTotalIn(true);
+            if (t > last + 0.2) { running = false; return; }
+            raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+        return () => { running = false; cancelAnimationFrame(raf); };
+    }, [arrival, n, motionOff, emitRef]);
 
     const best = arrival.bestCrate?.crate || 0;
     const maxCrate = arrival.maxCrate || 15;
-    const gutter = isPhone ? '16px' : '26px';
+    const gutter = isPhone ? '14px' : '22px';
+
+    /*
+     * The rods are drawn from the frame's top edge, so the body hangs BELOW its
+     * own pivot and can swing about it. A board that faded in where it was going
+     * to be is a graphic; one that comes down on its hangers and settles is a
+     * thing that was lowered into a station.
+     */
+    const swing = motionOff
+        ? undefined
+        : `fib-arrival-sign-drop 1.05s cubic-bezier(0.16, 0.9, 0.3, 1) ${T_IRIS + 0.3}s both`;
 
     return (
         <div
-            role="status"
-            aria-live="polite"
-            aria-label={`A delivery arrived. ${arrival.totalLuckySpins} lucky spins across ${rows.length} ${rows.length === 1 ? 'player' : 'players'}.`}
-            style={{
-                position: 'relative',
-                width: '100%',
-                // Half the width it started at. The train has the reel now, so
-                // the board is the caption and not the picture — at 620px with
-                // the animation inside it, it was a card with a small train in
-                // it, which is exactly how it read.
-                maxWidth: '440px',
-                margin: '0 auto',
-                backgroundImage: DECK.face,
-                boxShadow: [
-                    `inset 0 1px 0 ${rail(0.12)}`,
-                    'inset 0 -2px 0 rgba(0,0,0,0.55)',
-                    `inset 0 -3px 0 ${rail(0.09)}`,
-                    '0 24px 60px rgba(0,0,0,0.6)',
-                ].join(', '),
-                overflow: 'hidden',
-                animation: motionOff ? undefined : 'fadeIn 0.4s ease-out',
-            }}
+            className="fib-arrival-sign"
+            style={{ width: isPhone ? 'min(94%, 400px)' : 'min(92%, 540px)' }}
         >
-            {/* ── THE HEAD ────────────────────────────────────────────────── */}
-            <div style={{
-                padding: isPhone ? `14px ${gutter} 0` : `18px ${gutter} 0`,
-                backgroundImage: `linear-gradient(180deg, ${DECK.sky} 0%, transparent 78%)`,
-            }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px' }}>
-                    <div style={{ minWidth: 0 }}>
-                        <FlapText
-                            text="Delivery"
-                            size={isPhone ? 20 : 24}
-                            tone={DECK.ink}
-                            weight={800}
-                            plate
-                        />
-                        <div style={{ marginTop: '7px' }}>
+            <span className="fib-arrival-sign-rod" style={{ left: '19%' }} />
+            <span className="fib-arrival-sign-rod" style={{ right: '19%' }} />
+
+            <div
+                role="status"
+                aria-live="polite"
+                aria-label={`A delivery arrived. ${arrival.totalLuckySpins} lucky spins across ${n} ${n === 1 ? 'player' : 'players'}.`}
+                className="fib-arrival-sign-body"
+                style={{ animation: swing }}
+            >
+                {/* ── THE HEAD ───────────────────────────────────────────── */}
+                <div style={{
+                    padding: isPhone ? `12px ${gutter} 0` : `15px ${gutter} 0`,
+                    backgroundImage: `linear-gradient(180deg, ${DECK.sky} 0%, transparent 78%)`,
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px' }}>
+                        <div style={{ minWidth: 0 }}>
+                            <FlapText
+                                text="Delivery"
+                                size={isPhone ? 19 : 23}
+                                tone={DECK.ink}
+                                weight={800}
+                                plate
+                            />
+                            <div style={{ marginTop: '6px' }}>
+                                <BoardLabel tone={DECK.inkDim}>
+                                    {n} {n === 1 ? 'crate' : 'crates'} on the platform
+                                </BoardLabel>
+                            </div>
+                        </div>
+
+                        {/*
+                          * The total is the SUM, and it resolves last of all.
+                          * It used to flap 200ms after the board appeared, which
+                          * finished the biggest number on the board before a
+                          * single crate was down and left the rows underneath
+                          * catching up to something already known.
+                          */}
+                        <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
+                            <FlapText
+                                text={totalIn ? String(arrival.totalLuckySpins) : ''}
+                                size={isPhone ? 21 : 26}
+                                tone={DECK.amber}
+                                weight={700}
+                                plate
+                                digits
+                                style={{ justifyContent: 'flex-end', minHeight: isPhone ? 21 : 26 }}
+                            />
+                            <div style={{ marginTop: '6px' }}>
+                                <BoardLabel>Lucky spins</BoardLabel>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ marginTop: '11px' }}>
+                        <BoardMeter value={1} tone={DECK.amber} height={3} />
+                    </div>
+                </div>
+
+                {/* ── THE MANIFEST ───────────────────────────────────────── */}
+                <div style={{
+                    padding: isPhone ? `2px ${gutter} 12px` : `4px ${gutter} 15px`,
+                    background: 'rgba(0,0,0,0.30)',
+                    boxShadow: `inset 0 1px 0 ${rail(0.08)}`,
+                }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: GRID,
+                        alignItems: 'center', gap: '0 11px',
+                        padding: '9px 0 5px',
+                    }}>
+                        <span />
+                        <BoardLabel>Player</BoardLabel>
+                        <span />
+                        <BoardLabel style={{ textAlign: 'right' }}>Spins</BoardLabel>
+                    </div>
+
+                    <div role="list">
+                        {rows.map((row, i) => {
+                            const shown = i < landed;
+                            const isMe = user && user.id === row.userId;
+                            const isBest = best > 0 && row.crate === best;
+
+                            return (
+                                <div
+                                    key={row.userId}
+                                    role="listitem"
+                                    ref={el => { if (rowElsRef) rowElsRef.current[i] = el; }}
+                                    className="fib-register-row is-static"
+                                    aria-label={`${row.username}: ${row.crate} lucky spins`}
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: GRID,
+                                        alignItems: 'center', gap: '0 11px',
+                                        padding: isPhone ? '7px 0' : '9px 0',
+                                    }}
+                                >
+                                    <img
+                                        src={getDiscordAvatarUrl(row.discordId, row.discordAvatar)}
+                                        alt=""
+                                        width={21}
+                                        height={21}
+                                        style={{ display: 'block', borderRadius: '50%', background: DECK.faceDeep }}
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                                        }}
+                                    />
+
+                                    {/*
+                                      * The NAMES are on the board from the first
+                                      * frame; only the amounts wait for the
+                                      * crates.
+                                      *
+                                      * The first build faded whole rows in as
+                                      * they landed, which left a reserved void
+                                      * where the manifest goes for the four
+                                      * seconds the train takes to unload — the
+                                      * board looked broken rather than
+                                      * expectant. It is also less true: who is
+                                      * on the platform is known the moment the
+                                      * train appears, and it is what they are
+                                      * getting that is still in the air.
+                                      */}
+                                    <span style={{
+                                        fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+                                        fontSize: isPhone ? '13px' : '15px',
+                                        fontWeight: isMe ? 800 : 600,
+                                        letterSpacing: '0.04em',
+                                        textTransform: 'uppercase',
+                                        color: isMe ? DECK.amber : (shown ? DECK.ink : DECK.inkMid),
+                                        transition: motionOff ? undefined : 'color 300ms ease-out',
+                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                        {row.username}
+                                    </span>
+
+                                    {/* The crate against the biggest one this
+                                        arrival could hold — so a 12 reads as a 12
+                                        and not merely as "more than the row above". */}
+                                    <BoardMeter
+                                        value={shown ? row.crate / maxCrate : 0}
+                                        tone={isBest ? DECK.amber : rail(0.35)}
+                                        height={4}
+                                    />
+
+                                    <FlapText
+                                        text={shown ? String(row.crate) : ''}
+                                        size={isPhone ? 15 : 17}
+                                        tone={isBest ? DECK.amber : DECK.ink}
+                                        weight={700}
+                                        digits
+                                        plate
+                                        style={{ justifyContent: 'flex-end', minHeight: isPhone ? 15 : 17 }}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/*
+                     * This player's own line, and it is the only place a balance
+                     * appears. The manifest above is public — the board is the
+                     * whole event and a payout nobody can see is the failure this
+                     * replaced — but a running lucky-spin TOTAL is nobody else's
+                     * business, so it rides on the private message instead.
+                     */}
+                    {arrivalCrate && (
+                        <div style={{
+                            display: 'flex', alignItems: 'center', gap: '9px',
+                            marginTop: '11px', paddingTop: '10px',
+                            boxShadow: `inset 0 1px 0 ${rail(0.07)}`,
+                            color: COLORS.gold,
+                        }}>
+                            <Sparkles size={13} />
+                            <BoardLabel tone="currentColor">
+                                +{arrivalCrate.luckySpinsAwarded} for you
+                            </BoardLabel>
                             <BoardLabel tone={DECK.inkDim}>
-                                {rows.length} {rows.length === 1 ? 'crate' : 'crates'} on the platform
+                                {arrivalCrate.luckySpinsTotal} banked
                             </BoardLabel>
                         </div>
-                    </div>
-
-                    <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
-                        <FlapText
-                            text={String(arrival.totalLuckySpins)}
-                            size={isPhone ? 22 : 27}
-                            tone={DECK.amber}
-                            weight={700}
-                            plate
-                            digits
-                            delay={200}
-                            style={{ justifyContent: 'flex-end' }}
-                        />
-                        <div style={{ marginTop: '7px' }}>
-                            <BoardLabel>Lucky spins</BoardLabel>
-                        </div>
-                    </div>
+                    )}
                 </div>
-
-                <div style={{ marginTop: '12px' }}>
-                    <BoardMeter value={1} tone={DECK.amber} height={3} />
-                </div>
-            </div>
-
-
-            {/* ── THE MANIFEST ────────────────────────────────────────────── */}
-            <div style={{
-                padding: isPhone ? `2px ${gutter} 14px` : `4px ${gutter} 18px`,
-                background: 'rgba(0,0,0,0.30)',
-                boxShadow: `inset 0 1px 0 ${rail(0.08)}`,
-            }}>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: `26px minmax(70px, 1fr) minmax(52px, 0.7fr) 46px`,
-                    alignItems: 'center', gap: '0 12px',
-                    padding: '10px 0 6px',
-                }}>
-                    <span />
-                    <BoardLabel>Player</BoardLabel>
-                    <span />
-                    <BoardLabel style={{ textAlign: 'right' }}>Spins</BoardLabel>
-                </div>
-
-                <div role="list">
-                    {rows.map((row, i) => {
-                        const shown = i < landed;
-                        const isMe = user && user.id === row.userId;
-                        const isBest = best > 0 && row.crate === best;
-
-                        return (
-                            <div
-                                key={row.userId}
-                                role="listitem"
-                                className="fib-register-row is-static"
-                                aria-label={`${row.username}: ${row.crate} lucky spins`}
-                                style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: `26px minmax(70px, 1fr) minmax(52px, 0.7fr) 46px`,
-                                    alignItems: 'center', gap: '0 12px',
-                                    padding: isPhone ? '8px 0' : '10px 0',
-                                }}
-                            >
-                                <img
-                                    src={getDiscordAvatarUrl(row.discordId, row.discordAvatar)}
-                                    alt=""
-                                    width={22}
-                                    height={22}
-                                    style={{ display: 'block', borderRadius: '50%', background: DECK.faceDeep }}
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png';
-                                    }}
-                                />
-
-                                {/*
-                                  * The NAMES are on the board from the first
-                                  * frame; only the amounts wait for the crates.
-                                  *
-                                  * The first build faded whole rows in as they
-                                  * landed, which left a reserved void where the
-                                  * manifest goes for the four seconds the train
-                                  * takes to unload — the board looked broken
-                                  * rather than expectant. It is also less true:
-                                  * who is on the platform is known the moment
-                                  * the train appears, and it is what they are
-                                  * getting that is still in the air.
-                                  */}
-                                <span style={{
-                                    fontFamily: "'Barlow Condensed', system-ui, sans-serif",
-                                    fontSize: isPhone ? '14px' : '15px',
-                                    fontWeight: isMe ? 800 : 600,
-                                    letterSpacing: '0.04em',
-                                    textTransform: 'uppercase',
-                                    color: isMe ? DECK.amber : (shown ? DECK.ink : DECK.inkMid),
-                                    transition: motionOff ? undefined : 'color 300ms ease-out',
-                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                }}>
-                                    {row.username}
-                                </span>
-
-                                {/* The crate against the biggest one this
-                                    arrival could hold — so a 12 reads as a 12
-                                    and not merely as "more than the row above". */}
-                                <BoardMeter
-                                    value={shown ? row.crate / maxCrate : 0}
-                                    tone={isBest ? DECK.amber : rail(0.35)}
-                                    height={4}
-                                />
-
-                                <FlapText
-                                    text={shown ? String(row.crate) : ''}
-                                    size={isPhone ? 16 : 18}
-                                    tone={isBest ? DECK.amber : DECK.ink}
-                                    weight={700}
-                                    digits
-                                    plate
-                                    style={{ justifyContent: 'flex-end' }}
-                                />
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/*
-                 * This player's own line, and it is the only place a balance
-                 * appears. The manifest above is public — the board is the whole
-                 * event and a payout nobody can see is the failure this replaced
-                 * — but a running lucky-spin TOTAL is nobody else's business, so
-                 * it rides on the private message instead.
-                 */}
-                {arrivalCrate && (
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '9px',
-                        marginTop: '12px', paddingTop: '11px',
-                        boxShadow: `inset 0 1px 0 ${rail(0.07)}`,
-                        color: COLORS.gold,
-                    }}>
-                        <Sparkles size={13} />
-                        <BoardLabel tone="currentColor">
-                            +{arrivalCrate.luckySpinsAwarded} for you
-                        </BoardLabel>
-                        <BoardLabel tone={DECK.inkDim}>
-                            {arrivalCrate.luckySpinsTotal} banked
-                        </BoardLabel>
-                    </div>
-                )}
             </div>
         </div>
     );

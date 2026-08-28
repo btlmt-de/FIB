@@ -36,7 +36,6 @@ const COUNTER_FOR_TIER = {
 import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
 import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
-import { ArrivalBoard } from './effects/ArrivalBoard.jsx';
 import MilestoneMeter from './effects/MilestoneMeter.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
@@ -1350,13 +1349,24 @@ function WheelOfFortunePage({ onBack }) {
                     Rushes, and the plaque and the feed still read them. Retiring
                     an event is not the same as rewriting what happened while it
                     was running. */}
-                {/* The arrival takes the same slot as every other event banner —
-                    it is not a takeover. THE CONVERGENCE can own the screen
-                    because a player meets it at most five times; this fires
-                    twice a day and must never steal a spin in progress, which is
-                    also why ActivityContext holds it back until the wheel
-                    lands. */}
-                <ArrivalBoard />
+                {/* The arrival is NOT in this row any more, and it is the one
+                    event that is not.
+
+                    It used to be: a 440px manifest card in the banner slot with
+                    the train running in the band underneath it, which is two
+                    objects on a page rather than one thing happening — the
+                    owner's note was that it "shifts the strip down and shows the
+                    lucky spin distribution above". The board is now signage hung
+                    inside the station itself and the whole event plays in one
+                    frame that grows out of the reel band, so this slot stays
+                    empty for the duration and nothing on the page moves. See
+                    effects/ArrivalTheatre.jsx; it is mounted in WheelSpinner,
+                    inside the reel mount, because the frame measures itself
+                    against that rectangle.
+
+                    The rule it does still keep is the one that matters: it never
+                    steals a spin in progress, which is why ActivityContext holds
+                    it back until the wheel lands. */}
                 <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
                 <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />

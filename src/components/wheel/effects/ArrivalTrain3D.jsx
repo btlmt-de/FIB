@@ -61,11 +61,15 @@ import {
     BoxGeometry, CylinderGeometry, PlaneGeometry, SphereGeometry, TorusGeometry,
     MeshStandardMaterial, MeshBasicMaterial, Mesh, ShaderMaterial,
     AmbientLight, DirectionalLight, PointLight, SpotLight,
-    Object3D, Sprite, SpriteMaterial, CanvasTexture,
+    Object3D, Sprite, SpriteMaterial, CanvasTexture, Vector3,
     AdditiveBlending, DoubleSide, LinearFilter,
     ACESFilmicToneMapping, SRGBColorSpace,
 } from 'three';
-import { T_SHUTTER, T_APPROACH, T_SETTLE, T_UNLOAD, T_DEPART, T_GONE, T_LIFT, T_LIFT_END, SCENE_FADE_S } from './arrivalTimeline.js';
+import {
+    T_SHUTTER, T_APPROACH, T_SETTLE, T_UNLOAD, T_DEPART, T_GONE, T_LIFT, T_LIFT_END,
+    SCENE_FADE_S, SHOT_TWO, SHOT_THREE, LID_DELAY_S, LID_OPEN_S, CRATE_FALL_S,
+    MAX_CRATES, crateFallsAt,
+} from './arrivalTimeline.js';
 import { prefersReducedMotion } from '../../../utils/motion.js';
 
 /*
@@ -91,8 +95,9 @@ const DECK_DEEP = 0x05060a;
 const SIGNAL_GREEN = 0x5bff8a;
 const SIGNAL_RED = 0xff3b30;
 
-/** Cars behind the locomotive, however many crates there are. */
-const MAX_CARS = 8;
+/* Cars behind the locomotive, however many crates there are. The cap lives in
+ * arrivalTimeline.js because the manifest board has to know it too — see the
+ * note there. */
 
 /* Track units. A car is 2.2 long; the loco is 3.4, the tender 2.0. */
 const CAR_LEN = 2.2;
@@ -104,6 +109,8 @@ const VAN_LEN = 1.9;
 /** Wheel geometry the rods are driven off. Changing either moves the rods. */
 const DRIVER_R = 0.34;
 const CRANK_R = 0.19;
+/** How far apart crates stand on the paving. A crate is 0.62 wide. */
+const CRATE_PITCH = 1.02;
 /** Main rod length, chosen so the crosshead never enters the cylinder block. */
 const MAIN_ROD = 0.83;
 const CYL_X = 1.62;
@@ -242,20 +249,47 @@ function signTexture(text, { w = 512, h = 128, size = 64, track = 0.16, ink = '#
     g.lineWidth = 4;
     g.strokeRect(2, 2, w - 4, h - 4);
 
-    g.font = `600 ${size}px "Barlow Condensed","Oswald","Arial Narrow",system-ui,sans-serif`;
+    const face = (px) => `600 ${px}px "Barlow Condensed","Oswald","Arial Narrow",system-ui,sans-serif`;
     g.textBaseline = 'middle';
-    const gap = size * track;
-    const chars = [...text];
-    let total = 0;
-    for (const ch of chars) total += g.measureText(ch).width + gap;
-    total -= gap;
 
+    /*
+     * The size is a REQUEST, and the panel is the limit.
+     *
+     * `size` used to be taken literally, so the longest string that fitted was
+     * the longest string anyone had happened to try: renaming the nameboard from
+     * nine characters to eleven ran the lettering off both ends of its own
+     * enamel. Measure, and step down until it fits with a margin — a sign is
+     * legible at whatever size the sign is, and illegible the moment it is wider
+     * than the thing it is painted on.
+     */
+    const runFor = (px) => {
+        g.font = face(px);
+        const gp = px * track;
+        let t = 0;
+        for (const ch of text) t += g.measureText(ch).width + gp;
+        return t - gp;
+    };
+    /*
+     * The margin has to pay for the GLOW, not just the glyphs. `measureText`
+     * describes the advance width and the amber lettering is drawn with a shadow
+     * of 0.45em behind it, so a string that measured as fitting still had its
+     * first and last letter cut in half by the edge of the canvas — FIB CENTRAL
+     * arrived on the platform reading "FIB CENTRAI".
+     */
+    let px = size;
+    let total = runFor(px);
+    while (total + px * 0.95 > w && px > 12) {
+        px -= 2;
+        total = runFor(px);
+    }
+
+    const gap = px * track;
     let x = (w - total) / 2;
     g.shadowColor = ink;
-    g.shadowBlur = size * 0.45;
+    g.shadowBlur = px * 0.45;
     g.fillStyle = ink;
-    for (const ch of chars) {
-        g.fillText(ch, x, h / 2 + size * 0.04);
+    for (const ch of text) {
+        g.fillText(ch, x, h / 2 + px * 0.04);
         x += g.measureText(ch).width + gap;
     }
     return finish(new CanvasTexture(c));
@@ -310,6 +344,85 @@ function cityTexture() {
         }
         x += bw + 3 + hash(i * 11.3) * 12;
         i++;
+    }
+    return finish(new CanvasTexture(c));
+}
+
+/**
+ * A lit window, as glass rather than as a colour.
+ *
+ * The cab windows were flat `MeshBasicMaterial(AMBER)` planes, which was fine
+ * for as long as the whole locomotive was ninety pixels tall. The theatre's
+ * close pass put the cab at three hundred, and a saturated square with hard
+ * edges and no falloff at that size is the one object in the frame that stops
+ * being a thing and starts being a fill — the same failure as the crate that
+ * used to be a wireframe cube.
+ *
+ * So: a warm centre falling off to a dimmer edge, a dark mullion down the
+ * middle, and a painted frame where the glass meets the cab. Three gradients on
+ * a small canvas, drawn once and shared by both sides — four more boxes per
+ * window would cost more and read the same.
+ */
+function windowTexture() {
+    const w = 128, h = 96;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+
+    // The glow inside, hottest a little below centre where a firebox would be.
+    const rg = g.createRadialGradient(w * 0.5, h * 0.62, 2, w * 0.5, h * 0.62, w * 0.62);
+    rg.addColorStop(0, '#ffe6b4');
+    rg.addColorStop(0.42, '#e59c33');
+    rg.addColorStop(1, '#5e3308');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, w, h);
+
+    g.strokeStyle = 'rgba(10,13,24,0.92)';
+    g.lineWidth = 9;
+    g.strokeRect(0, 0, w, h);
+    g.fillStyle = 'rgba(10,13,24,0.85)';
+    g.fillRect(w * 0.5 - 2.5, 0, 5, h);
+
+    return finish(new CanvasTexture(c));
+}
+
+/**
+ * A stencilled shipping mark, painted on the end of every crate.
+ *
+ * The one piece of copy on the cargo, and it is a MARK rather than a number:
+ * stencilling the amount on the outside of the box would hand the player the
+ * figure a beat before their own drum resolves it, and the board waiting for the
+ * crates is the whole shape of this event.
+ *
+ * Drawn hollow, in the enamel-sign amber, with the two "this way up" arrows a
+ * real packing case carries. Shared by every crate.
+ */
+function crateMarkTexture() {
+    const w = 128, h = 128;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d');
+
+    g.strokeStyle = 'rgba(255,170,0,0.62)';
+    g.fillStyle = 'rgba(255,170,0,0.62)';
+    g.lineWidth = 4;
+    g.lineCap = 'square';
+
+    g.font = '700 40px "Barlow Condensed","Arial Narrow",system-ui,sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('F I B', w / 2, 44);
+
+    g.beginPath();
+    g.moveTo(30, 68); g.lineTo(98, 68);
+    g.stroke();
+
+    // Two arrows, one either side of the rule, pointing at the lid.
+    for (const ax of [46, 82]) {
+        g.beginPath();
+        g.moveTo(ax, 108); g.lineTo(ax, 82);
+        g.moveTo(ax - 9, 91); g.lineTo(ax, 82); g.lineTo(ax + 9, 91);
+        g.stroke();
     }
     return finish(new CanvasTexture(c));
 }
@@ -415,8 +528,28 @@ function makeMaterials() {
         glow: new MeshBasicMaterial({ color: AMBER }),
         lampGlass: new MeshBasicMaterial({ color: 0xffd79a }),
         coal: new MeshStandardMaterial({ color: 0x0e1220, roughness: 0.95, metalness: 0.2 }),
-        crate: new MeshStandardMaterial({ color: 0x4a5878, roughness: 0.78, metalness: 0.12 }),
-        crateBand: new MeshStandardMaterial({ color: 0xb9832c, roughness: 0.4, metalness: 0.8 }),
+        /*
+         * TIMBER, not painted steel, and not brass.
+         *
+         * The crate was a blue-grey box wearing a brass strap each way round it,
+         * and a horizontal band crossed by a vertical one in a bright metal is a
+         * RIBBON — six of them on a platform read as a row of presents rather
+         * than as freight. Owner's note, and it was right. Cargo is timber: a
+         * warm base that the station's amber lamps have something to do with,
+         * framed in a lighter batten so the frame reads as construction.
+         */
+        crate: new MeshStandardMaterial({ color: 0x5c4c38, roughness: 0.94, metalness: 0.02 }),
+        crateFrame: new MeshStandardMaterial({ color: 0x7d6749, roughness: 0.88, metalness: 0.03 }),
+        /*
+         * The lid gets its own stop, two below the body's.
+         *
+         * Thrown back at 140° it is the only surface on a crate lying face-up to
+         * the key, so in the body's own colour six open lids came back as the
+         * brightest objects in the close shot — the same mistake as the near
+         * platform, and the same fix. What you are looking at is the inside of a
+         * lid anyway, which is the face that never saw sun.
+         */
+        crateLid: new MeshStandardMaterial({ color: 0x3f3427, roughness: 0.96, metalness: 0.02 }),
         ground: new MeshStandardMaterial({ color: 0x141b2c, roughness: 0.95, metalness: 0.05 }),
         /*
          * Lower roughness than a dry slab: the platform is damp, which is what
@@ -436,7 +569,20 @@ function makeMaterials() {
     };
 }
 
-export function ArrivalTrain3D({ crateCount = 0, style }) {
+/**
+ * `emitRef` is how the payout leaves the scene.
+ *
+ * The lucky spins that fountain out of the crates are drawn by a 2D overlay in
+ * SCREEN space, not by this renderer, because their destination is a DOM row on
+ * the manifest board and there is no world position for a DOM row. So each frame
+ * this component projects every crate's lip through its own camera and writes
+ * the pixel it landed on into a ref the overlay reads.
+ *
+ * A ref rather than a callback for the reason the whole timeline is a table: a
+ * callback per crate per frame is sixty state updates a second through React for
+ * a value nothing renders.
+ */
+export function ArrivalTrain3D({ crateCount = 0, emitRef = null, style }) {
     const wrapRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -446,7 +592,7 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
         if (!wrap || !canvas) return undefined;
 
         const motionOff = prefersReducedMotion();
-        const cars = Math.max(0, Math.min(crateCount, MAX_CARS));
+        const cars = Math.max(0, Math.min(crateCount, MAX_CRATES));
 
         const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
         renderer.setClearColor(0x000000, 0);
@@ -492,11 +638,14 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
          * them. Dropping the eye to 1.35 puts the horizon just under the boiler
          * centreline, which is the classic platform photograph.
          *
-         * The 2.6 of side offset is what keeps it from being a flat elevation:
-         * enough to see the front of the smokebox and the near flank at once.
+         * The side offset is what keeps it from being a flat elevation: enough
+         * to see the front of the smokebox and the near flank at once.
+         *
+         * All three of those numbers now belong to a SHOT rather than to the
+         * camera — see `frameShot` below — but shot one is still this angle,
+         * because it is still the right one for a train pulling in.
          */
         const camera = new PerspectiveCamera(17, 1, 0.1, 140);
-        const CAM_HOME = { x: 2.6, y: 1.35, z: FRAME_DIST };
 
         const M = makeMaterials();
         const disposables = [];
@@ -683,7 +832,34 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
             const head = new Mesh(headGeo, M.lampGlass);
             head.position.set(x + 0.5, 2.34, -3.4);
             scene.add(head);
-            addGlow(scene, x + 0.5, 2.34, -3.4, 1.5, LAMP, 0.55);
+
+            /*
+             * ── NAMED RULE: A BLOOM SPRITE MAY NOT SHARE A PLANE WITH ITS OWN
+             *    FIXTURE ─────────────────────────────────────────────────────
+             *
+             * This glow used to sit at exactly the bulb's position, at exactly
+             * the bulb's depth, at a unit and a half across. Which meant the
+             * billboard — depth-TESTED, as §8's note requires so the locomotive
+             * can occlude it — was sliced by four opaque objects it passes
+             * through at that depth: the shade above it, the arm behind it, the
+             * post below it, and the canopy slab, whose front face is at z −2.9
+             * and whose underside is at y 2.79, right through the top of a
+             * sprite reaching 3.09.
+             *
+             * A depth-tested quad cut by geometry it is coplanar with does not
+             * hold still. Every sub-pixel of camera movement — the dolly, the
+             * rumble as the engine passes, the whip on each cut — moves those
+             * four cut lines across the brightest part of the glow, and the lamp
+             * reads as flickering. Owner's report was "very flickery", and this
+             * is the whole of it: nothing about the lamp's intensity was ever
+             * animated.
+             *
+             * So the glow comes forward, clear of its own fitting, and shrinks
+             * to fit under the canopy lip. It is still depth-tested and the
+             * locomotive still occludes it, which was the point of drawing bloom
+             * this way; it simply no longer intersects the lamp it belongs to.
+             */
+            addGlow(scene, x + 0.5, 2.22, -3.12, 0.9, LAMP, 0.55);
         }
 
         // The far canopy: a roof edge and its stanchions behind the train, which
@@ -759,18 +935,38 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
          * ── SIGNAGE ──────────────────────────────────────────────────────────
          *
          * Two signs, and both are the site's own vocabulary rather than invented
-         * railway copy. §9 named this surface THE CONCOURSE, so that is what the
-         * station is called; the hanging sign says which platform the train is
-         * at, which is the one thing a passenger on it actually needs.
+         * railway copy. A station nameboard says where you ARE, so it says the
+         * name of the thing this whole city is a picture of; the hanging sign
+         * says which platform the train is at, which is the one thing a
+         * passenger on it actually needs.
+         *
+         * It read CONCOURSE until the theatre put it in front of a camera that
+         * gets close to it. THE CONCOURSE is what §9 named the surface — a note
+         * to ourselves about which design system a board belongs to — and a
+         * player has never seen that word anywhere else on the site. A station
+         * called after an internal codename is a set dressing that means
+         * something to exactly the people who built it.
          */
-        const nameboardTex = track(signTexture('CONCOURSE', { size: 74, track: 0.22 }));
+        const nameboardTex = track(signTexture('FIB CENTRAL', { size: 74, track: 0.22 }));
+        /*
+         * At −7.4 it was off the left edge of every frame the theatre opens, and
+         * whatever was left of it sat behind the manifest board — a sign nobody
+         * had ever read, which is why it kept an internal codename for three
+         * passes without anyone noticing. NAMEBOARD_X puts it in the gap between
+         * the far lamps at +0.3 and +6.2, where the posts miss both.
+         *
+         * It is behind the locomotive while the train stands, and that is
+         * correct rather than a compromise: you read a station's name as you
+         * pull in and again as you pull out, and the platform is empty for both.
+         */
+        const NAMEBOARD_X = 3.2;
         const nameboard = new Mesh(track(new PlaneGeometry(3.4, 0.85)), track(new MeshBasicMaterial({ map: nameboardTex, transparent: true })));
-        nameboard.position.set(-7.4, 1.5, -3.35);
+        nameboard.position.set(NAMEBOARD_X, 1.5, -3.35);
         scene.add(nameboard);
         const nameboardPosts = track(new BoxGeometry(0.07, 1.2, 0.07));
         for (const dx of [-1.5, 1.5]) {
             const p = new Mesh(nameboardPosts, M.iron);
-            p.position.set(-7.4 + dx, 0.94, -3.35);
+            p.position.set(NAMEBOARD_X + dx, 0.94, -3.35);
             scene.add(p);
         }
 
@@ -926,11 +1122,19 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
          * between the camera and the train.
          */
         const beams = [];
-        const lampConeGeo = track(new CylinderGeometry(0.1, 1.25, 2.5, 18, 1, true));
+        /*
+         * The shaft stops ABOVE the paving it is falling on.
+         *
+         * At 2.5 long it reached y −0.13 and the far platform's top is at 0.34,
+         * so the cone passed through the slab and the additive shell met the
+         * floor in a hard line — a second moving cut, on the same lamp, from the
+         * same cause as the glow above. Light in air stops where the air stops.
+         */
+        const lampConeGeo = track(new CylinderGeometry(0.1, 1.18, 1.95, 18, 1, true));
         for (const x of LAMP_XS) {
             const mat = track(beamMaterial(LAMP, 0.0, 1.6, 1.9));
             const cone = new Mesh(lampConeGeo, mat);
-            cone.position.set(x + 0.5, 1.12, -3.4);
+            cone.position.set(x + 0.5, 1.40, -3.4);
             scene.add(cone);
             beams.push({ mat, peak: 0.16 });
         }
@@ -1042,13 +1246,15 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
         cabRoof.castShadow = true;
         loco.add(cabRoof);
 
-        // Cab windows — the only warm thing on the train besides the lamp.
+        // Cab windows — the only warm thing on the train besides the lamp, and
+        // the only thing on it made of glass. See `windowTexture`.
+        const cabGlass = track(new MeshBasicMaterial({ map: track(windowTexture()) }));
         for (const z of [-0.66, 0.66]) {
-            const win = new Mesh(track(new PlaneGeometry(0.62, 0.44)), track(new MeshBasicMaterial({ color: AMBER })));
-            win.position.set(-1.05, 1.36, z);
+            const win = new Mesh(track(new PlaneGeometry(0.58, 0.42)), cabGlass);
+            win.position.set(-1.05, 1.38, z);
             win.rotation.y = z > 0 ? 0 : Math.PI;
             loco.add(win);
-            addGlow(loco, -1.05, 1.36, z * 1.06, 1.0, AMBER, 0.34);
+            addGlow(loco, -1.05, 1.38, z * 1.06, 1.0, AMBER, 0.34);
         }
 
         const footplate = new Mesh(track(new BoxGeometry(LOCO_LEN, 0.1, 1.5)), M.trim);
@@ -1311,7 +1517,14 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
 
         // The firebox, seen under the cab. It flickers, it is the only unsteady
         // light in the scene, and it is what makes the engine feel alight.
-        const fireGlow = addGlow(loco, -1.05, 0.5, 0.2, 1.1, 0xff8a2a, 0);
+        //
+        // Just OUTSIDE the footplate on the near flank rather than at z 0.2,
+        // inside it. Same rule as the station lamps above: the footplate spans
+        // ±0.75 and cut a sprite reaching y 1.05 clean in half, which layers an
+        // unintended flicker on top of the authored one. It now reads as the
+        // firebox light spilling out of the near side, which is where you would
+        // see it from a platform.
+        const fireGlow = addGlow(loco, -1.05, 0.5, 0.82, 1.1, 0xff8a2a, 0);
         const fireLight = new PointLight(0xff7a20, 0, 3.4, 2);
         fireLight.position.set(-1.05, 0.45, 0.3);
         loco.add(fireLight);
@@ -1375,6 +1588,27 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
 
         // ── the freight cars ────────────────────────────────────────────────
         const crateMeshes = [];
+
+        /*
+         * Every crate is built from these, and they are built once.
+         *
+         * Eight crates of fourteen pieces is a hundred and twelve meshes for
+         * eight distinct shapes; a fresh `BoxGeometry` inside the loop — which is
+         * what the corner brackets used to do — is a hundred and twelve buffer
+         * uploads describing the same box over and over.
+         */
+        const crateBoxGeo = track(new BoxGeometry(0.62, 0.62, 0.62));
+        const crateUprightGeo = track(new BoxGeometry(0.075, 0.63, 0.075));
+        const crateRailGeo = track(new BoxGeometry(0.638, 0.055, 0.638));
+        const crateBraceGeo = track(new BoxGeometry(0.30, 0.048, 0.016));
+        const crateSkidGeo = track(new BoxGeometry(0.66, 0.07, 0.13));
+        const crateLidGeo = track(new BoxGeometry(0.66, 0.06, 0.66));
+        const crateCleatGeo = track(new BoxGeometry(0.686, 0.05, 0.11));
+        const crateMarkGeo = track(new PlaneGeometry(0.34, 0.34));
+        const crateMarkMat = track(new MeshBasicMaterial({
+            map: track(crateMarkTexture()), transparent: true,
+        }));
+
         for (let i = 0; i < cars; i++) {
             const car = place(CAR_LEN);
 
@@ -1442,25 +1676,69 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
              * the glow belongs to a material and not to a stroke.
              */
             const crate = new Group();
-            const box = new Mesh(track(new BoxGeometry(0.62, 0.62, 0.62)), M.crate);
+            const box = new Mesh(crateBoxGeo, M.crate);
             box.castShadow = true;
             crate.add(box);
 
-            // Banding straps, one each way round the box.
-            const strapH = new Mesh(track(new BoxGeometry(0.646, 0.07, 0.646)), M.crateBand);
-            strapH.position.y = 0.06;
-            crate.add(strapH);
-            const strapV = new Mesh(track(new BoxGeometry(0.07, 0.646, 0.646)), M.crateBand);
-            crate.add(strapV);
-
-            // Corner brackets — eight little tabs that give the silhouette its
-            // bite and stop the cube from being a cube.
-            const brGeo = track(new BoxGeometry(0.14, 0.14, 0.14));
-            for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
-                const br = new Mesh(brGeo, M.trim);
-                br.position.set(sx * 0.27, sy * 0.27, sz * 0.27);
-                crate.add(br);
+            /*
+             * ── WHY IT IS FRAMED AND NOT STRAPPED ────────────────────────────
+             *
+             * It used to be a box with a brass band round it one way and another
+             * band crossing it the other, which is a RIBBON: six of them stood on
+             * a platform read as a row of gift presents. Owner's note, and the
+             * diagnosis is the crossing — a single centred vertical over a single
+             * centred horizontal is the one arrangement that means "wrapped".
+             *
+             * A packing case is not strapped, it is FRAMED: uprights at the
+             * corners, two rails round the sides, a diagonal brace across the
+             * face and skids underneath to get a bar under it. None of those is
+             * centred, none of them crosses in the middle, and every one of them
+             * is a piece of timber doing a job.
+             */
+            for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+                const upright = new Mesh(crateUprightGeo, M.crateFrame);
+                upright.position.set(sx * 0.295, 0, sz * 0.295);
+                upright.castShadow = true;
+                crate.add(upright);
             }
+            for (const y of [-0.19, 0.15]) {
+                const rail = new Mesh(crateRailGeo, M.crateFrame);
+                rail.position.y = y;
+                crate.add(rail);
+            }
+            /*
+             * Bracing, on the face the camera is on — and it is two corner
+             * gussets rather than one diagonal corner to corner.
+             *
+             * The full diagonal was right for the timber and wrong for the
+             * panel: it ran straight through the middle of the face, which is
+             * the one part of a packing case that is kept clear, because that is
+             * where the shipping mark goes.
+             *
+             * Both gussets are at the BOTTOM, mirrored, which is where a real
+             * case is braced and — the reason it changed twice — is the only
+             * arrangement that leaves the whole upper half of the face clear.
+             * At opposite corners the top one landed straight across the B.
+             */
+            for (const s of [-1, 1]) {
+                const brace = new Mesh(crateBraceGeo, M.crateFrame);
+                brace.position.set(s * 0.15, -0.16, 0.313);
+                brace.rotation.z = s * 0.62;
+                crate.add(brace);
+            }
+
+            // Skids. A crate sits on runners so something can get under it, and
+            // the gap is also what gives it a shadow with daylight beneath.
+            for (const sz of [-1, 1]) {
+                const skid = new Mesh(crateSkidGeo, M.crateFrame);
+                skid.position.set(0, -0.345, sz * 0.2);
+                skid.castShadow = true;
+                crate.add(skid);
+            }
+
+            const mark = new Mesh(crateMarkGeo, crateMarkMat);
+            mark.position.set(0, 0.055, 0.316);
+            crate.add(mark);
 
             // The lid seam, lit. One glowing line, where there used to be twelve.
             const seam = new Mesh(track(new BoxGeometry(0.64, 0.012, 0.64)), M.glow);
@@ -1468,8 +1746,51 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
             crate.add(seam);
             const seamGlow = addGlow(crate, 0, 0.2, 0, 1.1, AMBER, 0.2);
 
+            /*
+             * THE LID, and why it is a pivot rather than a moving box.
+             *
+             * A crate that is already open when it touches the paving is a crate
+             * that was never shut, so the lid throws back a beat AFTER the
+             * landing — and it throws back on a hinge at its far edge, which is
+             * what a lid does. Rotating the box itself would swing it about its
+             * own centre and drive half of it down through the crate.
+             *
+             * An `Object3D` and not a `Group`: it carries one child and nothing
+             * ever needs to find it.
+             */
+            const lidPivot = new Object3D();
+            lidPivot.position.set(0, 0.31, -0.31);
+            /*
+             * The crate's own timber, and thin. In the hull's colour the open lid
+             * was the largest flat surface in the close shot and the only one
+             * facing the key light square on, so six of them came up as a row of
+             * pale slabs brighter than the crates they came off — the crate
+             * out-lit by its own lid. It is boards now, like the rest of it,
+             * with one cleat across them.
+             */
+            const lid = new Mesh(crateLidGeo, M.crateLid);
+            lid.position.set(0, 0.02, 0.31);
+            lid.castShadow = true;
+            lidPivot.add(lid);
+            const lidCleat = new Mesh(crateCleatGeo, M.crateFrame);
+            lidCleat.position.set(0, 0.03, 0.31);
+            lidPivot.add(lidCleat);
+            crate.add(lidPivot);
+
+            /*
+             * What is inside. It is not an object — a lucky spin has no shape —
+             * so it is a light: an additive core completely hidden by the closed
+             * lid that floods out of the box as the lid clears it. §8's rule one
+             * storey down: the payout is light, and light is what a rarity has
+             * always been on this surface.
+             */
+            const core = addGlow(crate, 0, 0.16, 0, 0.9, AMBER, 0);
+
             scene.add(crate);
-            crateMeshes.push({ crate, car, carIndex: i, seamGlow, landed: false });
+            crateMeshes.push({
+                crate, car, carIndex: i, seamGlow, lidPivot, core,
+                landed: false, spilled: false,
+            });
         }
 
         /*
@@ -1578,22 +1899,26 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
         };
         const exRef = { i: 0 }, stRef = { i: 0 }, emRef = { i: 0 };
 
+        /** Reused for every projection. One allocation, not one per crate per frame. */
+        const projV = new Vector3();
+
         // ── sizing and framing ──────────────────────────────────────────────
         /*
-         * ── THE TWO FRAMES ───────────────────────────────────────────────────
+         * ── EVERY FRAME, NOT TWO ─────────────────────────────────────────────
          *
-         * A fixed vertical FOV was right for exactly one shape of viewport. The
-         * reel mount is a ~9:1 letterbox on a desktop and a nearly-square shaft
-         * on a phone (WheelSpinner gives it `height: 100%` there), and 17° of
-         * vertical on a 0.45 aspect leaves a horizontal field about a metre
-         * wide: you would see the boiler and nothing else.
+         * A fixed vertical FOV was right for exactly one shape of viewport, so
+         * the FOV became DERIVED: from how much track has to fit across, which
+         * is the axis that actually varies. The consequence on a tall frame is
+         * units of air above the canopy — which is why the sky, the skyline and
+         * the telegraph poles exist, and why the aim point rises to push the
+         * train into the lower third rather than stranding it in the middle of
+         * an empty rectangle.
          *
-         * So the vertical FOV is DERIVED from how much track has to fit across,
-         * with the letterbox's 17° as a floor. The consequence on a phone is a
-         * tall frame with twelve units of air above the canopy — which is why
-         * the sky, the skyline and the telegraph poles exist, and why the aim
-         * point rises to push the train into the lower third rather than
-         * stranding it in the middle of an empty rectangle.
+         * What replaced the derivation's own `aspect >= 4` branch is below. The
+         * theatre frame grows out of the reel band, so the aspect is no longer
+         * one of two readings taken at mount: it sweeps continuously from ~9:1
+         * to ~2.5:1 during the iris, and a threshold anywhere in that range is a
+         * lens change the player watches happen.
          */
         const trainLen = LOCO_LEN / 2 - cursor;
         /* Where the train comes to rest. The group's origin is the LOCOMOTIVE and
@@ -1609,47 +1934,231 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
          */
         const END_X = 28 + trainLen;
 
-        let W = 0, H = 0, aimX = -0.4, aimY = 1.28, crateSpread = 1.05, crateCentre = 0;
+        let W = 0, H = 0, aspect = 1, aimX = -0.4, aimY = 1.28, crateSpread = 1.05, crateCentre = 0;
+        /** The landed crate row's middle and width, solved in `layoutCrates`. */
+        let rowMid = 0, rowSpan = 0;
+
+        /** The vertical FOV that fits `fitW` world units across at `dist`. */
+        const fovFor = (fitW, dist) => {
+            const need = 2 * Math.atan((fitW / 2) / (dist * aspect)) * 180 / Math.PI;
+            return Math.max(14, Math.min(64, need));
+        };
+
+        /** The widest thing shot two has to hold: the crate row, end to end. */
+        const crateRun = crateMeshes.length
+            ? Math.abs(crateMeshes[crateMeshes.length - 1].car.position.x)
+            : 1;
+
+        /**
+         * Shot ONE's lens, which is the one the crate row is laid out against.
+         *
+         * Two limits, and the second arrived with the theatre. Fitting the
+         * consist across a 2.5:1 frame the way it was fitted across a 9:1 band
+         * put six units of world into the vertical, and a locomotive is two and
+         * a half of them: the frame came back a strip of train between a ceiling
+         * of sky and a floor of empty paving. A taller frame wants a TIGHTER
+         * lens, not more station — so the vertical field is capped and the
+         * horizontal one follows it down.
+         *
+         * The floor under both is what keeps a phone from being a picture of the
+         * boiler: on a shaft the cap alone would ask for under three units.
+         */
+        const wideFit = () => Math.max(8.5, Math.min(
+            trainLen * 1.15,
+            9 + aspect * 3.0,
+            4.8 * aspect,
+        ));
+
+        /*
+         * WHERE THE CRATES COME TO REST, solved once per resize and never per
+         * shot. They fall into shot ONE's frame; if the row re-spaced itself on
+         * a cut, every crate on the platform would slide sideways under a camera
+         * that is standing still.
+         */
+        const layoutCrates = () => {
+            const fitW = wideFit();
+            const visW = 2 * FRAME_DIST * Math.tan(fovFor(fitW, FRAME_DIST) * Math.PI / 360) * aspect;
+            const wideAim = REST_X - Math.min(5.0, fitW * 0.22);
+            /*
+             * The row is compressed toward the middle only as far as it has to
+             * be — and NOT past the point where the crates touch.
+             *
+             * The first rule here was purely "fit inside a third of the frame",
+             * which on six wagons compressed a 15-unit consist into 3.2 and
+             * spaced 0.62-wide crates 0.68 apart: a solid wall of boxes with
+             * hairlines between them, which is a stack rather than a delivery.
+             * So the pitch is asked for first and the frame is the ceiling on
+             * it, not the other way round.
+             */
+            const gaps = Math.max(1, crateMeshes.length - 1);
+            crateSpread = Math.min(
+                1,
+                (visW * 0.60) / Math.max(1, crateRun + REST_X),
+                (CRATE_PITCH * gaps) / Math.max(0.001, crateRun),
+            );
+
+            /*
+             * WHERE THE ROW GOES, and it is solved from the row's middle rather
+             * than from its first crate.
+             *
+             * `crateCentre` is where crate ZERO lands — the one beside the
+             * locomotive — and every other crate runs back from it along the
+             * train. Placing the row by that number puts an unknown amount of it
+             * off to the left, which is how shot two came to aim at the
+             * right-hand end of the row and leave four of six crates behind the
+             * manifest board. So the middle is placed and `crateCentre` is
+             * derived from it.
+             *
+             * And the middle goes slightly RIGHT of the wide shot's aim, because
+             * the board hangs in the left third of the frame. A crate opening
+             * behind a panel is a crate nobody sees open — the platform
+             * furniture rule, applied to the one piece of furniture that is DOM.
+             */
+            const relOf = (e) => (REST_X + e.car.position.x) * crateSpread;
+            if (crateMeshes.length) {
+                const relFirst = relOf(crateMeshes[0]);
+                const relLast = relOf(crateMeshes[crateMeshes.length - 1]);
+                const relMid = (relFirst + relLast) / 2;
+                rowSpan = Math.abs(relFirst - relLast);
+                rowMid = wideAim + fitW * 0.05;
+                crateCentre = rowMid - relMid;
+            } else {
+                rowSpan = 0;
+                rowMid = wideAim;
+                crateCentre = rowMid;
+            }
+        };
+
         const size = () => {
             const r = wrap.getBoundingClientRect();
             W = Math.max(1, r.width); H = Math.max(1, r.height);
             renderer.setSize(W, H, false);
-            const aspect = W / H;
+            aspect = W / H;
             camera.aspect = aspect;
-
-            const fitW = aspect >= 4 ? Math.min(38, Math.max(16, trainLen * 1.3)) : 11.5;
-            const needV = 2 * Math.atan((fitW / 2) / (FRAME_DIST * aspect)) * 180 / Math.PI;
-            camera.fov = Math.max(17, Math.min(58, needV));
             camera.updateProjectionMatrix();
-
-            const visH = 2 * FRAME_DIST * Math.tan(camera.fov * Math.PI / 360);
-            const visW = visH * aspect;
-            // The train sits at 38% up the frame, not at the centre: a tall
-            // frame with the subject dead centre is a subject with nothing
-            // under it and a ceiling of dead air over it.
-            aimY = 1.42 + Math.max(0, visH - 4.1) * 0.13;
-            /*
-             * And on a narrow frame the camera looks at the ENGINE, not at the
-             * middle of the track.
-             *
-             * The letterbox is wide enough that the aim point barely matters —
-             * the whole consist is in shot either way. The phone shaft is 11.5
-             * units across and the locomotive parks at +4.6, so aiming at −0.4
-             * put the smokebox a unit and a half past the right edge: the phone
-             * got a picture of the wagons and the crates, and no train.
-             */
-            aimX = aspect >= 4 ? -0.4 : REST_X - 1.1;
-            // The crates land beside their own wagon, compressed toward the
-            // middle only as far as is needed to keep the last one in shot.
-            const farthest = Math.abs(crateMeshes.length ? crateMeshes[crateMeshes.length - 1].car.position.x + REST_X : 1);
-            crateSpread = Math.min(1, (visW * 0.34) / Math.max(1, farthest));
-            // The row follows the aim point, or a phone unloads its crates off
-            // the left of its own frame.
-            crateCentre = aspect >= 4 ? 0 : aimX - 1.2;
+            layoutCrates();
         };
         size();
         const ro = new ResizeObserver(size);
         ro.observe(wrap);
+
+        /*
+         * ── THE THREE SHOTS ──────────────────────────────────────────────────
+         *
+         * Cuts, not moves. See the note in arrivalTimeline.js for why; here is
+         * what each one is FOR.
+         *
+         *   ONE   the arrival. Wide, low, the whole consist coming out of the
+         *         fog. The subject is the train.
+         *   TWO   the payout. Down on the platform beside the crates, close
+         *         enough that a lid throwing back is a real thing opening and
+         *         not a detail on a distant box, with the locomotive standing
+         *         over them in the fog behind. The subject is the crates.
+         *   THREE the departure. Wider and higher than shot one, far enough back
+         *         that the whole train clears the frame. The subject is the
+         *         platform being left behind.
+         *
+         * Each returns its own lens and its own slow push, and `p` is that
+         * shot's own progress — a cut resets it, so no shot inherits the
+         * previous one's drift.
+         */
+        const solveShot = (t) => {
+            // One frame of shot two, already settled: a still image should be of
+            // the payout, because the payout is the information.
+            if (motionOff) return { i: 1, p: 0.5 };
+            if (t >= SHOT_THREE) return { i: 2, p: clamp01((t - SHOT_THREE) / (T_GONE - SHOT_THREE)) };
+            if (t >= SHOT_TWO) return { i: 1, p: clamp01((t - SHOT_TWO) / (SHOT_THREE - SHOT_TWO)) };
+            return { i: 0, p: clamp01(t / SHOT_TWO) };
+        };
+
+        /** Everything the camera needs for one frame, solved from the shot. */
+        const frameShot = (shot) => {
+            const { i, p } = shot;
+            let dist, fitW, aimZ = 0, side, eye;
+
+            if (i === 1) {
+                /*
+                 * Close on the crates. The DISTANCE is what makes this a
+                 * different shot rather than a zoom: the fog thins on the
+                 * subject, the perspective on the boxes opens up, and the train
+                 * behind them goes soft.
+                 *
+                 * It frames the LANDED row — `rowSpan`, solved in
+                 * `layoutCrates` — and not the consist it came off. The crates
+                 * are compressed toward the middle as they come down, so
+                 * framing the uncompressed span asked for thirteen units across
+                 * a row three and a half wide, which is how the first cut of
+                 * this shot ended up further away than the wide one.
+                 */
+                dist = 6.2 - p * 0.5;
+                fitW = Math.max(4.6, Math.min(10, rowSpan + 2.8));
+                aimZ = 2.6;
+                side = 1.9;
+                /*
+                 * A camera at 1.0 aimed at 0.7 is a camera pointing DOWN, and
+                 * what is down here is the paving. It sits below the crate lids
+                 * and looks very slightly up instead, which puts the floor into
+                 * the bottom quarter where it belongs and stands the locomotive
+                 * over the row rather than behind it.
+                 */
+                eye = 0.88;
+            } else if (i === 2) {
+                dist = FRAME_DIST * (1.06 + p * 0.16);
+                fitW = Math.max(9.5, Math.min(trainLen * 1.5, 11 + aspect * 3.6, 5.6 * aspect));
+                side = 3.4;
+                eye = 1.5 + p * 0.2;
+            } else {
+                dist = FRAME_DIST * (1.04 - p * 0.05);
+                fitW = wideFit();
+                side = 3.0;
+                /*
+                 * Lower than it was, and the reason is the floor. A camera at
+                 * platform-sign height sees the near paving as a slab across the
+                 * bottom of a tall frame; dropping the eye foreshortens it into
+                 * a strip and — the part that matters more — puts the horizon
+                 * under the boiler centreline, which is how you make a machine
+                 * look big.
+                 */
+                eye = 1.08;
+            }
+
+            camera.fov = fovFor(fitW, dist);
+            camera.updateProjectionMatrix();
+
+            const visH = 2 * dist * Math.tan(camera.fov * Math.PI / 360);
+
+            if (i === 1) {
+                // Centred on the row, walking it slowly end to end.
+                aimX = rowMid + lerp(-0.09, 0.09, p) * fitW;
+                aimY = 0.96 + Math.max(0, visH - 2.6) * 0.14;
+            } else {
+                /*
+                 * The subject sits at 38% up the frame, not at the centre: a
+                 * tall frame with the subject dead centre is a subject with
+                 * nothing under it and a ceiling of dead air over it.
+                 */
+                /*
+                 * Capped, because the two frames this has to serve are a long
+                 * way apart. The theatre's ~2.5:1 sees under five units of
+                 * height and wants every bit of the correction; a phone shaft
+                 * sees fifteen, and 0.22 of that unclamped lifts the aim so far
+                 * that the locomotive leaves the bottom of its own frame. The
+                 * cap is where the sky stops being worth buying.
+                 */
+                aimY = 1.42 + Math.min(1.6, Math.max(0, visH - 4.1) * 0.22);
+                /*
+                 * And on a narrow frame the camera looks at the ENGINE, not at
+                 * the middle of the track. A wide frame holds the whole consist
+                 * either way; the shaft is ~11 units across and the locomotive
+                 * parks at +4.6, so aiming at the middle put the smokebox past
+                 * the right edge and the phone got a picture of the wagons with
+                 * no train in it.
+                 */
+                aimX = REST_X - Math.min(5.0, fitW * 0.22);
+            }
+
+            return { dist, side, eye, aimZ, i, p };
+        };
 
         let raf = 0;
         const start = performance.now();
@@ -1767,28 +2276,33 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
 
             // ── the camera ──────────────────────────────────────────────────
             /*
-             * A slow push, and a shake the train actually causes.
+             * Three shots, a slow push inside each, and a shake the train
+             * actually causes.
              *
-             * The drift is 1.4 units of dolly over eighteen seconds, which is
-             * under a pixel a frame and is not consciously visible — it is there
-             * so the backdrop planes and the poles separate in parallax and the
-             * shot stops being a photograph of a model.
+             * The push is under a pixel a frame and is not consciously visible —
+             * it is there so the backdrop planes and the poles separate in
+             * parallax and the shot stops being a photograph of a model. It
+             * belongs to the SHOT and not to the event, so a cut resets it; one
+             * drift running across all three would arrive at the departure
+             * already spent.
              *
              * The shake is scaled by speed AND by how close the locomotive is to
              * the camera, so it peaks exactly as the engine sweeps past and is
              * gone by the time it stops. A constant rumble would just read as a
              * loose camera mount.
              */
-            const drift = motionOff ? 0.4 : clamp01(t / (T_LIFT_END || 1));
+            const shot = frameShot(solveShot(t));
             // The side offset is measured from the AIM point, not from the
             // origin — otherwise moving the aim to the engine on a phone swings
             // the camera round to the other side of the track.
-            let camX = aimX + 3.0 - drift * 0.7;
-            let camY = CAM_HOME.y + drift * 0.16;
-            let camZ = CAM_HOME.z - drift * 1.4;
+            let camX = aimX + shot.side;
+            let camY = shot.eye;
+            let camZ = shot.aimZ + shot.dist;
             if (!motionOff) {
                 const near = clamp01(1 - Math.abs(x - 1.5) / 16);
-                const rumble = clamp01((Math.abs(vel) - 3) / 22) * near;
+                // Shot two is close enough to the track that the same engine
+                // shakes it harder — a camera on the platform, not up the line.
+                const rumble = clamp01((Math.abs(vel) - 3) / 22) * near * (shot.i === 1 ? 1.9 : 1);
                 if (rumble > 0.001) {
                     camX += Math.sin(t * 51.3) * 0.014 * rumble;
                     camY += Math.sin(t * 43.7 + 1.1) * 0.018 * rumble;
@@ -1796,20 +2310,43 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
                 // A single jolt as the brakes take hold.
                 const jolt = clamp01(1 - Math.abs(t - T_SETTLE) / 0.5);
                 camY += Math.sin((t - T_SETTLE) * 38) * 0.012 * jolt * jolt;
+                /*
+                 * Each cut lands with a whip and a settle rather than dead
+                 * still. A hard cut to a perfectly locked-off camera reads as a
+                 * slide change; four tenths of a second of a camera being
+                 * brought back onto its subject reads as an operator finding
+                 * the shot.
+                 */
+                for (const cut of [SHOT_TWO, SHOT_THREE]) {
+                    const age = t - cut;
+                    if (age >= 0 && age < 0.42) {
+                        const k = (1 - age / 0.42) ** 2;
+                        camX += Math.sin(age * 26) * 0.10 * k;
+                        camY += Math.cos(age * 21) * 0.06 * k;
+                    }
+                }
             }
             camera.position.set(camX, camY, camZ);
-            camera.lookAt(aimX, aimY, 0);
+            camera.lookAt(aimX, aimY, shot.aimZ);
 
             // The key light's shadow frustum stays over the platform.
             key.position.set(5, 9, 8);
             key.target.position.set(0, 0.6, 1.0);
 
             // ── the crates ──────────────────────────────────────────────────
-            const n = Math.max(1, crateMeshes.length);
-            for (const entry of crateMeshes) {
-                const { crate, car, carIndex, seamGlow } = entry;
-                const at = T_SETTLE + carIndex * ((T_UNLOAD - T_SETTLE) / n);
-                const p = motionOff ? 1 : clamp01((t - at) / 0.6);
+            /*
+             * The cadence is per PLAYER, not per wagon. Past `MAX_CRATES` the
+             * consist stops growing but the manifest does not, and a scene
+             * pacing eight crates across the unload while the board paces eleven
+             * rows across it is two clocks again — the exact failure the shared
+             * timeline exists to prevent.
+             */
+            const n = Math.max(1, crateCount);
+            for (let ci = 0; ci < crateMeshes.length; ci++) {
+                const entry = crateMeshes[ci];
+                const { crate, car, carIndex, seamGlow, lidPivot, core } = entry;
+                const at = crateFallsAt(carIndex, n);
+                const p = motionOff ? 1 : clamp01((t - at) / CRATE_FALL_S);
 
                 // On the car until its moment, then a parabola onto the
                 // platform. A crate that slides in a straight line has no mass.
@@ -1827,10 +2364,55 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
                 // The seam flares on the landing and settles back. It is the
                 // only moment a crate is louder than the train, and it is the
                 // moment the payout physically exists.
-                const sinceLand = t - (at + 0.6);
+                const sinceLand = t - (at + CRATE_FALL_S);
                 const flare = clamp01(1 - sinceLand / 0.5);
                 seamGlow.material.opacity = (0.2 + flare * 0.75) * lampLevel;
                 seamGlow.scale.setScalar(lerp(1.1, 2.2, flare));
+
+                /*
+                 * THE LID, and the light behind it.
+                 *
+                 * It throws back on an ease-out — a hinged lid is thrown, and a
+                 * thrown thing arrives slowing — and it carries WELL past
+                 * vertical, down behind the crate, which is where a real lid
+                 * ends up when its own weight takes it over the hinge.
+                 *
+                 * How far past is a composition decision, not a physical one. At
+                 * 102° and at 118° the open lids stood up square to the camera
+                 * and six of them read as a fence across the close shot — the
+                 * lids, not the crates, were the row. Laid back to 140° they go
+                 * edge-on and mostly hide behind their own box, which is what
+                 * lets the thing that matters, the light coming out, be the
+                 * brightest part of an opened crate.
+                 *
+                 * The light is masked by the lid's angle for the first fifth of
+                 * the throw, so a crate spends a beat leaking before it floods.
+                 */
+                const lidP = motionOff ? 1 : clamp01((sinceLand - LID_DELAY_S) / LID_OPEN_S);
+                lidPivot.rotation.x = -2.45 * easeOutExpo(lidP);
+                const spill = clamp01((lidP - 0.18) / 0.55);
+                core.material.opacity = spill * (0.55 + 0.45 * Math.sin(t * 5.1 + carIndex)) * lampLevel;
+                core.scale.setScalar(lerp(0.5, 1.25, spill));
+                entry.openAt = at + CRATE_FALL_S + LID_DELAY_S;
+
+                /*
+                 * WHERE THE SPINS LEAVE, in pixels.
+                 *
+                 * Projected from the crate's LIP rather than its centre, because
+                 * that is the edge the light comes over. The overlay that draws
+                 * them has no camera and no scene — it has this number.
+                 */
+                if (emitRef) {
+                    const st = emitRef.current || (emitRef.current = { w: 0, h: 0, t: 0, crates: [] });
+                    st.w = W; st.h = H; st.t = t;
+                    projV.set(crate.position.x, crate.position.y + 0.36, crate.position.z);
+                    projV.project(camera);
+                    const c = st.crates[ci] || (st.crates[ci] = {});
+                    c.x = (projV.x * 0.5 + 0.5) * W;
+                    c.y = (-projV.y * 0.5 + 0.5) * H;
+                    c.onScreen = projV.z < 1 && p >= 1;
+                    c.openAt = entry.openAt;
+                }
 
                 if (!motionOff && !entry.landed && p >= 1) {
                     entry.landed = true;
@@ -1839,6 +2421,25 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
                         emit(steam, stRef, restSlot + (hash(k * 3.3) - 0.5) * 0.5, 0.42, 2.6 + (hash(k * 7.1) - 0.5) * 0.5, {
                             t, vx: (hash(k) - 0.5) * 0.5, vy: 0.16, vz: (hash(k * 2.1) - 0.5) * 0.4,
                             life: 0.9, grow: 2.4, size0: 0.28, peak: 0.15,
+                        });
+                    }
+                }
+
+                /*
+                 * The lid throwing back kicks a handful of embers out of the
+                 * box, once. They exist so the opening has something physical in
+                 * it at the moment the light gets out — the spins themselves are
+                 * drawn by the overlay in screen space and know nothing about
+                 * this scene's fog, its depth or its lamps, and a burst that DOES
+                 * know is what stitches the two together.
+                 */
+                if (!motionOff && !entry.spilled && lidP > 0.22) {
+                    entry.spilled = true;
+                    for (let k = 0; k < 4; k++) {
+                        emit(embers, emRef, crate.position.x + (hash(k * 5.7 + carIndex) - 0.5) * 0.3, 0.9, crate.position.z, {
+                            t, vx: (hash(k * 2.9 + carIndex) - 0.5) * 0.9,
+                            vy: 1.5 + hash(k * 4.1 + carIndex) * 1.3,
+                            vz: (hash(k * 8.3 + carIndex) - 0.5) * 0.6,
                         });
                     }
                 }
@@ -2004,7 +2605,7 @@ export function ArrivalTrain3D({ crateCount = 0, style }) {
             for (const m of Object.values(M)) m.dispose();
             renderer.dispose();
         };
-    }, [crateCount]);
+    }, [crateCount, emitRef]);
 
     return (
         <div ref={wrapRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, ...style }}>

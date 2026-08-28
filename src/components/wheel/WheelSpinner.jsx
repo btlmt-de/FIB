@@ -82,7 +82,7 @@ import {
 import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
-import { ArrivalTrain } from './effects/ArrivalTrain.jsx';
+import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 
 
@@ -2192,13 +2192,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
                                 }}>
 
-                                {/* The arrival owns the band: the reel's slots
-                                    shutter closed, the platform comes up, and
-                                    the train pulls in across the full width of
-                                    the viewport. Inside the mount so it covers
-                                    the reel rather than replacing it — the
-                                    wheel keeps rendering underneath and is
-                                    revealed again when the platform lifts. */}
+                                {/* The arrival takes the band and then opens out
+                                    of it: the reel's slots shutter closed here,
+                                    in the mount, and the station plays in a
+                                    fixed frame that grows out of this exact
+                                    rectangle over the column. Mounted inside the
+                                    mount because the shutter has to be precisely
+                                    where the reel is and because this element is
+                                    what the frame measures itself against — see
+                                    ArrivalTheatre.jsx. The wheel keeps rendering
+                                    underneath the whole time and is revealed
+                                    again when the blades lift. */}
                                 {/* Keyed on the event so a second arrival gets a
                                     FRESH component and therefore a fresh clock.
                                     Without it React reused the instance, the
@@ -2209,10 +2213,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     survived review because arrivals are hours
                                     apart in production and never overlapped. */}
                                 {arrivalOwnsReel && (
-                                    <ArrivalTrain
-                                        key={arrival?.expiresAt || 'arrival'}
-                                        crateCount={arrival?.manifest?.length || 0}
-                                    />
+                                    <ArrivalTheatre key={arrival?.expiresAt || 'arrival'} />
                                 )}
 
                                 {/* Matrix scanlines overlay - Recursion only */}
