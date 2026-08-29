@@ -12,7 +12,7 @@
  * the story.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { matchStandings, matchDuration, idLabel, idUuid } from './adapter.js';
 import { loadMatches } from './api.js';
 import { useAsync } from './useAsync.js';
@@ -24,6 +24,23 @@ const MODES = [
     { id: 'SOLO', label: 'Solo' },
     { id: 'TEAM', label: 'Team' },
 ];
+
+/*
+ * The feed pages; it does not window by date.
+ *
+ * This read as "only the last month" for a long time and the cause was neither a filter nor a
+ * retention policy — the view fetched page 0 and stopped. Nothing anywhere bounds the feed by time:
+ * FIBService substitutes EPOCH..9999 for an absent from/to, and the public API and the stats backend
+ * both forward the window untouched. Twenty rows simply happened to reach back about a month on a
+ * server playing at this rate, and the header said "N completed matches" over them, which made a
+ * paging stop look like a date cutoff.
+ *
+ * 100 is the ceiling every layer agrees on (CallerInput.MAX_ROWS in the stats backend, clampSize in
+ * the public API, coerceIn(1, 100) in FIBService), so 50 leaves room to raise it without a
+ * three-repo change, and pages are unbounded above — reaching the whole history is a matter of
+ * asking for the next one.
+ */
+const PAGE_SIZE = 50;
 
 /** Calendar-day key, so grouping is stable regardless of locale formatting. */
 const dayKey = (v) => new Date(v).toDateString();
@@ -48,18 +65,57 @@ function dayLabel(v) {
 }
 
 export function Matches({ onOpenMatch }) {
-    const state = useAsync(() => loadMatches(0), []);
+    const state = useAsync(() => loadMatches(0, PAGE_SIZE), []);
     return (
         <AsyncView state={state} loadingLabel="Loading matches…">
-            {(page) => <MatchesBody matches={page.matches} totalCount={page.totalCount} onOpenMatch={onOpenMatch} />}
+            {(page) => <MatchesBody firstPage={page.matches} totalCount={page.totalCount} onOpenMatch={onOpenMatch} />}
         </AsyncView>
     );
 }
 
-/* The feed's render, unchanged except that it reads its match array and true total from props
- * (the fetched FibMatchPage) rather than from a `data` bundle. */
-function MatchesBody({ matches, totalCount, onOpenMatch }) {
+/* The feed's render, reading its match array and true total from props (the fetched FibMatchPage)
+ * rather than from a `data` bundle, and appending later pages onto the first. */
+function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
     const [mode, setMode] = useState('all');
+    const [later, setLater] = useState([]);
+    const [nextPage, setNextPage] = useState(1);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [loadError, setLoadError] = useState(null);
+
+    /*
+     * Deduplicated by matchId, because paging a feed that is still being written to is not stable:
+     * a match ending between two requests pushes everything down one, and the row that was last on
+     * page N arrives again as the first of page N+1. React would warn about the duplicate key, and
+     * the reader would see the same game twice.
+     */
+    const matches = useMemo(() => {
+        const seen = new Set();
+        const merged = [];
+        for (const match of [...firstPage, ...later]) {
+            if (seen.has(match.matchId)) continue;
+            seen.add(match.matchId);
+            merged.push(match);
+        }
+        return merged;
+    }, [firstPage, later]);
+
+    const hasMore = matches.length < totalCount;
+
+    const loadMore = useCallback(async () => {
+        setLoadingMore(true);
+        setLoadError(null);
+        try {
+            const { data } = await loadMatches(nextPage, PAGE_SIZE);
+            setLater((prev) => [...prev, ...(data?.matches ?? [])]);
+            setNextPage((page) => page + 1);
+        } catch (error) {
+            // Kept local: the pages already on screen are still good, so a failed "load more" costs
+            // the next page and a retry, never the feed.
+            setLoadError(error);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [nextPage]);
 
     const groups = useMemo(() => {
         const list = mode === 'all' ? matches : matches.filter((m) => m.mode === mode);
@@ -99,6 +155,22 @@ function MatchesBody({ matches, totalCount, onOpenMatch }) {
                         <Empty title="No matches yet">
                             Matches are written here the moment one ends on the server, so this fills
                             itself — nothing needs to be imported and nothing has been lost.
+                        </Empty>
+                    ) : hasMore ? (
+                        /*
+                          The mode filter runs over what has been paged in, not over the server's
+                          whole history, so with pages still unread "none" is a statement this view
+                          cannot make. Offer the next page instead of asserting the absence.
+                        */
+                        <Empty
+                            title={`No ${mode === 'SOLO' ? 'solo' : 'team'} matches on this page`}
+                            action={
+                                <button type="button" className="fib-btn fib-btn--quiet" onClick={loadMore} disabled={loadingMore}>
+                                    {loadingMore ? 'Loading…' : 'Load more matches'}
+                                </button>
+                            }
+                        >
+                            {`${f.num(matches.length)} of ${f.num(totalCount)} matches loaded, and none of them were played ${mode === 'SOLO' ? 'solo' : 'in teams'} — there may be more further back.`}
                         </Empty>
                     ) : (
                         <Empty
@@ -169,6 +241,32 @@ function MatchesBody({ matches, totalCount, onOpenMatch }) {
                             </div>
                         </section>
                     ))
+                )}
+
+                {/*
+                  Stated whether or not there is more to fetch. A feed holding 50 of 300 matches
+                  reads as the whole history when it is silent about it — which is exactly how a
+                  paging stop came to be reported as a one-month cutoff.
+                */}
+                {groups.length > 0 && (
+                    <div className="fib-more" role="status">
+                        {hasMore ? (
+                            <>
+                                <button type="button" className="fib-btn" onClick={loadMore} disabled={loadingMore}>
+                                    {loadingMore ? 'Loading…' : 'Load more'}
+                                </button>
+                                <span className="fib-meta">
+                                    {loadError
+                                        ? `Could not load more matches: ${loadError.message}`
+                                        : `Showing ${f.num(matches.length)} of ${f.num(totalCount)}`}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="fib-meta">
+                                {`All ${f.num(totalCount)} ${totalCount === 1 ? 'match' : 'matches'} loaded`}
+                            </span>
+                        )}
+                    </div>
                 )}
             </Section>
         </div>

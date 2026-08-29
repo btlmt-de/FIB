@@ -1744,6 +1744,15 @@ ${cssVariables()}
 }
 .fib-day > h3::after { content: ''; flex: 1; height: 1px; background: var(--fib-line-soft); }
 
+/* The feed's footer: the next page, and how much of the history is on screen.
+   Centred and given real space above the fold's end, because its job is to be
+   found by someone who has just scrolled to the bottom looking for more. */
+.fib-more {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--fib-space-2);
+  padding: var(--fib-space-6) 0 var(--fib-space-2);
+}
+
 /*
  * Scrubber + replay. A native range input, themed with accent-color only —
  * building a custom slider would cost drag, keyboard stepping and
