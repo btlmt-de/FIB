@@ -33,7 +33,7 @@
 // same phases, same server-supplied `selectionDuration`. Only the frame changed.
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, Sparkles, Zap, Crosshair, Target } from 'lucide-react';
+import { Crown, TrainFront, Zap, Crosshair, Target } from 'lucide-react';
 import { COLORS, SPACE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
@@ -58,10 +58,14 @@ import { useSound } from '../../../context/SoundContext.jsx';
 // same fix: one table. Not done here because it spans five components and this
 // was a bug fix.
 const EVENT_CONFIG = {
-    gold_rush: {
-        name: 'GOLD RUSH',
-        icon: Sparkles,
-        color: '#F59E0B',
+    // THE ARRIVAL took Gold Rush's slot in the rotation — see DESIGN.md §8 for
+    // the measurements that retired it. Station amber rather than Gold Rush's
+    // #F59E0B: this event belongs to THE CONCOURSE, and its whole vocabulary is
+    // the platform lamp.
+    arrival: {
+        name: 'THE ARRIVAL',
+        icon: TrainFront,
+        color: '#FFAA00',
     },
     king_of_wheel: {
         name: 'KING OF THE WHEEL',
@@ -195,7 +199,7 @@ function EventSelectionWheel({ isMobile = false }) {
             setPitch(itemWidth);
 
             const built = buildEventStrip(
-                eventSelection.availableEvents || ['gold_rush', 'king_of_wheel'],
+                eventSelection.availableEvents || ['arrival', 'king_of_wheel'],
                 eventSelection.selectedEvent,
             );
             setStrip(built.strip);

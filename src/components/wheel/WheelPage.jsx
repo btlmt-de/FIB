@@ -33,7 +33,6 @@ const COUNTER_FOR_TIER = {
     rare: 'rareCount',
     event: 'eventTriggers',
 };
-import GoldRushBanner from './effects/GoldRushBanner.jsx';
 import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
 import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
@@ -328,7 +327,7 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
 // ============================================
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
-    const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult } = useActivity();
+    const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult, arrival, arrivalCrate } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -457,6 +456,39 @@ function WheelOfFortunePage({ onBack }) {
         kotwLuckySpinsRef.current = newTotal;
         setKotwLuckySpins(newTotal);
     }, [communityGoalResult, communityGoalReward, user?.id]);
+
+    /*
+     * And the same again for the Arrival, which pays every player on the
+     * platform.
+     *
+     * This is the fourth handler doing one job and it was written by reading the
+     * three above: every event that hands out lucky spins has to push the
+     * server's post-award balance into this counter, and the one that forgot
+     * (the community goal, see the note above) shipped a stale number that a
+     * player only discovered on their next spin. The first build of the arrival
+     * reproduced it exactly — the board announced "+11 for you" while the spin
+     * button still read 2.
+     *
+     * Keyed on `arrival`, the public manifest, for the reason the community
+     * goal's is keyed on its result: that is the delayed, wheel-safe moment the
+     * board is actually on screen, so the counter changes while the thing
+     * explaining it is visible.
+     */
+    const processedArrivalRef = useRef(null);
+    useEffect(() => {
+        if (!arrival || !arrivalCrate || !user?.id) return;
+
+        const newTotal = arrivalCrate.luckySpinsTotal;
+        if (typeof newTotal !== 'number') return;
+
+        const key = `${arrival.serverTime}-${newTotal}`;
+        if (processedArrivalRef.current === key) return;
+        processedArrivalRef.current = key;
+
+        console.log('[WheelPage] Arrival paid out', arrivalCrate.luckySpinsAwarded, 'lucky spins');
+        kotwLuckySpinsRef.current = newTotal;
+        setKotwLuckySpins(newTotal);
+    }, [arrival, arrivalCrate, user?.id]);
 
 
     // Fetch items and user data
@@ -1313,7 +1345,34 @@ function WheelOfFortunePage({ onBack }) {
                     failures that move was made to fix. Same slot, same rules,
                     same flush-on-the-reel alignment as the other four. */}
                 <RecursionOverlay inline />
-                <GoldRushBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
+                {/* GoldRushBanner is no longer mounted. The event cannot fire —
+                    it is out of EVENT_TYPES and out of the admin panel — so the
+                    banner rendered null on every frame of every session.
+
+                    The component, `applyGoldRushOdds`, and every `is_gold_rush`
+                    flag on collections and spin history all STAY: those flags
+                    mark real items that real players pulled during real Gold
+                    Rushes, and the plaque and the feed still read them. Retiring
+                    an event is not the same as rewriting what happened while it
+                    was running. */}
+                {/* The arrival is NOT in this row any more, and it is the one
+                    event that is not.
+
+                    It used to be: a 440px manifest card in the banner slot with
+                    the train running in the band underneath it, which is two
+                    objects on a page rather than one thing happening — the
+                    owner's note was that it "shifts the strip down and shows the
+                    lucky spin distribution above". The board is now signage hung
+                    inside the station itself and the whole event plays in one
+                    frame that grows out of the reel band, so this slot stays
+                    empty for the duration and nothing on the page moves. See
+                    effects/ArrivalTheatre.jsx; it is mounted in WheelSpinner,
+                    inside the reel mount, because the frame measures itself
+                    against that rectangle.
+
+                    The rule it does still keep is the one that matters: it never
+                    steals a spin in progress, which is why ActivityContext holds
+                    it back until the wheel lands. */}
                 <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
                 <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />

@@ -656,6 +656,219 @@ html[data-saver="on"] *::after {
 }
 
 /*
+ * THE ARRIVAL — the grade over the platform.
+ *
+ * Vignette and grain, and both are DOM rather than a WebGL post pass. A
+ * full-screen shader here would mean a render target and a second draw of the
+ * whole scene for two effects the compositor does for free, on the only route
+ * that already pays 133KB for three.js.
+ *
+ * They live here rather than in a `style` object because a colour and a state
+ * belong in the stylesheet — §9's named rule, learned when inline declarations
+ * silently outranked every hover and focus rule on the collection board.
+ */
+
+/*
+ * ── THE THEATRE ─────────────────────────────────────────────────────────────
+ *
+ * The frame the whole event plays in, and the two bars that take the page away
+ * around it. Geometry is written from the rAF loop in ArrivalTheatre.jsx —
+ * heights, a clip and two opacities, four numbers a frame — and everything that
+ * is a MATERIAL is here, per §9's rule: a colour and a state belong in the
+ * stylesheet, learned when inline declarations silently outranked every hover
+ * and focus rule on the collection board.
+ *
+ * `pointer-events: none` on every layer. The arrival owns the picture for
+ * fifteen seconds; it does not own the page. Chat, the nav and the collection
+ * book all stay live underneath, and the one interaction that genuinely cannot
+ * happen — a spin — is refused in WheelSpinner for its own reasons.
+ */
+.fib-arrival-theatre {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  pointer-events: none;
+}
+
+/*
+ * The house lights. Not a scrim with a hole in it: a hole is an even-odd
+ * clip-path rebuilt every frame, and two bars are two numbers.
+ *
+ * Nearly opaque rather than a wash, because a half-dimmed page behind a lit
+ * station is a page you are still reading. The blur is what keeps the shapes
+ * under it from competing — it is doing a specific job here (removing detail
+ * from live content that must stay live) rather than being glass for the look
+ * of it.
+ */
+.fib-arrival-veil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(2, 4, 9, 0.90);
+  backdrop-filter: blur(7px) saturate(0.5);
+  -webkit-backdrop-filter: blur(7px) saturate(0.5);
+  pointer-events: none;
+  opacity: 0;
+}
+.fib-arrival-veil.is-top { top: 0; height: 0; }
+.fib-arrival-veil.is-bottom { bottom: 0; top: 100%; }
+
+/*
+ * The frame itself. It sits at its FINAL size from the first frame and is
+ * revealed through a clip that starts as the reel band's rectangle, so the
+ * opening costs no layout and no renderer resize — see the note at the top of
+ * ArrivalTheatre.jsx.
+ *
+ * The two rails are the frame's own edges, and they are the same lamp as the
+ * band's centre line and the coping on every plinth: an edge you can see
+ * because it is lit, not because it is drawn.
+ */
+.fib-arrival-frame {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* `top` and `height` are written from the rAF loop: the rectangle is derived
+     from the reel band and the viewport together, which is not something a
+     stylesheet can know. */
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 170, 0, 0.30),
+    inset 0 -1px 0 rgba(255, 170, 0, 0.22),
+    0 40px 120px rgba(0, 0, 0, 0.75);
+}
+
+/*
+ * ── THE HANGING SIGN ────────────────────────────────────────────────────────
+ *
+ * The manifest, hung inside the station rather than stacked above it. Two rods
+ * out of the top edge of the frame and a board swinging under them.
+ *
+ * The pivot is the rods' anchor and not the board's own centre, which is the
+ * whole reason the drop reads as a thing being lowered: a board rotating about
+ * itself is a card doing a flourish, and one rotating about a point 34px above
+ * its top edge is a board on hangers.
+ */
+.fib-arrival-sign {
+  position: absolute;
+  top: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  pointer-events: none;
+}
+
+/*
+ * On a wide frame the board moves OFF the middle, and the reason is the rule
+ * §8 has been enforcing since the platform furniture was rebuilt: nothing
+ * vertical in front of the subject. Hung centre-top it sat over the boiler for
+ * the whole of the hold — the locomotive rests right of centre, because the aim
+ * point is derived from where it stops — so the board takes the left third,
+ * over the wagons, and the far end of the platform keeps its PLATFORM 1 hanger
+ * on the right. Which is also where a station puts an arrivals board: at the
+ * end of the platform, not over the track.
+ *
+ * A narrow frame has no left third to give it, and there the board is the
+ * subject anyway.
+ */
+@media (min-width: 900px) {
+  .fib-arrival-sign {
+    left: 3.5%;
+    transform: none;
+  }
+}
+
+.fib-arrival-sign-rod {
+  position: absolute;
+  top: -34px;
+  width: 2px;
+  height: 34px;
+  background: linear-gradient(180deg, rgba(206, 214, 236, 0.05), rgba(255, 170, 0, 0.34));
+}
+
+.fib-arrival-sign-body {
+  transform-origin: 50% -34px;
+  background-image:
+    radial-gradient(120% 140% at 50% 0%, rgba(148, 168, 212, 0.07), transparent 62%),
+    linear-gradient(180deg, #0d1322 0%, #0a0d18 46%, #05060a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(206, 214, 236, 0.12),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    inset 0 -3px 0 rgba(206, 214, 236, 0.09),
+    0 28px 64px rgba(0, 0, 0, 0.72);
+  overflow: hidden;
+}
+
+/*
+ * It comes down on its hangers and settles. Two swings, not one — a board that
+ * arrives and stops dead has no weight, and a board that keeps swinging is a
+ * pendulum. The rotation is under two degrees at its widest: at this size that
+ * is a few pixels of travel at the outer corner, which is all it takes.
+ */
+@keyframes fib-arrival-sign-drop {
+  0%   { transform: translateY(-118%) rotate(-1.9deg); opacity: 0; }
+  38%  { opacity: 1; }
+  55%  { transform: translateY(0) rotate(1.5deg); }
+  76%  { transform: translateY(0) rotate(-0.7deg); }
+  90%  { transform: translateY(0) rotate(0.28deg); }
+  100% { transform: translateY(0) rotate(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The board is simply there, hung and still. The information — a delivery
+     arrived, this many crates, this many spins — never depends on the swing. */
+  .fib-arrival-sign-body { animation: none !important; transform: none; }
+}
+
+/* The vignette. Two stops, not one: a fast corner falloff alone crushes the
+   ends of a 9:1 band into black, so most of the darkening is carried by a
+   second, much wider stop that only bites past 70%. */
+.fib-arrival-grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 190% at 50% 44%, transparent 34%, rgba(2,4,9,0.32) 70%, rgba(2,4,9,0.66) 100%),
+    linear-gradient(0deg, rgba(2,4,9,0.52) 0%, rgba(2,4,9,0.14) 22%, transparent 40%, transparent 76%, rgba(2,4,9,0.42) 100%);
+}
+
+/*
+ * Grain, as one inline turbulence tile.
+ *
+ * It is what stops a scene built entirely from flat-shaded primitives reading
+ * as vector art: real footage of a dark station is noisy, and banding across
+ * the fog gradient is the single most synthetic thing left in the frame.
+ * `overlay` rather than `screen` so it darkens as well as lifts — screen alone
+ * turned the blacks grey.
+ */
+.fib-arrival-grain {
+  position: absolute;
+  inset: -60px;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: fib-arrival-grain-shift 0.9s steps(6) infinite;
+}
+
+/* Six discrete positions, not a smooth drift: grain that slides is a texture
+   moving across the picture, grain that jumps is grain. */
+@keyframes fib-arrival-grain-shift {
+  0%   { transform: translate3d(0, 0, 0); }
+  16%  { transform: translate3d(-22px, 14px, 0); }
+  33%  { transform: translate3d(18px, -26px, 0); }
+  50%  { transform: translate3d(-30px, -12px, 0); }
+  66%  { transform: translate3d(24px, 22px, 0); }
+  83%  { transform: translate3d(-14px, 28px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The grain stays — it is texture, not motion — but it stops jumping. */
+  .fib-arrival-grain { animation: none; }
+}
+
+/*
  * THE CONVERGENCE — the prestige moment's DOM half.
  *
  * The canvas does the physics; these two rules do the announcement, because the

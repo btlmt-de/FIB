@@ -82,6 +82,7 @@ import {
 import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
+import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -170,7 +171,26 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Get recursion status from ActivityContext - no separate polling!
     const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
         firstBloodWinner, firstBloodResultPending, communityGoalResult,
-        communityGoalResultPending, kotwWinner, kotwWinnerPending } = useActivity();
+        communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival } = useActivity();
+
+    /*
+     * THE ARRIVAL TAKES THE REEL.
+     *
+     * Every other global event runs *alongside* the wheel — Gold Rush changed
+     * the odds of a spin you were still taking, KOTW scored the spins you took,
+     * the Community Goal counted them. The arrival is the one event that is not
+     * about spinning at all, and it is the only one that owns the track the reel
+     * runs on. Sharing the screen would have the platform lit for a train while
+     * items keep flying past it, which is two things using one piece of scenery
+     * to mean different things at the same time.
+     *
+     * So the reel shuts down: the shafts close, the band goes dark, and only
+     * then does the train come in. Spinning is refused for the duration —
+     * ActivityContext already holds the arrival back until any spin in flight
+     * has LANDED, so this never interrupts a player mid-result; it only declines
+     * the next one.
+     */
+    const arrivalOwnsReel = Boolean(arrival);
 
     // Get Gold Rush boosted rarity if event is active
     const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
@@ -659,6 +679,16 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
     // Instant respin - no delays
     function respin() {
+        // The same refusal `spin()` makes, and it has to be made here too.
+        // This function deliberately bypasses the idle check to turn a result
+        // straight back into a spin, and that bypass took the arrival guard
+        // with it: Try Again on desktop, a tap on the reel on mobile and the
+        // Space key all land here rather than in `spin()`, so an arrival could
+        // be spun straight through from any of the three while the shutters
+        // were down. Clearing the result before the check would strand the
+        // reel empty behind the train, so this returns first.
+        if (arrivalOwnsReel) return;
+
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
         tripleAnimationRefs.current.forEach(ref => { if (ref) cancelAnimationFrame(ref); });
 
@@ -827,9 +857,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         setStrip([]);
                         setResult(null);
                         setIsNewItem(false);
-            setPrestigePull(null);
                         setPrestigePull(null);
-        setPrestigePull(null);
                         setState('idle');
                         flushKotwPending();
                         return null;
@@ -979,9 +1007,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         setStrip([]);
                         setResult(null);
                         setIsNewItem(false);
-            setPrestigePull(null);
                         setPrestigePull(null);
-        setPrestigePull(null);
                         setState('idle');
                         flushKotwPending();
                     });
@@ -1000,7 +1026,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             setResult(null);
             setIsNewItem(false);
             setPrestigePull(null);
-        setPrestigePull(null);
             setState('idle');
             flushKotwPending();
         }
@@ -1008,6 +1033,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
     async function spin() {
         if (state !== 'idle' || !user) return;
+        // The platform belongs to the train. Refused rather than queued: an
+        // arrival lasts fifteen seconds and a spin that fires by itself after
+        // the event is a spin the player did not ask for at that moment.
+        if (arrivalOwnsReel) return;
         if (allItems.length === 0) return;
         setError(null); // Clear any previous error
         performSpin();
@@ -2175,6 +2204,30 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     boxShadow: '0 16px 36px -20px rgba(0,0,0,0.85)',
                                     cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
                                 }}>
+
+                                {/* The arrival takes the band and then opens out
+                                    of it: the reel's slots shutter closed here,
+                                    in the mount, and the station plays in a
+                                    fixed frame that grows out of this exact
+                                    rectangle over the column. Mounted inside the
+                                    mount because the shutter has to be precisely
+                                    where the reel is and because this element is
+                                    what the frame measures itself against — see
+                                    ArrivalTheatre.jsx. The wheel keeps rendering
+                                    underneath the whole time and is revealed
+                                    again when the blades lift. */}
+                                {/* Keyed on the event so a second arrival gets a
+                                    FRESH component and therefore a fresh clock.
+                                    Without it React reused the instance, the
+                                    `start` captured in its effect stayed at the
+                                    previous arrival's mount time, and the whole
+                                    timeline read as already finished: no
+                                    shutter, no train, a blank band. It only
+                                    survived review because arrivals are hours
+                                    apart in production and never overlapped. */}
+                                {arrivalOwnsReel && (
+                                    <ArrivalTheatre key={arrival?.expiresAt || 'arrival'} />
+                                )}
 
                                 {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
