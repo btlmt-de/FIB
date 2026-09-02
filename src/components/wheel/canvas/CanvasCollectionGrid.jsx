@@ -9,6 +9,7 @@ import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl } from '../../../utils/helpers.js';
 import { getRarityColor, getRarityInk, getRarityOnColor, getRarityStops, sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
+import { isSaverOn, useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -509,7 +510,13 @@ export function CanvasCollectionGrid({
             return loadImage(src).then(img => {
                 if (img) imagesRef.current.set(src, img);
             });
-        })).catch(err => {
+        })).then(() => {
+            // A sprite arriving after the loop parked is the one case where the
+            // canvas is stale and no interaction is coming to fix it: outside
+            // saver mode the next frame picks it up on its own, and in saver
+            // mode there is no next frame until something asks.
+            requestDrawRef.current?.();
+        }).catch(err => {
             console.warn('Failed to preload some collection images:', err);
         });
     }, [items, layout, scrollTop, containerHeight]);
@@ -577,6 +584,14 @@ export function CanvasCollectionGrid({
     // Keep items and collection refs in sync for RAF
     const itemsRef = useRef(items);
     const collectionRef = useRef(collection);
+    // Saver mode's park-and-wake pair — see the loop below and requestDraw.
+    const parkedRef = useRef(false);
+    const renderRef = useRef(null);
+    const saverMode = useSaverMode();
+    // `requestDraw` is declared after the sprite preloader that has to call it,
+    // and hoisting it above would put a callback between two effects that read
+    // as one block. The ref is the seam.
+    const requestDrawRef = useRef(null);
     useEffect(() => {
         itemsRef.current = items;
     }, [items]);
@@ -603,6 +618,23 @@ export function CanvasCollectionGrid({
                 animationRef.current = requestAnimationFrame(render);
                 return;
             }
+
+            // ── Saver mode draws on demand ───────────────────────────────────
+            //
+            // The board is a still picture that happens to redraw sixty times a
+            // second. Everything that makes it change — a scroll, a hover, a new
+            // item arriving — is an event, and events can ask for a frame. Only
+            // the insane tiles' hue drift is genuinely per-frame, and in saver
+            // mode that is the thing being switched off anyway.
+            //
+            // So: draw this frame, then stop, and let `requestDraw` below wake
+            // the loop when something actually moves. A parked grid on the
+            // collection page is a phone doing nothing while the player reads.
+            if (parkedRef.current) {
+                animationRef.current = null;
+                return;
+            }
+            const shouldPark = isSaverOn();
 
             // Use real delta time
             const dt = (timestamp - lastTime) / 1000;
@@ -649,17 +681,56 @@ export function CanvasCollectionGrid({
                 }
             }
 
+            if (shouldPark) {
+                parkedRef.current = true;
+                animationRef.current = null;
+                return;
+            }
+
             animationRef.current = requestAnimationFrame(render);
         };
 
+        renderRef.current = render;
+        parkedRef.current = false;
         animationRef.current = requestAnimationFrame(render);
 
         return () => {
             if (animationRef.current) {
                 cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
             }
         };
     }, [containerHeight]); // Stable deps - containerHeight is a prop
+
+    /**
+     * Ask for a frame.
+     *
+     * Cheap and idempotent by design — the interaction handlers call it on every
+     * scroll event and every pointer move, and outside saver mode it is a single
+     * `if` that does nothing because the loop was never parked.
+     */
+    const requestDraw = useCallback(() => {
+        if (!parkedRef.current || !renderRef.current) return;
+        parkedRef.current = false;
+        animationRef.current = requestAnimationFrame(renderRef.current);
+    }, []);
+
+    // Published to the ref in an effect, not in the render body. Writing a ref
+    // during render is a purity violation React can and does punish — under
+    // StrictMode or a re-render that never commits, the ref would carry a
+    // callback from a render that was thrown away. The cleanup only clears the
+    // slot if it still holds *this* callback, so a fast re-render cannot have
+    // its successor's value wiped by its predecessor's teardown.
+    useEffect(() => {
+        requestDrawRef.current = requestDraw;
+        return () => {
+            if (requestDrawRef.current === requestDraw) requestDrawRef.current = null;
+        };
+    }, [requestDraw]);
+
+    // A pull lands, a filter changes, or the player leaves saver mode: all three
+    // are reasons the board no longer matches what is on the canvas.
+    useEffect(() => { requestDraw(); }, [items, collection, saverMode, requestDraw]);
 
     // Helper to get item index at a point (shared by mouse move and click)
     const getItemIndexAtPoint = useCallback((clientX, clientY, rect) => {
@@ -684,16 +755,22 @@ export function CanvasCollectionGrid({
      * pointer across the platform costs one parent render per cell crossed
      * rather than one per mousemove event — and the RAF loop still reads the
      * hover from a ref, so the canvas itself never re-mounts.
+     *
+     * It is also the one place saver mode has to ask for a frame on hover. The
+     * early return above is exactly the right gate for that: a parked loop needs
+     * waking when the lift moves to a different cell, and never when the pointer
+     * merely travelled a few pixels inside the one it was already on.
      */
     const announce = useCallback((idx) => {
         if (idx === hoveredIndexRef.current) return;
         hoveredIndexRef.current = idx;
+        requestDraw();
         if (!onItemFocus) return;
         const item = idx >= 0 ? itemsRef.current[idx] : null;
         onItemFocus(item
             ? { name: item.name, type: item.type || 'common', held: collectionRef.current[item.texture] || 0 }
             : null);
-    }, [onItemFocus]);
+    }, [onItemFocus, requestDraw]);
 
     // The last place the pointer was, in client coords. Scrolling the wheel does
     // not fire a mousemove, so without this the lift stayed on whichever cell
@@ -717,13 +794,19 @@ export function CanvasCollectionGrid({
         scrollTopRef.current = newScrollTop;
         setScrollTop(newScrollTop);
 
+        // Unconditionally, and before the hover check: the board itself moved,
+        // so a parked canvas is now showing the wrong rows whether or not the
+        // item under the pointer changed. `announce` wakes the loop for a lift
+        // that moved; this wakes it for the scroll.
+        requestDraw();
+
         // The cells moved under a pointer that did not, so whatever was hovered
         // a frame ago is now a different item. Skip if keyboard owns the platform.
         const pt = pointerRef.current;
         if (pt && focusedIndexRef.current < 0) {
             announce(getItemIndexAtPoint(pt.x, pt.y, e.target.getBoundingClientRect()));
         }
-    }, [announce, getItemIndexAtPoint]);
+    }, [announce, getItemIndexAtPoint, requestDraw]);
 
     /**
      * Arrow-key navigation across the platform.
@@ -762,6 +845,11 @@ export function CanvasCollectionGrid({
 
         e.preventDefault();
         focusedIndexRef.current = next;
+        // The caret is drawn by the render loop, so moving it needs a frame of
+        // its own. `announce` cannot be relied on here: arrowing onto the cell
+        // the pointer already happens to be hovering takes its early return, and
+        // the caret would move without anything repainting it.
+        requestDraw();
         announce(next);
 
         // Keep the caret on screen. Measured against the scroller's own height
@@ -773,7 +861,7 @@ export function CanvasCollectionGrid({
             if (top < scroller.scrollTop) scroller.scrollTop = top;
             else if (top + cellSize > scroller.scrollTop + view) scroller.scrollTop = top + cellSize - view;
         }
-    }, [onItemClick, announce]);
+    }, [onItemClick, announce, requestDraw]);
 
     /*
      * Tap to open, but not after a fling.

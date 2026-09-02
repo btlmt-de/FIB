@@ -11,6 +11,7 @@ import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown, Gem } from 'lucide-react';
+import { countdownInterval } from '../../../config/power.js';
 
 // ============================================
 // CONSTANTS
@@ -215,8 +216,8 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
         };
 
         updateCountdown();
-        const interval = setInterval(updateCountdown, 100);
-        return () => clearInterval(interval);
+        const stop = countdownInterval(updateCountdown);
+        return stop;
     }, [isPending, globalEventStatus?.activatesAt]);
 
     // Active timer
@@ -255,8 +256,8 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
         };
 
         updateTimer();
-        const interval = setInterval(updateTimer, 100);
-        return () => clearInterval(interval);
+        const stop = countdownInterval(updateTimer);
+        return stop;
     }, [isActive, isSettling, globalEventStatus?.expiresAt, isVisible, showWinnerInBanner, stopFirstBloodSoundtrack]);
 
     // Admin trigger function

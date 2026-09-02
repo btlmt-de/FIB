@@ -81,7 +81,18 @@ export function MobileMoreSheet({ open, onClose, items = [] }) {
                     <button
                         key={item.id}
                         type="button"
-                        onClick={() => { onClose?.(); item.onSelect?.(); }}
+                        // A row carrying a value is a toggle, and a screen
+                        // reader has to hear the state, not just the label —
+                        // "Battery saver, off" rather than "Battery saver".
+                        aria-pressed={item.value ? Boolean(item.valueActive) : undefined}
+                        // A row that goes somewhere dismisses the sheet on the way
+                        // — you asked for the thing behind it. A row that toggles
+                        // a setting does not: `keepOpen` leaves the sheet up so
+                        // the value beside the label changes under your thumb,
+                        // which is the only confirmation the row gives. Closing
+                        // on a toggle means tapping, watching the sheet vanish,
+                        // and having to reopen it to find out what you just did.
+                        onClick={() => { if (!item.keepOpen) onClose?.(); item.onSelect?.(); }}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -111,7 +122,29 @@ export function MobileMoreSheet({ open, onClose, items = [] }) {
                         }}
                     >
                         <item.Icon size={19} />
-                        {item.label}
+                        <span style={{ flex: 1 }}>{item.label}</span>
+
+                        {/* A row that reports a setting rather than opening a
+                            view. The sheet was written for destinations only —
+                            every row a place you go — and a toggle among them
+                            has to say what it currently is or the player taps it
+                            to find out, which for this particular setting means
+                            watching the surface go still and wondering what they
+                            broke. Right-aligned in the label step, in the
+                            surface's muted ink, with the on state lifted to
+                            amber: the value is the only thing on the row that is
+                            allowed to be a colour. */}
+                        {item.value ? (
+                            <span style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                                color: item.valueActive ? COLORS.gold : COLORS.textMuted,
+                            }}>
+                                {item.value}
+                            </span>
+                        ) : null}
                     </button>
                 ))}
             </div>

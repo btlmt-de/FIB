@@ -9,6 +9,7 @@ import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getItemImageUrl, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 import { sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
+import { useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
 
 // ============================================
@@ -112,6 +113,23 @@ export function CanvasResultItem({
                                      className = '',
                                      style = {},
                                  }) {
+    /**
+     * Saver mode collapses this to the still frame the component already knows
+     * how to draw.
+     *
+     * `showAnimation={false}` is an existing prop with an existing meaning —
+     * draw once, do not schedule — used by the panels that show a result they do
+     * not want breathing. Saver mode wants exactly that everywhere, so it is
+     * folded in here rather than threaded through every call site, where a
+     * missed one would be a loop nobody could find.
+     *
+     * This one matters more than its size suggests. A result is not a transient
+     * state: the band holds the winner until the next press, so "looking at what
+     * you just pulled" is where a phone spends most of its time on this surface,
+     * and it was the state with a permanent 30fps canvas loop in it.
+     */
+    const saverMode = useSaverMode();
+    const animate = showAnimation && !saverMode;
     const canvasRef = useRef(null);
     const animationRef = useRef(null);
     const timeRef = useRef(0);
@@ -213,7 +231,7 @@ export function CanvasResultItem({
             // Ensure correct transform (in case sizing effect ran)
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            if (showAnimation) {
+            if (animate) {
                 // Use actual delta time for frame-rate independence
                 const dt = (timestamp - lastTimestamp) / 1000;
                 lastTimestamp = timestamp;
@@ -528,7 +546,7 @@ export function CanvasResultItem({
                 ctx.imageSmoothingEnabled = true;
             }
 
-            if (showAnimation) {
+            if (animate) {
                 animationRef.current = requestAnimationFrame(render);
             }
         };
@@ -540,7 +558,7 @@ export function CanvasResultItem({
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [item, size, isRecursionSpin, isLuckySpin, showAnimation, imageLoaded, canvasSize, centerX, centerY, isInsane, isMythic, isSpecial, isRare, isEvent, isRecursionType, isLuckyCommon, isSpecialType]);
+    }, [item, size, isRecursionSpin, isLuckySpin, animate, imageLoaded, canvasSize, centerX, centerY, isInsane, isMythic, isSpecial, isRare, isEvent, isRecursionType, isLuckyCommon, isSpecialType]);
 
     if (!item) return null;
 

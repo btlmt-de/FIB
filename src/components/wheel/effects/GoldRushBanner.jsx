@@ -11,6 +11,7 @@ import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Crown, Sparkles, Star, Gem, Diamond, X, Timer, FlaskConical, Coins, TrendingUp, Crosshair } from 'lucide-react';
 import { RARITY, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { countdownInterval, visibleInterval } from '../../../config/power.js';
 
 // ============================================
 // CONSTANTS
@@ -618,8 +619,8 @@ function GoldRushBanner({
         };
 
         updateCountdown();
-        const interval = setInterval(updateCountdown, 100);
-        return () => clearInterval(interval);
+        const stop = countdownInterval(updateCountdown);
+        return stop;
     }, [isPending, globalEventStatus?.activatesAt]);
 
     // Active timer
@@ -654,8 +655,8 @@ function GoldRushBanner({
         };
 
         updateTimer();
-        const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
+        const stop = visibleInterval(updateTimer, 1000);
+        return stop;
     }, [isActive, globalEventStatus?.expiresAt, isVisible, stopGoldRushSoundtrack]);
 
     // Admin test functions

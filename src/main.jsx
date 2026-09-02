@@ -1,6 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+// Imported for its side effect, and it has to happen here. The module stamps
+// `data-saver` on <html> at evaluation time, which is before React mounts and
+// therefore before the first frame of a fully animated surface can paint on a
+// phone that asked it not to. Doing it in an effect would cost that frame, which
+// on the hardware this setting exists for is the most expensive one of the
+// session.
+import './config/power.js'
 import App from './App.jsx'
 import unicodeItems from '../unicodeItems.json'
 import { IMAGE_BASE_URL } from './config/constants'

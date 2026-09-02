@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
+import { visibleInterval } from '../../../config/power.js';
 
 /**
  * How close the server is to its next global event.
@@ -75,11 +76,14 @@ export function MilestoneMeter({ isMobile }) {
     useEffect(() => {
         if (effectiveActive) return undefined;
 
+        // The `document.hidden` check this used to do inline is `visibleInterval`'s
+        // whole job, and it does the better version: the timer is torn down while
+        // hidden rather than firing into a branch that does nothing, and one
+        // catch-up refresh runs on the way back so the meter is right before it
+        // is looked at. `stretch` slows it further in saver mode — this is a
+        // backstop for a quiet stream, and a backstop can afford to be slow.
         refreshMilestone();
-        const id = setInterval(() => {
-            if (!document.hidden) refreshMilestone();
-        }, REFRESH_MS);
-        return () => clearInterval(id);
+        return visibleInterval(refreshMilestone, REFRESH_MS, { stretch: true });
     }, [effectiveActive, refreshMilestone]);
 
     // Nothing to say rather than a placeholder: an event is running and has its own
