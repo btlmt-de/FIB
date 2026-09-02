@@ -90,6 +90,43 @@ const ArrivalTrain3D = React.lazy(() =>
     import('./ArrivalTrain3D.jsx').then(m => ({ default: m.ArrivalTrain3D }))
 );
 
+/**
+ * The train, and only the train, is allowed to fail.
+ *
+ * Suspense covers the chunk being SLOW; it does nothing whatever about the
+ * chunk not arriving. A rejected `import()` — the deploy that replaced the
+ * hashed file under a tab that had been open since the last one, or the phone
+ * that left the tunnel with the request half-served — throws during render, and
+ * with no boundary anywhere above it that unmounts the entire wheel to a white
+ * page. Trading a locomotive for the site is a bad trade at any odds.
+ *
+ * So the scene is fenced off on its own. Losing it leaves the shutter, the
+ * motes, the veils and — the part that actually matters — ArrivalBoard, which
+ * is where the manifest and the payout are. The event degrades to a lit, empty
+ * platform, which is a train that did not turn up rather than a broken site.
+ *
+ * `null` and not a placeholder: the frame is a scene or it is nothing, and a
+ * spinner sitting where a train should be reads as still loading, forever.
+ */
+class TrainBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { failed: false };
+    }
+
+    static getDerivedStateFromError() {
+        return { failed: true };
+    }
+
+    componentDidCatch(error) {
+        console.error('[Arrival] Train scene failed to load; showing the platform without it.', error);
+    }
+
+    render() {
+        return this.state.failed ? null : this.props.children;
+    }
+}
+
 const clamp01 = t => Math.max(0, Math.min(1, t));
 /*
  * The iris opens fast and settles; it closes on the mirror of that. Same pairing
@@ -249,18 +286,31 @@ export function ArrivalTheatre() {
             </div>
 
             {createPortal(
-                <div className="fib-arrival-theatre" aria-hidden="true">
-                    <div ref={topVeilRef} className="fib-arrival-veil is-top" />
-                    <div ref={botVeilRef} className="fib-arrival-veil is-bottom" />
+                /*
+                 * NOT aria-hidden. It was, once, and that silenced the whole
+                 * event for anyone using a screen reader: ArrivalBoard carries
+                 * the role="status" live region that announces the payout, and
+                 * an aria-hidden ancestor removes a live region from the
+                 * accessibility tree no matter what the descendant declares.
+                 * The decorative layers each hide themselves instead — the
+                 * shutter, the motes and the 3D scene all set their own
+                 * aria-hidden, and the veils below do the same — which leaves
+                 * the board as the one thing here that is meant to be heard.
+                 */
+                <div className="fib-arrival-theatre">
+                    <div ref={topVeilRef} className="fib-arrival-veil is-top" aria-hidden="true" />
+                    <div ref={botVeilRef} className="fib-arrival-veil is-bottom" aria-hidden="true" />
 
                     <div ref={frameRef} className="fib-arrival-frame">
-                        <React.Suspense fallback={null}>
-                            <ArrivalTrain3D
-                                crateCount={rows.length}
-                                emitRef={emitRef}
-                                style={{ animation: `fadeIn 0.5s ease-out ${T_SHUTTER * 0.75}s both` }}
-                            />
-                        </React.Suspense>
+                        <TrainBoundary>
+                            <React.Suspense fallback={null}>
+                                <ArrivalTrain3D
+                                    crateCount={rows.length}
+                                    emitRef={emitRef}
+                                    style={{ animation: `fadeIn 0.5s ease-out ${T_SHUTTER * 0.75}s both` }}
+                                />
+                            </React.Suspense>
+                        </TrainBoundary>
 
                         <ArrivalMotes
                             emitRef={emitRef}

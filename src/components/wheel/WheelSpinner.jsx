@@ -679,6 +679,16 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
     // Instant respin - no delays
     function respin() {
+        // The same refusal `spin()` makes, and it has to be made here too.
+        // This function deliberately bypasses the idle check to turn a result
+        // straight back into a spin, and that bypass took the arrival guard
+        // with it: Try Again on desktop, a tap on the reel on mobile and the
+        // Space key all land here rather than in `spin()`, so an arrival could
+        // be spun straight through from any of the three while the shutters
+        // were down. Clearing the result before the check would strand the
+        // reel empty behind the train, so this returns first.
+        if (arrivalOwnsReel) return;
+
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
         tripleAnimationRefs.current.forEach(ref => { if (ref) cancelAnimationFrame(ref); });
 
@@ -847,9 +857,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         setStrip([]);
                         setResult(null);
                         setIsNewItem(false);
-            setPrestigePull(null);
                         setPrestigePull(null);
-        setPrestigePull(null);
                         setState('idle');
                         flushKotwPending();
                         return null;
@@ -999,9 +1007,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         setStrip([]);
                         setResult(null);
                         setIsNewItem(false);
-            setPrestigePull(null);
                         setPrestigePull(null);
-        setPrestigePull(null);
                         setState('idle');
                         flushKotwPending();
                     });
@@ -1020,7 +1026,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             setResult(null);
             setIsNewItem(false);
             setPrestigePull(null);
-        setPrestigePull(null);
             setState('idle');
             flushKotwPending();
         }

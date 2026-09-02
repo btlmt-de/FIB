@@ -1631,11 +1631,11 @@ export function AdminPanel({ onClose, allItems }) {
                                 </div>
 
                                 <div style={{ color: COLORS.textMuted, fontSize: '11px', flex: '1 1 200px', lineHeight: 1.5 }}>
-                                    Leave the last two blank for normal behaviour: a random rarity, and a
-                                    Community Goal target that starts low and grows as players take their
-                                    first spin. The target is in points &mdash; every spin scores 1, up to
-                                    1000 for an insane &mdash; so 15 is about 15 spins. Setting it also
-                                    pins it, so it will not climb while you test.
+                                    Leave the Community Goal target blank for normal behaviour: it starts
+                                    low and grows as players take their first spin. The target is in
+                                    points &mdash; every spin scores 1, up to 1000 for an insane &mdash;
+                                    so 15 is about 15 spins. Setting it also pins it, so it will not
+                                    climb while you test.
                                 </div>
                             </div>
 

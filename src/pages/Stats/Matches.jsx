@@ -170,7 +170,24 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
                                 </button>
                             }
                         >
-                            {`${f.num(matches.length)} of ${f.num(totalCount)} matches loaded, and none of them were played ${mode === 'SOLO' ? 'solo' : 'in teams'} — there may be more further back.`}
+                            {/*
+                              The failure has to be reported HERE as well as in the footer.
+                              The footer is the only other place that renders loadError and it
+                              is gated on `groups.length > 0`, which is precisely the condition
+                              this branch exists to handle — so "Load more matches" failing from
+                              an empty filtered view re-enabled its own button and said nothing
+                              at all, which reads as a page that simply refuses to do anything.
+                            */}
+                            <>
+                                <p>
+                                    {`${f.num(matches.length)} of ${f.num(totalCount)} matches loaded, and none of them were played ${mode === 'SOLO' ? 'solo' : 'in teams'} — there may be more further back.`}
+                                </p>
+                                {loadError && (
+                                    <p className="fib-meta" role="status">
+                                        {`Could not load more matches: ${loadError.message}`}
+                                    </p>
+                                )}
+                            </>
                         </Empty>
                     ) : (
                         <Empty
