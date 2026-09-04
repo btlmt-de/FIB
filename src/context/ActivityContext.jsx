@@ -204,8 +204,16 @@ export function ActivityProvider({ children }) {
         if (!isVisibleRef.current) return;
 
         try {
+            // The activity request's own round trip, timed so the clock offset it
+            // carries can have the latency taken back out of it — see
+            // utils/serverClock.js. Only THIS request is timed: the two run
+            // concurrently, so timing the pair would measure the slower of them and
+            // hand the clock a correction it did not earn.
+            const sentAt = Date.now();
+            let allRoundTrip;
             const [allRes, rareRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/activity/all?limit=100`, { credentials: 'include' }),
+                fetch(`${API_BASE_URL}/api/activity/all?limit=100`, { credentials: 'include' })
+                    .then(res => { allRoundTrip = Date.now() - sentAt; return res; }),
                 // Full mythic/insane history - the Mythic & Insane board is all-time.
                 // One request serves both consumers: the board takes the whole list, while
                 // the main feed still only merges the last 7 days so the All tab keeps
@@ -223,9 +231,12 @@ export function ActivityProvider({ children }) {
             if (allData.feed) {
                 if (allData.serverTime) {
                     setServerTime(new Date(allData.serverTime).getTime());
-                    // Seeds the clock offset before any SSE frame has landed, so the
-                    // very first drop of a session is already measured correctly.
-                    noteServerTime(allData.serverTime);
+                    // The authoritative clock sample: it is the only one whose
+                    // travel time is known, so it is the only one that can be
+                    // corrected for it. Runs on mount, on reconnect and whenever
+                    // the tab is refocused, which is more than often enough — a
+                    // clock's error drifts over days, not minutes.
+                    noteServerTime(allData.serverTime, allRoundTrip);
                 }
 
                 if (allData.recursionStatus !== undefined) {

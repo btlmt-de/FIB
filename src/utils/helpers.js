@@ -86,8 +86,29 @@ export function parseServerDate(dateString) {
  * disagreement as much as the drop's age — and a visitor whose clock ran a few
  * seconds fast had every drop arrive already older than the window, so this
  * returned 0 and the ticker spoiled his own spin. See utils/serverClock.js.
+ *
+ * ── THE VALUE, AND WHAT IS LEFT OF THE MARGIN ───────────────────────────────
+ *
+ * 4200, down from 4500: the reel animates for `SPIN_DURATION` (4000, served by
+ * the backend's /api/config), so the reveal used to trail the wheel stopping by
+ * half a second and that read as a beat too long. The owner asked for 300ms of it
+ * back.
+ *
+ * What the remaining 200ms buys, and it is the whole safety margin: the reveal
+ * fires at `created_at + 4200`, while a player's reel lands at roughly
+ * `created_at + RTT/2 + 4000` — `created_at` is stamped server-side mid-request,
+ * so the response still has to travel back before the animation can start. The
+ * two meet at a round trip of about 400ms. Below that the feed prints after the
+ * wheel stops, as intended; above it the drop appears as the reel is still
+ * settling, which is the original bug returning for slow connections rather than
+ * for wrong clocks. At 4500 that threshold was a full second.
+ *
+ * So this is now latency-sensitive in a way it was not, and the lever to reach
+ * for if it ever needs undoing is `SPIN_DURATION` rather than this: shortening
+ * the animation shortens the wait AND keeps the cushion, where shortening this
+ * only spends it.
  */
-export const SPIN_REVEAL_MS = 4500;
+export const SPIN_REVEAL_MS = 4200;
 
 export function spinRevealDelay(dateString, now = serverNow()) {
     const date = parseServerDate(dateString);
