@@ -4,6 +4,7 @@
 
 import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, EXOTIC_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
 import { getRarityColor } from './rarityHelpers.jsx';
+import { serverNow } from './serverClock.js';
 
 // Format chance as a readable percentage (strips trailing zeros)
 export function formatChance(chance) {
@@ -79,10 +80,16 @@ export function parseServerDate(dateString) {
  * This rule existed three times before it existed once: the toast had it inline,
  * the celebration has its own per-user variant, and First Blood hardcodes 5000. The
  * feed had no copy at all, which is why it was the surface that leaked.
+ *
+ * `now` is the *server's* clock, not the browser's. `created_at` is stamped by the
+ * server, so subtracting a local Date.now() from it measures the two machines'
+ * disagreement as much as the drop's age — and a visitor whose clock ran a few
+ * seconds fast had every drop arrive already older than the window, so this
+ * returned 0 and the ticker spoiled his own spin. See utils/serverClock.js.
  */
 export const SPIN_REVEAL_MS = 4500;
 
-export function spinRevealDelay(dateString, now = Date.now()) {
+export function spinRevealDelay(dateString, now = serverNow()) {
     const date = parseServerDate(dateString);
     if (!date) return SPIN_REVEAL_MS;
 

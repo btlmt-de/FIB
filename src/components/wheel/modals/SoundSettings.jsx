@@ -1,7 +1,12 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Crown, Star, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { COLORS } from '../config/constants';
+// The rarity rows take their colour from the ladder rather than naming hues here.
+// They used to be literals, and they had drifted: Legendary was COLORS.purple while
+// the ladder calls Legendary gold and gives purple to Exotic - so adding the Exotic
+// row put two purple swatches next to each other, each labelled as a different tier.
+import { getRarityColor, getRarityIcon } from '../../../utils/rarityHelpers.jsx';
 import { TopbarIconButton } from '../topbar/TopbarControls.jsx';
 
 // ============================================
@@ -723,8 +728,17 @@ export function SoundSettingsPanel({ onClose }) {
                                 disabled={!settings.enabled}
                                 isActive={previewingSound === 'recursion'}
                             />
+                            {/*
+                                Insane's crown comes from the ladder so it is stroked with
+                                the holo gradient. It has to: `COLORS.insane` is the
+                                platinum *fallback*, and the ladder now spends that same
+                                hue on Legendary — so a flat insane crown next to a
+                                legendary star was two identical gold rows. The tile and
+                                toggle still take the flat fallback, which is all a 32px
+                                swatch can carry.
+                            */}
                             <SoundRow
-                                icon={<Crown size={16} />}
+                                icon={getRarityIcon('insane', 16)}
                                 label="Insane Item"
                                 color={COLORS.insane}
                                 enabled={settings.insaneEnabled}
@@ -736,7 +750,7 @@ export function SoundSettingsPanel({ onClose }) {
                             <SoundRow
                                 icon={<Sparkles size={16} />}
                                 label="Mythic Item"
-                                color={COLORS.aqua}
+                                color={getRarityColor('mythic')}
                                 enabled={settings.mythicEnabled}
                                 onToggle={(v) => updateSetting('mythicEnabled', v)}
                                 onPreview={() => previewSound('mythic')}
@@ -746,7 +760,7 @@ export function SoundSettingsPanel({ onClose }) {
                             <SoundRow
                                 icon={<Star size={16} />}
                                 label="Legendary Item"
-                                color={COLORS.purple}
+                                color={getRarityColor('legendary')}
                                 enabled={settings.legendaryEnabled}
                                 onToggle={(v) => updateSetting('legendaryEnabled', v)}
                                 onPreview={() => previewSound('legendary')}
@@ -754,9 +768,19 @@ export function SoundSettingsPanel({ onClose }) {
                                 isActive={previewingSound === 'legendary'}
                             />
                             <SoundRow
+                                icon={<Gem size={16} />}
+                                label="Exotic Item"
+                                color={getRarityColor('exotic')}
+                                enabled={settings.exoticEnabled}
+                                onToggle={(v) => updateSetting('exoticEnabled', v)}
+                                onPreview={() => previewSound('exotic')}
+                                disabled={!settings.enabled}
+                                isActive={previewingSound === 'exotic'}
+                            />
+                            <SoundRow
                                 icon={<Diamond size={16} />}
                                 label="Rare Item"
-                                color={COLORS.red}
+                                color={getRarityColor('rare')}
                                 enabled={settings.rareEnabled}
                                 onToggle={(v) => updateSetting('rareEnabled', v)}
                                 onPreview={() => previewSound('rare')}

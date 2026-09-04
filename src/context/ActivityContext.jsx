@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
 import { parseActivityDate, spinRevealDelay } from '../utils/helpers.js';
+import { noteServerTime } from '../utils/serverClock.js';
 /*
  * The arrival's own end, imported rather than copied.
  *
@@ -222,6 +223,9 @@ export function ActivityProvider({ children }) {
             if (allData.feed) {
                 if (allData.serverTime) {
                     setServerTime(new Date(allData.serverTime).getTime());
+                    // Seeds the clock offset before any SSE frame has landed, so the
+                    // very first drop of a session is already measured correctly.
+                    noteServerTime(allData.serverTime);
                 }
 
                 if (allData.recursionStatus !== undefined) {
@@ -320,6 +324,14 @@ export function ActivityProvider({ children }) {
                 eventSource.onmessage = (event) => {
                     try {
                         const data = JSON.parse(event.data);
+
+                        // Every frame is stamped by broadcastToAll/broadcastToUser, so
+                        // this is the cheapest and most frequent clock reference the page
+                        // gets — and it is taken before the switch so a message type
+                        // nobody handles still keeps the offset fresh. What it buys is in
+                        // utils/serverClock.js: the reveal windows below stop being a
+                        // subtraction across two machines' clocks.
+                        noteServerTime(data.timestamp);
 
                         switch (data.type) {
                             case 'recursion_wakeup':

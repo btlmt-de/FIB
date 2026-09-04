@@ -511,17 +511,27 @@ function KingOfWheelBanner({
         }
     }, [globalEventStatus?.activatesAt]);
 
-    // Start/stop KOTW soundtrack when event starts/ends
+    // Start/stop KOTW soundtrack when event starts/ends.
+    //
+    // The stop waits out the settle window and the winner display, the same way
+    // showLiveLayout above keeps the banner's running layout through them. `isActive`
+    // goes false on the end broadcast, which is seconds before the winner is shown
+    // because the reveal waits for the local wheel to land — so stopping on it alone
+    // cut the music while the banner was still counting and the player's own reel was
+    // still turning, announcing the result ahead of the announcement. Same bug First
+    // Blood had; the freeze is only convincing if the audio joins it.
+    const holdSoundtrack = isSettling || showWinnerInBanner;
+
     useEffect(() => {
         if (isActive && !hasPlayedSoundRef.current) {
             startKotwSoundtrack?.();
             hasPlayedSoundRef.current = true;
         }
-        if (!isActive && !isPending && hasPlayedSoundRef.current) {
+        if (!isActive && !isPending && !holdSoundtrack && hasPlayedSoundRef.current) {
             stopKotwSoundtrack?.();
             hasPlayedSoundRef.current = false;
         }
-    }, [isActive, isPending, startKotwSoundtrack, stopKotwSoundtrack]);
+    }, [isActive, isPending, holdSoundtrack, startKotwSoundtrack, stopKotwSoundtrack]);
 
     // Show winner in banner when winner is announced (or hide if no winner)
     useEffect(() => {

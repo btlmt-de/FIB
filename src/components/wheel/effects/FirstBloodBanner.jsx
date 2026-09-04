@@ -124,17 +124,34 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
     // tells the player the race is over seconds before their own spin has resolved.
     const isSettling = firstBloodResultPending && !showWinnerInBanner;
 
+    // The music is part of the result, so it is held back with it.
+    //
+    // The race ends server-side the moment someone claims it, and `isActive` goes
+    // false on that broadcast — several seconds before the winner is shown, because
+    // the reveal waits for the local wheel to land. Cutting the soundtrack there was
+    // the loudest spoiler on the page: the track stopped dead while the banner was
+    // still counting and the player's own reel was still turning, so everyone knew
+    // the race was over before anything said so. The banner already freezes rather
+    // than changing during this window (see isSettling above); the audio has to
+    // observe the same silence, and for the same reason.
+    //
+    // So the track runs through the settle window *and* through the winner display,
+    // and stops where the announcement ends - the explicit stop in the winner effect
+    // below. Once showWinnerInBanner clears, this effect runs again and resets the
+    // ref, which is what re-arms the next event.
+    const holdSoundtrack = isSettling || showWinnerInBanner;
+
     // Start/stop First Blood soundtrack when event starts/ends
     useEffect(() => {
         if (isActive && !hasSoundtrackStartedRef.current) {
             startFirstBloodSoundtrack?.();
             hasSoundtrackStartedRef.current = true;
         }
-        if (!isActive && !isPending && hasSoundtrackStartedRef.current) {
+        if (!isActive && !isPending && !holdSoundtrack && hasSoundtrackStartedRef.current) {
             stopFirstBloodSoundtrack?.();
             hasSoundtrackStartedRef.current = false;
         }
-    }, [isActive, isPending, startFirstBloodSoundtrack, stopFirstBloodSoundtrack]);
+    }, [isActive, isPending, holdSoundtrack, startFirstBloodSoundtrack, stopFirstBloodSoundtrack]);
 
     // Handle winner display
     useEffect(() => {
@@ -189,11 +206,18 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
             wasActiveRef.current = true;
             wasPendingRef.current = false;
         } else if (!isActive && !isPending && (wasActiveRef.current || wasPendingRef.current)) {
-            // Only hide if we're not showing a winner
-            if (!showWinnerInBanner) {
+            // Only hide once there is nothing left to announce. `holdSoundtrack`
+            // covers the winner display and the settle window before it — the same
+            // gap the banner keeps its running layout through. Testing only
+            // showWinnerInBanner here left the settle window uncovered, so this was
+            // the path that actually cut the music early: the end broadcast lands
+            // while the result is still pending, which is by definition before the
+            // winner is on screen.
+            if (!holdSoundtrack) {
                 console.log('[FirstBlood] Event ENDED');
                 setIsVisible(false);
-                // Stop soundtrack when event ends (e.g., admin ended it)
+                // Stop soundtrack when event ends (e.g., admin ended it, or it
+                // expired with nobody claiming it and no result to wait for)
                 // Main useEffect will handle hasSoundtrackStartedRef reset
                 stopFirstBloodSoundtrack?.();
             }
@@ -201,7 +225,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
             wasActiveRef.current = false;
             wasPendingRef.current = false;
         }
-    }, [isActive, isPending, playSfx, showWinnerInBanner, stopFirstBloodSoundtrack]);
+    }, [isActive, isPending, playSfx, holdSoundtrack, stopFirstBloodSoundtrack]);
 
     // Countdown timer for pending phase
     useEffect(() => {
