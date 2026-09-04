@@ -119,10 +119,24 @@ const CRANK_R = 0.19;
 const CRATE_PITCH = 1.02;
 /**
  * The closest two crates may ever stand, whatever the frame wants. Below this
- * their cleats interpenetrate and the row reads as one welded object — so this is
- * a floor under the compression, not another thing to minimise against.
+ * they interpenetrate and the row reads as one welded object — so this is a floor
+ * under the compression, not another thing to minimise against.
+ *
+ * ── AND IT IS MEASURED ON A CRATE THAT HAS TURNED ───────────────────────────
+ *
+ * A landed crate is not axis-aligned: it comes to rest at `crate.rotation.y = 0.6`
+ * — 34.4° — so the number that matters is its footprint PROJECTED onto x, not any
+ * dimension of its geometry. Rotating a 0.62 box swings its corner posts out to
+ * 0.9243 across, half again the 0.686 of an unturned cleat, and the first value
+ * here was 0.76: taken from the unrotated width, and therefore 0.164 short. It let
+ * the crates overlap in exactly the cases the floor exists to catch.
+ *
+ * Worth keeping in view: `CRATE_PITCH` clears this by only 0.0957. The row looks
+ * generously spaced because the boxes are turned, not because there is much air
+ * between them, so anything that increases the yaw or the crate spends that
+ * margin fast — and both numbers have to move together.
  */
-const CRATE_TOUCH = 0.76;
+const CRATE_TOUCH = 0.98;
 /** Main rod length, chosen so the crosshead never enters the cylinder block. */
 const MAIN_ROD = 0.83;
 const CYL_X = 1.62;
