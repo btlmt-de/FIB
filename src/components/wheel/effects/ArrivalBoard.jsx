@@ -130,6 +130,23 @@ export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }
     const gutter = isPhone ? '14px' : '22px';
 
     /*
+     * When this player's own line may show its numbers: the beat their row
+     * resolves, which is the same beat WheelPage schedules the topbar counter on.
+     *
+     * It used to appear with the board itself, at T_IRIS + 0.3 — so the footer
+     * announced "+12 for you" while the drum for that very row was still blank
+     * and the crate carrying it had not left the train. The board spends six
+     * seconds building to each number and this printed the player's one up front,
+     * which is the same failure the topbar counter had, one layer in.
+     *
+     * `totalIn` is the fallback for a player who is not on the public manifest at
+     * all — it should not happen, since a crate implies a platform row, but the
+     * honest behaviour there is to wait for the whole board rather than to leak.
+     */
+    const myIndex = user ? rows.findIndex(row => row.userId === user.id) : -1;
+    const myLineIn = myIndex >= 0 ? landed > myIndex : totalIn;
+
+    /*
      * The rods are drawn from the frame's top edge, so the body hangs BELOW its
      * own pivot and can swing about it. A board that faded in where it was going
      * to be is a graphic; one that comes down on its hangers and settles is a
@@ -310,14 +327,27 @@ export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }
                      * whole event and a payout nobody can see is the failure this
                      * replaced — but a running lucky-spin TOTAL is nobody else's
                      * business, so it rides on the private message instead.
+                     *
+                     * Rendered from the start and faded in on `myLineIn` rather
+                     * than mounted at that beat: the line is the last thing on the
+                     * board, so mounting it would grow the sign by its height six
+                     * seconds after it was lowered into place and shove the rows
+                     * up mid-cascade. Holding the space costs nothing — opacity
+                     * takes the divider with it, so there is no stray rule sitting
+                     * above an empty gap in the meantime.
                      */}
                     {arrivalCrate && (
-                        <div style={{
-                            display: 'flex', alignItems: 'center', gap: '9px',
-                            marginTop: '11px', paddingTop: '10px',
-                            boxShadow: `inset 0 1px 0 ${rail(0.07)}`,
-                            color: COLORS.gold,
-                        }}>
+                        <div
+                            aria-hidden={!myLineIn}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '9px',
+                                marginTop: '11px', paddingTop: '10px',
+                                boxShadow: `inset 0 1px 0 ${rail(0.07)}`,
+                                color: COLORS.gold,
+                                opacity: myLineIn ? 1 : 0,
+                                transition: motionOff ? undefined : 'opacity 420ms ease-out',
+                            }}
+                        >
                             <Sparkles size={13} />
                             <BoardLabel tone="currentColor">
                                 +{arrivalCrate.luckySpinsAwarded} for you

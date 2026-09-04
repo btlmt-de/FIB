@@ -109,8 +109,34 @@ const VAN_LEN = 1.9;
 /** Wheel geometry the rods are driven off. Changing either moves the rods. */
 const DRIVER_R = 0.34;
 const CRANK_R = 0.19;
-/** How far apart crates stand on the paving. A crate is 0.62 wide. */
+/**
+ * How far apart crates stand on the paving.
+ *
+ * The number to measure this against is 0.686, not the 0.62 that used to be
+ * written here: 0.62 is the body, but the cleats are `crateCleatGeo` at 0.686 and
+ * the lid and skids 0.66, so the body clears while the trim still intersects.
+ */
 const CRATE_PITCH = 1.02;
+/**
+ * The closest two crates may ever stand, whatever the frame wants. Below this
+ * they interpenetrate and the row reads as one welded object — so this is a floor
+ * under the compression, not another thing to minimise against.
+ *
+ * ── AND IT IS MEASURED ON A CRATE THAT HAS TURNED ───────────────────────────
+ *
+ * A landed crate is not axis-aligned: it comes to rest at `crate.rotation.y = 0.6`
+ * — 34.4° — so the number that matters is its footprint PROJECTED onto x, not any
+ * dimension of its geometry. Rotating a 0.62 box swings its corner posts out to
+ * 0.9243 across, half again the 0.686 of an unturned cleat, and the first value
+ * here was 0.76: taken from the unrotated width, and therefore 0.164 short. It let
+ * the crates overlap in exactly the cases the floor exists to catch.
+ *
+ * Worth keeping in view: `CRATE_PITCH` clears this by only 0.0957. The row looks
+ * generously spaced because the boxes are turned, not because there is much air
+ * between them, so anything that increases the yaw or the crate spends that
+ * margin fast — and both numbers have to move together.
+ */
+const CRATE_TOUCH = 0.98;
 /** Main rod length, chosen so the crosshead never enters the cylinder block. */
 const MAIN_ROD = 0.83;
 const CYL_X = 1.62;
@@ -1944,10 +1970,25 @@ export function ArrivalTrain3D({ crateCount = 0, emitRef = null, style }) {
             return Math.max(14, Math.min(64, need));
         };
 
-        /** The widest thing shot two has to hold: the crate row, end to end. */
-        const crateRun = crateMeshes.length
-            ? Math.abs(crateMeshes[crateMeshes.length - 1].car.position.x)
-            : 1;
+        /**
+         * The widest thing shot two has to hold: the crate row, end to end.
+         *
+         * Crate ZERO to crate n−1, and it did not used to be. It was the absolute
+         * position of the last car — which is measured from the LOCOMOTIVE, so it
+         * carried the loco and tender (5.36 units of them) inside a number that is
+         * supposed to describe the row. Everything downstream divides by this, so
+         * every crate came out too close to its neighbour, and worst when there
+         * were fewest wagons for that fixed 5.36 to be diluted by: at three and
+         * four players — this server's normal turnout — the row was pitched 0.49
+         * and 0.59 against crates 0.686 across, so they interpenetrated on the
+         * paving. See the pitch rule in `layoutCrates`.
+         */
+        const crateRun = crateMeshes.length > 1
+            ? Math.abs(
+                crateMeshes[crateMeshes.length - 1].car.position.x
+                - crateMeshes[0].car.position.x
+            )
+            : 0;
 
         /**
          * Shot ONE's lens, which is the one the crate row is laid out against.
@@ -1985,16 +2026,41 @@ export function ArrivalTrain3D({ crateCount = 0, emitRef = null, style }) {
              *
              * The first rule here was purely "fit inside a third of the frame",
              * which on six wagons compressed a 15-unit consist into 3.2 and
-             * spaced 0.62-wide crates 0.68 apart: a solid wall of boxes with
+             * spaced 0.686-wide crates 0.68 apart: a solid wall of boxes with
              * hairlines between them, which is a stack rather than a delivery.
              * So the pitch is asked for first and the frame is the ceiling on
              * it, not the other way round.
+             *
+             * ── AND THE FLOOR THAT WAS MISSING ──────────────────────────────
+             *
+             * That rule was right and the arithmetic under it was not, twice
+             * over, and the two faults pulled the same way:
+             *
+             *   1. Both terms divided by `crateRun`, which measured the loco to
+             *      the last wagon rather than the row itself — see its note
+             *      above. A constant 5.36 of locomotive sat in a denominator
+             *      describing crates.
+             *   2. `CRATE_PITCH` was inside the `Math.min`, which makes it a
+             *      CEILING on the spacing. It is the spacing the row wants; the
+             *      thing that must never be crossed is the touching point, and
+             *      nothing expressed that at all.
+             *
+             * So the crates overlapped at every player count the server actually
+             * sees, and the fewer of them there were the worse it got — the
+             * opposite of what a compression rule should do. Now the span is the
+             * row's own, `CRATE_PITCH` is what the row asks for, the frame caps
+             * it, and `CRATE_TOUCH` is the floor underneath all of it. A row
+             * slightly wider than 60% of a narrow frame is a framing compromise;
+             * boxes inside each other is a bug.
              */
-            const gaps = Math.max(1, crateMeshes.length - 1);
-            crateSpread = Math.min(
-                1,
-                (visW * 0.60) / Math.max(1, crateRun + REST_X),
-                (CRATE_PITCH * gaps) / Math.max(0.001, crateRun),
+            const step = CAR_LEN + CAR_GAP;
+            crateSpread = Math.max(
+                CRATE_TOUCH / step,
+                Math.min(
+                    1,
+                    (visW * 0.60) / Math.max(0.001, crateRun),
+                    CRATE_PITCH / step,
+                ),
             );
 
             /*

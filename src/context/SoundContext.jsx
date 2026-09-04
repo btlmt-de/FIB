@@ -14,8 +14,10 @@ const SoundContext = createContext(null);
 //   2. Cloudflare does not cache .wav by default, so every one of those megabytes was
 //      served from the origin VPS on every request while the mp3s were edge cached.
 //
-// The .wav files are still in public/sounds for now; they can go once this is confirmed
-// working in production.
+// The .wav sources no longer ship: public/sounds is mp3 only. Anything added here gets
+// the same treatment on the way in — `ffmpeg -i x.wav -codec:a libmp3lame -q:a 2 x.mp3`
+// is what the existing files were encoded with (~160-190 kbps VBR), and the source wav
+// stays out of public/ because Vite copies that directory verbatim into the deploy.
 const SOUND_FILES = {
     spin: '/sounds/spin.mp3',
     soundtrack: '/sounds/soundtrack.mp3',
@@ -28,6 +30,7 @@ const SOUND_FILES = {
     insane: '/sounds/sfxinsane.mp3',
     mythic: '/sounds/sfxmythic.mp3',
     legendary: '/sounds/sfxlegendary.mp3',
+    exotic: '/sounds/sfxexotic.mp3',
     rare: '/sounds/sfxrare.mp3',
 };
 
@@ -48,6 +51,7 @@ const DEFAULT_SETTINGS = {
     insaneEnabled: true,
     mythicEnabled: true,
     legendaryEnabled: true,
+    exoticEnabled: true,
     rareEnabled: true,
 };
 
@@ -97,6 +101,7 @@ export function SoundProvider({ children }) {
         insane: null,
         mythic: null,
         legendary: null,
+        exotic: null,
         rare: null,
     });
 
@@ -952,6 +957,9 @@ export function SoundProvider({ children }) {
                 break;
             case 'legendary':
                 playSfx('legendary');
+                break;
+            case 'exotic':
+                playSfx('exotic');
                 break;
             case 'rare':
                 playSfx('rare');

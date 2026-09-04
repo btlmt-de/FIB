@@ -52,8 +52,15 @@ import { prestigeStanding } from '../../utils/prestigeHelpers.js';
 import { MobileTabBar } from './topbar/MobileTabBar.jsx';
 import { MobileMoreSheet } from './topbar/MobileMoreSheet.jsx';
 import { SaverOffer } from './topbar/SaverOffer.jsx';
-import { useSaverMode, toggleSaverMode } from '../../config/power.js';
+// `prefersCalm` rather than utils/motion's alias for it: that file is now a
+// re-export and says so — new callers come here. It covers saver mode as well as
+// the OS motion preference, which is the right reading for the arrival payout,
+// since both make the board resolve on arrival with no cascade to wait for.
+import { useSaverMode, toggleSaverMode, prefersCalm } from '../../config/power.js';
 import { useWheelViewport } from './config/breakpoints.js';
+// The arrival's beats, so the lucky-spin counter changes on the frame the board
+// resolves this player's row rather than at t=0. See the payout handler below.
+import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimeline.js';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -473,8 +480,34 @@ function WheelOfFortunePage({ onBack }) {
      * goal's is keyed on its result: that is the delayed, wheel-safe moment the
      * board is actually on screen, so the counter changes while the thing
      * explaining it is visible.
+     *
+     * ── AND THEN HELD UNTIL THE BOARD SAYS IT ───────────────────────────────
+     *
+     * Keying on `arrival` is necessary and was not sufficient. `arrival` is the
+     * moment the train STARTS arriving — t=0 of an 18.6s timeline — and the
+     * counter sits in the topbar, outside the frame the theatre grows out of.
+     * The shutters need 1.3s to close over the reel and the scrim only dims
+     * what is behind it, so the badge ticked 359 -> 366 in plain sight while the
+     * headlight was still coming down the platform, and the player knew their
+     * number before a single crate was off the train. The whole event is the
+     * reveal; this was the answer printed above it.
+     *
+     * So the payout is scheduled for the beat the board actually resolves this
+     * player's row — `rowLandsAt` against the same `sortManifest` order the
+     * theatre and the scene use, so the number in the topbar changes on the
+     * frame their spins land on the board rather than eight seconds early.
+     * Falls back to `totalLandsAt` for the case that should not happen (a crate
+     * paid to somebody not on the public manifest), and pays immediately under
+     * reduced motion, where the board resolves everything on arrival and there
+     * is no cascade left to be early for.
+     *
+     * The timer is cleared only on unmount, deliberately: cancelling it from
+     * this effect's own cleanup would let a re-run drop the payout entirely,
+     * since `processedArrivalRef` has already claimed the key by then. A stale
+     * balance is exactly the bug the four handlers above exist to prevent.
      */
     const processedArrivalRef = useRef(null);
+    const arrivalPayoutTimeoutRef = useRef(null);
     useEffect(() => {
         if (!arrival || !arrivalCrate || !user?.id) return;
 
@@ -485,10 +518,30 @@ function WheelOfFortunePage({ onBack }) {
         if (processedArrivalRef.current === key) return;
         processedArrivalRef.current = key;
 
-        console.log('[WheelPage] Arrival paid out', arrivalCrate.luckySpinsAwarded, 'lucky spins');
-        kotwLuckySpinsRef.current = newTotal;
-        setKotwLuckySpins(newTotal);
+        const pay = () => {
+            console.log('[WheelPage] Arrival paid out', arrivalCrate.luckySpinsAwarded, 'lucky spins');
+            kotwLuckySpinsRef.current = newTotal;
+            setKotwLuckySpins(newTotal);
+            arrivalPayoutTimeoutRef.current = null;
+        };
+
+        const rows = arrival.manifest ? sortManifest(arrival.manifest) : [];
+        const n = rows.length;
+        const mine = rows.findIndex(row => row.userId === user.id);
+        const landsAt = (prefersCalm() || n === 0)
+            ? 0
+            : (mine >= 0 ? rowLandsAt(mine, n) : totalLandsAt(n));
+
+        if (landsAt <= 0) {
+            pay();
+            return;
+        }
+
+        clearTimeout(arrivalPayoutTimeoutRef.current);
+        arrivalPayoutTimeoutRef.current = setTimeout(pay, landsAt * 1000);
     }, [arrival, arrivalCrate, user?.id]);
+
+    useEffect(() => () => clearTimeout(arrivalPayoutTimeoutRef.current), []);
 
 
     // Fetch items and user data

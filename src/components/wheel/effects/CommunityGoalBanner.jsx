@@ -314,16 +314,25 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
     // Start/stop soundtrack. hasSoundtrackStartedRef is never reset by the expiry fallback
     // below - only by the event genuinely ending - or a re-run of this effect would read
     // the cleared flag as a new event and restart the music we just stopped.
+    //
+    // The stop also waits out the settle window and the summary, exactly as
+    // showLiveLayout does for the banner. `isActive` goes false on the end broadcast,
+    // which is seconds ahead of the summary because the result waits for the local
+    // wheel to land - so stopping on it alone told the player the goal had resolved
+    // while their own reel was still turning and the bar was still frozen mid-run.
+    // Freezing the layout and cutting the music is not a freeze.
+    const holdSoundtrack = isSettling || showResult;
+
     useEffect(() => {
         if (isActive && !hasSoundtrackStartedRef.current) {
             startCommunityGoalSoundtrack?.();
             hasSoundtrackStartedRef.current = true;
         }
-        if (!isActive && !isPending && hasSoundtrackStartedRef.current) {
+        if (!isActive && !isPending && !holdSoundtrack && hasSoundtrackStartedRef.current) {
             stopCommunityGoalSoundtrack?.();
             hasSoundtrackStartedRef.current = false;
         }
-    }, [isActive, isPending, startCommunityGoalSoundtrack, stopCommunityGoalSoundtrack]);
+    }, [isActive, isPending, holdSoundtrack, startCommunityGoalSoundtrack, stopCommunityGoalSoundtrack]);
 
     // Visibility
     useEffect(() => {
