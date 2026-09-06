@@ -19,11 +19,39 @@ import { noteServerTime } from '../utils/serverClock.js';
 import { T_LIFT_END } from '../components/wheel/effects/arrivalTimeline.js';
 import { isSaverOn } from '../config/power.js';
 
-const ActivityContext = createContext(null);
+/*
+ * Exported for one caller only: `src/dev/ArrivalTiming.jsx`, the standalone
+ * timing harness for THE ARRIVAL. That page plays the real theatre against a
+ * fabricated manifest so the animation can be scored to, and the theatre reads
+ * its arrival from this context — a harness that could not supply one would
+ * have to duplicate ArrivalTheatre, which is exactly the drift the timeline
+ * file exists to prevent.
+ *
+ * Consumers still go through `useActivity()`; nothing in the app imports this.
+ */
+export const ActivityContext = createContext(null);
 
 // How far back mythic/insane drops are folded into the main activity feed. The board
 // itself is all-time; this only governs how long a rare drop lingers in the All tab.
 const RARE_FEED_MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/*
+ * The gap between the winning pull surfacing and First Blood naming its winner.
+ *
+ * Not a safety margin — the reveal is already ordered behind the feed by the
+ * subtraction it is added to, and zero would be correct if the only requirement
+ * were "not before". It is the beat itself: the ticker prints the item, the page
+ * has a moment to register that something landed, and then the banner says what
+ * it meant. Firing them in the same frame reads as one event with two headlines,
+ * which is how you lose the drop the announcement is about.
+ *
+ * Long enough to be a sequence rather than a stutter, short enough that it is
+ * still plainly the same moment. It also absorbs the few milliseconds between
+ * the activity row being logged and the race being claimed — both happen inside
+ * the winning spin's request, in that order (routes/api.js), so the two stamps
+ * differ by less than this by a wide margin.
+ */
+const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
 
 
 export function ActivityProvider({ children }) {
@@ -634,16 +662,55 @@ export function ActivityProvider({ children }) {
                                     }, 8000); // Show winner for 8 seconds before clearing
                                 };
 
+                                // The announcement has to clear TWO things, and holding for
+                                // only one of them is what this used to get wrong.
+                                //
+                                // (1) The local wheel, which the deferral below covers.
+                                // (2) The winning pull itself. The race is claimed inside the
+                                //     winning spin's own request, so this broadcast leaves the
+                                //     server ~4s before that drop is due to surface anywhere:
+                                //     the live activity feed and the toast both hold it until
+                                //     `created_at + SPIN_REVEAL_MS`. A banner naming the item
+                                //     before the ticker has printed it announces a pull that,
+                                //     as far as the page is concerned, has not happened yet.
+                                //
+                                // The old code held a flat 5s from ARRIVAL, which cleared (2)
+                                // by accident for an idle viewer and not at all for a spinning
+                                // one: the landing drained the deferral the instant the reel
+                                // stopped, and for the winner that is ~200ms before their own
+                                // drop reaches the feed (SPIN_REVEAL_MS is 4200 against a
+                                // 4000ms reel - see helpers.js), so the banner beat the ticker
+                                // on any connection quicker than a 400ms round trip. Locally,
+                                // always.
+                                //
+                                // So measure from the pull, on the server's clock, exactly as
+                                // the feed does, and add a beat so the banner reads as a
+                                // reaction to the drop rather than a race with it. `wonAt` is
+                                // absent when nobody claimed the race (and from a server that
+                                // predates it), and there is no pull to wait for in that case
+                                // - the flat settle is still right there.
+                                const feedDelay = data.winner?.wonAt
+                                    ? spinRevealDelay(data.winner.wonAt) + FIRST_BLOOD_ANNOUNCE_BEAT_MS
+                                    : 5000;
+                                const revealAt = Date.now() + feedDelay;
+
+                                const revealAfterPull = () => {
+                                    const wait = revealAt - Date.now();
+                                    if (wait <= 0) {
+                                        reveal();
+                                        return;
+                                    }
+                                    firstBloodTimeoutRef.current = setTimeout(reveal, wait);
+                                };
+
                                 if (spinInFlightRef.current) {
                                     // Same deal as the Community Goal summary: the end timer
                                     // can fire while the player's wheel is still turning, and
-                                    // the winner must wait for the landing too.
-                                    deferResultUntilLanding(reveal);
+                                    // the winner must wait for the landing too. Whichever of
+                                    // the two waits finishes last is the one that decides.
+                                    deferResultUntilLanding(revealAfterPull);
                                 } else {
-                                    // No local spin to spoil - keep the settle rhythm.
-                                    // Spin animations take ~4-5 seconds, so wait before
-                                    // showing winner.
-                                    firstBloodTimeoutRef.current = setTimeout(reveal, 5000); // Wait for spin animation to complete
+                                    revealAfterPull();
                                 }
                                 break;
                             }
