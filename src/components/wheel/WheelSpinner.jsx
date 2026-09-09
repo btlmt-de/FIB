@@ -86,6 +86,7 @@ import { useActivity } from '../../context/ActivityContext.jsx';
 import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
 import { CanvasRouletteStrip } from './canvas/CanvasRouletteStrip.jsx';
 import RouletteTable from './effects/RouletteTable.jsx';
+import ParlourDeck from './effects/ParlourDeck.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -2343,6 +2344,32 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     />
                                 )}
 
+                                {/* THE PARLOUR's deck, on the phone only.
+
+                                    On a desktop this is a layer of the room and
+                                    lives in ParlourAtmosphere, under the whole
+                                    interface, falling through the margins the
+                                    layout leaves. The shaft has no margins —
+                                    the reel fills the viewport — so there the
+                                    room was entirely behind one opaque canvas
+                                    and the event arrived as a red trim on the
+                                    existing reel.
+
+                                    So on a phone the deck mounts here, in the
+                                    band, over the pockets and over nothing
+                                    else. Portalling it to the body was tried
+                                    and put cards over the topbar and the help
+                                    control, which breaks the room's one rule —
+                                    see ParlourDeck's footer. */}
+                                {parlourOwnsReel && isMobile && (
+                                    <ParlourDeck
+                                        key={`deck-${roulette.openedAt || 'parlour'}`}
+                                        openedAt={roulette.openedAt}
+                                        pocketColour={rouletteResult?.pocket?.colour ?? null}
+                                        isMobile
+                                    />
+                                )}
+
                                 {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
                                     <div style={{
@@ -2537,7 +2564,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     the most legible thing in its area. Costs no
                                     layout, which is the point: the reel now runs
                                     to the bottom bar. */}
-                                {isMobile && state === 'idle' && (
+                                {/* Not while the parlour owns the reel. On a
+                                    phone the table is a fixed tray over the
+                                    bottom of the shaft — the shaft has no apron
+                                    under it — and this line sits in exactly
+                                    that band, so "Tap the reel to spin" was
+                                    reading through the tray across the plaques
+                                    and the KEEP token. It is also wrong twice
+                                    over: the reel is a roulette wheel for those
+                                    forty-five seconds and tapping it does
+                                    nothing. */}
+                                {isMobile && state === 'idle' && !parlourOwnsReel && (
                                     <div style={{
                                         position: 'absolute',
                                         left: 0, right: 0, bottom: 0,

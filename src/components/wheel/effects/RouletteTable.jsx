@@ -29,33 +29,78 @@
  */
 
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { serverNow } from '../../../utils/serverClock.js';
 import {
-    T_TURN, T_CALL, T_REVEAL, COLOURS, BRASS, PARLOUR_GREEN_INK,
-    seatResolvesAt, totalResolvesAt,
+    T_TURN, T_CALL, T_REVEAL, COLOURS, BRASS, BRASS_INK, CARD_IVORY, PARLOUR_GREEN_INK,
+    seatResolvesAt, totalResolvesAt, shade, glow,
 } from './rouletteTimeline.js';
 
 const ORDER = ['red', 'black', 'green'];
 
 /**
- * The table's own column, centred under the wheel.
+ * The table's own column.
  *
- * The frame is full-bleed — it is a room, and the felt should reach the edges —
- * but the controls are not, and letting them inherit that width produced three
- * 500px buttons on a desktop viewport. A bet is a small, deliberate act; the
- * target should be the size of a chip tray, not of the room it is in.
+ * ── DESKTOP: THE APRON ───────────────────────────────────────────────────────
+ *
+ * Centred under the band, in the row the bonus plaque and the lane readout
+ * already answer in. The frame around it is full-bleed — it is a room, and the
+ * floor should reach the edges — but the controls are not, and letting them
+ * inherit that width produced three 500px buttons on a desktop viewport. A bet
+ * is a small, deliberate act; the target should be the size of a chip tray, not
+ * of the room it is in.
+ *
+ * ── THE PHONE HAS NO APRON, AND THE TABLE FELL OFF THE SCREEN ────────────────
+ *
+ * This is the shaft (DESIGN.md §8): the reel runs vertically and is sized to
+ * fill the viewport, so the row underneath it is below the fold — and the wheel
+ * shell does not scroll, `scrollHeight` being exactly `innerHeight`. Measured at
+ * 390x844 the three plaques laid out at **y = 846**, two pixels past the bottom
+ * of a page with nowhere to go.
+ *
+ * So on a phone this was an event that asked the player a question they could
+ * not answer, and paid them the fold either way. It survived because every
+ * review of this feature had been done on a desktop, where the apron exists.
+ *
+ * The fix is not to shrink the shaft — the reel becoming the roulette is the
+ * whole event, and cropping it to make room for the controls would trade the
+ * picture for the buttons. The table becomes a fixed tray above the tab bar,
+ * which is where a phone puts a decision anyway. It is transparent to touch
+ * except on the plaques themselves, so the rest of the surface stays live for
+ * the whole forty-five seconds exactly as it does on desktop.
  */
-const tableBox = (isMobile) => ({
-    width: '100%',
-    maxWidth: 640,
-    margin: '0 auto',
-    padding: isMobile ? '0 12px 12px' : '0 22px 18px',
-    boxSizing: 'border-box',
-});
+const PHONE_TAB_BAR = 56;
+
+const tableBox = (isMobile) => (isMobile
+    ? {
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: PHONE_TAB_BAR + 8,
+        // Above the reel and its overlays, below the banners and the tab bar.
+        zIndex: 12,
+        width: '100%',
+        maxWidth: 640,
+        margin: '0 auto',
+        padding: '14px 12px 12px',
+        boxSizing: 'border-box',
+        // The tray reads OUT of the shaft rather than sitting on top of it: no
+        // edge, no card, just the room getting denser toward the bottom of the
+        // screen until the plaques are on solid ground.
+        background: 'linear-gradient(180deg, rgba(28,4,7,0) 0%, rgba(28,4,7,0.82) 26%, rgba(28,4,7,0.93) 100%)',
+        pointerEvents: 'none',
+    }
+    : {
+        width: '100%',
+        maxWidth: 640,
+        margin: '0 auto',
+        padding: '0 22px 18px',
+        boxSizing: 'border-box',
+    });
 
 /**
  * The seats, ordered so the board resolves shortest odds first.
@@ -72,6 +117,29 @@ function sortSeats(seats) {
         (a, b) => (a.payout ?? 0) - (b.payout ?? 0)
             || String(a.username).localeCompare(String(b.username))
     );
+}
+
+/**
+ * The table's container, and on a phone its escape hatch.
+ *
+ * `position: fixed` was not enough on its own, which is worth writing down
+ * because it looks like it should be: the apron sits inside an ancestor with
+ * `position: relative; z-index: 1`, and that is a STACKING CONTEXT, so the
+ * tray's `z-index: 12` only ever competed with its own siblings. The shaft's
+ * canvas is a sibling of that ancestor at a higher level, so the tray was laid
+ * out correctly, at the right coordinates, fully opaque — and painted
+ * underneath the reel, where `elementFromPoint` found a canvas instead of a
+ * plaque. A control that is present, positioned and invisible is worse than one
+ * that is missing, because nothing about the DOM says anything is wrong.
+ *
+ * So on a phone it portals to `document.body`, out of every stacking context
+ * the wheel builds. THE ARRIVAL's theatre does the same thing for the same
+ * reason and its header says so. Desktop stays in the apron, in flow, where the
+ * row is its own.
+ */
+function Tray({ isMobile, style, children }) {
+    const tray = <div style={{ ...tableBox(isMobile), ...style }}>{children}</div>;
+    return isMobile ? createPortal(tray, document.body) : tray;
 }
 
 function Avatar({ seat, size = 26, ring }) {
@@ -92,14 +160,37 @@ function Avatar({ seat, size = 26, ring }) {
 }
 
 /**
- * One colour's button, and the pile of chips already on it.
+ * One colour's plaque, and the pile of chips already on it.
  *
- * The pile is part of the button rather than a separate legend because the thing
- * a player wants to know in the last five seconds is not "how many are on red"
- * in the abstract — it is whether to join them, which is a property of the thing
- * they are about to press. Faces rather than a count, because the answer to "is
- * anyone else on this" is a face, and a stack of them is legible at a glance in
- * a way "4" is not.
+ * ── IT IS A PLAQUE, NOT A COLOURED BUTTON ────────────────────────────────────
+ *
+ * This shipped as three rounded rectangles filled with a translucent wash of
+ * their own colour — which is what a web button looks like when it has been
+ * given a hue and nothing else. In a room made of brass, lacquer and card stock
+ * it was the one object on screen that had visibly come from somewhere else,
+ * and it is the ONLY thing in this event a player touches, so it should be the
+ * best-made object in the room rather than the cheapest.
+ *
+ * A casino plaque is what it actually is: a chamfered slab with a milled metal
+ * edge, a lacquered face and the denomination cut into it. Two absolutely
+ * positioned layers do the edge and the face, both wearing the same chamfer, so
+ * the metal follows the corner cuts instead of a rectangle sitting behind them.
+ *
+ * ── THE STATES LIVE IN CSS ───────────────────────────────────────────────────
+ *
+ * Hover, focus-visible and active are three things an inline `style` object
+ * cannot express, and the previous build therefore had none of them: no hover
+ * at all, and the browser's default focus ring on the site's only interactive
+ * overlay. Everything the plaque does on its own is in `.fib-parlour-plaque`;
+ * everything that comes from the pocket's colour arrives as a custom property.
+ *
+ * ── THE PILE IS PART OF THE PLAQUE ───────────────────────────────────────────
+ *
+ * Unchanged, and still right. What a player wants to know in the last five
+ * seconds is not "how many are on red" in the abstract — it is whether to join
+ * them, which is a property of the thing they are about to press. Faces rather
+ * than a count, because the answer to "is anyone else on this" is a face, and a
+ * stack of them is legible at a glance in a way "4" is not.
  */
 function BetButton({ colour, multiplier, seats, mine, locked, onPick }) {
     const c = COLOURS[colour];
@@ -108,58 +199,58 @@ function BetButton({ colour, multiplier, seats, mine, locked, onPick }) {
     return (
         <button
             type="button"
+            className="fib-parlour-plaque"
+            data-chosen={chosen ? 'true' : 'false'}
             disabled={locked}
             onClick={() => onPick(chosen ? null : colour)}
             aria-pressed={chosen}
             aria-label={`Bet on ${c.label}, pays ${multiplier} times${chosen ? ' — your bet' : ''}`}
             style={{
-                position: 'relative',
-                flex: '1 1 0',
-                minWidth: 0,
-                padding: '10px 8px 8px',
-                borderRadius: 12,
-                cursor: locked ? 'default' : 'pointer',
-                pointerEvents: 'auto',
-                background: chosen
-                    ? `linear-gradient(180deg, ${c.hex}, ${c.hex}CC)`
-                    : `linear-gradient(180deg, ${c.hex}55, ${c.hex}22)`,
-                border: `2px solid ${chosen ? c.ink : `${c.hex}AA`}`,
-                boxShadow: chosen
-                    ? `0 0 22px ${c.hex}77, inset 0 1px 0 rgba(255,255,255,0.22)`
-                    : 'none',
-                color: '#fff',
-                opacity: locked && !chosen ? 0.45 : 1,
-                transition: 'opacity 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+                '--c': c.hex,
+                '--c-top': shade(c.hex, -0.30),
+                '--c-lo': shade(c.hex, -0.45),
+                '--c-glow': glow(c.hex, 0.55),
+                /*
+                 * All three words are the same ivory, which is what a real
+                 * plaque does — the denomination is cut in one colour whatever
+                 * the chip is worth — and it is also the only step that clears
+                 * AA on all three lacquers. The pocket's own ink stays where
+                 * §8 put it: on the payout board, where the word is on the
+                 * page rather than on the colour it names.
+                 */
+                '--ink': chosen ? '#FFFFFF' : CARD_IVORY,
             }}
         >
-            <div style={{
-                fontWeight: 800, letterSpacing: '0.06em', fontSize: 15,
-                color: chosen ? '#fff' : c.ink,
-            }}>
-                {c.label}
-            </div>
-            <div style={{ fontSize: 11, opacity: 0.85, marginTop: 1, fontWeight: 700 }}>
-                {multiplier}x
-            </div>
+            <span className="fib-parlour-plaque-edge" aria-hidden="true" />
+            <span className="fib-parlour-plaque-face" aria-hidden="true" />
 
-            <div style={{
-                display: 'flex', justifyContent: 'center', minHeight: 20, marginTop: 6,
-                paddingLeft: seats.length ? 8 : 0,
-            }}>
-                {seats.slice(0, 5).map(s => (
-                    <div key={s.userId} style={{ marginLeft: -8 }}>
-                        <Avatar seat={s} size={20} ring={c.ink} />
-                    </div>
-                ))}
-                {seats.length > 5 && (
-                    <span style={{
-                        marginLeft: -4, fontSize: 10, fontWeight: 800, alignSelf: 'center',
-                        color: c.ink,
-                    }}>
-                        +{seats.length - 5}
-                    </span>
-                )}
-            </div>
+            <span className="fib-parlour-plaque-body">
+                <span className="fib-parlour-plaque-label">{c.label}</span>
+                {/* "PAYS 6×" rather than "6x": the multiplier is the one number
+                    on this surface a player has to reason about before the
+                    clock runs out, and a bare figure beside a colour is a label
+                    they have to interpret. Multiplication sign, not the letter. */}
+                <span className="fib-parlour-plaque-odds">PAYS {multiplier}×</span>
+
+                <span style={{
+                    display: 'flex', justifyContent: 'center', minHeight: 20, marginTop: 7,
+                    paddingLeft: seats.length ? 8 : 0,
+                }}>
+                    {seats.slice(0, 5).map(s => (
+                        <span key={s.userId} style={{ marginLeft: -8, display: 'block' }}>
+                            <Avatar seat={s} size={20} ring={BRASS} />
+                        </span>
+                    ))}
+                    {seats.length > 5 && (
+                        <span style={{
+                            marginLeft: -4, fontSize: 10, fontWeight: 800, alignSelf: 'center',
+                            color: BRASS_INK,
+                        }}>
+                            +{seats.length - 5}
+                        </span>
+                    )}
+                </span>
+            </span>
         </button>
     );
 }
@@ -255,7 +346,7 @@ function RouletteTable({
         const mine = payout;
 
         return (
-            <div style={{ ...tableBox(isMobile), pointerEvents: 'none' }}>
+            <Tray isMobile={isMobile} style={{ pointerEvents: 'none' }}>
                 <div
                     role="status"
                     style={{
@@ -296,11 +387,33 @@ function RouletteTable({
                         return (
                             <div
                                 key={r.userId}
+                                /*
+                                 * The rows are the room's material, not the
+                                 * page's.
+                                 *
+                                 * They were `rgba(8,14,24,0.66)` — a blue-black
+                                 * slate, correct when this event was a green
+                                 * baize over the Nocturne and wrong the moment
+                                 * the floor turned crimson: navy slabs on
+                                 * oxblood, at the one beat the whole event
+                                 * builds to. It is the same drift the band's
+                                 * rim had, caught late for the same reason,
+                                 * which is that a colour nobody chose again is
+                                 * a colour nobody looks at again.
+                                 *
+                                 * Crimson ramp and a brass hairline, the
+                                 * construction the plaques already use, so the
+                                 * board is furniture in this room rather than a
+                                 * panel borrowed from another one. The winner's
+                                 * row keeps its own ink on the border, which is
+                                 * the one place the pocket's colour still says
+                                 * something.
+                                 */
                                 style={{
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '5px 9px', borderRadius: 9,
-                                    background: 'rgba(8,14,24,0.66)',
-                                    border: `1px solid ${r.outcome === 'hit' ? `${c?.ink}66` : 'rgba(255,255,255,0.07)'}`,
+                                    background: 'linear-gradient(180deg, rgba(64,10,18,0.80), rgba(28,4,7,0.88))',
+                                    border: `1px solid ${r.outcome === 'hit' ? `${c?.ink}66` : 'rgba(201,162,39,0.22)'}`,
                                     opacity: shown ? 1 : 0,
                                     transform: shown ? 'none' : 'translateY(6px)',
                                     transition: 'opacity 260ms ease, transform 260ms ease',
@@ -341,7 +454,7 @@ function RouletteTable({
                         {result.totalPaid} LUCKY SPINS ACROSS {rows.length} SEAT{rows.length === 1 ? '' : 'S'}
                     </div>
                 )}
-            </div>
+            </Tray>
         );
     }
 
@@ -353,41 +466,48 @@ function RouletteTable({
     const secondsLeft = Math.max(0, Math.ceil(((betsCloseAt ?? 0) - serverNow()) / 1000));
 
     return (
-        <div style={tableBox(isMobile)}>
-            {/* The marquee.
+        <Tray isMobile={isMobile}>
+            {/*
+                THE MARQUEE IS GONE, AND IT IS NOT COMING BACK.
 
-                Every other global event announces itself in a banner across the
-                top of the page; this one has no banner, because the reel turning
-                into a wheel is the announcement. But "a roulette is happening"
-                is not the same fact as "you have five chips and 6x on green",
-                and without this the player has the table in front of them and no
-                statement of the terms. One line, brass, above the call. */}
-            <div style={{
-                textAlign: 'center', marginBottom: 5,
-                fontSize: 10, fontWeight: 800, letterSpacing: '0.30em',
-                color: BRASS, opacity: 0.85, textTransform: 'uppercase',
-            }}>
-                The Parlour
-                <span style={{ margin: '0 8px', opacity: 0.4 }}>·</span>
-                <span style={{ color: COLORS.neutralInk, letterSpacing: '0.12em' }}>
-                    {stake} on the table
-                </span>
-            </div>
+                It read "THE PARLOUR · 5 ON THE TABLE" in tracked brass above
+                "PLACE YOUR BETS" — which is a kicker, and a kicker is the one
+                thing the craft floor bans outright rather than defaults away
+                from: no brief earns it back, the heading carries its own
+                weight. It was also saying the same fact twice inside 200px,
+                because the stake is already stated at the bottom of this same
+                tray ("5 lucky spins on the table") where it sits beside the
+                fold button it actually informs.
+
+                The argument for it was that the player needs the terms stated
+                somewhere. They still are — on the plaques, which now read PAYS
+                2× and PAYS 6×, and in that bottom line. Nothing was lost but
+                the eyebrow.
+
+                The brass hairline stays. A rule is furniture, not a label: the
+                band above separates itself with exactly this line, twice, and
+                it is what gives the tray a top edge on a phone. */}
+            <div className="fib-parlour-rule" aria-hidden="true" />
 
             {/* The call. One line, and it changes exactly once. */}
             <div
                 role="status"
                 style={{
-                    textAlign: 'center', marginBottom: 8,
+                    textAlign: 'center', marginBottom: 10,
                     fontWeight: 900, letterSpacing: '0.16em',
-                    fontSize: isMobile ? 13 : 15,
-                    color: locked ? COLORS.redInk : BRASS,
+                    fontSize: isMobile ? 14 : 17,
+                    color: locked ? COLORS.redInk : BRASS_INK,
                     textShadow: locked ? `0 0 20px ${COLOURS.red.hex}CC` : 'none',
                 }}
             >
                 {locked ? 'NO MORE BETS' : (
                     <>
                         PLACE YOUR BETS
+                        {/* The seconds are the one figure here that changes
+                            every second, so they are set on the numeral's own
+                            fixed advance — otherwise 19 → 18 → 17 walks the
+                            whole line left and right while the player is
+                            reading it. */}
                         <span style={{
                             marginLeft: 10,
                             color: secondsLeft <= 5 ? COLORS.redInk : COLORS.text,
@@ -399,7 +519,7 @@ function RouletteTable({
                 )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                 {ORDER.map(colour => (
                     <BetButton
                         key={colour}
@@ -423,17 +543,11 @@ function RouletteTable({
             }}>
                 <button
                     type="button"
+                    className="fib-parlour-keep"
+                    data-chosen={!myBet?.bet ? 'true' : 'false'}
                     disabled={locked}
                     onClick={() => pick(null)}
                     aria-pressed={!myBet?.bet}
-                    style={{
-                        pointerEvents: 'auto',
-                        padding: '5px 12px', borderRadius: 9, fontSize: 11, fontWeight: 800,
-                        letterSpacing: '0.08em', cursor: locked ? 'default' : 'pointer',
-                        background: !myBet?.bet ? 'rgba(224,224,224,0.14)' : 'transparent',
-                        border: `1px solid ${!myBet?.bet ? 'rgba(224,224,224,0.4)' : 'rgba(224,224,224,0.16)'}`,
-                        color: COLORS.text, opacity: locked ? 0.45 : 1,
-                    }}
                 >
                     KEEP {stake}
                 </button>
@@ -447,7 +561,7 @@ function RouletteTable({
                         : `${stake} lucky spins on the table`)}
                 </span>
             </div>
-        </div>
+        </Tray>
     );
 }
 

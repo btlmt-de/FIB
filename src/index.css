@@ -791,38 +791,52 @@ html[data-saver="on"] *::after {
 }
 
 /*
- * The felt. A warm green ground pulled over the Nocturne's blue hour, darkest at
+ * The floor. A crimson ground pulled over the Nocturne's blue hour, darkest at
  * the edges so the room has walls rather than an edge where the picture stops.
  *
- * `screen` on the lower stop and a plain wash beneath it: a flat green over the
- * city would bury the skyline and the viaduct, and §8's whole surface is that
- * city. This tints it and keeps it.
+ * It used to be a green baize, on the reasoning that the green pocket is the
+ * house. That reasoning survives — green is still the pocket, the 6x and this
+ * event's cell on the selection wheel — but it made a bad ROOM, and the fault
+ * was lighting rather than taste: green over a blue-hour city is two cool casts
+ * stacked, so the surface went flat, the reel's red pockets read brown through
+ * it, and the leaderboard lost its separation from the ground. Crimson is the
+ * one ground here the blue hour is genuinely opposite to, so the city stays
+ * visible through it instead of merging with it.
+ *
+ * Still a wash and not a fill, for the original reason: §8's whole surface is
+ * that city, and a flat colour would bury the skyline and the viaduct.
  */
-.fib-parlour-felt {
+.fib-parlour-floor {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(140% 100% at 50% 44%, rgba(18, 86, 63, 0.58) 0%, rgba(11, 61, 46, 0.78) 46%, rgba(2, 14, 11, 0.94) 100%);
+    radial-gradient(140% 100% at 50% 44%,
+      rgba(142, 22, 34, 0.62) 0%,
+      rgba(90, 12, 21, 0.80) 44%,
+      rgba(28, 4, 7, 0.95) 100%);
 }
 
 /*
- * The baize itself, at grazing angles.
+ * The carpet, at grazing angles.
  *
- * Felt is a woven surface and the reason a casino table looks like one on
- * camera is the fine cross-hatch catching the light. Two repeating gradients at
- * opposing diagonals, 3px apart, at an opacity where you cannot see the lines —
- * only that the green has a nap to it. Under the lamp it reads as cloth; at the
- * edges the walls swallow it, which is correct.
+ * A casino floor is patterned, not plain, and the reason it looks like one on
+ * camera is a fine repeat catching the light. Two opposing diagonals give the
+ * pile its nap; a coarser diamond lattice over them is the pattern itself, at
+ * an opacity where you cannot see it as a motif — only that the red is woven.
+ * Under the lamp it reads as carpet; at the edges the walls swallow it, which
+ * is correct.
  */
 .fib-parlour-weave {
   position: absolute;
   inset: 0;
-  opacity: 0.5;
+  opacity: 0.55;
   background-image:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px),
-    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.055) 0 1px, transparent 1px 3px);
-  mask-image: radial-gradient(70% 60% at 50% 46%, #000 0%, transparent 100%);
-  -webkit-mask-image: radial-gradient(70% 60% at 50% 46%, #000 0%, transparent 100%);
+    repeating-linear-gradient(45deg, rgba(255, 214, 170, 0.020) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.060) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(63deg, rgba(201, 162, 39, 0.030) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(-63deg, rgba(201, 162, 39, 0.030) 0 1px, transparent 1px 34px);
+  mask-image: radial-gradient(72% 62% at 50% 46%, #000 0%, transparent 100%);
+  -webkit-mask-image: radial-gradient(72% 62% at 50% 46%, #000 0%, transparent 100%);
 }
 
 /*
@@ -840,9 +854,13 @@ html[data-saver="on"] *::after {
   width: min(1500px, 120vw);
   height: min(760px, 92vh);
   transform: translate(-50%, -50%);
+  /* Brass over a warm crimson bounce. The second stop used to be the baize
+     green and is the floor's own lit value now — it is the light coming back
+     UP off the carpet, so it has to be the carpet's colour or the pool under
+     the lamp reads as a different room from the one around it. */
   background:
     radial-gradient(closest-side, rgba(201, 162, 39, 0.20) 0%, rgba(201, 162, 39, 0.09) 38%, rgba(201, 162, 39, 0) 72%),
-    radial-gradient(closest-side, rgba(25, 179, 107, 0.16) 0%, rgba(25, 179, 107, 0) 66%);
+    radial-gradient(closest-side, rgba(199, 47, 62, 0.20) 0%, rgba(199, 47, 62, 0) 66%);
   filter: blur(2px);
   animation: fib-parlour-lamp-breathe 7s ease-in-out infinite;
 }
@@ -886,7 +904,10 @@ html[data-saver="on"] *::after {
 .fib-parlour-mote {
   position: absolute;
   border-radius: 50%;
-  background: rgba(230, 205, 140, 0.55);
+  /* Card ivory, not a third warm near-white. Dust in this room is lit by one
+     lamp and made of the same stock as the deck falling through it; the mote
+     had its own hand-picked cream from before the room had a palette. */
+  background: rgba(239, 226, 198, 0.55);
   box-shadow: 0 0 6px rgba(201, 162, 39, 0.5);
   animation-name: fib-parlour-mote-rise;
   animation-timing-function: linear;
@@ -901,12 +922,282 @@ html[data-saver="on"] *::after {
   100% { transform: translate(var(--drift), -40vh); opacity: 0; }
 }
 
-/* The walls. Last, so it darkens the lamp's own spill as well as the felt. */
+/*
+ * The walls. Last, so it darkens the lamp's own spill, the carpet, and every
+ * card the deck drops through the corners of the room.
+ *
+ * Two stops rather than one: a crimson-black before the true black, so the
+ * corners fall away into the room's own colour instead of into a grey that
+ * belongs to no surface here.
+ */
 .fib-parlour-walls {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 100% at 50% 50%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.55) 100%);
+    radial-gradient(120% 100% at 50% 50%,
+      rgba(0, 0, 0, 0) 40%,
+      rgba(28, 4, 7, 0.42) 74%,
+      rgba(0, 0, 0, 0.62) 100%);
+}
+
+/*
+ * ── THE PLAQUES ─────────────────────────────────────────────────────────────
+ *
+ * The three bets, and the one interactive thing in this event.
+ *
+ * They were three rounded rectangles in a translucent version of their own
+ * colour, which is what a web button looks like when it has been given a hue
+ * and nothing else. In a room built out of brass, lacquer and card stock that
+ * read as the one object on screen that had come from somewhere else — and the
+ * bet is the whole event, so it should be the best-made thing in the room.
+ *
+ * A casino plaque is the right object: a chamfered slab with a milled metal
+ * edge and a lacquered face, and the denomination cut into it. It is also
+ * honest about what pressing it costs, which a soft translucent panel is not.
+ *
+ * ── THEY ARE CLASSES, WHERE THE REST OF THE TABLE IS INLINE STYLE ────────────
+ *
+ * Not a stylistic preference. Hover, focus-visible and active are the three
+ * states an inline `style` object cannot express, and the previous build simply
+ * did not have them: the buttons had no hover at all and took the browser's
+ * default focus ring. Anything the plaques do on their own goes here; anything
+ * that comes from the colour or the state goes in as a custom property.
+ *
+ *   --c-top / --c / --c-lo  the lacquer at the mouth / true / at the floor
+ *   --c-glow                the same colour as a cast light
+ *   --ink                   the word cut into the plaque
+ *
+ * The three lacquer steps are mixed in JS rather than with `color-mix()`. Not
+ * distrust of the function — it is the pocket colours' own ramp, and this file
+ * has one other place that needed a tint and reached for a hardcoded literal
+ * instead. One `shade()` beside `COLOURS` keeps the ramp with the palette that
+ * owns it, and every step is then a plain rgb() that cannot fail to parse.
+ */
+.fib-parlour-plaque {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 200ms cubic-bezier(0.2, 0.9, 0.25, 1),
+    filter 200ms ease,
+    opacity 160ms ease;
+}
+
+/* The chamfer, once. Both layers wear it, so the metal edge follows the
+   corner cuts instead of a rectangle poking out behind them. */
+.fib-parlour-plaque-edge,
+.fib-parlour-plaque-face {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(
+    11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px),
+    calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px);
+}
+
+/* The milled edge. A real bevel: lit along the top, dark along the bottom. */
+.fib-parlour-plaque-edge {
+  background: linear-gradient(160deg, #F0D98A 0%, #C9A227 26%, #7A5F14 62%, #4A3A0E 100%);
+  opacity: 0.55;
+  transition: opacity 200ms ease;
+}
+
+/*
+ * The lacquer, and the reason its top third is dark.
+ *
+ * It is the pocket face's own ramp — dark at the mouth, true colour where the
+ * lamp reaches, dark again at the floor — so a plaque and a pocket are visibly
+ * the same material. It is also the fix for a measured failure: the label was
+ * set in the pocket's ink on the pocket's colour, which is §8's rule applied
+ * one context too far. That rule is for a word on the PAGE; a word on a
+ * saturated field of its own hue has nowhere to go. Measured, GREEN was
+ * 2.62:1 and RED 3.05:1 — one outright failure and one that only passes as
+ * large text, which a 15px label is not.
+ *
+ * Darkening the band the word sits in fixes both at the material rather than
+ * by inventing a fourth ink: ivory now reads 6.2:1 on green and 8.4:1 on red,
+ * and the plaque still declares its colour across the half of its height where
+ * the odds and the faces are.
+ */
+.fib-parlour-plaque-face {
+  inset: 2px;
+  background: linear-gradient(180deg,
+    var(--c-top) 0%, var(--c-top) 30%, var(--c) 62%, var(--c-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -10px 18px -10px rgba(0, 0, 0, 0.75);
+}
+
+.fib-parlour-plaque-body {
+  position: relative;
+  display: block;
+  padding: 11px 8px 9px;
+}
+
+.fib-parlour-plaque-label {
+  display: block;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.10em;
+  color: var(--ink);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* The denomination, in the room's metal. Every plaque in a house wears the
+   same brass here — it is the house's number, not the colour's. */
+.fib-parlour-plaque-odds {
+  display: block;
+  margin-top: 2px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: #E0C766;
+  font-variant-numeric: tabular-nums;
+}
+
+.fib-parlour-plaque:hover:not(:disabled) { transform: translateY(-2px); }
+.fib-parlour-plaque:hover:not(:disabled) .fib-parlour-plaque-edge { opacity: 0.85; }
+.fib-parlour-plaque:active:not(:disabled) { transform: translateY(1px); }
+
+.fib-parlour-plaque:focus-visible {
+  outline: 2px solid #E0C766;
+  outline-offset: 3px;
+}
+
+/*
+ * Chosen. The state is on the button rather than in a second style object, so
+ * the disabled rule below can keep it lit after the call while everything else
+ * greys out.
+ *
+ * Four things move at once, deliberately: the plaque comes forward, the metal
+ * goes fully lit, a brass rule is cut into the face, and the plaque throws a
+ * brass halo. A lift and a coloured glow alone were tried and are not enough —
+ * against two unchosen plaques of the same size they read as a hover, and at
+ * the moment the call comes this is the only thing on screen saying what the
+ * player's five spins are on.
+ *
+ * ── AND NONE OF THE FOUR MAY DEPEND ON THE POCKET'S COLOUR ───────────────────
+ *
+ * The first version leaned on `--c-glow`, which is the pocket's own hue as a
+ * cast light. That is fine on red and green and **nothing at all on black**:
+ * `glow('#14171F')` is a shadow the colour of the page, so the plaque with the
+ * least colour to brighten got the least signal — on exactly the bet a player
+ * is most likely to doubt they placed. Measured against the other two in the
+ * same capture, chosen-BLACK was the dimmest object on the tray.
+ *
+ * So the load-bearing channels are the brass ones: a 2px ruling and a brass
+ * halo, both identical on all three plaques. `--c-glow` stays underneath as a
+ * warmth that happens to be stronger on the saturated pockets, but nothing
+ * depends on it any more.
+ */
+/* The halo is a `drop-shadow` filter and not a `box-shadow`, because both
+   plaque layers are clipped to the chamfer and `clip-path` clips a box shadow
+   away with them. A filter is applied to what the element actually painted, so
+   the glow follows the corner cuts instead of being a rectangle behind an
+   octagon — or, as a box shadow, nothing at all. */
+.fib-parlour-plaque[data-chosen='true'] {
+  transform: translateY(-4px);
+  filter:
+    drop-shadow(0 0 2px rgba(224, 199, 102, 0.75))
+    drop-shadow(0 8px 18px var(--c-glow));
+}
+.fib-parlour-plaque[data-chosen='true'] .fib-parlour-plaque-edge { opacity: 1; }
+.fib-parlour-plaque[data-chosen='true'] .fib-parlour-plaque-face {
+  inset: 3px;
+  box-shadow:
+    inset 0 0 0 2px rgba(224, 199, 102, 0.92),
+    inset 0 3px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -12px 20px -10px rgba(0, 0, 0, 0.75);
+}
+.fib-parlour-plaque[data-chosen='true'] .fib-parlour-plaque-label {
+  color: #FFFFFF;
+}
+
+.fib-parlour-plaque:disabled { cursor: default; }
+.fib-parlour-plaque:disabled:not([data-chosen='true']) {
+  opacity: 0.42;
+  filter: saturate(0.55);
+}
+
+/*
+ * The fold. Deliberately NOT a plaque — folding is declining to bet, and
+ * dressing it as a fourth denomination would put a fourth option on a table
+ * that has three. A brass token: the same metal, none of the lacquer.
+ *
+ * ── ITS TWO OFF-WHITES WERE DRIFT, AND ARE GONE ──────────────────────────────
+ *
+ * It shipped with `#E8DCC0` at rest and `#FFF3D0` on hover and when chosen —
+ * two warm near-whites invented here and used nowhere else, on a surface that
+ * already has exactly one (`CARD_IVORY`) and one warm metal step (`BRASS_INK`).
+ * Neither was a decision; they were a colour picker reaching for "a bit warmer
+ * than the last one" twice. The documenter caught them and refused to write
+ * them into the palette, which is the right refusal: canonising a colour to
+ * silence a warning is how a three-step ramp becomes a five-step one.
+ *
+ * At rest it is card ivory — the token is a chip, and chips are card stock and
+ * clay on this surface. Lit, it is brass ink, which is what every other lit
+ * word in this room is.
+ */
+.fib-parlour-keep {
+  pointer-events: auto;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(224, 199, 102, 0.34);
+  background: rgba(28, 4, 7, 0.55);
+  color: #EFE2C6;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+.fib-parlour-keep:hover:not(:disabled) {
+  border-color: rgba(224, 199, 102, 0.7);
+  color: #E0C766;
+}
+.fib-parlour-keep[data-chosen='true'] {
+  border-color: #E0C766;
+  background: rgba(201, 162, 39, 0.16);
+  color: #E0C766;
+}
+.fib-parlour-keep:focus-visible { outline: 2px solid #E0C766; outline-offset: 2px; }
+.fib-parlour-keep:disabled { cursor: default; opacity: 0.45; }
+
+/*
+ * The shaft. Three plaques across a 390px screen leaves about 100px of usable
+ * face each, and an 11px chamfer off a 113px slab is a corner cut on a
+ * different object from the one desktop shows. Everything shrinks with the
+ * plaque so the proportions hold; nothing is removed, because the bet is the
+ * event and a phone is where most of this site is read.
+ */
+@media (max-width: 899px) {
+  .fib-parlour-plaque-edge,
+  .fib-parlour-plaque-face {
+    clip-path: polygon(
+      8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px),
+      calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+  }
+  .fib-parlour-plaque-body { padding: 9px 5px 8px; }
+  .fib-parlour-plaque-label { font-size: 13px; letter-spacing: 0.07em; }
+  .fib-parlour-plaque-odds { font-size: 10px; letter-spacing: 0.10em; }
+  .fib-parlour-rule { max-width: 220px; }
+}
+
+/* The brass rule under the marquee. One hairline, fading at both ends, which
+   is the room's own way of separating things — see the reel's band rails. */
+.fib-parlour-rule {
+  height: 1px;
+  margin: 0 auto 10px;
+  max-width: 340px;
+  background: linear-gradient(90deg,
+    rgba(201, 162, 39, 0) 0%, rgba(201, 162, 39, 0.55) 50%, rgba(201, 162, 39, 0) 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -916,6 +1207,13 @@ html[data-saver="on"] *::after {
   .fib-parlour-shaft,
   .fib-parlour-mote { animation: none; }
   .fib-parlour-mote { opacity: 0.45; }
+  /* The plaques keep their states and lose the travel: a lift of three pixels
+     is not a vestibular problem, but it is also not what tells you the plaque
+     is chosen — the metal is. */
+  .fib-parlour-plaque { transition-property: filter, opacity; }
+  .fib-parlour-plaque:hover:not(:disabled),
+  .fib-parlour-plaque:active:not(:disabled),
+  .fib-parlour-plaque[data-chosen='true'] { transform: none; }
 }
 
 /*

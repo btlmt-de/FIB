@@ -341,7 +341,7 @@ function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
     const {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
-        arrival, arrivalCrate, roulette, roulettePayout,
+        arrival, arrivalCrate, roulette, roulettePayout, rouletteResult,
     } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
@@ -950,7 +950,30 @@ function WheelOfFortunePage({ onBack }) {
                 harder to read — and it takes no pointer events, so the site is
                 fully usable for the whole three quarters of a minute. See
                 ParlourAtmosphere.jsx and DESIGN.md §9b. */}
-            {roulette && <ParlourAtmosphere openedAt={roulette.openedAt} />}
+            {/* The pocket's colour reaches the room only so the deck can shower
+                in it AFTER the band has landed. It is not a second readout —
+                the room agrees with the result a beat late, and cannot be asked
+                anything the strip has not already answered. */}
+            {/* Keyed on the table, for the reason `CanvasRouletteStrip` is
+                keyed on it a few files over — and this one was caught the same
+                way, by watching a second event.
+
+                The room's wheel and its deck are rAF loops that PARK a second
+                after `T_END`, so they cost nothing once the event is over
+                (§10's rule: a loop with no park condition is a permanent cost).
+                A parked loop restarts on a fresh mount and on nothing else, and
+                `roulette` being replaced by the next table is not a mount — so
+                the second table of a session opened into a room that had gone
+                still: a frozen wheel in the corner and a deck of cards hanging
+                in mid-air. It reads as broken rather than as calm, and it is
+                invisible in testing unless you trigger two events in a row. */}
+            {roulette && (
+                <ParlourAtmosphere
+                    key={roulette.openedAt || 'parlour'}
+                    openedAt={roulette.openedAt}
+                    pocketColour={rouletteResult?.pocket?.colour ?? null}
+                />
+            )}
 
             {/* Topbar — row 1.
 

@@ -61,7 +61,7 @@ import { prefersReducedMotion } from '../../../utils/motion.js';
 import { COLORS } from '../config/constants';
 import {
     T_TURN, T_SPIN, T_LAND, T_REVEAL, T_FALL, T_END, TURN_FLIP_S,
-    COLOURS, BRASS,
+    COLOURS, BRASS, CRIMSON_DEEP, spinPhase,
 } from '../effects/rouletteTimeline.js';
 
 /** How fast the idle ring drifts while bets are being taken, in px/s. */
@@ -81,7 +81,7 @@ const ARC = 1.12;
 const SIN_ARC = Math.sin(ARC);
 
 const clamp01 = t => Math.max(0, Math.min(1, t));
-const easeOutQuart = t => 1 - Math.pow(1 - t, 4);
+/* The run's own easing is `spinPhase` in the timeline — see `ringOffset`. */
 const easeInQuad = t => t * t;
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
@@ -172,8 +172,14 @@ function ringOffset(t, winner, ringLength, pitch) {
     const to = landingOffset(from, winner, ringLength, pitch);
     if (t >= T_LAND) return to;
 
-    const p = clamp01((t - T_SPIN) / (T_LAND - T_SPIN));
-    return from + (to - from) * easeOutQuart(p);
+    /*
+     * `spinPhase` rather than a local `easeOutQuart` call, and the reason is
+     * the corner wheel: it is the same machine seen from the other side, and
+     * the whole point of putting it there is that the room and the reel move as
+     * one at the landing. Two copies of the same curve are two curves the first
+     * time either is tuned. The timeline owns it now.
+     */
+    return from + (to - from) * spinPhase(t);
 }
 
 /**
@@ -280,11 +286,18 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
             ) / 0.04;
             const fast = clamp01((speed - 260) / 2400);
 
-            /* ── the rim behind the pockets ──────────────────────────────── */
+            /* ── the rim behind the pockets ────────────────────────────────
+             *
+             * Warm, not blue. This was a near-black with a blue cast, chosen
+             * when the room around it was a green baize and the page under it
+             * was the Nocturne. In a crimson room a cool rim is the one part of
+             * the wheel that is still lit by yesterday's light, and it reads as
+             * a hole in the floor rather than as the bowl the pockets are cut
+             * into. Same value, the room's hue. */
             const rim = acrossGrad(0, across);
-            rim.addColorStop(0, '#05070C');
-            rim.addColorStop(0.5, '#0B0F18');
-            rim.addColorStop(1, '#03050A');
+            rim.addColorStop(0, '#0B0206');
+            rim.addColorStop(0.5, CRIMSON_DEEP);
+            rim.addColorStop(1, '#080104');
             ctx.fillStyle = rim;
             box(0, along, 0, across);
 
@@ -373,23 +386,32 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                 if (isWinner) winnerCentre = (xL + xR) / 2;
                 if (slot === selected) selectedEdges = [xL, xR, c0, c1];
 
-                /* the pocket's face */
+                /* the pocket's face
+                 *
+                 * Four stops, and the shape of the ramp is what makes a pocket
+                 * read as a slot cut into a rim rather than a coloured tile:
+                 * dark at the mouth, brightest a third of the way down where
+                 * the lamp reaches, the true colour below that, and dark again
+                 * at the floor. The black pocket's lift is the largest of the
+                 * three for the reason §9b records about its chip — the pocket
+                 * is very nearly the page, and without a visible lit face it
+                 * would be a gap between two red ones. */
                 const face = acrossGrad(c0, c1);
                 if (pocket.colour === 'green') {
-                    face.addColorStop(0, '#0A4A32');
-                    face.addColorStop(0.34, '#1BA972');
-                    face.addColorStop(0.62, colour.hex);
-                    face.addColorStop(1, '#052A1C');
+                    face.addColorStop(0, '#062A1D');
+                    face.addColorStop(0.32, '#22BE80');
+                    face.addColorStop(0.60, colour.hex);
+                    face.addColorStop(1, '#03170F');
                 } else if (pocket.colour === 'red') {
-                    face.addColorStop(0, '#5E0E16');
-                    face.addColorStop(0.34, '#D6293A');
-                    face.addColorStop(0.62, colour.hex);
-                    face.addColorStop(1, '#3A0810');
+                    face.addColorStop(0, '#4A0810');
+                    face.addColorStop(0.32, '#E23342');
+                    face.addColorStop(0.60, colour.hex);
+                    face.addColorStop(1, '#2C050B');
                 } else {
-                    face.addColorStop(0, '#0C0E14');
-                    face.addColorStop(0.34, '#2B3242');
-                    face.addColorStop(0.62, colour.hex);
-                    face.addColorStop(1, '#04050A');
+                    face.addColorStop(0, '#07080D');
+                    face.addColorStop(0.32, '#333B4C');
+                    face.addColorStop(0.60, colour.hex);
+                    face.addColorStop(1, '#030408');
                 }
                 ctx.fillStyle = face;
                 box(xL, xR, c0, c1);
@@ -500,12 +522,16 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
             box(0, along, 0, 1.5);
             box(0, along, across - 2, across);
 
-            /* ── the ends fall off into the dark, the way the reel's do ──── */
+            /* ── the ends fall off into the dark, the way the reel's do ────
+             *
+             * Into the ROOM's dark: the band's ends now meet a crimson floor,
+             * and a blue-black fade against it left two cold bars at either end
+             * of the wheel. */
             const vign = alongGrad(0, along);
-            vign.addColorStop(0, 'rgba(2,4,8,0.95)');
-            vign.addColorStop(0.17, 'rgba(2,4,8,0)');
-            vign.addColorStop(0.83, 'rgba(2,4,8,0)');
-            vign.addColorStop(1, 'rgba(2,4,8,0.95)');
+            vign.addColorStop(0, 'rgba(11,2,6,0.95)');
+            vign.addColorStop(0.17, 'rgba(11,2,6,0)');
+            vign.addColorStop(0.83, 'rgba(11,2,6,0)');
+            vign.addColorStop(1, 'rgba(11,2,6,0.95)');
             ctx.fillStyle = vign;
             box(0, along, 0, across);
 
