@@ -1,10 +1,43 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { BookOpen, Trophy } from 'lucide-react';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { prestigeColor, prestigeInk, prestigeLabel, isIridescentPrestige, prestigeStanding } from '../../../utils/prestigeHelpers.js';
 import { useCollectionLeaderboard } from '../../../hooks/useCollectionLeaderboard.js';
+
+/*
+ * Which collection the left panel is reading, remembered for this browser.
+ *
+ * Both sides are wrapped: `localStorage` throws outright in a few
+ * configurations rather than merely coming back empty — Chrome with site data
+ * blocked, some private windows — and a panel that cannot remember a tab is not
+ * a reason to take the stage down. Every failure falls back to the default,
+ * which is the behaviour this had before it remembered anything.
+ *
+ * Validated on read rather than trusted: this is a value another tab, an old
+ * build or a curious player can put anything into, and only these two strings
+ * mean something.
+ */
+const SCOPE_KEY = 'fib-collection-scope';
+const SCOPES = ['main', 'prestige'];
+
+function readScope() {
+    try {
+        const saved = window.localStorage.getItem(SCOPE_KEY);
+        return SCOPES.includes(saved) ? saved : 'main';
+    } catch {
+        return 'main';
+    }
+}
+
+function writeScope(scope) {
+    try {
+        window.localStorage.setItem(SCOPE_KEY, scope);
+    } catch {
+        // Remembering is a convenience; failing to is not worth a word to anyone.
+    }
+}
 
 /**
  * The two panels either side of the stage: your collection, and the standings.
@@ -342,8 +375,34 @@ export function StageFlanks({
      * one collection and a toggle between it and nothing is furniture. The
      * default stays `main` so the panel a player has read a thousand times says
      * the same thing it always did until they ask it not to.
+     *
+     * ── WHY IT IS PERSISTED AND NOT PLAIN STATE ─────────────────────────────
+     *
+     * It was `useState('main')`, and this component UNMOUNTS. WheelSpinner
+     * renders it as `hasFlanks && !isTripleMode && <StageFlanks …>`, so the
+     * 3x/5x takeover removes the flanks for the length of the sequence and
+     * mounts a fresh copy afterwards — with a fresh `useState`, back on
+     * Collection. A player watching their prestige run would land a bonus and
+     * find the panel had quietly switched itself back, which was reported as
+     * exactly that.
+     *
+     * Lifting it into WheelSpinner would fix that one unmount and nothing else.
+     * The same reset also fires on crossing the `hasFlanks` breakpoint, and on
+     * every reload — and this is a per-viewer display preference, which is the
+     * kind of thing that ought to survive all three. So it goes to
+     * localStorage, alongside `fib-sound-settings` and the rest of the `fib-*`
+     * keys.
+     *
+     * Reading it is still safe when the preference has gone stale: `showing`
+     * below falls back to `main` whenever there is no run open, so a player who
+     * finishes a run does not come back to a panel reading a collection that no
+     * longer exists.
      */
-    const [scope, setScope] = useState('main');
+    const [scope, setScope] = useState(readScope);
+    const chooseScope = useCallback((next) => {
+        setScope(next);
+        writeScope(next);
+    }, []);
     const run = prestige?.activeRun || null;
     const showing = scope === 'prestige' && run ? 'prestige' : 'main';
 
@@ -407,7 +466,7 @@ export function StageFlanks({
                             return (
                                 <button
                                     key={id}
-                                    onClick={() => setScope(id)}
+                                    onClick={() => chooseScope(id)}
                                     aria-pressed={active}
                                     style={{
                                         background: 'none',
