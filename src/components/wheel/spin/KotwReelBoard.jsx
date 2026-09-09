@@ -2,6 +2,7 @@ import React, { useRef, useLayoutEffect } from 'react';
 import { Crown, Trophy, Medal } from 'lucide-react';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useAuth } from '../../../context/AuthContext.jsx';
+import { kotwStandings } from '../../../utils/kotwStandings.js';
 
 /**
  * King of the Wheel standings, in the reel's status bar.
@@ -109,9 +110,26 @@ export function KotwReelBoard() {
     const isKotw = globalEventStatus?.active && globalEventStatus?.type === 'king_of_wheel';
     if (!isKotw || !kotwLeaderboard?.length) return null;
 
+    /*
+     * Ordered by the points these chips will actually PRINT, not by the order
+     * the broadcast arrived in — so a chip cannot slide to first place while
+     * still showing the number it had before the spin that put it there. See
+     * utils/kotwStandings.js; the freeze used to live here as a ternary on the
+     * points span alone, which moved the row and held the digits.
+     *
+     * Sorted before the slice, deliberately. Cutting the server's top five and
+     * then reordering them would let a player the board is holding at a lower
+     * total keep a seat that, at the number shown, belongs to the sixth.
+     */
+    const standings = kotwStandings(kotwLeaderboard, {
+        userId: user?.id,
+        pending: kotwSpinPending,
+        confirmedPoints: kotwUserStats?.points,
+    });
+
     // Five across is what fits before names start colliding at this height. The
     // full board is in the leaderboard modal, which has its own KOTW mode.
-    const entries = kotwLeaderboard.slice(0, 5);
+    const entries = standings.slice(0, 5);
 
     return (
         <div
@@ -203,13 +221,10 @@ export function KotwReelBoard() {
                             color: index < 3 ? rankColor : KOTW_TEXT,
                             flexShrink: 0,
                         }}>
-                            {/* While your own spin is resolving, show the confirmed
-                                total rather than the optimistic one — the points
-                                land server-side and jumping early then correcting
-                                is worse than a beat of delay. */}
-                            {isCurrentUser && kotwSpinPending
-                                ? (kotwUserStats?.points ?? entry.points)
-                                : entry.points}
+                            {/* Already the value to show — `kotwStandings` held
+                                it back if this player's spin is still resolving,
+                                and placed the chip on that same number. */}
+                            {entry.points}
                         </span>
                         <span style={{
                             fontSize: '10px',

@@ -8,6 +8,7 @@ import { useWheelViewport } from '../config/breakpoints.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { kotwStandings } from '../../../utils/kotwStandings.js';
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
     Trophy, RefreshCw, Crown, Medal, Award,
@@ -235,6 +236,37 @@ export function LeaderboardSidebar({ onClose }) {
         const rankColors = [KOTW_GOLD, KOTW_SILVER, KOTW_BRONZE];
         const RankIcons = [Crown, Trophy, Medal];
 
+        /*
+         * Ordered by the points each row will print. The freeze for a spin that
+         * has not landed yet used to be a ternary on the points cell alone, so
+         * the row moved up the list while the number stayed put — and this copy
+         * fell back to 0 where the reel board's fell back to the server value,
+         * which is the drift that put both in one function. See
+         * utils/kotwStandings.js.
+         */
+        const standings = kotwStandings(kotwLeaderboard, {
+            userId: user?.id,
+            pending: kotwSpinPending,
+            confirmedPoints: kotwUserStats?.points,
+        });
+
+        /*
+         * The "Your score" panel reads out of the same standings as the list
+         * below it, so the two cannot disagree.
+         *
+         * `kotwUserStats.rank` is the server's, stamped when this client last
+         * fetched or last finished a spin — and it goes stale the moment
+         * somebody ELSE scores, because nothing refreshes it until your next
+         * spin. So the header could say #2 above a list that had you fourth. Not
+         * what was reported, but the same contradiction, and free to fix here.
+         *
+         * Falls back to the stats object when this player is not on the board at
+         * all — the top ten is all the broadcast carries.
+         */
+        const myStanding = user ? standings.find(e => e.userId === user.id) : null;
+        const myPoints = myStanding?.points ?? kotwUserStats?.points ?? 0;
+        const myRank = myStanding?.rank ?? kotwUserStats?.rank ?? null;
+
         return (
             <div style={{
                 position: 'absolute',
@@ -351,7 +383,7 @@ export function LeaderboardSidebar({ onClose }) {
                     </div>
 
                     {/* User's stats */}
-                    {kotwUserStats && kotwUserStats.points > 0 && (
+                    {kotwUserStats && myPoints > 0 && (
                         <div style={{
                             marginTop: '12px',
                             padding: '10px 14px',
@@ -370,23 +402,23 @@ export function LeaderboardSidebar({ onClose }) {
                                     color: KOTW_PRIMARY,
                                     fontFamily: 'monospace',
                                 }}>
-                                    {kotwUserStats.points}
+                                    {myPoints}
                                 </span>
                                 <span style={{ color: KOTW_SILVER, fontSize: '12px' }}>pts</span>
                             </div>
-                            {kotwUserStats.rank && (
+                            {myRank && (
                                 <div style={{
                                     padding: '4px 10px',
-                                    background: kotwUserStats.rank <= 3 ? `${rankColors[kotwUserStats.rank - 1]}33` : `${KOTW_PRIMARY}33`,
+                                    background: myRank <= 3 ? `${rankColors[myRank - 1]}33` : `${KOTW_PRIMARY}33`,
                                     borderRadius: '6px',
-                                    border: `1px solid ${kotwUserStats.rank <= 3 ? rankColors[kotwUserStats.rank - 1] : KOTW_PRIMARY}66`,
+                                    border: `1px solid ${myRank <= 3 ? rankColors[myRank - 1] : KOTW_PRIMARY}66`,
                                 }}>
                                     <span style={{
                                         fontSize: '14px',
                                         fontWeight: 700,
-                                        color: kotwUserStats.rank <= 3 ? rankColors[kotwUserStats.rank - 1] : KOTW_TEXT,
+                                        color: myRank <= 3 ? rankColors[myRank - 1] : KOTW_TEXT,
                                     }}>
-                                        #{kotwUserStats.rank}
+                                        #{myRank}
                                     </span>
                                 </div>
                             )}
@@ -420,7 +452,7 @@ export function LeaderboardSidebar({ onClose }) {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {kotwLeaderboard.map((entry, index) => {
+                            {standings.map((entry, index) => {
                                 const RankIcon = RankIcons[index] || Award;
                                 const rankColor = rankColors[index] || KOTW_SILVER;
                                 const isCurrentUser = entry.userId === user?.id;
@@ -497,10 +529,10 @@ export function LeaderboardSidebar({ onClose }) {
                                                 color: index < 3 ? rankColor : KOTW_TEXT,
                                                 fontFamily: 'monospace',
                                             }}>
-                                                {/* For current user while spinning, show confirmed value to prevent premature updates */}
-                                                {isCurrentUser && kotwSpinPending
-                                                    ? (kotwUserStats?.points || 0)
-                                                    : entry.points}
+                                                {/* Already the value to show, and
+                                                    the value this row was placed
+                                                    on. See kotwStandings. */}
+                                                {entry.points}
                                             </div>
                                             <div style={{
                                                 fontSize: '10px',
