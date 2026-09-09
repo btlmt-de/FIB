@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target, TrainFront, PackageOpen } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { COLORS } from '../config/constants';
 // The rarity rows take their colour from the ladder rather than naming hues here.
@@ -621,6 +621,45 @@ export function SoundSettingsPanel({ onClose }) {
                                 />
                             </div>
 
+                            {/* The Arrival's bed. Amber because that is the
+                                colour of the scene's lamps — see AMBER in
+                                ArrivalTrain3D.jsx — and because the ladder's
+                                tiers own every other hue on this panel. */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    background: '#FFAA0015',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#FFAA00',
+                                    flexShrink: 0,
+                                }}>
+                                    <TrainFront size={16} />
+                                </div>
+                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
+                                    The Arrival
+                                </span>
+                                <PreviewButton
+                                    onClick={() => previewSound('arrivalSoundtrack')}
+                                    disabled={!settings.enabled}
+                                    isActive={previewingSound === 'arrivalSoundtrack'}
+                                />
+                                <ToggleSwitch
+                                    checked={settings.arrivalSoundtrackEnabled}
+                                    onChange={(v) => updateSetting('arrivalSoundtrackEnabled', v)}
+                                    disabled={!settings.enabled}
+                                    color="#FFAA00"
+                                    ariaLabel="Toggle Arrival music"
+                                />
+                            </div>
+
                             {/* Music volume */}
                             <div style={{
                                 display: 'flex',
@@ -631,7 +670,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 <VolumeSlider
                                     value={settings.musicVolume}
                                     onChange={(v) => updateSetting('musicVolume', v)}
-                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.goldRushSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled)}
+                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.goldRushSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled && !settings.arrivalSoundtrackEnabled)}
                                     color={COLORS.accent}
                                     ariaLabel="Music volume"
                                 />
@@ -727,6 +766,24 @@ export function SoundSettingsPanel({ onClose }) {
                                 onPreview={() => previewSound('recursion')}
                                 disabled={!settings.enabled}
                                 isActive={previewingSound === 'recursion'}
+                            />
+                            {/*
+                                ONE row for four files. The Arrival's crates are
+                                `trainsfx_crate1..4` — four takes of the same impact at
+                                four pitches, so a row of them does not stutter — and
+                                nobody wants to hold an opinion about the third pitch
+                                on its own. `playArrivalCrate` reads this one key; the
+                                preview plays take one as the representative.
+                            */}
+                            <SoundRow
+                                icon={<PackageOpen size={16} />}
+                                label="Arrival Crates"
+                                color="#FFAA00"
+                                enabled={settings.arrivalCrateEnabled}
+                                onToggle={(v) => updateSetting('arrivalCrateEnabled', v)}
+                                onPreview={() => previewSound('arrivalCrate1')}
+                                disabled={!settings.enabled}
+                                isActive={previewingSound === 'arrivalCrate1'}
                             />
                             {/*
                                 Insane's crown comes from the ladder so it is stroked with

@@ -50,7 +50,8 @@
    must hold, and — because the Try Again button lives in that row and
    was itself gated on `state === 'recursion'` — left the player with no
    way out but the spacebar. */
-import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo, useCallback } from 'react';
+import { serverNow } from '../../utils/serverClock.js';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
 import { ShaftResult } from './spin/ShaftResult.jsx';
@@ -83,6 +84,8 @@ import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
+import { CanvasRouletteStrip } from './canvas/CanvasRouletteStrip.jsx';
+import RouletteTable from './effects/RouletteTable.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -171,7 +174,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Get recursion status from ActivityContext - no separate polling!
     const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
         firstBloodWinner, firstBloodResultPending, communityGoalResult,
-        communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival } = useActivity();
+        communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
+        roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout } = useActivity();
 
     /*
      * THE ARRIVAL TAKES THE REEL.
@@ -192,6 +196,65 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      */
     const arrivalOwnsReel = Boolean(arrival);
 
+    /*
+     * AND SO DOES THE PARLOUR — but it does not close the reel, it BECOMES it.
+     *
+     * The arrival shutters the band and plays somewhere else, because a train is
+     * somewhere else. This event is the reel with different slots in it: the
+     * pockets turn over in place, they travel on the reel's own pitch, and the
+     * winning one comes to rest under the reel's own detent. Nothing about the
+     * band's geometry changes, which is the whole reason this is the right
+     * object — the landing reads in the language every other spin on this
+     * surface already speaks. See CanvasRouletteStrip.
+     *
+     * Spinning is still refused for the duration, for the arrival's reason: the
+     * band is showing something else. The difference is what refusing costs.
+     * ActivityContext holds an arrival back until any spin in flight has LANDED,
+     * so nobody is interrupted; the table is NOT held back, because it opens a
+     * window the player has to act inside and spending four of its thirty
+     * seconds protecting one client's reel would be protecting the wrong thing.
+     * A spin already in flight when the table opens finishes underneath the
+     * pockets — bounded and deliberate, since `markSpinLanded` still fires and
+     * nothing waiting on it is stranded.
+     */
+    const parlourOwnsReel = Boolean(roulette);
+
+    /** Either takeover means the band is not the reel's for the moment. */
+    const bandIsTaken = arrivalOwnsReel || parlourOwnsReel;
+
+    /*
+     * The event's clock, the server's, as a stable function.
+     *
+     * Handed to the ring rather than a number, so the canvas can read it on its
+     * own frame without this component re-rendering sixty times a second — the
+     * table underneath only changes a handful of times in the whole event.
+     */
+    const parlourOpenedAt = roulette?.openedAt ?? null;
+    const parlourOpenedAtRef = useRef(parlourOpenedAt);
+    useEffect(() => { parlourOpenedAtRef.current = parlourOpenedAt; });
+    const parlourClock = useCallback(() => {
+        const origin = parlourOpenedAtRef.current;
+        return origin ? Math.max(0, (serverNow() - origin) / 1000) : 0;
+    }, []);
+    // The render path reads the origin directly; only the rAF loops go through
+    // the ref, which keeps a ref read out of the render body.
+    const parlourT = parlourOpenedAt ? Math.max(0, (serverNow() - parlourOpenedAt) / 1000) : 0;
+
+    /*
+     * The apron's beats are coarse — the call, the reveal, each seat resolving —
+     * so it re-renders on a 250ms tick rather than every frame. Four times a
+     * second the countdown never visibly stutters and the seat cascade lands
+     * within an eighth of a second of the timeline, which is well inside the
+     * 260ms each row fades in over. The ring in the band has its own rAF loop
+     * and is not driven by this.
+     */
+    const [, setParlourTick] = useState(0);
+    useEffect(() => {
+        if (!parlourOpenedAt) return undefined;
+        const id = setInterval(() => setParlourTick(n => n + 1), 250);
+        return () => clearInterval(id);
+    }, [parlourOpenedAt]);
+
     // Get Gold Rush boosted rarity if event is active
     const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
         ? globalEventStatus.data?.boostedRarity
@@ -203,7 +266,33 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // stopped by the settings modal and by SoundContext's own teardown, never by
     // the spinner, and destructuring it left an unused handle that read as though
     // this component owned the stopping too.
-    const { startSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
+    const { startSoundtrack, playRaritySound, playRecursionSound, playSfx, isPlaying: isMusicPlaying } = useSound();
+
+    /*
+     * The parlour's fret tick. Handed to the ring rather than driven from here,
+     * because the crossing it fires on is a fact the canvas has each frame and
+     * this component would have to recompute — and recomputing it is exactly
+     * how the two halves would come to disagree about which pocket is under the
+     * pin, which this feature has already paid for once.
+     *
+     * Stable identity so the canvas's props ref never carries a stale closure,
+     * and `playSfx` is read through a ref for the same reason: the sound
+     * context's callback changes whenever the volume settings do, while the
+     * ring mounts once for the whole event.
+     *
+     * It lives HERE, below `useSound`, and not up with the rest of the parlour
+     * state — which is where it was, referencing `playSfx` seventeen lines
+     * before the `const` that declares it. That is a temporal dead zone, and it
+     * is not a warning: `useRef(playSfx)` runs on the first render and throws
+     * "can't access lexical declaration 'playSfx' before initialization",
+     * taking the whole wheel down with it. Hooks read like they are unordered
+     * and this one is not.
+     */
+    const playSfxRef = useRef(playSfx);
+    useEffect(() => { playSfxRef.current = playSfx; });
+    const playParlourTick = useCallback((speed) => {
+        playSfxRef.current?.('parlour_tick', { speed });
+    }, []);
 
     // Saver mode or an explicit reduced-motion preference. See config/power.js.
     const calm = useCalm();
@@ -687,7 +776,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // be spun straight through from any of the three while the shutters
         // were down. Clearing the result before the check would strand the
         // reel empty behind the train, so this returns first.
-        if (arrivalOwnsReel) return;
+        if (bandIsTaken) return;
 
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
         tripleAnimationRefs.current.forEach(ref => { if (ref) cancelAnimationFrame(ref); });
@@ -1036,7 +1125,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // The platform belongs to the train. Refused rather than queued: an
         // arrival lasts fifteen seconds and a spin that fires by itself after
         // the event is a spin the player did not ask for at that moment.
-        if (arrivalOwnsReel) return;
+        if (bandIsTaken) return;
         if (allItems.length === 0) return;
         setError(null); // Clear any previous error
         performSpin();
@@ -2229,6 +2318,31 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     <ArrivalTheatre key={arrival?.expiresAt || 'arrival'} />
                                 )}
 
+                                {/* THE PARLOUR's pockets, drawn OVER the reel in
+                                    the reel's own mount.
+
+                                    Over rather than instead of: the slots turn
+                                    one at a time, and a slot half way through
+                                    turning shows the item it was at its edges.
+                                    That only works if the reel is still
+                                    rendering underneath, which it is — exactly
+                                    as it keeps rendering behind the arrival's
+                                    blades.
+
+                                    Keyed on the table so a second game gets a
+                                    fresh canvas rather than one carrying the
+                                    previous winner's lit pocket. */}
+                                {parlourOwnsReel && (
+                                    <CanvasRouletteStrip
+                                        key={roulette.openedAt || 'parlour'}
+                                        pockets={roulette.pockets}
+                                        pocketIndex={rouletteResult?.pocketIndex ?? null}
+                                        clock={parlourClock}
+                                        isMobile={isMobile}
+                                        onTick={playParlourTick}
+                                    />
+                                )}
+
                                 {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
                                     <div style={{
@@ -2592,7 +2706,29 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             question; the reel is what should fill it. */}
                         {/* The phone's idle copy is drawn over the shaft's bottom
                             fade instead — see the reel — so this stays desktop's. */}
-                        {!isMobile && state === 'idle' && (
+                        {/* THE PARLOUR answers in the apron, which is the row
+                            the bonus plaque and the lane readout already answer
+                            in. The band is showing the wheel, so the bet — and
+                            afterwards the payout board — belongs directly under
+                            it, in the slot the spin CTA occupies the rest of the
+                            time. Rendered before the idle state and suppressing
+                            it, so the two never stack. */}
+                        {parlourOwnsReel && (
+                            <RouletteTable
+                                table={rouletteTable}
+                                result={rouletteResult}
+                                payout={roulettePayout}
+                                stake={roulette.stake}
+                                multipliers={roulette.multipliers}
+                                betsCloseAt={roulette.betsCloseAt}
+                                myBet={rouletteMyBet}
+                                onBet={setRouletteMyBet}
+                                t={parlourT}
+                                isMobile={isMobile}
+                            />
+                        )}
+
+                        {!isMobile && state === 'idle' && !parlourOwnsReel && (
                             <EnhancedWheelIdleState
                                 user={user}
                                 allItems={allItems}

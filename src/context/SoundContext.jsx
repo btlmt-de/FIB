@@ -1,4 +1,5 @@
 ﻿import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { SYNTH_SOUNDS, playSynth, unlockSynth } from '../utils/sfxSynth.js';
 
 // ============================================
 // Sound Context - Manages all game audio
@@ -26,6 +27,27 @@ const SOUND_FILES = {
     goldRushSoundtrack: '/sounds/gold.mp3',
     firstBloodSoundtrack: '/sounds/blood.mp3',
     communityGoalSoundtrack: '/sounds/community.mp3',
+    /*
+     * THE ARRIVAL's bed, and it is the one "soundtrack" here that does not loop.
+     *
+     * It is a single 23s take cut against the event's own beats — the train
+     * coming in, standing, and pulling out — so looping it would be looping a
+     * departure back into an approach. `startArrivalSoundtrack` sets
+     * `loop = false` explicitly for that reason; see the note there.
+     */
+    arrivalSoundtrack: '/sounds/train/trainsfx_full.mp3',
+    /*
+     * One crate landing, four ways.
+     *
+     * Same event, four takes at four pitches, and the scene plays take `i` on
+     * wagon `i` — which is the whole reason `MAX_CRATES` is four. They cover the
+     * impact AND the lid, because that is how they were recorded: one gesture,
+     * not two samples to line up against LID_DELAY_S.
+     */
+    arrivalCrate1: '/sounds/train/trainsfx_crate1.mp3',
+    arrivalCrate2: '/sounds/train/trainsfx_crate2.mp3',
+    arrivalCrate3: '/sounds/train/trainsfx_crate3.mp3',
+    arrivalCrate4: '/sounds/train/trainsfx_crate4.mp3',
     recursion: '/sounds/recursion.mp3',
     insane: '/sounds/sfxinsane.mp3',
     mythic: '/sounds/sfxmythic.mp3',
@@ -47,6 +69,15 @@ const DEFAULT_SETTINGS = {
     goldRushSoundtrackEnabled: true,
     firstBloodSoundtrackEnabled: true,
     communityGoalSoundtrackEnabled: true,
+    arrivalSoundtrackEnabled: true,
+    /*
+     * One switch for all four crate takes. They are four files because a row of
+     * identical impacts sounds like a stutter, not because they are four
+     * different sounds a player would want to hold an opinion about
+     * individually — so `playArrivalCrate` reads this key rather than letting
+     * playSfx's `${name}Enabled` convention put four rows in the settings panel.
+     */
+    arrivalCrateEnabled: true,
     recursionEnabled: true,
     insaneEnabled: true,
     mythicEnabled: true,
@@ -85,6 +116,7 @@ export function SoundProvider({ children }) {
     const [isGoldRushPlaying, setIsGoldRushPlaying] = useState(false);
     const [isCommunityGoalPlaying, setIsCommunityGoalPlaying] = useState(false);
     const [isFirstBloodPlaying, setIsFirstBloodPlaying] = useState(false);
+    const [isArrivalPlaying, setIsArrivalPlaying] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
     const [previewingSound, setPreviewingSound] = useState(null); // Track which sound is previewing
 
@@ -96,7 +128,12 @@ export function SoundProvider({ children }) {
     const goldRushSoundtrackRef = useRef(null);
     const firstBloodSoundtrackRef = useRef(null);
     const communityGoalSoundtrackRef = useRef(null);
+    const arrivalSoundtrackRef = useRef(null);
     const sfxRefs = useRef({
+        arrivalCrate1: null,
+        arrivalCrate2: null,
+        arrivalCrate3: null,
+        arrivalCrate4: null,
         recursion: null,
         insane: null,
         mythic: null,
@@ -180,6 +217,20 @@ export function SoundProvider({ children }) {
         communityGoalSoundtrack.onerror = () => console.warn('[Sound] Community Goal soundtrack file not found - add community.mp3 to /public/sounds/');
         communityGoalSoundtrackRef.current = communityGoalSoundtrack;
 
+        // Create Arrival audio element
+        //
+        // `loop = false`, unlike every other track above: it is 23 seconds cut
+        // against an 18.6 second event that has a beginning and an end. Set here
+        // AND in startArrivalSoundtrack, because previewSound turns looping on
+        // for whatever it is previewing and only turns it back off for things it
+        // classifies as SFX. Rather than teach that classifier about a
+        // non-looping soundtrack, the start path simply asserts what it needs.
+        const arrivalSoundtrack = new Audio(SOUND_FILES.arrivalSoundtrack);
+        arrivalSoundtrack.loop = false;
+        arrivalSoundtrack.preload = 'none';
+        arrivalSoundtrack.onerror = () => console.warn('[Sound] Arrival soundtrack file not found - add train/trainsfx_full.mp3 to /public/sounds/');
+        arrivalSoundtrackRef.current = arrivalSoundtrack;
+
         // Create SFX audio elements
         Object.keys(sfxRefs.current).forEach(key => {
             const audio = new Audio(SOUND_FILES[key]);
@@ -219,6 +270,10 @@ export function SoundProvider({ children }) {
             if (firstBloodSoundtrackRef.current) {
                 firstBloodSoundtrackRef.current.pause();
                 firstBloodSoundtrackRef.current = null;
+            }
+            if (arrivalSoundtrackRef.current) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current = null;
             }
             Object.keys(sfxRefs.current).forEach(key => {
                 if (sfxRefs.current[key]) {
@@ -293,6 +348,16 @@ export function SoundProvider({ children }) {
         }
     }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.communityGoalSoundtrackEnabled]);
 
+    // Update Arrival soundtrack volume when settings change (real-time)
+    useEffect(() => {
+        if (arrivalSoundtrackRef.current) {
+            const effectiveVolume = settings.enabled && settings.arrivalSoundtrackEnabled
+                ? settings.masterVolume * settings.musicVolume
+                : 0;
+            arrivalSoundtrackRef.current.volume = effectiveVolume;
+        }
+    }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.arrivalSoundtrackEnabled]);
+
     // Update SFX volumes in real-time (for any currently playing sounds including preview)
     useEffect(() => {
         const effectiveVolume = settings.enabled
@@ -319,6 +384,11 @@ export function SoundProvider({ children }) {
 
     // Handle user interaction (required for autoplay)
     const handleUserInteraction = useCallback(() => {
+        // Open the synth's AudioContext here, on a real gesture. Left to the
+        // first sound that wants one it gets created inside some timer or
+        // network callback instead, starts suspended, and that first sound is
+        // lost — which for this feature is the whole opening of an event.
+        unlockSynth();
         if (!hasInteracted) {
             setHasInteracted(true);
         }
@@ -347,6 +417,9 @@ export function SoundProvider({ children }) {
         if (isGoldRushPlaying) return;
         if (isFirstBloodPlaying) return;
         if (isCommunityGoalPlaying) return;
+        // Belt and braces: WheelSpinner already refuses to spin while an arrival
+        // is on screen, so in practice nothing reaches here during one.
+        if (isArrivalPlaying) return;
 
         const effectiveVolume = settings.masterVolume * settings.musicVolume;
 
@@ -376,6 +449,10 @@ export function SoundProvider({ children }) {
                     }
                     // Check if Community Goal started during spin.wav - if so, don't start soundtrack
                     if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                        return;
+                    }
+                    // Check if an arrival started during spin.wav - if so, don't start soundtrack
+                    if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
                         return;
                     }
                     if (soundtrackRef.current && !soundtrackRef.current.error) {
@@ -414,7 +491,7 @@ export function SoundProvider({ children }) {
                 // Silently fail
             }
         }
-    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying]);
+    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying]);
 
     // Stop soundtrack (stops both spin and soundtrack)
     const stopSoundtrack = useCallback(() => {
@@ -492,6 +569,12 @@ export function SoundProvider({ children }) {
                 setIsCommunityGoalPlaying(false);
             }
 
+            // An arrival takes the screen; if one is playing, it takes the sound too
+            if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current.currentTime = 0;
+                setIsArrivalPlaying(false);
+            }
             await recursionSoundtrackRef.current.play();
             setIsRecursionPlaying(true);
             setHasInteracted(true);
@@ -569,6 +652,12 @@ export function SoundProvider({ children }) {
                 setIsCommunityGoalPlaying(false);
             }
 
+            // An arrival takes the screen; if one is playing, it takes the sound too
+            if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current.currentTime = 0;
+                setIsArrivalPlaying(false);
+            }
             await kotwSoundtrackRef.current.play();
             setIsKotwPlaying(true);
             setHasInteracted(true);
@@ -646,6 +735,12 @@ export function SoundProvider({ children }) {
                 setIsCommunityGoalPlaying(false);
             }
 
+            // An arrival takes the screen; if one is playing, it takes the sound too
+            if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current.currentTime = 0;
+                setIsArrivalPlaying(false);
+            }
             await goldRushSoundtrackRef.current.play();
             setIsGoldRushPlaying(true);
             setHasInteracted(true);
@@ -723,6 +818,12 @@ export function SoundProvider({ children }) {
                 setIsCommunityGoalPlaying(false);
             }
 
+            // An arrival takes the screen; if one is playing, it takes the sound too
+            if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current.currentTime = 0;
+                setIsArrivalPlaying(false);
+            }
             await firstBloodSoundtrackRef.current.play();
             setIsFirstBloodPlaying(true);
             setHasInteracted(true);
@@ -800,6 +901,12 @@ export function SoundProvider({ children }) {
                 setIsFirstBloodPlaying(false);
             }
 
+            // An arrival takes the screen; if one is playing, it takes the sound too
+            if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current.currentTime = 0;
+                setIsArrivalPlaying(false);
+            }
             await communityGoalSoundtrackRef.current.play();
             setIsCommunityGoalPlaying(true);
             setHasInteracted(true);
@@ -823,6 +930,103 @@ export function SoundProvider({ children }) {
             }
         }
     }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+
+    /*
+     * ── THE ARRIVAL ──────────────────────────────────────────────────────────
+     *
+     * Same shape as the five above, with two differences that are the event's
+     * own and not oversights:
+     *
+     *   It does not loop. See the note where the element is created.
+     *
+     *   It is a HARD take. The others are beds under an event that runs for
+     *   minutes and can be joined halfway; this one is eighteen seconds of
+     *   scored picture, so `startArrivalSoundtrack` is called on the frame the
+     *   theatre mounts and the whole point is that the first chuff lands with
+     *   the first blade of the shutter. `isArrivalPlaying` therefore does NOT
+     *   guard against a restart the way `isFirstBloodPlaying` does — a second
+     *   arrival gets a fresh mount and must get a fresh take from zero.
+     */
+    const startArrivalSoundtrack = useCallback(async () => {
+        if (!arrivalSoundtrackRef.current) return;
+        if (!settings.enabled || !settings.arrivalSoundtrackEnabled) return;
+        if (arrivalSoundtrackRef.current.error) return;
+
+        try {
+            const effectiveVolume = settings.masterVolume * settings.musicVolume;
+            arrivalSoundtrackRef.current.loop = false;
+            arrivalSoundtrackRef.current.volume = effectiveVolume;
+            arrivalSoundtrackRef.current.currentTime = 0;
+
+            // Stop the spin intro if playing and clear its callback
+            if (spinRef.current) {
+                spinRef.current.pause();
+                spinRef.current.onended = null;
+            }
+
+            // Pause main soundtrack if playing (don't reset position so we can resume)
+            if (soundtrackRef.current && !soundtrackRef.current.paused) {
+                soundtrackRef.current.pause();
+            }
+
+            // Stop recursion soundtrack if playing
+            if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                recursionSoundtrackRef.current.pause();
+                recursionSoundtrackRef.current.currentTime = 0;
+                setIsRecursionPlaying(false);
+            }
+
+            // Stop KOTW soundtrack if playing
+            if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current.currentTime = 0;
+                setIsKotwPlaying(false);
+            }
+
+            // Stop Gold Rush soundtrack if playing
+            if (goldRushSoundtrackRef.current && !goldRushSoundtrackRef.current.paused) {
+                goldRushSoundtrackRef.current.pause();
+                goldRushSoundtrackRef.current.currentTime = 0;
+                setIsGoldRushPlaying(false);
+            }
+
+            // Stop First Blood soundtrack if playing
+            if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current.currentTime = 0;
+                setIsFirstBloodPlaying(false);
+            }
+
+            // Stop Community Goal soundtrack if playing
+            if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current.currentTime = 0;
+                setIsCommunityGoalPlaying(false);
+            }
+
+            await arrivalSoundtrackRef.current.play();
+            setIsArrivalPlaying(true);
+            setHasInteracted(true);
+        } catch (e) {
+            // Silently fail
+        }
+    }, [settings.enabled, settings.arrivalSoundtrackEnabled, settings.masterVolume, settings.musicVolume]);
+
+    // Stop Arrival soundtrack
+    const stopArrivalSoundtrack = useCallback(() => {
+        if (arrivalSoundtrackRef.current) {
+            arrivalSoundtrackRef.current.pause();
+            arrivalSoundtrackRef.current.currentTime = 0;
+            setIsArrivalPlaying(false);
+
+            // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+                const effectiveVolume = settings.masterVolume * settings.musicVolume;
+                soundtrackRef.current.volume = effectiveVolume;
+                soundtrackRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Stop any currently previewing sound
     const stopPreview = useCallback(() => {
@@ -882,6 +1086,8 @@ export function SoundProvider({ children }) {
             audio = firstBloodSoundtrackRef.current;
         } else if (soundName === 'communityGoalSoundtrack') {
             audio = communityGoalSoundtrackRef.current;
+        } else if (soundName === 'arrivalSoundtrack') {
+            audio = arrivalSoundtrackRef.current;
         } else {
             audio = sfxRefs.current[soundName];
             isSoundtrack = false;
@@ -923,18 +1129,38 @@ export function SoundProvider({ children }) {
     }, [settings.masterVolume, settings.musicVolume, settings.sfxVolume, stopPreview, previewingSound]);
 
     // Play a sound effect
-    const playSfx = useCallback((soundName) => {
+    /**
+     * Play one effect by name.
+     *
+     * A name with no file behind it falls through to `sfxSynth`, which is how
+     * the events get their stings without another 26 MB of mp3 — and how four
+     * call sites that had been silent since they were written started making a
+     * sound. `event_start` (CommunityGoalBanner, FirstBloodBanner,
+     * EventSelectionWheel, GoldRushBanner) and `event_win` (FirstBloodBanner)
+     * were never in SOUND_FILES and no such file was ever in public/sounds, so
+     * every one of them hit the `!audio` guard below and returned silently. A
+     * missing sound is meant to be silent; a sound nobody ever added is a
+     * different thing, and it looked identical from here.
+     *
+     * `opts` is only read by the synthesised voices — the parlour's tick takes
+     * the ring's speed so it can brighten and harden with it.
+     */
+    const playSfx = useCallback((soundName, opts) => {
         if (!settings.enabled) return;
 
         // Check individual sound toggle
         const toggleKey = `${soundName}Enabled`;
         if (settings[toggleKey] === false) return;
 
-        const audio = sfxRefs.current[soundName];
-        if (!audio || audio.error) return;
-
         // Calculate effective volume
         const effectiveVolume = settings.masterVolume * settings.sfxVolume;
+
+        const audio = sfxRefs.current[soundName];
+        if (!audio || audio.error) {
+            if (SYNTH_SOUNDS.includes(soundName)) playSynth(soundName, effectiveVolume, opts);
+            return;
+        }
+
         audio.volume = effectiveVolume;
 
         // Reset and play
@@ -975,6 +1201,27 @@ export function SoundProvider({ children }) {
         playSfx('recursion');
     }, [playSfx]);
 
+    /**
+     * One crate landing on the platform, by wagon index.
+     *
+     * Wagon `i` gets take `i`, always — not a random pick. The takes are four
+     * pitches of the same impact, and the point of them is that four crates
+     * coming down 0.55s apart do not sound like one crate stuttering; a random
+     * pick would draw the same take twice about as often as not and give back
+     * exactly the artefact the four files exist to remove.
+     *
+     * Wrapped rather than called as `playSfx('arrivalCrate1')` at the call site
+     * so the four share one settings key. See `arrivalCrateEnabled`.
+     */
+    const playArrivalCrate = useCallback((index) => {
+        if (settings.arrivalCrateEnabled === false) return;
+        // Modulo so a consist longer than the takes still makes a sound rather
+        // than falling silent. MAX_CRATES is 4 today and this is unreachable;
+        // it is here so raising the cap degrades instead of breaking.
+        const take = (Math.max(0, index | 0) % 4) + 1;
+        playSfx(`arrivalCrate${take}`);
+    }, [playSfx, settings.arrivalCrateEnabled]);
+
     // Update a setting
     const updateSetting = useCallback((key, value) => {
         setSettings(prev => ({ ...prev, [key]: value }));
@@ -1010,6 +1257,10 @@ export function SoundProvider({ children }) {
                     firstBloodSoundtrackRef.current.pause();
                     setIsFirstBloodPlaying(false);
                 }
+                if (arrivalSoundtrackRef.current) {
+                    arrivalSoundtrackRef.current.pause();
+                    setIsArrivalPlaying(false);
+                }
                 stopPreview();
             }
             return { ...prev, enabled: newEnabled };
@@ -1032,6 +1283,7 @@ export function SoundProvider({ children }) {
         isGoldRushPlaying,
         isFirstBloodPlaying,
         isCommunityGoalPlaying,
+        isArrivalPlaying,
         hasInteracted,
         audioLoaded,
         startSoundtrack,
@@ -1047,9 +1299,12 @@ export function SoundProvider({ children }) {
         stopFirstBloodSoundtrack,
         startCommunityGoalSoundtrack,
         stopCommunityGoalSoundtrack,
+        startArrivalSoundtrack,
+        stopArrivalSoundtrack,
         playSfx,
         playRaritySound,
         playRecursionSound,
+        playArrivalCrate,
         previewSound,
         stopPreview,
         previewingSound,

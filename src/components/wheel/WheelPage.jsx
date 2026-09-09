@@ -61,6 +61,11 @@ import { useWheelViewport } from './config/breakpoints.js';
 // The arrival's beats, so the lucky-spin counter changes on the frame the board
 // resolves this player's row rather than at t=0. See the payout handler below.
 import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimeline.js';
+// THE PARLOUR's reveal beat, for the same job one event along: holding a payout
+// back until the animation has actually said what happened.
+import { T_REVEAL } from './effects/rouletteTimeline.js';
+import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
+import { serverNow } from '../../utils/serverClock.js';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
@@ -334,7 +339,10 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
 // ============================================
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
-    const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult, arrival, arrivalCrate } = useActivity();
+    const {
+        kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
+        arrival, arrivalCrate, roulette, roulettePayout,
+    } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -542,6 +550,59 @@ function WheelOfFortunePage({ onBack }) {
     }, [arrival, arrivalCrate, user?.id]);
 
     useEffect(() => () => clearTimeout(arrivalPayoutTimeoutRef.current), []);
+
+    /*
+     * THE PARLOUR's payout, held until the ball has actually stopped.
+     *
+     * Same shape as the arrival's above and for the same reason, but the beat it
+     * waits for is simpler: there is one result, not one row per player, so the
+     * balance lands on the reveal rather than on a per-seat cascade.
+     *
+     * What it is protecting against is sharper here, though. The payout is
+     * written and broadcast the moment bets close — seven seconds before the
+     * ball settles on screen — so applying it on arrival would put "+30 Lucky
+     * Spins" in the topbar while the wheel was still turning. That is not just
+     * early, it is the RESULT: a player watching their balance could read the
+     * outcome off it before the ball landed, which would make the whole
+     * animation a formality. The same failure `settleKotwSpin` records for the
+     * lucky-spin badge, one event along.
+     */
+    const processedParlourRef = useRef(null);
+    const parlourPayoutTimeoutRef = useRef(null);
+    useEffect(() => {
+        if (!roulette || !roulettePayout || !user?.id) return;
+
+        const newTotal = roulettePayout.luckySpinsTotal;
+        // A loss and a fold-with-nothing carry no balance: there is nothing to
+        // apply, and the board still says what happened.
+        if (typeof newTotal !== 'number') return;
+
+        const key = `${roulette.openedAt}-${newTotal}`;
+        if (processedParlourRef.current === key) return;
+        processedParlourRef.current = key;
+
+        const pay = () => {
+            console.log('[WheelPage] Parlour paid out', roulettePayout.luckySpinsAwarded, 'lucky spins');
+            kotwLuckySpinsRef.current = newTotal;
+            setKotwLuckySpins(newTotal);
+            parlourPayoutTimeoutRef.current = null;
+        };
+
+        // The theatre's clock is the server's, so the wait is measured the same
+        // way it is: from `openedAt`, not from when this effect happened to run.
+        const dueAt = roulette.openedAt + T_REVEAL * 1000;
+        const waitMs = prefersCalm() ? 0 : Math.max(0, dueAt - serverNow());
+
+        if (waitMs <= 0) {
+            pay();
+            return;
+        }
+
+        clearTimeout(parlourPayoutTimeoutRef.current);
+        parlourPayoutTimeoutRef.current = setTimeout(pay, waitMs);
+    }, [roulette, roulettePayout, user?.id]);
+
+    useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
 
 
     // Fetch items and user data
@@ -878,6 +939,18 @@ function WheelOfFortunePage({ onBack }) {
         }}>
             <AnimationStyles />
             <CanvasNocturneField />
+
+            {/* THE PARLOUR's light, over the whole surface.
+
+                Mounted at the page and not inside WheelSpinner because it is the
+                ROOM, not a layer on the reel: the topbar, the ticker, the
+                boards, the chat and the collection panel are all inside it and
+                all lit by it. It sits directly on top of the Nocturne field it
+                tints and underneath everything else, so nothing it warms becomes
+                harder to read — and it takes no pointer events, so the site is
+                fully usable for the whole three quarters of a minute. See
+                ParlourAtmosphere.jsx and DESIGN.md §9b. */}
+            {roulette && <ParlourAtmosphere openedAt={roulette.openedAt} />}
 
             {/* Topbar — row 1.
 

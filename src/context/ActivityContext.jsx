@@ -53,6 +53,21 @@ const RARE_FEED_MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
  */
 const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
 
+/*
+ * How long THE PARLOUR's table stays mounted after the ball stops.
+ *
+ * Measured from the result rather than from the table opening, so it is a
+ * duration this file can own without importing the whole timeline: the reveal,
+ * the payout cascade, the frame collapsing and the shutters lifting all live
+ * inside it, with a second of slack on the end.
+ *
+ * It must OUTLAST the client timeline's T_END − T_CALL (13.4s), for the reason
+ * the arrival's clear timeout must outlast its own: unmounting is what hands the
+ * band back to the reel, and doing it while the pockets are still turning over
+ * would cut the change back mid-flip.
+ */
+const ROULETTE_TEARDOWN_MS = 14200;
+
 
 export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
@@ -98,6 +113,32 @@ export function ActivityProvider({ children }) {
     const [arrival, setArrival] = useState(null);
     const [arrivalCrate, setArrivalCrate] = useState(null);
 
+    /*
+     * THE PARLOUR.
+     *
+     * Four pieces, and the split is the arrival's one level further on.
+     *
+     *   `roulette`        the table itself — the wheel, the stake, the deadline.
+     *                     Set once when it opens and never mutated, because
+     *                     everything in it is decided at that moment. Its
+     *                     presence is what makes the event exist.
+     *   `rouletteTable`   who is seated and what they are on. Replaced wholesale
+     *                     by every `roulette_bets` frame; see the note on why
+     *                     this is not merged.
+     *   `rouletteResult`  the pocket and everyone's payout, once the ball stops.
+     *   `rouletteMyBet`   this client's own choice, held locally so a button
+     *                     looks pressed before the round trip returns.
+     *
+     * The player's new BALANCE is deliberately not here. It rides on the private
+     * `roulette_payout` message and lands in WheelPage's lucky-spin pool the way
+     * every other event's payout does — amounts are public, balances are not.
+     */
+    const [roulette, setRoulette] = useState(null);
+    const [rouletteTable, setRouletteTable] = useState(null);
+    const [rouletteResult, setRouletteResult] = useState(null);
+    const [rouletteMyBet, setRouletteMyBetState] = useState(null);
+    const [roulettePayout, setRoulettePayout] = useState(null);
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     // The SSE reconnect's backoff state. Both live outside the effect's closure
@@ -113,6 +154,7 @@ export function ActivityProvider({ children }) {
     const kotwWinnerTimeoutRef = useRef(null);
     const firstBloodTimeoutRef = useRef(null);
     const firstBloodClearTimeoutRef = useRef(null);
+    const rouletteClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
     const arrivalTimeoutRef = useRef(null);
@@ -182,6 +224,22 @@ export function ActivityProvider({ children }) {
             const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
             const data = await res.json();
 
+            /*
+             * Kept before the block below rewrites it onto the local clock.
+             *
+             * THE PARLOUR's whole timeline is measured through `serverNow()`,
+             * which expects SERVER milliseconds — the same units the
+             * `roulette_open` broadcast carries. The correction below converts
+             * these two fields into local milliseconds for every other consumer,
+             * so a parlour restored from this payload would be reading a
+             * local-clock origin through a server-clock function. The two are
+             * numerically equivalent today, which is exactly what makes the
+             * mistake survive review; keeping the raw value means the restore
+             * path and the broadcast path cannot diverge if either clock's
+             * derivation is ever tuned.
+             */
+            const rawActivatesAt = data.activatesAt;
+
             // Apply clock sync if serverTime is provided
             if (data.serverTime && (data.activatesAt || data.expiresAt)) {
                 const clockOffset = data.serverTime - Date.now();
@@ -220,6 +278,43 @@ export function ActivityProvider({ children }) {
                     if (kotwData?.userStats) setKotwUserStats(kotwData.userStats);
                 } catch (e) {
                     console.error('[ActivityContext] Failed to fetch KOTW leaderboard:', e);
+                }
+            }
+            /*
+             * THE PARLOUR, for anyone arriving mid-table.
+             *
+             * The same gap KOTW's standings had, and it matters more here
+             * because what is being missed is not a scoreboard but a window the
+             * player can still act inside. `roulette_open` is a one-shot
+             * broadcast: a page loaded ten seconds into the betting window never
+             * saw it, and without this would sit through the whole event with no
+             * table on screen and no idea it had a seat.
+             *
+             * `getRouletteState` folds the live table into `data`, so everything
+             * needed is already here — bar the origin, which comes from
+             * `rawActivatesAt` for the reason recorded at the top of this
+             * function.
+             */
+            if (data?.active && data?.type === 'roulette' && data?.data) {
+                const table = data.data;
+                setRoulette({
+                    pockets: table.pockets,
+                    stake: table.stake,
+                    multipliers: table.multipliers,
+                    openedAt: rawActivatesAt,
+                    betsCloseAt: table.betsCloseAt,
+                    expiresAt: data.expiresAt,
+                });
+                setRouletteTable({ seats: table.seats || [], counts: table.counts });
+                // A pocket in the payload means the ball has already dropped —
+                // the player walked in on the payout rather than on the betting.
+                if (table.pocket) {
+                    setRouletteResult({
+                        pocketIndex: table.pocketIndex,
+                        pocket: table.pocket,
+                        results: [],
+                        totalPaid: 0,
+                    });
                 }
             }
         } catch (e) {
@@ -627,6 +722,89 @@ export function ActivityProvider({ children }) {
                                 break;
                             }
 
+                            case 'roulette_open': {
+                                console.log('[SSE] Parlour table open:', data);
+                                if (rouletteClearTimeoutRef.current) {
+                                    clearTimeout(rouletteClearTimeoutRef.current);
+                                    rouletteClearTimeoutRef.current = null;
+                                }
+                                setRouletteResult(null);
+                                setRoulettePayout(null);
+                                setRouletteMyBetState(null);
+                                setRouletteTable({ seats: data.seats || [], counts: data.counts });
+                                setRoulette(data);
+
+                                /*
+                                 * NOT deferred behind a spin in flight, and it is
+                                 * the only takeover on the site that is not.
+                                 *
+                                 * The arrival, the community goal summary and the
+                                 * First Blood winner all wait for the local wheel
+                                 * to land, because each of them is a RESULT and
+                                 * landing one over a reel that is still turning
+                                 * steals the player's own. This is the opposite
+                                 * shape: nothing has been decided yet, and what
+                                 * the message opens is a thirty-second window the
+                                 * player has to act inside. Holding it back four
+                                 * seconds would spend an eighth of the betting
+                                 * window protecting a spin whose result this
+                                 * cannot spoil — there is no result yet to spoil
+                                 * it with.
+                                 *
+                                 * The shutter coming down over a spinning reel is
+                                 * the one cost, and it is bounded: WheelSpinner
+                                 * refuses to START a spin while the table is up,
+                                 * so at worst one already-launched reel finishes
+                                 * behind the blades, and the result panel is
+                                 * still there when they lift.
+                                 */
+                                break;
+                            }
+
+                            case 'roulette_bets':
+                                /*
+                                 * Replaced wholesale rather than merged.
+                                 *
+                                 * The server sends the entire table every time
+                                 * because the table IS small — a room is a
+                                 * handful of seats — and a merge would have to
+                                 * decide what to do about a seat that vanished
+                                 * from the list, which is a question with no good
+                                 * answer on a channel that can drop a frame.
+                                 * Taking the newest whole picture cannot drift.
+                                 */
+                                setRouletteTable({ seats: data.seats || [], counts: data.counts });
+                                break;
+
+                            case 'roulette_result': {
+                                console.log('[SSE] Parlour result:', data);
+                                setRouletteResult(data);
+                                /*
+                                 * Held until well past the animation's own end.
+                                 * The theatre unmounts on `roulette` going null,
+                                 * and the result has to outlive it or the payout
+                                 * board would empty while the frame was still
+                                 * collapsing over it.
+                                 */
+                                if (rouletteClearTimeoutRef.current) {
+                                    clearTimeout(rouletteClearTimeoutRef.current);
+                                }
+                                rouletteClearTimeoutRef.current = setTimeout(() => {
+                                    setRoulette(null);
+                                    setRouletteTable(null);
+                                    setRouletteResult(null);
+                                    setRouletteMyBetState(null);
+                                    rouletteClearTimeoutRef.current = null;
+                                }, ROULETTE_TEARDOWN_MS);
+                                break;
+                            }
+
+                            case 'roulette_payout':
+                                // This player's own outcome and new balance.
+                                console.log('[SSE] Parlour payout:', data);
+                                setRoulettePayout(data);
+                                break;
+
                             case 'arrival_crate':
                                 // This player's own crate and new balance.
                                 console.log('[SSE] Arrival crate:', data);
@@ -970,6 +1148,10 @@ export function ActivityProvider({ children }) {
                 clearTimeout(communityGoalClearTimeoutRef.current);
                 communityGoalClearTimeoutRef.current = null;
             }
+            if (rouletteClearTimeoutRef.current) {
+                clearTimeout(rouletteClearTimeoutRef.current);
+                rouletteClearTimeoutRef.current = null;
+            }
             feedRevealTimeoutsRef.current.forEach(clearTimeout);
             feedRevealTimeoutsRef.current = [];
             deferredResultGuardsRef.current.forEach(clearTimeout);
@@ -999,6 +1181,21 @@ export function ActivityProvider({ children }) {
     const updateKotwUserStats = useCallback((stats) => {
         setKotwUserStats(stats);
         setKotwSpinPending(false);
+    }, []);
+
+    /**
+     * This client's own bet, shown before the server has confirmed it.
+     *
+     * Held here rather than read out of `rouletteTable` because the table is
+     * everyone's view and arrives on a 600ms throttle — a button that waited for
+     * its own choice to come back around on the broadcast would look dead for up
+     * to two thirds of a second, every time, inside a thirty-second window. The
+     * table is still the source of truth for what the ROOM is doing; this is
+     * only the local echo, and RouletteTable clears it back to null when the
+     * server refuses a bet.
+     */
+    const setRouletteMyBet = useCallback((bet) => {
+        setRouletteMyBetState(bet === null || bet === undefined ? null : { bet });
     }, []);
 
     const value = {
@@ -1037,6 +1234,13 @@ export function ActivityProvider({ children }) {
         communityGoalReward,
         arrival,
         arrivalCrate,
+        // The Parlour
+        roulette,
+        rouletteTable,
+        rouletteResult,
+        rouletteMyBet,
+        setRouletteMyBet,
+        roulettePayout,
     };
 
     return (

@@ -739,6 +739,186 @@ html[data-saver="on"] *::after {
 }
 
 /*
+ * ══════════════════════════════════════════════════════════════════════════
+ * THE PARLOUR — the room
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * The arrival's theatre with three changes, and it deliberately REUSES that
+ * event's veils, vignette and grain rather than declaring its own. Those three
+ * are the takeover's vocabulary — the room going dark, the corners falling off,
+ * the film sitting over it — and they belong to "an event has the screen"
+ * rather than to any one event. Only the container and the frame's own lamp are
+ * new, because only those carry an identity.
+ *
+ * The one behavioural difference is `pointer-events`. The arrival's theatre is
+ * inert throughout; this one has bet buttons in it, so the container passes the
+ * mouse through and the buttons opt back in individually. That way the thirty
+ * seconds of betting do not cost the player access to chat, the nav or anything
+ * else underneath — see RouletteTable.jsx.
+ */
+/*
+ * The air in the room. Fixed, full-surface, and UNDER the interface — chat, the
+ * nav, the boards and the topbar all stay live and readable on top of it. The
+ * one thing this event asks for is a tap on a colour, and holding the rest of
+ * the site hostage for three quarters of a minute to ask it would be a bad
+ * trade. `opacity` is written from the component as one number, so the whole
+ * room arrives and leaves together.
+ */
+.fib-parlour-air {
+  position: fixed;
+  inset: 0;
+  /*
+   * UNDER the interface, on top of the Nocturne field it tints.
+   *
+   * `Z.base` (0) is the cosmic canvas and `Z.content` (1) is the topbar, the
+   * stage and the boards, so 0 plus a later position in the DOM puts this
+   * exactly between them — over the city, under everything you read.
+   *
+   * At z-index 3 it was over the content, and the cost was not subtle: the felt
+   * and the walls desaturated the whole page through, so the roulette's red
+   * pockets read brown, its black pockets read dark green, and the leaderboard
+   * went to half contrast. A room the player is standing in should light the
+   * things in it, not be painted over them.
+   */
+  z-index: 0;
+  pointer-events: none;
+  contain: strict;
+  /* The duration is written from the component: the warm and the cool are
+     different lengths and both come from the event's timeline. */
+  opacity: 0;
+  transition-property: opacity;
+  transition-timing-function: ease-in-out;
+}
+
+/*
+ * The felt. A warm green ground pulled over the Nocturne's blue hour, darkest at
+ * the edges so the room has walls rather than an edge where the picture stops.
+ *
+ * `screen` on the lower stop and a plain wash beneath it: a flat green over the
+ * city would bury the skyline and the viaduct, and §8's whole surface is that
+ * city. This tints it and keeps it.
+ */
+.fib-parlour-felt {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(140% 100% at 50% 44%, rgba(18, 86, 63, 0.58) 0%, rgba(11, 61, 46, 0.78) 46%, rgba(2, 14, 11, 0.94) 100%);
+}
+
+/*
+ * The baize itself, at grazing angles.
+ *
+ * Felt is a woven surface and the reason a casino table looks like one on
+ * camera is the fine cross-hatch catching the light. Two repeating gradients at
+ * opposing diagonals, 3px apart, at an opacity where you cannot see the lines —
+ * only that the green has a nap to it. Under the lamp it reads as cloth; at the
+ * edges the walls swallow it, which is correct.
+ */
+.fib-parlour-weave {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.055) 0 1px, transparent 1px 3px);
+  mask-image: radial-gradient(70% 60% at 50% 46%, #000 0%, transparent 100%);
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 46%, #000 0%, transparent 100%);
+}
+
+/*
+ * The lamp over the table, hung low.
+ *
+ * Centred on the reel band rather than on the viewport, because the band is
+ * where the wheel is and a parlour's light is over its table. This is what makes
+ * the middle of the page the brightest thing in the room, which is the whole
+ * composition: everything else falls away from the felt under the lamp.
+ */
+.fib-parlour-lamp {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(1500px, 120vw);
+  height: min(760px, 92vh);
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(closest-side, rgba(201, 162, 39, 0.20) 0%, rgba(201, 162, 39, 0.09) 38%, rgba(201, 162, 39, 0) 72%),
+    radial-gradient(closest-side, rgba(25, 179, 107, 0.16) 0%, rgba(25, 179, 107, 0) 66%);
+  filter: blur(2px);
+  animation: fib-parlour-lamp-breathe 7s ease-in-out infinite;
+}
+
+/* A hand's width of movement, over seven seconds. A lamp on a chain is never
+   quite still, and this is the amount that reads as "not still" rather than as
+   "moving". */
+@keyframes fib-parlour-lamp-breathe {
+  0%, 100% { opacity: 0.86; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1;    transform: translate(-50%, -51%) scale(1.035); }
+}
+
+/*
+ * Two slow shafts crossing the felt. They stop the ground reading as a flat
+ * colour, and they travel slowly enough that what you notice is that the room is
+ * lit, not that something is animating.
+ */
+.fib-parlour-shaft {
+  position: absolute;
+  top: -30%;
+  width: 42vw;
+  height: 160%;
+  background: linear-gradient(90deg, rgba(201, 162, 39, 0) 0%, rgba(201, 162, 39, 0.055) 50%, rgba(201, 162, 39, 0) 100%);
+  transform: rotate(14deg);
+  will-change: transform;
+}
+.fib-parlour-shaft.is-a { left: -20%; animation: fib-parlour-shaft-a 23s ease-in-out infinite; }
+.fib-parlour-shaft.is-b { right: -20%; animation: fib-parlour-shaft-b 31s ease-in-out infinite; }
+
+@keyframes fib-parlour-shaft-a {
+  0%, 100% { transform: rotate(14deg) translateX(0); }
+  50%      { transform: rotate(14deg) translateX(28vw); }
+}
+@keyframes fib-parlour-shaft-b {
+  0%, 100% { transform: rotate(-11deg) translateX(0); }
+  50%      { transform: rotate(-11deg) translateX(-24vw); }
+}
+
+/* Dust in the lamplight. Twelve divs, seeded once — see the note in
+   ParlourAtmosphere.jsx for why this is not a particle system. */
+.fib-parlour-mote {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(230, 205, 140, 0.55);
+  box-shadow: 0 0 6px rgba(201, 162, 39, 0.5);
+  animation-name: fib-parlour-mote-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes fib-parlour-mote-rise {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  12%  { opacity: 0.7; }
+  80%  { opacity: 0.5; }
+  100% { transform: translate(var(--drift), -40vh); opacity: 0; }
+}
+
+/* The walls. Last, so it darkens the lamp's own spill as well as the felt. */
+.fib-parlour-walls {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 100% at 50% 50%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The room stays — it is the event's identity, and losing it would lose what
+     the surface is telling you. Only the movement stops. */
+  .fib-parlour-lamp,
+  .fib-parlour-shaft,
+  .fib-parlour-mote { animation: none; }
+  .fib-parlour-mote { opacity: 0.45; }
+}
+
+/*
  * ── THE HANGING SIGN ────────────────────────────────────────────────────────
  *
  * The manifest, hung inside the station rather than stacked above it. Two rods

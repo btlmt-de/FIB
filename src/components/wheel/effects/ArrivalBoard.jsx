@@ -49,6 +49,36 @@
  * payout comes off the train first, and the biggest number on the board is both
  * the last thing unloaded and the last drum to settle.
  *
+ * ── AND THE ORDER THEY ARE PRINTED IN, WHICH IS NOT THE SAME ─────────────────
+ *
+ * It used to be. The board listed the rows in that same sorted order, and the
+ * names are on the board from the first frame — so before one drum had turned,
+ * the LIST ITSELF was the result. Bottom row wins. The owner's note was that it
+ * "is already sorted by who's gonna get how much lucky spins, which kinda
+ * spoils it", and it did: six seconds of build-up under a leaderboard that had
+ * already given the answer away.
+ *
+ * So the two orders are now separate things, and the split is the fix:
+ *
+ *   REVEAL order — `rows`, sorted, owned by the theatre. Which wagon carries
+ *   whose crate, which crate falls when, which row's spins are in the air, and
+ *   when each drum may turn. Every one of those is a physical fact about the
+ *   platform and all four have to agree, which is why one array feeds them all.
+ *
+ *   DISPLAY order — `printed` below. Which line of the signage a player's name
+ *   is written on. That is a presentation decision and nothing downstream reads
+ *   it, so it is the one that was free to move.
+ *
+ * Display order is the manifest AS THE SERVER WROTE IT: `getPlatform()` returns
+ * the platform `ORDER BY updated_at DESC`, so it lists who was on the platform
+ * most recently first. It answers the note above rather than contradicting it —
+ * the objection to server order was always about the board's best MOMENT
+ * landing in the middle, and the moment is the reveal, which still climbs.
+ *
+ * What the player sees now: a plain list of who is here, and numbers arriving
+ * on it out of order, smallest first, biggest last — wherever that row happens
+ * to sit. The crescendo survives intact; the table of contents for it does not.
+ *
  * ── AND THE ROWS WAIT FOR THEIR OWN SPINS ────────────────────────────────────
  *
  * `rowLandsAt` is derived from when that row's crate opens and how long its
@@ -59,7 +89,7 @@
  * running on its own would resolve into an empty frame.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { DECK, rail, COLORS } from '../config/constants';
 import { FlapText, BoardLabel, BoardMeter } from '../features/collection/FlapBoard.jsx';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
@@ -145,6 +175,38 @@ export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }
      */
     const myIndex = user ? rows.findIndex(row => row.userId === user.id) : -1;
     const myLineIn = myIndex >= 0 ? landed > myIndex : totalIn;
+
+    /*
+     * The rows in the order they are PRINTED, each still carrying the index it
+     * has in the reveal order. See the note at the top of the file.
+     *
+     * `reveal` is the whole point of pairing them: it is what decides when this
+     * row's drum may turn (`landed` counts reveal indices, and `rowLandsAt`
+     * climbs, so a prefix count is still exactly right), and it is the slot in
+     * `rowElsRef` the scene's crate `reveal` projects onto. Print the rows in a
+     * different order while writing `rowElsRef` by print position and every
+     * stream flies to the wrong name — the "second sort" `sortManifest`'s note
+     * warns about, arriving through the back door.
+     *
+     * Matched on `userId` rather than by array identity. They ARE the same
+     * objects today — `sortManifest` spreads the array, not the entries — but
+     * that is an implementation detail of a function in another file, and a
+     * board that silently drops every row the day someone maps over the
+     * manifest is not worth the microsecond.
+     */
+    const printed = useMemo(() => {
+        const byUser = new Map(rows.map((row, reveal) => [row.userId, { row, reveal }]));
+        const out = [];
+        for (const entry of (arrival.manifest || [])) {
+            const hit = byUser.get(entry.userId);
+            if (hit) { out.push(hit); byUser.delete(entry.userId); }
+        }
+        // Anyone the manifest did not account for keeps their reveal position.
+        // Unreachable — `rows` is built from that manifest — but a row that
+        // exists and is not drawn is a payout with nowhere to land.
+        for (const hit of byUser.values()) out.push(hit);
+        return out;
+    }, [arrival, rows]);
 
     /*
      * The rods are drawn from the frame's top edge, so the body hangs BELOW its
@@ -239,8 +301,8 @@ export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }
                     </div>
 
                     <div role="list">
-                        {rows.map((row, i) => {
-                            const shown = i < landed;
+                        {printed.map(({ row, reveal }) => {
+                            const shown = reveal < landed;
                             const isMe = user && user.id === row.userId;
                             const isBest = best > 0 && row.crate === best;
 
@@ -248,9 +310,20 @@ export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }
                                 <div
                                     key={row.userId}
                                     role="listitem"
-                                    ref={el => { if (rowElsRef) rowElsRef.current[i] = el; }}
+                                    ref={el => { if (rowElsRef) rowElsRef.current[reveal] = el; }}
                                     className="fib-register-row is-static"
-                                    aria-label={`${row.username}: ${row.crate} lucky spins`}
+                                    /*
+                                     * The label waits with the drum. It used to
+                                     * read out the crate from the first frame,
+                                     * which handed a screen reader the whole
+                                     * result while the train was still braking
+                                     * — the same spoiler the sorted list was,
+                                     * in the one modality where reordering the
+                                     * rows does nothing about it.
+                                     */
+                                    aria-label={shown
+                                        ? `${row.username}: ${row.crate} lucky spins`
+                                        : `${row.username}: waiting for their crate`}
                                     style={{
                                         display: 'grid',
                                         gridTemplateColumns: GRID,

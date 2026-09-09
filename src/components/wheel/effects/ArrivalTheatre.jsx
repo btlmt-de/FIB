@@ -63,12 +63,14 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useActivity } from '../../../context/ActivityContext.jsx';
+import { useSound } from '../../../context/SoundContext.jsx';
 import { prefersReducedMotion } from '../../../utils/motion.js';
 import { ArrivalShutter } from './ArrivalShutter.jsx';
 import { ArrivalBoard } from './ArrivalBoard.jsx';
 import { ArrivalMotes } from './ArrivalMotes.jsx';
 import {
     T_SHUTTER, T_SCRIM, T_SCRIM_END, T_IRIS, T_IRIS_END, T_LIFT, SCENE_FADE_S,
+    MAX_CRATES, crateCueAt,
     sortManifest,
 } from './arrivalTimeline.js';
 
@@ -156,6 +158,7 @@ function cinemaRect(band) {
 
 export function ArrivalTheatre() {
     const { arrival, arrivalCrate } = useActivity();
+    const { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate } = useSound();
 
     const probeRef = useRef(null);
     const frameRef = useRef(null);
@@ -172,6 +175,78 @@ export function ArrivalTheatre() {
      * array.
      */
     const rows = useMemo(() => (arrival?.manifest ? sortManifest(arrival.manifest) : []), [arrival]);
+
+    /*
+     * ── THE SOUND ────────────────────────────────────────────────────────────
+     *
+     * Read through refs, and the effect below depends on `arrival` alone.
+     *
+     * `useSound`'s callbacks are rebuilt whenever any setting changes, and a
+     * volume slider moved during an arrival would otherwise re-run this effect:
+     * the cleanup stops the take and the body starts it again from zero, which
+     * is a train that restarts because somebody turned it down.
+     *
+     * Seeded at construction and refreshed in a bare effect after every render
+     * — not assigned in the render body, which is a write during render — so
+     * the mount's own call already has the callbacks and a timer that fires ten
+     * seconds later still reaches the current ones. Same device, and the same
+     * ordering constraint, as `playSfxRef` in WheelSpinner.
+     */
+    const soundRef = useRef({ startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate });
+    useEffect(() => {
+        soundRef.current = { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate };
+    });
+
+    /*
+     * The bed, and the crates coming down on top of it.
+     *
+     * ── WHY THE CRATES ARE ON TIMERS AND NOT ON THE SCENE ────────────────────
+     *
+     * The obvious place is ArrivalTrain3D: it already has a one-shot `landed`
+     * flag per crate, fired on the frame the box touches the paving. But the
+     * scene is a lazy chunk behind an error boundary that is explicitly allowed
+     * to fail, and it renders in an effect that knows nothing about React
+     * context. Hanging the audio off it means a slow chunk delays the sound and
+     * a failed one deletes it, and the board — which is the part that survives
+     * a failed train — would pay out in silence.
+     *
+     * So they read the timeline instead, which is the same clock the scene's
+     * arcs are drawn from: `crateCueAt(i, n)` whatever is or is not on screen.
+     * Two clocks reading one table cannot drift — the note at the top of
+     * arrivalTimeline.js, applied to the fifth consumer of it.
+     *
+     * `crateCueAt` and NOT the landing beat. The takes are the whole arc, hit
+     * included, so they start as the crate is released; see the note on
+     * `CRATE_IMPACT_OFFSET_S`. Cueing them on the landing put every impact six
+     * tenths of a second behind its own crate.
+     *
+     * `n` is the PLAYER count and the loop stops at `MAX_CRATES`, matching the
+     * scene exactly: the cadence is per player, the consist is capped, and rows
+     * past the cap have no crate to make a noise.
+     */
+    useEffect(() => {
+        if (!arrival || rows.length === 0) return undefined;
+
+        soundRef.current?.startArrivalSoundtrack?.();
+
+        /*
+         * Under reduced motion every crate is already down on the first frame,
+         * so a stagger has nothing to be staggered against and the four takes
+         * would arrive as one chord. The bed stays — it is the event's voice and
+         * a motion preference is not a sound preference — and the impacts go.
+         */
+        const timers = prefersReducedMotion() ? [] : (
+            Array.from({ length: Math.min(rows.length, MAX_CRATES) }, (_, i) => setTimeout(
+                () => soundRef.current?.playArrivalCrate?.(i),
+                crateCueAt(i, rows.length) * 1000,
+            ))
+        );
+
+        return () => {
+            timers.forEach(clearTimeout);
+            soundRef.current?.stopArrivalSoundtrack?.();
+        };
+    }, [arrival, rows.length]);
 
     useEffect(() => {
         const probe = probeRef.current;

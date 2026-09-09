@@ -33,7 +33,7 @@
 // same phases, same server-supplied `selectionDuration`. Only the frame changed.
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, TrainFront, Zap, Crosshair, Target } from 'lucide-react';
+import { Crown, TrainFront, Zap, Crosshair, Target, CircleDot } from 'lucide-react';
 import { COLORS, SPACE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
@@ -81,6 +81,15 @@ const EVENT_CONFIG = {
         name: 'COMMUNITY GOAL',
         icon: Target,
         color: '#2DD4BF',
+    },
+    // THE PARLOUR. The green is the wheel's own rarest pocket — see DESIGN.md
+    // §9b for why the event wears the colour it is really played against, and
+    // for the note that this and the Community Goal's teal are the closest pair
+    // on this strip. They separate here because every cell carries an icon.
+    roulette: {
+        name: 'THE PARLOUR',
+        icon: CircleDot,
+        color: '#19B36B',
     },
 };
 
