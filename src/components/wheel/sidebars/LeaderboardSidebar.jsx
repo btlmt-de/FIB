@@ -12,7 +12,7 @@ import { kotwStandings } from '../../../utils/kotwStandings.js';
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
     Trophy, RefreshCw, Crown, Medal, Award,
-    BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X
+    BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X, Clover
 } from 'lucide-react';
 import { visibleInterval } from '../../../config/power.js';
 
@@ -205,6 +205,15 @@ export function LeaderboardSidebar({ onClose }) {
         spins: { label: 'Spins', icon: <TrendingUp size={12} />, color: COLORS.text },
         duplicates: { label: 'Dupes', icon: <Layers size={12} />, color: COLORS.accent },
         events: { label: 'Events', icon: <Zap size={12} />, color: COLORS.orange },
+        // Green because green is ALREADY what a lucky spin looks like here — the
+        // spinner paints every lucky state with it (luckySpinning, luckyResult,
+        // both triple variants, isLuckyMode). Picking a fresh colour for the lens
+        // would have forked the identity the way the rarity colours were forked
+        // before rarityHelpers pulled them back into one table.
+        //
+        // It is also the only tone left that separates: `collection` and
+        // `duplicates` are gold and accent, which are the same oklch value.
+        lucky: { label: 'Lucky', icon: <Clover size={12} />, color: COLORS.green },
     };
 
     const getValueForTab = (entry) => {
@@ -214,6 +223,7 @@ export function LeaderboardSidebar({ onClose }) {
             case 'spins': value = entry.total_spins; break;
             case 'duplicates': value = entry.total_duplicates; break;
             case 'events': value = entry.event_triggers; break;
+            case 'lucky': value = entry.lucky_spins_used; break;
             default: value = entry.unique_items;
         }
         return value ?? 0; // Coerce null/undefined to 0
@@ -644,6 +654,7 @@ export function LeaderboardSidebar({ onClose }) {
         spins: DECK.ink,
         duplicates: COLORS.accent,
         events: COLORS.orange,
+        lucky: COLORS.green,
     }[activeTab] || DECK.amber;
 
     /*
@@ -678,6 +689,12 @@ export function LeaderboardSidebar({ onClose }) {
             case 'spins': return since(entry.total_spins, entry.prestige_spins_at_start);
             case 'duplicates': return entry.prestige_duplicates ?? null;
             case 'events': return since(entry.event_triggers, entry.prestige_events_at_start);
+            // No `since` and no baseline: a lucky spin writes a timestamped
+            // spin_history row, so the server counts them from the run's own
+            // start time. That puts Lucky with items and duplicates as a metric
+            // that is always measurable, rather than with spins and events,
+            // which go null on a run older than the baseline columns.
+            case 'lucky': return entry.prestige_lucky_spins ?? null;
             default: return entry.prestige_items ?? null;
         }
     };
