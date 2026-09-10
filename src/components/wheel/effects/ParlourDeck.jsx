@@ -9,7 +9,7 @@ import { serverNow } from '../../../utils/serverClock.js';
 import { MOBILE_ROW_PITCH } from '../canvas/CanvasSpinningStrip.jsx';
 import {
     T_CALL, T_SPIN, T_REVEAL, T_FALL, T_END,
-    CARD_IVORY, COLOURS, propTime,
+    CARD_IVORY, COLOURS,
 } from './rouletteTimeline.js';
 
 const TAU = Math.PI * 2;
@@ -370,7 +370,8 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
         const draw = (t) => {
             ctx.clearRect(0, 0, W, H);
             const winner = propsRef.current.pocketColour;
-            const motionT = propTime(t);
+            // Keep falling and tumbling at a steady speed through every event beat.
+            const motionT = t;
 
             for (const p of pieces) {
                 const u = frac(motionT / p.period + p.phase);
