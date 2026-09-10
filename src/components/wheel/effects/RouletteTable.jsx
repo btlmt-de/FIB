@@ -195,14 +195,17 @@ function Avatar({ seat, size = 26, ring }) {
 function BetButton({ colour, multiplier, seats, mine, locked, onPick }) {
     const c = COLOURS[colour];
     const chosen = mine === colour;
+    const [pressed, setPressed] = useState(false);
 
     return (
         <button
             type="button"
             className="fib-parlour-plaque"
             data-chosen={chosen ? 'true' : 'false'}
+            data-settling={pressed ? 'true' : undefined}
+            onAnimationEnd={() => setPressed(false)}
             disabled={locked}
-            onClick={() => onPick(chosen ? null : colour)}
+            onClick={() => { setPressed(true); onPick(chosen ? null : colour); }}
             aria-pressed={chosen}
             aria-label={`Bet on ${c.label}, pays ${multiplier} times${chosen ? ' — your bet' : ''}`}
             style={{

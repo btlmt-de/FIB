@@ -50,8 +50,7 @@
  * BACKWARDS from the pocket the server already chose, exactly as the reel's
  * `finalOffset` is solved from a strip built around an item the server picked.
  * It is also what lets the speed be known analytically rather than measured —
- * see `fast` in the draw, which is how the detail sheds while the ring is
- * travelling too quickly for anyone to read it.
+ * see `fast` in the draw, which drives the streaks and selection bracket.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -218,6 +217,7 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
         const ctx = canvas.getContext('2d');
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         let W = 0, H = 0, raf = 0;
+        let previousTime = null;
 
         const size = () => {
             const r = wrap.getBoundingClientRect();
@@ -236,6 +236,14 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
             const { pockets: RING, pocketIndex: winner, isMobile: phone } = propsRef.current;
             const n = RING?.length || 0;
             if (!n) return;
+
+            // A single mechanical landing click. Do not replay it on a late
+            // join or after a suspended tab skips over the landing beat.
+            if (!motionOff && winner != null && previousTime != null
+                && previousTime < T_LAND && t >= T_LAND && t - previousTime < 0.2) {
+                propsRef.current.onTick?.(120);
+            }
+            previousTime = t;
 
             ctx.clearRect(0, 0, W, H);
 
@@ -472,13 +480,9 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                         : [xL + 1.25, c0 + 1.25, w - 2.5, depth - 2.5]));
                 }
 
-                /*
-                 * The number, dropped while the ring is travelling. At speed it
-                 * is a smear that costs a text layout per slot per frame and
-                 * tells the player nothing; the colours are what carry the wheel
-                 * while it is moving.
-                 */
-                const legible = (1 - fast) * clamp01((turn - 0.5) / 0.5);
+                // Numbers stay painted on their pockets at every speed. Only
+                // the event's opening/closing turnover fades them with the face.
+                const legible = clamp01((turn - 0.5) / 0.5);
                 if (legible > 0.03 && w > 14) {
                     const fontPx = Math.round(Math.min(pitch, across) * 0.38 * Math.min(1, w / pitch + 0.35));
                     ctx.font = `bold ${fontPx}px Georgia, 'Times New Roman', serif`;
@@ -593,7 +597,12 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
              * The pointer. Deliberately small now — the bracket says which
              * pocket, so this only has to say where the pin is.
              */
+            const impactAge = t - T_LAND;
+            const kick = !motionOff && winner != null && impactAge >= 0 && impactAge < 0.55
+                ? Math.sin(impactAge * 30) * Math.exp(-impactAge * 9) * 3.5 : 0;
             const tip = 7;
+            ctx.save();
+            ctx.translate(...at(kick, 0));
             const pin = alongGrad(centre - tip, centre + tip);
             pin.addColorStop(0, '#6D4E30');
             pin.addColorStop(0.45, '#E0C494');
@@ -612,6 +621,18 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
             ctx.fill();
             ctx.shadowBlur = 0;
             ctx.shadowOffsetY = 0;
+            ctx.restore();
+
+            // A brief warm catch on the brass at impact, before the result
+            // colour is announced. It follows the fixed pin, never a neighbour.
+            if (!motionOff && winner != null && impactAge >= 0 && impactAge < 0.7) {
+                const catchLight = alongGrad(centre - 26, centre + 26);
+                catchLight.addColorStop(0, '#E8C78F00');
+                catchLight.addColorStop(0.5, `rgba(232,199,143,${0.28 * Math.exp(-impactAge * 6)})`);
+                catchLight.addColorStop(1, '#E8C78F00');
+                ctx.fillStyle = catchLight;
+                box(centre - 26, centre + 26, 0, lip + 2);
+            }
         };
 
         if (motionOff) {

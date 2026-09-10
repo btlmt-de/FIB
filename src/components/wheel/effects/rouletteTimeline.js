@@ -86,6 +86,19 @@ export const T_END = T_FALL + 1.40;
 /** How long one slot takes to turn over, at either end of the event. */
 export const TURN_FLIP_S = 0.42;
 
+const smoothBeat = x => { const u = Math.max(0, Math.min(1, x)); return u * u * (3 - 2 * u); };
+/** The room holds its breath at the call and releases after the reveal. */
+export const roomHush = t => smoothBeat((t - T_CALL + 0.45) / 0.65)
+    * (1 - smoothBeat((t - T_REVEAL) / 0.9));
+
+// Integral of smoothBeat: a clock whose velocity changes smoothly, without
+// teleporting props when the room slows or a tab resumes mid-event.
+const beatIntegral = x => x <= 0 ? 0 : x >= 1 ? x - 0.5 : x ** 3 - x ** 4 / 2;
+export const propTime = t => t - 0.72 * (
+    0.65 * beatIntegral((t - T_CALL + 0.45) / 0.65)
+    - 0.9 * beatIntegral((t - T_REVEAL) / 0.9)
+);
+
 /**
  * The identity. One green, and it is the table's own.
  *

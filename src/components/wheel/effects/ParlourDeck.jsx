@@ -9,7 +9,7 @@ import { serverNow } from '../../../utils/serverClock.js';
 import { MOBILE_ROW_PITCH } from '../canvas/CanvasSpinningStrip.jsx';
 import {
     T_CALL, T_SPIN, T_REVEAL, T_FALL, T_END,
-    CARD_IVORY, COLOURS,
+    CARD_IVORY, COLOURS, propTime,
 } from './rouletteTimeline.js';
 
 const TAU = Math.PI * 2;
@@ -370,19 +370,20 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
         const draw = (t) => {
             ctx.clearRect(0, 0, W, H);
             const winner = propsRef.current.pocketColour;
+            const motionT = propTime(t);
 
             for (const p of pieces) {
-                const u = frac(t / p.period + p.phase);
+                const u = frac(motionT / p.period + p.phase);
                 // When the piece left the top of the screen. The envelope is
                 // sampled THERE, not now — see the header.
-                const born = t - u * p.period;
+                const born = motionT - u * p.period;
                 // Pre-deal the room: long-lived props must already be visible
                 // when the event opens, rather than taking a full fall to arrive.
                 if (density(Math.max(0, born)) < p.threshold) continue;
 
                 const margin = 140;
                 const y = -margin + u * (H + margin * 2);
-                const x = (p.x + Math.sin(t * 0.16 * p.sway + p.phase * TAU) * p.swayAmp) * W;
+                const x = (p.x + Math.sin(motionT * 0.16 * p.sway + p.phase * TAU) * p.swayAmp) * W;
                 const s = p.scale * (isMobile ? 0.52 : 1);
 
                 const showered = Boolean(winner) && showering(t);
@@ -422,10 +423,10 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
                 const roomLight = 0.72 + 0.28 * Math.sin(clamp01(x / W) * Math.PI);
                 ctx.globalAlpha = p.alpha * clearance * edgeFade * roomLight * (isMobile ? 0.65 : 1);
                 ctx.translate(x, y);
-                ctx.rotate((p.phase - 0.5) * 1.2 + 0.12 * Math.sin(t * 0.22 + p.phase * TAU));
+                ctx.rotate((p.phase - 0.5) * 1.2 + 0.12 * Math.sin(motionT * 0.22 + p.phase * TAU));
                 // Continuous local-axis rotation exposes the face, cut edge,
                 // and reverse in turn as each piece falls through the room.
-                const angle = (t * p.tumble + p.phase) * TAU;
+                const angle = (motionT * p.tumble + p.phase) * TAU;
 
                 if (p.chip) {
                     const tone = showered
