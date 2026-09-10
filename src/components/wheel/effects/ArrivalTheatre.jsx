@@ -63,6 +63,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useActivity } from '../../../context/ActivityContext.jsx';
+import { ArrivalTrain3D } from './arrivalScene.js';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { prefersReducedMotion } from '../../../utils/motion.js';
 import { ArrivalShutter } from './ArrivalShutter.jsx';
@@ -88,9 +89,9 @@ import {
  * the platform simply stands empty a moment longer, which is a train running
  * late rather than a broken animation.
  */
-const ArrivalTrain3D = React.lazy(() =>
-    import('./ArrivalTrain3D.jsx').then(m => ({ default: m.ArrivalTrain3D }))
-);
+// The lazy component lives in arrivalScene.js, beside the prefetch the
+// selection wheel calls — one file names the chunk, so both name the same one.
+// See the note there.
 
 /**
  * The train, and only the train, is allowed to fail.
@@ -158,7 +159,45 @@ function cinemaRect(band) {
 
 export function ArrivalTheatre() {
     const { arrival, arrivalCrate } = useActivity();
-    const { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate } = useSound();
+    const { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate, stopArrivalCrates } = useSound();
+
+    /*
+     * ── ONE CLOCK FOR THE WHOLE EVENT ────────────────────────────────────────
+     *
+     * Established in render, before any effect and long before the scene's
+     * chunk resolves, and then shared by everything that has to agree: the
+     * shutter, the crate cue sheet, and the 3D scene itself.
+     *
+     * ── THE BUG THIS FIXES, WHICH WAS NEVER THE SOUND ────────────────────────
+     *
+     * `ArrivalTrain3D` is a 551KB lazy chunk requested on mount, and it used to
+     * start its own `performance.now()` when it finally mounted — which is when
+     * the CHUNK arrived, not when the event did. On the first arrival of a
+     * session that is a fetch and a parse later, so the train, and every crate
+     * with it, ran that far behind a shutter and a cue sheet that were both on
+     * time. On the second arrival the chunk is cached, the offset is nil, and
+     * everything lines up — which is why this read as a sound problem and
+     * survived two passes at the sound.
+     *
+     * The header above already describes a slow chunk as "a train running late
+     * rather than a broken animation". That is true of the picture on its own;
+     * it stops being true the moment anything else in the event is on time.
+     *
+     * With one epoch, a chunk that lands at t=1.5 renders the frame for t=1.5 —
+     * the train is already on its way in rather than starting its approach a
+     * second and a half after the platform lit. Every one-shot in the scene is
+     * written `if (!fired && t >= X)`, so they catch up rather than misfire.
+     *
+     * Adjusted during render rather than in an effect, which is the pattern
+     * React documents for a value derived from a prop — and effects run in
+     * order, so an epoch established in one would already be younger than
+     * whatever ran above it. `FlapText` resets its cascade the same way.
+     */
+    const epochRef = useRef({ event: null, at: 0 });
+    if (epochRef.current.event !== arrival) {
+        epochRef.current = { event: arrival, at: performance.now() };
+    }
+    const epoch = epochRef.current.at;
 
     const probeRef = useRef(null);
     const frameRef = useRef(null);
@@ -192,9 +231,9 @@ export function ArrivalTheatre() {
      * seconds later still reaches the current ones. Same device, and the same
      * ordering constraint, as `playSfxRef` in WheelSpinner.
      */
-    const soundRef = useRef({ startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate });
+    const soundRef = useRef({ startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate, stopArrivalCrates });
     useEffect(() => {
-        soundRef.current = { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate };
+        soundRef.current = { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate, stopArrivalCrates };
     });
 
     /*
@@ -227,7 +266,24 @@ export function ArrivalTheatre() {
     useEffect(() => {
         if (!arrival || rows.length === 0) return undefined;
 
-        soundRef.current?.startArrivalSoundtrack?.();
+        /*
+         * The bed, against the event's own epoch.
+         *
+         * Handed over as a FUNCTION rather than started at zero, because the
+         * first arrival of a session has to fetch the file before it can play a
+         * note of it. Read at call time that is 0.0 and the take begins three
+         * quarters of a second after the shutter; read when the audio is
+         * actually ready, it is 0.75 and the take joins the picture where the
+         * picture is. `joinTake` in SoundContext owns the mechanism.
+         *
+         * `performance.now()` and not `serverNow()`: an arrival is a portal that
+         * opens when you are shown it, so the picture is the authority. THE
+         * PARLOUR is the opposite case and uses the server clock for exactly
+         * that reason.
+         */
+        soundRef.current?.startArrivalSoundtrack?.(
+            () => (performance.now() - epoch) / 1000,
+        );
 
         /*
          * Under reduced motion every crate is already down on the first frame,
@@ -235,18 +291,49 @@ export function ArrivalTheatre() {
          * would arrive as one chord. The bed stays — it is the event's voice and
          * a motion preference is not a sound preference — and the impacts go.
          */
-        const timers = prefersReducedMotion() ? [] : (
-            Array.from({ length: Math.min(rows.length, MAX_CRATES) }, (_, i) => setTimeout(
-                () => soundRef.current?.playArrivalCrate?.(i),
-                crateCueAt(i, rows.length) * 1000,
-            ))
-        );
+        /*
+         * ── THE CUE SHEET IS HANDED OVER, NOT SLEPT ON ───────────────────────
+         *
+         * Every impact is offered to the sound layer at once, each carrying how
+         * far from now it belongs. Given decoded samples that becomes four
+         * `start(currentTime + t)` calls on the audio thread, which keeps them
+         * whatever the main thread is doing — and what the main thread is doing
+         * during these two seconds is starting a 3D scene, which is exactly why
+         * the impacts used to be late on the first arrival of a session.
+         *
+         * A timer is now the FALLBACK rather than the mechanism, taken only for
+         * the cues the sound layer refused: no Web Audio, a context still
+         * waiting on a gesture, or a decode that has not finished. That is the
+         * same shape as before, so nothing gets worse where the samples are
+         * unavailable — it just stops being the normal path.
+         */
+        const timers = [];
+        if (!prefersReducedMotion()) {
+            // Against the epoch rather than against "now". They are the same
+            // instant to within a frame today, and would silently stop being so
+            // the moment anything is added above this effect.
+            const since = () => (performance.now() - epoch) / 1000;
+            for (let i = 0; i < Math.min(rows.length, MAX_CRATES); i++) {
+                const at = Math.max(0, crateCueAt(i, rows.length) - since());
+                const scheduled = soundRef.current?.playArrivalCrate?.(i, at);
+                if (!scheduled) {
+                    timers.push(setTimeout(
+                        () => soundRef.current?.playArrivalCrate?.(i),
+                        at * 1000,
+                    ));
+                }
+            }
+        }
 
         return () => {
             timers.forEach(clearTimeout);
+            // The audio thread holds any impact that has not sounded yet, and a
+            // theatre that closes early has to take those back — a cleared timer
+            // no longer covers them.
+            soundRef.current?.stopArrivalCrates?.();
             soundRef.current?.stopArrivalSoundtrack?.();
         };
-    }, [arrival, rows.length]);
+    }, [arrival, rows.length, epoch]);
 
     useEffect(() => {
         const probe = probeRef.current;
@@ -256,7 +343,8 @@ export function ArrivalTheatre() {
         if (!probe || !frame || !topVeil || !botVeil) return undefined;
 
         const motionOff = prefersReducedMotion();
-        const start = performance.now();
+        // The event's clock, not this effect's. See `epoch`.
+        const start = epoch;
         let raf = 0;
 
         const paint = (t) => {
@@ -348,7 +436,7 @@ export function ArrivalTheatre() {
         };
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
-    }, [arrival]);
+    }, [arrival, epoch]);
 
     if (!arrival || rows.length === 0) return null;
 
@@ -381,6 +469,7 @@ export function ArrivalTheatre() {
                             <React.Suspense fallback={null}>
                                 <ArrivalTrain3D
                                     crateCount={rows.length}
+                                    epoch={epoch}
                                     emitRef={emitRef}
                                     style={{ animation: `fadeIn 0.5s ease-out ${T_SHUTTER * 0.75}s both` }}
                                 />

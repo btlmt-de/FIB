@@ -729,7 +729,7 @@ const EVENT_TYPES = [
         label: 'The Parlour',
         color: '#19B36B',
         // The duration field above does not apply to this one and the server
-        // ignores it: the length is a 30s window plus a fixed animation, not a
+        // ignores it: the length is a 15s window plus a fixed animation, not a
         // dial. A "2 minute roulette" would be 90 seconds of a locked table.
         blurb: 'Roulette. Everyone in the room gets 5 lucky spins to fold or bet on red, black or green.',
     },

@@ -9,6 +9,7 @@ import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal } from './modals';
 import { CollectionBook } from './features/CollectionBook.jsx';
 import { SpinHistory } from './modals/SpinHistory.jsx';
+import { EventHistoryBoard } from './modals/EventHistoryBoard.jsx';
 import { AdminPanel } from './admin/AdminPanel.jsx';
 import { Achievements } from './features/Achievements.jsx';
 import { UserProfile } from './features/UserProfile.jsx';
@@ -70,7 +71,12 @@ import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
-    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2, Battery, BatteryLow
+    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2, Battery, BatteryLow,
+    // THE EVENT LOG's mark. A broadcast tower, because that is what a global
+    // event is — one thing happening to everybody at once — and because every
+    // clock and scroll glyph in this set is already spent on the spin history,
+    // which is the per-player log this one is deliberately not.
+    Radio
 } from 'lucide-react';
 
 // ============================================
@@ -363,6 +369,7 @@ function WheelOfFortunePage({ onBack }) {
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showCollection, setShowCollection] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
+    const [showEventLog, setShowEventLog] = useState(false);
     const [showAdmin, setShowAdmin] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     // The bottom bar's link to the chat: a counter it bumps to open the panel,
@@ -1150,6 +1157,29 @@ function WheelOfFortunePage({ onBack }) {
                                 label="Achievements"
                             />
                         )}
+                        {/* THE EVENT LOG.
+
+                            A third destination in this group rather than a
+                            register on the odds board, which is where it was
+                            drafted. The odds board is a document — every figure
+                            on it is derived from the weight table and is as true
+                            tomorrow as today — and a log is the opposite kind of
+                            thing. Two registers with the same shape and opposite
+                            lifetimes on one board is how a reader stops knowing
+                            which numbers are facts and which are news.
+
+                            It survives this row's own duplication rule because
+                            nothing else opens it: the odds board describes what
+                            the five events ARE, the ticker shows drops rather
+                            than events, and neither can say who won the last
+                            King of the Wheel. */}
+                        {!isMobile && (
+                            <TopbarIconButton
+                                onClick={() => setShowEventLog(true)}
+                                icon={<Radio size={19} />}
+                                label="Event log"
+                            />
+                        )}
                         {/* History, Achievements and Live activity are in the
                             overflow sheet on a phone — see MobileMoreSheet.jsx for
                             the three-way split and the count that forced it. */}
@@ -1406,6 +1436,10 @@ function WheelOfFortunePage({ onBack }) {
                     allItems={allItems}
                     dynamicItems={dynamicItems}
                 />
+            )}
+
+            {showEventLog && (
+                <EventHistoryBoard onClose={() => setShowEventLog(false)} />
             )}
 
             {showHistory && (
@@ -1695,6 +1729,10 @@ function WheelOfFortunePage({ onBack }) {
                         // already applied to the Trophy button, the leaderboard
                         // pill and the chat launcher.
                         { id: 'history', label: 'Spin history', Icon: ScrollText, onSelect: () => setShowHistory(true) },
+                        // Directly under the spin history, because the pairing is
+                        // the explanation: one is what YOU pulled, the other is
+                        // what the SERVER did. Neither is the other's summary.
+                        { id: 'eventlog', label: 'Event log', Icon: Radio, onSelect: () => setShowEventLog(true) },
                         { id: 'achievements', label: 'Achievements', Icon: Award, onSelect: () => setShowAchievements(true) },
                         { id: 'name', label: 'Edit name', Icon: Edit3, onSelect: () => setShowUsernameModal(true) },
                         { id: 'sound', label: 'Sound', Icon: Volume2, onSelect: () => setShowSoundSettings(true) },

@@ -216,3 +216,35 @@ export const DECK = {
     inkMid: '#A8B0C6',
     inkDim: '#7C859C',
 };
+
+/**
+ * The five global events, as the player knows them: a name and a colour.
+ *
+ * These were a fork, and `EventSelectionWheel.jsx` said so in its own comment
+ * before this existed — "the same event is spelled out in four files… that is
+ * the rarity ladder's story one level up, and it wants the same fix: one
+ * table". The odds board would have been the sixth copy, so the table is here
+ * now. The selection wheel takes it; the four banners still carry their own
+ * `*_PRIMARY` constants and are the sweep that is still owed.
+ *
+ * **The icon is deliberately not here.** A constants module that imports
+ * components stops being a constants module, and the icon is a render decision
+ * each surface makes anyway — the selection wheel needs one per cell, a banner
+ * needs one at 40px, the odds board needs one at 13px. The two values that had
+ * actually DRIFTED are the name and the colour, and those are what this fixes.
+ *
+ * On `roulette`: the green is the wheel's own rarest pocket rather than the
+ * room's burgundy, because the room is a fill and this is set as text. It and
+ * the Community Goal's teal are the closest pair in the table; any surface
+ * listing both has to separate them by something other than hue — the selection
+ * wheel does it with icons, and so does the odds board's event register.
+ */
+export const EVENT_IDENTITY = {
+    // Station amber rather than the retired Gold Rush's #F59E0B: THE ARRIVAL
+    // belongs to THE CONCOURSE, and its whole vocabulary is the platform lamp.
+    arrival:        { name: 'THE ARRIVAL',       color: '#FFAA00' },
+    king_of_wheel:  { name: 'KING OF THE WHEEL', color: '#F43F5E' },
+    first_blood:    { name: 'FIRST BLOOD',       color: '#DC2626' },
+    community_goal: { name: 'COMMUNITY GOAL',    color: '#2DD4BF' },
+    roulette:       { name: 'THE PARLOUR',       color: '#19B36B' },
+};

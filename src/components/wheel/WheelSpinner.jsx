@@ -1747,7 +1747,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     onClose={() => setShowOddsInfo(false)}
                     dynamicItems={dynamicItems}
                     allItems={allItems}
-                    isMobile={isMobile}
                 />
             )}
 

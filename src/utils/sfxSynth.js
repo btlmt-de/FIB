@@ -23,59 +23,29 @@
  * bell is two partials, and none of them wants a licence, a download or a byte
  * of cache.
  *
- * ── THE CONTEXT IS LAZY, AND MAY NEVER OPEN ──────────────────────────────────
+ * ── THE CONTEXT LIVES NEXT DOOR ──────────────────────────────────────────────
  *
- * Browsers refuse to start audio without a user gesture, so the context is
- * created on the first sound rather than at import, and `resume()` is attempted
- * every time in case it was suspended by a tab switch. If any of that fails the
- * call is a silent no-op — the same contract `playSfx` already has for a
- * missing file, and the right one: a page that throws because it could not
- * click is worse than a quiet page.
+ * It used to be declared here, together with the compressor every voice goes
+ * through. It moved to `audioBus.js` when THE ARRIVAL's crates needed the same
+ * context — two clients is the second-use test — and the reasoning for the
+ * compressor, and for the context being lazy, moved with it.
+ *
+ * `master` is still this module's own input: the voices below carry no gain of
+ * their own, so `playSynth` sets the bus's gain per call. That is exactly why
+ * samples connect somewhere else; see audioBus.js.
  */
 
-let ctx = null;
+import { audioBus } from './audioBus.js';
+
 let master = null;
 let noiseBuffer = null;
 
-/**
- * The shared output chain: everything goes through one compressor.
- *
- * Not polish — a necessity for the tick. At full speed the ring passes about
- * sixteen frets a second, and sixteen overlapping transients into a bare
- * destination clip audibly. The compressor turns that into a clatter that gets
- * denser rather than louder, which is also what a real wheel does.
- */
+/** The context, with `master` refreshed from the bus. Null where unavailable. */
 function audio() {
-    if (typeof window === 'undefined') return null;
-
-    if (!ctx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        try {
-            ctx = new AC();
-        } catch {
-            return null;
-        }
-
-        const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -18;
-        comp.knee.value = 24;
-        comp.ratio.value = 6;
-        comp.attack.value = 0.003;
-        comp.release.value = 0.12;
-
-        master = ctx.createGain();
-        master.gain.value = 1;
-        master.connect(comp);
-        comp.connect(ctx.destination);
-    }
-
-    if (ctx.state === 'suspended') {
-        // Fire and forget: if the gesture has not happened yet this rejects and
-        // the sound is simply lost, which is the correct outcome.
-        ctx.resume().catch(() => {});
-    }
-    return ctx;
+    const b = audioBus();
+    if (!b) return null;
+    master = b.master;
+    return b.ctx;
 }
 
 /** One second of white noise, made once and re-used by every noisy voice. */
@@ -252,16 +222,4 @@ export function playSynth(name, volume = 1, opts) {
     } catch {
         return false;
     }
-}
-
-/**
- * Nudge the context awake from a real user gesture.
- *
- * Called from SoundContext's existing interaction listener. Without it the
- * first synthesised sound of a session is usually lost — the context is created
- * inside whatever non-gesture callback happened to want a sound first, and
- * starts suspended.
- */
-export function unlockSynth() {
-    audio();
 }

@@ -305,7 +305,7 @@ function RouletteTable({
         playSfx?.('parlour_chip');
         /*
          * Shown immediately and reconciled by the next `roulette_bets` frame.
-         * Thirty seconds is short enough that a button which waits for a round
+         * Fifteen seconds is short enough that a button which waits for a round
          * trip before it looks pressed reads as broken — and the reconcile is
          * what keeps that honest, because the optimistic state is thrown away
          * rather than merged the moment the server says otherwise.

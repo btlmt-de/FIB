@@ -477,6 +477,13 @@ html[data-saver="on"] *::after {
    and does not filter anything, and a lift under the cursor on a surface where
    that lift means "this row is a door" is a promise the row cannot keep. */
 .fib-register-row.is-static:hover { background: transparent; }
+/* The sibling rule above draws the seam, and it can only see a row whose
+   immediate neighbour is another row. A register whose rows OPEN — the odds
+   board's ladder and its event list, where a panel is rendered between one row
+   and the next — has no adjacent pairs at all, so every seam on it silently
+   vanished. `has-seam` states the same edge for a row that has to ask for it.
+   Same value, deliberately, so the two registers cannot drift apart. */
+.fib-register-row.has-seam { box-shadow: inset 0 1px 0 var(--fib-rail-06); }
 /* An active row keeps its tier wash and base bar; both are per-tier, so they are
    the one thing here that must come from the component.
    Order matters and it is a tie, not a win: this selector and the sibling seam

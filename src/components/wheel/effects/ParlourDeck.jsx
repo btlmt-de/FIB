@@ -25,10 +25,10 @@ const SUIT_INK = ['#B4111F', '#14171F', '#B4111F', '#14171F'];
  * How busy the air is at time `t`, 0 to 1. The event's four beats, as one curve.
  *
  *   0.0–2.0   the deck is thrown as the slots turn over
- *   2.0–31    a bed, low enough to bet through
- *   31–33     the hush: the room goes still while the croupier calls
- *   36.4–39   the shower, in the winning colour
- *   43.2–44.6 the air clears with the room
+ *   2.0–16    a bed, low enough to bet through
+ *   16–18     the hush: the room goes still while the croupier calls
+ *   21.4–24   the shower, in the winning colour
+ *   28.2–29.6 the air clears with the room
  */
 function density(t) {
     if (t < -0.4 || t >= T_END) return 0;

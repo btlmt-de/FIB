@@ -4,13 +4,13 @@
  *   TURN     0.00–1.20   the reel's slots turn over, one after another, and come
  *                        back up as roulette pockets. The room warms around them
  *   TABLE    1.20        the table is live, betting opens, the ring idles
- *   BETS    1.20–31.20   THIRTY SECONDS — the only interactive window on the site
- *   CALL     31.20       "no more bets"
- *   SPIN     31.90       the ring runs, on the reel's own easing
- *   LAND     35.90       the winning pocket comes to rest under the detent
- *   REVEAL   36.35       it lights, and the payout board opens under it
- *   FALL     43.20       the room cools; the pockets turn back into items
- *   END      44.60       the reel is the reel again
+ *   BETS    1.20–16.20   FIFTEEN SECONDS — the only interactive window on the site
+ *   CALL     16.20       "no more bets"
+ *   SPIN     16.90       the ring runs, on the reel's own easing
+ *   LAND     20.90       the winning pocket comes to rest under the detent
+ *   REVEAL   21.35       it lights, and the payout board opens under it
+ *   FALL     28.20       the room cools; the pockets turn back into items
+ *   END      29.60       the reel is the reel again
  *
  * ── THE REEL IS THE WHEEL, UNROLLED ──────────────────────────────────────────
  *
@@ -43,7 +43,7 @@
  * ── WHY THE CLOCK IS THE SERVER'S ────────────────────────────────────────────
  *
  * Every beat is measured `(serverNow() - openedAt) / 1000`. The event runs for
- * three quarters of a minute, one of them is a betting deadline with lucky spins
+ * half a minute, one beat of it is a betting deadline with lucky spins
  * behind it, and a player can load the page in the middle of it. That buys three
  * things: a late join renders the table it walked in on rather than replaying
  * the opening, a backgrounded tab returns to the right beat, and the countdown
@@ -61,8 +61,8 @@ import { COLORS } from '../config/constants';
 
 /** The slots have finished turning over. Betting opens here, not at zero. */
 export const T_TURN = 1.20;
-/** Thirty seconds, the owner's call. Must equal the server's window. */
-export const BET_WINDOW_S = 30;
+/** Fifteen seconds, the owner's call. Must equal the server's window. */
+export const BET_WINDOW_S = 15;
 export const T_CALL = T_TURN + BET_WINDOW_S;
 
 /** A beat of a locked, still table before it runs. The croupier's pause. */

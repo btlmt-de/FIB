@@ -608,7 +608,7 @@ function makeMaterials() {
  * callback per crate per frame is sixty state updates a second through React for
  * a value nothing renders.
  */
-export function ArrivalTrain3D({ crateCount = 0, emitRef = null, style }) {
+export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, style }) {
     const wrapRef = useRef(null);
     const canvasRef = useRef(null);
 
@@ -2227,7 +2227,26 @@ export function ArrivalTrain3D({ crateCount = 0, emitRef = null, style }) {
         };
 
         let raf = 0;
-        const start = performance.now();
+        /*
+         * The EVENT's epoch, not this effect's.
+         *
+         * This module is a 551KB lazy chunk requested when the theatre mounts,
+         * so the moment it gets to run is the moment the chunk ARRIVED — a
+         * fetch and a parse after the event began, on the first arrival of any
+         * session. Starting the clock here put the whole scene that far behind
+         * a shutter and a crate cue sheet that were both on time, and it read
+         * as the sound being wrong because the sound was the only part anyone
+         * could compare it against.
+         *
+         * Taking the theatre's epoch means a chunk that lands at t=1.5 renders
+         * the frame for t=1.5: the train is already on its way in rather than
+         * beginning its approach a second and a half late. Every one-shot below
+         * is written `if (!fired && t >= X)` precisely so it can catch up.
+         *
+         * The fallback keeps this component usable on its own — the timing
+         * bench in src/dev renders it directly.
+         */
+        const start = Number.isFinite(epoch) ? epoch : performance.now();
         let prev = 0;
         let wheelPhase = 0;
         let lastChuff = 0;
@@ -2671,7 +2690,7 @@ export function ArrivalTrain3D({ crateCount = 0, emitRef = null, style }) {
             for (const m of Object.values(M)) m.dispose();
             renderer.dispose();
         };
-    }, [crateCount, emitRef]);
+    }, [crateCount, emitRef, epoch]);
 
     return (
         <div ref={wrapRef} aria-hidden="true" style={{ position: 'absolute', inset: 0, ...style }}>
