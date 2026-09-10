@@ -1789,7 +1789,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // are overlays below, not borders. A constant full-width
                         // line is a rectangle's edge; these fade to nothing at
                         // the sides, like the canvas's own machined edges.
-                        background: showSpinRecursionEffects
+                        background: parlourOwnsReel
+                            ? 'linear-gradient(180deg, #350a13 0%, #26060e 44%, #180409 100%)'
+                            : showSpinRecursionEffects
                             ? 'linear-gradient(180deg, #0a150a 0%, #12240e 46%, #0a150a 100%)'
                             : showSpinKotwLuckyEffects
                                 ? `linear-gradient(180deg, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 46%, ${KOTW_SLATE_DARK} 100%)`
@@ -1811,7 +1813,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         // the skyline's base, black at the curb. The
                                         // city's ground, not a panel's fill — the band
                                         // is where the viaduct deck sits. THE NOCTURNE.
-                                        : 'linear-gradient(180deg, #0d1322 0%, #0a0d18 44%, #05060a 100%)',
+                                        : 'linear-gradient(180deg, var(--wheel-panel-top, #0d1322) 0%, var(--wheel-panel-bottom, #0a0d18) 44%, #05060a 100%)',
                         // During an event the band glows even at rest, so the
                         // surface looks live rather than only reacting on a spin.
                         boxShadow: state === 'spinning' || isModeSpinning
@@ -1863,7 +1865,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             // this is the deck's material, not a strip wrapped
                             // around content. (Owner: the row itself felt
                             // untouched; added 2026-08-19.)
-                            backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, rgba(148,168,212,0.06) 0%, rgba(148,168,212,0) 42%), linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
+                            backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, rgba(var(--wheel-surface-light, 148,168,212),0.06) 0%, rgba(var(--wheel-surface-light, 148,168,212),0) 42%), linear-gradient(180deg, var(--wheel-panel-top, #0d1322) 0%, var(--wheel-panel-bottom, #0a0d18) 100%)`,
                         }}>
                             {/* Left and right groups each take an equal share of
                                 the slack (`flex: 1 1 0`), which is what keeps the
@@ -1904,8 +1906,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     // The plinth's ground plus SURFACE_NOISE, the
                                     // milled plate's grain — same material as the
                                     // stage flanks and the milestone meter.
-                                    backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
-                                    boxShadow: 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
+                                    backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-control-top, #1b1b28) 0%, var(--wheel-control-bottom, #12121c) 100%)`,
+                                    boxShadow: 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
                                 }}>
                                     {/* Status LEDs + stripe: decoration by
                                         definition — the label carries the state for
@@ -2032,8 +2034,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         width: '28px',
                                         height: '28px',
                                         borderRadius: '50%',
-                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
-                                        boxShadow: 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
+                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-control-top, #1b1b28) 0%, var(--wheel-control-bottom, #12121c) 100%)`,
+                                        boxShadow: 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
                                         color: COLORS.textMuted,
                                         fontSize: '14px',
                                         fontWeight: '600',
@@ -2045,11 +2047,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     }}
                                     onMouseEnter={e => {
                                         e.currentTarget.style.color = COLORS.aqua;
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.14), inset 0 0 18px rgba(85,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.14), inset 0 0 18px rgba(85,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                     }}
                                     onMouseLeave={e => {
                                         e.currentTarget.style.color = COLORS.textMuted;
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                     }}
                                     title="How drop rates work"
                                 >
@@ -2074,18 +2076,18 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     <button onClick={respin} style={{
                                         padding: '8px 14px',
                                         borderRadius: 0,
-                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
-                                        boxShadow: 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
+                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-control-top, #1b1b28) 0%, var(--wheel-control-bottom, #12121c) 100%)`,
+                                        boxShadow: 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
                                         color: COLORS.textMuted, fontSize: '13px', cursor: 'pointer',
                                         transition: 'all 0.15s'
                                     }}
                                             onMouseEnter={e => {
                                                 e.currentTarget.style.color = COLORS.text;
-                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.14), inset 0 0 18px rgba(255,183,94,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.14), inset 0 0 18px rgba(255,183,94,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                             }}
                                             onMouseLeave={e => {
                                                 e.currentTarget.style.color = COLORS.textMuted;
-                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                             }}
                                     >Try Again</button>
                                 )}
@@ -2151,7 +2153,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     without each re-drawing it. */}
                                 <div style={{
                                     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                                    background: 'radial-gradient(ellipse 76% 50% at 50% 84%, rgba(255,183,94,0.05) 0%, rgba(206,214,236,0.02) 40%, transparent 68%)',
+                                    background: 'radial-gradient(ellipse 76% 50% at 50% 84%, rgba(255,183,94,0.05) 0%, rgba(var(--wheel-surface-light, 206,214,236),0.02) 40%, transparent 68%)',
                                     zIndex: 3,
                                     pointerEvents: 'none',
                                 }} />
@@ -2636,7 +2638,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         gridRow: 5,
                         gridColumn: stageColumn,
                         minHeight: 0,
-                        overflowY: 'auto',
+                        // The oversized Parlour tabletop is scenery, not scrollable content.
+                        overflowY: parlourOwnsReel ? 'hidden' : 'auto',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -2649,7 +2652,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // it, and the result still reads as sitting under the reel
                         // because that is where it starts.
                         justifyContent: 'flex-start',
-                        paddingTop: `${SPACE.md}px`,
+                        paddingTop: parlourOwnsReel ? '8px' : `${SPACE.md}px`,
                         zIndex: Z.content,
                         // On a phone the stage is a fixed-height apron under the
                         // shaft rather than the page's leftover space: the shaft

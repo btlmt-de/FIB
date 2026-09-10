@@ -911,7 +911,9 @@ function WheelOfFortunePage({ onBack }) {
             // scrolls, which it is already set up to do.
             gridTemplateRows: isMobile
                 ? 'auto auto auto minmax(0, 1fr)'
-                : 'auto auto 0.34fr auto minmax(350px, 1fr)',
+                : roulette
+                    ? 'auto auto 0.22fr auto minmax(0, 1fr)'
+                    : 'auto auto 0.34fr auto minmax(350px, 1fr)',
             gridTemplateColumns: 'minmax(0, 1fr)',
             // Room for the fixed bottom bar, plus the home indicator under it. The
             // bar is `position: fixed` so it reserves no layout space of its own,
@@ -922,6 +924,13 @@ function WheelOfFortunePage({ onBack }) {
             background: COLORS.bg,
             color: COLORS.text,
             fontFamily: "'Segoe UI', system-ui, sans-serif",
+            // The event changes the furniture's material as well as the room.
+            // Unset variables restore each surface's usual blue-hour palette.
+            '--wheel-panel-top': roulette ? '#310a12' : undefined,
+            '--wheel-panel-bottom': roulette ? '#19050b' : undefined,
+            '--wheel-control-top': roulette ? '#3b131b' : undefined,
+            '--wheel-control-bottom': roulette ? '#230a11' : undefined,
+            '--wheel-surface-light': roulette ? '225,126,111' : undefined,
             position: 'relative',
             overflow: 'hidden',
             boxSizing: 'border-box',

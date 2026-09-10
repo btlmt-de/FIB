@@ -58,10 +58,9 @@ import React, { useEffect, useRef } from 'react';
 import { ITEM_WIDTH, STRIP_HEIGHT } from '../../../config/constants.js';
 import { MOBILE_ROW_PITCH } from './CanvasSpinningStrip.jsx';
 import { prefersReducedMotion } from '../../../utils/motion.js';
-import { COLORS } from '../config/constants';
 import {
     T_TURN, T_SPIN, T_LAND, T_REVEAL, T_FALL, T_END, TURN_FLIP_S,
-    COLOURS, BRASS, CRIMSON_DEEP, spinPhase,
+    CRIMSON_DEEP, spinPhase,
 } from '../effects/rouletteTimeline.js';
 
 /** How fast the idle ring drifts while bets are being taken, in px/s. */
@@ -367,7 +366,6 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
 
                 const idx = ((slot % n) + n) % n;
                 const pocket = RING[idx];
-                const colour = COLOURS[pocket.colour] || COLOURS.black;
 
                 const turn = motionOff ? 1 : turnAmount(t, s, slots);
                 if (turn <= 0.004) continue;
@@ -383,7 +381,7 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                 const depth = c1 - c0;
 
                 const isWinner = landed && idx === winner;
-                if (isWinner) winnerCentre = (xL + xR) / 2;
+                if (isWinner && slot === selected) winnerCentre = (xL + xR) / 2;
                 if (slot === selected) selectedEdges = [xL, xR, c0, c1];
 
                 /* the pocket's face
@@ -398,20 +396,20 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                  * would be a gap between two red ones. */
                 const face = acrossGrad(c0, c1);
                 if (pocket.colour === 'green') {
-                    face.addColorStop(0, '#062A1D');
-                    face.addColorStop(0.32, '#22BE80');
-                    face.addColorStop(0.60, colour.hex);
-                    face.addColorStop(1, '#03170F');
+                    face.addColorStop(0, '#0B211A');
+                    face.addColorStop(0.32, '#245540');
+                    face.addColorStop(0.70, '#1A4231');
+                    face.addColorStop(1, '#0B231C');
                 } else if (pocket.colour === 'red') {
-                    face.addColorStop(0, '#4A0810');
-                    face.addColorStop(0.32, '#E23342');
-                    face.addColorStop(0.60, colour.hex);
-                    face.addColorStop(1, '#2C050B');
+                    face.addColorStop(0, '#36101A');
+                    face.addColorStop(0.32, '#842B37');
+                    face.addColorStop(0.70, '#69202D');
+                    face.addColorStop(1, '#38121C');
                 } else {
-                    face.addColorStop(0, '#07080D');
-                    face.addColorStop(0.32, '#333B4C');
-                    face.addColorStop(0.60, colour.hex);
-                    face.addColorStop(1, '#030408');
+                    face.addColorStop(0, '#151215');
+                    face.addColorStop(0.32, '#383034');
+                    face.addColorStop(0.70, '#292327');
+                    face.addColorStop(1, '#171317');
                 }
                 ctx.fillStyle = face;
                 box(xL, xR, c0, c1);
@@ -431,7 +429,7 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                 box(xL, xR, c1 - depth * 0.22, c1);
 
                 /*
-                 * Lacquer. The highlight sits where the lamp is — so it slides
+                 * Soft material light sits where the lamp is — so it slides
                  * across the face as a pocket travels past the middle of the
                  * band, rather than every pocket carrying an identical stripe.
                  * That is the difference between a lit surface and a texture.
@@ -440,30 +438,35 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                 const gloss = alongGrad(xL, xR);
                 const peak = clamp01(0.5 - u * 0.42);
                 gloss.addColorStop(0, 'rgba(255,255,255,0)');
-                gloss.addColorStop(Math.max(0.02, Math.min(0.98, peak)), `rgba(255,255,255,${0.16 * (1 - Math.abs(u) * 0.6)})`);
+                gloss.addColorStop(Math.max(0.02, Math.min(0.98, peak)), `rgba(222,190,146,${0.055 * (1 - Math.abs(u) * 0.6)})`);
                 gloss.addColorStop(1, 'rgba(255,255,255,0)');
                 ctx.fillStyle = gloss;
-                box(xL, xR, c0 + depth * 0.16, c0 + depth * 0.52);
+                box(xL, xR, c0, c1);
 
                 /* the fret, with a lit face and a dark one */
-                const fw = Math.max(1, Math.min(3, w * 0.028));
+                const fw = Math.max(2, Math.min(5, w * 0.045));
                 ctx.fillStyle = `rgba(0,0,0,0.72)`;
                 box(xL - fw, xL, c0, c1);
-                ctx.fillStyle = `${BRASS}${Math.round((0.55 - fast * 0.35) * 255).toString(16).padStart(2, '0')}`;
+                const fret = alongGrad(xL, xL + fw);
+                fret.addColorStop(0, '#3B291D');
+                fret.addColorStop(0.30, '#B19769');
+                fret.addColorStop(0.55, '#7C6240');
+                fret.addColorStop(1, '#38271C');
+                ctx.fillStyle = fret;
                 box(xL, xL + fw, c0, c1);
 
-                if (isWinner) {
+                if (isWinner && slot === selected) {
                     const age = t - T_REVEAL;
                     const pulse = 0.5 + 0.5 * Math.exp(-age * 1.1);
                     const lift = acrossGrad(c0, c1);
-                    lift.addColorStop(0, `rgba(255,255,255,${0.30 * pulse})`);
-                    lift.addColorStop(0.5, `rgba(255,255,255,${0.10 * pulse})`);
-                    lift.addColorStop(1, `rgba(255,255,255,${0.24 * pulse})`);
+                    lift.addColorStop(0, `rgba(236,205,154,${0.18 * pulse})`);
+                    lift.addColorStop(0.5, `rgba(236,205,154,${0.06 * pulse})`);
+                    lift.addColorStop(1, `rgba(236,205,154,${0.10 * pulse})`);
                     ctx.fillStyle = lift;
                     box(xL, xR, c0, c1);
 
-                    ctx.strokeStyle = BRASS;
-                    ctx.lineWidth = 2.5;
+                    ctx.strokeStyle = '#BEA06D';
+                    ctx.lineWidth = 1.5;
                     ctx.strokeRect(...(phone
                         ? [c0 + 1.25, xL + 1.25, depth - 2.5, w - 2.5]
                         : [xL + 1.25, c0 + 1.25, w - 2.5, depth - 2.5]));
@@ -477,14 +480,14 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                  */
                 const legible = (1 - fast) * clamp01((turn - 0.5) / 0.5);
                 if (legible > 0.03 && w > 14) {
-                    const fontPx = Math.round(Math.min(pitch, across) * 0.40 * Math.min(1, w / pitch + 0.35));
-                    ctx.font = `800 ${fontPx}px 'Barlow', system-ui, sans-serif`;
+                    const fontPx = Math.round(Math.min(pitch, across) * 0.38 * Math.min(1, w / pitch + 0.35));
+                    ctx.font = `bold ${fontPx}px Georgia, 'Times New Roman', serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.globalAlpha = legible * (1 - Math.abs(u) * 0.45);
-                    ctx.fillStyle = isWinner
-                        ? '#FFFFFF'
-                        : (pocket.colour === 'black' ? COLORS.neutralInk : 'rgba(255,255,255,0.94)');
+                    ctx.fillStyle = '#100B0D';
+                    ctx.fillText(pocket.n, ...at((xL + xR) / 2, across * 0.52 + 1.5));
+                    ctx.fillStyle = isWinner && slot === selected ? '#F6E6C9' : '#DECCAC';
                     ctx.fillText(pocket.n, ...at((xL + xR) / 2, across * 0.52));
                     ctx.globalAlpha = 1;
                 }
@@ -496,7 +499,7 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
                 const pulse = 0.42 + 0.34 * Math.exp(-age * 1.1);
                 const spill = alongGrad(winnerCentre - pitch * 2.2, winnerCentre + pitch * 2.2);
                 spill.addColorStop(0, 'rgba(255,255,255,0)');
-                spill.addColorStop(0.5, `rgba(255,255,255,${0.13 * pulse})`);
+                spill.addColorStop(0.5, `rgba(229,190,127,${0.05 * pulse})`);
                 spill.addColorStop(1, 'rgba(255,255,255,0)');
                 ctx.fillStyle = spill;
                 box(winnerCentre - pitch * 2.2, winnerCentre + pitch * 2.2, 0, across);
@@ -514,13 +517,28 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
             }
 
             /* ── the wheel's rails, top and bottom of the band ───────────── */
-            const rail = alongGrad(0, along);
-            rail.addColorStop(0, `${BRASS}00`);
-            rail.addColorStop(0.5, `${BRASS}88`);
-            rail.addColorStop(1, `${BRASS}00`);
-            ctx.fillStyle = rail;
-            box(0, along, 0, 1.5);
-            box(0, along, across - 2, across);
+            // Fixed housing: a substantial upper lip, its cast shadow, and
+            // a lower brass sill. The same construction frames the phone shaft.
+            const lip = Math.min(12, across * 0.075);
+            const housing = acrossGrad(0, lip);
+            housing.addColorStop(0, '#493029');
+            housing.addColorStop(0.25, '#2D1C1B');
+            housing.addColorStop(0.82, '#190D11');
+            housing.addColorStop(1, '#826647');
+            ctx.fillStyle = housing;
+            box(0, along, 0, lip);
+            const cast = acrossGrad(lip, lip + 17);
+            cast.addColorStop(0, '#080306B0');
+            cast.addColorStop(1, '#08030600');
+            ctx.fillStyle = cast;
+            box(0, along, lip, lip + 17);
+            const sill = acrossGrad(across - lip, across);
+            sill.addColorStop(0, '#B2986B');
+            sill.addColorStop(0.12, '#5D4632');
+            sill.addColorStop(0.45, '#291A18');
+            sill.addColorStop(1, '#130A0E');
+            ctx.fillStyle = sill;
+            box(0, along, across - lip, across);
 
             /* ── the ends fall off into the dark, the way the reel's do ────
              *
@@ -549,25 +567,25 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
              * only the pointer and the bracket arrives with the deceleration,
              * snapping slot to slot like a wheel ticking past a pin.
              */
-            const bracket = motionOff ? 1 : (1 - fast);
+            const bracket = (motionOff ? 1 : (1 - fast)) * (landed ? 1 : 0.45);
             if (selectedEdges && bracket > 0.02) {
                 const [sxL, sxR, sc0, sc1] = selectedEdges;
                 ctx.save();
                 ctx.globalAlpha = bracket;
 
                 // The pocket's own two edges, lit.
-                ctx.fillStyle = BRASS;
-                box(sxL - 1.5, sxL + 1.5, sc0, sc1);
-                box(sxR - 1.5, sxR + 1.5, sc0, sc1);
+                ctx.fillStyle = '#AF9060';
+                box(sxL, sxL + 1, sc0 + lip, sc1 - lip);
+                box(sxR - 1, sxR, sc0 + lip, sc1 - lip);
 
                 // Corner claws, so the frame reads as a bracket rather than as
                 // two more frets among twelve.
                 const claw = Math.min(18, (sxR - sxL) * 0.28);
-                ctx.fillStyle = '#FFFFFF';
-                box(sxL - 1.5, sxL + claw, sc0, sc0 + 2.5);
-                box(sxR - claw, sxR + 1.5, sc0, sc0 + 2.5);
-                box(sxL - 1.5, sxL + claw, sc1 - 2.5, sc1);
-                box(sxR - claw, sxR + 1.5, sc1 - 2.5, sc1);
+                ctx.fillStyle = '#D1B580';
+                box(sxL, sxL + claw, sc0 + lip, sc0 + lip + 2);
+                box(sxR - claw, sxR, sc0 + lip, sc0 + lip + 2);
+                box(sxL, sxL + claw, sc1 - lip - 2, sc1 - lip);
+                box(sxR - claw, sxR, sc1 - lip - 2, sc1 - lip);
                 ctx.restore();
             }
 
@@ -575,22 +593,25 @@ export function CanvasRouletteStrip({ pockets, pocketIndex, clock, isMobile = fa
              * The pointer. Deliberately small now — the bracket says which
              * pocket, so this only has to say where the pin is.
              */
-            const tip = 8;
-            ctx.fillStyle = BRASS;
+            const tip = 7;
+            const pin = alongGrad(centre - tip, centre + tip);
+            pin.addColorStop(0, '#6D4E30');
+            pin.addColorStop(0.45, '#E0C494');
+            pin.addColorStop(1, '#8F7047');
+            ctx.fillStyle = pin;
+            ctx.shadowColor = '#080206CC';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetY = 2;
             ctx.beginPath();
-            if (phone) {
-                ctx.moveTo(0, centre - tip); ctx.lineTo(0, centre + tip); ctx.lineTo(tip, centre);
-                ctx.closePath(); ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(across, centre - tip); ctx.lineTo(across, centre + tip); ctx.lineTo(across - tip, centre);
-            } else {
-                ctx.moveTo(centre - tip, 0); ctx.lineTo(centre + tip, 0); ctx.lineTo(centre, tip);
-                ctx.closePath(); ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(centre - tip, across); ctx.lineTo(centre + tip, across); ctx.lineTo(centre, across - tip);
-            }
+            ctx.moveTo(...at(centre - tip, 2));
+            ctx.lineTo(...at(centre + tip, 2));
+            ctx.lineTo(...at(centre + tip, lip - 1));
+            ctx.lineTo(...at(centre, lip + 10));
+            ctx.lineTo(...at(centre - tip, lip - 1));
             ctx.closePath();
             ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
         };
 
         if (motionOff) {

@@ -803,133 +803,134 @@ html[data-saver="on"] *::after {
  * one ground here the blue hour is genuinely opposite to, so the city stays
  * visible through it instead of merging with it.
  *
- * Still a wash and not a fill, for the original reason: §8's whole surface is
- * that city, and a flat colour would bury the skyline and the viaduct.
+ * An opaque burgundy ground keeps the city's blue out of the casino palette.
+ * A soft vignette and the moving props supply the room's depth.
  */
 .fib-parlour-floor {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(140% 100% at 50% 44%,
-      rgba(142, 22, 34, 0.62) 0%,
-      rgba(90, 12, 21, 0.80) 44%,
-      rgba(28, 4, 7, 0.95) 100%);
+    radial-gradient(ellipse at 50% 88%, #65121b 0%, transparent 58%),
+    radial-gradient(ellipse at 33% 28%, #57101a 0%, #2b060c 58%, #170308 100%);
 }
 
-/*
- * The carpet, at grazing angles.
- *
- * A casino floor is patterned, not plain, and the reason it looks like one on
- * camera is a fine repeat catching the light. Two opposing diagonals give the
- * pile its nap; a coarser diamond lattice over them is the pattern itself, at
- * an opacity where you cannot see it as a motif — only that the red is woven.
- * Under the lamp it reads as carpet; at the edges the walls swallow it, which
- * is correct.
- */
-.fib-parlour-weave {
-  position: absolute;
-  inset: 0;
-  opacity: 0.55;
-  background-image:
-    repeating-linear-gradient(45deg, rgba(255, 214, 170, 0.020) 0 1px, transparent 1px 3px),
-    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.060) 0 1px, transparent 1px 3px),
-    repeating-linear-gradient(63deg, rgba(201, 162, 39, 0.030) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(-63deg, rgba(201, 162, 39, 0.030) 0 1px, transparent 1px 34px);
-  mask-image: radial-gradient(72% 62% at 50% 46%, #000 0%, transparent 100%);
-  -webkit-mask-image: radial-gradient(72% 62% at 50% 46%, #000 0%, transparent 100%);
+.fib-parlour-caption {
+  margin: 0 0 5px;
+  text-align: center;
+  color: #efd064;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+.fib-parlour-caption span { color: #c5a39a; }
+
+/* The settlement keeps one clear payout beneath the reel. */
+.fib-parlour-result-tray {
+  position: relative;
+  isolation: isolate;
+  flex-shrink: 1;
+}
+.fib-parlour-settlement {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #b08b5555;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #3c151cee, #1f080fee 65%);
+  box-shadow: inset 0 1px 0 #f1cd9922, 0 4px 16px #10020566;
+  animation: fib-parlour-settle-in 360ms ease-out both;
+}
+.fib-parlour-result-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 18px;
+  flex-shrink: 0;
+}
+.fib-parlour-winning-pocket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 0 0 68px;
+  height: 76px;
+  border: 1px solid #c5a57499;
+  border-radius: 7px;
+  background: linear-gradient(160deg, #ffffff0d, #00000055), var(--pocket);
+  box-shadow: inset 0 0 0 3px #14070955, 0 3px 0 #110409;
+}
+.fib-parlour-winning-pocket strong { font: 800 32px/1.1 Georgia, serif; color: #f5e6cd; }
+.fib-parlour-winning-pocket span { font-size: 9px; font-weight: 800; letter-spacing: 0.1em; color: #f5e6cd; }
+.fib-parlour-award { min-width: 0; }
+.fib-parlour-result-caption { font-size: 12px; font-weight: 700; color: #dac2b5; }
+.fib-parlour-award-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; margin: 3px 0; }
+.fib-parlour-award-value strong { font-size: clamp(26px, 3vw, 36px); line-height: 1.1; color: #f1dfc3; font-variant-numeric: tabular-nums; }
+.fib-parlour-award-value span { font-size: 12px; color: #d3b8a9; }
+.fib-parlour-award-value .fib-parlour-public-result { font-size: 23px; }
+.fib-parlour-settlement[data-outcome='hit'] .fib-parlour-award-value strong { color: #edce79; text-shadow: 0 0 22px #b88c3033; }
+.fib-parlour-settlement[data-outcome='loss'] .fib-parlour-award-value strong { color: #c9afa7; }
+.fib-parlour-result-note { font-size: 11px; line-height: 1.4; color: #bfa197; }
+.fib-parlour-payout-heading,
+.fib-parlour-payout-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #c2a398;
+  border-top: 1px solid #c79d6826;
+}
+.fib-parlour-payout-list {
+  min-height: 0;
+  max-height: 152px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #785146 #240910;
+  pointer-events: auto;
+}
+.fib-parlour-payout-list:focus-visible { outline: 2px solid #e0c766; outline-offset: -2px; }
+.fib-parlour-payout-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto minmax(38px, auto);
+  align-items: center;
+  gap: 9px;
+  padding: 6px 14px;
+  border-top: 1px solid #d6b9990b;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+.fib-parlour-payout-row[data-shown='true'] { opacity: 1; transform: none; }
+.fib-parlour-payout-row[data-outcome='hit'] { background: linear-gradient(90deg, #d6ab4212, transparent); }
+.fib-parlour-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; color: #edddce; }
+.fib-parlour-player-bet { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
+.fib-parlour-player-payout { text-align: right; font-size: 13px; color: #d2b9aa; font-variant-numeric: tabular-nums; }
+.fib-parlour-payout-row[data-outcome='hit'] .fib-parlour-player-payout { color: #edce79; }
+.fib-parlour-payout-row[data-outcome='loss'] .fib-parlour-player-payout { color: #a68b83; }
+.fib-parlour-payout-total strong { font-size: 11px; letter-spacing: 0; color: #e2c594; font-variant-numeric: tabular-nums; }
+.fib-parlour-payout-empty { padding: 12px 14px; font-size: 12px; color: #c2a398; }
+@keyframes fib-parlour-settle-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 899px) {
+  .fib-parlour-result-hero { padding: 12px; gap: 12px; }
+  .fib-parlour-winning-pocket { flex-basis: 56px; height: 66px; }
+  .fib-parlour-payout-list { max-height: 114px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fib-parlour-settlement { animation: none; }
+  .fib-parlour-payout-row { transition: none; transform: none; }
 }
 
-/*
- * The lamp over the table, hung low.
- *
- * Centred on the reel band rather than on the viewport, because the band is
- * where the wheel is and a parlour's light is over its table. This is what makes
- * the middle of the page the brightest thing in the room, which is the whole
- * composition: everything else falls away from the felt under the lamp.
- */
-.fib-parlour-lamp {
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  width: min(1500px, 120vw);
-  height: min(760px, 92vh);
-  transform: translate(-50%, -50%);
-  /* Brass over a warm crimson bounce. The second stop used to be the baize
-     green and is the floor's own lit value now — it is the light coming back
-     UP off the carpet, so it has to be the carpet's colour or the pool under
-     the lamp reads as a different room from the one around it. */
-  background:
-    radial-gradient(closest-side, rgba(201, 162, 39, 0.20) 0%, rgba(201, 162, 39, 0.09) 38%, rgba(201, 162, 39, 0) 72%),
-    radial-gradient(closest-side, rgba(199, 47, 62, 0.20) 0%, rgba(199, 47, 62, 0) 66%);
-  filter: blur(2px);
-  animation: fib-parlour-lamp-breathe 7s ease-in-out infinite;
-}
-
-/* A hand's width of movement, over seven seconds. A lamp on a chain is never
-   quite still, and this is the amount that reads as "not still" rather than as
-   "moving". */
-@keyframes fib-parlour-lamp-breathe {
-  0%, 100% { opacity: 0.86; transform: translate(-50%, -50%) scale(1); }
-  50%      { opacity: 1;    transform: translate(-50%, -51%) scale(1.035); }
-}
-
-/*
- * Two slow shafts crossing the felt. They stop the ground reading as a flat
- * colour, and they travel slowly enough that what you notice is that the room is
- * lit, not that something is animating.
- */
-.fib-parlour-shaft {
-  position: absolute;
-  top: -30%;
-  width: 42vw;
-  height: 160%;
-  background: linear-gradient(90deg, rgba(201, 162, 39, 0) 0%, rgba(201, 162, 39, 0.055) 50%, rgba(201, 162, 39, 0) 100%);
-  transform: rotate(14deg);
-  will-change: transform;
-}
-.fib-parlour-shaft.is-a { left: -20%; animation: fib-parlour-shaft-a 23s ease-in-out infinite; }
-.fib-parlour-shaft.is-b { right: -20%; animation: fib-parlour-shaft-b 31s ease-in-out infinite; }
-
-@keyframes fib-parlour-shaft-a {
-  0%, 100% { transform: rotate(14deg) translateX(0); }
-  50%      { transform: rotate(14deg) translateX(28vw); }
-}
-@keyframes fib-parlour-shaft-b {
-  0%, 100% { transform: rotate(-11deg) translateX(0); }
-  50%      { transform: rotate(-11deg) translateX(-24vw); }
-}
-
-/* Dust in the lamplight. Twelve divs, seeded once — see the note in
-   ParlourAtmosphere.jsx for why this is not a particle system. */
-.fib-parlour-mote {
-  position: absolute;
-  border-radius: 50%;
-  /* Card ivory, not a third warm near-white. Dust in this room is lit by one
-     lamp and made of the same stock as the deck falling through it; the mote
-     had its own hand-picked cream from before the room had a palette. */
-  background: rgba(239, 226, 198, 0.55);
-  box-shadow: 0 0 6px rgba(201, 162, 39, 0.5);
-  animation-name: fib-parlour-mote-rise;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform, opacity;
-}
-
-@keyframes fib-parlour-mote-rise {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  12%  { opacity: 0.7; }
-  80%  { opacity: 0.5; }
-  100% { transform: translate(var(--drift), -40vh); opacity: 0; }
-}
-
-/*
- * The walls. Last, so it darkens the lamp's own spill, the carpet, and every
- * card the deck drops through the corners of the room.
- *
- * Two stops rather than one: a crimson-black before the true black, so the
- * corners fall away into the room's own colour instead of into a grey that
- * belongs to no surface here.
- */
+/* A soft vignette gives the plain gradient depth. */
 .fib-parlour-walls {
   position: absolute;
   inset: 0;
@@ -973,6 +974,19 @@ html[data-saver="on"] *::after {
  * instead. One `shade()` beside `COLOURS` keeps the ramp with the palette that
  * owns it, and every step is then a plain rgb() that cannot fail to parse.
  */
+.fib-parlour-bet-tray {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 7px;
+  border: 1px solid #a17a4b55;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #35151a, #1b080e);
+  box-shadow: inset 0 1px 0 #f0c78b22, 0 3px 0 #16070a, 0 7px 16px #10020566;
+}
+
 .fib-parlour-plaque {
   position: relative;
   flex: 1 1 0;
@@ -980,6 +994,8 @@ html[data-saver="on"] *::after {
   padding: 0;
   border: 0;
   background: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 3px #07020499;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -991,21 +1007,18 @@ html[data-saver="on"] *::after {
     opacity 160ms ease;
 }
 
-/* The chamfer, once. Both layers wear it, so the metal edge follows the
-   corner cuts instead of a rectangle poking out behind them. */
+/* Rounded chip trays, with a thin rim in the colour of the bet. */
 .fib-parlour-plaque-edge,
 .fib-parlour-plaque-face {
   position: absolute;
   inset: 0;
-  clip-path: polygon(
-    11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px),
-    calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px);
+  border-radius: 9px;
 }
 
-/* The milled edge. A real bevel: lit along the top, dark along the bottom. */
+/* The rim catches the light at the top and falls into shadow below. */
 .fib-parlour-plaque-edge {
-  background: linear-gradient(160deg, #F0D98A 0%, #C9A227 26%, #7A5F14 62%, #4A3A0E 100%);
-  opacity: 0.55;
+  background: linear-gradient(160deg, #ba9564 0%, #795b3e 48%, #39251d 100%);
+  opacity: 1;
   transition: opacity 200ms ease;
 }
 
@@ -1029,7 +1042,7 @@ html[data-saver="on"] *::after {
 .fib-parlour-plaque-face {
   inset: 2px;
   background: linear-gradient(180deg,
-    var(--c-top) 0%, var(--c-top) 30%, var(--c) 62%, var(--c-lo) 100%);
+    var(--c-lo) 0%, var(--c-top) 40%, var(--c-lo) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.20),
     inset 0 -10px 18px -10px rgba(0, 0, 0, 0.75);
@@ -1037,8 +1050,25 @@ html[data-saver="on"] *::after {
 
 .fib-parlour-plaque-body {
   position: relative;
-  display: block;
-  padding: 11px 8px 9px;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  column-gap: 7px;
+  align-items: center;
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 10px 10px 7px;
+}
+
+.fib-parlour-bet-chip {
+  grid-row: 1 / 3;
+  width: 24px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 1px solid #efd8ab99;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--c) 0 49%, transparent 51%),
+    repeating-conic-gradient(var(--c) 0deg 35deg, #d8c4a3 35deg 60deg);
+  box-shadow: 0 2px 0 #10070a, inset 0 0 0 3px #16080b33;
 }
 
 .fib-parlour-plaque-label {
@@ -1053,6 +1083,7 @@ html[data-saver="on"] *::after {
 /* The denomination, in the room's metal. Every plaque in a house wears the
    same brass here — it is the house's number, not the colour's. */
 .fib-parlour-plaque-odds {
+  grid-column: 2;
   display: block;
   margin-top: 2px;
   font-weight: 700;
@@ -1103,10 +1134,23 @@ html[data-saver="on"] *::after {
    the glow follows the corner cuts instead of being a rectangle behind an
    octagon — or, as a box shadow, nothing at all. */
 .fib-parlour-plaque[data-chosen='true'] {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   filter:
     drop-shadow(0 0 2px rgba(224, 199, 102, 0.75))
     drop-shadow(0 8px 18px var(--c-glow));
+}
+.fib-parlour-plaque[data-chosen='true']::after {
+  content: '✓';
+  position: absolute;
+  top: -5px;
+  right: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #e0c766;
+  color: #23100b;
+  font: 900 11px/16px system-ui;
+  text-align: center;
 }
 .fib-parlour-plaque[data-chosen='true'] .fib-parlour-plaque-edge { opacity: 1; }
 .fib-parlour-plaque[data-chosen='true'] .fib-parlour-plaque-face {
@@ -1180,11 +1224,11 @@ html[data-saver="on"] *::after {
 @media (max-width: 899px) {
   .fib-parlour-plaque-edge,
   .fib-parlour-plaque-face {
-    clip-path: polygon(
-      8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px),
-      calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+    border-radius: 7px;
   }
-  .fib-parlour-plaque-body { padding: 9px 5px 8px; }
+  .fib-parlour-plaque-body { padding: 9px 6px 7px; grid-template-columns: 20px 1fr; column-gap: 4px; }
+  .fib-parlour-bet-chip { width: 19px; height: 19px; }
+  .fib-parlour-bet-tray { padding: 5px; gap: 6px; }
   .fib-parlour-plaque-label { font-size: 13px; letter-spacing: 0.07em; }
   .fib-parlour-plaque-odds { font-size: 10px; letter-spacing: 0.10em; }
   .fib-parlour-rule { max-width: 220px; }
@@ -1203,10 +1247,6 @@ html[data-saver="on"] *::after {
 @media (prefers-reduced-motion: reduce) {
   /* The room stays — it is the event's identity, and losing it would lose what
      the surface is telling you. Only the movement stops. */
-  .fib-parlour-lamp,
-  .fib-parlour-shaft,
-  .fib-parlour-mote { animation: none; }
-  .fib-parlour-mote { opacity: 0.45; }
   /* The plaques keep their states and lose the travel: a lift of three pixels
      is not a vestibular problem, but it is also not what tells you the plaque
      is chosen — the metal is. */

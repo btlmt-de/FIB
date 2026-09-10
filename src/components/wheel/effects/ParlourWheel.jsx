@@ -253,8 +253,8 @@ function ParlourWheel({ openedAt }) {
              * had to already know was there. The corner is a small budget and
              * spending it on rim rather than on pockets buys nothing.
              */
-            canvas.style.left = `${-1.04 * R}px`;
-            canvas.style.top = `${-1.00 * R}px`;
+            canvas.style.left = `${-0.43 * R}px`;
+            canvas.style.top = `${90 - 0.10 * R}px`;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             rotor = renderRotor(R, dpr);
         };
@@ -410,9 +410,9 @@ function ParlourWheel({ openedAt }) {
                 inset: 0,
                 overflow: 'hidden',
                 pointerEvents: 'none',
-                opacity: 0.92,
-                maskImage: 'linear-gradient(to bottom, transparent 0, transparent 44px, #000 116px)',
-                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, transparent 44px, #000 116px)',
+                opacity: 0.48,
+                maskImage: 'linear-gradient(to bottom, transparent 44px, #000 116px, #000 32vh, transparent 48vh)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 44px, #000 116px, #000 32vh, transparent 48vh)',
             }}
         >
             <canvas ref={canvasRef} style={{ position: 'absolute', display: 'block' }} />

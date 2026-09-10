@@ -1,51 +1,5 @@
-/*
- * ══════════════════════════════════════════════════════════════════════════
- * THE PARLOUR — the deck in the air
- * ══════════════════════════════════════════════════════════════════════════
- *
- * Cards and chips falling through the room for as long as the table is open:
- * thrown when the slots turn over, drifting while bets are taken, thinning to
- * almost nothing at the call, and showering in the winning colour when the
- * pocket lights.
- *
- * ── THIS OVERTURNS THE MOTES' ARGUMENT, DELIBERATELY ─────────────────────────
- *
- * ParlourAtmosphere's header says the dust is twelve divs on keyframes and not
- * a particle system, because "the air in here is warm and still" is the one
- * visual idea on this page that does not need to be simulated. That was right
- * and it is still right — the motes are still divs.
- *
- * This is a different claim. A card falling is a rigid body tumbling about two
- * axes with its own spin, its own sway and its own parallax, and the whole
- * point of it is the beat it lands on: a surge, a lull, a hush and a shower are
- * four different densities of the same air over forty-five seconds. CSS can do
- * one of those with keyframes; four of them is four sets of keyframes and a
- * state machine deciding which set each element is on, which is a particle
- * system written in a language that cannot subtract.
- *
- * ── AND NOTHING HERE IS INTEGRATED ───────────────────────────────────────────
- *
- * Every piece's position is a function of `t` alone, the way the ring's offset
- * and the corner wheel's angle are, and for the same reason the timeline's
- * header gives: half of this event may be spent in a tab receiving no frames.
- * A field advanced per frame would come back from the background with its
- * whole deck bunched at the top of the screen.
- *
- * The density envelope works the same way, which is what makes the beats
- * survive a backgrounded tab. A piece is not spawned when the room gets busy;
- * every piece falls forever on its own period, and it is DRAWN only if the
- * envelope was above its threshold at the moment it was born — `t − u·period`,
- * which is knowable at any time from any starting point. Nothing pops in,
- * because a piece that would have popped in was never above the screen.
- *
- * ── NO CANVAS SHADOWS ────────────────────────────────────────────────────────
- *
- * DESIGN.md §8 records what `ctx.shadowBlur` cost the reel's lit rim when it
- * was assumed rather than measured. Every shadow here is a second draw of the
- * same path, offset and darkened, inside the transform the piece is already
- * under — one extra fill per piece instead of a full-canvas blur per piece.
- */
-
+/** Floating card stock and clay chips. Motion is sampled from the server clock,
+ * with local-axis tumbling, visible thickness, and offscreen recycling. */
 import React, { memo, useEffect, useRef } from 'react';
 import { prefersCalm } from '../../../config/power.js';
 import { serverNow } from '../../../utils/serverClock.js';
@@ -55,7 +9,7 @@ import { serverNow } from '../../../utils/serverClock.js';
 import { MOBILE_ROW_PITCH } from '../canvas/CanvasSpinningStrip.jsx';
 import {
     T_CALL, T_SPIN, T_REVEAL, T_FALL, T_END,
-    BRASS, CARD_IVORY, COLOURS,
+    CARD_IVORY, COLOURS,
 } from './rouletteTimeline.js';
 
 const TAU = Math.PI * 2;
@@ -152,18 +106,20 @@ function buildPieces(n) {
              * and the field read as noise at a single distance — parallax needs
              * the sizes to be obviously different, not slightly.
              */
-            scale: [0.66, 1.00, 1.46][layer],
-            alpha: [0.40, 0.70, 0.94][layer],
+            scale: [1.05, 1.65, 2.35][layer],
+            // Most of the deck lives in the room's shadows. Larger foreground
+            // pieces catch more light, without becoming bright UI elements.
+            alpha: [0.60, 0.80, 0.94][layer],
             x: rnd(i, 78.233),
             // Near pieces fall faster, which is the parallax.
-            period: (9.5 + rnd(i, 39.425) * 7.0) - layer * 1.9,
+            period: (16 + rnd(i, 39.425) * 9) - layer * 2.2,
             phase: rnd(i, 93.989),
-            sway: 0.6 + rnd(i, 27.135) * 1.7,
-            swayAmp: 0.018 + rnd(i, 15.117) * 0.055,
-            spin: (rnd(i, 51.703) - 0.5) * 0.85,
-            tumble: 0.16 + rnd(i, 64.221) * 0.42,
+            sway: 0.4 + rnd(i, 27.135) * 0.4,
+            swayAmp: 0.008 + rnd(i, 15.117) * 0.016,
+            // One full local-axis turn every 18–28 seconds, in either direction.
+            tumble: (rnd(i, 51.703) < 0.5 ? -1 : 1) / (18 + rnd(i, 61.319) * 10),
             suit: Math.floor(rnd(i, 22.517) * 4),
-            faceUp: rnd(i, 33.311) < 0.58,
+            faceUp: rnd(i, 33.311) < 0.82,
             tone: Math.floor(rnd(i, 44.909) * 3),
             threshold: (i + 0.5) / n,
         };
@@ -219,144 +175,159 @@ function pip(g, suit, r) {
     g.fill();
 }
 
-function drawCard(g, p, s, ink) {
-    const w = 34 * s, h = 48 * s, r = 3.4 * s;
-
-    // The shadow: the same rectangle, offset, under the card. A second fill
-    // rather than a blur — see the header.
-    g.fillStyle = 'rgba(6,1,3,0.38)';
-    roundRect(g, -w / 2 + 2.5 * s, -h / 2 + 3.5 * s, w, h, r);
+/** Ivory stock with a fine cut edge and correctly opposed corner indices. */
+function drawCard(g, p, s, ink, faceUp = p.faceUp) {
+    const w = 36 * s, h = 50.4 * s, r = 2.2 * s;
+    g.fillStyle = '#09020444';
+    roundRect(g, -w / 2 + s, -h / 2 + 2 * s, w, h, r);
     g.fill();
+    g.fillStyle = '#32171A';
+    roundRect(g, -w / 2 + 0.35 * s, -h / 2 + 0.9 * s, w, h, r);
+    g.fill();
+    const stock = g.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+    stock.addColorStop(0, '#A47760');
+    stock.addColorStop(0.30, '#95674F');
+    stock.addColorStop(1, '#694034');
+    g.fillStyle = stock;
+    roundRect(g, -w / 2, -h / 2, w, h, r);
+    g.fill();
+    const cut = g.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+    cut.addColorStop(0, '#C69B7988');
+    cut.addColorStop(0.4, '#8F604A44');
+    cut.addColorStop(1, '#30131BD0');
+    g.strokeStyle = cut;
+    g.lineWidth = 0.6 * s;
+    g.stroke();
 
-    if (p.faceUp) {
-        const face = g.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
-        face.addColorStop(0, '#FFF8E8');
-        face.addColorStop(0.55, CARD_IVORY);
-        face.addColorStop(1, '#CBBB9A');
-        g.fillStyle = face;
-        roundRect(g, -w / 2, -h / 2, w, h, r);
-        g.fill();
-
-        g.fillStyle = ink;
-        g.save();
-        g.translate(0, h * 0.02);
-        pip(g, p.suit, w * 0.30);
-        g.restore();
-
-        // The index corner. Too small to read as a rank at this size, which is
-        // right — a card in the air is a shape and a colour, not a value.
-        g.save();
-        g.translate(-w * 0.32, -h * 0.34);
-        pip(g, p.suit, w * 0.10);
-        g.restore();
-    } else {
-        const back = g.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
-        back.addColorStop(0, '#8A1522');
-        back.addColorStop(0.5, '#61101A');
-        back.addColorStop(1, '#3A070E');
-        g.fillStyle = back;
-        roundRect(g, -w / 2, -h / 2, w, h, r);
-        g.fill();
-
-        g.strokeStyle = `${BRASS}99`;
-        g.lineWidth = Math.max(0.6, 0.9 * s);
-        roundRect(g, -w / 2 + 2.4 * s, -h / 2 + 2.4 * s, w - 4.8 * s, h - 4.8 * s, r * 0.6);
-        g.stroke();
-
-        // A rosette, which is what the site's own card backs carry.
-        g.strokeStyle = `${BRASS}77`;
-        for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * TAU;
-            g.beginPath();
-            g.moveTo(0, 0);
-            g.lineTo(Math.cos(a) * w * 0.24, Math.sin(a) * w * 0.24);
-            g.stroke();
-        }
+    // Sparse, seeded paper fibres stay attached to the stock as it tumbles.
+    for (let k = 0; k < 36; k++) {
+        g.fillStyle = k % 3 === 0 ? '#D1AD7F16' : '#30121A12';
+        g.fillRect((rnd(k, 17.71) - 0.5) * (w - 4 * s),
+            (rnd(k, 31.19) - 0.5) * (h - 4 * s), 0.5 * s, 0.22 * s);
     }
 
-    g.strokeStyle = 'rgba(0,0,0,0.34)';
-    g.lineWidth = Math.max(0.5, 0.7 * s);
-    roundRect(g, -w / 2, -h / 2, w, h, r);
-    g.stroke();
+    if (faceUp) {
+        g.fillStyle = ink;
+        pip(g, p.suit, w * 0.23);
+        for (const angle of [0, Math.PI]) {
+            g.save();
+            g.rotate(angle);
+            g.translate(-w * 0.34, -h * 0.31);
+            g.font = '600 ' + (7.5 * s) + 'px Georgia, serif';
+            g.textAlign = 'center';
+            g.fillText('A', 0, 0);
+            g.translate(0, 5 * s);
+            pip(g, p.suit, 2.4 * s);
+            g.restore();
+        }
+    } else {
+        g.fillStyle = '#45121E';
+        roundRect(g, -w / 2 + 2.4 * s, -h / 2 + 2.4 * s, w - 4.8 * s, h - 4.8 * s, s);
+        g.fill();
+        g.strokeStyle = '#A67B5C';
+        g.lineWidth = 0.35 * s;
+        roundRect(g, -w / 2 + 3.7 * s, -h / 2 + 3.7 * s, w - 7.4 * s, h - 7.4 * s, s);
+        g.stroke();
+        for (const y of [-h * 0.17, h * 0.17]) {
+            for (let k = 0; k < 12; k++) {
+                g.beginPath();
+                g.ellipse(0, y, w * 0.25, w * 0.10, k * Math.PI / 12, 0, TAU);
+                g.stroke();
+            }
+        }
+    }
 }
 
-/** The three clays, plus whatever the winning colour turns out to be. */
 const CHIP_TONES = [
-    { body: '#B4111F', edge: '#F1E3C6', pip: '#7A0A14', hi: '#E4515C' },
-    { body: '#14171F', edge: '#D8D2C2', pip: '#05070C', hi: '#3D4453' },
-    { body: '#EFE2C6', edge: '#B4111F', pip: '#8A7A55', hi: '#FFFBEF' },
+    { body: '#701925', edge: '#B99B76', hi: '#A54140' },
+    { body: '#261C22', edge: '#AA9177', hi: '#514047' },
+    { body: '#83212B', edge: '#C0A180', hi: '#AE5146' },
 ];
 
-function drawChip(g, p, s, squash, tone) {
-    const r = 16 * s;
-    const thick = r * 0.30;
+/** A shallow cylinder: the same eight inlays continue over the face and rim. */
+function drawChip(g, p, s, angle, tone) {
+    const r = 19 * s, halfDepth = 2.25 * s;
+    const tilt = Math.cos(angle), sine = Math.sin(angle);
+    const offset = p.phase * TAU;
+    const point = (a, z) => [Math.cos(a) * r, Math.sin(a) * r * tilt - z * sine];
 
-    // Edge on: the chip is its own rim, and the stripes wrap round it.
-    if (squash < 0.14) {
-        g.fillStyle = 'rgba(6,1,3,0.38)';
-        roundRect(g, -r + 2 * s, -thick / 2 + 3 * s, r * 2, thick, thick * 0.5);
+    // Project the actual cylinder wall around its horizontal diameter. The
+    // edge keeps its thickness at every angle, including exactly edge-on.
+    const segments = 96;
+    for (let k = 0; k < segments; k++) {
+        const a = k * TAU / segments, b = (k + 1) * TAU / segments;
+        const mid = (a + b) / 2;
+        if (Math.sin(mid) * sine <= 0) continue;
+        const phase = frac((mid - offset) / (TAU / 8));
+        g.fillStyle = phase < 0.36 ? tone.edge : tone.body;
+        g.beginPath();
+        const corners = [point(a, halfDepth), point(b, halfDepth), point(b, -halfDepth), point(a, -halfDepth)];
+        corners.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y));
+        g.closePath();
         g.fill();
-        g.fillStyle = tone.body;
-        roundRect(g, -r, -thick / 2, r * 2, thick, thick * 0.5);
+        // A rounded clay edge catches light at the upper left and falls into
+        // shadow underneath. Keep the inlays visible through that shading.
+        const shade = 0.22 + 0.38 * (0.5 + 0.5 * Math.cos(mid - Math.PI / 4));
+        g.fillStyle = `rgba(18, 3, 8, ${shade})`;
         g.fill();
-        g.fillStyle = tone.edge;
-        for (let k = -2; k <= 2; k++) {
-            g.fillRect(k * r * 0.42 - r * 0.07, -thick / 2, r * 0.14, thick);
-        }
-        return;
+        const top = point(a, halfDepth * (tilt >= 0 ? 1 : -1));
+        const topEnd = point(b, halfDepth * (tilt >= 0 ? 1 : -1));
+        g.beginPath();
+        g.moveTo(...top);
+        g.lineTo(...topEnd);
+        g.strokeStyle = '#F5DCCB66';
+        g.lineWidth = 0.55 * s;
+        g.stroke();
     }
 
-    // The shadow is drawn OUTSIDE the squash, in screen space, or a chip near
-    // edge-on divides its own offset by a vanishing number and throws its
-    // shadow across the room.
+    // The visible end cap swaps sides only when its projected area is zero.
+    // Its texture uses the same angles as the wall's inlays.
     g.save();
-    g.fillStyle = 'rgba(6,1,3,0.36)';
-    g.beginPath();
-    g.ellipse(2.5 * s, 3.5 * s, r, r * squash, 0, 0, TAU);
-    g.fill();
-    g.restore();
-
-    g.save();
-    g.scale(1, squash);
-
-    const body = g.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
-    body.addColorStop(0, tone.hi);
-    body.addColorStop(0.5, tone.body);
-    body.addColorStop(1, tone.pip);
-    g.fillStyle = body;
+    g.translate(0, -(tilt >= 0 ? halfDepth : -halfDepth) * sine);
+    g.scale(1, Math.abs(tilt));
+    const faceOffset = tilt >= 0 ? offset : -offset - TAU / 8 * 0.36;
+    const clay = g.createLinearGradient(-r, -r, r, r);
+    clay.addColorStop(0, tone.hi);
+    clay.addColorStop(0.5, tone.body);
+    clay.addColorStop(1, tone.body);
+    g.fillStyle = clay;
     g.beginPath();
     g.arc(0, 0, r, 0, TAU);
     g.fill();
-
-    // Six edge spots — the one detail that makes a disc read as a casino chip.
-    g.strokeStyle = tone.edge;
-    g.lineWidth = r * 0.26;
-    for (let k = 0; k < 6; k++) {
-        const a = (k / 6) * TAU;
+    g.fillStyle = tone.edge;
+    for (let k = 0; k < 8; k++) {
+        const a = faceOffset + k * TAU / 8;
+        const b = a + TAU / 8 * 0.36;
         g.beginPath();
-        g.arc(0, 0, r * 0.87, a - 0.22, a + 0.22);
-        g.stroke();
-    }
-
-    g.fillStyle = tone.pip;
-    g.beginPath();
-    g.arc(0, 0, r * 0.52, 0, TAU);
-    g.fill();
-
-    g.strokeStyle = `${BRASS}AA`;
-    g.lineWidth = Math.max(0.6, r * 0.07);
-    g.beginPath();
-    g.arc(0, 0, r * 0.52, 0, TAU);
-    g.stroke();
-
-    g.restore();
-
-    // The chip's thickness, showing under the face as it tilts.
-    if (squash < 0.86) {
-        g.fillStyle = tone.pip;
-        roundRect(g, -r, r * squash - thick * 0.35, r * 2, thick * (1 - squash) + thick * 0.35, thick * 0.4);
+        g.arc(0, 0, r, a, b);
+        g.arc(0, 0, r * 0.70, b, a, true);
+        g.closePath();
         g.fill();
     }
+    // A simple clay centre leaves the broad ivory edge blocks dominant.
+    const bevel = g.createLinearGradient(-r, -r, r, r);
+    bevel.addColorStop(0, '#D6B18B90');
+    bevel.addColorStop(0.45, '#EBC7BD22');
+    bevel.addColorStop(1, '#21050BD0');
+    g.strokeStyle = bevel;
+    g.lineWidth = 0.85 * s;
+    for (const radius of [0.975, 0.67]) {
+        g.beginPath();
+        g.arc(0, 0, r * radius, 0, TAU);
+        g.stroke();
+    }
+    g.fillStyle = '#260B12';
+    g.beginPath();
+    g.arc(0, 0, r * 0.59, 0, TAU);
+    g.fill();
+    const label = g.createLinearGradient(-r * 0.55, -r * 0.55, r * 0.55, r * 0.55);
+    label.addColorStop(0, tone.body);
+    label.addColorStop(1, tone.hi);
+    g.fillStyle = label;
+    g.beginPath();
+    g.arc(0, 0.35 * s, r * 0.555, 0, TAU);
+    g.fill();
+    g.restore();
 }
 
 function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
@@ -375,7 +346,7 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         // The phone needs fewer because none of them is hidden — see the
         // portal below. The desktop needs more because most of them are.
-        const pieces = buildPieces(isMobile ? 22 : 46);
+        const pieces = buildPieces(isMobile ? 20 : 46).sort((a, b) => a.scale - b.scale);
         let W = 0, H = 0, raf = 0, parked = false;
 
         /*
@@ -405,11 +376,14 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
                 // When the piece left the top of the screen. The envelope is
                 // sampled THERE, not now — see the header.
                 const born = t - u * p.period;
-                if (density(born) < p.threshold) continue;
+                // Pre-deal the room: long-lived props must already be visible
+                // when the event opens, rather than taking a full fall to arrive.
+                if (density(Math.max(0, born)) < p.threshold) continue;
 
-                const y = (-0.20 + u * 1.40) * H;
-                const x = (p.x + Math.sin(u * TAU * p.sway + p.phase * TAU) * p.swayAmp) * W;
-                const s = p.scale * (isMobile ? 0.82 : 1);
+                const margin = 140;
+                const y = -margin + u * (H + margin * 2);
+                const x = (p.x + Math.sin(t * 0.16 * p.sway + p.phase * TAU) * p.swayAmp) * W;
+                const s = p.scale * (isMobile ? 0.52 : 1);
 
                 const showered = Boolean(winner) && showering(t);
 
@@ -442,31 +416,38 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
                 if (clearance <= 0.01) continue;
 
                 ctx.save();
-                ctx.globalAlpha = p.alpha * clearance;
+                const edgeFade = Math.min(clamp01(u / 0.08), clamp01((1 - u) / 0.08));
+                // The same soft light across the room, sampled continuously as
+                // objects drift through it. The margins stay quieter.
+                const roomLight = 0.72 + 0.28 * Math.sin(clamp01(x / W) * Math.PI);
+                ctx.globalAlpha = p.alpha * clearance * edgeFade * roomLight * (isMobile ? 0.65 : 1);
                 ctx.translate(x, y);
-                ctx.rotate(p.phase * TAU + t * p.spin);
+                ctx.rotate((p.phase - 0.5) * 1.2 + 0.12 * Math.sin(t * 0.22 + p.phase * TAU));
+                // Continuous local-axis rotation exposes the face, cut edge,
+                // and reverse in turn as each piece falls through the room.
+                const angle = (t * p.tumble + p.phase) * TAU;
 
                 if (p.chip) {
-                    const squash = Math.abs(Math.cos((t * p.tumble + p.phase) * TAU));
                     const tone = showered
-                        ? { body: COLOURS[winner].hex, edge: CARD_IVORY, pip: '#05070C', hi: COLOURS[winner].ink }
+                        ? { body: COLOURS[winner].hex, edge: CARD_IVORY, hi: COLOURS[winner].ink }
                         : CHIP_TONES[p.tone];
-                    drawChip(ctx, p, s, squash, tone);
+                    drawChip(ctx, p, s, angle, tone);
                 } else {
-                    const tum = Math.cos((t * p.tumble * 0.8 + p.phase) * TAU);
+                    const tum = Math.cos(angle);
+                    const sine = Math.sin(angle);
                     const ink = showered
                         ? (winner === 'black' ? '#14171F' : COLOURS[winner].hex)
                         : SUIT_INK[p.suit];
-                    if (Math.abs(tum) < 0.07) {
-                        // Edge on. A card seen exactly side-on is a bright line,
-                        // and drawing the face squashed to nothing instead is
-                        // what makes cheap confetti look like paper.
-                        ctx.fillStyle = '#D9CBA8';
-                        ctx.fillRect(-1.3 * s, -24 * s, 2.6 * s, 48 * s);
-                    } else {
-                        ctx.scale(tum, 1);
-                        drawCard(ctx, p, s, ink);
-                    }
+                    // A thin card rotating around its long axis. Paint the
+                    // cut edge first, then the visible face at its physical offset.
+                    const halfThickness = 0.32 * s;
+                    const edgeX = -Math.sign(sine) * 18 * s * tum;
+                    ctx.fillStyle = '#3D2020';
+                    ctx.fillRect(edgeX - Math.abs(sine) * halfThickness, -25.2 * s,
+                        Math.abs(sine) * halfThickness * 2, 50.4 * s);
+                    ctx.translate((tum >= 0 ? halfThickness : -halfThickness) * sine, 0);
+                    ctx.scale(Math.abs(tum), 1);
+                    drawCard(ctx, p, s, ink, tum >= 0 ? p.faceUp : !p.faceUp);
                 }
                 ctx.restore();
             }

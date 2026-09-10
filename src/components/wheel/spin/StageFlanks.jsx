@@ -147,10 +147,10 @@ function Panel({ side, label, icon, onClick, actionLabel, children }) {
                     backgroundImage: active
                         // Hover is light, not paint: the street glow's amber rises
                         // through the plinth instead of the slab changing colour.
-                        ? `${SURFACE_NOISE}, linear-gradient(180deg, rgba(255,183,94,0.05), rgba(255,183,94,0) 55%), linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`
-                        : `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
+                        ? `${SURFACE_NOISE}, linear-gradient(180deg, rgba(255,183,94,0.05), rgba(255,183,94,0) 55%), linear-gradient(180deg, var(--wheel-panel-top, #0d1322) 0%, var(--wheel-panel-bottom, #0a0d18) 100%)`
+                        : `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-panel-top, #0d1322) 0%, var(--wheel-panel-bottom, #0a0d18) 100%)`,
                     boxShadow: [
-                        `inset 0 1px 0 rgba(206,214,236,${active ? '0.16' : '0.09'})`,
+                        `inset 0 1px 0 rgba(var(--wheel-surface-light, 206,214,236),${active ? '0.16' : '0.09'})`,
                         `inset 0 -1px 0 ${COLORS.gold}${active ? '66' : '22'}`,
                     ].join(', '),
                     // No lift. The control is seated in the page the same way the
@@ -503,7 +503,7 @@ export function StageFlanks({
                         width: '100%',
                         height: '3px',
                         borderRadius: '999px',
-                        background: 'rgba(206,214,236,0.10)',
+                        background: 'rgba(var(--wheel-surface-light, 206,214,236),0.10)',
                         overflow: 'hidden',
                     }}
                 >
@@ -623,7 +623,7 @@ export function StageFlanks({
                     <span style={{
                         fontSize: '11px',
                         color: COLORS.textMuted,
-                        borderTop: '1px solid rgba(206,214,236,0.08)',
+                        borderTop: '1px solid rgba(var(--wheel-surface-light, 206,214,236),0.08)',
                         paddingTop: '7px',
                     }}>
                         You are <strong style={{ color: COLORS.text, fontWeight: 700 }}>#{myRank}</strong>

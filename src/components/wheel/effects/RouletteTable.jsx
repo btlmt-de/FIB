@@ -36,7 +36,7 @@ import { useSound } from '../../../context/SoundContext.jsx';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { serverNow } from '../../../utils/serverClock.js';
 import {
-    T_TURN, T_CALL, T_REVEAL, COLOURS, BRASS, BRASS_INK, CARD_IVORY, PARLOUR_GREEN_INK,
+    T_TURN, T_CALL, T_REVEAL, COLOURS, BRASS, BRASS_INK, CARD_IVORY,
     seatResolvesAt, totalResolvesAt, shade, glow,
 } from './rouletteTimeline.js';
 
@@ -96,7 +96,7 @@ const tableBox = (isMobile) => (isMobile
     }
     : {
         width: '100%',
-        maxWidth: 640,
+        maxWidth: 510,
         margin: '0 auto',
         padding: '0 22px 18px',
         boxSizing: 'border-box',
@@ -137,8 +137,8 @@ function sortSeats(seats) {
  * reason and its header says so. Desktop stays in the apron, in flow, where the
  * row is its own.
  */
-function Tray({ isMobile, style, children }) {
-    const tray = <div style={{ ...tableBox(isMobile), ...style }}>{children}</div>;
+function Tray({ isMobile, style, className, children }) {
+    const tray = <div className={className} style={{ ...tableBox(isMobile), ...style }}>{children}</div>;
     return isMobile ? createPortal(tray, document.body) : tray;
 }
 
@@ -207,7 +207,7 @@ function BetButton({ colour, multiplier, seats, mine, locked, onPick }) {
             aria-label={`Bet on ${c.label}, pays ${multiplier} times${chosen ? ' — your bet' : ''}`}
             style={{
                 '--c': c.hex,
-                '--c-top': shade(c.hex, -0.30),
+                '--c-top': shade(c.hex, -0.65),
                 '--c-lo': shade(c.hex, -0.45),
                 '--c-glow': glow(c.hex, 0.55),
                 /*
@@ -225,6 +225,7 @@ function BetButton({ colour, multiplier, seats, mine, locked, onPick }) {
             <span className="fib-parlour-plaque-face" aria-hidden="true" />
 
             <span className="fib-parlour-plaque-body">
+                <span className="fib-parlour-bet-chip" aria-hidden="true" />
                 <span className="fib-parlour-plaque-label">{c.label}</span>
                 {/* "PAYS 6×" rather than "6x": the multiplier is the one number
                     on this surface a player has to reason about before the
@@ -233,7 +234,8 @@ function BetButton({ colour, multiplier, seats, mine, locked, onPick }) {
                 <span className="fib-parlour-plaque-odds">PAYS {multiplier}×</span>
 
                 <span style={{
-                    display: 'flex', justifyContent: 'center', minHeight: 20, marginTop: 7,
+                    gridColumn: '1 / -1',
+                    display: 'flex', justifyContent: 'center', minHeight: 20, marginTop: 4,
                     paddingLeft: seats.length ? 8 : 0,
                 }}>
                     {seats.slice(0, 5).map(s => (
@@ -345,115 +347,72 @@ function RouletteTable({
          */
         const mine = payout;
 
+        const totalShown = t >= totalResolvesAt(rows.length);
+        const award = mine?.luckySpinsAwarded;
+        const headline = mine?.outcome === 'hit' ? 'You called it'
+            : mine?.outcome === 'fold' ? 'You sat out'
+                : mine?.outcome === 'loss' ? 'Not this time' : 'The wheel has landed';
+        const amount = Number.isFinite(award) ? award.toLocaleString() : null;
+
         return (
-            <Tray isMobile={isMobile} style={{ pointerEvents: 'none' }}>
-                <div
-                    role="status"
-                    style={{
-                        textAlign: 'center', marginBottom: 10,
-                        fontWeight: 900, letterSpacing: '0.14em',
-                        fontSize: isMobile ? 16 : 20, color: pocket.ink,
-                        textShadow: `0 0 26px ${pocket.hex}`,
-                    }}
-                >
-                    {pocket.label} {result.pocket?.n}
-                    {mine && (
-                        <span style={{
-                            display: 'block', marginTop: 4, fontSize: 12,
-                            letterSpacing: '0.06em', color: COLORS.text, fontWeight: 700,
+            <Tray isMobile={isMobile} className="fib-parlour-result-tray" style={{
+                maxHeight: isMobile ? 'min(52dvh, 360px)' : '100%',
+                minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                paddingBottom: isMobile ? 12 : 8,
+            }}>
+                <div className="fib-parlour-settlement" data-outcome={mine?.outcome || 'spectator'}>
+                    <div className="fib-parlour-result-hero" role="status">
+                        <div className="fib-parlour-winning-pocket" style={{
+                            '--pocket': pocket.hex, '--pocket-ink': pocket.ink,
                         }}>
-                            {mine.outcome === 'hit' && `You called it — ${mine.luckySpinsAwarded} lucky spins`}
-                            {mine.outcome === 'fold' && `You sat out — ${mine.luckySpinsAwarded} lucky spins`}
-                            {/* There is no push. Green takes everything. */}
-                            {mine.outcome === 'loss' && (
-                                result.pocket?.colour === 'green' && mine.bet !== 'green'
-                                    ? 'The house pocket — everything goes'
-                                    : 'Not this time'
-                            )}
-                        </span>
-                    )}
-                </div>
-
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))',
-                    gap: 6,
-                    maxHeight: isMobile ? 150 : 190,
-                    overflowY: 'auto',
-                }}>
-                    {rows.map((r, i) => {
-                        const shown = t >= seatResolvesAt(i, rows.length);
-                        const c = COLOURS[r.bet] || null;
-                        return (
-                            <div
-                                key={r.userId}
-                                /*
-                                 * The rows are the room's material, not the
-                                 * page's.
-                                 *
-                                 * They were `rgba(8,14,24,0.66)` — a blue-black
-                                 * slate, correct when this event was a green
-                                 * baize over the Nocturne and wrong the moment
-                                 * the floor turned crimson: navy slabs on
-                                 * oxblood, at the one beat the whole event
-                                 * builds to. It is the same drift the band's
-                                 * rim had, caught late for the same reason,
-                                 * which is that a colour nobody chose again is
-                                 * a colour nobody looks at again.
-                                 *
-                                 * Crimson ramp and a brass hairline, the
-                                 * construction the plaques already use, so the
-                                 * board is furniture in this room rather than a
-                                 * panel borrowed from another one. The winner's
-                                 * row keeps its own ink on the border, which is
-                                 * the one place the pocket's colour still says
-                                 * something.
-                                 */
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '5px 9px', borderRadius: 9,
-                                    background: 'linear-gradient(180deg, rgba(64,10,18,0.80), rgba(28,4,7,0.88))',
-                                    border: `1px solid ${r.outcome === 'hit' ? `${c?.ink}66` : 'rgba(201,162,39,0.22)'}`,
-                                    opacity: shown ? 1 : 0,
-                                    transform: shown ? 'none' : 'translateY(6px)',
-                                    transition: 'opacity 260ms ease, transform 260ms ease',
-                                }}
-                            >
-                                <Avatar seat={r} size={22} ring={c?.ink} />
-                                <span style={{
-                                    flex: 1, minWidth: 0, overflow: 'hidden',
-                                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    fontSize: 12, fontWeight: 700, color: COLORS.text,
-                                }}>
-                                    {r.username}
-                                </span>
-                                <span style={{
-                                    fontSize: 10, fontWeight: 800,
-                                    color: c ? c.ink : COLORS.neutralInk,
-                                }}>
-                                    {r.bet ? COLOURS[r.bet].label : 'FOLD'}
-                                </span>
-                                <span style={{
-                                    fontSize: 13, fontWeight: 900, minWidth: 34, textAlign: 'right',
-                                    color: r.outcome === 'hit' ? PARLOUR_GREEN_INK
-                                        : r.outcome === 'loss' ? COLORS.textMuted
-                                            : COLORS.text,
-                                }}>
-                                    {r.payout > 0 ? `+${r.payout}` : '—'}
-                                </span>
+                            <strong>{result.pocket?.n ?? '?'}</strong>
+                            <span>{pocket.label}</span>
+                        </div>
+                        <div className="fib-parlour-award">
+                            <div className="fib-parlour-result-caption">{headline}</div>
+                            <div className="fib-parlour-award-value">
+                                {amount !== null ? (
+                                    <><strong>{award > 0 ? '+' : ''}{amount}</strong><span>lucky spins</span></>
+                                ) : <strong className="fib-parlour-public-result">{pocket.label} wins</strong>}
                             </div>
-                        );
-                    })}
-                </div>
-
-                {t >= totalResolvesAt(rows.length) && (
-                    <div style={{
-                        textAlign: 'center', marginTop: 8, fontSize: 11,
-                        letterSpacing: '0.1em', color: COLORS.neutralInk, fontWeight: 700,
-                    }}>
-                        {result.totalPaid} LUCKY SPINS ACROSS {rows.length} SEAT{rows.length === 1 ? '' : 'S'}
+                            <div className="fib-parlour-result-note">
+                                {mine?.outcome === 'hit' ? 'Your colour came in.'
+                                    : mine?.outcome === 'fold' ? 'Your spins stayed with you.'
+                                        : mine?.outcome === 'loss' ? (
+                                            result.pocket?.colour === 'green' && mine.bet !== 'green'
+                                                ? 'The house pocket takes this round.' : 'Your colour did not land.'
+                                        ) : 'The table is settling.'}
+                            </div>
+                        </div>
                     </div>
-                )}
+                    <div className="fib-parlour-payout-heading">
+                        <span>AT THE TABLE</span><span>LUCKY SPINS</span>
+                    </div>
+                    <div className="fib-parlour-payout-list" role="region" aria-label="Player payouts" tabIndex={0}>
+                        {rows.length === 0 && <div className="fib-parlour-payout-empty">No player results this round</div>}
+                        {rows.map((r, i) => {
+                            const shown = t >= seatResolvesAt(i, rows.length);
+                            const c = COLOURS[r.bet];
+                            return (
+                                <div key={r.userId} className="fib-parlour-payout-row"
+                                    data-shown={shown} data-outcome={r.outcome} aria-hidden={!shown}>
+                                    <Avatar seat={r} size={24} ring={c?.ink} />
+                                    <span className="fib-parlour-player-name" title={r.username}>{r.username}</span>
+                                    <span className="fib-parlour-player-bet" style={{ color: c?.ink || '#c6aaa0' }}>
+                                        {c?.label || 'SAT OUT'}
+                                    </span>
+                                    <strong className="fib-parlour-player-payout">
+                                        {r.payout > 0 ? '+' + r.payout.toLocaleString() : '0'}
+                                    </strong>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="fib-parlour-payout-total" aria-live="polite">
+                        <span>{totalShown ? 'TABLE PAID' : 'SETTLING THE TABLE'}</span>
+                        <strong>{totalShown ? (result.totalPaid ?? 0).toLocaleString() + ' lucky spins' : '?'}</strong>
+                    </div>
+                </div>
             </Tray>
         );
     }
@@ -488,6 +447,7 @@ function RouletteTable({
                 band above separates itself with exactly this line, twice, and
                 it is what gives the tray a top edge on a phone. */}
             <div className="fib-parlour-rule" aria-hidden="true" />
+            <div className="fib-parlour-caption">THE PARLOUR <span>· {stake} ON THE TABLE</span></div>
 
             {/* The call. One line, and it changes exactly once. */}
             <div
@@ -519,7 +479,7 @@ function RouletteTable({
                 )}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <div className="fib-parlour-bet-tray">
                 {ORDER.map(colour => (
                     <BetButton
                         key={colour}
@@ -540,6 +500,7 @@ function RouletteTable({
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 gap: 10, minHeight: 30,
+                position: 'relative', zIndex: 1,
             }}>
                 <button
                     type="button"
