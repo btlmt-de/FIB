@@ -1845,6 +1845,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             padding: '16px 20px',
+                            gap: isMobile ? 12 : 0,
                             // The header reserves its tallest variant so the band
                             // can never change height: the `?` button is 28px and
                             // "Try Again" ~32px, so the row grew ~4px the moment a
@@ -1902,6 +1903,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     alignItems: 'center',
                                     gap: '8px',
                                     padding: isMobile ? '4px 8px' : '5px 10px',
+                                    ...(isMobile ? { display: 'none' } : {}),
                                     borderRadius: 0,
                                     // The plinth's ground plus SURFACE_NOISE, the
                                     // milled plate's grain — same material as the
@@ -2021,7 +2023,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                 running, so the row is unchanged the rest of the
                                 time. */}
                             <KotwReelBoard />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 0', minWidth: 0, justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isMobile ? '0 0 auto' : '1 1 0', minWidth: 0, justifyContent: 'flex-end' }}>
                                 {/* Info button — a machined control now, in the
                                     plinth language: ground, lit rail on top, and
                                     the light rising through it on hover (aqua,
@@ -2971,6 +2973,8 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
     // Return false if props are different (re-render)
     return (
         prevProps.stageColumn === nextProps.stageColumn &&
+        prevProps.isMobile === nextProps.isMobile &&
+        prevProps.hasFlanks === nextProps.hasFlanks &&
         prevProps.user?.id === nextProps.user?.id &&
         prevProps.allItems === nextProps.allItems &&
         prevProps.dynamicItems === nextProps.dynamicItems &&
