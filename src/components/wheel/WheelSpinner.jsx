@@ -86,6 +86,7 @@ import { useActivity } from '../../context/ActivityContext.jsx';
 import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
 import { CanvasRouletteStrip } from './canvas/CanvasRouletteStrip.jsx';
 import RouletteTable from './effects/RouletteTable.jsx';
+import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourDeck from './effects/ParlourDeck.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
@@ -2639,8 +2640,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         gridRow: 5,
                         gridColumn: stageColumn,
                         minHeight: 0,
-                        // The oversized Parlour tabletop is scenery, not scrollable content.
-                        overflowY: parlourOwnsReel ? 'hidden' : 'auto',
+                        // Bets are scenery; the settlement must remain reachable on short screens.
+                        overflowY: parlourOwnsReel && !(rouletteResult && parlourT >= T_REVEAL) ? 'hidden' : 'auto',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',

@@ -835,12 +835,13 @@ html[data-saver="on"] *::after {
 .fib-parlour-result-tray {
   position: relative;
   isolation: isolate;
-  flex-shrink: 1;
+  flex-shrink: 0;
 }
 .fib-parlour-settlement {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   min-height: 0;
   border: 1px solid #b08b5555;
   border-radius: 12px;
