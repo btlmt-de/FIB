@@ -1424,7 +1424,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             <Panel title="Record">
                                 <div style={{
                                     display: 'grid',
-                                    gridTemplateColumns: isPhone ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+                                    gridTemplateColumns: isPhone ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
                                     gap: '0',
                                 }}>
                                     <RecordFigure
@@ -1433,18 +1433,38 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         note={standingText(rankings.spins)}
                                         first
                                     />
+                                    {/* Lifetime, not the unspent balance — see the
+                                        column's own note in statements.js for the
+                                        three plausible-looking sources that answer
+                                        a different question. It sits next to SPINS
+                                        because it is a subset of that figure and
+                                        reads as one there; against LUCK it would
+                                        look like an input to the rating, which it
+                                        is not.
+
+                                        No note under it on purpose. The obvious
+                                        one is a share of SPINS, and that division
+                                        is wrong in a way nobody would catch: the
+                                        numerator counts only spins that produced
+                                        an item, the denominator includes event and
+                                        recursion triggers that produced none. */}
+                                    <RecordFigure
+                                        label="Lucky spins"
+                                        value={fmt(profile.lucky_spins_used || 0)}
+                                        tone={profile.lucky_spins_used > 0 ? DECK.amber : DECK.inkDim}
+                                    />
                                     <RecordFigure
                                         label="Luck"
                                         value={luckRating?.rating != null ? String(luckRating.rating) : '—'}
                                         tone={luck.tone}
                                         note={luck.label}
                                         onInfo={luckRating ? () => setShowLuckInfoModal(true) : null}
+                                        first={isPhone}
                                     />
                                     <RecordFigure
                                         label="Events"
                                         value={fmt(profile.event_triggers)}
                                         note={standingText(rankings.events)}
-                                        first={isPhone}
                                     />
                                     {/* "One special every N spins" is the honest
                                         reading of this number, and it is the
@@ -1459,6 +1479,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                         label="Per special"
                                         value={avgBetween != null ? `~${fmt(avgBetween)}` : '—'}
                                         note={avgBetween != null ? `${fmt(specialsPulled)} pulled` : null}
+                                        first={isPhone}
                                     />
                                 </div>
 

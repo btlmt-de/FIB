@@ -33,10 +33,12 @@
 // same phases, same server-supplied `selectionDuration`. Only the frame changed.
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { Crown, TrainFront, Zap, Crosshair, Target } from 'lucide-react';
-import { COLORS, SPACE, Z } from '../config/constants';
+import { Zap } from 'lucide-react';
+import { COLORS, EVENT_IDENTITY, SPACE, Z } from '../config/constants';
+import { EVENT_ICONS } from '../config/eventIcons.js';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
+import { prefetchArrivalScene } from './arrivalScene.js';
 
 // ── Event configurations ────────────────────────────────────────────────────
 //
@@ -51,38 +53,23 @@ import { useSound } from '../../../context/SoundContext.jsx';
 // comment's rule — "the only colours that may signal here are the event
 // identities themselves" — is about THESE four values, and they are deliberate.
 //
-// They are, however, a fork. GoldRushBanner, KingOfWheelBanner, FirstBloodBanner
-// and CommunityGoalBanner each keep their own copy of their event's identity
-// (FB_PRIMARY, KOTW_PRIMARY and friends), so the same event is spelled out in
-// four files. That is the rarity ladder's story one level up, and it wants the
-// same fix: one table. Not done here because it spans five components and this
-// was a bug fix.
-const EVENT_CONFIG = {
-    // THE ARRIVAL took Gold Rush's slot in the rotation — see DESIGN.md §8 for
-    // the measurements that retired it. Station amber rather than Gold Rush's
-    // #F59E0B: this event belongs to THE CONCOURSE, and its whole vocabulary is
-    // the platform lamp.
-    arrival: {
-        name: 'THE ARRIVAL',
-        icon: TrainFront,
-        color: '#FFAA00',
-    },
-    king_of_wheel: {
-        name: 'KING OF THE WHEEL',
-        icon: Crown,
-        color: '#F43F5E',
-    },
-    first_blood: {
-        name: 'FIRST BLOOD',
-        icon: Crosshair,
-        color: '#DC2626',
-    },
-    community_goal: {
-        name: 'COMMUNITY GOAL',
-        icon: Target,
-        color: '#2DD4BF',
-    },
-};
+// They WERE a fork — GoldRushBanner, KingOfWheelBanner, FirstBloodBanner and
+// CommunityGoalBanner each kept their own copy of their event's identity
+// (FB_PRIMARY, KOTW_PRIMARY and friends), so the same event was spelled out in
+// four files, and this comment used to say the fix was "one table". The table
+// exists now: `EVENT_IDENTITY` in config/constants.js, written when the odds
+// board would otherwise have become the sixth copy. The name and the colour
+// come from there. The four banners are still their own copies and are still
+// the sweep that is owed.
+//
+// The ICON is not in the identity table on purpose — a constants module that
+// imports components stops being one — so it has its own, in
+// config/eventIcons.js. It is what lets this strip carry THE PARLOUR's green
+// and the Community Goal's teal two cells apart, which is the one pair in the
+// table that hue alone does not separate.
+const EVENT_CONFIG = Object.fromEntries(
+    Object.entries(EVENT_IDENTITY).map(([key, id]) => [key, { ...id, icon: EVENT_ICONS[key] }]),
+);
 
 /**
  * The cell pitch, in one place because two things need it and they must agree.
@@ -163,7 +150,7 @@ function buildEventStrip(availableEvents, selectedEvent) {
 
 function EventSelectionWheel({ isMobile = false }) {
     const { eventSelection } = useActivity();
-    const { playSfx } = useSound();
+    const { playSfx, primeEventSound } = useSound();
 
     const [isVisible, setIsVisible] = useState(false);
     const [strip, setStrip] = useState([]);
@@ -220,6 +207,33 @@ function EventSelectionWheel({ isMobile = false }) {
             setResultEvent(null);
             startTimeRef.current = Date.now();
 
+            /*
+             * Start fetching the event's music now, while the strip is still
+             * spinning.
+             *
+             * This component is the only four seconds of warning the site gets:
+             * the server broadcasts `event_selection`, waits out this animation,
+             * and only then triggers the event. Every soundtrack is
+             * `preload = 'none'` — see the init effect in SoundContext for the
+             * 66MB that made it so — which means the first play of a session
+             * pays for the fetch in front of the listener, and the two scored
+             * takes are cut against pictures that do not wait.
+             *
+             * So the wheel that announces the event also warms it. Four seconds
+             * is ample for the 484KB train and the 824KB roulette, and this is
+             * the one place that knows which of the five is coming before it
+             * arrives.
+             */
+            primeEventSound?.(eventSelection.selectedEvent);
+
+            /*
+             * And the arrival's scene, which is the heaviest thing any event
+             * pulls in: a 551KB chunk that is otherwise requested at the moment
+             * the theatre mounts, i.e. with nothing left to hide the fetch
+             * behind. Same four seconds, same reasoning as the music.
+             */
+            if (eventSelection.selectedEvent === 'arrival') prefetchArrivalScene();
+
             playSfx?.('spin_start');
 
             // How far to travel. The strip starts with the cell at LEAD_IN under
@@ -255,7 +269,7 @@ function EventSelectionWheel({ isMobile = false }) {
                 cancelAnimationFrame(animationRef.current);
             }
         };
-    }, [eventSelection, playSfx]);
+    }, [eventSelection, playSfx, primeEventSound]);
 
     // Exit fades rather than pops. The context clears eventSelection about a
     // second after the landing; that clear is the cue — the event's own banner

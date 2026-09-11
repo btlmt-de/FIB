@@ -8,10 +8,11 @@ import { useWheelViewport } from '../config/breakpoints.js';
 import { useAuth } from '../../../context/AuthContext.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { RARITY, RARITY_KEYS, getRarityIcon, getRarityInk } from '../../../utils/rarityHelpers.jsx';
+import { kotwStandings } from '../../../utils/kotwStandings.js';
 import { UserProfile } from '../features/UserProfile.jsx';
 import {
     Trophy, RefreshCw, Crown, Medal, Award,
-    BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X
+    BookOpen, TrendingUp, Layers, Zap, Timer, Swords, Info, X, Clover
 } from 'lucide-react';
 import { visibleInterval } from '../../../config/power.js';
 
@@ -204,6 +205,15 @@ export function LeaderboardSidebar({ onClose }) {
         spins: { label: 'Spins', icon: <TrendingUp size={12} />, color: COLORS.text },
         duplicates: { label: 'Dupes', icon: <Layers size={12} />, color: COLORS.accent },
         events: { label: 'Events', icon: <Zap size={12} />, color: COLORS.orange },
+        // Green because green is ALREADY what a lucky spin looks like here — the
+        // spinner paints every lucky state with it (luckySpinning, luckyResult,
+        // both triple variants, isLuckyMode). Picking a fresh colour for the lens
+        // would have forked the identity the way the rarity colours were forked
+        // before rarityHelpers pulled them back into one table.
+        //
+        // It is also the only tone left that separates: `collection` and
+        // `duplicates` are gold and accent, which are the same oklch value.
+        lucky: { label: 'Lucky', icon: <Clover size={12} />, color: COLORS.green },
     };
 
     const getValueForTab = (entry) => {
@@ -213,6 +223,7 @@ export function LeaderboardSidebar({ onClose }) {
             case 'spins': value = entry.total_spins; break;
             case 'duplicates': value = entry.total_duplicates; break;
             case 'events': value = entry.event_triggers; break;
+            case 'lucky': value = entry.lucky_spins_used; break;
             default: value = entry.unique_items;
         }
         return value ?? 0; // Coerce null/undefined to 0
@@ -234,6 +245,37 @@ export function LeaderboardSidebar({ onClose }) {
 
         const rankColors = [KOTW_GOLD, KOTW_SILVER, KOTW_BRONZE];
         const RankIcons = [Crown, Trophy, Medal];
+
+        /*
+         * Ordered by the points each row will print. The freeze for a spin that
+         * has not landed yet used to be a ternary on the points cell alone, so
+         * the row moved up the list while the number stayed put — and this copy
+         * fell back to 0 where the reel board's fell back to the server value,
+         * which is the drift that put both in one function. See
+         * utils/kotwStandings.js.
+         */
+        const standings = kotwStandings(kotwLeaderboard, {
+            userId: user?.id,
+            pending: kotwSpinPending,
+            confirmedPoints: kotwUserStats?.points,
+        });
+
+        /*
+         * The "Your score" panel reads out of the same standings as the list
+         * below it, so the two cannot disagree.
+         *
+         * `kotwUserStats.rank` is the server's, stamped when this client last
+         * fetched or last finished a spin — and it goes stale the moment
+         * somebody ELSE scores, because nothing refreshes it until your next
+         * spin. So the header could say #2 above a list that had you fourth. Not
+         * what was reported, but the same contradiction, and free to fix here.
+         *
+         * Falls back to the stats object when this player is not on the board at
+         * all — the top ten is all the broadcast carries.
+         */
+        const myStanding = user ? standings.find(e => e.userId === user.id) : null;
+        const myPoints = myStanding?.points ?? kotwUserStats?.points ?? 0;
+        const myRank = myStanding?.rank ?? kotwUserStats?.rank ?? null;
 
         return (
             <div style={{
@@ -351,7 +393,7 @@ export function LeaderboardSidebar({ onClose }) {
                     </div>
 
                     {/* User's stats */}
-                    {kotwUserStats && kotwUserStats.points > 0 && (
+                    {kotwUserStats && myPoints > 0 && (
                         <div style={{
                             marginTop: '12px',
                             padding: '10px 14px',
@@ -370,23 +412,23 @@ export function LeaderboardSidebar({ onClose }) {
                                     color: KOTW_PRIMARY,
                                     fontFamily: 'monospace',
                                 }}>
-                                    {kotwUserStats.points}
+                                    {myPoints}
                                 </span>
                                 <span style={{ color: KOTW_SILVER, fontSize: '12px' }}>pts</span>
                             </div>
-                            {kotwUserStats.rank && (
+                            {myRank && (
                                 <div style={{
                                     padding: '4px 10px',
-                                    background: kotwUserStats.rank <= 3 ? `${rankColors[kotwUserStats.rank - 1]}33` : `${KOTW_PRIMARY}33`,
+                                    background: myRank <= 3 ? `${rankColors[myRank - 1]}33` : `${KOTW_PRIMARY}33`,
                                     borderRadius: '6px',
-                                    border: `1px solid ${kotwUserStats.rank <= 3 ? rankColors[kotwUserStats.rank - 1] : KOTW_PRIMARY}66`,
+                                    border: `1px solid ${myRank <= 3 ? rankColors[myRank - 1] : KOTW_PRIMARY}66`,
                                 }}>
                                     <span style={{
                                         fontSize: '14px',
                                         fontWeight: 700,
-                                        color: kotwUserStats.rank <= 3 ? rankColors[kotwUserStats.rank - 1] : KOTW_TEXT,
+                                        color: myRank <= 3 ? rankColors[myRank - 1] : KOTW_TEXT,
                                     }}>
-                                        #{kotwUserStats.rank}
+                                        #{myRank}
                                     </span>
                                 </div>
                             )}
@@ -420,7 +462,7 @@ export function LeaderboardSidebar({ onClose }) {
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {kotwLeaderboard.map((entry, index) => {
+                            {standings.map((entry, index) => {
                                 const RankIcon = RankIcons[index] || Award;
                                 const rankColor = rankColors[index] || KOTW_SILVER;
                                 const isCurrentUser = entry.userId === user?.id;
@@ -497,10 +539,10 @@ export function LeaderboardSidebar({ onClose }) {
                                                 color: index < 3 ? rankColor : KOTW_TEXT,
                                                 fontFamily: 'monospace',
                                             }}>
-                                                {/* For current user while spinning, show confirmed value to prevent premature updates */}
-                                                {isCurrentUser && kotwSpinPending
-                                                    ? (kotwUserStats?.points || 0)
-                                                    : entry.points}
+                                                {/* Already the value to show, and
+                                                    the value this row was placed
+                                                    on. See kotwStandings. */}
+                                                {entry.points}
                                             </div>
                                             <div style={{
                                                 fontSize: '10px',
@@ -612,6 +654,7 @@ export function LeaderboardSidebar({ onClose }) {
         spins: DECK.ink,
         duplicates: COLORS.accent,
         events: COLORS.orange,
+        lucky: COLORS.green,
     }[activeTab] || DECK.amber;
 
     /*
@@ -646,6 +689,12 @@ export function LeaderboardSidebar({ onClose }) {
             case 'spins': return since(entry.total_spins, entry.prestige_spins_at_start);
             case 'duplicates': return entry.prestige_duplicates ?? null;
             case 'events': return since(entry.event_triggers, entry.prestige_events_at_start);
+            // No `since` and no baseline: a lucky spin writes a timestamped
+            // spin_history row, so the server counts them from the run's own
+            // start time. That puts Lucky with items and duplicates as a metric
+            // that is always measurable, rather than with spins and events,
+            // which go null on a run older than the baseline columns.
+            case 'lucky': return entry.prestige_lucky_spins ?? null;
             default: return entry.prestige_items ?? null;
         }
     };

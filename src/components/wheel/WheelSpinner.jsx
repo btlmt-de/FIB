@@ -50,7 +50,8 @@
    must hold, and — because the Try Again button lives in that row and
    was itself gated on `state === 'recursion'` — left the player with no
    way out but the spacebar. */
-import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo, useCallback } from 'react';
+import { serverNow } from '../../utils/serverClock.js';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
 import { ShaftResult } from './spin/ShaftResult.jsx';
@@ -83,6 +84,9 @@ import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
+import { CanvasRouletteStrip } from './canvas/CanvasRouletteStrip.jsx';
+import RouletteTable from './effects/RouletteTable.jsx';
+import ParlourDeck from './effects/ParlourDeck.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -171,7 +175,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Get recursion status from ActivityContext - no separate polling!
     const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
         firstBloodWinner, firstBloodResultPending, communityGoalResult,
-        communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival } = useActivity();
+        communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
+        roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout } = useActivity();
 
     /*
      * THE ARRIVAL TAKES THE REEL.
@@ -192,6 +197,65 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      */
     const arrivalOwnsReel = Boolean(arrival);
 
+    /*
+     * AND SO DOES THE PARLOUR — but it does not close the reel, it BECOMES it.
+     *
+     * The arrival shutters the band and plays somewhere else, because a train is
+     * somewhere else. This event is the reel with different slots in it: the
+     * pockets turn over in place, they travel on the reel's own pitch, and the
+     * winning one comes to rest under the reel's own detent. Nothing about the
+     * band's geometry changes, which is the whole reason this is the right
+     * object — the landing reads in the language every other spin on this
+     * surface already speaks. See CanvasRouletteStrip.
+     *
+     * Spinning is still refused for the duration, for the arrival's reason: the
+     * band is showing something else. The difference is what refusing costs.
+     * ActivityContext holds an arrival back until any spin in flight has LANDED,
+     * so nobody is interrupted; the table is NOT held back, because it opens a
+     * window the player has to act inside and spending four of its thirty
+     * seconds protecting one client's reel would be protecting the wrong thing.
+     * A spin already in flight when the table opens finishes underneath the
+     * pockets — bounded and deliberate, since `markSpinLanded` still fires and
+     * nothing waiting on it is stranded.
+     */
+    const parlourOwnsReel = Boolean(roulette);
+
+    /** Either takeover means the band is not the reel's for the moment. */
+    const bandIsTaken = arrivalOwnsReel || parlourOwnsReel;
+
+    /*
+     * The event's clock, the server's, as a stable function.
+     *
+     * Handed to the ring rather than a number, so the canvas can read it on its
+     * own frame without this component re-rendering sixty times a second — the
+     * table underneath only changes a handful of times in the whole event.
+     */
+    const parlourOpenedAt = roulette?.openedAt ?? null;
+    const parlourOpenedAtRef = useRef(parlourOpenedAt);
+    useEffect(() => { parlourOpenedAtRef.current = parlourOpenedAt; });
+    const parlourClock = useCallback(() => {
+        const origin = parlourOpenedAtRef.current;
+        return origin ? Math.max(0, (serverNow() - origin) / 1000) : 0;
+    }, []);
+    // The render path reads the origin directly; only the rAF loops go through
+    // the ref, which keeps a ref read out of the render body.
+    const parlourT = parlourOpenedAt ? Math.max(0, (serverNow() - parlourOpenedAt) / 1000) : 0;
+
+    /*
+     * The apron's beats are coarse — the call, the reveal, each seat resolving —
+     * so it re-renders on a 250ms tick rather than every frame. Four times a
+     * second the countdown never visibly stutters and the seat cascade lands
+     * within an eighth of a second of the timeline, which is well inside the
+     * 260ms each row fades in over. The ring in the band has its own rAF loop
+     * and is not driven by this.
+     */
+    const [, setParlourTick] = useState(0);
+    useEffect(() => {
+        if (!parlourOpenedAt) return undefined;
+        const id = setInterval(() => setParlourTick(n => n + 1), 250);
+        return () => clearInterval(id);
+    }, [parlourOpenedAt]);
+
     // Get Gold Rush boosted rarity if event is active
     const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
         ? globalEventStatus.data?.boostedRarity
@@ -203,7 +267,33 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // stopped by the settings modal and by SoundContext's own teardown, never by
     // the spinner, and destructuring it left an unused handle that read as though
     // this component owned the stopping too.
-    const { startSoundtrack, playRaritySound, playRecursionSound, isPlaying: isMusicPlaying } = useSound();
+    const { startSoundtrack, playRaritySound, playRecursionSound, playSfx, isPlaying: isMusicPlaying } = useSound();
+
+    /*
+     * The parlour's fret tick. Handed to the ring rather than driven from here,
+     * because the crossing it fires on is a fact the canvas has each frame and
+     * this component would have to recompute — and recomputing it is exactly
+     * how the two halves would come to disagree about which pocket is under the
+     * pin, which this feature has already paid for once.
+     *
+     * Stable identity so the canvas's props ref never carries a stale closure,
+     * and `playSfx` is read through a ref for the same reason: the sound
+     * context's callback changes whenever the volume settings do, while the
+     * ring mounts once for the whole event.
+     *
+     * It lives HERE, below `useSound`, and not up with the rest of the parlour
+     * state — which is where it was, referencing `playSfx` seventeen lines
+     * before the `const` that declares it. That is a temporal dead zone, and it
+     * is not a warning: `useRef(playSfx)` runs on the first render and throws
+     * "can't access lexical declaration 'playSfx' before initialization",
+     * taking the whole wheel down with it. Hooks read like they are unordered
+     * and this one is not.
+     */
+    const playSfxRef = useRef(playSfx);
+    useEffect(() => { playSfxRef.current = playSfx; });
+    const playParlourTick = useCallback((speed) => {
+        playSfxRef.current?.('parlour_tick', { speed });
+    }, []);
 
     // Saver mode or an explicit reduced-motion preference. See config/power.js.
     const calm = useCalm();
@@ -687,7 +777,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // be spun straight through from any of the three while the shutters
         // were down. Clearing the result before the check would strand the
         // reel empty behind the train, so this returns first.
-        if (arrivalOwnsReel) return;
+        if (bandIsTaken) return;
 
         if (animationRef.current) cancelAnimationFrame(animationRef.current);
         tripleAnimationRefs.current.forEach(ref => { if (ref) cancelAnimationFrame(ref); });
@@ -1036,7 +1126,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // The platform belongs to the train. Refused rather than queued: an
         // arrival lasts fifteen seconds and a spin that fires by itself after
         // the event is a spin the player did not ask for at that moment.
-        if (arrivalOwnsReel) return;
+        if (bandIsTaken) return;
         if (allItems.length === 0) return;
         setError(null); // Clear any previous error
         performSpin();
@@ -1657,7 +1747,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     onClose={() => setShowOddsInfo(false)}
                     dynamicItems={dynamicItems}
                     allItems={allItems}
-                    isMobile={isMobile}
                 />
             )}
 
@@ -1699,7 +1788,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // are overlays below, not borders. A constant full-width
                         // line is a rectangle's edge; these fade to nothing at
                         // the sides, like the canvas's own machined edges.
-                        background: showSpinRecursionEffects
+                        background: parlourOwnsReel
+                            ? 'linear-gradient(180deg, #350a13 0%, #26060e 44%, #180409 100%)'
+                            : showSpinRecursionEffects
                             ? 'linear-gradient(180deg, #0a150a 0%, #12240e 46%, #0a150a 100%)'
                             : showSpinKotwLuckyEffects
                                 ? `linear-gradient(180deg, ${KOTW_SLATE_DARK} 0%, ${KOTW_SLATE} 46%, ${KOTW_SLATE_DARK} 100%)`
@@ -1721,7 +1812,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         // the skyline's base, black at the curb. The
                                         // city's ground, not a panel's fill — the band
                                         // is where the viaduct deck sits. THE NOCTURNE.
-                                        : 'linear-gradient(180deg, #0d1322 0%, #0a0d18 44%, #05060a 100%)',
+                                        : 'linear-gradient(180deg, var(--wheel-panel-top, #0d1322) 0%, var(--wheel-panel-bottom, #0a0d18) 44%, #05060a 100%)',
                         // During an event the band glows even at rest, so the
                         // surface looks live rather than only reacting on a spin.
                         boxShadow: state === 'spinning' || isModeSpinning
@@ -1753,6 +1844,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             padding: '16px 20px',
+                            gap: isMobile ? 12 : 0,
                             // The header reserves its tallest variant so the band
                             // can never change height: the `?` button is 28px and
                             // "Try Again" ~32px, so the row grew ~4px the moment a
@@ -1773,7 +1865,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             // this is the deck's material, not a strip wrapped
                             // around content. (Owner: the row itself felt
                             // untouched; added 2026-08-19.)
-                            backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, rgba(148,168,212,0.06) 0%, rgba(148,168,212,0) 42%), linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
+                            backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, rgba(var(--wheel-surface-light, 148,168,212),0.06) 0%, rgba(var(--wheel-surface-light, 148,168,212),0) 42%), linear-gradient(180deg, var(--wheel-panel-top, #0d1322) 0%, var(--wheel-panel-bottom, #0a0d18) 100%)`,
                         }}>
                             {/* Left and right groups each take an equal share of
                                 the slack (`flex: 1 1 0`), which is what keeps the
@@ -1810,12 +1902,13 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     alignItems: 'center',
                                     gap: '8px',
                                     padding: isMobile ? '4px 8px' : '5px 10px',
+                                    ...(isMobile ? { display: 'none' } : {}),
                                     borderRadius: 0,
                                     // The plinth's ground plus SURFACE_NOISE, the
                                     // milled plate's grain — same material as the
                                     // stage flanks and the milestone meter.
-                                    backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
-                                    boxShadow: 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
+                                    backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-control-top, #1b1b28) 0%, var(--wheel-control-bottom, #12121c) 100%)`,
+                                    boxShadow: 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
                                 }}>
                                     {/* Status LEDs + stripe: decoration by
                                         definition — the label carries the state for
@@ -1929,7 +2022,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                 running, so the row is unchanged the rest of the
                                 time. */}
                             <KotwReelBoard />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 0', minWidth: 0, justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isMobile ? '0 0 auto' : '1 1 0', minWidth: 0, justifyContent: 'flex-end' }}>
                                 {/* Info button — a machined control now, in the
                                     plinth language: ground, lit rail on top, and
                                     the light rising through it on hover (aqua,
@@ -1942,8 +2035,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         width: '28px',
                                         height: '28px',
                                         borderRadius: '50%',
-                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
-                                        boxShadow: 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
+                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-control-top, #1b1b28) 0%, var(--wheel-control-bottom, #12121c) 100%)`,
+                                        boxShadow: 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
                                         color: COLORS.textMuted,
                                         fontSize: '14px',
                                         fontWeight: '600',
@@ -1955,11 +2048,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     }}
                                     onMouseEnter={e => {
                                         e.currentTarget.style.color = COLORS.aqua;
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.14), inset 0 0 18px rgba(85,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.14), inset 0 0 18px rgba(85,255,255,0.12), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                     }}
                                     onMouseLeave={e => {
                                         e.currentTarget.style.color = COLORS.textMuted;
-                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                        e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                     }}
                                     title="How drop rates work"
                                 >
@@ -1984,18 +2077,18 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     <button onClick={respin} style={{
                                         padding: '8px 14px',
                                         borderRadius: 0,
-                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #1b1b28 0%, #12121c 100%)`,
-                                        boxShadow: 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
+                                        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, var(--wheel-control-top, #1b1b28) 0%, var(--wheel-control-bottom, #12121c) 100%)`,
+                                        boxShadow: 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)',
                                         color: COLORS.textMuted, fontSize: '13px', cursor: 'pointer',
                                         transition: 'all 0.15s'
                                     }}
                                             onMouseEnter={e => {
                                                 e.currentTarget.style.color = COLORS.text;
-                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.14), inset 0 0 18px rgba(255,183,94,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.14), inset 0 0 18px rgba(255,183,94,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                             }}
                                             onMouseLeave={e => {
                                                 e.currentTarget.style.color = COLORS.textMuted;
-                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(190,198,220,0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
+                                                e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(var(--wheel-surface-light, 190,198,220),0.10), inset 0 -1px 0 rgba(0,0,0,0.45)';
                                             }}
                                     >Try Again</button>
                                 )}
@@ -2061,7 +2154,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     without each re-drawing it. */}
                                 <div style={{
                                     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                                    background: 'radial-gradient(ellipse 76% 50% at 50% 84%, rgba(255,183,94,0.05) 0%, rgba(206,214,236,0.02) 40%, transparent 68%)',
+                                    background: 'radial-gradient(ellipse 76% 50% at 50% 84%, rgba(255,183,94,0.05) 0%, rgba(var(--wheel-surface-light, 206,214,236),0.02) 40%, transparent 68%)',
                                     zIndex: 3,
                                     pointerEvents: 'none',
                                 }} />
@@ -2227,6 +2320,57 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     apart in production and never overlapped. */}
                                 {arrivalOwnsReel && (
                                     <ArrivalTheatre key={arrival?.expiresAt || 'arrival'} />
+                                )}
+
+                                {/* THE PARLOUR's pockets, drawn OVER the reel in
+                                    the reel's own mount.
+
+                                    Over rather than instead of: the slots turn
+                                    one at a time, and a slot half way through
+                                    turning shows the item it was at its edges.
+                                    That only works if the reel is still
+                                    rendering underneath, which it is — exactly
+                                    as it keeps rendering behind the arrival's
+                                    blades.
+
+                                    Keyed on the table so a second game gets a
+                                    fresh canvas rather than one carrying the
+                                    previous winner's lit pocket. */}
+                                {parlourOwnsReel && (
+                                    <CanvasRouletteStrip
+                                        key={roulette.openedAt || 'parlour'}
+                                        pockets={roulette.pockets}
+                                        pocketIndex={rouletteResult?.pocketIndex ?? null}
+                                        clock={parlourClock}
+                                        isMobile={isMobile}
+                                        onTick={playParlourTick}
+                                    />
+                                )}
+
+                                {/* THE PARLOUR's deck, on the phone only.
+
+                                    On a desktop this is a layer of the room and
+                                    lives in ParlourAtmosphere, under the whole
+                                    interface, falling through the margins the
+                                    layout leaves. The shaft has no margins —
+                                    the reel fills the viewport — so there the
+                                    room was entirely behind one opaque canvas
+                                    and the event arrived as a red trim on the
+                                    existing reel.
+
+                                    So on a phone the deck mounts here, in the
+                                    band, over the pockets and over nothing
+                                    else. Portalling it to the body was tried
+                                    and put cards over the topbar and the help
+                                    control, which breaks the room's one rule —
+                                    see ParlourDeck's footer. */}
+                                {parlourOwnsReel && isMobile && (
+                                    <ParlourDeck
+                                        key={`deck-${roulette.openedAt || 'parlour'}`}
+                                        openedAt={roulette.openedAt}
+                                        pocketColour={rouletteResult?.pocket?.colour ?? null}
+                                        isMobile
+                                    />
                                 )}
 
                                 {/* Matrix scanlines overlay - Recursion only */}
@@ -2423,7 +2567,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     the most legible thing in its area. Costs no
                                     layout, which is the point: the reel now runs
                                     to the bottom bar. */}
-                                {isMobile && state === 'idle' && (
+                                {/* Not while the parlour owns the reel. On a
+                                    phone the table is a fixed tray over the
+                                    bottom of the shaft — the shaft has no apron
+                                    under it — and this line sits in exactly
+                                    that band, so "Tap the reel to spin" was
+                                    reading through the tray across the plaques
+                                    and the KEEP token. It is also wrong twice
+                                    over: the reel is a roulette wheel for those
+                                    forty-five seconds and tapping it does
+                                    nothing. */}
+                                {isMobile && state === 'idle' && !parlourOwnsReel && (
                                     <div style={{
                                         position: 'absolute',
                                         left: 0, right: 0, bottom: 0,
@@ -2485,7 +2639,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         gridRow: 5,
                         gridColumn: stageColumn,
                         minHeight: 0,
-                        overflowY: 'auto',
+                        // The oversized Parlour tabletop is scenery, not scrollable content.
+                        overflowY: parlourOwnsReel ? 'hidden' : 'auto',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -2498,7 +2653,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // it, and the result still reads as sitting under the reel
                         // because that is where it starts.
                         justifyContent: 'flex-start',
-                        paddingTop: `${SPACE.md}px`,
+                        paddingTop: parlourOwnsReel ? '8px' : `${SPACE.md}px`,
                         zIndex: Z.content,
                         // On a phone the stage is a fixed-height apron under the
                         // shaft rather than the page's leftover space: the shaft
@@ -2592,7 +2747,29 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             question; the reel is what should fill it. */}
                         {/* The phone's idle copy is drawn over the shaft's bottom
                             fade instead — see the reel — so this stays desktop's. */}
-                        {!isMobile && state === 'idle' && (
+                        {/* THE PARLOUR answers in the apron, which is the row
+                            the bonus plaque and the lane readout already answer
+                            in. The band is showing the wheel, so the bet — and
+                            afterwards the payout board — belongs directly under
+                            it, in the slot the spin CTA occupies the rest of the
+                            time. Rendered before the idle state and suppressing
+                            it, so the two never stack. */}
+                        {parlourOwnsReel && (
+                            <RouletteTable
+                                table={rouletteTable}
+                                result={rouletteResult}
+                                payout={roulettePayout}
+                                stake={roulette.stake}
+                                multipliers={roulette.multipliers}
+                                betsCloseAt={roulette.betsCloseAt}
+                                myBet={rouletteMyBet}
+                                onBet={setRouletteMyBet}
+                                t={parlourT}
+                                isMobile={isMobile}
+                            />
+                        )}
+
+                        {!isMobile && state === 'idle' && !parlourOwnsReel && (
                             <EnhancedWheelIdleState
                                 user={user}
                                 allItems={allItems}
@@ -2795,6 +2972,8 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
     // Return false if props are different (re-render)
     return (
         prevProps.stageColumn === nextProps.stageColumn &&
+        prevProps.isMobile === nextProps.isMobile &&
+        prevProps.hasFlanks === nextProps.hasFlanks &&
         prevProps.user?.id === nextProps.user?.id &&
         prevProps.allItems === nextProps.allItems &&
         prevProps.dynamicItems === nextProps.dynamicItems &&

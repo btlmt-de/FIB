@@ -31,11 +31,12 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
 
     return (
         <div
+            title={`${luckySpins} Lucky Spin${luckySpins !== 1 ? 's' : ''}`}
             style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                padding: '6px 14px 6px 6px',
+                gap: isMobile ? '6px' : '10px',
+                padding: isMobile ? '4px 8px' : '6px 14px 6px 6px',
                 borderRadius: '10px',
                 background: `linear-gradient(135deg, ${KOTW_GOLD}26, ${KOTW_BG_DARK}CC)`,
                 border: `1px solid ${KOTW_GOLD}88`,
@@ -47,8 +48,8 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
             }}
         >
             <span style={{
-                width: '30px',
-                height: '30px',
+                width: isMobile ? '20px' : '30px',
+                height: isMobile ? '20px' : '30px',
                 borderRadius: '8px',
                 flexShrink: 0,
                 display: 'inline-flex',
@@ -61,7 +62,7 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
             </span>
 
             <span style={{
-                fontSize: '18px',
+                fontSize: isMobile ? '14px' : '18px',
                 fontWeight: 900,
                 fontFamily: 'monospace',
                 color: KOTW_GOLD,
@@ -70,7 +71,7 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
                 {luckySpins}
             </span>
 
-            <span style={{
+            <span className={isMobile ? 'fib-sr-only' : undefined} style={{
                 fontSize: isMobile ? '12px' : '14px',
                 fontWeight: 600,
                 color: KOTW_TEXT,

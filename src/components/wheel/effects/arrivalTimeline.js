@@ -126,6 +126,17 @@ export const SHOT_THREE = 11.60;
  * `i`'s crate and the biggest payout is both the last thing unloaded and the
  * last thing to resolve. Three components index into one sorted array; a second
  * sort anywhere would silently pair a row with somebody else's crate.
+ *
+ * ── IT IS THE ORDER THINGS HAPPEN IN, NOT THE ORDER THEY ARE LISTED IN ──
+ *
+ * ArrivalBoard prints its rows in the server's platform order instead, because
+ * a sorted list of names standing there from the first frame announced the
+ * result six seconds before the drums did. That is NOT the second sort this
+ * note warns about: the board keeps each row's index in THIS array and uses it
+ * for both the reveal beat and its slot in `rowElsRef`, so wagon `i` still
+ * finds row `i` wherever row `i` is written. The rule survives intact — one
+ * array decides what happens when — and only the signage was free to move. The
+ * long note at the top of ArrivalBoard.jsx has the reasoning.
  */
 export function sortManifest(manifest) {
     return [...manifest].sort(
@@ -154,6 +165,29 @@ export const STREAM_SPREAD_S = 0.70;
 export const CRATE_FALL_S = 0.60;
 
 /**
+ * Where the impact actually is INSIDE `trainsfx_crate1..4`.
+ *
+ * The four takes are not a thud with the hit at the top of the file. Each one
+ * is the whole gesture: a short release as the crate leaves the wagon, about
+ * half a second of air, and then the landing. Measured, in seconds from the
+ * start of each take: 0.576, 0.581, 0.601, 0.601.
+ *
+ * Which is `CRATE_FALL_S`, and not by accident — they were cut to be triggered
+ * on the beat the crate STARTS falling, so the file plays the arc rather than
+ * commenting on the end of it.
+ *
+ * The first wiring played them at the landing, which put the loudest thing in
+ * the take six tenths of a second after the box was already on the paving, and
+ * the owner's note was that it "is a bit delayed to what's happening". It was.
+ *
+ * Kept as its own number rather than folded into `CRATE_FALL_S`, because they
+ * mean different things and only look alike: one is how long the animation
+ * takes, the other is a property of four audio files. Retiming the arc must not
+ * silently retime the sample, and re-cutting the samples must not move a crate.
+ */
+export const CRATE_IMPACT_OFFSET_S = 0.59;
+
+/**
  * How many crates the train can physically carry.
  *
  * A cap, not a count: the consist is one wagon per player and a fifteen-player
@@ -163,9 +197,25 @@ export const CRATE_FALL_S = 0.60;
  * out of, which is the honest failure. It lives here rather than in the scene
  * because the board has to know it too: a row with no crate gets no stream.
  *
- * This server is designed around three or four players on the platform.
+ * FOUR, not the eight it was. The consist is now a fixed short train whatever
+ * the platform holds, for two reasons that arrived together:
+ *
+ *   The shot. Eight wagons is a train the close shot cannot hold, so a busy
+ *   night pushed the camera back until the crates were furniture. Four is the
+ *   length the framing was built for — "designed around three or four players
+ *   on the platform" was already written here as an assumption, and this makes
+ *   it a guarantee.
+ *
+ *   The sound. A crate landing has a voice now (`trainsfx_crate1..4`, four
+ *   takes at four pitches) and there are exactly four of them, one per wagon.
+ *   Past four the row would have to reuse a take, and two identical impacts
+ *   0.55s apart read as an echo rather than as a second crate.
+ *
+ * The PAYOUT is untouched by this. The board is built from the manifest, not
+ * from the consist, and every row is paid whether or not a wagon carried it —
+ * the cap is a statement about the train, never about the money.
  */
-export const MAX_CRATES = 8;
+export const MAX_CRATES = 4;
 
 /**
  * When crate `i` of `n` starts falling. One function, because four things read
@@ -174,6 +224,18 @@ export const MAX_CRATES = 8;
  */
 export function crateFallsAt(i, n) {
     return T_SETTLE + i * ((T_UNLOAD - T_SETTLE) / Math.max(1, n));
+}
+
+/**
+ * When crate `i` of `n`'s TAKE must start so that its impact lands with the
+ * crate. See `CRATE_IMPACT_OFFSET_S` for why this is not `crateFallsAt` plus
+ * the fall.
+ *
+ * It comes out a hair before the fall begins, which is right: the take opens on
+ * the release, and the release is what starts the arc.
+ */
+export function crateCueAt(i, n) {
+    return Math.max(0, crateFallsAt(i, n) + CRATE_FALL_S - CRATE_IMPACT_OFFSET_S);
 }
 
 /**

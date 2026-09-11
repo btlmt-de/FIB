@@ -19,11 +19,54 @@ import { noteServerTime } from '../utils/serverClock.js';
 import { T_LIFT_END } from '../components/wheel/effects/arrivalTimeline.js';
 import { isSaverOn } from '../config/power.js';
 
-const ActivityContext = createContext(null);
+/*
+ * Exported for one caller only: `src/dev/ArrivalTiming.jsx`, the standalone
+ * timing harness for THE ARRIVAL. That page plays the real theatre against a
+ * fabricated manifest so the animation can be scored to, and the theatre reads
+ * its arrival from this context — a harness that could not supply one would
+ * have to duplicate ArrivalTheatre, which is exactly the drift the timeline
+ * file exists to prevent.
+ *
+ * Consumers still go through `useActivity()`; nothing in the app imports this.
+ */
+export const ActivityContext = createContext(null);
 
 // How far back mythic/insane drops are folded into the main activity feed. The board
 // itself is all-time; this only governs how long a rare drop lingers in the All tab.
 const RARE_FEED_MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/*
+ * The gap between the winning pull surfacing and First Blood naming its winner.
+ *
+ * Not a safety margin — the reveal is already ordered behind the feed by the
+ * subtraction it is added to, and zero would be correct if the only requirement
+ * were "not before". It is the beat itself: the ticker prints the item, the page
+ * has a moment to register that something landed, and then the banner says what
+ * it meant. Firing them in the same frame reads as one event with two headlines,
+ * which is how you lose the drop the announcement is about.
+ *
+ * Long enough to be a sequence rather than a stutter, short enough that it is
+ * still plainly the same moment. It also absorbs the few milliseconds between
+ * the activity row being logged and the race being claimed — both happen inside
+ * the winning spin's request, in that order (routes/api.js), so the two stamps
+ * differ by less than this by a wide margin.
+ */
+const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
+
+/*
+ * How long THE PARLOUR's table stays mounted after the ball stops.
+ *
+ * Measured from the result rather than from the table opening, so it is a
+ * duration this file can own without importing the whole timeline: the reveal,
+ * the payout cascade, the frame collapsing and the shutters lifting all live
+ * inside it, with a second of slack on the end.
+ *
+ * It must OUTLAST the client timeline's T_END − T_CALL (13.4s), for the reason
+ * the arrival's clear timeout must outlast its own: unmounting is what hands the
+ * band back to the reel, and doing it while the pockets are still turning over
+ * would cut the change back mid-flip.
+ */
+const ROULETTE_TEARDOWN_MS = 14200;
 
 
 export function ActivityProvider({ children }) {
@@ -70,6 +113,32 @@ export function ActivityProvider({ children }) {
     const [arrival, setArrival] = useState(null);
     const [arrivalCrate, setArrivalCrate] = useState(null);
 
+    /*
+     * THE PARLOUR.
+     *
+     * Four pieces, and the split is the arrival's one level further on.
+     *
+     *   `roulette`        the table itself — the wheel, the stake, the deadline.
+     *                     Set once when it opens and never mutated, because
+     *                     everything in it is decided at that moment. Its
+     *                     presence is what makes the event exist.
+     *   `rouletteTable`   who is seated and what they are on. Replaced wholesale
+     *                     by every `roulette_bets` frame; see the note on why
+     *                     this is not merged.
+     *   `rouletteResult`  the pocket and everyone's payout, once the ball stops.
+     *   `rouletteMyBet`   this client's own choice, held locally so a button
+     *                     looks pressed before the round trip returns.
+     *
+     * The player's new BALANCE is deliberately not here. It rides on the private
+     * `roulette_payout` message and lands in WheelPage's lucky-spin pool the way
+     * every other event's payout does — amounts are public, balances are not.
+     */
+    const [roulette, setRoulette] = useState(null);
+    const [rouletteTable, setRouletteTable] = useState(null);
+    const [rouletteResult, setRouletteResult] = useState(null);
+    const [rouletteMyBet, setRouletteMyBetState] = useState(null);
+    const [roulettePayout, setRoulettePayout] = useState(null);
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     // The SSE reconnect's backoff state. Both live outside the effect's closure
@@ -85,6 +154,7 @@ export function ActivityProvider({ children }) {
     const kotwWinnerTimeoutRef = useRef(null);
     const firstBloodTimeoutRef = useRef(null);
     const firstBloodClearTimeoutRef = useRef(null);
+    const rouletteClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
     const arrivalTimeoutRef = useRef(null);
@@ -154,6 +224,22 @@ export function ActivityProvider({ children }) {
             const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
             const data = await res.json();
 
+            /*
+             * Kept before the block below rewrites it onto the local clock.
+             *
+             * THE PARLOUR's whole timeline is measured through `serverNow()`,
+             * which expects SERVER milliseconds — the same units the
+             * `roulette_open` broadcast carries. The correction below converts
+             * these two fields into local milliseconds for every other consumer,
+             * so a parlour restored from this payload would be reading a
+             * local-clock origin through a server-clock function. The two are
+             * numerically equivalent today, which is exactly what makes the
+             * mistake survive review; keeping the raw value means the restore
+             * path and the broadcast path cannot diverge if either clock's
+             * derivation is ever tuned.
+             */
+            const rawActivatesAt = data.activatesAt;
+
             // Apply clock sync if serverTime is provided
             if (data.serverTime && (data.activatesAt || data.expiresAt)) {
                 const clockOffset = data.serverTime - Date.now();
@@ -192,6 +278,43 @@ export function ActivityProvider({ children }) {
                     if (kotwData?.userStats) setKotwUserStats(kotwData.userStats);
                 } catch (e) {
                     console.error('[ActivityContext] Failed to fetch KOTW leaderboard:', e);
+                }
+            }
+            /*
+             * THE PARLOUR, for anyone arriving mid-table.
+             *
+             * The same gap KOTW's standings had, and it matters more here
+             * because what is being missed is not a scoreboard but a window the
+             * player can still act inside. `roulette_open` is a one-shot
+             * broadcast: a page loaded ten seconds into the betting window never
+             * saw it, and without this would sit through the whole event with no
+             * table on screen and no idea it had a seat.
+             *
+             * `getRouletteState` folds the live table into `data`, so everything
+             * needed is already here — bar the origin, which comes from
+             * `rawActivatesAt` for the reason recorded at the top of this
+             * function.
+             */
+            if (data?.active && data?.type === 'roulette' && data?.data) {
+                const table = data.data;
+                setRoulette({
+                    pockets: table.pockets,
+                    stake: table.stake,
+                    multipliers: table.multipliers,
+                    openedAt: rawActivatesAt,
+                    betsCloseAt: table.betsCloseAt,
+                    expiresAt: data.expiresAt,
+                });
+                setRouletteTable({ seats: table.seats || [], counts: table.counts });
+                // A pocket in the payload means the ball has already dropped —
+                // the player walked in on the payout rather than on the betting.
+                if (table.pocket) {
+                    setRouletteResult({
+                        pocketIndex: table.pocketIndex,
+                        pocket: table.pocket,
+                        results: [],
+                        totalPaid: 0,
+                    });
                 }
             }
         } catch (e) {
@@ -599,6 +722,89 @@ export function ActivityProvider({ children }) {
                                 break;
                             }
 
+                            case 'roulette_open': {
+                                console.log('[SSE] Parlour table open:', data);
+                                if (rouletteClearTimeoutRef.current) {
+                                    clearTimeout(rouletteClearTimeoutRef.current);
+                                    rouletteClearTimeoutRef.current = null;
+                                }
+                                setRouletteResult(null);
+                                setRoulettePayout(null);
+                                setRouletteMyBetState(null);
+                                setRouletteTable({ seats: data.seats || [], counts: data.counts });
+                                setRoulette(data);
+
+                                /*
+                                 * NOT deferred behind a spin in flight, and it is
+                                 * the only takeover on the site that is not.
+                                 *
+                                 * The arrival, the community goal summary and the
+                                 * First Blood winner all wait for the local wheel
+                                 * to land, because each of them is a RESULT and
+                                 * landing one over a reel that is still turning
+                                 * steals the player's own. This is the opposite
+                                 * shape: nothing has been decided yet, and what
+                                 * the message opens is a thirty-second window the
+                                 * player has to act inside. Holding it back four
+                                 * seconds would spend an eighth of the betting
+                                 * window protecting a spin whose result this
+                                 * cannot spoil — there is no result yet to spoil
+                                 * it with.
+                                 *
+                                 * The shutter coming down over a spinning reel is
+                                 * the one cost, and it is bounded: WheelSpinner
+                                 * refuses to START a spin while the table is up,
+                                 * so at worst one already-launched reel finishes
+                                 * behind the blades, and the result panel is
+                                 * still there when they lift.
+                                 */
+                                break;
+                            }
+
+                            case 'roulette_bets':
+                                /*
+                                 * Replaced wholesale rather than merged.
+                                 *
+                                 * The server sends the entire table every time
+                                 * because the table IS small — a room is a
+                                 * handful of seats — and a merge would have to
+                                 * decide what to do about a seat that vanished
+                                 * from the list, which is a question with no good
+                                 * answer on a channel that can drop a frame.
+                                 * Taking the newest whole picture cannot drift.
+                                 */
+                                setRouletteTable({ seats: data.seats || [], counts: data.counts });
+                                break;
+
+                            case 'roulette_result': {
+                                console.log('[SSE] Parlour result:', data);
+                                setRouletteResult(data);
+                                /*
+                                 * Held until well past the animation's own end.
+                                 * The theatre unmounts on `roulette` going null,
+                                 * and the result has to outlive it or the payout
+                                 * board would empty while the frame was still
+                                 * collapsing over it.
+                                 */
+                                if (rouletteClearTimeoutRef.current) {
+                                    clearTimeout(rouletteClearTimeoutRef.current);
+                                }
+                                rouletteClearTimeoutRef.current = setTimeout(() => {
+                                    setRoulette(null);
+                                    setRouletteTable(null);
+                                    setRouletteResult(null);
+                                    setRouletteMyBetState(null);
+                                    rouletteClearTimeoutRef.current = null;
+                                }, ROULETTE_TEARDOWN_MS);
+                                break;
+                            }
+
+                            case 'roulette_payout':
+                                // This player's own outcome and new balance.
+                                console.log('[SSE] Parlour payout:', data);
+                                setRoulettePayout(data);
+                                break;
+
                             case 'arrival_crate':
                                 // This player's own crate and new balance.
                                 console.log('[SSE] Arrival crate:', data);
@@ -634,16 +840,55 @@ export function ActivityProvider({ children }) {
                                     }, 8000); // Show winner for 8 seconds before clearing
                                 };
 
+                                // The announcement has to clear TWO things, and holding for
+                                // only one of them is what this used to get wrong.
+                                //
+                                // (1) The local wheel, which the deferral below covers.
+                                // (2) The winning pull itself. The race is claimed inside the
+                                //     winning spin's own request, so this broadcast leaves the
+                                //     server ~4s before that drop is due to surface anywhere:
+                                //     the live activity feed and the toast both hold it until
+                                //     `created_at + SPIN_REVEAL_MS`. A banner naming the item
+                                //     before the ticker has printed it announces a pull that,
+                                //     as far as the page is concerned, has not happened yet.
+                                //
+                                // The old code held a flat 5s from ARRIVAL, which cleared (2)
+                                // by accident for an idle viewer and not at all for a spinning
+                                // one: the landing drained the deferral the instant the reel
+                                // stopped, and for the winner that is ~200ms before their own
+                                // drop reaches the feed (SPIN_REVEAL_MS is 4200 against a
+                                // 4000ms reel - see helpers.js), so the banner beat the ticker
+                                // on any connection quicker than a 400ms round trip. Locally,
+                                // always.
+                                //
+                                // So measure from the pull, on the server's clock, exactly as
+                                // the feed does, and add a beat so the banner reads as a
+                                // reaction to the drop rather than a race with it. `wonAt` is
+                                // absent when nobody claimed the race (and from a server that
+                                // predates it), and there is no pull to wait for in that case
+                                // - the flat settle is still right there.
+                                const feedDelay = data.winner?.wonAt
+                                    ? spinRevealDelay(data.winner.wonAt) + FIRST_BLOOD_ANNOUNCE_BEAT_MS
+                                    : 5000;
+                                const revealAt = Date.now() + feedDelay;
+
+                                const revealAfterPull = () => {
+                                    const wait = revealAt - Date.now();
+                                    if (wait <= 0) {
+                                        reveal();
+                                        return;
+                                    }
+                                    firstBloodTimeoutRef.current = setTimeout(reveal, wait);
+                                };
+
                                 if (spinInFlightRef.current) {
                                     // Same deal as the Community Goal summary: the end timer
                                     // can fire while the player's wheel is still turning, and
-                                    // the winner must wait for the landing too.
-                                    deferResultUntilLanding(reveal);
+                                    // the winner must wait for the landing too. Whichever of
+                                    // the two waits finishes last is the one that decides.
+                                    deferResultUntilLanding(revealAfterPull);
                                 } else {
-                                    // No local spin to spoil - keep the settle rhythm.
-                                    // Spin animations take ~4-5 seconds, so wait before
-                                    // showing winner.
-                                    firstBloodTimeoutRef.current = setTimeout(reveal, 5000); // Wait for spin animation to complete
+                                    revealAfterPull();
                                 }
                                 break;
                             }
@@ -903,6 +1148,10 @@ export function ActivityProvider({ children }) {
                 clearTimeout(communityGoalClearTimeoutRef.current);
                 communityGoalClearTimeoutRef.current = null;
             }
+            if (rouletteClearTimeoutRef.current) {
+                clearTimeout(rouletteClearTimeoutRef.current);
+                rouletteClearTimeoutRef.current = null;
+            }
             feedRevealTimeoutsRef.current.forEach(clearTimeout);
             feedRevealTimeoutsRef.current = [];
             deferredResultGuardsRef.current.forEach(clearTimeout);
@@ -932,6 +1181,21 @@ export function ActivityProvider({ children }) {
     const updateKotwUserStats = useCallback((stats) => {
         setKotwUserStats(stats);
         setKotwSpinPending(false);
+    }, []);
+
+    /**
+     * This client's own bet, shown before the server has confirmed it.
+     *
+     * Held here rather than read out of `rouletteTable` because the table is
+     * everyone's view and arrives on a 600ms throttle — a button that waited for
+     * its own choice to come back around on the broadcast would look dead for up
+     * to two thirds of a second, every time, inside a thirty-second window. The
+     * table is still the source of truth for what the ROOM is doing; this is
+     * only the local echo; RouletteTable restores a refused change and reconciles
+     * uncertain requests against the authoritative table.
+     */
+    const setRouletteMyBet = useCallback((bet) => {
+        setRouletteMyBetState(bet === null || bet === undefined ? null : { bet });
     }, []);
 
     const value = {
@@ -970,6 +1234,13 @@ export function ActivityProvider({ children }) {
         communityGoalReward,
         arrival,
         arrivalCrate,
+        // The Parlour
+        roulette,
+        rouletteTable,
+        rouletteResult,
+        rouletteMyBet,
+        setRouletteMyBet,
+        roulettePayout,
     };
 
     return (

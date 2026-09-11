@@ -9,6 +9,7 @@ import { WheelSpinner } from './WheelSpinner';
 import { UsernameModal } from './modals';
 import { CollectionBook } from './features/CollectionBook.jsx';
 import { SpinHistory } from './modals/SpinHistory.jsx';
+import { EventHistoryBoard } from './modals/EventHistoryBoard.jsx';
 import { AdminPanel } from './admin/AdminPanel.jsx';
 import { Achievements } from './features/Achievements.jsx';
 import { UserProfile } from './features/UserProfile.jsx';
@@ -61,11 +62,21 @@ import { useWheelViewport } from './config/breakpoints.js';
 // The arrival's beats, so the lucky-spin counter changes on the frame the board
 // resolves this player's row rather than at t=0. See the payout handler below.
 import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimeline.js';
+// THE PARLOUR's reveal beat, for the same job one event along: holding a payout
+// back until the animation has actually said what happened.
+import { T_REVEAL } from './effects/rouletteTimeline.js';
+import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
+import { serverNow } from '../../utils/serverClock.js';
 import {
     User, Edit3, LogOut, Settings,
     BookOpen, ScrollText, Trophy, Check, Clock,
     Sparkles, Star, Diamond, Zap, Award, Activity, PartyPopper,
-    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2, Battery, BatteryLow
+    ArrowLeft, Home, Bell, X, MoreHorizontal, Volume2, Battery, BatteryLow,
+    // THE EVENT LOG's mark. A broadcast tower, because that is what a global
+    // event is — one thing happening to everybody at once — and because every
+    // clock and scroll glyph in this set is already spent on the spin history,
+    // which is the per-player log this one is deliberately not.
+    Radio
 } from 'lucide-react';
 
 // ============================================
@@ -334,7 +345,10 @@ function UsernamePromptModal({ onSetUsername, onDismiss }) {
 // ============================================
 function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
-    const { kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult, arrival, arrivalCrate } = useActivity();
+    const {
+        kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
+        arrival, arrivalCrate, roulette, roulettePayout, rouletteResult,
+    } = useActivity();
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -355,6 +369,7 @@ function WheelOfFortunePage({ onBack }) {
     const [showLeaderboard, setShowLeaderboard] = useState(false);
     const [showCollection, setShowCollection] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
+    const [showEventLog, setShowEventLog] = useState(false);
     const [showAdmin, setShowAdmin] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     // The bottom bar's link to the chat: a counter it bumps to open the panel,
@@ -542,6 +557,59 @@ function WheelOfFortunePage({ onBack }) {
     }, [arrival, arrivalCrate, user?.id]);
 
     useEffect(() => () => clearTimeout(arrivalPayoutTimeoutRef.current), []);
+
+    /*
+     * THE PARLOUR's payout, held until the ball has actually stopped.
+     *
+     * Same shape as the arrival's above and for the same reason, but the beat it
+     * waits for is simpler: there is one result, not one row per player, so the
+     * balance lands on the reveal rather than on a per-seat cascade.
+     *
+     * What it is protecting against is sharper here, though. The payout is
+     * written and broadcast the moment bets close — seven seconds before the
+     * ball settles on screen — so applying it on arrival would put "+30 Lucky
+     * Spins" in the topbar while the wheel was still turning. That is not just
+     * early, it is the RESULT: a player watching their balance could read the
+     * outcome off it before the ball landed, which would make the whole
+     * animation a formality. The same failure `settleKotwSpin` records for the
+     * lucky-spin badge, one event along.
+     */
+    const processedParlourRef = useRef(null);
+    const parlourPayoutTimeoutRef = useRef(null);
+    useEffect(() => {
+        if (!roulette || !roulettePayout || !user?.id) return;
+
+        const newTotal = roulettePayout.luckySpinsTotal;
+        // A loss and a fold-with-nothing carry no balance: there is nothing to
+        // apply, and the board still says what happened.
+        if (typeof newTotal !== 'number') return;
+
+        const key = `${roulette.openedAt}-${newTotal}`;
+        if (processedParlourRef.current === key) return;
+        processedParlourRef.current = key;
+
+        const pay = () => {
+            console.log('[WheelPage] Parlour paid out', roulettePayout.luckySpinsAwarded, 'lucky spins');
+            kotwLuckySpinsRef.current = newTotal;
+            setKotwLuckySpins(newTotal);
+            parlourPayoutTimeoutRef.current = null;
+        };
+
+        // The theatre's clock is the server's, so the wait is measured the same
+        // way it is: from `openedAt`, not from when this effect happened to run.
+        const dueAt = roulette.openedAt + T_REVEAL * 1000;
+        const waitMs = prefersCalm() ? 0 : Math.max(0, dueAt - serverNow());
+
+        if (waitMs <= 0) {
+            pay();
+            return;
+        }
+
+        clearTimeout(parlourPayoutTimeoutRef.current);
+        parlourPayoutTimeoutRef.current = setTimeout(pay, waitMs);
+    }, [roulette, roulettePayout, user?.id]);
+
+    useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
 
 
     // Fetch items and user data
@@ -850,7 +918,9 @@ function WheelOfFortunePage({ onBack }) {
             // scrolls, which it is already set up to do.
             gridTemplateRows: isMobile
                 ? 'auto auto auto minmax(0, 1fr)'
-                : 'auto auto 0.34fr auto minmax(350px, 1fr)',
+                : roulette
+                    ? 'auto auto 0.22fr auto minmax(0, 1fr)'
+                    : 'auto auto 0.34fr auto minmax(350px, 1fr)',
             gridTemplateColumns: 'minmax(0, 1fr)',
             // Room for the fixed bottom bar, plus the home indicator under it. The
             // bar is `position: fixed` so it reserves no layout space of its own,
@@ -861,6 +931,13 @@ function WheelOfFortunePage({ onBack }) {
             background: COLORS.bg,
             color: COLORS.text,
             fontFamily: "'Segoe UI', system-ui, sans-serif",
+            // The event changes the furniture's material as well as the room.
+            // Unset variables restore each surface's usual blue-hour palette.
+            '--wheel-panel-top': roulette ? '#310a12' : undefined,
+            '--wheel-panel-bottom': roulette ? '#19050b' : undefined,
+            '--wheel-control-top': roulette ? '#3b131b' : undefined,
+            '--wheel-control-bottom': roulette ? '#230a11' : undefined,
+            '--wheel-surface-light': roulette ? '225,126,111' : undefined,
             position: 'relative',
             overflow: 'hidden',
             boxSizing: 'border-box',
@@ -878,6 +955,41 @@ function WheelOfFortunePage({ onBack }) {
         }}>
             <AnimationStyles />
             <CanvasNocturneField />
+
+            {/* THE PARLOUR's light, over the whole surface.
+
+                Mounted at the page and not inside WheelSpinner because it is the
+                ROOM, not a layer on the reel: the topbar, the ticker, the
+                boards, the chat and the collection panel are all inside it and
+                all lit by it. It sits directly on top of the Nocturne field it
+                tints and underneath everything else, so nothing it warms becomes
+                harder to read — and it takes no pointer events, so the site is
+                fully usable for the whole three quarters of a minute. See
+                ParlourAtmosphere.jsx and DESIGN.md §9b. */}
+            {/* The pocket's colour reaches the room only so the deck can shower
+                in it AFTER the band has landed. It is not a second readout —
+                the room agrees with the result a beat late, and cannot be asked
+                anything the strip has not already answered. */}
+            {/* Keyed on the table, for the reason `CanvasRouletteStrip` is
+                keyed on it a few files over — and this one was caught the same
+                way, by watching a second event.
+
+                The room's wheel and its deck are rAF loops that PARK a second
+                after `T_END`, so they cost nothing once the event is over
+                (§10's rule: a loop with no park condition is a permanent cost).
+                A parked loop restarts on a fresh mount and on nothing else, and
+                `roulette` being replaced by the next table is not a mount — so
+                the second table of a session opened into a room that had gone
+                still: a frozen wheel in the corner and a deck of cards hanging
+                in mid-air. It reads as broken rather than as calm, and it is
+                invisible in testing unless you trigger two events in a row. */}
+            {roulette && (
+                <ParlourAtmosphere
+                    key={roulette.openedAt || 'parlour'}
+                    openedAt={roulette.openedAt}
+                    pocketColour={rouletteResult?.pocket?.colour ?? null}
+                />
+            )}
 
             {/* Topbar — row 1.
 
@@ -1043,6 +1155,29 @@ function WheelOfFortunePage({ onBack }) {
                                 onClick={() => setShowAchievements(true)}
                                 icon={<Award size={19} />}
                                 label="Achievements"
+                            />
+                        )}
+                        {/* THE EVENT LOG.
+
+                            A third destination in this group rather than a
+                            register on the odds board, which is where it was
+                            drafted. The odds board is a document — every figure
+                            on it is derived from the weight table and is as true
+                            tomorrow as today — and a log is the opposite kind of
+                            thing. Two registers with the same shape and opposite
+                            lifetimes on one board is how a reader stops knowing
+                            which numbers are facts and which are news.
+
+                            It survives this row's own duplication rule because
+                            nothing else opens it: the odds board describes what
+                            the five events ARE, the ticker shows drops rather
+                            than events, and neither can say who won the last
+                            King of the Wheel. */}
+                        {!isMobile && (
+                            <TopbarIconButton
+                                onClick={() => setShowEventLog(true)}
+                                icon={<Radio size={19} />}
+                                label="Event log"
                             />
                         )}
                         {/* History, Achievements and Live activity are in the
@@ -1301,6 +1436,10 @@ function WheelOfFortunePage({ onBack }) {
                     allItems={allItems}
                     dynamicItems={dynamicItems}
                 />
+            )}
+
+            {showEventLog && (
+                <EventHistoryBoard onClose={() => setShowEventLog(false)} />
             )}
 
             {showHistory && (
@@ -1590,6 +1729,10 @@ function WheelOfFortunePage({ onBack }) {
                         // already applied to the Trophy button, the leaderboard
                         // pill and the chat launcher.
                         { id: 'history', label: 'Spin history', Icon: ScrollText, onSelect: () => setShowHistory(true) },
+                        // Directly under the spin history, because the pairing is
+                        // the explanation: one is what YOU pulled, the other is
+                        // what the SERVER did. Neither is the other's summary.
+                        { id: 'eventlog', label: 'Event log', Icon: Radio, onSelect: () => setShowEventLog(true) },
                         { id: 'achievements', label: 'Achievements', Icon: Award, onSelect: () => setShowAchievements(true) },
                         { id: 'name', label: 'Edit name', Icon: Edit3, onSelect: () => setShowUsernameModal(true) },
                         { id: 'sound', label: 'Sound', Icon: Volume2, onSelect: () => setShowSoundSettings(true) },

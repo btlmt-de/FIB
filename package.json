@@ -13,6 +13,7 @@
     "vendor:textures": "node scripts/vendor-textures.mjs && npm run vendor:atlas",
     "vendor:atlas": "node scripts/vendor-atlas.mjs",
     "vendor:pool": "node scripts/vendor-pool.mjs",
+    "bench:arrival": "node scripts/build-arrival-bench.mjs",
     "sanitize:structures": "node scripts/sanitize-structures.mjs",
     "simulate:wheel": "node scripts/simulate-wheel.mjs"
   },
