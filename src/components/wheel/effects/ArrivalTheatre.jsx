@@ -60,7 +60,7 @@
  * origin with it.
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { ArrivalTrain3D } from './arrivalScene.js';
@@ -161,43 +161,13 @@ export function ArrivalTheatre() {
     const { arrival, arrivalCrate } = useActivity();
     const { startArrivalSoundtrack, stopArrivalSoundtrack, playArrivalCrate, stopArrivalCrates } = useSound();
 
-    /*
-     * ── ONE CLOCK FOR THE WHOLE EVENT ────────────────────────────────────────
-     *
-     * Established in render, before any effect and long before the scene's
-     * chunk resolves, and then shared by everything that has to agree: the
-     * shutter, the crate cue sheet, and the 3D scene itself.
-     *
-     * ── THE BUG THIS FIXES, WHICH WAS NEVER THE SOUND ────────────────────────
-     *
-     * `ArrivalTrain3D` is a 551KB lazy chunk requested on mount, and it used to
-     * start its own `performance.now()` when it finally mounted — which is when
-     * the CHUNK arrived, not when the event did. On the first arrival of a
-     * session that is a fetch and a parse later, so the train, and every crate
-     * with it, ran that far behind a shutter and a cue sheet that were both on
-     * time. On the second arrival the chunk is cached, the offset is nil, and
-     * everything lines up — which is why this read as a sound problem and
-     * survived two passes at the sound.
-     *
-     * The header above already describes a slow chunk as "a train running late
-     * rather than a broken animation". That is true of the picture on its own;
-     * it stops being true the moment anything else in the event is on time.
-     *
-     * With one epoch, a chunk that lands at t=1.5 renders the frame for t=1.5 —
-     * the train is already on its way in rather than starting its approach a
-     * second and a half after the platform lit. Every one-shot in the scene is
-     * written `if (!fired && t >= X)`, so they catch up rather than misfire.
-     *
-     * Adjusted during render rather than in an effect, which is the pattern
-     * React documents for a value derived from a prop — and effects run in
-     * order, so an epoch established in one would already be younger than
-     * whatever ran above it. `FlapText` resets its cascade the same way.
-     */
-    const epochRef = useRef({ event: null, at: 0 });
-    if (epochRef.current.event !== arrival) {
-        epochRef.current = { event: arrival, at: performance.now() };
-    }
-    const epoch = epochRef.current.at;
+    // Commit one epoch before mounting the scene or starting any event effects.
+    // Lazy scene loading then catches up to this same clock.
+    const [committedEpoch, setCommittedEpoch] = useState(null);
+    useLayoutEffect(() => {
+        setCommittedEpoch(arrival ? { event: arrival, at: performance.now() } : null);
+    }, [arrival]);
+    const epoch = committedEpoch?.event === arrival ? committedEpoch?.at : null;
 
     const probeRef = useRef(null);
     const frameRef = useRef(null);
@@ -218,7 +188,7 @@ export function ArrivalTheatre() {
     /*
      * ── THE SOUND ────────────────────────────────────────────────────────────
      *
-     * Read through refs, and the effect below depends on `arrival` alone.
+     * Read through refs, and the effect below depends on the committed arrival epoch.
      *
      * `useSound`'s callbacks are rebuilt whenever any setting changes, and a
      * volume slider moved during an arrival would otherwise re-run this effect:
@@ -264,7 +234,7 @@ export function ArrivalTheatre() {
      * past the cap have no crate to make a noise.
      */
     useEffect(() => {
-        if (!arrival || rows.length === 0) return undefined;
+        if (!arrival || epoch == null || rows.length === 0) return undefined;
 
         /*
          * The bed, against the event's own epoch.
@@ -340,7 +310,7 @@ export function ArrivalTheatre() {
         const frame = frameRef.current;
         const topVeil = topVeilRef.current;
         const botVeil = botVeilRef.current;
-        if (!probe || !frame || !topVeil || !botVeil) return undefined;
+        if (epoch == null || !probe || !frame || !topVeil || !botVeil) return undefined;
 
         const motionOff = prefersReducedMotion();
         // The event's clock, not this effect's. See `epoch`.
@@ -438,7 +408,7 @@ export function ArrivalTheatre() {
         return () => cancelAnimationFrame(raf);
     }, [arrival, epoch]);
 
-    if (!arrival || rows.length === 0) return null;
+    if (!arrival || epoch == null || rows.length === 0) return null;
 
     return (
         <>

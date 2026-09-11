@@ -31,7 +31,6 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
 
     return (
         <div
-            aria-label={`${luckySpins} Lucky Spin${luckySpins !== 1 ? 's' : ''}`}
             title={`${luckySpins} Lucky Spin${luckySpins !== 1 ? 's' : ''}`}
             style={{
                 display: 'flex',
@@ -72,7 +71,7 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
                 {luckySpins}
             </span>
 
-            {!isMobile && <span style={{
+            <span className={isMobile ? 'fib-sr-only' : undefined} style={{
                 fontSize: isMobile ? '12px' : '14px',
                 fontWeight: 600,
                 color: KOTW_TEXT,
@@ -80,7 +79,7 @@ export function EventPayout({ luckySpins = 0, isMobile = false }) {
                 flexShrink: 0,
             }}>
                 Lucky Spin{luckySpins !== 1 ? 's' : ''}
-            </span>}
+            </span>
         </div>
     );
 }

@@ -1232,6 +1232,16 @@ html[data-saver="on"] *::after {
 .fib-parlour-keep:focus-visible { outline: 2px solid #E0C766; outline-offset: 2px; }
 .fib-parlour-keep:disabled { cursor: default; opacity: 0.45; }
 
+/* The brass rule under the marquee. One hairline, fading at both ends, which
+   is the room's own way of separating things — see the reel's band rails. */
+.fib-parlour-rule {
+  height: 1px;
+  margin: 0 auto 10px;
+  max-width: 340px;
+  background: linear-gradient(90deg,
+    rgba(201, 162, 39, 0) 0%, rgba(201, 162, 39, 0.55) 50%, rgba(201, 162, 39, 0) 100%);
+}
+
 /*
  * The shaft. Three plaques across a 390px screen leaves about 100px of usable
  * face each, and an 11px chamfer off a 113px slab is a corner cut on a
@@ -1250,16 +1260,6 @@ html[data-saver="on"] *::after {
   .fib-parlour-plaque-label { font-size: 13px; letter-spacing: 0.07em; }
   .fib-parlour-plaque-odds { font-size: 10px; letter-spacing: 0.10em; }
   .fib-parlour-rule { max-width: 220px; }
-}
-
-/* The brass rule under the marquee. One hairline, fading at both ends, which
-   is the room's own way of separating things — see the reel's band rails. */
-.fib-parlour-rule {
-  height: 1px;
-  margin: 0 auto 10px;
-  max-width: 340px;
-  background: linear-gradient(90deg,
-    rgba(201, 162, 39, 0) 0%, rgba(201, 162, 39, 0.55) 50%, rgba(201, 162, 39, 0) 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {

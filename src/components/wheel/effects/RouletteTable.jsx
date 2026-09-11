@@ -32,6 +32,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { createPortal } from 'react-dom';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
+import { useAuth } from '../../../context/AuthContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
 import { serverNow } from '../../../utils/serverClock.js';
@@ -266,6 +267,21 @@ function RouletteTable({
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
     const { playSfx } = useSound();
+    const { user } = useAuth();
+    const requestRef = useRef(false);
+    const awaitingTableRef = useRef(false);
+
+    // Broadcasts are authoritative, but must not overwrite an in-flight choice.
+    useEffect(() => {
+        if (!table || !user?.id || (requestRef.current && !awaitingTableRef.current)) return;
+        onBet(table.seats?.find(seat => seat.userId === user.id)?.bet ?? null);
+        if (awaitingTableRef.current) {
+            awaitingTableRef.current = false;
+            requestRef.current = false;
+            setBusy(false);
+            setError(null);
+        }
+    }, [table, user?.id, onBet]);
 
     const locked = t >= T_CALL || Boolean(result);
 
@@ -278,7 +294,7 @@ function RouletteTable({
      * 250ms of granularity is invisible here — both land inside the animation
      * they belong to, and the reveal's bell rings for over a second.
      */
-    const firedRef = useRef({ call: false, reveal: false });
+    const firedRef = useRef({ call: t >= T_CALL, reveal: t >= T_REVEAL });
     useEffect(() => {
         const fired = firedRef.current;
         if (!fired.call && t >= T_CALL) {
@@ -297,19 +313,12 @@ function RouletteTable({
     }, [t, result, payout, playSfx]);
 
     const pick = useCallback(async (colour) => {
-        if (locked) return;
+        if (locked || busy || requestRef.current) return;
+        const previousBet = myBet?.bet ?? null;
+        requestRef.current = true;
         setBusy(true);
         setError(null);
-        // The chip goes down on the press, not on the response. The bet is
-        // optimistic for the same reason — see below.
         playSfx?.('parlour_chip');
-        /*
-         * Shown immediately and reconciled by the next `roulette_bets` frame.
-         * Fifteen seconds is short enough that a button which waits for a round
-         * trip before it looks pressed reads as broken — and the reconcile is
-         * what keeps that honest, because the optimistic state is thrown away
-         * rather than merged the moment the server says otherwise.
-         */
         onBet(colour);
         try {
             const res = await fetch(`${API_BASE_URL}/api/roulette/bet`, {
@@ -320,16 +329,41 @@ function RouletteTable({
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
-                setError(body.error || 'That bet did not land');
-                onBet(null);
+                // The API explicitly refuses bets with 409; auth failures also
+                // happen before the bet is placed. A 5xx may follow a mutation.
+                if ([401, 403, 409].includes(res.status)) {
+                    setError(body.error || 'That bet did not land');
+                    onBet(previousBet);
+                } else {
+                    throw new Error('Unconfirmed bet');
+                }
             }
         } catch {
-            setError('That bet did not land');
-            onBet(null);
+            setError('Confirming your bet...');
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/global-event/status`, {
+                    credentials: 'include', cache: 'no-store',
+                });
+                if (!res.ok) throw new Error('Table unavailable');
+                const state = await res.json();
+                if (state?.type !== 'roulette' || state.data?.betsCloseAt !== betsCloseAt
+                    || !Array.isArray(state.data?.seats) || !user?.id) {
+                    throw new Error('Table unavailable');
+                }
+                onBet(state.data.seats.find(seat => seat.userId === user.id)?.bet ?? null);
+                setError(null);
+            } catch {
+                // Keep the choice pending until an authoritative broadcast arrives.
+                awaitingTableRef.current = true;
+                setError('Bet unconfirmed. Waiting for the table...');
+            }
         } finally {
-            setBusy(false);
+            if (!awaitingTableRef.current) {
+                requestRef.current = false;
+                setBusy(false);
+            }
         }
-    }, [locked, onBet, playSfx]);
+    }, [locked, busy, myBet, onBet, playSfx, betsCloseAt, user?.id]);
 
     const byColour = useMemo(() => {
         const map = { red: [], black: [], green: [], fold: [] };
@@ -509,7 +543,7 @@ function RouletteTable({
                     type="button"
                     className="fib-parlour-keep"
                     data-chosen={!myBet?.bet ? 'true' : 'false'}
-                    disabled={locked}
+                    disabled={locked || busy}
                     onClick={() => pick(null)}
                     aria-pressed={!myBet?.bet}
                 >

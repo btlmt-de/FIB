@@ -229,7 +229,9 @@ export function ArrivalBoard({ arrival, arrivalCrate, rows, emitRef, rowElsRef }
             <div
                 role="status"
                 aria-live="polite"
-                aria-label={`A delivery arrived. ${arrival.totalLuckySpins} lucky spins across ${n} ${n === 1 ? 'player' : 'players'}.`}
+                aria-label={totalIn
+                    ? `A delivery arrived. ${arrival.totalLuckySpins} lucky spins across ${n} ${n === 1 ? 'player' : 'players'}.`
+                    : 'A delivery arrived.'}
                 className="fib-arrival-sign-body"
                 style={{ animation: swing }}
             >

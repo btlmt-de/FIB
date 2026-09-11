@@ -966,13 +966,13 @@ export function SoundProvider({ children }) {
             setIsRecursionPlaying(false);
 
             // Resume main soundtrack if it was playing before recursion (and no other event soundtrack is active)
-            if (isPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start KOTW soundtrack
     const startKotwSoundtrack = useCallback(async () => {
@@ -1056,13 +1056,13 @@ export function SoundProvider({ children }) {
             setIsKotwPlaying(false);
 
             // Resume main soundtrack if it was playing before KOTW (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isGoldRushPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start Gold Rush soundtrack
     const startGoldRushSoundtrack = useCallback(async () => {
@@ -1146,13 +1146,13 @@ export function SoundProvider({ children }) {
             setIsGoldRushPlaying(false);
 
             // Resume main soundtrack if it was playing before Gold Rush (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start First Blood soundtrack
     const startFirstBloodSoundtrack = useCallback(async () => {
@@ -1236,13 +1236,13 @@ export function SoundProvider({ children }) {
             setIsFirstBloodPlaying(false);
 
             // Resume main soundtrack if it was playing before First Blood (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isCommunityGoalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isCommunityGoalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start Community Goal soundtrack
     const startCommunityGoalSoundtrack = useCallback(async () => {
@@ -1326,13 +1326,13 @@ export function SoundProvider({ children }) {
             setIsCommunityGoalPlaying(false);
 
             // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isGoldRushPlaying && !isFirstBloodPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isGoldRushPlaying, isFirstBloodPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     /*
      * ── THE ARRIVAL ──────────────────────────────────────────────────────────
@@ -1790,6 +1790,7 @@ export function SoundProvider({ children }) {
             const newEnabled = !prev.enabled;
             // If disabling, stop all sounds
             if (!newEnabled) {
+                stopScheduledSamples();
                 if (spinRef.current) {
                     spinRef.current.pause();
                     spinRef.current.onended = null;

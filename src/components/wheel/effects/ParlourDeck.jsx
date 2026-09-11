@@ -370,6 +370,7 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
         const draw = (t) => {
             ctx.clearRect(0, 0, W, H);
             const winner = propsRef.current.pocketColour;
+            const winnerStyle = Object.hasOwn(COLOURS, winner) ? COLOURS[winner] : null;
             // Keep falling and tumbling at a steady speed through every event beat.
             const motionT = t;
 
@@ -387,7 +388,7 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
                 const x = (p.x + Math.sin(motionT * 0.16 * p.sway + p.phase * TAU) * p.swayAmp) * W;
                 const s = p.scale * (isMobile ? 0.52 : 1);
 
-                const showered = Boolean(winner) && showering(t);
+                const showered = Boolean(winnerStyle) && showering(t);
 
                 /*
                  * ── THE DETENT'S COLUMN STAYS CLEAR ──────────────────────────
@@ -431,14 +432,14 @@ function ParlourDeck({ openedAt, pocketColour = null, isMobile = false }) {
 
                 if (p.chip) {
                     const tone = showered
-                        ? { body: COLOURS[winner].hex, edge: CARD_IVORY, hi: COLOURS[winner].ink }
+                        ? { body: winnerStyle.hex, edge: CARD_IVORY, hi: winnerStyle.ink }
                         : CHIP_TONES[p.tone];
                     drawChip(ctx, p, s, angle, tone);
                 } else {
                     const tum = Math.cos(angle);
                     const sine = Math.sin(angle);
                     const ink = showered
-                        ? (winner === 'black' ? '#14171F' : COLOURS[winner].hex)
+                        ? (winner === 'black' ? '#14171F' : winnerStyle.hex)
                         : SUIT_INK[p.suit];
                     // A thin card rotating around its long axis. Paint the
                     // cut edge first, then the visible face at its physical offset.

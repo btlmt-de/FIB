@@ -202,7 +202,7 @@ function fmtOdds(weight) {
     if (!weight || weight <= 0) return '—';
     const odds = Math.round(TOTAL_WEIGHT / weight);
     if (odds >= 1000000) return `1 in ${(odds / 1000000).toFixed(0)}M`;
-    if (odds >= 1000) return `1 in ${Math.round(odds / 1000).toLocaleString()}K`;
+    if (odds >= 10000) return `1 in ${Math.round(odds / 1000).toLocaleString()}K`;
     return `1 in ${odds.toLocaleString()}`;
 }
 

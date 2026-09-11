@@ -237,7 +237,9 @@ function ParlourWheel({ openedAt }) {
 
         const size = () => {
             const vmin = Math.min(window.innerWidth, window.innerHeight);
-            R = Math.round(Math.max(190, Math.min(520, vmin * 0.50)));
+            const nextR = Math.round(Math.max(190, Math.min(520, vmin * 0.50)));
+            if (nextR === R) return false;
+            R = nextR;
             const S = 2 * R;
             canvas.width = Math.round(S * dpr);
             canvas.height = Math.round(S * dpr);
@@ -257,6 +259,7 @@ function ParlourWheel({ openedAt }) {
             canvas.style.top = `${90 - 0.10 * R}px`;
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             rotor = renderRotor(R, dpr);
+            return true;
         };
         size();
 
@@ -362,7 +365,7 @@ function ParlourWheel({ openedAt }) {
 
         if (calm) {
             draw(T_TURN);
-            const ro = new ResizeObserver(() => { size(); draw(T_TURN); });
+            const ro = new ResizeObserver(() => { if (size()) draw(T_TURN); });
             ro.observe(document.documentElement);
             return () => ro.disconnect();
         }

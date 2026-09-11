@@ -1191,8 +1191,8 @@ export function ActivityProvider({ children }) {
      * its own choice to come back around on the broadcast would look dead for up
      * to two thirds of a second, every time, inside a thirty-second window. The
      * table is still the source of truth for what the ROOM is doing; this is
-     * only the local echo, and RouletteTable clears it back to null when the
-     * server refuses a bet.
+     * only the local echo; RouletteTable restores a refused change and reconciles
+     * uncertain requests against the authoritative table.
      */
     const setRouletteMyBet = useCallback((bet) => {
         setRouletteMyBetState(bet === null || bet === undefined ? null : { bet });
