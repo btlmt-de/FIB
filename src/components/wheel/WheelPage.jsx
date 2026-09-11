@@ -66,6 +66,7 @@ import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimelin
 // back until the animation has actually said what happened.
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
+import { KotwArenaAtmosphere } from './effects/KotwArena.jsx';
 import { serverNow } from '../../utils/serverClock.js';
 import {
     User, Edit3, LogOut, Settings,
@@ -349,6 +350,7 @@ function WheelOfFortunePage({ onBack }) {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
         arrival, arrivalCrate, roulette, roulettePayout, rouletteResult,
     } = useActivity();
+    const [arenaVisible, setArenaVisible] = useState(false);
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -920,6 +922,8 @@ function WheelOfFortunePage({ onBack }) {
                 ? 'auto auto auto minmax(0, 1fr)'
                 : roulette
                     ? 'auto auto 0.22fr auto minmax(0, 1fr)'
+                    : arenaVisible
+                        ? 'auto auto auto auto minmax(0, 1fr)'
                     : 'auto auto 0.34fr auto minmax(350px, 1fr)',
             gridTemplateColumns: 'minmax(0, 1fr)',
             // Room for the fixed bottom bar, plus the home indicator under it. The
@@ -933,11 +937,11 @@ function WheelOfFortunePage({ onBack }) {
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             // The event changes the furniture's material as well as the room.
             // Unset variables restore each surface's usual blue-hour palette.
-            '--wheel-panel-top': roulette ? '#310a12' : undefined,
-            '--wheel-panel-bottom': roulette ? '#19050b' : undefined,
+            '--wheel-panel-top': roulette ? '#310a12' : arenaVisible ? '#102133' : undefined,
+            '--wheel-panel-bottom': roulette ? '#19050b' : arenaVisible ? '#050c15' : undefined,
             '--wheel-control-top': roulette ? '#3b131b' : undefined,
             '--wheel-control-bottom': roulette ? '#230a11' : undefined,
-            '--wheel-surface-light': roulette ? '225,126,111' : undefined,
+            '--wheel-surface-light': roulette ? '225,126,111' : arenaVisible ? '214,174,100' : undefined,
             position: 'relative',
             overflow: 'hidden',
             boxSizing: 'border-box',
@@ -955,6 +959,7 @@ function WheelOfFortunePage({ onBack }) {
         }}>
             <AnimationStyles />
             <CanvasNocturneField />
+            <KotwArenaAtmosphere visible={arenaVisible} />
 
             {/* THE PARLOUR's light, over the whole surface.
 
@@ -1306,6 +1311,7 @@ function WheelOfFortunePage({ onBack }) {
                 component boundary, so the rAF offset refs and the 60fps
                 spinProgress tick stay exactly where they were. */}
             <WheelSpinner
+                arenaVisible={arenaVisible}
                 allItems={allItems}
                 collection={collection}
                 prestige={prestige}
@@ -1565,7 +1571,7 @@ function WheelOfFortunePage({ onBack }) {
                     The rule it does still keep is the one that matters: it never
                     steals a spin in progress, which is why ActivityContext holds
                     it back until the wheel lands. */}
-                <KingOfWheelBanner isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
+                <KingOfWheelBanner arena onArenaVisibility={setArenaVisible} isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
                 <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 {/* The roll, in the same slot the meter counts down in and the

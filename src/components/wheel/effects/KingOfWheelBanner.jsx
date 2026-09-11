@@ -1,4 +1,5 @@
-﻿// ============================================
+import { KotwArenaHeader } from './KotwArena.jsx';
+// ============================================
 // KingOfWheelBanner.jsx
 // ============================================
 // King of the Wheel event banner with competition leaderboard
@@ -431,6 +432,8 @@ function KingOfWheelBanner({
                                isAdmin = false,
                                currentUserId = null,
                                inline = false,
+                               arena = false,
+                               onArenaVisibility,
                            }) {
     const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner, kotwWinnerPending } = useActivity();
     const { playSfx, startKotwSoundtrack, stopKotwSoundtrack } = useSound();
@@ -693,7 +696,20 @@ function KingOfWheelBanner({
         return () => clearTimeout(id);
     }, [isClosing]);
 
+    useEffect(() => {
+        onArenaVisibility?.(arena && shouldShowBanner);
+    }, [arena, shouldShowBanner, onArenaVisibility]);
+
     if (isGone) return null;
+    if (arena) return <KotwArenaHeader
+        pending={isPending && !isActive}
+        settling={isSettling}
+        clock={isPending && !isActive ? String(countdownSecs) : formatTime(remainingTime)}
+        critical={isCriticalTime}
+        winner={showWinnerInBanner ? kotwWinner?.winner : null}
+        closing={isClosing}
+        onEnd={isAdmin && isActive ? endTestEvent : undefined}
+    />;
 
     return (
         <>

@@ -1,3 +1,5 @@
+import { KotwPoints } from './KotwSpinControl.jsx';
+import { ARENA } from '../config/arenaTheme.js';
 import React from 'react';
 import { COLORS, SPACE, SURFACE_NOISE } from '../config/constants';
 import { formatChance, getItemRarity, getItemImageUrl } from '../../../utils/helpers.js';
@@ -53,13 +55,13 @@ import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
  */
 export const SHAFT_RESULT_HEIGHT = 236;
 
-export function ShaftResult({ result, isNewItem, prestigePull, collection, centerY }) {
+export function ShaftResult({ result, isNewItem, prestigePull, collection, centerY, arena = false, kotwPoints = null }) {
     if (!result) return null;
 
     const rarity = getItemRarity(result);
     const iridescent = isIridescentRarity(rarity);
-    const tierColor = getRarityColor(rarity);
-    const tierInk = getRarityInk(rarity);
+    const tierColor = arena && rarity === "common" ? ARENA.gold : getRarityColor(rarity);
+    const tierInk = arena && rarity === "common" ? ARENA.ink : getRarityInk(rarity);
     // Insane's flat `color` is a near-white platinum — right for a badge, useless
     // as light — so the flat pieces borrow the slick's opening stop, the same
     // correction SpinResult documents.
@@ -243,7 +245,7 @@ export function ShaftResult({ result, isNewItem, prestigePull, collection, cente
                 {result.name}
             </div>
 
-            {(chance || owned > 1) && (
+            {(!arena || kotwPoints == null) && (chance || owned > 1) && (
                 <div style={{
                     position: 'relative',
                     display: 'flex',
@@ -278,6 +280,7 @@ export function ShaftResult({ result, isNewItem, prestigePull, collection, cente
                     <PrestigeCount pull={prestigePull} style={{ fontSize: '11px' }} />
                 </div>
             )}
+            {arena && <KotwPoints points={kotwPoints} compact/>}
         </div>
     );
 }
