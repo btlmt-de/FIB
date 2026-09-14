@@ -57,7 +57,7 @@ export function CommunityForgeHeader({ pending, active, clock, progress, special
                 <div className="cg-forge-stages">
                     {stages.map(stage => <div className="cg-forge-stage" key={stage.key} data-tier={stage.key} data-reached={stage.reached} data-gated={stage.gated}>
                         <div className="cg-forge-stage-label"><span>{stage.reached ? <Check size={13}/> : stage.key === 'diamond' ? <Gem size={13}/> : <Anvil size={13}/>} {stage.name}</span><strong>{number(stage.threshold)} <small>pts</small></strong></div>
-                        <div className="cg-forge-channel" role="progressbar" aria-label={`${stage.name} points`} aria-valuemin={0} aria-valuemax={stage.threshold} aria-valuenow={Math.min(result?.progress ?? progress, stage.threshold)} aria-valuetext={`${number(result?.progress ?? progress)} of ${number(stage.threshold)} points; ${stage.reached ? 'stage forged' : `${stage.specialsShort} special drops still needed`}`}>
+                        <div className="cg-forge-channel" role="progressbar" aria-label={`${stage.name} points`} aria-valuemin={0} aria-valuemax={Math.max(0, stage.span)} aria-valuenow={Math.max(0, Math.min((result?.progress ?? progress) - stage.start, stage.span))} aria-valuetext={`${number(Math.max(0, Math.min((result?.progress ?? progress) - stage.start, stage.span)))} of ${number(Math.max(0, stage.span))} points; ${stage.reached ? 'stage forged' : `${stage.specialsShort} special drops still needed`}`}>
                             <div className="cg-forge-molten" style={{ width: `${stage.fill * 100}%` }}><span/></div>
                             <div className="cg-forge-rivets" aria-hidden="true"/>
                         </div>

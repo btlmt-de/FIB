@@ -5,15 +5,19 @@ import { RARITY, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import './EventWinnerReveal.css';
 
 export default function EventWinnerReveal({ winner, theme }) {
+    const identity = JSON.stringify([theme, winner.eventId, winner.userId, winner.username, winner.item, winner.itemRarity, winner.points, winner.luckySpinsAwarded]);
+    return <WinnerReveal key={identity} winner={winner} theme={theme}/>;
+}
+
+function WinnerReveal({ winner, theme }) {
     const calm = useCalm();
     const blood = theme === 'first-blood';
     const Icon = blood ? Crosshair : Crown;
     const [showPrize, setShowPrize] = useState(false);
     useEffect(() => {
-        setShowPrize(false);
         const timer = setTimeout(() => setShowPrize(true), 3000);
         return () => clearTimeout(timer);
-    }, [winner]);
+    }, []);
     return <div className="event-winner" data-theme={theme} data-calm={calm} role="status" aria-atomic="true">
         <div className="event-winner-ornament" aria-hidden="true">
             {blood ? <Crosshair size={150} strokeWidth={0.6}/> : <><Wheat className="event-winner-laurel event-winner-laurel-left" size={100} strokeWidth={0.8}/><Wheat className="event-winner-laurel event-winner-laurel-right" size={100} strokeWidth={0.8}/></>}

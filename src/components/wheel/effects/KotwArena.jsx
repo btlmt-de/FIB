@@ -23,7 +23,7 @@ export function KotwArenaAtmosphere({ visible }) {
 export function KotwArenaStandings({ compact = false, onOpenLeaderboard }) {
     const { globalEventStatus, kotwLeaderboard, kotwUserStats, kotwSpinPending, kotwWinnerPending } = useActivity();
     const { user } = useAuth();
-    const active = (globalEventStatus?.type === 'king_of_wheel' && globalEventStatus.active) || kotwWinnerPending;
+    const active = (globalEventStatus?.type === 'king_of_wheel' && (globalEventStatus.active || globalEventStatus.pending)) || kotwWinnerPending;
     if (!active) return null;
     const standings = kotwStandings(kotwLeaderboard, { userId: user?.id, pending: kotwSpinPending, confirmedPoints: kotwUserStats?.points });
     const own = standings.find(entry => entry.userId === user?.id);

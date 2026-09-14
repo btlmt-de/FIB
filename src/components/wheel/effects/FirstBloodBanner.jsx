@@ -119,6 +119,25 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
     const isActive = isFirstBlood && globalEventStatus?.active;
     const isPending = isFirstBlood && globalEventStatus?.pending;
 
+    // Retain the winner only for the exit fade; context owns the reveal lifetime.
+    const [displayInputs, setDisplayInputs] = useState({ winner: null, active: false, pending: false });
+    if (displayInputs.winner !== firstBloodWinner || displayInputs.active !== isActive || displayInputs.pending !== isPending) {
+        setDisplayInputs({ winner: firstBloodWinner, active: isActive, pending: isPending });
+        if (firstBloodWinner?.winner) {
+            setLastWinner(firstBloodWinner.winner);
+            setIsVisible(true);
+        } else if (firstBloodWinner?.noWinner || displayInputs.winner?.winner) {
+            setIsVisible(false);
+        }
+        if ((isPending && !displayInputs.pending) || (isActive && !displayInputs.active)) {
+            setLastWinner(null);
+            setIsVisible(true);
+        } else if (!isActive && !isPending && (displayInputs.active || displayInputs.pending)
+            && !firstBloodResultPending && !firstBloodWinner?.winner) {
+            setIsVisible(false);
+        }
+    }
+
     // The window between the race being claimed server-side and the winner being shown.
     // The result is held back so it cannot land mid-spin, and the banner deliberately
     // does not change during it: it keeps the running layout, frozen, and then flips
@@ -159,13 +178,10 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
     // its clear: effect cleanup cancelled our timer and left the room visible.
     useEffect(() => {
         if (firstBloodWinner?.winner) {
-            setLastWinner(firstBloodWinner.winner);
-            setIsVisible(true);
             hadWinnerRef.current = true;
             playSfx?.('event_win');
         } else if (firstBloodWinner?.noWinner || hadWinnerRef.current) {
             hadWinnerRef.current = false;
-            setIsVisible(false);
             stopFirstBloodSoundtrack?.();
         }
     }, [firstBloodWinner, playSfx, stopFirstBloodSoundtrack]);
@@ -174,13 +190,9 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
     useEffect(() => {
         if (isPending && !wasPendingRef.current && !isActive) {
             console.log('[FirstBlood] Starting countdown phase');
-            setLastWinner(null);
-            setIsVisible(true);
             wasPendingRef.current = true;
         } else if (isActive && !wasActiveRef.current) {
             console.log('[FirstBlood] Event now ACTIVE - race begins!');
-            setLastWinner(null);
-            setIsVisible(true);
             if (!hasPlayedSoundRef.current) {
                 playSfx?.('event_start');
                 hasPlayedSoundRef.current = true;
@@ -197,7 +209,6 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
             // winner is on screen.
             if (!holdSoundtrack) {
                 console.log('[FirstBlood] Event ENDED');
-                setIsVisible(false);
                 // Stop soundtrack when event ends (e.g., admin ended it, or it
                 // expired with nobody claiming it and no result to wait for)
                 // Main useEffect will handle hasSoundtrackStartedRef reset
