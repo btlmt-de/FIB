@@ -69,6 +69,37 @@
 .cg-forge-machine-theme .kotw-reel-band { background: linear-gradient(#252323, #080f16 45%, #151619) !important; box-shadow: 0 -2px #c0874566, 0 2px #dc9c4a66, 0 10px 35px #0009 !important; }
 .cg-forge-machine-theme .kotw-reel-console { background: linear-gradient(#30281ee8, #0b151eea) !important; }
 .cg-forge-result > h2 { font-size: 25px !important; }
+/* The desktop event slot grows with available height. Spend that room on
+   readable stages and a clock that can be found at a glance. */
+@container forge-banner-slot (min-height: 250px) {
+    .cg-forge-header { padding: 12px 28px 16px; }
+    .cg-forge-title { gap: 16px; margin-bottom: 18px; }
+    .cg-forge-clock { gap: 8px; padding: 9px 14px; border: 1px solid #e7bc7755; border-radius: 6px; background: #12110ddd; font-size: 22px; font-variant-numeric: tabular-nums; }
+    .cg-forge-clock svg { width: 18px; height: 18px; }
+    .cg-forge-stages { gap: 16px; }
+    .cg-forge-stage-label, .cg-forge-stage-gate { font-size: 12px; }
+    .cg-forge-stage-label { padding-bottom: 8px; }
+    .cg-forge-stage-label small, .cg-forge-stage-gate small { font-size: 10px; }
+    .cg-forge-channel { height: 34px; }
+    .cg-forge-stage-gate { margin-top: 8px; }
+    .cg-forge-status { margin-top: 14px; gap: 8px 28px; }
+}
+@container forge-banner-slot (min-height: 320px) {
+    .cg-forge-header { padding-bottom: 24px; }
+    .cg-forge-title { margin-bottom: 24px; }
+    .cg-forge-title h2 { font-size: 40px; }
+    .cg-forge-channel { height: 42px; }
+    .cg-forge-status { margin-top: 20px; font-size: 16px; }
+    .cg-forge-next { font-size: 14px; }
+}
+@container wheel-stage (max-height: 260px) {
+    .cg-forge-control { min-height: 180px; gap: 4px; }
+    .cg-forge-control button { gap: 7px; padding: 6px 12px; }
+    .cg-forge-control button > span { width: 96px; height: 85px; }
+    .cg-forge-control button > span svg:first-child { width: 42px; height: 42px; }
+    .cg-forge-control button > span svg:last-child { width: 48px; height: 48px; }
+    .cg-forge-control button strong { font-size: 21px; }
+}
 @container forge-banner-slot (max-height: 145px) {
     .cg-forge-header { padding: 3px 14px 5px; }
     .cg-forge-title h2 { font-size: 24px; }

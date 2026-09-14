@@ -40,4 +40,11 @@
     .fb-result { --fb-result-item-size: 92px; }
     .fb-result > h2 { font-size: 26px !important; }
 }
+@container wheel-stage (max-height: 260px) {
+    .fb-spin-control { min-height: 180px; }
+    .fb-trigger { gap: 10px; padding: 8px 12px; }
+    .fb-trigger-dial { width: 92px; height: 92px; }
+    .fb-trigger-dial svg { width: 46px; height: 46px; }
+    .fb-trigger-label { font-size: 20px; }
+}
 @media (prefers-reduced-motion: reduce) { .fb-trigger { transition: none; } }

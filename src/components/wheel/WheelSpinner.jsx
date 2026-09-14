@@ -59,7 +59,10 @@ import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
 import { FirstBloodSpinControl } from './spin/FirstBloodSpinControl.jsx';
 import { ShaftResult } from './spin/ShaftResult.jsx';
+import { KotwArenaStandings } from './effects/KotwArena.jsx';
 import { StageFlanks } from './spin/StageFlanks.jsx';
+import { getItemRarity } from '../../utils/helpers.js';
+import { getRarityInk } from '../../utils/rarityHelpers.jsx';
 import { EventPayout } from './spin/EventPayout.jsx';
 import { EnhancedWheelIdleState } from './canvas/EnhancedWheelIdleState.jsx';
 import { CanvasSpinningStrip, preloadItemImages, warmImageCache, MOBILE_ROW_PITCH } from './canvas/CanvasSpinningStrip.jsx';
@@ -80,10 +83,7 @@ import { COLORS, SPACE, Z, SURFACE_NOISE } from './config/constants';
 // getMinecraftHeadUrl, isEventItem and isRecursionItem left with the local
 // getItemImageUrl copy above — they were its inputs and nothing else here read
 // them.
-import {
-    getItemRarity
-} from '../../utils/helpers.js';
-import { RARITY, getRarityInk } from '../../utils/rarityHelpers.jsx';
+import { RARITY } from '../../utils/rarityHelpers.jsx';
 import { useWheelConfig } from '../../hooks/useWheelConfig';
 import { useActivity } from '../../context/ActivityContext.jsx';
 import { ArrivalTheatre } from './effects/ArrivalTheatre.jsx';
@@ -172,7 +172,7 @@ function landingVariance(itemWidth) {
     return (Math.random() * 2 - 1) * max;
 }
 
-function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, isMobile = false, hasFlanks = true, arenaVisible = false, firstBloodVisible = false, forgeVisible = false }) {
+function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, compactEventNavigation = false, isMobile = false, hasFlanks = true, arenaVisible = false, firstBloodVisible = false, forgeVisible = false }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
@@ -2645,6 +2645,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         gridRow: 5,
                         gridColumn: stageColumn,
                         minHeight: 0,
+                        ...(!isMobile ? { containerType: 'size', containerName: 'wheel-stage' } : null),
                         // Bets are scenery; the settlement must remain reachable on short screens.
                         overflowY: parlourOwnsReel && !(rouletteResult && parlourT >= T_REVEAL) ? 'hidden' : 'auto',
                         display: 'flex',
@@ -2905,45 +2906,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             />
                         )}
 
-                        {/* The stage flanks: your collection on the left, the
-                            standings on the right.
-
-                            Outside the `state === 'result'` branch on purpose. They
-                            are the page's way into the collection book and the
-                            leaderboard, and a shortcut that only exists in the
-                            seconds after a spin is not a shortcut. Only the one
-                            result line inside the left panel comes and goes.
-
-                            The lane takeovers are the exception, and it is a
-                            collision rather than a change of heart. The flanks
-                            are absolutely positioned 272px panels inset
-                            `clamp(20px, 5vw, 96px)` from the stage's edges, and
-                            the 3x/5x readout is now laid out on the lanes' own
-                            full-width grid — at 1920 the first track's answer is
-                            centred at about x=190, which is inside the left
-                            panel. Something had to give, and it is not the
-                            alignment: an answer that does not sit under its own
-                            track is the whole defect this row was rebuilt to
-                            fix. They are hidden across all four lane states
-                            rather than only at the result, so nothing appears or
-                            vanishes in the middle of the moment. The shortcut
-                            still exists at idle, through a normal spin, and at a
-                            normal result, which is where a player spends almost
-                            all of their time.
-
-                            `hasFlanks` is the other gate and it is a measurement,
-                            not a device guess: two 272px panels, two
-                            `clamp(20px, 5vw, 96px)` insets and a worst-case 420px
-                            result need about 1156px before anything touches, so
-                            they appear at 1200 and not before. Below that the
-                            desktop layout is correct and simply has no flanks —
-                            they are absolutely positioned and nothing else
-                            depends on them. This is what used to break: they were
-                            gated on `!isMobile` against a 600px threshold, so at
-                            760px both panels rendered on top of the spin control.
-                            On a phone their job moves to the bottom bar, where
-                            they stop being readouts and become destinations. */}
-                        {hasFlanks && !isTripleMode && <StageFlanks
+                        {hasFlanks && !isTripleMode && !compactEventNavigation && <StageFlanks
                             prestige={prestige}
                             showResultLine={state === 'result' && !!result}
                             isNewItem={isNewItem}
@@ -2973,6 +2936,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             onOpenCollection={onOpenCollection}
                             onOpenLeaderboard={onOpenLeaderboard}
                         />}
+
+                        {/* Event standings remain part of the arena. */}
+                        {hasFlanks && !isTripleMode && arenaVisible && (
+                            <KotwArenaStandings onOpenLeaderboard={onOpenLeaderboard} />
+                        )}
                     </div>
 
         </div>
@@ -2993,6 +2961,8 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
     // Return true if props are equal (skip re-render)
     // Return false if props are different (re-render)
     return (
+        prevProps.compactEventNavigation === nextProps.compactEventNavigation &&
+        prevProps.prestige === nextProps.prestige &&
         prevProps.arenaVisible === nextProps.arenaVisible &&
         prevProps.firstBloodVisible === nextProps.firstBloodVisible &&
         prevProps.forgeVisible === nextProps.forgeVisible &&
@@ -3004,12 +2974,6 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
         prevProps.dynamicItems === nextProps.dynamicItems &&
         prevProps.onSpinComplete === nextProps.onSpinComplete &&
         prevProps.collection === nextProps.collection &&
-        // Every prop this component reads has to be listed here or it is
-        // invisible: an explicit comparator opts OUT of React's own shallow
-        // compare, so a prop nobody adds to it simply never triggers a re-render.
-        // `prestige` arrives as null and is filled by a fetch, so without this
-        // line the collection panel's lens never appeared at all.
-        prevProps.prestige === nextProps.prestige &&
         prevProps.kotwLuckySpins === nextProps.kotwLuckySpins &&
         prevProps.kotwLuckySpinsRef === nextProps.kotwLuckySpinsRef &&
         prevProps.onKotwLuckySpinsUpdate === nextProps.onKotwLuckySpinsUpdate

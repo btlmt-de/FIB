@@ -42,7 +42,7 @@ import MilestoneMeter from './effects/MilestoneMeter.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
 import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
-import { LeaderboardPill } from './sidebars/LeaderboardPill.jsx';
+import { StageShortcuts } from './spin/StageShortcuts.jsx';
 import { LeaderboardSidebar } from './sidebars/LeaderboardSidebar.jsx';
 import { NotificationBell, NotificationCenter } from './modals/NotificationCenter.jsx';
 import { LiveChat } from './features/LiveChat.jsx';
@@ -350,11 +350,14 @@ function WheelOfFortunePage({ onBack }) {
     const { user, loading: authLoading, login, logout } = useAuth();
     const {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
-        arrival, arrivalCrate, roulette, roulettePayout, rouletteResult,
+        arrival, arrivalCrate, roulette, roulettePayout, rouletteResult, globalEventStatus,
     } = useActivity();
     const [arenaVisible, setArenaVisible] = useState(false);
     const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
     const [forgeVisible, setForgeVisible] = useState(false);
+    // Keep compact navigation through the event's reveal, then restore the panels.
+    const compactEventNavigation = !!(forgeVisible || firstBloodRoomVisible || arenaVisible
+        || arrival || roulette || rouletteResult || globalEventStatus?.active || globalEventStatus?.pending);
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -927,13 +930,13 @@ function WheelOfFortunePage({ onBack }) {
                 : roulette
                     ? 'auto auto 0.22fr auto minmax(0, 1fr)'
                     : forgeVisible
-                        ? 'auto auto minmax(150px, 0.34fr) auto minmax(240px, 1fr)'
+                        // A small extra drop aligns the result with the forge's anvil.
+                        ? 'auto auto minmax(152px, 0.58fr) auto minmax(300px, 1fr)'
                     : firstBloodRoomVisible
-                        // Keep the reel at its ordinary position. First Blood's
-                        // header adapts to this slot instead of growing the row.
-                        ? 'auto auto minmax(0, 0.34fr) auto minmax(350px, 1fr)'
+                        // A modest shift, with the result taking priority over header space.
+                        ? 'auto auto minmax(130px, 0.5fr) auto minmax(300px, 1fr)'
                     : arenaVisible
-                        ? 'auto auto auto auto minmax(0, 1fr)'
+                        ? 'auto auto auto auto minmax(300px, 1fr)'
                     : 'auto auto 0.34fr auto minmax(350px, 1fr)',
             gridTemplateColumns: 'minmax(0, 1fr)',
             // Room for the fixed bottom bar, plus the home indicator under it. The
@@ -953,7 +956,7 @@ function WheelOfFortunePage({ onBack }) {
             '--wheel-control-bottom': roulette ? '#230a11' : undefined,
             '--wheel-surface-light': roulette ? '225,126,111' : firstBloodRoomVisible ? '216,139,90' : arenaVisible ? '214,174,100' : undefined,
             position: 'relative',
-            overflow: 'hidden',
+            overflow: isMobile ? 'hidden' : 'auto',
             boxSizing: 'border-box',
             // KNOWN ISSUE, unchanged by this work: the four top banners (Gold
             // Rush, KOTW, First Blood, Community Goal) are `position: fixed;
@@ -1326,9 +1329,11 @@ function WheelOfFortunePage({ onBack }) {
                 arenaVisible={arenaVisible}
                 firstBloodVisible={firstBloodRoomVisible}
                 forgeVisible={forgeVisible}
+                compactEventNavigation={compactEventNavigation}
+                prestige={prestige}
+                onOpenCollection={() => setShowCollection(true)}
                 allItems={allItems}
                 collection={collection}
-                prestige={prestige}
                 onSpinComplete={handleSpinComplete}
                 user={user}
                 dynamicItems={dynamicItems}
@@ -1342,14 +1347,13 @@ function WheelOfFortunePage({ onBack }) {
                 isMobile={isMobile}
                 hasFlanks={hasFlanks}
                 stageColumn={1}
-                // The stage flanks are the page's entry points to these two views
-                // now — see StageFlanks.jsx. The topbar's own Collection icon and
-                // leaderboard pill were removed rather than kept alongside them.
-                // Below 1200px the flanks are gone and the phone's bottom bar
-                // carries the same two destinations.
-                onOpenCollection={() => setShowCollection(true)}
                 onOpenLeaderboard={() => setShowLeaderboard(true)}
             />
+
+            {!isMobile && compactEventNavigation && <StageShortcuts
+                onOpenCollection={() => setShowCollection(true)}
+                onOpenLeaderboard={() => setShowLeaderboard(true)}
+            />}
 
             {/* Live activity — row 2, a horizontal ticker.
 

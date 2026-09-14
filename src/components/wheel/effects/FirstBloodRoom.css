@@ -59,7 +59,7 @@
     .fb-room-clock strong { font-size: 23px; }
     .fb-room-rewards { margin-top: 6px; padding: 4px 10px; }
 }
-@container fb-banner-slot (max-height: 125px) {
+@container fb-banner-slot (max-height: 145px) {
     .fb-room-header { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 22px; row-gap: 3px; padding: 3px 12px; }
     .fb-room-header h2 { grid-column: 1; grid-row: 1; font-size: 28px; }
     .fb-room-header .event-start-live { display: contents; }
