@@ -345,6 +345,15 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
     const [isGone, setIsGone] = useState(true);
     const isClosing = !shouldShowBanner && !isGone;
     if (shouldShowBanner && isGone) setIsGone(false);
+
+    // One winner for both layouts. During the exit fade the context has already
+    // dropped `firstBloodWinner`, so the retained `lastWinner` is what keeps the
+    // block on screen while it dissolves — the room header always did this, and
+    // the non-room banner used to read the context directly and snap to the
+    // running layout for the length of the fade.
+    const displayWinner = showWinnerInBanner || isClosing
+        ? firstBloodWinner?.winner || lastWinner
+        : null;
     useEffect(() => {
         if (!isClosing) return undefined;
         const id = setTimeout(() => setIsGone(true), 320);
@@ -361,7 +370,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
         pending={isPending && !isActive}
         clock={isPending && !isActive ? String(countdownSecs) : formatTime(remainingTime)}
         critical={isCriticalTime}
-        winner={showWinnerInBanner || isClosing ? firstBloodWinner?.winner || lastWinner : null}
+        winner={displayWinner}
         closing={isClosing}
         onEnd={isAdmin && isActive ? endTestEvent : undefined}
     />;
@@ -461,7 +470,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
                             gap: isMobile ? '8px' : '12px',
                         }}>
                             {/* Winner Display Mode */}
-                            {(showWinnerInBanner || isClosing) && firstBloodWinner?.winner ? (
+                            {displayWinner ? (
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -503,7 +512,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
                                                 color: FB_TEXT,
                                                 animation: 'winnerGlowFB 2s ease-in-out infinite',
                                             }}>
-                                                {firstBloodWinner.winner.username}
+                                                {displayWinner.username}
                                             </div>
                                         </div>
                                         <Crosshair
@@ -532,16 +541,16 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
                                         }}>
                                             Unboxed{' '}
                                             <strong style={{
-                                                color: getRarityInk(firstBloodWinner.winner.itemRarity),
-                                                textShadow: `0 0 8px ${getRarityInk(firstBloodWinner.winner.itemRarity)}66`,
+                                                color: getRarityInk(displayWinner.itemRarity),
+                                                textShadow: `0 0 8px ${getRarityInk(displayWinner.itemRarity)}66`,
                                             }}>
-                                                {firstBloodWinner.winner.item}
+                                                {displayWinner.item}
                                             </strong>
                                         </span>
                                         <span style={{ color: FB_PRIMARY, opacity: 0.6 }}>|</span>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <Sparkles size={14} color={FB_GOLD} />{' '}
-                                            <strong style={{ color: FB_GOLD }}>{firstBloodWinner.winner.luckySpinsAwarded}</strong>{' '}
+                                            <strong style={{ color: FB_GOLD }}>{displayWinner.luckySpinsAwarded}</strong>{' '}
                                             Lucky Spins Awarded!
                                         </span>
                                     </div>
