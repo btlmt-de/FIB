@@ -810,15 +810,14 @@ html[data-saver="on"] *::after {
  * one ground here the blue hour is genuinely opposite to, so the city stays
  * visible through it instead of merging with it.
  *
- * An opaque burgundy ground keeps the city's blue out of the casino palette.
- * A soft vignette and the moving props supply the room's depth.
+ * The opaque parlour scene gives the moving props an architectural setting.
+ * Keep its lighting below the interface and preserve the existing timed hush.
  */
 .fib-parlour-floor {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 50% 88%, #65121b 0%, transparent 58%),
-    radial-gradient(ellipse at 33% 28%, #57101a 0%, #2b060c 58%, #170308 100%);
+    #170308 url('/parlour-room.webp') center center / cover no-repeat;
 }
 
 .fib-parlour-caption {
@@ -943,10 +942,11 @@ html[data-saver="on"] *::after {
   position: absolute;
   inset: 0;
   background:
+    linear-gradient(180deg, rgba(12, 3, 6, 0.32), transparent 28%, rgba(12, 3, 6, 0.18)),
     radial-gradient(120% 100% at 50% 50%,
       rgba(0, 0, 0, 0) 40%,
-      rgba(28, 4, 7, 0.42) 74%,
-      rgba(0, 0, 0, 0.62) 100%);
+      rgba(28, 4, 7, 0.24) 74%,
+      rgba(0, 0, 0, 0.46) 100%);
 }
 
 /*

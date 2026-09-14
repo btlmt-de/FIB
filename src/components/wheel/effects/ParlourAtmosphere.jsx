@@ -1,4 +1,4 @@
-/** A smooth burgundy room underneath the live interface. */
+/** A velvet-and-brass parlour underneath the live interface. */
 import React, { memo, useEffect, useRef, useState } from 'react';
 import { prefersCalm } from '../../../config/power.js';
 import { serverNow } from '../../../utils/serverClock.js';

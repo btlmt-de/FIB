@@ -413,7 +413,8 @@ function ParlourWheel({ openedAt }) {
                 inset: 0,
                 overflow: 'hidden',
                 pointerEvents: 'none',
-                opacity: 0.48,
+                // Keep the brass and pockets distinct over the detailed room.
+                opacity: 0.82,
                 maskImage: 'linear-gradient(to bottom, transparent 44px, #000 116px, #000 32vh, transparent 48vh)',
                 WebkitMaskImage: 'linear-gradient(to bottom, transparent 44px, #000 116px, #000 32vh, transparent 48vh)',
             }}

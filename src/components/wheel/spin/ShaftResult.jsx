@@ -55,7 +55,7 @@ import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
  */
 export const SHAFT_RESULT_HEIGHT = 236;
 
-export function ShaftResult({ result, isNewItem, prestigePull, collection, centerY, arena = false, kotwPoints = null }) {
+export function ShaftResult({ result, isNewItem, prestigePull, collection, centerY, arena = false, firstBlood = false, kotwPoints = null }) {
     if (!result) return null;
 
     const rarity = getItemRarity(result);
@@ -110,7 +110,9 @@ export function ShaftResult({ result, isNewItem, prestigePull, collection, cente
                 // the field share — the Nocturne's one wet-night grain — over the
                 // band's own blue-hour ramp. Barely there by contract (4% baked
                 // in): a material is felt, a pattern is seen.
-                backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #0a0d18 0%, #0d1322 42%, #05060a 100%)`,
+                backgroundImage: firstBlood
+                    ? `${SURFACE_NOISE}, linear-gradient(180deg, #1c0e0b 0%, #321b13 42%, #100907 100%)`
+                    : `${SURFACE_NOISE}, linear-gradient(180deg, #0a0d18 0%, #0d1322 42%, #05060a 100%)`,
                 // Closed top and bottom by the row-seam pair — dark under lit —
                 // so the expansion reads as a row of the shaft, not a panel on it.
                 boxShadow: [

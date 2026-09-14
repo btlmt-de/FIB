@@ -5,6 +5,8 @@ import { useAuth } from '../../../context/AuthContext.jsx';
 import { kotwStandings } from '../../../utils/kotwStandings.js';
 import { RARITY, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import './KotwArena.css';
+import EventStartCountdown from './EventStartCountdown.jsx';
+import EventWinnerReveal from './EventWinnerReveal.jsx';
 
 const SCORING = [['common', '1 pt'], ['rare', '~150 pts'], ['exotic', '~180 pts'], ['legendary', '~500 pts'], ['mythic', '~3k pts'], ['insane', '~100k pts']];
 
@@ -21,7 +23,7 @@ export function KotwArenaAtmosphere({ visible }) {
 export function KotwArenaStandings({ compact = false, onOpenLeaderboard }) {
     const { globalEventStatus, kotwLeaderboard, kotwUserStats, kotwSpinPending, kotwWinnerPending } = useActivity();
     const { user } = useAuth();
-    const active = (globalEventStatus?.type === 'king_of_wheel' && (globalEventStatus.active || globalEventStatus.pending)) || kotwWinnerPending;
+    const active = (globalEventStatus?.type === 'king_of_wheel' && globalEventStatus.active) || kotwWinnerPending;
     if (!active) return null;
     const standings = kotwStandings(kotwLeaderboard, { userId: user?.id, pending: kotwSpinPending, confirmedPoints: kotwUserStats?.points });
     const own = standings.find(entry => entry.userId === user?.id);
@@ -43,18 +45,19 @@ export function KotwArenaStandings({ compact = false, onOpenLeaderboard }) {
 }
 
 export function KotwArenaHeader({ pending, settling, clock, critical, winner, closing, onEnd }) {
-    return <section className="kotw-arena-header" data-critical={critical} style={{ opacity: closing ? 0 : 1 }} aria-label="King of the Wheel event">
+    return <section className="kotw-arena-header" data-winner={!!winner} data-pending={pending && !winner} data-critical={critical} style={{ opacity: closing ? 0 : 1 }} aria-label="King of the Wheel event">
         <Crown className="kotw-hero-crown" size={48} strokeWidth={1.3}/>
         <h2>King <span>of the</span> Wheel</h2>
-        {winner ? <div className="kotw-victor"><strong>{winner.username}</strong> takes the crown <span>{winner.points?.toLocaleString()} points · {winner.luckySpinsAwarded} Lucky Spins awarded</span></div> : <>
+        {winner && <EventWinnerReveal winner={winner} theme="king-of-wheel"/>}
+        {pending ? <EventStartCountdown clock={clock} theme="king-of-wheel">Score the most points to claim the crown.</EventStartCountdown> : <div className="event-start-live">
             <div className="kotw-clock"><Timer size={20}/><strong>{clock}</strong><span>{pending ? 'UNTIL THE BATTLE' : settling ? 'FINAL SPINS LANDING' : 'TO CLAIM THE CROWN'}</span></div>
             <div className="kotw-scoring" aria-label="Points by rarity">
                 {SCORING.map(([rarity, points]) => <span className="kotw-scoring-tier" key={rarity} style={{ color: getRarityInk(rarity) }}>
                     <span>{RARITY[rarity].label}</span><b>{points}</b>
                 </span>)}
             </div>
-        </>}
-        <div className="kotw-small-board"><KotwArenaStandings compact/></div>
+        </div>}
+        {!pending && <div className="kotw-small-board"><KotwArenaStandings compact/></div>}
         {onEnd && <button className="kotw-end" onClick={onEnd}>End event</button>}
     </section>;
 }

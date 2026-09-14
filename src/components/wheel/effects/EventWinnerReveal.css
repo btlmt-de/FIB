@@ -1,0 +1,80 @@
+/* Open victory lettering over the existing scenery. The live header underneath
+   continues to reserve the same space, so the reel never moves for the reveal. */
+.event-winner { position: absolute; inset: 0 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 6px 16px; box-sizing: border-box; isolation: isolate; color: #e8c574; text-align: center; text-shadow: 0 2px 4px #020711, 0 0 16px #020711, 0 0 32px #020711; animation: event-winner-reveal .65s ease-out both; }
+.event-winner::before { content: ''; position: absolute; z-index: -1; inset: -10px 8%; pointer-events: none; background: radial-gradient(ellipse, #030a1499, transparent 70%); }
+.event-winner[data-theme="first-blood"] { color: #dea77d; text-shadow: 0 2px 3px #180a06, 0 0 16px #180a06, 0 0 32px #180a06; }
+.event-winner[data-theme="first-blood"]::before { background: radial-gradient(ellipse, #1a080699, transparent 70%); }
+.event-winner-heading { display: flex; align-items: center; justify-content: center; gap: 10px; max-width: 100%; }
+.event-winner-heading > span:empty { width: clamp(20px, 5vw, 70px); height: 1px; background: linear-gradient(90deg, transparent, currentColor); opacity: .65; }
+.event-winner-heading > span:empty:last-child { transform: rotate(180deg); }
+.event-winner-label { font-size: 10px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
+.event-winner-heading svg { flex-shrink: 0; filter: drop-shadow(0 0 8px #d6ae6455); }
+.event-winner-person { display: flex; flex-direction: column; gap: 5px; min-width: 0; width: min(100%, 640px); }
+.event-winner-name { font: 700 clamp(30px, 4vw, 58px)/1.04 'Barlow Condensed', sans-serif; letter-spacing: .055em; color: #fff0c5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; animation: event-winner-name .8s cubic-bezier(.2,.7,.2,1) both; }
+.event-winner[data-theme="first-blood"] .event-winner-name { font-family: Georgia, 'Times New Roman', serif; font-weight: 900; font-size: clamp(28px, 3.5vw, 50px); letter-spacing: .015em; color: #f2dcc3; text-shadow: 1px 2px 0 #612b1e, 0 3px 6px #130806, 0 0 24px #130806; }
+.event-winner-detail { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; color: #e8dcc3; }
+.event-winner-prize { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 7px; color: #f2d590; animation: event-winner-reveal .5s .25s ease-out both; }
+.event-winner-prize strong { font: 700 28px/1 'Barlow Condensed', sans-serif; font-variant-numeric: tabular-nums; }
+.event-winner-prize > span { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.event-winner-prize .event-winner-prize-label { color: #c9b999; font-size: 8px; letter-spacing: .18em; margin-right: 5px; }
+.event-winner-prize svg { align-self: center; }
+.event-winner[data-theme="first-blood"] .event-winner-prize { color: #f0bb83; }
+.event-winner-ornament { position: absolute; z-index: -1; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; color: #caa452; opacity: .25; }
+.event-winner[data-theme="first-blood"] .event-winner-ornament { color: #d16947; opacity: .22; }
+.event-winner-laurel { position: absolute; top: 50%; }
+.event-winner-laurel-left { right: calc(50% + 230px); transform: translateY(-50%) rotate(-28deg); }
+.event-winner-laurel-right { left: calc(50% + 230px); transform: translateY(-50%) scaleX(-1) rotate(-28deg); }
+.fb-room-header[data-winner="true"] > :not(.event-winner), .kotw-arena-header[data-winner="true"] > :not(.event-winner) { visibility: hidden; pointer-events: none; }
+@media (max-width: 1199px) { .kotw-arena-header:not([data-pending="true"]) .kotw-small-board { min-height: 38px; } }
+@media (min-width: 600px) and (max-height: 900px) {
+    .event-winner { gap: 4px; }
+    .event-winner[data-theme="first-blood"] .event-winner-name { font-size: 32px; -webkit-line-clamp: 1; }
+    .event-winner-person { gap: 3px; }
+    .event-winner-prize strong { font-size: 24px; }
+}
+@media (max-width: 599px) {
+    .event-winner { padding: 8px 0; gap: 8px; }
+    .event-winner-label { font-size: 8px; letter-spacing: .14em; }
+    .event-winner-name, .event-winner[data-theme="first-blood"] .event-winner-name { font-size: 30px; }
+    .event-winner-detail { font-size: 11px; }
+    .event-winner-prize { gap: 5px; }
+    .event-winner-prize .event-winner-prize-label { width: 100%; margin: 0; }
+    .event-winner-laurel-left { right: calc(50% + 100px); }
+    .event-winner-laurel-right { left: calc(50% + 100px); }
+    .event-winner-laurel { width: 60px; opacity: .65; }
+}
+@keyframes event-winner-reveal { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes event-winner-name { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+.event-winner[data-calm="true"], .event-winner[data-calm="true"] * { animation: none; }
+@media (prefers-reduced-motion: reduce) { .event-winner, .event-winner * { animation: none; } }
+
+/* One centered read: title, winner, then the pull giving way to the prize.
+   The name never moves, and the payoff reserves the same height for both beats. */
+.event-winner { gap: 5px; }
+.event-winner-person { flex: 0 0 auto; }
+.event-winner-payoff { display: flex; align-items: center; justify-content: center; width: min(100%, 720px); min-height: 32px; animation: event-winner-reveal .35s ease-out both; }
+.event-winner-payoff .event-winner-detail { font-size: 14px; line-height: 1.3; }
+.event-winner-payoff .event-winner-prize { animation: none; flex-wrap: nowrap; align-items: center; }
+.event-winner-payoff .event-winner-prize strong { font-size: 32px; }
+.event-winner-heading > svg { display: none; }
+.event-winner-label { color: #e9c69c; }
+@container fb-banner-slot (max-height: 240px) {
+    .fb-room-header .event-winner[data-theme="first-blood"] { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 3px 12px; max-height: 100%; overflow: clip; }
+    .fb-room-header .event-winner-person { width: min(100%, 760px); }
+    .fb-room-header .event-winner[data-theme="first-blood"] .event-winner-name { font-size: clamp(22px, 25cqh, 44px); line-height: 1.05; -webkit-line-clamp: 1; }
+    .fb-room-header .event-winner-payoff { min-height: 26px; }
+    .fb-room-header .event-winner-payoff .event-winner-prize strong { font-size: 26px; }
+    .fb-room-header .event-winner-payoff .event-winner-detail { font-size: 12px; }
+    .fb-room-header .event-winner-ornament { opacity: .12; }
+}
+@container fb-banner-slot (max-height: 100px) {
+    .fb-room-header .event-winner-heading { line-height: 1; }
+    .fb-room-header .event-winner-label { font-size: 8px; }
+    .fb-room-header .event-winner-payoff { min-height: 22px; }
+    .fb-room-header .event-winner-payoff .event-winner-prize strong { font-size: 22px; }
+    .fb-room-header .event-winner-payoff .event-winner-detail { font-size: 11px; }
+}
+@media (max-width: 599px) {
+    .event-winner-payoff { min-height: 38px; }
+    .event-winner-payoff .event-winner-detail { font-size: 12px; }
+}

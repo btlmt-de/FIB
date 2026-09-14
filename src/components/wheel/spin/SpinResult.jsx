@@ -1,4 +1,4 @@
-import { Crown } from 'lucide-react';
+import { Crown, Crosshair } from 'lucide-react';
 import { KotwPoints } from './KotwSpinControl.jsx';
 import { ARENA } from '../config/arenaTheme.js';
 import React from 'react';
@@ -41,6 +41,8 @@ export function SpinResult({
     resultWasKotwLuckySpin,
     isMobile,
     arena = false,
+    firstBlood = false,
+    forge = false,
     kotwPoints = null,
 }) {
     if (!result) return null;
@@ -101,7 +103,7 @@ export function SpinResult({
     // runs the reflection mostly read as a smudge of duplicated pixels rather than
     // as a surface. Its height is back in the item, which is the thing worth
     // looking at.
-    const itemPx = isMobile ? '92px' : arena ? 'var(--kotw-result-item-size, 108px)' : '118px';
+    const itemPx = isMobile ? '92px' : forge ? '90px' : firstBlood ? 'var(--fb-result-item-size, 108px)' : arena ? 'var(--kotw-result-item-size, 108px)' : '118px';
 
     const owned = collection?.[result.texture];
     const chance = result.equalChance != null
@@ -111,16 +113,17 @@ export function SpinResult({
             : null;
 
     return (
-        <div className={arena ? "kotw-result" : undefined} style={{
+        <div className={forge ? 'cg-forge-result' : firstBlood ? 'fb-result' : arena ? "kotw-result" : undefined} style={{
             position: 'relative',
             width: '100%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            paddingTop: arena ? '0px' : isMobile ? `${SPACE.md}px` : `${SPACE.lg}px`,
+            paddingTop: arena || firstBlood || forge ? '0px' : isMobile ? `${SPACE.md}px` : `${SPACE.lg}px`,
             animation: 'textFadeUp 0.45s cubic-bezier(0.25,0.46,0.45,0.94) both',
         }}>
             {arena && <Crown className="kotw-result-crown" strokeWidth={0.8} aria-hidden="true"/>}
+            {firstBlood && <><Crosshair className="fb-result-mark" strokeWidth={.6} aria-hidden="true"/><div className="fb-result-caption">Last pull</div></>}
             {/* The winner's column, continuing. It starts at the panel's top edge
                 — which is the underside of the reel — and falls away, so the eye
                 reads one shaft of light running from the band down to the item.
@@ -358,7 +361,7 @@ export function SpinResult({
             <h2 style={{
                 position: 'relative',
                 zIndex: Z.content,
-                margin: `${arena ? 8 : isMobile ? 12 : 16}px 0 0`,
+                margin: `${arena || forge ? 8 : isMobile ? 12 : 16}px 0 0`,
                 fontSize: nameSize,
                 fontWeight: 800,
                 letterSpacing: '-0.01em',

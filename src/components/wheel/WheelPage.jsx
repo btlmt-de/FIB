@@ -37,6 +37,7 @@ const COUNTER_FOR_TIER = {
 import KingOfWheelBanner from './effects/KingOfWheelBanner.jsx';
 import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
+import { CommunityForgeAtmosphere } from './effects/CommunityForge.jsx';
 import MilestoneMeter from './effects/MilestoneMeter.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
@@ -67,6 +68,7 @@ import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimelin
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
 import { KotwArenaAtmosphere } from './effects/KotwArena.jsx';
+import { FirstBloodRoom } from './effects/FirstBloodRoom.jsx';
 import { serverNow } from '../../utils/serverClock.js';
 import {
     User, Edit3, LogOut, Settings,
@@ -351,6 +353,8 @@ function WheelOfFortunePage({ onBack }) {
         arrival, arrivalCrate, roulette, roulettePayout, rouletteResult,
     } = useActivity();
     const [arenaVisible, setArenaVisible] = useState(false);
+    const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
+    const [forgeVisible, setForgeVisible] = useState(false);
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -922,6 +926,12 @@ function WheelOfFortunePage({ onBack }) {
                 ? 'auto auto auto minmax(0, 1fr)'
                 : roulette
                     ? 'auto auto 0.22fr auto minmax(0, 1fr)'
+                    : forgeVisible
+                        ? 'auto auto minmax(150px, 0.34fr) auto minmax(240px, 1fr)'
+                    : firstBloodRoomVisible
+                        // Keep the reel at its ordinary position. First Blood's
+                        // header adapts to this slot instead of growing the row.
+                        ? 'auto auto minmax(0, 0.34fr) auto minmax(350px, 1fr)'
                     : arenaVisible
                         ? 'auto auto auto auto minmax(0, 1fr)'
                     : 'auto auto 0.34fr auto minmax(350px, 1fr)',
@@ -937,11 +947,11 @@ function WheelOfFortunePage({ onBack }) {
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             // The event changes the furniture's material as well as the room.
             // Unset variables restore each surface's usual blue-hour palette.
-            '--wheel-panel-top': roulette ? '#310a12' : arenaVisible ? '#102133' : undefined,
-            '--wheel-panel-bottom': roulette ? '#19050b' : arenaVisible ? '#050c15' : undefined,
+            '--wheel-panel-top': roulette ? '#310a12' : forgeVisible ? '#30251c' : firstBloodRoomVisible ? '#301a13' : arenaVisible ? '#102133' : undefined,
+            '--wheel-panel-bottom': roulette ? '#19050b' : forgeVisible ? '#07121c' : firstBloodRoomVisible ? '#100a08' : arenaVisible ? '#050c15' : undefined,
             '--wheel-control-top': roulette ? '#3b131b' : undefined,
             '--wheel-control-bottom': roulette ? '#230a11' : undefined,
-            '--wheel-surface-light': roulette ? '225,126,111' : arenaVisible ? '214,174,100' : undefined,
+            '--wheel-surface-light': roulette ? '225,126,111' : firstBloodRoomVisible ? '216,139,90' : arenaVisible ? '214,174,100' : undefined,
             position: 'relative',
             overflow: 'hidden',
             boxSizing: 'border-box',
@@ -960,6 +970,8 @@ function WheelOfFortunePage({ onBack }) {
             <AnimationStyles />
             <CanvasNocturneField />
             <KotwArenaAtmosphere visible={arenaVisible} />
+            <FirstBloodRoom visible={firstBloodRoomVisible} />
+            <CommunityForgeAtmosphere visible={forgeVisible} />
 
             {/* THE PARLOUR's light, over the whole surface.
 
@@ -1312,6 +1324,8 @@ function WheelOfFortunePage({ onBack }) {
                 spinProgress tick stay exactly where they were. */}
             <WheelSpinner
                 arenaVisible={arenaVisible}
+                firstBloodVisible={firstBloodRoomVisible}
+                forgeVisible={forgeVisible}
                 allItems={allItems}
                 collection={collection}
                 prestige={prestige}
@@ -1525,13 +1539,19 @@ function WheelOfFortunePage({ onBack }) {
                 // gap; this makes it true of all four, and the banner reads as
                 // attached to the reel instead of hovering near it — which matters
                 // now that the reel takes the event's colour underneath it.
-                alignSelf: 'end',
+                alignSelf: !isMobile && (firstBloodRoomVisible || forgeVisible) ? 'stretch' : 'end',
                 justifySelf: 'stretch',
                 minWidth: 0,
                 zIndex: Z.content,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: `${SPACE.sm}px`,
+                ...(!isMobile && (firstBloodRoomVisible || forgeVisible) ? {
+                    minHeight: 0,
+                    justifyContent: 'flex-end',
+                    containerType: 'size',
+                    containerName: forgeVisible ? 'forge-banner-slot' : 'fb-banner-slot',
+                } : null),
             }}>
                 {/* Recursion joined this row on 2026-08-20. It was mounted
                     above, outside the layout, still `position: fixed; top: 0` —
@@ -1572,8 +1592,8 @@ function WheelOfFortunePage({ onBack }) {
                     steals a spin in progress, which is why ActivityContext holds
                     it back until the wheel lands. */}
                 <KingOfWheelBanner arena onArenaVisibility={setArenaVisible} isMobile={isMobile} isAdmin={user?.isAdmin} currentUserId={user?.id} inline />
-                <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
-                <CommunityGoalBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline />
+                <FirstBloodBanner isMobile={isMobile} isAdmin={user?.isAdmin} inline room onRoomVisibility={setFirstBloodRoomVisible} />
+                <CommunityGoalBanner forge onForgeVisibility={setForgeVisible} isMobile={isMobile} isAdmin={user?.isAdmin} inline />
                 {/* The roll, in the same slot the meter counts down in and the
                     banners open in. It used to be a full-screen scrim at z-index
                     10000 — see EventSelectionWheel.jsx for why it moved here. */}

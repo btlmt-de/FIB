@@ -1723,6 +1723,7 @@ export function CanvasSpinningStrip({
 
             // Determine theme colors based on themeType or isRecursion
             const isArenaTheme = themeType === 'kotw-arena';
+            const isFirstBloodTheme = themeType === 'first-blood';
             const isKotwTheme = themeType === 'kotw' || isArenaTheme;
             const isRecursionTheme = isRecursion || themeType === 'recursion';
 
@@ -1732,7 +1733,7 @@ export function CanvasSpinningStrip({
             const KOTW_SLATE_DARK = isArenaTheme ? ARENA.navy : '#0F172A';
 
             const accentColor = accentOverride || (isRecursionTheme ? COLORS.recursion : COLORS.gold);
-            const bgColor = isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
+            const bgColor = isFirstBloodTheme ? '#160B09' : isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
 
             // Pre-compute hexToRgb once per frame instead of per-item
             const accentRgb = hexToRgb(accentColor);
@@ -1741,7 +1742,7 @@ export function CanvasSpinningStrip({
             ctx.clearRect(0, 0, width, height);
 
             // Background
-            if (isRecursionTheme || isKotwTheme) {
+            if (isRecursionTheme || isKotwTheme || isFirstBloodTheme) {
                 // Themed background
                 const bgGradient = ctx.createLinearGradient(
                     isMobile ? 0 : 0,
@@ -1749,7 +1750,11 @@ export function CanvasSpinningStrip({
                     isMobile ? 0 : width,
                     isMobile ? height : 0
                 );
-                if (isKotwTheme) {
+                if (isFirstBloodTheme) {
+                    bgGradient.addColorStop(0, '#100907');
+                    bgGradient.addColorStop(.5, '#381713');
+                    bgGradient.addColorStop(1, '#100907');
+                } else if (isKotwTheme) {
                     // KOTW: Slate gradient
                     bgGradient.addColorStop(0, KOTW_SLATE_DARK);
                     bgGradient.addColorStop(0.5, KOTW_SLATE);
@@ -1774,6 +1779,20 @@ export function CanvasSpinningStrip({
                 ctx.fillStyle = bgGradient;
             }
             ctx.fillRect(0, 0, width, height);
+
+            // Warm metal edging around the item recess, on either reel axis.
+            if (isFirstBloodTheme) {
+                ctx.save();
+                ctx.fillStyle='#BD875047';
+                if (isMobile) {
+                    ctx.fillRect(0,0,2,height);
+                    ctx.fillRect(width-2,0,2,height);
+                } else {
+                    ctx.fillRect(0,0,width,2);
+                    ctx.fillRect(0,height-2,width,2);
+                }
+                ctx.restore();
+            }
 
             // Recursion scanlines (only for matrix theme, not KOTW)
             if (isRecursionTheme && !isKotwTheme) {

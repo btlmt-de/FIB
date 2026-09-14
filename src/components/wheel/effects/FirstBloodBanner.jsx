@@ -12,6 +12,7 @@ import { useSound } from '../../../context/SoundContext.jsx';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown, Gem } from 'lucide-react';
 import { countdownInterval } from '../../../config/power.js';
+import { FirstBloodRoomHeader } from './FirstBloodRoom.jsx';
 
 // ============================================
 // CONSTANTS
@@ -97,20 +98,21 @@ function FloatingTargets({ isMobile }) {
 // ============================================
 // Main First Blood Banner Component
 // ============================================
-function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false }) {
+function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, room = false, onRoomVisibility }) {
     const { globalEventStatus, updateGlobalEventStatus, firstBloodWinner, firstBloodResultPending } = useActivity();
     const { playSfx, startFirstBloodSoundtrack, stopFirstBloodSoundtrack } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [countdownTime, setCountdownTime] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
-    const [showWinnerInBanner, setShowWinnerInBanner] = useState(false);
+    const showWinnerInBanner = !!firstBloodWinner?.winner;
+    const [lastWinner, setLastWinner] = useState(null);
 
     const hasPlayedSoundRef = useRef(false);
     const hasSoundtrackStartedRef = useRef(false);
     const wasActiveRef = useRef(false);
     const wasPendingRef = useRef(false);
-    const winnerDisplayTimeoutRef = useRef(null);
+    const hadWinnerRef = useRef(false);
 
     // Only respond to first_blood events
     const isFirstBlood = globalEventStatus?.type === 'first_blood';
@@ -153,51 +155,31 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
         }
     }, [isActive, isPending, holdSoundtrack, startFirstBloodSoundtrack, stopFirstBloodSoundtrack]);
 
-    // Handle winner display
+    // ActivityContext owns the eight-second reveal. A second timer here raced
+    // its clear: effect cleanup cancelled our timer and left the room visible.
     useEffect(() => {
         if (firstBloodWinner?.winner) {
-            console.log('[FirstBlood] Winner received, showing in banner');
-            setShowWinnerInBanner(true);
+            setLastWinner(firstBloodWinner.winner);
+            setIsVisible(true);
+            hadWinnerRef.current = true;
             playSfx?.('event_win');
-
-            // Clear any existing timeout
-            if (winnerDisplayTimeoutRef.current) {
-                clearTimeout(winnerDisplayTimeoutRef.current);
-            }
-
-            // Hide banner after showing winner for 6 seconds
-            winnerDisplayTimeoutRef.current = setTimeout(() => {
-                console.log('[FirstBlood] Hiding banner after winner display');
-                setShowWinnerInBanner(false);
-                setIsVisible(false);
-                // Stop soundtrack when winner display ends
-                // Don't reset hasSoundtrackStartedRef - let main useEffect handle it when isActive becomes false
-                // This prevents race condition where soundtrack restarts if isActive is still true momentarily
-                stopFirstBloodSoundtrack?.();
-            }, 6000);
-        } else if (firstBloodWinner?.noWinner) {
-            // No winner - time ran out
-            console.log('[FirstBlood] No winner - time expired');
+        } else if (firstBloodWinner?.noWinner || hadWinnerRef.current) {
+            hadWinnerRef.current = false;
             setIsVisible(false);
-            // Stop soundtrack when event ends with no winner
             stopFirstBloodSoundtrack?.();
         }
-
-        return () => {
-            if (winnerDisplayTimeoutRef.current) {
-                clearTimeout(winnerDisplayTimeoutRef.current);
-            }
-        };
     }, [firstBloodWinner, playSfx, stopFirstBloodSoundtrack]);
 
     // Handle visibility and sound
     useEffect(() => {
         if (isPending && !wasPendingRef.current && !isActive) {
             console.log('[FirstBlood] Starting countdown phase');
+            setLastWinner(null);
             setIsVisible(true);
             wasPendingRef.current = true;
         } else if (isActive && !wasActiveRef.current) {
             console.log('[FirstBlood] Event now ACTIVE - race begins!');
+            setLastWinner(null);
             setIsVisible(true);
             if (!hasPlayedSoundRef.current) {
                 playSfx?.('event_start');
@@ -349,7 +331,7 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
     // latch, so without the reset below every later event of the session would
     // be suppressed until a reload (render-phase correction, same pattern as
     // the EventSelectionWheel's).
-    const [isGone, setIsGone] = useState(false);
+    const [isGone, setIsGone] = useState(true);
     const isClosing = !shouldShowBanner && !isGone;
     if (shouldShowBanner && isGone) setIsGone(false);
     useEffect(() => {
@@ -358,7 +340,20 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false })
         return () => clearTimeout(id);
     }, [isClosing]);
 
+    useEffect(() => {
+        // Keep the room mounted through the reveal handoff and the header's exit fade.
+        onRoomVisibility?.(room && !isGone && !isPending);
+    }, [room, isGone, isPending, onRoomVisibility]);
+
     if (isGone) return null;
+    if (room) return <FirstBloodRoomHeader
+        pending={isPending && !isActive}
+        clock={isPending && !isActive ? String(countdownSecs) : formatTime(remainingTime)}
+        critical={isCriticalTime}
+        winner={showWinnerInBanner || isClosing ? firstBloodWinner?.winner || lastWinner : null}
+        closing={isClosing}
+        onEnd={isAdmin && isActive ? endTestEvent : undefined}
+    />;
 
     return (
         <>

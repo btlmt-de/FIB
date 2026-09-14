@@ -1,5 +1,5 @@
 .kotw-arena { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; animation: kotw-enter 1.4s ease-out both; }
-.kotw-arena-backdrop { position: absolute; inset: 0; background: #050c15 url('/kotw-arena.webp') center center / cover no-repeat; }
+.kotw-arena-backdrop { position: absolute; inset: 0; background: #050c15 url('/kotw-arena-stylized.webp') center center / cover no-repeat; }
 .kotw-light-beam { position: absolute; width: 40%; height: 110%; top: 6%; background: linear-gradient(180deg, #cce7ff14, transparent 85%); clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%); transform-origin: 50% 0; animation: kotw-light 14s ease-in-out infinite alternate; }
 .kotw-light-left { left: 0; } .kotw-light-right { right: 0; animation-delay: -7s; }
 .kotw-arena-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 38%, transparent 15%, #02071166 80%), linear-gradient(#020711 0%, transparent 22%, transparent 85%, #02071199); }

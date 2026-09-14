@@ -1,4 +1,5 @@
 import { KotwSpinControl } from './spin/KotwSpinControl.jsx';
+import { ForgeSpinControl } from './effects/CommunityForge.jsx';
 import { ARENA } from './config/arenaTheme.js';
 /* THE NOCTURNE — direction contract (impeccable seed 34ecef14,
    challenger light-shadow-caustics-rain-night-cityscape; chosen by
@@ -56,6 +57,7 @@ import React, { useState, useEffect, useRef, memo, useMemo, useCallback } from '
 import { serverNow } from '../../utils/serverClock.js';
 import { OddsInfoModal } from './modals/OddsInfoModal.jsx';
 import { SpinResult } from './spin/SpinResult.jsx';
+import { FirstBloodSpinControl } from './spin/FirstBloodSpinControl.jsx';
 import { ShaftResult } from './spin/ShaftResult.jsx';
 import { StageFlanks } from './spin/StageFlanks.jsx';
 import { EventPayout } from './spin/EventPayout.jsx';
@@ -170,7 +172,7 @@ function landingVariance(itemWidth) {
     return (Math.random() * 2 - 1) * max;
 }
 
-function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, isMobile = false, hasFlanks = true, arenaVisible = false }) {
+function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete, user, dynamicItems, kotwLuckySpins = 0, kotwLuckySpinsRef, onKotwLuckySpinsUpdate, stageColumn = 2, onOpenCollection, onOpenLeaderboard, isMobile = false, hasFlanks = true, arenaVisible = false, firstBloodVisible = false, forgeVisible = false }) {
     // Get spin duration from server config
     const { spinDuration } = useWheelConfig();
 
@@ -1663,7 +1665,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         ? COLORS.recursion
         : showSpinKotwLuckyEffects
             ? KOTW_GOLD
-            : modeAccent || eventAccent || COLORS.gold;
+            : modeAccent || (forgeVisible ? '#EAB268' : firstBloodVisible ? '#D65B45' : eventAccent) || COLORS.gold;
 
     const KOTW_SLATE = '#1E293B';
     const KOTW_SLATE_DARK = '#0F172A';
@@ -1694,7 +1696,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             ? `${KOTW_CRIMSON}50`
             : modeAccent
                 ? `${modeAccent}45`
-                : eventAccent
+                : firstBloodVisible ? '#BF805799' : eventAccent
                     ? `${eventAccent}55`
                     : `${COLORS.gold}28`;
 
@@ -1710,7 +1712,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             : state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult' ? COLORS.green
                 : showSpinRecursionEffects ? COLORS.recursion
                     : showSpinKotwLuckyEffects ? KOTW_GOLD
-                        : COLORS.gold;
+                        : firstBloodVisible ? '#E7BA8D' : COLORS.gold;
 
     return (
         // `display: contents` dissolves this wrapper so its children become direct
@@ -1737,7 +1739,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // Horizontal padding is gone with it. The shaft is full-bleed, the same
         // decision the desktop band made for the same reason: a band that stops
         // short of the screen edge is a box in the middle of the page.
-        <div className={arenaVisible ? "kotw-machine" : undefined} style={isMobile ? {
+        <div className={forgeVisible ? 'cg-forge-machine-theme' : firstBloodVisible ? 'fb-machine' : arenaVisible ? "kotw-machine" : undefined} style={isMobile ? {
             width: '100%',
             height: '100%',
             boxSizing: 'border-box',
@@ -1966,7 +1968,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                             : (state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult') ? COLORS.green
                                                 : showSpinRecursionEffects ? COLORS.recursion
                                                     : showSpinKotwLuckyEffects ? '#F8FAFC'
-                                                        : COLORS.gold,
+                                                        : firstBloodVisible ? '#E7BA8D' : COLORS.gold,
                                     fontSize: '18px',
                                     fontWeight: '600',
                                     // The row may not change height between spin
@@ -2005,8 +2007,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                                                 state === 'luckyResult' ? 'Lucky Win!' :
                                                                     state === 'tripleLuckySpinning' ? '3x Lucky Spinning...' :
                                                                         state === 'tripleLuckyResult' ? '3x Lucky Win!' :
-                                                                            state === 'idle' ? (arenaVisible ? 'The crown is in play' : 'Ready to spin') :
-                                                                                (arenaVisible ? 'Points on the board' : 'Gamba!')}
+                                                                            state === 'idle' ? (firstBloodVisible ? 'First Blood is on the line' : arenaVisible ? 'The crown is in play' : 'Ready to spin') :
+                                                                                (firstBloodVisible ? 'Your latest pull' : arenaVisible ? 'Points on the board' : 'Gamba!')}
                             </span>
                             </div>
 
@@ -2533,8 +2535,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     isResult={state === 'result' || state === 'event' || state === 'luckyResult'}
                                     spinProgress={spinProgress}
                                     isRecursion={showSpinRecursionEffects}
-                                    themeType={arenaVisible ? 'kotw-arena' : showSpinKotwLuckyEffects ? 'kotw' : null}
-                                    accentColor={arenaVisible ? ARENA.gold : showSpinKotwLuckyEffects ? KOTW_GOLD : isLuckyMode ? COLORS.green : eventAccent || null}
+                                    themeType={arenaVisible ? 'kotw-arena' : showSpinKotwLuckyEffects ? 'kotw' : firstBloodVisible && !showSpinRecursionEffects && !isLuckyMode ? 'first-blood' : null}
+                                    accentColor={arenaVisible ? ARENA.gold : showSpinKotwLuckyEffects ? KOTW_GOLD : showSpinRecursionEffects ? COLORS.recursion : isLuckyMode ? COLORS.green : firstBloodVisible ? '#D65B45' : eventAccent || null}
                                     // Neither axis is fixed on a phone any more:
                                     // the shaft fills its mount and the canvas
                                     // measures its own box, the way the desktop
@@ -2595,7 +2597,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         }}>
                                             {!user ? 'Login to spin!'
                                                 : allItems.length === 0 ? 'Fetching item pool...'
-                                                    : arenaVisible ? 'Tap to spin for the crown' : 'Tap the reel to spin'}
+                                                    : firstBloodVisible ? 'Tap to spin for First Blood' : arenaVisible ? 'Tap to spin for the crown' : 'Tap the reel to spin'}
                                         </div>
                                         <div style={{
                                             fontSize: '11px',
@@ -2612,6 +2614,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     && (state === 'result' ? result : luckyResult) && shaftHeight > 0 && (
                                     <ShaftResult
                                         arena={arenaVisible}
+                                        firstBlood={firstBloodVisible}
                                         kotwPoints={state === "result" ? arenaPoints : null}
                                         result={state === 'result' ? result : luckyResult}
                                         isNewItem={state === 'result' ? isNewItem : isLuckyNew}
@@ -2656,7 +2659,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // it, and the result still reads as sitting under the reel
                         // because that is where it starts.
                         justifyContent: 'flex-start',
-                        paddingTop: parlourOwnsReel || arenaVisible ? '8px' : `${SPACE.md}px`,
+                        paddingTop: parlourOwnsReel || arenaVisible || firstBloodVisible || forgeVisible ? '8px' : `${SPACE.md}px`,
                         zIndex: Z.content,
                         // On a phone the stage is a fixed-height apron under the
                         // shaft rather than the page's leftover space: the shaft
@@ -2772,7 +2775,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             />
                         )}
 
-                        {!isMobile && state === 'idle' && !parlourOwnsReel && !arenaVisible && (
+                        {!isMobile && state === 'idle' && !parlourOwnsReel && !arenaVisible && !firstBloodVisible && !forgeVisible && (
                             <EnhancedWheelIdleState
                                 user={user}
                                 allItems={allItems}
@@ -2788,8 +2791,16 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             />
                         )}
 
+                        {!isMobile && state === 'idle' && !parlourOwnsReel && forgeVisible && (
+                            <ForgeSpinControl onSpin={spin} user={user} isLoading={!atlasReady} error={error}/>
+                        )}
                         {!isMobile && state === 'idle' && !parlourOwnsReel && arenaVisible && (
                             <KotwSpinControl onSpin={spin} user={user} isLoading={!atlasReady} error={error}/>
+                        )}
+
+                        {!isMobile && state === 'idle' && !parlourOwnsReel && firstBloodVisible && !arenaVisible && (
+                            <FirstBloodSpinControl onSpin={spin} user={user} isLoading={!atlasReady} error={error}
+                                luckySpins={kotwLuckySpins} recursionSpins={recursionActive ? recursionSpinsRemaining : 0}/>
                         )}
 
                         {/* The result panel lives in its own component now.
@@ -2808,6 +2819,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             <>
                                 <SpinResult
                                     arena={arenaVisible}
+                                    firstBlood={firstBloodVisible}
+                                    forge={forgeVisible}
                                     kotwPoints={arenaPoints}
                                     result={result}
                                     isNewItem={isNewItem}
@@ -2981,6 +2994,8 @@ export const WheelSpinner = memo(WheelSpinnerComponent, (prevProps, nextProps) =
     // Return false if props are different (re-render)
     return (
         prevProps.arenaVisible === nextProps.arenaVisible &&
+        prevProps.firstBloodVisible === nextProps.firstBloodVisible &&
+        prevProps.forgeVisible === nextProps.forgeVisible &&
         prevProps.stageColumn === nextProps.stageColumn &&
         prevProps.isMobile === nextProps.isMobile &&
         prevProps.hasFlanks === nextProps.hasFlanks &&

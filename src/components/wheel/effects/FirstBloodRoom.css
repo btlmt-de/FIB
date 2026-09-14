@@ -1,0 +1,69 @@
+.fb-room { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; animation: fb-room-enter 1s ease-out both; }
+.fb-room-backdrop { position: absolute; inset: 0; background: #21100c url('/first-blood/frontier-showdown.webp') center top / cover no-repeat; }
+.fb-room-shade { position: absolute; inset: 0; background: linear-gradient(#090808b3, transparent 32%, #13090722 65%, #0c08085c), radial-gradient(ellipse at 50% 65%, transparent 28%, #09070780 100%); }
+.fb-room-particles { position: absolute; inset: 0; pointer-events: none; }
+.fb-room-particles canvas { display: block; width: 100%; height: 100%; }
+.fb-room-dust { position: absolute; inset: 40% -20% 0; opacity: .3; background: radial-gradient(ellipse at 20% 70%, #d99e5540, transparent 45%), radial-gradient(ellipse at 65% 50%, #d99e5528, transparent 35%); animation: fb-room-dust 19s ease-in-out infinite alternate; }
+.fb-room-header { position: relative; text-align: center; padding: 12px 18px 15px; color: #eee0cf; text-shadow: 0 3px 16px #080403; transition: opacity .32s; }
+.fb-room-kicker { display: flex; align-items: center; justify-content: center; gap: 12px; color: #c49063; }
+.fb-room-kicker span { height: 1px; width: 44px; background: linear-gradient(90deg, transparent, #c4906380, transparent); }
+.fb-room-header h2 { margin: 0; font: 900 clamp(38px, 4.5vw, 76px)/1.1 Georgia, 'Times New Roman', serif; text-transform: uppercase; letter-spacing: .045em; color: #e9dac9; text-shadow: 2px 3px 0 #301d16, 0 6px 25px #0009; }
+.fb-room-header h2 em { font-style: normal; color: #de403c; }
+.fb-room-header p { margin: 9px 0 12px; font-size: 10px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
+.fb-room-clock { display: inline-flex; align-items: center; gap: 12px; min-width: 140px; justify-content: center; padding: 6px 18px; color: #ff7770; background: #190a09db; border: 1px solid #ba493a80; box-shadow: inset 0 0 16px #d1422312, 0 0 22px #bd341d17; }
+.fb-room-clock strong { font-size: 27px; letter-spacing: .14em; font-variant-numeric: tabular-nums; }
+.fb-room-clock small { font-size: 8px; max-width: 55px; text-align: left; letter-spacing: .1em; }
+.fb-room-header[data-critical="true"] .fb-room-clock { color: #ffaaa1; border-color: #ff7770; }
+.fb-room-rewards { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 17px; margin: 11px auto 0; padding: 7px 12px; width: fit-content; max-width: 100%; box-sizing: border-box; background: #130b09e8; border-radius: 3px; font-size: 11px; text-shadow: none; }
+.fb-room-rewards > small { color: #bbab97; font-size: 8px; letter-spacing: .15em; }
+.fb-room-rewards span { white-space: nowrap; }
+.fb-room-rewards b { margin-left: 4px; font-variant-numeric: tabular-nums; }
+.fb-room-winner { font-size: 19px; margin: 12px 0; }
+.fb-room-winner strong { color: #ffb3a0; }
+.fb-room-winner span, .fb-room-winner small { display: block; margin-top: 5px; font-size: 13px; }
+.fb-room-end { position: absolute; right: 12px; top: 12px; border: 1px solid #af775d55; background: #1b100bd9; color: #dac0a9; padding: 6px 9px; cursor: pointer; font-size: 10px; }
+.fb-room-end:focus-visible { outline: 2px solid #ffb3a0; outline-offset: 3px; }
+@keyframes fb-room-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fb-room-dust { from { transform: translateX(-6%) scale(1); } to { transform: translateX(6%) scale(1.1); } }
+@media (max-width: 599px) {
+    .fb-room-backdrop { background-position: 52% center; }
+    .fb-room-header { padding: 10px 12px; }
+    .fb-room-header h2 { font-size: 38px; }
+    .fb-room-header p { font-size: 8px; letter-spacing: .13em; }
+    .fb-room-rewards { gap: 6px 12px; font-size: 10px; }
+    .fb-room-rewards > small { width: 100%; }
+    .fb-room-clock strong { font-size: 22px; }
+    .fb-room-end { top: 1px; right: 5px; font-size: 8px; padding: 4px; }
+}
+.fb-room[data-calm="true"], .fb-room[data-calm="true"] .fb-room-dust { animation: none; }
+/* Leave room for the reel and spin control on laptop-height viewports. */
+@media (min-width: 600px) and (max-height: 900px) {
+    .fb-room-header { padding: 6px 18px 8px; }
+    .fb-room-header h2 { font-size: 42px; }
+    .fb-room-kicker { display: none; }
+    .fb-room-header p { margin: 5px 0 6px; }
+    .fb-room-clock { padding: 4px 14px; }
+    .fb-room-clock strong { font-size: 23px; }
+    .fb-room-rewards { margin-top: 6px; padding: 5px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .fb-room, .fb-room-dust { animation: none; } .fb-room-header { transition: none; } }
+
+/* The banner shares the normal wheel's flexible gap. Size from that gap,
+   rather than viewport-height guesses that ignore the ticker and controls. */
+@container fb-banner-slot (max-height: 240px) {
+    .fb-room-header { flex-shrink: 0; box-sizing: border-box; padding: 4px 18px 6px; }
+    .fb-room-header h2 { font-size: clamp(28px, 23cqh, 52px); }
+    .fb-room-kicker { display: none; }
+    .fb-room-header p { margin: 4px 0 6px; }
+    .fb-room-clock { padding: 3px 14px; }
+    .fb-room-clock strong { font-size: 23px; }
+    .fb-room-rewards { margin-top: 6px; padding: 4px 10px; }
+}
+@container fb-banner-slot (max-height: 125px) {
+    .fb-room-header { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; column-gap: 22px; row-gap: 3px; padding: 3px 12px; }
+    .fb-room-header h2 { grid-column: 1; grid-row: 1; font-size: 28px; }
+    .fb-room-header .event-start-live { display: contents; }
+    .fb-room-header p { grid-column: 1; grid-row: 2; margin: 0; font-size: 8px; letter-spacing: .12em; }
+    .fb-room-clock { grid-column: 2; grid-row: 1 / 3; min-width: 100px; }
+    .fb-room-rewards { grid-column: 1 / -1; grid-row: 3; margin-top: 3px; gap: 5px 12px; font-size: 10px; }
+}

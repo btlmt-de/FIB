@@ -557,10 +557,10 @@ function KingOfWheelBanner({
                 setEventEndedAt(Date.now());
                 playSfx?.('mythic'); // Play big win sound
 
-                // Hide banner after 6 seconds
+                // Leave time to read the winner, final score, and prize.
                 winnerTimeoutRef.current = setTimeout(() => {
                     setShowWinnerInBanner(false);
-                }, 6000);
+                }, 8000);
             }
         } else if (kotwWinner && !kotwWinner.winner) {
             // No winner (event ended without anyone winning)
@@ -589,7 +589,9 @@ function KingOfWheelBanner({
 
     // isSettling is declared near isActive above. eventExpired alone would hide the
     // banner during that gap, so it has to be checked before that branch.
-    const shouldShowBanner = hasShownWinner
+    const shouldShowBanner = kotwWinner?.winner && !hasShownWinner
+        ? true // Bridge the render before the winner-display effect runs.
+        : hasShownWinner
         ? showWinnerInBanner
         : isSettling
             ? true   // Hold the banner while the final standings are being announced
@@ -687,7 +689,7 @@ function KingOfWheelBanner({
     // isGone is a latch, so without the reset below every later event of the
     // session would be suppressed until a reload (render-phase correction, same
     // pattern as the EventSelectionWheel's).
-    const [isGone, setIsGone] = useState(false);
+    const [isGone, setIsGone] = useState(true);
     const isClosing = !shouldShowBanner && !isGone;
     if (shouldShowBanner && isGone) setIsGone(false);
     useEffect(() => {
@@ -697,8 +699,9 @@ function KingOfWheelBanner({
     }, [isClosing]);
 
     useEffect(() => {
-        onArenaVisibility?.(arena && shouldShowBanner);
-    }, [arena, shouldShowBanner, onArenaVisibility]);
+        // A result arriving between renders must not tear down and rebuild the arena.
+        onArenaVisibility?.(arena && !isGone && !isPending);
+    }, [arena, isGone, isPending, onArenaVisibility]);
 
     if (isGone) return null;
     if (arena) return <KotwArenaHeader
@@ -706,7 +709,7 @@ function KingOfWheelBanner({
         settling={isSettling}
         clock={isPending && !isActive ? String(countdownSecs) : formatTime(remainingTime)}
         critical={isCriticalTime}
-        winner={showWinnerInBanner ? kotwWinner?.winner : null}
+        winner={showWinnerInBanner || isClosing ? kotwWinner?.winner : null}
         closing={isClosing}
         onEnd={isAdmin && isActive ? endTestEvent : undefined}
     />;
