@@ -1,3 +1,6 @@
+import { Crown, Crosshair } from 'lucide-react';
+import { KotwPoints } from './KotwSpinControl.jsx';
+import { ARENA } from '../config/arenaTheme.js';
 import React from 'react';
 import { COLORS, SPACE, Z } from '../config/constants';
 import { formatChance, getItemRarity, getItemImageUrl } from '../../../utils/helpers.js';
@@ -37,6 +40,10 @@ export function SpinResult({
     resultWasRecursionSpin,
     resultWasKotwLuckySpin,
     isMobile,
+    arena = false,
+    firstBlood = false,
+    forge = false,
+    kotwPoints = null,
 }) {
     if (!result) return null;
 
@@ -46,12 +53,12 @@ export function SpinResult({
     // without claiming a rung on the ladder, which is why they override here
     // rather than being added to RARITY.
     const rarity = getItemRarity(result);
-    const tierColor = resultWasRecursionSpin
+    const tierColor = arena ? (rarity === "common" ? ARENA.gold : getRarityColor(rarity)) : resultWasRecursionSpin
         ? COLORS.recursion
         : resultWasKotwLuckySpin
             ? KOTW_CRIMSON
             : getRarityColor(rarity);
-    const tierInk = resultWasRecursionSpin
+    const tierInk = arena ? (rarity === "common" ? ARENA.ink : getRarityInk(rarity)) : resultWasRecursionSpin
         ? COLORS.recursion
         : resultWasKotwLuckySpin
             ? KOTW_CRIMSON
@@ -96,7 +103,7 @@ export function SpinResult({
     // runs the reflection mostly read as a smudge of duplicated pixels rather than
     // as a surface. Its height is back in the item, which is the thing worth
     // looking at.
-    const itemPx = isMobile ? '92px' : '118px';
+    const itemPx = isMobile ? '92px' : forge ? '90px' : firstBlood ? 'var(--fb-result-item-size, 108px)' : arena ? 'var(--kotw-result-item-size, 108px)' : '118px';
 
     const owned = collection?.[result.texture];
     const chance = result.equalChance != null
@@ -106,15 +113,17 @@ export function SpinResult({
             : null;
 
     return (
-        <div style={{
+        <div className={forge ? 'cg-forge-result' : firstBlood ? 'fb-result' : arena ? "kotw-result" : undefined} style={{
             position: 'relative',
             width: '100%',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            paddingTop: isMobile ? `${SPACE.md}px` : `${SPACE.lg}px`,
+            paddingTop: arena || firstBlood || forge ? '0px' : isMobile ? `${SPACE.md}px` : `${SPACE.lg}px`,
             animation: 'textFadeUp 0.45s cubic-bezier(0.25,0.46,0.45,0.94) both',
         }}>
+            {arena && <Crown className="kotw-result-crown" strokeWidth={0.8} aria-hidden="true"/>}
+            {firstBlood && <><Crosshair className="fb-result-mark" strokeWidth={.6} aria-hidden="true"/><div className="fb-result-caption">Last pull</div></>}
             {/* The winner's column, continuing. It starts at the panel's top edge
                 — which is the underside of the reel — and falls away, so the eye
                 reads one shaft of light running from the band down to the item.
@@ -176,7 +185,7 @@ export function SpinResult({
                 display: 'flex',
                 alignItems: 'center',
                 gap: `${SPACE.sm}px`,
-                marginBottom: isMobile ? '10px' : '14px',
+                marginBottom: arena ? '8px' : isMobile ? '10px' : '14px',
             }}>
                 <span style={{ display: 'flex', alignItems: 'center' }}>
                     {getRarityIcon(rarity, isMobile ? 13 : 15)}
@@ -352,7 +361,7 @@ export function SpinResult({
             <h2 style={{
                 position: 'relative',
                 zIndex: Z.content,
-                margin: `${isMobile ? 12 : 16}px 0 0`,
+                margin: `${arena || forge ? 8 : isMobile ? 12 : 16}px 0 0`,
                 fontSize: nameSize,
                 fontWeight: 800,
                 letterSpacing: '-0.01em',
@@ -382,7 +391,8 @@ export function SpinResult({
                 Tier ink rather than the flat tier colour because this is text:
                 several of the ladder's colours are Minecraft chat colours that
                 fail contrast on these panels. */}
-            {(chance || owned > 1 || (prestigePull && prestigePull.count > 1)) && (
+            {arena && <KotwPoints points={kotwPoints}/>}
+            {(!arena || kotwPoints == null) && (chance || owned > 1 || (prestigePull && prestigePull.count > 1)) && (
                 <div style={{
                     position: 'relative',
                     zIndex: Z.content,

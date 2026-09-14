@@ -1,0 +1,57 @@
+.kotw-arena { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; animation: kotw-enter 1.4s ease-out both; }
+.kotw-arena-backdrop { position: absolute; inset: 0; background: #050c15 url('/kotw-arena-stylized.webp') center center / cover no-repeat; }
+.kotw-light-beam { position: absolute; width: 40%; height: 110%; top: 6%; background: linear-gradient(180deg, #cce7ff14, transparent 85%); clip-path: polygon(48% 0, 52% 0, 100% 100%, 0 100%); transform-origin: 50% 0; animation: kotw-light 14s ease-in-out infinite alternate; }
+.kotw-light-left { left: 0; } .kotw-light-right { right: 0; animation-delay: -7s; }
+.kotw-arena-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 38%, transparent 15%, #02071166 80%), linear-gradient(#020711 0%, transparent 22%, transparent 85%, #02071199); }
+.kotw-arena-header { position: relative; text-align: center; padding: 12px 20px; color: #f1d391; transition: opacity .32s; text-shadow: 0 2px 16px #000; }
+.kotw-hero-crown { filter: drop-shadow(0 0 18px #daa94d66); fill: #d4aa5426; }
+.kotw-arena-header h2 { margin: 3px 0 12px; font: 700 clamp(22px, 2.2vw, 38px)/1.1 'Barlow Condensed', sans-serif; text-transform: uppercase; letter-spacing: .19em; }
+.kotw-arena-header h2 span { font-size: .65em; font-weight: 400; }
+.kotw-clock { display: inline-flex; align-items: center; gap: 10px; padding: 8px 18px; background: #07111dd9; box-shadow: inset 0 0 0 1px #d6ae6466, 0 0 25px #c4963020; }
+.kotw-clock strong { font-size: 25px; font-variant-numeric: tabular-nums; letter-spacing: .1em; }
+.kotw-clock > span { font-size: 10px; letter-spacing: .1em; max-width: 85px; text-align: left; }
+.kotw-arena-header[data-critical="true"] .kotw-clock { color: #ff8983; box-shadow: inset 0 0 0 1px #ff898380, 0 0 28px #ef444422; }
+.kotw-scoring { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px 22px; width: fit-content; max-width: 100%; box-sizing: border-box; margin: 12px auto 0; padding: 8px 16px; background: #040c16e8; border-radius: 3px; font-size: 13px; line-height: 1.4; text-shadow: none; }
+.kotw-scoring-tier { display: inline-flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.kotw-scoring-tier b { color: inherit; font-weight: 750; font-variant-numeric: tabular-nums; }
+@media (max-width: 599px) {
+    .kotw-scoring { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; gap: 7px 12px; padding: 8px 10px; font-size: 12px; }
+    .kotw-scoring-tier { flex-direction: column; align-items: center; gap: 0; }
+}
+.kotw-standings { position: absolute; right: clamp(20px, 5vw, 96px); top: 50%; transform: translateY(-50%); width: 272px; z-index: 3; padding: 17px; box-sizing: border-box; color: #e8eef5; background: linear-gradient(130deg, #102133f2, #030a12f5); box-shadow: inset 0 0 0 1px #d6ae6459, 0 12px 45px #0008; animation: kotw-enter .6s ease-out both; }
+.kotw-board-title { display: flex; align-items: center; gap: 9px; color: #f1cc7b; text-transform: uppercase; letter-spacing: .15em; font-size: 16px; }
+.kotw-standings:not(.kotw-standings-compact) { max-height: calc(100% - 24px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #a88b50 #07111d; }
+.kotw-board-title small { margin-left: auto; font-size: 9px; letter-spacing: .1em; color: #a9c7ba; }
+.kotw-standings ol { padding: 0; margin: 13px 0 0; list-style: none; }
+.kotw-standings li { display: flex; align-items: center; gap: 9px; min-height: 44px; box-shadow: 0 -1px #adc8e012; }
+.kotw-rank { width: 15px; color: #cfa957; font-size: 12px; flex-shrink: 0; }
+.kotw-avatar { display: grid; place-items: center; flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: #26394d; color: #c3d3e1; font-size: 12px; }
+.kotw-standings li[data-leader="true"] .kotw-avatar { color: #f1cc7b; background: #a278292b; box-shadow: 0 0 12px #c99d4333; }
+.kotw-full-board { display: block; margin: 10px 0 0 auto; padding: 5px 0; border: 0; background: none; color: #f1cc7b; cursor: pointer; font-size: 11px; }
+.kotw-full-board:focus-visible, .kotw-pocket-board summary:focus-visible, .kotw-end:focus-visible { outline: 2px solid #f1cc7b; outline-offset: 4px; }
+.kotw-pocket-board { max-width: 500px; margin: auto; text-align: left; }
+.kotw-pocket-board summary { display: flex; align-items: center; gap: 9px; padding: 10px 12px; cursor: pointer; background: #07111de8; box-shadow: inset 0 0 0 1px #d6ae6459; font-size: 12px; }
+.kotw-pocket-board summary > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kotw-pocket-board summary > small { font-size: 10px; color: #bacbdb; }
+.kotw-pocket-board summary::-webkit-details-marker { display: none; }
+.kotw-contender { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.kotw-contender small { display: block; font-size: 8px; letter-spacing: .1em; color: #ff8096; }
+.kotw-score { font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.kotw-score small { font-size: 9px; font-weight: 400; color: #a1afbf; }
+.kotw-score .kotw-gap { display: block; font-size: 8px; margin-top: 3px; }
+.kotw-standings li[data-leader="true"] { color: #f4d184; min-height: 53px; } .kotw-standings li[data-self="true"] .kotw-contender { color: #ff91a3; }
+.kotw-board-footer { margin-top: 12px; color: #b1becd; font-size: 10px; line-height: 1.5; }
+.kotw-empty { color: #a9b9cc; font-size: 13px; line-height: 1.8; } .kotw-empty strong { color: #edd295; }
+.kotw-victor { font-size: 20px; } .kotw-victor span { display: block; margin-top: 8px; font-size: 12px; color: #c6d4e3; }
+.kotw-end { position: absolute; right: 12px; top: 12px; color: #a9b9cc; background: #081320; border: 0; padding: 6px 9px; cursor: pointer; font-size: 10px; }
+.kotw-small-board { display: none; }
+@keyframes kotw-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kotw-light { from { opacity: .55; transform: rotate(-5deg); } to { opacity: 1; transform: rotate(5deg); } }
+@media (max-width: 1199px) {
+    .kotw-small-board { display: block; margin-top: 12px; }
+    .kotw-standings-compact { position: relative; top: auto; right: auto; transform: none; width: min(100%, 500px); margin: auto; text-align: left; padding: 12px; }
+    .kotw-standings-compact li { min-height: 35px; } .kotw-standings-compact li[data-leader="true"] { min-height: 39px; }
+    .kotw-standings-compact .kotw-board-footer { display: none; }
+    .kotw-arena-header { padding: 12px; } .kotw-hero-crown { width: 32px; height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { .kotw-arena, .kotw-standings, .kotw-light-beam { animation: none; } .kotw-arena-header { transition: none; } }

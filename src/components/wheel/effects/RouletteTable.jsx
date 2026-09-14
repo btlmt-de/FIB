@@ -393,8 +393,9 @@ function RouletteTable({
 
         return (
             <Tray isMobile={isMobile} className="fib-parlour-result-tray" style={{
-                maxHeight: isMobile ? 'min(52dvh, 360px)' : '100%',
-                minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                maxHeight: isMobile ? 'min(52dvh, 360px)' : undefined,
+                minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+                pointerEvents: 'auto',
                 paddingBottom: isMobile ? 12 : 8,
             }}>
                 <div className="fib-parlour-settlement" data-outcome={mine?.outcome || 'spectator'}>

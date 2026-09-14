@@ -10,6 +10,9 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# The single-file arrival timing bench (npm run bench:arrival). A 0.75MB
+# generated artefact that is rebuilt from source in one command.
+dist-bench
 *.local
 
 # Editor directories and files

@@ -1,4 +1,5 @@
-﻿// ============================================
+import { KotwArenaHeader } from './KotwArena.jsx';
+// ============================================
 // KingOfWheelBanner.jsx
 // ============================================
 // King of the Wheel event banner with competition leaderboard
@@ -431,6 +432,8 @@ function KingOfWheelBanner({
                                isAdmin = false,
                                currentUserId = null,
                                inline = false,
+                               arena = false,
+                               onArenaVisibility,
                            }) {
     const { globalEventStatus, updateGlobalEventStatus, kotwLeaderboard, kotwUserStats, kotwWinner, kotwWinnerPending } = useActivity();
     const { playSfx, startKotwSoundtrack, stopKotwSoundtrack } = useSound();
@@ -438,11 +441,21 @@ function KingOfWheelBanner({
     const [remainingTime, setRemainingTime] = useState(0);
     const [countdownTime, setCountdownTime] = useState(0);
     const [showWinnerInBanner, setShowWinnerInBanner] = useState(false);
+    const [fallbackWinnerId] = useState(() => crypto.randomUUID());
+    const [winnerLifecycle, setWinnerLifecycle] = useState({ present: false, sequence: 0 });
+    const winnerPresent = !!kotwWinner;
+    if (winnerLifecycle.present !== winnerPresent) {
+        setWinnerLifecycle({ present: winnerPresent, sequence: winnerLifecycle.sequence + (winnerPresent ? 1 : 0) });
+    }
+    const currentEventId = kotwWinner?.eventId?.toString()
+        ?? `${fallbackWinnerId}-${winnerLifecycle.sequence}`;
+    const currentWinnerId = kotwWinner?.winner ? `${currentEventId}-${kotwWinner.winner.userId}` : null;
 
     const hasPlayedSoundRef = useRef(false);
     const wasActiveRef = useRef(false);
     const wasPendingRef = useRef(false);
     const winnerTimeoutRef = useRef(null);
+    const winnerDisplayRef = useRef(null);
 
     const isKotw = globalEventStatus?.type === 'king_of_wheel';
     const isActive = isKotw && globalEventStatus?.active;
@@ -542,9 +555,7 @@ function KingOfWheelBanner({
         }
 
         if (kotwWinner?.winner) {
-            // Use eventId if available, otherwise use timestamp (fallback)
-            const eventId = kotwWinner.eventId || Date.now();
-            const winnerId = `${eventId}-${kotwWinner.winner.userId}`;
+            const winnerId = currentWinnerId;
             const alreadyShown = getShownWinnerId() === winnerId;
 
             if (!alreadyShown) {
@@ -553,11 +564,14 @@ function KingOfWheelBanner({
                 // Track when this event ended (to prevent banner reappearing)
                 setEventEndedAt(Date.now());
                 playSfx?.('mythic'); // Play big win sound
-
-                // Hide banner after 6 seconds
+                winnerDisplayRef.current = { id: winnerId, expiresAt: Date.now() + 8000 };
+            }
+            // Re-renders may replace the payload or sound callback. Resume the
+            // same deadline after cleanup instead of cancelling the reveal's end.
+            if (winnerDisplayRef.current?.id === winnerId) {
                 winnerTimeoutRef.current = setTimeout(() => {
                     setShowWinnerInBanner(false);
-                }, 6000);
+                }, Math.max(0, winnerDisplayRef.current.expiresAt - Date.now()));
             }
         } else if (kotwWinner && !kotwWinner.winner) {
             // No winner (event ended without anyone winning)
@@ -570,12 +584,11 @@ function KingOfWheelBanner({
                 clearTimeout(winnerTimeoutRef.current);
             }
         };
-    }, [kotwWinner, playSfx]);
+    }, [kotwWinner, currentWinnerId, playSfx]);
 
     // Determine if banner should be visible
     const shownWinnerId = getShownWinnerId();
-    const currentEventId = kotwWinner?.eventId?.toString() || '';
-    const hasShownWinner = shownWinnerId && currentEventId && shownWinnerId.startsWith(currentEventId);
+    const hasShownWinner = !!currentWinnerId && shownWinnerId === currentWinnerId;
 
     // Check if we've recently ended an event (prevents banner reappearing when kotwWinner clears)
     const eventEndedAt = getEventEndedAt();
@@ -586,7 +599,9 @@ function KingOfWheelBanner({
 
     // isSettling is declared near isActive above. eventExpired alone would hide the
     // banner during that gap, so it has to be checked before that branch.
-    const shouldShowBanner = hasShownWinner
+    const shouldShowBanner = kotwWinner?.winner && !hasShownWinner
+        ? true // Bridge the render before the winner-display effect runs.
+        : hasShownWinner
         ? showWinnerInBanner
         : isSettling
             ? true   // Hold the banner while the final standings are being announced
@@ -684,7 +699,7 @@ function KingOfWheelBanner({
     // isGone is a latch, so without the reset below every later event of the
     // session would be suppressed until a reload (render-phase correction, same
     // pattern as the EventSelectionWheel's).
-    const [isGone, setIsGone] = useState(false);
+    const [isGone, setIsGone] = useState(true);
     const isClosing = !shouldShowBanner && !isGone;
     if (shouldShowBanner && isGone) setIsGone(false);
     useEffect(() => {
@@ -693,7 +708,21 @@ function KingOfWheelBanner({
         return () => clearTimeout(id);
     }, [isClosing]);
 
+    useEffect(() => {
+        // A result arriving between renders must not tear down and rebuild the arena.
+        onArenaVisibility?.(arena && !isGone && !isPending);
+    }, [arena, isGone, isPending, onArenaVisibility]);
+
     if (isGone) return null;
+    if (arena) return <KotwArenaHeader
+        pending={isPending && !isActive}
+        settling={isSettling}
+        clock={isPending && !isActive ? String(countdownSecs) : formatTime(remainingTime)}
+        critical={isCriticalTime}
+        winner={showWinnerInBanner || isClosing ? kotwWinner?.winner : null}
+        closing={isClosing}
+        onEnd={isAdmin && isActive ? endTestEvent : undefined}
+    />;
 
     return (
         <>

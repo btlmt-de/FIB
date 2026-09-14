@@ -1,3 +1,5 @@
+import { useActivity } from '../../../context/ActivityContext.jsx';
+import { KotwArenaStandings } from '../effects/KotwArena.jsx';
 import React, { useCallback, useState } from 'react';
 import { BookOpen, Trophy } from 'lucide-react';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from '../config/constants';
@@ -368,6 +370,8 @@ export function StageFlanks({
     onOpenLeaderboard,
 }) {
     const { leaderboard, myRank } = useCollectionLeaderboard(userId);
+    const { globalEventStatus, kotwWinnerPending } = useActivity();
+    const arenaActive = (globalEventStatus?.type === 'king_of_wheel' && (globalEventStatus.active || globalEventStatus.pending)) || kotwWinnerPending;
     /*
      * Which collection the counter is reading.
      *
@@ -521,7 +525,7 @@ export function StageFlanks({
                 </div>
             </Panel>
 
-            <Panel
+            {arenaActive ? <KotwArenaStandings onOpenLeaderboard={onOpenLeaderboard} /> : <Panel
                 side="right"
                 label="Standings"
                 icon={<Trophy size={13} />}
@@ -629,7 +633,7 @@ export function StageFlanks({
                         You are <strong style={{ color: COLORS.text, fontWeight: 700 }}>#{myRank}</strong>
                     </span>
                 )}
-            </Panel>
+            </Panel>}
         </>
     );
 }

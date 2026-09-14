@@ -1,3 +1,4 @@
+import { ARENA } from '../config/arenaTheme.js';
 // ============================================
 // CanvasSpinningStrip.jsx
 // ============================================
@@ -382,7 +383,7 @@ function getRimSprite(item, img) {
     return rc;
 }
 
-function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x', candidacy = 0, lampRgb = null) {
+function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x', candidacy = 0, lampRgb = null, arena = false) {
     if (!item) return;
 
     const isInsane = isInsaneItem(item);
@@ -442,6 +443,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         else if (isSpecial) flat = COLORS.insane;           // legendary
         else if (isExotic) flat = COLORS.purple;
         else if (isRare) flat = COLORS.red;
+        else if (arena) flat = ARENA.gold;
         else if (isLuckyCommon) flat = isKotwLucky ? KOTW_CRIMSON : COLORS.green;
         else if (isKotwLucky) flat = KOTW_GOLD;
         else if (showRecursionEffects) flat = COLORS.recursion;
@@ -1720,16 +1722,18 @@ export function CanvasSpinningStrip({
             };
 
             // Determine theme colors based on themeType or isRecursion
-            const isKotwTheme = themeType === 'kotw';
+            const isArenaTheme = themeType === 'kotw-arena';
+            const isFirstBloodTheme = themeType === 'first-blood';
+            const isKotwTheme = themeType === 'kotw' || isArenaTheme;
             const isRecursionTheme = isRecursion || themeType === 'recursion';
 
             // KOTW: Slate background (#1E293B), Crimson/Gold accents
             // Recursion: Dark green background, Matrix green accents
-            const KOTW_SLATE = '#1E293B';
-            const KOTW_SLATE_DARK = '#0F172A';
+            const KOTW_SLATE = isArenaTheme ? ARENA.steel : '#1E293B';
+            const KOTW_SLATE_DARK = isArenaTheme ? ARENA.navy : '#0F172A';
 
             const accentColor = accentOverride || (isRecursionTheme ? COLORS.recursion : COLORS.gold);
-            const bgColor = isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
+            const bgColor = isFirstBloodTheme ? '#160B09' : isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
 
             // Pre-compute hexToRgb once per frame instead of per-item
             const accentRgb = hexToRgb(accentColor);
@@ -1738,7 +1742,7 @@ export function CanvasSpinningStrip({
             ctx.clearRect(0, 0, width, height);
 
             // Background
-            if (isRecursionTheme || isKotwTheme) {
+            if (isRecursionTheme || isKotwTheme || isFirstBloodTheme) {
                 // Themed background
                 const bgGradient = ctx.createLinearGradient(
                     isMobile ? 0 : 0,
@@ -1746,7 +1750,11 @@ export function CanvasSpinningStrip({
                     isMobile ? 0 : width,
                     isMobile ? height : 0
                 );
-                if (isKotwTheme) {
+                if (isFirstBloodTheme) {
+                    bgGradient.addColorStop(0, '#100907');
+                    bgGradient.addColorStop(.5, '#381713');
+                    bgGradient.addColorStop(1, '#100907');
+                } else if (isKotwTheme) {
                     // KOTW: Slate gradient
                     bgGradient.addColorStop(0, KOTW_SLATE_DARK);
                     bgGradient.addColorStop(0.5, KOTW_SLATE);
@@ -1771,6 +1779,20 @@ export function CanvasSpinningStrip({
                 ctx.fillStyle = bgGradient;
             }
             ctx.fillRect(0, 0, width, height);
+
+            // Warm metal edging around the item recess, on either reel axis.
+            if (isFirstBloodTheme) {
+                ctx.save();
+                ctx.fillStyle='#BD875047';
+                if (isMobile) {
+                    ctx.fillRect(0,0,2,height);
+                    ctx.fillRect(width-2,0,2,height);
+                } else {
+                    ctx.fillRect(0,0,width,2);
+                    ctx.fillRect(0,height-2,width,2);
+                }
+                ctx.restore();
+            }
 
             // Recursion scanlines (only for matrix theme, not KOTW)
             if (isRecursionTheme && !isKotwTheme) {
@@ -1822,6 +1844,7 @@ export function CanvasSpinningStrip({
                         'y',
                         candidacyAt(idx, itemY + rowPitch / 2, shaftLine),
                         accentRgb,
+                        isArenaTheme,
                     );
                 };
 
@@ -1879,7 +1902,7 @@ export function CanvasSpinningStrip({
                     // below the centre, so this genuinely does go negative.
                     const item = items[((idx % items.length) + items.length) % items.length];
                     const itemX = stripCenterX + idx * itemWidth - offset;
-                    drawItem(ctx, item, itemX, itemCenterY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyOf(itemX + itemWidth / 2, width / 2), accentRgb);
+                    drawItem(ctx, item, itemX, itemCenterY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyOf(itemX + itemWidth / 2, width / 2), accentRgb, isArenaTheme);
                 }
             } else {
                 // Horizontal strip - items side by side
@@ -1894,7 +1917,7 @@ export function CanvasSpinningStrip({
                         const isWinning = idx === finalIndex && isResult;
                         // Horizontal reel: every slot shares the full-height band,
                         // which is what makes the row read as one lit surface.
-                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyAt(idx, itemX + itemWidth / 2, width / 2), accentRgb);
+                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyAt(idx, itemX + itemWidth / 2, width / 2), accentRgb, isArenaTheme);
 
                         // The slot seam that used to be drawn here is gone.
                         //

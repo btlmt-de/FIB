@@ -30,6 +30,7 @@ import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Target, Timer, Users, Sparkles, Gem, HandHeart, Trophy } from 'lucide-react';
 import { countdownInterval, visibleInterval } from '../../../config/power.js';
+import { CommunityForgeHeader } from './CommunityForge.jsx';
 
 // ============================================
 // CONSTANTS
@@ -223,7 +224,7 @@ function StagedBar({ progress, tiers, isMobile, raised }) {
 // ============================================
 // Main Community Goal Banner Component
 // ============================================
-function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false }) {
+function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false, forge = false, onForgeVisibility }) {
     const {
         globalEventStatus,
         updateGlobalEventStatus,
@@ -441,7 +442,7 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
     // halted and opacity falling; a timeout then retires it. The result is
     // frozen through the fade (below) so the banner goes out showing what it
     // came to show, not an empty shell.
-    const [isGone, setIsGone] = useState(false);
+    const [isGone, setIsGone] = useState(true);
     const isClosing = !shouldShowBanner && !isGone;
     // Snap back: "a fresh event inside the fade" must actually come back. isGone
     // is a latch - once a fade completes it stays true, so without this reset
@@ -462,6 +463,10 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
     const [lastResult, setLastResult] = useState(null);
     if (communityGoalResult && communityGoalResult !== lastResult) setLastResult(communityGoalResult);
 
+    useEffect(() => {
+        onForgeVisibility?.(forge && !isGone && !isPending);
+    }, [forge, isGone, isPending, onForgeVisibility]);
+
     if (isGone) return null;
 
     const countdownSecs = Math.ceil(countdownTime / 1000);
@@ -470,6 +475,15 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
     const succeeded = resultNow?.succeeded;
     const resultColor = succeeded ? tierColor(resultNow?.tierReached) : CG_FAIL;
     const edgeColor = (showResult || isClosing) ? resultColor : (reachedTier ? tierColor(reachedTier.key) : CG_PRIMARY);
+
+    if (forge) return <CommunityForgeHeader
+        pending={isPending && !isActive} active={isActive}
+        clock={isPending && !isActive ? String(countdownSecs) : formatTime(remainingTime)}
+        progress={progress} specialDrops={specialDrops} tiers={tiers} participants={participants}
+        participationReward={participationReward} payout={currentPayout} goalRaised={goalRaised}
+        result={showResult || isClosing ? resultNow : null} reward={communityGoalReward}
+        closing={isClosing} onEnd={isAdmin && isActive ? endTestEvent : undefined}
+    />;
 
     // Shared pill styling, matching the other event banners
     const pill = (borderColor, opts = {}) => ({
