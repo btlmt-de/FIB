@@ -1,5 +1,6 @@
 .cg-forge-room { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; animation: cg-forge-enter .9s ease-out both; }
 .cg-forge-backdrop { position: absolute; inset: 0; background: #10151b url('/community-forge.webp') center top / cover no-repeat; }
+.cg-forge-flow { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; pointer-events: none; }
 .cg-forge-shade { position: absolute; inset: 0; background: linear-gradient(#040a12a8, #070b1220 30%, transparent 62%, #05080b70), radial-gradient(ellipse at center, transparent 35%, #03080d66); }
 .cg-forge-light { position: absolute; inset: 12% 0 0; background: radial-gradient(ellipse at 12% 65%, #ff761b33, transparent 35%), radial-gradient(ellipse at 90% 64%, #ffae3526, transparent 35%); animation: cg-forge-fire 3.8s ease-in-out infinite alternate; }
 .cg-forge-stoke { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 85%, #ff9c4326, transparent 65%); animation: cg-forge-stoke 1.4s ease-out both; }

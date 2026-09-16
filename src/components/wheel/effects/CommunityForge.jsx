@@ -4,6 +4,7 @@ import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useCalm } from '../../../config/power.js';
 import { forgeStages } from '../../../utils/forgeProgress.js';
 import EventStartCountdown from './EventStartCountdown.jsx';
+import { ForgeFlow } from './ForgeFlow.jsx';
 import './CommunityForge.css';
 
 const number = value => Number(value || 0).toLocaleString('en-US');
@@ -20,11 +21,12 @@ function useForgeMotion() {
 
 export function CommunityForgeAtmosphere({ visible }) {
     const motion = useForgeMotion();
-    const { communityGoal } = useActivity();
+    const { communityGoal, globalEventStatus } = useActivity();
     const progress = communityGoal?.progress || 0;
     if (!visible) return null;
     return <div className="cg-forge-room" aria-hidden="true" {...motion}>
         <div className="cg-forge-backdrop"/>
+        <ForgeFlow active={globalEventStatus?.type === 'community_goal' && !!globalEventStatus.active}/>
         <div className="cg-forge-light"/>
         <div className="cg-forge-stoke" key={progress}/>
         <div className="cg-forge-embers">{Array.from({ length: 20 }, (_, i) => <i key={i} style={{ '--x': `${(i * 37) % 100}%`, '--delay': `${-i * .73}s`, '--drift': `${(i % 2 ? 1 : -1) * (30 + i * 3)}px`, '--duration': `${5 + i % 5}s` }}/>)}</div>
