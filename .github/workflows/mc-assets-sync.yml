@@ -46,12 +46,36 @@ jobs:
           python scripts/syncMcAssets.py \
             ForceItemBattle/assets/minecraft/textures/fib
 
+      # The sync writes textures/fib/ by filename, and a handful of those filenames
+      # carry FIB art instead of the vanilla render — the materials the plugin's
+      # custom items own outright. Copying pack-overrides/fib/ back over the synced
+      # output is what keeps them.
+      #
+      # This was four hardcoded `git checkout HEAD --` lines, and it had fallen two
+      # files behind: the Sulfur Locator (music_disc_chirp) and the Eye of
+      # Antimatter (torchflower_seeds) were added after it was written, so every
+      # sync quietly reverted them to vanilla art. A directory cannot fall behind
+      # that way — adding a custom texture is dropping a file into it, with no
+      # workflow edit and no list to remember. See pack-overrides/README.md.
       - name: Restore custom textures
         run: |
-          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/knowledge_book.png
-          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/wither_rose.png
-          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/nether_star.png
-          git checkout HEAD -- ForceItemBattle/assets/minecraft/textures/fib/torchflower.png
+          shopt -s nullglob
+          restored=0
+          for src in pack-overrides/fib/*.png; do
+            name=$(basename "$src")
+            dest="ForceItemBattle/assets/minecraft/textures/fib/$name"
+            if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+              echo "  unchanged  $name"
+            else
+              echo "  RESTORED   $name  (the sync had overwritten it)"
+              restored=$((restored + 1))
+            fi
+            cp "$src" "$dest"
+          done
+          echo "Restored $restored custom texture(s) from pack-overrides/fib/."
+          if [ "$restored" -eq 0 ]; then
+            echo "::warning::The sync overwrote none of the overrides. Expected for the tab logos, but if it is true of the item textures too, mc-assets has stopped shipping those names — i.e. Mojang renamed a material a custom item rides on. Check CUSTOM_OWNED_MATERIALS in the wheel backend before merging."
+          fi
 
       - name: Update pack.mcmeta versions
         run: |
