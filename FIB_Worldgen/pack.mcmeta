@@ -3,7 +3,7 @@
     "pack_format": 88,
     "description": [
       {
-        "text": "FIB Worldgeneration (26.2) [2.0]",
+        "text": "FIB Worldgeneration (26.3) [1.0]",
         "color": "#22BAC5",
         "bold": true
       },
@@ -17,6 +17,6 @@
       }
     ],
     "min_format": 88,
-    "max_format": 107.1
+    "max_format": 121.0
   }
 }
