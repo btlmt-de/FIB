@@ -1606,7 +1606,7 @@ function WheelOfFortunePage({ onBack }) {
                 {/* What this slot says when none of the above are firing, which is
                     most of the time. It renders null during an event and during the
                     roll, so it never shares the space with them. */}
-                <MilestoneMeter isMobile={isMobile} />
+                <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
             </div>
 
             {/* Notification Center */}
