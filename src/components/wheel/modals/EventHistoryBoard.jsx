@@ -167,6 +167,10 @@ export function EventHistoryBoard({ onClose }) {
     const totals = data?.totals || {};
     const recent = data?.recent || [];
     const milestone = data?.milestone || null;
+    // The window that has not closed yet. Absent on an older server — the board
+    // renders without the register rather than with an empty one, which is the
+    // same rule the log's own empty state follows.
+    const runUp = data?.runUp || null;
     // `selecting` is the four-second wheel that decides which event fires. It is
     // an event state but not an event, and naming it on the board would print a
     // row for something that has no outcome and may still be a different type.
@@ -177,6 +181,10 @@ export function EventHistoryBoard({ onClose }) {
     const rotationTrack = isPhone
         ? '16px minmax(0, 1fr) 52px 74px'
         : '16px minmax(0, 1fr) 62px 84px minmax(56px, 0.5fr) 82px';
+
+    const runUpTrack = isPhone
+        ? '18px minmax(0, 1fr) 54px'
+        : '18px minmax(0, 1fr) minmax(56px, 0.6fr) 66px 78px';
 
     const logTrack = isPhone
         ? '16px minmax(0, 1fr) 62px 74px'
@@ -345,6 +353,137 @@ export function EventHistoryBoard({ onClose }) {
                                 log the server writes after each one.
                             </p>
                         </div>
+                    )}
+
+                    {/* ── THE RUN-UP ──────────────────────────────────────────── */}
+                    {/*
+                     * Who has been spinning since the last event ended — the
+                     * window the meter in the head is measuring.
+                     *
+                     * FIRST register, above the rotation, and that order is the
+                     * point rather than a preference: the meter on the wheel is
+                     * what opens this board, and the question it leaves you with
+                     * is "who is doing this with me". A reader who arrives from
+                     * that click lands on the answer without scrolling past two
+                     * registers about the past.
+                     *
+                     * It is hidden entirely while an event is on air. The window
+                     * it describes closes the moment one fires — the spins during
+                     * an event are offset out of the next one — so a live
+                     * register here would be counting toward a milestone that is
+                     * not currently being counted toward. The rotation and the
+                     * log below are true at all times; this one is only true
+                     * between events, and says nothing when it is not.
+                     */}
+                    {runUp && !live && (
+                        <section style={{ paddingBottom: '30px' }}>
+                            <div style={{
+                                display: 'flex', alignItems: 'baseline',
+                                justifyContent: 'space-between', gap: '12px',
+                                paddingBottom: '10px',
+                            }}>
+                                <BoardLabel size={11}>The run-up</BoardLabel>
+                                {/* On an empty log there is no last event to
+                                    measure from, and the caption says "so far"
+                                    rather than inventing a boundary. */}
+                                <BoardLabel tone={DECK.inkDim}>
+                                    {`${fmt(runUp.spins)} spins ${runUp.since ? 'since the last event' : 'so far'} · ${fmt(runUp.contributors)} ${runUp.contributors === 1 ? 'player' : 'players'}`}
+                                </BoardLabel>
+                            </div>
+
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: runUpTrack,
+                                alignItems: 'center', gap: '0 12px', padding: '0 0 8px',
+                            }}>
+                                <span />
+                                <BoardLabel>Player</BoardLabel>
+                                {!isPhone && <BoardLabel>Share</BoardLabel>}
+                                <BoardLabel style={{ textAlign: 'right' }}>Spins</BoardLabel>
+                                {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Last</BoardLabel>}
+                            </div>
+
+                            {(runUp.top || []).length === 0 && (
+                                <div style={{ padding: '14px 0' }}>
+                                    <BoardLabel tone={DECK.inkDim}>
+                                        {loading ? 'Counting…' : 'Nobody has spun since the last event'}
+                                    </BoardLabel>
+                                </div>
+                            )}
+
+                            {(runUp.top || []).map((row, i) => {
+                                // Share of the window, not of the interval the
+                                // event needs. The denominator is what has been
+                                // spun so far, so these bars fill the register
+                                // whatever stage the run-up is at — a leader on
+                                // 40% did 40% of the work done, which is the
+                                // readable fact. A share of the 300–600 target
+                                // would leave every bar near empty early on.
+                                const share = runUp.spins > 0 ? row.spins / runUp.spins : 0;
+
+                                return (
+                                    <div
+                                        key={row.userId}
+                                        className={`fib-register-row is-static${i > 0 ? ' has-seam' : ''}`}
+                                        style={{
+                                            display: 'grid', gridTemplateColumns: runUpTrack,
+                                            alignItems: 'center', gap: '0 12px',
+                                            padding: isPhone ? '9px 0' : '11px 0',
+                                            '--fib-row-wash': `${DECK.amber}12`,
+                                            '--fib-row-tone': DECK.amber,
+                                        }}
+                                    >
+                                        {/* The standing as a figure rather than a
+                                            medal: this is a window a few hundred
+                                            spins long, not a ranking anybody
+                                            keeps. The leaderboard is the board
+                                            for standings. */}
+                                        <BoardLabel tone={i === 0 ? DECK.amber : DECK.inkDim}>
+                                            {i + 1}
+                                        </BoardLabel>
+
+                                        {/* The same face-and-name cell the log's
+                                            winner column uses. A contributor is
+                                            not a winner, but a player rendered
+                                            one way here and another way six rows
+                                            down is how a board stops reading as
+                                            one surface — and the prestige ring
+                                            rule (§9) applies to both. */}
+                                        <Winner winner={row} tone={i === 0 ? DECK.amber : DECK.ink} />
+
+                                        {!isPhone && <BoardMeter value={share} tone={DECK.amber} />}
+
+                                        <FlapText
+                                            text={fmt(row.spins)} digits size={15}
+                                            tone={i === 0 ? DECK.amber : DECK.ink} weight={700}
+                                            delay={120 + i * 30}
+                                            style={{ justifyContent: 'flex-end' }}
+                                        />
+
+                                        {!isPhone && (
+                                            <BoardLabel
+                                                tone={DECK.inkDim}
+                                                style={{ display: 'block', textAlign: 'right' }}
+                                                title={fullTime(row.lastSpinAt)}
+                                            >
+                                                {ago(row.lastSpinAt)}
+                                            </BoardLabel>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            {/* The cap, stated. The list is the top twelve and the
+                                caption above counts everyone, so without this a
+                                thirteenth contributor reads as somebody who did
+                                not spin rather than somebody who did not fit. */}
+                            {runUp.contributors > (runUp.top || []).length && (
+                                <div style={{ paddingTop: '10px' }}>
+                                    <BoardLabel tone={DECK.inkDim}>
+                                        {`+ ${fmt(runUp.contributors - runUp.top.length)} more`}
+                                    </BoardLabel>
+                                </div>
+                            )}
+                        </section>
                     )}
 
                     {/* ── THE ROTATION ────────────────────────────────────────── */}
@@ -585,7 +724,7 @@ export function EventHistoryBoard({ onClose }) {
                     background: 'rgba(0,0,0,0.22)',
                 }}>
                     <BoardLabel tone={DECK.inkDim}>
-                        Paid is what an event cost, never what anyone holds · No event runs twice in a row
+                        Paid is what an event cost, never what anyone holds · No event runs twice in a row · The run-up counts spins that produced an item
                     </BoardLabel>
                 </div>
             </div>

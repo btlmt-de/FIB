@@ -25,6 +25,13 @@ import { visibleInterval } from '../../../config/power.js';
  * The count is server-wide, and the copy says so. "159 spins to go" on its own
  * reads as a personal target — the difference between "I have to do this" and
  * "everyone here is doing this together" is the whole character of the feature.
+ *
+ * **And it opens the event log, at THE RUN-UP.** The sentence above names a
+ * collective effort and then shows nobody in it, which is the one question this
+ * card provokes and cannot answer in the row it is allowed. A click hands it to
+ * the board that can: `runUp` there lists who has spun since the last event
+ * ended, and the same figure that is on this plinth is in that board's head, so
+ * the reader lands on the number they clicked rather than on a new one.
  */
 
 /**
@@ -38,7 +45,7 @@ import { visibleInterval } from '../../../config/power.js';
  */
 const REFRESH_MS = 20_000;
 
-export function MilestoneMeter({ isMobile }) {
+export function MilestoneMeter({ isMobile, onOpen }) {
     const { globalEventStatus, eventSelection, refreshMilestone,
         communityGoalResult, communityGoalResultPending, firstBloodWinner,
         firstBloodResultPending, kotwWinner, kotwWinnerPending } = useActivity();
@@ -139,12 +146,31 @@ export function MilestoneMeter({ isMobile }) {
                     .fib-meter-tick, .fib-meter-breath { animation: none; }
                 }
             `}</style>
-            <div
+            <button
+                type="button"
+                className={onOpen ? 'fib-board-hit' : undefined}
+                onClick={onOpen}
+                // Not a button at all when nothing is listening. The meter is
+                // mounted by the wheel page, but it is a component and a caller
+                // that wires no handler would otherwise ship a control that
+                // takes focus, announces itself and does nothing.
+                disabled={!onOpen}
+                aria-label={onOpen
+                    ? `${remaining.toLocaleString('en-US')} spins to the next global event, server-wide. Open the event log to see who has been spinning.`
+                    : undefined}
                 // The full sentence lives here rather than on screen. The visible
                 // copy has to carry "server-wide" in three words; the tooltip can
                 // afford to explain the mechanism to whoever wonders.
-                title={`Global events trigger on a server-wide spin count. Every player's spins count toward it — ${remaining.toLocaleString('en-US')} to go.`}
+                title={`Global events trigger on a server-wide spin count. Every player's spins count toward it — ${remaining.toLocaleString('en-US')} to go.${onOpen ? ' Open the log to see who has been spinning.' : ''}`}
                 style={{
+                    // Button reset. The plinth's own look is entirely in the
+                    // rules below; these four lines only stop the user agent
+                    // from painting a control over them.
+                    border: 0,
+                    font: 'inherit',
+                    color: 'inherit',
+                    textAlign: 'left',
+                    cursor: onOpen ? 'pointer' : 'default',
                     // ── The phone's version is one line ──────────────────────
                     //
                     // At 84px this was the third-largest thing on a 800px phone,
@@ -202,14 +228,41 @@ export function MilestoneMeter({ isMobile }) {
                         cannot afford. */}
                     {!isMobile && (
                         <span style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.09em',
-                            textTransform: 'uppercase',
-                            color: imminent ? COLORS.gold : COLORS.textMuted,
-                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            alignItems: 'baseline',
+                            justifyContent: 'space-between',
+                            gap: '12px',
                         }}>
-                            Next global event
+                            <span style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                letterSpacing: '0.09em',
+                                textTransform: 'uppercase',
+                                color: imminent ? COLORS.gold : COLORS.textMuted,
+                                whiteSpace: 'nowrap',
+                            }}>
+                                Next global event
+                            </span>
+                            {/* The affordance, in the one place there is room for
+                                it. A plinth that lights on hover tells you it is
+                                clickable only once you are already on it; this
+                                says what the click is FOR, which is the thing a
+                                reader is actually deciding. Desktop only — the
+                                phone's row is one line and the eyebrow it would
+                                sit in does not exist there. */}
+                            {onOpen && (
+                                <span style={{
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.08em',
+                                    textTransform: 'uppercase',
+                                    color: COLORS.textMuted,
+                                    opacity: 0.75,
+                                    whiteSpace: 'nowrap',
+                                }}>
+                                    The run-up →
+                                </span>
+                            )}
                         </span>
                     )}
 
@@ -307,7 +360,15 @@ export function MilestoneMeter({ isMobile }) {
                         }}
                     />
                 </div>
-            </div>
+
+                {/* The light that rises through a plinth when it is hovered or
+                    focused — the board's own affordance, shared rather than
+                    reinvented here, so a clickable thing on this surface feels
+                    the same wherever it is. It is the LAST child so it lies over
+                    the copy; it is `pointer-events: none`, so it costs the
+                    button nothing. */}
+                {onOpen && <span className="fib-plinth-lift" aria-hidden="true" />}
+            </button>
         </div>
     );
 }
