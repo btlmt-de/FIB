@@ -479,7 +479,7 @@ export function EventHistoryBoard({ onClose }) {
                             {runUp.contributors > (runUp.top || []).length && (
                                 <div style={{ paddingTop: '10px' }}>
                                     <BoardLabel tone={DECK.inkDim}>
-                                        {`+ ${fmt(runUp.contributors - runUp.top.length)} more`}
+                                        {`+ ${fmt(runUp.contributors - (runUp.top || []).length)} more`}
                                     </BoardLabel>
                                 </div>
                             )}
