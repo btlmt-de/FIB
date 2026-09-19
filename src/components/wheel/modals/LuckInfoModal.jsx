@@ -7,7 +7,7 @@ import { COLORS } from '../config/constants';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import {
     X, TrendingUp, Target, Calculator, Award, Info,
-    Crown, Sparkles, Star, Diamond, Gem, Shuffle
+    Crown, Sparkles, Star, Diamond, Gem, Map, Shuffle
 } from 'lucide-react';
 
 // The two pull breakdowns below take their colours from getRarityInk rather than naming
@@ -236,6 +236,14 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                             </span>
                                         </div>
                                     )}
+                                    {luckRating.peakWindowPulls.relic > 0 && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                            <Map size={14} color={getRarityInk('relic')} />
+                                            <span style={{ color: getRarityInk('relic'), fontSize: '13px', fontWeight: '600' }}>
+                                                {luckRating.peakWindowPulls.relic}× Relic
+                                            </span>
+                                        </div>
+                                    )}
                                     {luckRating.peakWindowPulls.exotic > 0 && (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                             <Gem size={14} color={getRarityInk('exotic')} />
@@ -391,7 +399,7 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                 </div>
 
                 {/* Lifetime Stats */}
-                {luckRating?.stats && (luckRating.stats.insane > 0 || luckRating.stats.mythic > 0 || luckRating.stats.legendary > 0 || luckRating.stats.exotic > 0 || luckRating.stats.rare > 0) && (
+                {luckRating?.stats && (luckRating.stats.insane > 0 || luckRating.stats.mythic > 0 || luckRating.stats.legendary > 0 || luckRating.stats.relic > 0 || luckRating.stats.exotic > 0 || luckRating.stats.rare > 0) && (
                     <div style={{ marginBottom: '16px' }}>
                         <div style={{
                             color: COLORS.textMuted,
@@ -447,6 +455,18 @@ export function LuckInfoModal({ onClose, luckRating, isMobile }) {
                                     {luckRating.stats.legendary || 0}
                                 </div>
                                 <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Legend</div>
+                            </div>
+                            <div style={{
+                                padding: '12px',
+                                background: COLORS.bgLight,
+                                borderRadius: '8px',
+                                border: `1px solid ${COLORS.border}`,
+                                textAlign: 'center'
+                            }}>
+                                <div style={{ color: getRarityInk('relic'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
+                                    {luckRating.stats.relic || 0}
+                                </div>
+                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Relic</div>
                             </div>
                             <div style={{
                                 padding: '12px',

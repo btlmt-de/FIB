@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { SYNTH_SOUNDS, playSynth } from '../utils/sfxSynth.js';
 import { unlockAudioBus } from '../utils/audioBus.js';
 import { primeSample, playSample, stopScheduledSamples } from '../utils/sfxSamples.js';
@@ -69,6 +69,14 @@ const SOUND_FILES = {
     insane: '/sounds/sfxinsane.mp3',
     mythic: '/sounds/sfxmythic.mp3',
     legendary: '/sounds/sfxlegendary.mp3',
+    // PLACEHOLDER. There is no sfxrelic.mp3 yet, and relic borrows its neighbour's
+    // cue rather than falling through to silence — the default branch in the pull
+    // handler plays nothing, which is correct for a common and wrong for a tier
+    // that outranks exotic. Exotic is the borrow rather than legendary because the
+    // two are adjacent and comparably common (25,500 weight against 44,000), so an
+    // over-loud cue would oversell the tier every time it landed. Swap this the
+    // moment a dedicated sound exists; nothing else has to change.
+    relic: '/sounds/sfxexotic.mp3',
     exotic: '/sounds/sfxexotic.mp3',
     rare: '/sounds/sfxrare.mp3',
 };
@@ -100,6 +108,7 @@ const DEFAULT_SETTINGS = {
     insaneEnabled: true,
     mythicEnabled: true,
     legendaryEnabled: true,
+    relicEnabled: true,
     exoticEnabled: true,
     rareEnabled: true,
 };
@@ -299,6 +308,7 @@ export function SoundProvider({ children }) {
         insane: null,
         mythic: null,
         legendary: null,
+        relic: null,
         exotic: null,
         rare: null,
     });
@@ -1698,6 +1708,9 @@ export function SoundProvider({ children }) {
                 break;
             case 'legendary':
                 playSfx('legendary');
+                break;
+            case 'relic':
+                playSfx('relic');
                 break;
             case 'exotic':
                 playSfx('exotic');

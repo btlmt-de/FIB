@@ -203,6 +203,7 @@ function tierRim(ctx, type, x, size, time) {
             const flat = getRarityColor('legendary');
             return { stroke: flat, bloom: flat, drift: 0.17, blur: 15 };
         }
+        case 'relic':
         case 'exotic':
         case 'rare':
         case 'event': {
@@ -246,6 +247,18 @@ function drawTierGlyph(ctx, type, cx, cy, r) {
                 const py = cy + Math.sin(a) * rad;
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
             }
+            ctx.closePath();
+            break;
+        }
+        case 'relic': { // a folded map: two creases and a torn lower edge
+            ctx.moveTo(cx - r, cy - r * 0.62);
+            ctx.lineTo(cx - r * 0.33, cy - r * 0.9);
+            ctx.lineTo(cx + r * 0.33, cy - r * 0.62);
+            ctx.lineTo(cx + r, cy - r * 0.9);
+            ctx.lineTo(cx + r, cy + r * 0.62);
+            ctx.lineTo(cx + r * 0.33, cy + r * 0.9);
+            ctx.lineTo(cx - r * 0.33, cy + r * 0.62);
+            ctx.lineTo(cx - r, cy + r * 0.9);
             ctx.closePath();
             break;
         }

@@ -2,7 +2,7 @@
 // Client-side utility functions
 // ============================================
 
-import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, EXOTIC_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
+import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, EXOTIC_ITEMS, RELIC_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
 import { getRarityColor } from './rarityHelpers.jsx';
 import { serverNow } from './serverClock.js';
 
@@ -220,6 +220,12 @@ export function isExoticItem(item) {
     return item?.isExotic || item?.type === 'exotic' || item?.texture?.startsWith('exotic_');
 }
 
+// Relic is the wheel's own tier: the server's structures. Its prefix is `relic_`,
+// matching the tier name like exotic's does, and unlike legendary's `special_`.
+export function isRelicItem(item) {
+    return item?.isRelic || item?.type === 'relic' || item?.texture?.startsWith('relic_');
+}
+
 export function isRareItem(item) {
     return item?.isRare || item?.type === 'rare' || item?.texture?.startsWith('rare_');
 }
@@ -264,6 +270,19 @@ export function getItemImageUrl(item) {
         if (item.image_url) return item.image_url;
         const exotic = EXOTIC_ITEMS?.find(e => e.texture === texture);
         if (exotic?.imageUrl) return exotic.imageUrl;
+        return `${IMAGE_BASE_URL}/barrier.png`;
+    }
+
+    // Relic items are structure renders under public/fib-relics, and they need the
+    // same early exit as the exotics directly above for the same reason: their
+    // textures are whole names (`relic_trial_chambers`), so the `<tier>_<username>`
+    // split would hand "trial_chambers" to the player-head branch and try to fetch
+    // a Minecraft skin for a building.
+    if (type === 'relic' || texture?.startsWith('relic_')) {
+        if (item.imageUrl) return item.imageUrl;
+        if (item.image_url) return item.image_url;
+        const relic = RELIC_ITEMS?.find(r => r.texture === texture);
+        if (relic?.imageUrl) return relic.imageUrl;
         return `${IMAGE_BASE_URL}/barrier.png`;
     }
 
@@ -377,6 +396,7 @@ export function getItemRarity(item) {
     if (isInsaneItem(item)) return 'insane';
     if (isMythicItem(item)) return 'mythic';
     if (isSpecialItem(item)) return 'legendary';
+    if (isRelicItem(item)) return 'relic';
     if (isExoticItem(item)) return 'exotic';
     if (isRareItem(item)) return 'rare';
     if (isEventItem(item)) return 'event';

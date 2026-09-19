@@ -455,6 +455,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     insaneCount: profile?.insane_count || 0,
                     mythicCount: profile?.mythic_count || 0,
                     legendaryCount: profile?.legendary_count || 0,
+                    relicCount: profile?.relic_count || 0,
                     exoticCount: profile?.exotic_count || 0,
                     rareCount: profile?.rare_count || 0,
                     eventTriggers: profile?.event_triggers || 0,

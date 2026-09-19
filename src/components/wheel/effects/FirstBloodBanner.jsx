@@ -10,7 +10,7 @@ import { COLORS } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
-import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown, Gem } from 'lucide-react';
+import { Crosshair, Timer, X, Zap, Target, FlaskConical, Swords, Droplet, Sparkles, Diamond, Star, Crown, Gem, Map } from 'lucide-react';
 import { countdownInterval } from '../../../config/power.js';
 import { FirstBloodRoomHeader } from './FirstBloodRoom.jsx';
 
@@ -721,6 +721,9 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
                                         `getRarityInk`, already imported and used by the
                                         winner line above. */}
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Gem size={isMobile ? 10 : 12} color={getRarityInk('exotic')} /> 11-14</span>
+                                    {/* Relic: FIRST_BLOOD_REWARDS has `relic: { min: 12, max: 15 }`,
+                                        one step above exotic, matching its place on the ladder. */}
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Map size={isMobile ? 10 : 12} color={getRarityInk('relic')} /> 12-15</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Star size={isMobile ? 10 : 12} color={getRarityInk('legendary')} /> 13-16</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Sparkles size={isMobile ? 10 : 12} color={getRarityInk('mythic')} /> 17-20</span>
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Crown size={isMobile ? 10 : 12} color={FB_GOLD} /> 20-25</span>

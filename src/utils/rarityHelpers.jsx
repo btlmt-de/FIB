@@ -3,7 +3,7 @@
 // ============================================
 
 import React from 'react';
-import { Sparkles, Star, Diamond, Circle, Zap, Crown, Gem } from 'lucide-react';
+import { Sparkles, Star, Diamond, Circle, Zap, Crown, Gem, Map } from 'lucide-react';
 // The wheel's palette, not the wiki's. Every consumer of these helpers lives under
 // components/wheel/, and the wheel renders against its own COLORS (hex, Minecraft-derived)
 // rather than the site-wide oklch tokens. Importing '../config/constants' here — which is what
@@ -48,9 +48,13 @@ export const RARITY = {
     // isIridescentRarity distinguishes.
     mythic: { order: 1, label: 'Mythic', color: COLORS.aqua, stops: COLORS.mythicCycle, lightFill: true },
     legendary: { order: 2, label: 'Legendary', color: COLORS.insane, lightFill: true },
-    exotic: { order: 3, label: 'Exotic', color: COLORS.purple, ink: COLORS.purpleInk },
-    rare: { order: 4, label: 'Rare', color: COLORS.red, ink: COLORS.redInk, lightFill: true },
-    event: { order: 5, label: 'Event', color: COLORS.orange, lightFill: true },
+    // Relic is the wheel's own tier — the server's structures, with no counterpart
+    // in the plugin and so no chat colour to inherit. DESIGN.md records why the
+    // hue is a mossy emerald rather than Minecraft's lime.
+    relic: { order: 3, label: 'Relic', color: COLORS.relic, lightFill: true },
+    exotic: { order: 4, label: 'Exotic', color: COLORS.purple, ink: COLORS.purpleInk },
+    rare: { order: 5, label: 'Rare', color: COLORS.red, ink: COLORS.redInk, lightFill: true },
+    event: { order: 6, label: 'Event', color: COLORS.orange, lightFill: true },
     common: { order: 99, label: 'Common', color: COLORS.neutralInk },
 };
 
@@ -61,6 +65,7 @@ export const RARITY = {
 //   insane     platinum 15.1:1, holo stops 6.6–14.2   dark
 //   mythic     ramp 4.95–14.2 (azure is the floor)    dark
 //   legendary  gold 12.4:1                            dark
+//   relic      #3FBF6F — dark 7.37, white 2.36        dark
 //   rare       #FF5555 — dark 5.54, white 3.14        dark
 //   event      #FF8800 — dark 7.27, white 2.39        dark
 //   exotic     #AA00AA — dark 2.73, white 6.38        WHITE
@@ -249,6 +254,10 @@ export function getRarityIcon(rarity, size = 14, colored = true) {
             : <Crown size={size} />;
         case 'mythic': return <Sparkles size={size} color={color} />;
         case 'legendary': return <Star size={size} color={color} />;
+        // A map, not a gem or a star: relics are places. The glyph is the tier's
+        // identity in one shape, and it is the only one on the ladder that is not
+        // an object.
+        case 'relic': return <Map size={size} color={color} />;
         case 'exotic': return <Gem size={size} color={color} />;
         case 'rare': return <Diamond size={size} color={color} />;
         case 'event': return <Zap size={size} color={color} />;

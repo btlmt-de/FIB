@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ═══════════════════════════════════════════════════════════════════════════
  * THE CONCOURSE — the collection board
  * ═══════════════════════════════════════════════════════════════════════════
@@ -61,7 +61,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS, RELIC_ITEMS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
 import { COLORS, DECK, rail, SURFACE_NOISE } from '../config/constants';
 import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
 import { RARITY, getRarityColor, getRarityInk, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
@@ -75,7 +75,7 @@ import { useWheelViewport } from '../config/breakpoints.js';
 /* The board's register order. Common is on the board too, which the old tier
    strip left off entirely — it is 1,536 of 1,559 items, so a register that
    skipped it was describing 1.5% of the collection. */
-const REGISTER_ORDER = ['insane', 'mythic', 'legendary', 'exotic', 'rare', 'common'];
+const REGISTER_ORDER = ['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare', 'common'];
 
 /* A prestige level is worn as a numeral, not a digit: "II" reads as a rank where
    "2" reads as a quantity, and the badge sits beside counts that are quantities. */
@@ -87,7 +87,7 @@ const EMPTY = Object.freeze({});
    "everything that is not common", because the pool's items reach this file
    under two different names depending on where they were read from — 'regular'
    from the wheel's own tables, 'common' from the roster this board assembles. */
-const SPECIAL_TYPES = new Set(['insane', 'mythic', 'legendary', 'exotic', 'rare']);
+const SPECIAL_TYPES = new Set(['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare']);
 
 /* Tiers with no dry streak to show. Insane is the decision the old book recorded
    and it is still right: one item at 0.000001% makes the streak every player's
@@ -472,12 +472,13 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             username: m.username, chance: m.chance
         }));
 
-        let insane, mythic, legendary, exotic, rare;
+        let insane, mythic, legendary, relic, exotic, rare;
 
         if (hasApiData) {
             insane = fromApi('insane');
             mythic = fromApi('mythic');
             legendary = fromApi('legendary');
+            relic = fromApi('relic');
             exotic = fromApi('exotic');
             rare = fromApi('rare');
         } else {
@@ -487,6 +488,8 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             // Exotic is a list of items, not members — its textures are already
             // whole, so it maps like INSANE_ITEMS rather than through fromMembers.
             exotic = EXOTIC_ITEMS.map(i => ({ ...i, type: 'exotic' }));
+            // Same shape as exotic: whole textures, not member names.
+            relic = RELIC_ITEMS.map(i => ({ ...i, type: 'relic' }));
             rare = fromMembers(RARE_MEMBERS, 'rare', 'rare');
         }
 
@@ -495,8 +498,8 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
         const commons = allItems.map(i => (i.type ? i : { ...i, type: 'common' }));
 
         return {
-            tierItems: { insane, mythic, legendary, exotic, rare, common: commons },
-            allItemsWithSpecial: [...insane, ...mythic, ...legendary, ...exotic, ...rare, ...commons],
+            tierItems: { insane, mythic, legendary, relic, exotic, rare, common: commons },
+            allItemsWithSpecial: [...insane, ...mythic, ...legendary, ...relic, ...exotic, ...rare, ...commons],
         };
     }, [dynamicItems, allItems]);
 
@@ -568,7 +571,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
     const totals = useMemo(() => {
         const total = allItemsWithSpecial.length;
         const held = allItemsWithSpecial.filter(i => activeCollection[i.texture] > 0).length;
-        const specials = ['insane', 'mythic', 'legendary', 'exotic', 'rare']
+        const specials = ['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare']
             .reduce((sum, k) => sum + (stats?.[`${k}Count`] || 0), 0);
         return {
             held,

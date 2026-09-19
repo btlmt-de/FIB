@@ -8,7 +8,7 @@ import { ARENA } from '../config/arenaTheme.js';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ITEM_WIDTH, STRIP_HEIGHT, IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRelicItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 import { sampleRamp } from '../../../utils/rarityHelpers.jsx';
 import { prefersCalm, isSaverOn, useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
@@ -390,6 +390,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     const isSpecial = isSpecialItem(item);
     const isMythic = isMythicItem(item);
     const isExotic = isExoticItem(item);
+    const isRelic = isRelicItem(item);
     const isRare = isRareItem(item);
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
@@ -399,8 +400,13 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
 
     // On a lucky spin commons take the spin's own colour rather than grey, so the
     // whole strip reads as "this one is different" before it even lands.
-    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRare && !isEvent && !isRecursionType;
-    const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRare || isEvent || isRecursionType || isLuckyCommon;
+    //
+    // Every tier has to appear in BOTH of these. A tier missing from them is not
+    // merely uncoloured — `isSpecialType` is what gates the column, the beams and
+    // the base bar, so an unlisted tier renders as a bare common tile however
+    // correctly the rest of the site labels it.
+    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRelic && !isRare && !isEvent && !isRecursionType;
+    const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRelic || isRare || isEvent || isRecursionType || isLuckyCommon;
 
     const KOTW_CRIMSON = '#F43F5E';
     const KOTW_GOLD = '#F59E0B';
@@ -441,6 +447,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         if (isGoldRushBoosted) flat = '#FFD700';
         else if (isEvent) flat = COLORS.gold;
         else if (isSpecial) flat = COLORS.insane;           // legendary
+        else if (isRelic) flat = COLORS.relic;
         else if (isExotic) flat = COLORS.purple;
         else if (isRare) flat = COLORS.red;
         else if (arena) flat = ARENA.gold;
@@ -603,10 +610,11 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
         : isMythic ? 0.92
             : isSpecial ? 0.82            // legendary
                 : isEvent || isRecursionType ? 0.78
-                    : isExotic ? 0.71
-                        : isRare ? 0.60
-                            : isLuckyCommon || isGoldRushBoosted ? 0.5
-                                : 0;
+                    : isRelic ? 0.75
+                        : isExotic ? 0.71
+                            : isRare ? 0.60
+                                : isLuckyCommon || isGoldRushBoosted ? 0.5
+                                    : 0;
 
     // A slow breath on the glow. Offset per item so neighbouring rare slots are
     // not in lockstep, which would read as one wide pulsing block rather than

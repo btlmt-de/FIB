@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS } from '../../../config/constants.js';
+import { API_BASE_URL, IMAGE_BASE_URL, TEAM_MEMBERS, EXOTIC_ITEMS, RELIC_ITEMS, RARE_MEMBERS } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
 import { getMinecraftHeadUrl } from '../../../utils/helpers.js';
 import { RARITY, getRarityColor, getRarityIcon } from '../../../utils/rarityHelpers.jsx';
@@ -26,6 +26,7 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
         { texture: 'mythic_cavendish', name: 'Cavendish', type: 'mythic' },
         ...TEAM_MEMBERS.map(m => ({ texture: `special_${m.username}`, name: m.name, type: 'legendary' })),
         ...EXOTIC_ITEMS.map(i => ({ texture: i.texture, name: i.name, type: 'exotic' })),
+        ...RELIC_ITEMS.map(i => ({ texture: i.texture, name: i.name, type: 'relic' })),
         ...RARE_MEMBERS.map(m => ({ texture: `rare_${m.username}`, name: m.name, type: 'rare' }))
     ];
 
@@ -569,6 +570,7 @@ function AddItemForm({ onAdd, poolStats, adding }) {
                             unaccepted is silently stored as rare. Exotic was the former. */}
                         <option value="rare">💎 Rare</option>
                         <option value="exotic">🔮 Exotic</option>
+                        <option value="relic">🗺️ Relic</option>
                         <option value="legendary">⭐ Legendary</option>
                         <option value="mythic">✨ Mythic</option>
                         <option value="insane">👑 Insane</option>

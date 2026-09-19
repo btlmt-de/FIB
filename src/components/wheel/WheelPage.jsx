@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL, TEAM_MEMBERS, RARE_MEMBERS } from '../../config/constants';
 import { COLORS, SPACE, Z } from './config/constants';
 import { useAuth, AuthProvider } from '../../context/AuthContext';
@@ -30,6 +30,7 @@ const COUNTER_FOR_TIER = {
     insane: 'insaneCount',
     mythic: 'mythicCount',
     legendary: 'legendaryCount',
+    relic: 'relicCount',
     exotic: 'exoticCount',
     rare: 'rareCount',
     event: 'eventTriggers',

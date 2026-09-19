@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target, TrainFront, PackageOpen, Spade } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, Map, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target, TrainFront, PackageOpen, Spade } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { COLORS } from '../config/constants';
 // The rarity rows take their colour from the ladder rather than naming hues here.
@@ -868,6 +868,16 @@ export function SoundSettingsPanel({ onClose }) {
                                 onPreview={() => previewSound('legendary')}
                                 disabled={!settings.enabled}
                                 isActive={previewingSound === 'legendary'}
+                            />
+                            <SoundRow
+                                icon={<Map size={16} />}
+                                label="Relic Item"
+                                color={getRarityColor('relic')}
+                                enabled={settings.relicEnabled}
+                                onToggle={(v) => updateSetting('relicEnabled', v)}
+                                onPreview={() => previewSound('relic')}
+                                disabled={!settings.enabled}
+                                isActive={previewingSound === 'relic'}
                             />
                             <SoundRow
                                 icon={<Gem size={16} />}

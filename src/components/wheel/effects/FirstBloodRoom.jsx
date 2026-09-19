@@ -6,7 +6,7 @@ import './FirstBloodRoom.css';
 import EventStartCountdown from './EventStartCountdown.jsx';
 import EventWinnerReveal from './EventWinnerReveal.jsx';
 
-const REWARDS = [['rare','9–12'],['exotic','11–14'],['legendary','13–16'],['mythic','17–20'],['insane','20–25']];
+const REWARDS = [['rare','9–12'],['exotic','11–14'],['relic','12–15'],['legendary','13–16'],['mythic','17–20'],['insane','20–25']];
 
 export function FirstBloodRoom({ visible }) {
     const host = useRef(null);

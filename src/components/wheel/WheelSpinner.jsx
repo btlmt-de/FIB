@@ -77,7 +77,7 @@ import { LaneResultsRow } from './spin/LaneResultsRow.jsx';
 import {
     API_BASE_URL, IMAGE_BASE_URL,
     ITEM_WIDTH, STRIP_HEIGHT, STRIP_LENGTH, FINAL_INDEX,
-    TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
+    TEAM_MEMBERS, EXOTIC_ITEMS, RELIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from './config/constants';
 // getMinecraftHeadUrl, isEventItem and isRecursionItem left with the local
@@ -523,7 +523,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
         // Not awaited, and deliberately not cancelled on unmount — an in-flight
         // sweep that outlives the component is just cache the next mount inherits.
-        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...EXOTIC_ITEMS, ...TEAM_MEMBERS]);
+        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...EXOTIC_ITEMS, ...RELIC_ITEMS, ...TEAM_MEMBERS]);
 
         return () => {
             isMounted = false;

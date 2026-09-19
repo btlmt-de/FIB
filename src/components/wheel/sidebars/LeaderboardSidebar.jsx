@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { COLORS, DECK, rail } from '../config/constants';
 import { FlapText, BoardLabel, Plinth, Segmented } from '../features/collection/FlapBoard.jsx';
@@ -22,6 +22,7 @@ const GLOBAL_TOTAL_FIELD = {
     insane: 'total_insanes',
     mythic: 'total_mythics',
     legendary: 'total_legendaries',
+    relic: 'total_relics',
     exotic: 'total_exotics',
     rare: 'total_rares',
 };

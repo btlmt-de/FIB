@@ -8,7 +8,7 @@ import './KotwArena.css';
 import EventStartCountdown from './EventStartCountdown.jsx';
 import EventWinnerReveal from './EventWinnerReveal.jsx';
 
-const SCORING = [['common', '1 pt'], ['rare', '~150 pts'], ['exotic', '~180 pts'], ['legendary', '~500 pts'], ['mythic', '~3k pts'], ['insane', '~100k pts']];
+const SCORING = [['common', '1 pt'], ['rare', '~150 pts'], ['exotic', '~180 pts'], ['relic', '~300 pts'], ['legendary', '~600 pts'], ['mythic', '~3k pts'], ['insane', '~100k pts']];
 
 export function KotwArenaAtmosphere({ visible }) {
     if (!visible) return null;
@@ -36,7 +36,7 @@ export function KotwArenaStandings({ compact = false, onOpenLeaderboard }) {
             <span className="kotw-rank">{entry.rank}</span>
             <span className="kotw-avatar" aria-hidden="true">{entry.rank === 1 ? <Crown size={17}/> : (entry.username || "?").slice(0, 1).toUpperCase()}</span>
             <span className="kotw-contender">{entry.username || 'Unknown'}{entry.userId === user?.id && <small>YOU</small>}</span>
-            <span className="kotw-score">{Number(entry.points).toLocaleString('en-US')} <small>pts</small><small className="kotw-gap">{entry.rank === 1 ? 'HOLDING THE CROWN' : leaderPoints === entry.points ? 'TIED FOR THE LEAD' : `−${(leaderPoints - entry.points).toLocaleString('en-US')} to lead`}</small></span>
+            <span className="kotw-score">{Number(entry.points).toLocaleString('en-US')} <small>pts</small><small className="kotw-gap">{entry.rank === 1 ? 'HOLDING THE CROWN' : leaderPoints === entry.points ? 'TIED FOR THE LEAD' : `âˆ’${(leaderPoints - entry.points).toLocaleString('en-US')} to lead`}</small></span>
         </li>)}</ol> : <p className="kotw-empty">The throne is open.<br/><strong>Land the first spin.</strong></p>}
         {onOpenLeaderboard && <button className="kotw-full-board" onClick={onOpenLeaderboard}>Full standings &rarr;</button>}
         <div className="kotw-board-footer">{own?.rank === 1 ? 'You hold the crown. Defend it.' : 'Every spin can change the leader.'}</div>
