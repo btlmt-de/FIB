@@ -20,17 +20,17 @@
     "antimatter_depths": {
       "trigger": "minecraft:location",
       "conditions": {
-        "player": [
-          {
-            "condition": "minecraft:entity_properties",
-            "entity": "this",
-            "predicate": {
-              "location": {
-                "structures": ["fib:antimatter_depths"]
-              }
+        "player": {
+          "entity": "this",
+          "predicate": {
+            "minecraft:location": {
+              "structures": [
+                "fib:antimatter_depths"
+              ]
             }
-          }
-        ]
+          },
+          "type": "minecraft:entity_properties"
+        }
       }
     }
   },

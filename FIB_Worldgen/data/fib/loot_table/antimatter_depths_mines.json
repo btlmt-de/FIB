@@ -3,6 +3,7 @@
   "pools": [
     {
       "rolls": {
+        "type": "minecraft:uniform",
         "min": 5,
         "max": 15
       },
@@ -11,10 +12,11 @@
           "type": "minecraft:item",
           "name": "minecraft:cobbled_deepslate",
           "weight": 10,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 5
               }
@@ -25,10 +27,11 @@
           "type": "minecraft:item",
           "name": "minecraft:gunpowder",
           "weight": 5,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -39,11 +42,11 @@
           "type": "minecraft:item",
           "name": "minecraft:diamond",
           "weight": 1,
-          "conditions": [],
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -54,10 +57,11 @@
           "type": "minecraft:item",
           "name": "minecraft:gold_ingot",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -68,10 +72,11 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 2,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 5
               }

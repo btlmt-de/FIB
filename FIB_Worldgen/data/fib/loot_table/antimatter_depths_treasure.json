@@ -37,9 +37,9 @@
           "type": "minecraft:item",
           "name": "minecraft:anvil",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "SILK TOUCH BABY",
                 "color": "#6EE911",
@@ -49,8 +49,10 @@
               }
             },
             {
-              "function": "minecraft:set_custom_data",
-              "tag": { "fib_item": "silk_touch_baby" }
+              "type": "minecraft:set_custom_data",
+              "tag": {
+                "fib_item": "silk_touch_baby"
+              }
             }
           ]
         },
@@ -58,9 +60,9 @@
           "type": "minecraft:item",
           "name": "minecraft:enchanted_golden_apple",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": [
                 {
                   "text": "Cavendish",
@@ -72,7 +74,7 @@
               ]
             },
             {
-              "function": "minecraft:set_custom_model_data",
+              "type": "minecraft:set_custom_model_data",
               "strings": {
                 "values": [
                   "cavendish"
@@ -86,10 +88,11 @@
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
           "weight": 91,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 2,
                 "max": 3
               }
@@ -100,9 +103,9 @@
           "type": "minecraft:item",
           "name": "minecraft:book",
           "weight": 31,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_randomly"
+              "type": "minecraft:enchant_randomly"
             }
           ]
         },
@@ -115,9 +118,9 @@
           "type": "minecraft:item",
           "name": "minecraft:cocoa_beans",
           "weight": 91,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 1,
@@ -131,10 +134,11 @@
           "type": "minecraft:item",
           "name": "minecraft:leather",
           "weight": 91,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -145,9 +149,9 @@
           "type": "minecraft:item",
           "name": "minecraft:golden_apple",
           "weight": 45,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Gros Michel",
                 "color": "#E0B916",
@@ -157,12 +161,12 @@
               }
             },
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 1,
               "add": false
             },
             {
-              "function": "minecraft:set_custom_model_data",
+              "type": "minecraft:set_custom_model_data",
               "strings": {
                 "values": [
                   "gros_michel"
@@ -176,13 +180,13 @@
           "type": "minecraft:item",
           "name": "minecraft:leather_helmet",
           "weight": 77,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
+              "type": "minecraft:enchant_with_levels",
               "levels": 30
             },
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 1,
               "add": false
             }
@@ -197,10 +201,11 @@
           "type": "minecraft:item",
           "name": "minecraft:dirt",
           "weight": 91,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 8,
                 "max": 16
               },
@@ -212,10 +217,11 @@
           "type": "minecraft:item",
           "name": "minecraft:cobbled_deepslate",
           "weight": 91,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 4,
                 "max": 8
               },
@@ -227,9 +233,9 @@
           "type": "minecraft:item",
           "name": "minecraft:ender_pearl",
           "weight": 62,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 1,
               "add": false
             }
@@ -239,9 +245,9 @@
           "type": "minecraft:item",
           "name": "minecraft:coal",
           "weight": 91,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
                 "type": "minecraft:uniform",
                 "min": 3,

@@ -10,14 +10,22 @@
             "input_predicate": {
               "predicate_type": "minecraft:blockstate_match",
               "block_state": {
-                "Name": "minecraft:barrel",
-                "Properties": { "facing": "north", "open": "false" }
+                "id": "minecraft:barrel",
+                "properties": {
+                  "facing": "north",
+                  "open": "false"
+                }
               }
             },
-            "location_predicate": { "predicate_type": "minecraft:always_true" },
+            "location_predicate": {
+              "predicate_type": "minecraft:always_true"
+            },
             "output_state": {
-              "Name": "minecraft:barrel",
-              "Properties": { "facing": "north", "open": "false" }
+              "id": "minecraft:barrel",
+              "properties": {
+                "facing": "north",
+                "open": "false"
+              }
             },
             "block_entity_modifier": {
               "type": "minecraft:append_loot",
@@ -28,14 +36,22 @@
             "input_predicate": {
               "predicate_type": "minecraft:blockstate_match",
               "block_state": {
-                "Name": "minecraft:barrel",
-                "Properties": { "facing": "south", "open": "false" }
+                "id": "minecraft:barrel",
+                "properties": {
+                  "facing": "south",
+                  "open": "false"
+                }
               }
             },
-            "location_predicate": { "predicate_type": "minecraft:always_true" },
+            "location_predicate": {
+              "predicate_type": "minecraft:always_true"
+            },
             "output_state": {
-              "Name": "minecraft:barrel",
-              "Properties": { "facing": "south", "open": "false" }
+              "id": "minecraft:barrel",
+              "properties": {
+                "facing": "south",
+                "open": "false"
+              }
             },
             "block_entity_modifier": {
               "type": "minecraft:append_loot",
@@ -46,14 +62,22 @@
             "input_predicate": {
               "predicate_type": "minecraft:blockstate_match",
               "block_state": {
-                "Name": "minecraft:barrel",
-                "Properties": { "facing": "east", "open": "false" }
+                "id": "minecraft:barrel",
+                "properties": {
+                  "facing": "east",
+                  "open": "false"
+                }
               }
             },
-            "location_predicate": { "predicate_type": "minecraft:always_true" },
+            "location_predicate": {
+              "predicate_type": "minecraft:always_true"
+            },
             "output_state": {
-              "Name": "minecraft:barrel",
-              "Properties": { "facing": "east", "open": "false" }
+              "id": "minecraft:barrel",
+              "properties": {
+                "facing": "east",
+                "open": "false"
+              }
             },
             "block_entity_modifier": {
               "type": "minecraft:append_loot",
@@ -64,14 +88,22 @@
             "input_predicate": {
               "predicate_type": "minecraft:blockstate_match",
               "block_state": {
-                "Name": "minecraft:barrel",
-                "Properties": { "facing": "west", "open": "false" }
+                "id": "minecraft:barrel",
+                "properties": {
+                  "facing": "west",
+                  "open": "false"
+                }
               }
             },
-            "location_predicate": { "predicate_type": "minecraft:always_true" },
+            "location_predicate": {
+              "predicate_type": "minecraft:always_true"
+            },
             "output_state": {
-              "Name": "minecraft:barrel",
-              "Properties": { "facing": "west", "open": "false" }
+              "id": "minecraft:barrel",
+              "properties": {
+                "facing": "west",
+                "open": "false"
+              }
             },
             "block_entity_modifier": {
               "type": "minecraft:append_loot",
@@ -82,14 +114,22 @@
             "input_predicate": {
               "predicate_type": "minecraft:blockstate_match",
               "block_state": {
-                "Name": "minecraft:barrel",
-                "Properties": { "facing": "up", "open": "false" }
+                "id": "minecraft:barrel",
+                "properties": {
+                  "facing": "up",
+                  "open": "false"
+                }
               }
             },
-            "location_predicate": { "predicate_type": "minecraft:always_true" },
+            "location_predicate": {
+              "predicate_type": "minecraft:always_true"
+            },
             "output_state": {
-              "Name": "minecraft:barrel",
-              "Properties": { "facing": "up", "open": "false" }
+              "id": "minecraft:barrel",
+              "properties": {
+                "facing": "up",
+                "open": "false"
+              }
             },
             "block_entity_modifier": {
               "type": "minecraft:append_loot",

@@ -19,17 +19,17 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:enchanted_book",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_enchantments",
+              "type": "minecraft:set_enchantments",
               "enchantments": {}
             }
           ]
         }
       ],
-      "functions": [
+      "modifier": [
         {
-          "function": "minecraft:enchant_with_levels",
+          "type": "minecraft:enchant_with_levels",
           "levels": 30
         }
       ]

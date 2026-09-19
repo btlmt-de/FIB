@@ -8,9 +8,9 @@
           "type": "minecraft:item",
           "name": "minecraft:cookie",
           "weight": 10,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Imagine you don't even hit 50%",
                 "color": "red",
@@ -23,9 +23,9 @@
           "type": "minecraft:item",
           "name": "minecraft:nether_star",
           "weight": 10,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_components",
+              "type": "minecraft:set_components",
               "components": {
                 "minecraft:custom_model_data": {
                   "strings": [
@@ -35,7 +35,7 @@
               }
             },
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Wheel of Fortune",
                 "color": "yellow",

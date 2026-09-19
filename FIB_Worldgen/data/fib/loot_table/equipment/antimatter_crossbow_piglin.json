@@ -12,12 +12,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.4
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.4
+      },
       "entries": [
         {
           "type": "minecraft:item",
@@ -33,12 +31,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.4
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.4
+      },
       "entries": [
         {
           "type": "minecraft:item",
@@ -54,12 +50,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.4
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.4
+      },
       "entries": [
         {
           "type": "minecraft:item",
@@ -75,12 +69,10 @@
     },
     {
       "rolls": 1,
-      "conditions": [
-        {
-          "condition": "minecraft:random_chance",
-          "chance": 0.4
-        }
-      ],
+      "condition": {
+        "type": "minecraft:random_chance",
+        "chance": 0.4
+      },
       "entries": [
         {
           "type": "minecraft:item",
