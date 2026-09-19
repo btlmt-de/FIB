@@ -696,6 +696,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const shuffledMythic = shuffleArray([...MYTHIC_ITEMS]);
         const shuffledRare = shuffleArray([...RARE_MEMBERS]);
         const shuffledExotic = shuffleArray([...EXOTIC_ITEMS]);
+        const shuffledRelic = shuffleArray([...RELIC_ITEMS]);
         const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
         // Use indices to iterate through shuffled arrays (guarantees distribution)
@@ -704,6 +705,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         let mythicIndex = 0;
         let rareIndex = 0;
         let exoticIndex = 0;
+        let relicIndex = 0;
         let legendaryIndex = 0;
 
         for (let i = 0; i < length; i++) {
@@ -729,10 +731,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     const rare = shuffledRare[rareIndex % shuffledRare.length];
                     rareIndex++;
                     newItem = { ...rare, isRare: true, texture: `rare_${rare.username}` };
-                } else if (roll < 0.043 && shuffledExotic.length > 0) {
-                    // 1% chance for exotic. These bands are decoration only — they
+                } else if (roll < 0.040 && shuffledExotic.length > 0) {
+                    // 0.7% chance for exotic. These bands are decoration only — they
                     // decide what flashes past during the spin, not what is won,
-                    // which the server already decided. Exotic takes its 1% out of
+                    // which the server already decided. Exotic took its share out of
                     // the band that used to be legendary's rather than lengthening
                     // the run of specials, so the strip's overall density of
                     // non-common tiles is unchanged.
@@ -741,8 +743,33 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     const exotic = shuffledExotic[exoticIndex % shuffledExotic.length];
                     exoticIndex++;
                     newItem = { ...exotic, isExotic: true };
+                } else if (roll < 0.046 && shuffledRelic.length > 0) {
+                    /*
+                     * 0.6% chance for relic.
+                     *
+                     * Relic shipped without a band here at all, which meant the tier
+                     * could not appear on the reel as decoration — the only way to
+                     * see one go past was to win one, and the tier is 1 in 500. So
+                     * the newest rarity was also the only invisible one, and it read
+                     * as "relic is broken" rather than "relic is rare".
+                     *
+                     * Its share comes out of the 2% exotic and legendary were
+                     * splitting, on the same rule the exotic note above records: the
+                     * run of specials keeps its 5.3% and the tiers inside it divide
+                     * that, so adding a rarity never makes the strip busier. The
+                     * three-way split is 0.7 / 0.6 / 0.7 rather than exact thirds
+                     * because round bands are readable and the difference is 0.09 of
+                     * a tile across an 89-tile strip — invisible in the only place it
+                     * could show up.
+                     *
+                     * Relic items carry their own whole texture (`relic_*`), like
+                     * exotic and unlike the member tiers.
+                     */
+                    const relic = shuffledRelic[relicIndex % shuffledRelic.length];
+                    relicIndex++;
+                    newItem = { ...relic, isRelic: true };
                 } else if (roll < 0.053 && shuffledLegendary.length > 0) {
-                    // 1% chance for legendary
+                    // 0.7% chance for legendary
                     const member = shuffledLegendary[legendaryIndex % shuffledLegendary.length];
                     legendaryIndex++;
                     newItem = {
