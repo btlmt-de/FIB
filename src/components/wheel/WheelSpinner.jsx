@@ -553,6 +553,32 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         preloadItemImages(winner ? [winner, ...strip] : strip);
     }, [strip]);
 
+    /*
+     * The phone's tap, in the same shape as the spacebar below it — one list of
+     * states, read by both, because they are one decision. A payoff restarts
+     * the reel, idle starts it, and every other state is the machine mid-move.
+     *
+     * `tripleResult` and `tripleLuckyResult` are in the list and always were;
+     * what they never had was an element to tap, because the handler sat on the
+     * reel mount and the lanes replace the mount. It lives on the band now —
+     * see the wrapper down in the render.
+     */
+    const bandTapRestarts = state === 'result' || state === 'recursion' || state === 'luckyResult'
+        || state === 'tripleResult' || state === 'tripleLuckyResult';
+    // `!bandIsTaken` is the cursor's share of the refusal `spin` and `respin`
+    // already make: while the train or the table has the band, a pointer over
+    // it is offering something that returns early.
+    const bandTappable = Boolean(user) && allItems.length > 0 && !bandIsTaken
+        && (bandTapRestarts || state === 'idle');
+    const handleBandTap = () => {
+        if (!isMobile || !bandTappable) return;
+        if (bandTapRestarts) {
+            respinRef.current?.();
+        } else {
+            spinRef.current?.();
+        }
+    };
+
     // Spacebar to spin/respin
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -1734,6 +1760,40 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // decision and were written together.
     const spinningState = state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning' || state === 'luckySpinning' || state === 'bonusWheel';
     const resultState = state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult' || state === 'recursion' || state === 'bonusResult';
+    /*
+     * THE PARLOUR ARRIVES OVER A RESULT.
+     *
+     * The arrival is held back until any spin in flight has landed, and it
+     * shutters the band, so it can never open on top of a payoff. The table is
+     * neither: it is not held back — it opens a window the player has to act
+     * inside — and it draws *over* a reel that keeps rendering underneath. So
+     * it lands on players who are still looking at their last pull, and the
+     * pull stayed on screen: SpinResult stacked under the table in the apron on
+     * desktop, and on a phone ShaftResult drew the previous item straight over
+     * the pockets.
+     *
+     * The reel is put away instead, and `state` goes back to idle rather than
+     * the panels merely being hidden — a result hidden for the event and then
+     * restored when it closes is the same stale pull arriving a second time, a
+     * minute late. Keyed on the state as well as the takeover so the spin that
+     * was in flight when the table opened is put away when it lands, not only
+     * if it had already landed. Nothing is lost by it: the pull is recorded
+     * server-side before the animation ends and is in the history panel.
+     *
+     * Only the two states that draw a payoff over an otherwise idle band. The
+     * bonus board and the 3x/5x lanes replace the band's content outright, so
+     * there is nothing of the parlour underneath them to protect, and cutting
+     * them short would strand a multi-spin flow mid-way.
+     */
+    useEffect(() => {
+        if (!parlourOwnsReel) return;
+        if (state !== 'result' && state !== 'luckyResult') return;
+        setState('idle');
+        setResult(null);
+        setIsNewItem(false);
+        setPrestigePull(null);
+    }, [parlourOwnsReel, state]);
+
     const consoleColor = arenaVisible ? ARENA.ink : state === 'recursion' ? COLORS.recursion
         : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange
             : state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult' ? COLORS.green
@@ -2154,9 +2214,30 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             // whole width and whatever height is left.
                             ? { padding: 0, flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }
                             : { padding: '8px 0 22px' }}>
-                            <div style={isMobile
-                                ? { position: 'relative', flex: '1 1 0', minHeight: 0 }
-                                : { position: 'relative' }}>
+                            {/* THE PHONE'S ONE GESTURE, and it belongs to the
+                                band rather than to the reel mount.
+
+                                It lived on the mount, which is only the LAST
+                                arm of the three-way switch below — so the
+                                3x/5x lanes and the bonus board, which stand in
+                                that band in place of the mount, had no tap
+                                target at all. The lanes come to rest on
+                                `tripleResult` / `tripleLuckyResult` and the
+                                phone has no way out of either: Try Again is
+                                desktop-only (see the bar above, and DESIGN.md
+                                §8 on why), so the only exit from a multi-spin
+                                payoff was reloading the page.
+
+                                One handler on the band covers every arm, which
+                                is also what the gesture always meant — "tap the
+                                reel" is the band, not whichever machine happens
+                                to be standing in it. Desktop is unaffected: the
+                                handler returns immediately off the phone. */}
+                            <div
+                                onClick={handleBandTap}
+                                style={isMobile
+                                    ? { position: 'relative', flex: '1 1 0', minHeight: 0, cursor: bandTappable ? 'pointer' : 'default' }
+                                    : { position: 'relative' }}>
                                 {/* The street glow — THE NOCTURNE.
 
                                     Not a screen sheen: the wet street under the
@@ -2295,14 +2376,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                 ) : (
                             <div
                                 ref={reelMountRef}
-                                onClick={() => {
-                                    if (!isMobile || !user || allItems.length === 0) return;
-                                    if (state === 'result' || state === 'recursion' || state === 'luckyResult' || state === 'tripleResult' || state === 'tripleLuckyResult') {
-                                        respinRef.current?.();
-                                    } else if (state === 'idle') {
-                                        spinRef.current?.();
-                                    }
-                                }}
+                                /* The tap is the band's, one level up — the
+                                   lanes and the bonus board replace this mount
+                                   and were left with no target when it was
+                                   here. */
                                 style={{
                                     position: 'relative',
                                     // The shaft takes the height the stage row can
@@ -2325,7 +2402,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     // behind it. Everything else inset is gone —
                                     // depth inside the band is the canvas's job.
                                     boxShadow: '0 16px 36px -20px rgba(0,0,0,0.85)',
-                                    cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
+                                    // The cursor travelled with the handler; it
+                                    // is on the band now, and covers the lane
+                                    // and board states this list had missed.
                                 }}>
 
                                 {/* The arrival takes the band and then opens out
@@ -2637,7 +2716,12 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     </div>
                                 )}
 
-                                {isMobile && (state === 'result' || state === 'luckyResult')
+                                {/* `!parlourOwnsReel` closes the single frame
+                                    between the table opening and the effect
+                                    above putting the reel away — on a phone
+                                    that frame is the last pull painted across
+                                    the pockets. */}
+                                {isMobile && !parlourOwnsReel && (state === 'result' || state === 'luckyResult')
                                     && (state === 'result' ? result : luckyResult) && shaftHeight > 0 && (
                                     <ShaftResult
                                         arena={arenaVisible}
@@ -2843,7 +2927,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             answer itself (ShaftResult, up in the reel), which is
                             what lets the apron below shrink to the idle text and
                             hand the difference to the shaft. */}
-                        {!isMobile && state === 'result' && result && (
+                        {/* `!parlourOwnsReel` for the same reason as the phone's
+                            ShaftResult: one frame of the last pull stacked
+                            under the table before the reel is put away. */}
+                        {!isMobile && !parlourOwnsReel && state === 'result' && result && (
                             <>
                                 <SpinResult
                                     arena={arenaVisible}
