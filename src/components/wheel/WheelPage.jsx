@@ -46,6 +46,11 @@ import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
 import { StageShortcuts } from './spin/StageShortcuts.jsx';
 import { LeaderboardSidebar } from './sidebars/LeaderboardSidebar.jsx';
 import { NotificationBell, NotificationCenter } from './modals/NotificationCenter.jsx';
+// The release notes. A separate surface from the bell above and not a duplicate of
+// it: the bell is per-user, authored in the admin panel and limited to text, this
+// is per-release, authored in the repo and draws the ladder. See ChangelogModal.jsx.
+import { ChangelogModal } from './modals/ChangelogModal.jsx';
+import { useChangelog } from '../../utils/useChangelog.js';
 import { LiveChat } from './features/LiveChat.jsx';
 import { SoundButton, SoundSettingsPanel } from './modals/SoundSettings.jsx';
 import { CanvasNocturneField } from './canvas/CanvasNocturneField.jsx';
@@ -389,6 +394,22 @@ function WheelOfFortunePage({ onBack }) {
     const [showMore, setShowMore] = useState(false);
     const [showAchievements, setShowAchievements] = useState(false);
     const [showUsernamePrompt, setShowUsernamePrompt] = useState(false);
+
+    /* THE RELEASE NOTES.
+     *
+     * Fires once per release on load and is reachable from the topbar afterwards;
+     * the entries and the seen-version storage live in config/changelog.js.
+     *
+     * `enabled` holds the popup back while the username modal or its prompt owns
+     * the screen — a first-time player would otherwise arrive to two stacked
+     * overlays, which is how someone learns to dismiss things without reading
+     * them. It waits rather than being skipped, so the release still gets seen. */
+    const {
+        isOpen: showChangelog,
+        hasUnseen: changelogUnseen,
+        openChangelog,
+        closeChangelog,
+    } = useChangelog({ enabled: !showUsernameModal && !showUsernamePrompt });
 
     // Notification state
     const [showNotifications, setShowNotifications] = useState(false);
@@ -1102,6 +1123,37 @@ function WheelOfFortunePage({ onBack }) {
 
                     Tooltips hang below; there is nothing above them here. */}
                 {!user ? (
+                    /* Signed out, and the release notes still get a way back in.
+
+                       The whole control cluster below lives in the signed-in branch,
+                       so putting "What's new" only there would have given a
+                       logged-out visitor the popup and then no way to reopen it —
+                       which is most of this feature's audience, since /wheel is
+                       readable without an account and the popup is deliberately
+                       shown to everyone. An entry point gated differently from the
+                       thing it opens is the bug, not the layout. */
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    <TopbarIconButton
+                        onClick={openChangelog}
+                        icon={<Sparkles size={19} />}
+                        label="What's new"
+                        align="end"
+                        badge={changelogUnseen ? (
+                            <span
+                                aria-hidden="true"
+                                style={{
+                                    position: 'absolute',
+                                    top: '9px',
+                                    right: '9px',
+                                    width: '7px',
+                                    height: '7px',
+                                    borderRadius: '50%',
+                                    background: COLORS.gold,
+                                    boxShadow: `0 0 6px ${COLORS.gold}`,
+                                }}
+                            />
+                        ) : null}
+                    />
                     <button onClick={login} style={{
                         padding: '10px 20px',
                         background: 'linear-gradient(135deg, #5865F2, #4752C4)',
@@ -1129,6 +1181,7 @@ function WheelOfFortunePage({ onBack }) {
                         </svg>
                         Login with Discord
                     </button>
+                    </div>
                 ) : (
                     <div style={{
                         display: 'flex',
@@ -1199,6 +1252,46 @@ function WheelOfFortunePage({ onBack }) {
                                 onClick={() => setShowEventLog(true)}
                                 icon={<Radio size={19} />}
                                 label="Event log"
+                            />
+                        )}
+                        {/* WHAT'S NEW.
+
+                            A fourth destination in this group, and it clears the
+                            row's no-two-entry-points rule on the same test the
+                            event log did: nothing else opens it. The bell two
+                            groups right looks like it should — it is the other
+                            "the site wants to tell you something" control — but
+                            it cannot carry this. Notifications are a TEXT column
+                            authored in the admin panel; a rarity change is a
+                            picture, and the whole point of this surface is that
+                            it draws the ladder. The bell also needs an account
+                            and this page does not.
+
+                            The dot is the only badge in the row that is not a
+                            count, deliberately: there is exactly one unread
+                            release at a time, so a number would always read "1"
+                            and a "1" invites you to wonder what the other ones
+                            were. It goes out for good once the modal is closed. */}
+                        {!isMobile && (
+                            <TopbarIconButton
+                                onClick={openChangelog}
+                                icon={<Sparkles size={19} />}
+                                label="What's new"
+                                badge={changelogUnseen ? (
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '9px',
+                                            right: '9px',
+                                            width: '7px',
+                                            height: '7px',
+                                            borderRadius: '50%',
+                                            background: COLORS.gold,
+                                            boxShadow: `0 0 6px ${COLORS.gold}`,
+                                        }}
+                                    />
+                                ) : null}
                             />
                         )}
                         {/* History, Achievements and Live activity are in the
@@ -1629,6 +1722,13 @@ function WheelOfFortunePage({ onBack }) {
                 <SoundSettingsPanel onClose={() => setShowSoundSettings(false)} />
             )}
 
+            {/* The release notes. Rendered alongside the other overlays rather than
+                above the page tree: it is a modal like any other here, and the only
+                thing unusual about it is that it can open itself once. */}
+            {showChangelog && (
+                <ChangelogModal onClose={closeChangelog} isMobile={isMobile} />
+            )}
+
             {/* Mobile Activity Feed Modal */}
             {showMobileActivity && (
                 <div style={{
@@ -1765,6 +1865,19 @@ function WheelOfFortunePage({ onBack }) {
                         // what the SERVER did. Neither is the other's summary.
                         { id: 'eventlog', label: 'Event log', Icon: Radio, onSelect: () => setShowEventLog(true) },
                         { id: 'achievements', label: 'Achievements', Icon: Award, onSelect: () => setShowAchievements(true) },
+                        // The phone's only way back to the release notes — there is
+                        // no room for a fifth nav button on the bar, and this is a
+                        // read-once destination rather than a place you return to.
+                        // `value` carries the unseen mark, because the sheet's rows
+                        // have no badge slot and a word does the job a dot does in
+                        // the topbar without inventing one.
+                        {
+                            id: 'changelog',
+                            label: "What's new",
+                            Icon: Sparkles,
+                            value: changelogUnseen ? 'New' : undefined,
+                            onSelect: openChangelog,
+                        },
                         { id: 'name', label: 'Edit name', Icon: Edit3, onSelect: () => setShowUsernameModal(true) },
                         { id: 'sound', label: 'Sound', Icon: Volume2, onSelect: () => setShowSoundSettings(true) },
                         // Directly under Sound, and that pairing is the point:
