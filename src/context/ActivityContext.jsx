@@ -72,7 +72,6 @@ const ROULETTE_TEARDOWN_MS = 14200;
 export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
     const [rareFeed, setRareFeed] = useState([]); // All-time mythic/insane, for the board
-    const [serverTime, setServerTime] = useState(null);
     const [lastId, setLastId] = useState(null);
     const [newItems, setNewItems] = useState([]);
     const [initialized, setInitialized] = useState(false);
@@ -353,7 +352,6 @@ export function ActivityProvider({ children }) {
 
             if (allData.feed) {
                 if (allData.serverTime) {
-                    setServerTime(new Date(allData.serverTime).getTime());
                     // The authoritative clock sample: it is the only one whose
                     // travel time is known, so it is the only one that can be
                     // corrected for it. Runs on mount, on reconnect and whenever
@@ -895,18 +893,30 @@ export function ActivityProvider({ children }) {
 
                             case 'activity':
                                 if (data.item && data.item.id) {
-                                    // Update serverTime from SSE message if provided and valid
-                                    // This prevents stale timestamps that cause delayed celebrations
-                                    if (data.serverTime) {
-                                        const parsedTime = new Date(data.serverTime).getTime();
-                                        if (Number.isFinite(parsedTime)) {
-                                            setServerTime(parsedTime);
-                                        } else {
-                                            console.warn('[ActivityContext] Invalid serverTime from SSE:', data.serverTime);
-                                            setServerTime(null);
-                                        }
-                                    }
-                                    // If no serverTime provided, leave it unchanged (don't default to Date.now())
+                                    /*
+                                     * There is deliberately no clock handling here any more.
+                                     *
+                                     * This block used to read `data.serverTime` and push it
+                                     * into a `serverTime` state, under a comment saying it
+                                     * "prevents stale timestamps that cause delayed
+                                     * celebrations". It never once ran: `broadcastToAll`
+                                     * stamps the envelope `timestamp`, not `serverTime`
+                                     * (wheel-backend routes/api.js), so the guard was always
+                                     * false and that state stayed frozen at whatever the last
+                                     * `fetchActivity` had put in it — page load, tab refocus
+                                     * or SSE reconnect, and nothing else.
+                                     *
+                                     * Which made it the exact stale clock it was written to
+                                     * avoid, with a reload as the only cure. The celebration
+                                     * read it to decide when to fire and so ran on a clock
+                                     * that stopped minutes ago.
+                                     *
+                                     * The frame's real stamp is already taken above the
+                                     * switch, by `noteServerTime(data.timestamp)`, and every
+                                     * surface now reads it back through `serverNow()` rather
+                                     * than through a React snapshot of it. One clock, always
+                                     * current, no state to go stale.
+                                     */
 
                                     // Prepend to feed — but not before the reel that
                                     // produced this drop has finished turning.
@@ -1201,7 +1211,10 @@ export function ActivityProvider({ children }) {
     const value = {
         feed,
         rareFeed,
-        serverTime,
+        // `serverTime` is deliberately absent. It was a React snapshot of the
+        // server's clock that only three components read, and all three read it
+        // wrong — see the note in the 'activity' handler. The clock lives in
+        // utils/serverClock.js now; ask it with `serverNow()`.
         newItems,
         clearNewItems,
         initialized,

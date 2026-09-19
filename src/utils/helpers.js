@@ -118,6 +118,75 @@ export function spinRevealDelay(dateString, now = serverNow()) {
     return Math.max(0, SPIN_REVEAL_MS - age);
 }
 
+/**
+ * How old a drop is, on the server's clock, in ms.
+ *
+ * The same subtraction `spinRevealDelay` makes, exposed on its own because the
+ * celebration needs the age itself and not just the wait — it has to decide
+ * whether a pull is worth a full-screen takeover at all, which is a different
+ * question from when to show it.
+ *
+ * Unparseable dates come back as 0 — "just happened" — because the alternative
+ * is `NaN` propagating into a comparison that then silently answers false, and
+ * between showing a celebration that should not have fired and swallowing one
+ * that should, showing it is the kinder failure.
+ */
+export function pullAge(dateString, now = serverNow()) {
+    const date = parseServerDate(dateString);
+    if (!date) return 0;
+    return Math.max(0, now - date.getTime());
+}
+
+/**
+ * The extra beat the mythic/insane takeover sits behind the reveal, in ms.
+ *
+ * The celebration is the loudest thing on the page and it should land just after
+ * the feed has printed the drop, not with it — the same reasoning as First
+ * Blood's announce beat, one tier up. Small, because the two are plainly the same
+ * moment and a long gap reads as a second, unrelated event.
+ */
+export const CELEBRATION_BEAT_MS = 300;
+
+/**
+ * Past this age, a mythic/insane pull gets no celebration at all.
+ *
+ * Not a timing rule — a relevance one. `newItems` is fed from two places: the SSE
+ * stream, where a drop is seconds old, and `fetchActivity`'s catch-up branch,
+ * which fires on mount, on every tab refocus and on every SSE reconnect and hands
+ * over everything that landed while the client was away. A full-screen takeover
+ * for a pull from twenty minutes ago is not a celebration, it is a jump scare:
+ * nothing on screen caused it, the reel is idle, and the drop is already sitting
+ * in the ticker and on the board where it belongs.
+ *
+ * This is what the old code's `Math.max(2000, …)` floor was doing by accident and
+ * in the wrong direction — it guaranteed that a stale catch-up pull celebrated,
+ * two seconds after you tabbed back in.
+ *
+ * Generous enough to cover the cases that ARE news: a brief tab-out, a reconnect
+ * blip, a slow initial render. Anything beyond it happened while nobody was
+ * watching, and the page has other places that say so.
+ */
+export const STALE_PULL_GRACE_MS = 60_000;
+
+/**
+ * When to fire the celebration for a drop, in ms from now.
+ *
+ * One clock and one rule, which is the whole point of it living here. Both
+ * celebration components computed this themselves and each got it wrong in a
+ * different way: the current user's branch measured age with a raw `Date.now()`,
+ * so a browser running a second fast fired a second early — straight over a reel
+ * that was still turning, which is the one thing the delay exists to prevent —
+ * and everyone else's branch measured it against a `serverTime` React snapshot
+ * that, because of a field-name mismatch on the wire, had not updated since the
+ * page loaded.
+ *
+ * `spinRevealDelay` already knows when the reel lands, on a clock that has been
+ * corrected for skew and latency. The celebration wants that, plus a beat.
+ */
+export function celebrationDelay(dateString) {
+    return spinRevealDelay(dateString) + CELEBRATION_BEAT_MS;
+}
+
 // Format time ago string
 export function formatTimeAgo(dateString) {
     const date = parseServerDate(dateString);
