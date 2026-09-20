@@ -529,7 +529,7 @@ export function ActivityProvider({ children }) {
                                         ...prev,
                                         active,
                                         pending,
-                                        type: data.eventType || (data.boostedRarity ? 'gold_rush' : prev.type),
+                                        type: data.eventType || prev.type,
                                         data: data.boostedRarity
                                             ? { boostedRarity: data.boostedRarity, multiplier: data.multiplier }
                                             : data.eventType === 'community_goal'

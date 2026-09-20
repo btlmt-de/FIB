@@ -1661,16 +1661,24 @@ function WheelOfFortunePage({ onBack }) {
                     failures that move was made to fix. Same slot, same rules,
                     same flush-on-the-reel alignment as the other four. */}
                 <RecursionOverlay inline />
-                {/* GoldRushBanner is no longer mounted. The event cannot fire —
-                    it is out of EVENT_TYPES and out of the admin panel — so the
-                    banner rendered null on every frame of every session.
+                {/* Gold Rush is gone. This slot held a note saying the banner
+                    stayed mounted-but-dead alongside `applyGoldRushOdds`, on the
+                    grounds that retiring an event is not the same as rewriting
+                    what happened while it ran.
 
-                    The component, `applyGoldRushOdds`, and every `is_gold_rush`
-                    flag on collections and spin history all STAY: those flags
-                    mark real items that real players pulled during real Gold
-                    Rushes, and the plaque and the feed still read them. Retiring
-                    an event is not the same as rewriting what happened while it
-                    was running. */}
+                    Half of that held up and half did not. The DATA argument was
+                    right and still stands: every `is_gold_rush` flag on
+                    collections, spin history and the activity feed is untouched,
+                    and the collection plaque and the feed still read them. Nothing
+                    can set one again.
+
+                    The CODE argument did not. An event that cannot fire, whose
+                    banner renders null on every frame, whose odds pipeline still
+                    runs on every spin and whose restore path and admin trigger
+                    both still have to be read as live, is the most expensive
+                    version of retired there is. All of it is deleted — here, in
+                    services/globalEvents.js, in spin.js, and out of the reel's
+                    prop chain. */}
                 {/* The arrival is NOT in this row any more, and it is the one
                     event that is not.
 

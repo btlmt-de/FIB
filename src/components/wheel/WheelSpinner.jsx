@@ -185,7 +185,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     /*
      * THE ARRIVAL TAKES THE REEL.
      *
-     * Every other global event runs *alongside* the wheel — Gold Rush changed
+     * Every other global event runs *alongside* the wheel — Gold Rush used to change
      * the odds of a spin you were still taking, KOTW scored the spins you took,
      * the Community Goal counted them. The arrival is the one event that is not
      * about spinning at all, and it is the only one that owns the track the reel
@@ -259,11 +259,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const id = setInterval(() => setParlourTick(n => n + 1), 250);
         return () => clearInterval(id);
     }, [parlourOpenedAt]);
-
-    // Get Gold Rush boosted rarity if event is active
-    const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
-        ? globalEventStatus.data?.boostedRarity
-        : null;
 
 
     // Get sound functions
@@ -1649,21 +1644,22 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // this the two read as unrelated — a coloured announcement pasted above a
     // surface that carries on as though nothing is happening.
     //
-    // This is presentation only. Gold Rush's actual mechanic still travels through
-    // `goldRushBoostedRarity` into drawItem, which is what makes the boosted tier's
-    // columns light up; the accent here does not change any tile's rarity.
+    // This is presentation only - the accent does not change any tile's rarity.
+    // It used to be worth saying that explicitly because Gold Rush DID reach into
+    // the reel, boosting one tier's weights and lighting its columns through a
+    // separate `goldRushBoostedRarity` prop. That event and that prop are gone, and
+    // no event modifies the reel's contents any more; they only colour it.
     //
     // A lucky spin outranks it. Recursion and KOTW lucky spins are things happening
     // to *you*, and for those four seconds they own the band — an ambient event
     // tint underneath would just muddy the colour that is telling you something.
     //
     // Declared here, below KOTW_CRIMSON and the lucky-spin flags, because it reads
-    // all three. It was first written up beside the goldRushBoostedRarity lookup
-    // near the top of the component, which put every one of those references in the
-    // temporal dead zone — the build was clean and the page rendered blank.
+    // all three. It was first written up near the top of the component, which put
+    // every one of those references in the temporal dead zone — the build was clean
+    // and the page rendered blank.
     const EVENT_ACCENT = {
         king_of_wheel: arenaVisible ? ARENA.gold : KOTW_CRIMSON,
-        gold_rush: COLORS.gold,
         first_blood: COLORS.red,
         community_goal: COLORS.aqua,
     };
@@ -2371,7 +2367,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         isResult={state === 'tripleResult' || state === 'tripleLuckyResult'}
                                         isMobile={isMobile}
                                         accentColor={modeAccent || COLORS.gold}
-                                        goldRushBoostedRarity={goldRushBoostedRarity}
                                     />
                                 ) : (
                             <div
@@ -2650,7 +2645,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     stripWidth={undefined}
                                     stripHeight={isMobile ? undefined : STRIP_HEIGHT}
                                     finalIndex={FINAL_INDEX}
-                                    goldRushBoostedRarity={goldRushBoostedRarity}
                                     isLuckySpin={showAnySpinLuckyEffects || isLuckyMode}
                                 />
 

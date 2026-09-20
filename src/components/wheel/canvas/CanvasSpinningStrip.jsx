@@ -383,7 +383,7 @@ function getRimSprite(item, img) {
     return rc;
 }
 
-function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, goldRushBoostedRarity = null, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x', candidacy = 0, lampRgb = null, arena = false) {
+function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images, time, isLuckySpin = false, isKotwLucky = false, bandHeight = 0, bandTop = 0, calm = false, floorInset = 0, seamAxis = 'x', candidacy = 0, lampRgb = null, arena = false) {
     if (!item) return;
 
     const isInsane = isInsaneItem(item);
@@ -396,7 +396,6 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     const isRecursionType = isRecursionItem(item);
 
     const itemRarity = isRecursionType ? null : getItemRarity(item);
-    const isGoldRushBoosted = goldRushBoostedRarity && itemRarity === goldRushBoostedRarity;
 
     // On a lucky spin commons take the spin's own colour rather than grey, so the
     // whole strip reads as "this one is different" before it even lands.
@@ -434,7 +433,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     if (isRecursionType) {
         const c = hexToRgb(COLORS.recursion);
         stops = [c, c, c];
-    } else if (isInsane && !isGoldRushBoosted) {
+    } else if (isInsane) {
         stops = [sampleRamp(COLORS.insaneHolo, phase),
                  sampleRamp(COLORS.insaneHolo, phase + 0.16),
                  sampleRamp(COLORS.insaneHolo, phase + 0.32)];
@@ -444,8 +443,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
                  sampleRamp(COLORS.mythicCycle, phase + 0.32)];
     } else {
         let flat;
-        if (isGoldRushBoosted) flat = '#FFD700';
-        else if (isEvent) flat = COLORS.gold;
+        if (isEvent) flat = COLORS.gold;
         else if (isSpecial) flat = COLORS.insane;           // legendary
         else if (isRelic) flat = COLORS.relic;
         else if (isExotic) flat = COLORS.purple;
@@ -613,7 +611,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
                     : isRelic ? 0.75
                         : isExotic ? 0.71
                             : isRare ? 0.60
-                                : isLuckyCommon || isGoldRushBoosted ? 0.5
+                                : isLuckyCommon ? 0.5
                                     : 0;
 
     // A slow breath on the glow. Offset per item so neighbouring rare slots are
@@ -1243,7 +1241,7 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
             }
         }
 
-        if (isSpecialType || isGoldRushBoosted) {
+        if (isSpecialType) {
             // shadowColor takes a colour and never a gradient, so the animated
             // tiers bloom in whatever hue they are currently passing through.
             ctx.shadowColor = rgb(stops[1], 1);
@@ -1397,7 +1395,6 @@ export function CanvasSpinningStrip({
                                         themeType = null, // 'recursion' or 'kotw' - determines background colors
                                         itemWidthOverride = null, // Optional override for item width (e.g., 90 for Triple Lucky desktop)
                                         isLuckySpin = false, // For Lucky Spin / Triple Lucky - common items use green
-                                        goldRushBoostedRarity = null, // Rarity being boosted during Gold Rush event
                                         // Draw the strip as a cylinder rather than a finite array. Only for
                                         // the dormant idle reel — see the loop branch in the render below.
                                         loop = false,
@@ -1444,8 +1441,8 @@ export function CanvasSpinningStrip({
 
     // Refs for props that change during animation (so render loop always has current values)
     // Note: offset is read from offsetRef if provided, otherwise from offsetProp
-    const propsRef = useRef({ isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, themeType, isLuckySpin, goldRushBoostedRarity, loop });
-    propsRef.current = { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, themeType, isLuckySpin, goldRushBoostedRarity, loop };
+    const propsRef = useRef({ isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, themeType, isLuckySpin, loop });
+    propsRef.current = { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor, themeType, isLuckySpin, loop };
 
     // Helper to get current offset - reads from ref if provided, otherwise uses prop value
     const getOffset = () => offsetRef ? offsetRef.current : offsetProp;
@@ -1611,7 +1608,7 @@ export function CanvasSpinningStrip({
 
             // Get current prop values from ref (so animation has latest values)
             // Note: offset comes from offsetRef or offsetProp, not propsRef
-            const { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor: accentOverride, themeType, isLuckySpin, goldRushBoostedRarity, loop } = propsRef.current;
+            const { isSpinning, isResult, spinProgress, isRecursion, finalIndex, accentColor: accentOverride, themeType, isLuckySpin, loop } = propsRef.current;
 
             const offset = getOffset();
             const motionIntensity = isSpinning ? Math.max(0, 1 - spinProgress * 1.5) : 0;
@@ -1846,7 +1843,7 @@ export function CanvasSpinningStrip({
                         0, itemY, width,
                         isWinning,
                         isRecursionTheme && !isKotwTheme,
-                        imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme,
+                        imagesRef.current, time, isLuckySpin, isKotwTheme,
                         rowPitch, itemY, calm,
                         SILL_H,
                         'y',
@@ -1910,7 +1907,7 @@ export function CanvasSpinningStrip({
                     // below the centre, so this genuinely does go negative.
                     const item = items[((idx % items.length) + items.length) % items.length];
                     const itemX = stripCenterX + idx * itemWidth - offset;
-                    drawItem(ctx, item, itemX, itemCenterY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyOf(itemX + itemWidth / 2, width / 2), accentRgb, isArenaTheme);
+                    drawItem(ctx, item, itemX, itemCenterY, itemWidth, false, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyOf(itemX + itemWidth / 2, width / 2), accentRgb, isArenaTheme);
                 }
             } else {
                 // Horizontal strip - items side by side
@@ -1925,7 +1922,7 @@ export function CanvasSpinningStrip({
                         const isWinning = idx === finalIndex && isResult;
                         // Horizontal reel: every slot shares the full-height band,
                         // which is what makes the row read as one lit surface.
-                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, goldRushBoostedRarity, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyAt(idx, itemX + itemWidth / 2, width / 2), accentRgb, isArenaTheme);
+                        drawItem(ctx, item, itemX, itemCenterY, itemWidth, isWinning, isRecursionTheme && !isKotwTheme, imagesRef.current, time, isLuckySpin, isKotwTheme, height, 0, calm, LIP_H, 'x', candidacyAt(idx, itemX + itemWidth / 2, width / 2), accentRgb, isArenaTheme);
 
                         // The slot seam that used to be drawn here is gone.
                         //
@@ -2391,7 +2388,7 @@ export function CanvasSpinningStrip({
 // CanvasSpinningStripWrapper used to sit here, a compatibility shim for the
 // EnhancedSpinningStrip API this file replaced. Nothing imported it, and it had
 // gone stale in a way that would have bitten whoever did: it dropped isLuckySpin,
-// accentColor, themeType and goldRushBoostedRarity on the floor and hardcoded a
+// accentColor and themeType on the floor and hardcoded a
 // 100px desktop strip height. WheelSpinner renders CanvasSpinningStrip directly.
 
 // Export preload function for use by parent components

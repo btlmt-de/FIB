@@ -136,8 +136,9 @@ const DEFAULT_SETTINGS = {
  * the deployed bundle plus a ref, a state flag, a volume effect and a branch in
  * all five of its siblings' start paths. All of it gone.
  *
- * GoldRushBanner and the server's event handling both still exist, so a
- * hand-forced one still draws and still boosts - it just runs without a bed.
+ * Since then the event itself has gone too - the banner, the odds boost, the
+ * trigger and the admin path. Nothing about Gold Rush remains except the
+ * `is_gold_rush` marks on pulls that happened while it was running.
  */
 const EVENT_SOUNDTRACK = {
     arrival: 'arrivalSoundtrack',
@@ -1511,8 +1512,9 @@ export function SoundProvider({ children }) {
      * A name with no file behind it falls through to `sfxSynth`, which is how
      * the events get their stings without another 26 MB of mp3 — and how four
      * call sites that had been silent since they were written started making a
-     * sound. `event_start` (CommunityGoalBanner, FirstBloodBanner,
-     * EventSelectionWheel, GoldRushBanner) and `event_win` (FirstBloodBanner)
+     * sound. `event_start` (CommunityGoalBanner, FirstBloodBanner and
+     * EventSelectionWheel - GoldRushBanner was the fourth, before it was deleted
+     * with the rest of that event) and `event_win` (FirstBloodBanner)
      * were never in SOUND_FILES and no such file was ever in public/sounds, so
      * every one of them hit the `!audio` guard below and returned silently. A
      * missing sound is meant to be silent; a sound nobody ever added is a

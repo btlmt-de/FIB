@@ -625,9 +625,11 @@ export function EventHistoryBoard({ onClose }) {
 
                         {recent.map((row, i) => {
                             const id = EVENT_IDENTITY[row.eventType]
-                                // A retired type can still be in the log — an admin
-                                // can force a Gold Rush, and one that ran is history
-                                // whether or not the rotation can still draw it.
+                                // A retired type can still be in the log. Gold Rush
+                                // is gone from the codebase entirely now and cannot
+                                // be forced by anyone, but the rows it wrote while it
+                                // ran are still rows, and a board that rendered them
+                                // as blanks would be lying about the server's past.
                                 || { name: String(row.eventType || 'Unknown').replace(/_/g, ' ').toUpperCase(), color: DECK.inkMid };
                             const Icon = EVENT_ICONS[row.eventType];
 
