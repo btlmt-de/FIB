@@ -714,19 +714,21 @@ function FirstBloodBanner({ isMobile = false, isAdmin = false, inline = false, r
                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Diamond size={isMobile ? 10 : 12} color={getRarityInk('rare')} /> 9-12</span>
                                     {/* Exotic, which this row shipped without while the
                                         server was already paying it: FIRST_BLOOD_REWARDS
-                                        has `exotic: { min: 11, max: 14 }`. A player who
+                                        has a band of its own. A player who
                                         took First Blood with an exotic was awarded a
                                         number the banner had no row for. `Gem` is the
                                         ladder's own icon for the tier, and the colour is
                                         `getRarityInk`, already imported and used by the
                                         winner line above. */}
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Gem size={isMobile ? 10 : 12} color={getRarityInk('exotic')} /> 11-14</span>
-                                    {/* Relic: FIRST_BLOOD_REWARDS has `relic: { min: 12, max: 15 }`,
-                                        one step above exotic, matching its place on the ladder. */}
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Map size={isMobile ? 10 : 12} color={getRarityInk('relic')} /> 12-15</span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Star size={isMobile ? 10 : 12} color={getRarityInk('legendary')} /> 13-16</span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Sparkles size={isMobile ? 10 : 12} color={getRarityInk('mythic')} /> 17-20</span>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Crown size={isMobile ? 10 : 12} color={FB_GOLD} /> 20-25</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Gem size={isMobile ? 10 : 12} color={getRarityInk('exotic')} /> 13-16</span>
+                                    {/* Relic sits one band above exotic in FIRST_BLOOD_REWARDS,
+                                        matching its place on the ladder. The bands no longer
+                                        overlap, so these six spans are disjoint - if you retune
+                                        the server table, keep them that way here too. */}
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Map size={isMobile ? 10 : 12} color={getRarityInk('relic')} /> 18-21</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Star size={isMobile ? 10 : 12} color={getRarityInk('legendary')} /> 23-27</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Sparkles size={isMobile ? 10 : 12} color={getRarityInk('mythic')} /> 29-34</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Crown size={isMobile ? 10 : 12} color={FB_GOLD} /> 36-42</span>
                                 </div>
                             )}
                         </div>
