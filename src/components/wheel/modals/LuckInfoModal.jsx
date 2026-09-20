@@ -53,7 +53,7 @@
  * get corrected on.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DECK, rail } from '../config/constants';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { FlapText } from '../features/collection/FlapBoard.jsx';
@@ -192,6 +192,36 @@ function WindowCard({ title, span, oneIn, basis, pulls, lucky, footnote, isMobil
 }
 
 export function LuckInfoModal({ onClose, luckRating, isMobile }) {
+    /*
+     * Escape closes it, which until now nothing did.
+     *
+     * This is the one overlay on the player record where the key was completely
+     * dead, and the reason is worth keeping because it looks like a safe
+     * omission and is not. UserProfile deliberately STANDS DOWN while any child
+     * of its is open — `childOpen` lists this modal by name — on the contract
+     * that "every child listed here either handles Escape itself or is dismissed
+     * by its own controls". This one only ever satisfied the second half, so
+     * with it open the key did nothing at all: the parent had stepped aside for
+     * a handler that was never written.
+     *
+     * Capture phase plus stopPropagation, matching the item plaque in
+     * CollectionBook.jsx. The profile's own note records why the phase matters:
+     * `stopPropagation` governs propagation BETWEEN nodes and does nothing to a
+     * listener already registered on the node you are standing on, so two
+     * bubble-phase listeners on `window` both run. Claiming the event in capture
+     * stops it before any of them, which is the right shape for the topmost
+     * thing on the screen — while this is open, it owns the key.
+     */
+    useEffect(() => {
+        const onKey = e => {
+            if (e.key !== 'Escape') return;
+            e.stopPropagation();
+            onClose();
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, [onClose]);
+
     const cluster = luckRating?.tightestCluster;
     const stats = luckRating?.stats;
     const hasPulls = stats && TIERS.some(t => (stats[t] || 0) > 0);

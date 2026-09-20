@@ -385,6 +385,45 @@ export function ActivityProvider({ children }) {
                     }
                 }
 
+                /*
+                 * Hold back anything still inside its reveal window, the same way
+                 * the SSE path does.
+                 *
+                 * The SSE handler already delays a live drop so the ticker cannot
+                 * print your item while your own reel is still turning, and its
+                 * note there spotted half of this hole: it moves `lastId`
+                 * immediately so "anything after this?" cannot re-fetch the very
+                 * drop being delayed. That guard only covers `newItems`. This
+                 * function replaces the WHOLE feed from the server's list, which
+                 * is not gated on `lastId` at all, so a fetch landing inside the
+                 * window put the held item straight back on screen early.
+                 *
+                 * Not just theoretical on the polling path either: fetchActivity
+                 * runs on mount, on SSE reconnect and on tab refocus, and a
+                 * reconnect inside the 4.2s window is an ordinary thing for a
+                 * phone to do mid-spin.
+                 *
+                 * Held items are the youngest by definition, so they fire oldest
+                 * first and plain prepending keeps the feed newest-first without
+                 * a re-sort. The id guard is the SSE path's, for the case where
+                 * its timer and this one are holding the same drop.
+                 */
+                const revealNow = [];
+                const revealLater = [];
+                for (const item of mergedFeed) {
+                    (spinRevealDelay(item.created_at) > 0 ? revealLater : revealNow).push(item);
+                }
+                for (const item of revealLater) {
+                    const revealTimeout = setTimeout(() => {
+                        setFeed(prev => (prev.some(f => f.id === item.id)
+                            ? prev
+                            : [item, ...prev].slice(0, 150)));
+                        feedRevealTimeoutsRef.current =
+                            feedRevealTimeoutsRef.current.filter(id => id !== revealTimeout);
+                    }, spinRevealDelay(item.created_at));
+                    feedRevealTimeoutsRef.current.push(revealTimeout);
+                }
+
                 const newestId = mergedFeed[0]?.id;
                 const currentLastId = lastIdRef.current;
                 const isInit = initializedRef.current;
@@ -392,14 +431,14 @@ export function ActivityProvider({ children }) {
                 if (!isInit) {
                     setLastId(newestId);
                     setInitialized(true);
-                    setFeed(mergedFeed);
+                    setFeed(revealNow);
                 } else if (currentLastId !== null && newestId && newestId > currentLastId) {
                     const newlyDetected = mergedFeed.filter(item => item.id > currentLastId);
                     setNewItems(newlyDetected);
                     setLastId(newestId);
-                    setFeed(mergedFeed);
+                    setFeed(revealNow);
                 } else {
-                    setFeed(mergedFeed);
+                    setFeed(revealNow);
                     setNewItems([]);
                 }
             }

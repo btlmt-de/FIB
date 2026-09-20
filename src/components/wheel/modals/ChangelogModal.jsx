@@ -408,8 +408,13 @@ export function ChangelogModal({ onClose, isMobile }) {
     }, [onClose]);
 
     const entry = CHANGELOG[0];
+    // timeZone: 'UTC' because the entry dates in changelog.js are bare 'YYYY-MM-DD'
+    // strings, which Date parses as UTC midnight. Formatting that in the viewer's
+    // own zone moves it BACKWARDS for everyone west of UTC, so a release dated the
+    // 20th announced itself as the 19th across the Americas while reading correctly
+    // in Europe - which is why nobody here would have seen it.
     const dated = new Date(entry.date).toLocaleDateString(undefined, {
-        day: 'numeric', month: 'short', year: 'numeric',
+        day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
     });
 
     return (

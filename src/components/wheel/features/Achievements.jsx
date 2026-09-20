@@ -69,6 +69,14 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
     }, [userId, isOwnProfile]);
 
     async function loadData() {
+        // Reset before every run, not just the first. This effect re-fires on
+        // userId / isOwnProfile, and without this a second run kept whatever the
+        // first left behind: `loading` stays false so the previous player's board
+        // sits there un-dimmed while the new one loads, and `error` is never
+        // cleared, so one failed fetch showed its message over every later
+        // success.
+        setLoading(true);
+        setError(null);
         try {
             if (!isOwnProfile && !userId) {
                 throw new Error('Missing userId for non-owner achievements view');

@@ -375,7 +375,7 @@ function WheelOfFortunePage({ onBack }) {
     const [collection, setCollection] = useState({});
     const [collectionDetails, setCollectionDetails] = useState({});
     const [history, setHistory] = useState([]);
-    const [stats, setStats] = useState({ totalSpins: 0, insaneCount: 0, mythicCount: 0, legendaryCount: 0, exoticCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 });
+    const [stats, setStats] = useState({ totalSpins: 0, insaneCount: 0, mythicCount: 0, legendaryCount: 0, relicCount: 0, exoticCount: 0, rareCount: 0, eventTriggers: 0, totalDuplicates: 0 });
     const [kotwLuckySpins, setKotwLuckySpins] = useState(0); // KOTW winner lucky spins
     const kotwLuckySpinsRef = useRef(0); // Ref for immediate access (bypasses React batching)
     const [loading, setLoading] = useState(true);
@@ -667,6 +667,12 @@ function WheelOfFortunePage({ onBack }) {
                 insaneCount: data.insaneCount || 0,
                 mythicCount: data.mythicCount || 0,
                 legendaryCount: data.legendaryCount || 0,
+                // relicCount was missing from both this object and the initial
+                // state when the tier landed, while COUNTER_FOR_TIER above already
+                // mapped `relic` to it. So a relic pull bumped a field that did not
+                // exist, and this refetch then dropped the key entirely instead of
+                // correcting it - the one tier whose optimistic count never settled.
+                relicCount: data.relicCount || 0,
                 exoticCount: data.exoticCount || 0,
                 rareCount: data.rareCount || 0,
                 eventTriggers: data.eventTriggers || 0,

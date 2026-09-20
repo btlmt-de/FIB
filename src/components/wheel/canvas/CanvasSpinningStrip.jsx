@@ -8,7 +8,7 @@ import { ARENA } from '../config/arenaTheme.js';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { ITEM_WIDTH, STRIP_HEIGHT, IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { getItemImageUrl, getItemRarity, isInsaneItem, isSpecialItem, isExoticItem, isRelicItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { getItemImageUrl, isInsaneItem, isSpecialItem, isExoticItem, isRelicItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 import { sampleRamp } from '../../../utils/rarityHelpers.jsx';
 import { prefersCalm, isSaverOn, useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
@@ -394,8 +394,6 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     const isRare = isRareItem(item);
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
-
-    const itemRarity = isRecursionType ? null : getItemRarity(item);
 
     // On a lucky spin commons take the spin's own colour rather than grey, so the
     // whole strip reads as "this one is different" before it even lands.

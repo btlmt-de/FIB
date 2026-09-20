@@ -282,6 +282,13 @@ export function getRarityBadge(rarity, iconSize = 10) {
             return { label: t.label, color, icon: <Sparkles size={iconSize} /> };
         case 'legendary':
             return { label: t.label, color, icon: <Star size={iconSize} /> };
+        // Map, matching getRarityIcon above - the relics are places, and this is
+        // the only tier the switch had no branch for. Without it a relic fell to
+        // `default` and SpinHistory labelled it "Common" in common grey: not a
+        // missing badge but a wrong one, on the rarest thing most players will
+        // ever see in that list.
+        case 'relic':
+            return { label: t.label, color, icon: <Map size={iconSize} /> };
         case 'exotic':
             return { label: t.label, color, icon: <Gem size={iconSize} /> };
         case 'rare':
