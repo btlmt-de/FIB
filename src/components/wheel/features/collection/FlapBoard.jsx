@@ -207,13 +207,13 @@ export function FlapText({
  * register's most decision-bearing word was set identically to the column
  * heading above it.
  */
-export function BoardLabel({ children, size = 10, tone = DECK.inkDim, weight = 700, style }) {
+export function BoardLabel({ children, size = 'var(--fib-board-label-size, 10px)', tone = 'var(--fib-board-label-ink, #7C859C)', weight = 700, style, title }) {
     return (
-        <span style={{
+        <span title={title} style={{
             fontFamily: "'Barlow Condensed', system-ui, sans-serif",
-            fontSize: `${size}px`,
+            fontSize: typeof size === 'number' ? `${size}px` : size,
             fontWeight: weight,
-            letterSpacing: '0.14em',
+            letterSpacing: 'var(--fib-board-label-track, 0.14em)',
             textTransform: 'uppercase',
             color: tone,
             lineHeight: 1,
@@ -430,7 +430,7 @@ export function Segmented({ value, onChange, options, label, tone = DECK.amber }
                             display: 'flex', alignItems: 'center',
                         }}
                     >
-                        <BoardLabel tone={active ? tone : DECK.inkDim}>{text}</BoardLabel>
+                        <BoardLabel tone={active ? tone : 'var(--fib-board-label-ink, #7C859C)'}>{text}</BoardLabel>
                     </Plinth>
                 );
             })}

@@ -728,17 +728,17 @@ export function LeaderboardSidebar({ onClose }) {
      * when every track resolves the same on both.
      */
     const markTiers = RARITY_KEYS.filter(k => GLOBAL_TOTAL_FIELD[k]);
-    const MARK_W = 34;
+    const MARK_W = 38;
     const marksWidth = markTiers.length * MARK_W;
 
     const boardColumns = isPhone
         ? '30px 24px minmax(0, 1fr) 76px'
-        : `46px 30px minmax(0, 1fr) 96px 118px 62px ${marksWidth}px`;
+        : `46px 30px minmax(0, 1fr) 96px 132px 68px ${marksWidth}px`;
 
     return (
         <>
             <div
-                className="fib-board-scroll"
+                className="fib-board-scroll fib-leaderboard"
                 style={{
                     position: 'relative',
                     width: '100%',
@@ -779,7 +779,7 @@ export function LeaderboardSidebar({ onClose }) {
                                 weight={800}
                                 plate
                             />
-                            <BoardLabel tone={DECK.inkDim}>
+                            <BoardLabel tone={DECK.inkMid}>
                                 {leaderboard.length} {leaderboard.length === 1 ? 'player' : 'players'}
                             </BoardLabel>
                         </div>
@@ -877,7 +877,7 @@ export function LeaderboardSidebar({ onClose }) {
                     />
                     <div style={{ flex: '1 1 auto' }} />
                     {lastUpdated && (
-                        <BoardLabel tone={DECK.inkDim}>
+                        <BoardLabel tone={DECK.inkMid}>
                             Updated {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </BoardLabel>
                     )}
@@ -935,11 +935,11 @@ export function LeaderboardSidebar({ onClose }) {
                     </div>
                     {loading && rows.length === 0 ? (
                         <div style={{ padding: '28px 0', textAlign: 'center' }}>
-                            <BoardLabel tone={DECK.inkDim}>Reading the board…</BoardLabel>
+                            <BoardLabel tone={DECK.inkMid}>Reading the board…</BoardLabel>
                         </div>
                     ) : rows.length === 0 ? (
                         <div style={{ padding: '28px 0', textAlign: 'center' }}>
-                            <BoardLabel tone={DECK.inkDim}>No players on the board yet</BoardLabel>
+                            <BoardLabel tone={DECK.inkMid}>No players on the board yet</BoardLabel>
                         </div>
                     ) : rows.map((entry, idx) => {
                         const rank = idx + 1;
@@ -959,7 +959,7 @@ export function LeaderboardSidebar({ onClose }) {
                         const rankTone = rank === 1 ? KOTW_GOLD
                             : rank === 2 ? KOTW_SILVER
                             : rank === 3 ? KOTW_BRONZE
-                            : DECK.inkDim;
+                            : DECK.inkMid;
 
                         return (
                             <button
@@ -982,7 +982,7 @@ export function LeaderboardSidebar({ onClose }) {
                                 <FlapText
                                     text={String(rank)}
                                     digits
-                                    size={isPhone ? 14 : 16}
+                                    size={16}
                                     tone={rankTone}
                                     weight={rank <= 3 ? 800 : 700}
                                     delay={40 + Math.min(idx, 12) * 22}
@@ -1004,7 +1004,8 @@ export function LeaderboardSidebar({ onClose }) {
 
                                 <FlapText
                                     text={name}
-                                    size={isPhone ? 14 : 15}
+                                    title={name}
+                                    size={isPhone ? 15 : 16}
                                     tone={isMe ? DECK.amber : DECK.ink}
                                     weight={isMe ? 800 : 700}
                                     delay={60 + Math.min(idx, 12) * 22}
@@ -1045,7 +1046,7 @@ export function LeaderboardSidebar({ onClose }) {
                                             style={{ justifyContent: 'flex-end' }}
                                         />
                                     ) : (
-                                        <BoardLabel tone="rgba(206,214,236,0.22)" style={{ textAlign: 'right' }}>·</BoardLabel>
+                                        <BoardLabel tone={DECK.inkDim} style={{ textAlign: 'right' }}>·</BoardLabel>
                                     )
                                 )}
 
@@ -1087,7 +1088,7 @@ export function LeaderboardSidebar({ onClose }) {
                                             // A dot, not a blank: an empty cell in a
                                             // ruled column reads as a missing value
                                             // where the truth is "none".
-                                            <BoardLabel tone="rgba(206,214,236,0.22)">·</BoardLabel>
+                                            <BoardLabel tone={DECK.inkDim}>·</BoardLabel>
                                         )}
                                     </span>
                                 )}
@@ -1106,7 +1107,7 @@ export function LeaderboardSidebar({ onClose }) {
                                         const count = entry[`${key}_count`] || 0;
                                         if (count === 0) {
                                             return (
-                                                <span key={key} title={`${RARITY[key].label}: none`} style={{ textAlign: 'center', color: 'rgba(206,214,236,0.18)', fontSize: '11px' }}>·</span>
+                                                <span key={key} title={`${RARITY[key].label}: none`} style={{ textAlign: 'center', color: DECK.inkDim, fontSize: '13px' }}>·</span>
                                             );
                                         }
                                         return (
@@ -1118,8 +1119,8 @@ export function LeaderboardSidebar({ onClose }) {
                                                     color: getRarityInk(key),
                                                 }}
                                             >
-                                                {getRarityIcon(key, 10)}
-                                                <BoardLabel tone="currentColor">{count}</BoardLabel>
+                                                {getRarityIcon(key, 12)}
+                                                <BoardLabel size={13} tone="currentColor" style={{ letterSpacing: 0, fontVariantNumeric: 'tabular-nums' }}>{count}</BoardLabel>
                                             </span>
                                         );
                                     })}

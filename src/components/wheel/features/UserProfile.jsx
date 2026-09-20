@@ -804,8 +804,8 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
     // after the gutters, and a register that overflows by fourteen pixels is a
     // register with a horizontal scrollbar.
     const registerColumns = isPhone
-        ? '10px minmax(56px, 1fr) 58px 52px 62px'
-        : '10px minmax(92px, 1fr) 72px 62px minmax(56px, 0.6fr) 60px 58px 74px';
+        ? '8px minmax(66px, 1fr) 64px 50px 72px'
+        : '10px minmax(92px, 1fr) 72px 62px minmax(40px, 0.6fr) 66px 60px 80px';
 
     const gutter = isPhone ? '16px' : '26px';
 
@@ -826,6 +826,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
             role="dialog"
             aria-modal="true"
             aria-label={`${profile.custom_username || 'Player'}'s player board`}
+            className="fib-profile"
             style={{
                 position: 'fixed', inset: 0,
                 // The scrim ladder's middle step, matching the collection board
@@ -868,9 +869,9 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                 }}>
                     <div style={{
                         display: 'flex', alignItems: 'flex-start',
-                        justifyContent: 'space-between', gap: '16px',
+                        justifyContent: 'space-between', gap: '12px 16px', flexWrap: 'wrap',
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0, flexShrink: 0, maxWidth: '100%' }}>
                             {/* The ring is the same component the leaderboard and
                                 the stage wear, so a player carries one mark
                                 everywhere. Earned and in-progress rings are
@@ -924,7 +925,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     <BoardLabel tone={profile.rank === 1 ? DECK.amber : DECK.inkMid}>
                                         {typeof profile.rank === 'number' ? `Rank ${profile.rank} by collection` : 'Unranked'}
                                     </BoardLabel>
-                                    <BoardLabel tone={DECK.inkDim}>
+                                    <BoardLabel tone={DECK.inkMid}>
                                         Joined {fmtMonth(profile.created_at)}
                                     </BoardLabel>
                                 </div>
@@ -1083,9 +1084,10 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                 <div
                                     key={f.label}
                                     style={{
-                                        padding: isPhone ? '0 12px' : '0 26px',
+                                        paddingTop: 0, paddingBottom: 0,
+                                        paddingLeft: i === 0 ? 0 : isPhone ? '12px' : '26px',
+                                        paddingRight: isPhone ? '12px' : '26px',
                                         boxShadow: i > 0 ? `inset 1px 0 0 ${rail(0.07)}` : undefined,
-                                        ...(i === 0 ? { paddingLeft: 0 } : null),
                                     }}
                                 >
                                     <FlapText
@@ -1205,7 +1207,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     empty, which is the same fact told twice and
                                     once as a control they cannot use. */}
                                 {showcase.length === 0 && !isOwnProfile ? (
-                                    <BoardLabel tone={DECK.inkDim}>Nothing on show</BoardLabel>
+                                    <BoardLabel tone={DECK.inkMid}>Nothing on show</BoardLabel>
                                 ) : (
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                         {/* A visitor sees only what is on show.
@@ -1273,7 +1275,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                             <AchievementIcon name={badge.icon} size={16} color="currentColor" />
                                         </Plinth>
                                     )) : (
-                                        <BoardLabel tone={DECK.inkDim}>
+                                        <BoardLabel tone={DECK.inkMid}>
                                             {isOwnProfile ? 'None equipped' : 'No badges'}
                                         </BoardLabel>
                                     )}
@@ -1286,7 +1288,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             <Panel title="Register">
                                 <div style={{
                                     display: 'grid', gridTemplateColumns: registerColumns,
-                                    alignItems: 'center', gap: '0 12px', padding: '0 0 8px',
+                                    alignItems: 'center', gap: isPhone ? '0 6px' : '0 12px', padding: '0 0 8px',
                                 }}>
                                     <span />
                                     <BoardLabel>Tier</BoardLabel>
@@ -1303,7 +1305,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     fails, the headings stood over nothing. */}
                                 {register.length === 0 && (
                                     <div style={{ padding: '12px 0' }}>
-                                        <BoardLabel tone={DECK.inkDim}>Tiers unavailable</BoardLabel>
+                                        <BoardLabel tone={DECK.inkMid}>Tiers unavailable</BoardLabel>
                                     </div>
                                 )}
                                 {/* The empty line sits OUTSIDE the list: a
@@ -1357,7 +1359,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 ].filter(Boolean).join('. ')}
                                                 style={{
                                                     display: 'grid', gridTemplateColumns: registerColumns,
-                                                    alignItems: 'center', gap: '0 12px',
+                                                    alignItems: 'center', gap: isPhone ? '0 6px' : '0 12px',
                                                     width: '100%', padding: isPhone ? '9px 0' : '12px 0',
                                                 }}
                                             >
@@ -1378,7 +1380,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     delay={280 + i * 55}
                                                 />
                                                 <FlapText
-                                                    text={`${fmt(row.held)}/${fmt(row.total)}`}
+                                                    text={`${fmt(row.held)} / ${fmt(row.total)}`}
                                                     size={15} tone={DECK.ink}
                                                     delay={300 + i * 55}
                                                     style={{ justifyContent: 'flex-end' }}
@@ -1401,7 +1403,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 {!isPhone && (
                                                     <FlapText
                                                         text={fmtDate(row.last) || '—'}
-                                                        size={13} tone={DECK.inkDim} weight={600}
+                                                        size={14} tone={DECK.inkMid} weight={600}
                                                         delay={330 + i * 55}
                                                         style={{ justifyContent: 'flex-end' }}
                                                     />
@@ -1413,7 +1415,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     delay={345 + i * 55}
                                                     style={{ justifyContent: 'flex-end' }}
                                                 />
-                                                <BoardLabel size={11} tone={statusTone} style={{ textAlign: 'right' }}>
+                                                <BoardLabel size={12} tone={statusTone} style={{ textAlign: 'right' }}>
                                                     {statusWord}
                                                 </BoardLabel>
                                             </div>
@@ -1512,7 +1514,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 weekday: 'short', month: 'short', day: 'numeric',
                                             })}
                                         </BoardLabel>
-                                        <BoardLabel tone={DECK.inkDim}>{fmt(luckiestDay.spins)} spins</BoardLabel>
+                                        <BoardLabel tone={DECK.inkMid}>{fmt(luckiestDay.spins)} spins</BoardLabel>
                                         <div style={{ display: 'flex', gap: '14px', marginLeft: 'auto' }}>
                                             {COLLECTABLE_TIERS.map(key => {
                                                 const n = luckiestDay[`${key}_count`] || 0;
@@ -1534,7 +1536,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                             {/* ── RECENT FINDS ─────────────────────────────── */}
                             <Panel title="Recent finds">
                                 {recentFinds.length === 0 ? (
-                                    <BoardLabel tone={DECK.inkDim}>No specials found yet</BoardLabel>
+                                    <BoardLabel tone={DECK.inkMid}>No specials found yet</BoardLabel>
                                 ) : (
                                     <div>
                                         {recentFinds.map((find, i) => (
@@ -1544,7 +1546,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                 style={{
                                                     display: 'grid',
                                                     gridTemplateColumns: '34px minmax(0, 1fr) auto 62px',
-                                                    alignItems: 'center', gap: '0 12px',
+                                                    alignItems: 'center', gap: isPhone ? '0 6px' : '0 12px',
                                                     padding: '9px 0',
                                                 }}
                                             >
@@ -1570,12 +1572,12 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     dimmest ink it sat against the
                                                     date as a smudge, and the two
                                                     were the same size. */}
-                                                <BoardLabel size={11} tone={DECK.inkDim}>
+                                                <BoardLabel size={12} tone={DECK.inkDim}>
                                                     {find.count > 1 ? `×${fmt(find.count)}` : ''}
                                                 </BoardLabel>
                                                 <FlapText
                                                     text={fmtDate(find.at) || '—'}
-                                                    size={13} tone={DECK.inkMid} weight={600}
+                                                    size={14} tone={DECK.inkMid} weight={600}
                                                     delay={380 + i * 40}
                                                     style={{ justifyContent: 'flex-end' }}
                                                 />
@@ -1597,7 +1599,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                 of them does something different. */}
                             <Panel title="Achievements">
                                 {userAchievements.length === 0 ? (
-                                    <BoardLabel tone={DECK.inkDim}>None unlocked yet</BoardLabel>
+                                    <BoardLabel tone={DECK.inkMid}>None unlocked yet</BoardLabel>
                                 ) : (
                                     <>
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
@@ -1607,7 +1609,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     : fmt(userAchievements.length)}
                                                 size={20} tone={DECK.ink} plate delay={400}
                                             />
-                                            <BoardLabel tone={DECK.inkDim}>Unlocked</BoardLabel>
+                                            <BoardLabel tone={DECK.inkMid}>Unlocked</BoardLabel>
                                         </div>
                                         {/* Every mark opens the full list.
                                             An icon whose name lives in a tooltip
@@ -1653,7 +1655,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                             ))}
                                             {userAchievements.length > (isPhone ? 8 : 12) && (
                                                 <span style={{ display: 'flex', alignItems: 'center', paddingLeft: '4px' }}>
-                                                    <BoardLabel tone={DECK.inkDim}>
+                                                    <BoardLabel tone={DECK.inkMid}>
                                                         +{fmt(userAchievements.length - (isPhone ? 8 : 12))} more
                                                     </BoardLabel>
                                                 </span>
@@ -1708,7 +1710,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     isPhone={isPhone}
                 >
                     {userAchievements.length === 0 ? (
-                        <BoardLabel tone={DECK.inkDim}>No achievements unlocked yet</BoardLabel>
+                        <BoardLabel tone={DECK.inkMid}>No achievements unlocked yet</BoardLabel>
                     ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '8px' }}>
                             {userAchievements.filter(a => a.id).map(a => {
@@ -1729,7 +1731,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                     >
                                         <AchievementIcon name={a.icon} size={16} color="currentColor" />
                                         <span style={{ minWidth: 0, flex: 1 }}>
-                                            <BoardLabel size={11} tone="currentColor">{a.name}</BoardLabel>
+                                            <BoardLabel size={12} tone="currentColor">{a.name}</BoardLabel>
                                         </span>
                                         {picked && <Check size={13} color={DECK.amber} />}
                                     </Plinth>
@@ -1815,7 +1817,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                     </div>
 
                     {userCollection.length === 0 ? (
-                        <BoardLabel tone={DECK.inkDim}>No special items collected yet</BoardLabel>
+                        <BoardLabel tone={DECK.inkMid}>No special items collected yet</BoardLabel>
                     ) : (
                         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                             {userCollection.map(item => {
@@ -1862,7 +1864,7 @@ export function UserProfile({ userId, onClose, isOwnProfile, onEditUsername }) {
                                                     padding: '0 3px', background: 'rgba(0,0,0,0.72)',
                                                 }}
                                             >
-                                                <BoardLabel size={10} tone={DECK.inkMid}>×{owned}</BoardLabel>
+                                                <BoardLabel size={12} tone={DECK.inkMid}>×{owned}</BoardLabel>
                                             </span>
                                         )}
                                         {/* How many are IN the showcase, top
@@ -2003,10 +2005,10 @@ function PanelAction({ onClick, label, children }) {
             aria-label={label}
             style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
-                padding: '0 9px', height: '24px', color: DECK.inkDim,
+                padding: '0 9px', height: '28px', color: DECK.inkMid,
             }}
         >
-            <BoardLabel size={10} tone="currentColor" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <BoardLabel size={12} tone="currentColor" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 {children}
             </BoardLabel>
         </Plinth>
@@ -2043,7 +2045,7 @@ function RecordFigure({ label, value, note, tone, onInfo, first }) {
             </div>
             <div style={{ marginTop: '7px', display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
                 <BoardLabel>{label}</BoardLabel>
-                {note && <BoardLabel tone={DECK.inkDim}>{note}</BoardLabel>}
+                {note && <BoardLabel tone={DECK.inkMid}>{note}</BoardLabel>}
             </div>
         </div>
     );
@@ -2181,7 +2183,7 @@ function EditorSheet({ title, hint, onCancel, onSave, isPhone, children }) {
                 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', minWidth: 0 }}>
                         <FlapText text={title} size={18} tone={DECK.ink} weight={800} />
-                        <BoardLabel tone={DECK.inkDim}>{hint}</BoardLabel>
+                        <BoardLabel tone={DECK.inkMid}>{hint}</BoardLabel>
                     </div>
                     <Plinth
                         as="button"
@@ -2308,7 +2310,7 @@ function CompletionBanner({ rarity, total }) {
                     {RARITY[rarity].label} Collection Complete!
                 </div>
                 <div style={{ marginTop: '3px' }}>
-                    <BoardLabel tone={DECK.inkDim}>
+                    <BoardLabel tone={DECK.inkMid}>
                         All {total} {RARITY[rarity].label.toLowerCase()} items collected
                     </BoardLabel>
                 </div>
