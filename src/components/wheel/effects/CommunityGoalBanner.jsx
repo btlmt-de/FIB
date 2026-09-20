@@ -893,10 +893,13 @@ function CommunityGoalBanner({ isMobile = false, isAdmin = false, inline = false
                                 is.
 
                                 "Special item", not "rare", throughout this banner: rare is one
-                                rung of the ladder, and the gate counts five. The server agrees
+                                rung of the ladder, and the gate counts six. The server agrees
                                 — `isSpecialPull` in services/rarities.js is
-                                ['insane','mythic','legendary','exotic','rare'] — so the copy
-                                now says what `specialDrops` has always counted. */}
+                                ['insane','mythic','legendary','relic','exotic','rare'] — so the
+                                copy now says what `specialDrops` has always counted. Six since
+                                relic landed, which is exactly why this says "special item" and
+                                not a tier name: the wording did not have to change when the
+                                ladder grew. */}
                             {tiers.map(tier => {
                                 const met = tierMet(tier);
                                 const needsSpecials = (tier.specials || 0) > 0;

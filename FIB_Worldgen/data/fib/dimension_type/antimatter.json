@@ -25,7 +25,7 @@
     "minecraft:gameplay/bed_rule": {
       "can_set_spawn": "always",
       "can_sleep": "always",
-      "explodes": false
+      "destroy_on_use": false
     },
     "minecraft:gameplay/can_start_raid": false,
     "minecraft:gameplay/piglins_zombify": false,

@@ -17,10 +17,11 @@
           "type": "minecraft:item",
           "name": "minecraft:gold_ingot",
           "weight": 6,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -31,10 +32,11 @@
           "type": "minecraft:item",
           "name": "minecraft:wheat",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -45,10 +47,11 @@
           "type": "minecraft:item",
           "name": "minecraft:bone_meal",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 2
               }
@@ -59,10 +62,11 @@
           "type": "minecraft:item",
           "name": "minecraft:brick",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 2,
                 "max": 4
               }
@@ -73,10 +77,11 @@
           "type": "minecraft:item",
           "name": "minecraft:glow_berries",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -87,10 +92,11 @@
           "type": "minecraft:item",
           "name": "minecraft:clay_ball",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               }
@@ -101,9 +107,9 @@
           "type": "minecraft:item",
           "name": "minecraft:wild_armor_trim_smithing_template",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "[LEGENDARY]",
                 "color": "#ffd700",
@@ -119,7 +125,7 @@
               }
             },
             {
-              "function": "minecraft:set_custom_data",
+              "type": "minecraft:set_custom_data",
               "tag": {
                 "PublicBukkitValues": {
                   "fib:fib_item": "legendary_template"
@@ -132,9 +138,9 @@
           "type": "minecraft:item",
           "name": "minecraft:dune_armor_trim_smithing_template",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "[LEGENDARY]",
                 "color": "#ffd700",
@@ -153,7 +159,7 @@
               }
             },
             {
-              "function": "minecraft:set_custom_data",
+              "type": "minecraft:set_custom_data",
               "tag": {
                 "PublicBukkitValues": {
                   "fib:fib_item": "legendary_template"
@@ -166,9 +172,9 @@
           "type": "minecraft:item",
           "name": "minecraft:sentry_armor_trim_smithing_template",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "[LEGENDARY]",
                 "color": "#ffd700",
@@ -184,7 +190,7 @@
               }
             },
             {
-              "function": "minecraft:set_custom_data",
+              "type": "minecraft:set_custom_data",
               "tag": {
                 "PublicBukkitValues": {
                   "fib:fib_item": "legendary_template"
@@ -197,9 +203,9 @@
           "type": "minecraft:item",
           "name": "minecraft:netherite_upgrade_smithing_template",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "[LEGENDARY]",
                 "color": "#ffd700",
@@ -215,7 +221,7 @@
               }
             },
             {
-              "function": "minecraft:set_custom_data",
+              "type": "minecraft:set_custom_data",
               "tag": {
                 "PublicBukkitValues": {
                   "fib:fib_item": "legendary_template"
@@ -228,9 +234,9 @@
           "type": "minecraft:item",
           "name": "minecraft:snout_armor_trim_smithing_template",
           "weight": 1,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "[LEGENDARY]",
                 "color": "#ffd700",
@@ -246,7 +252,7 @@
               }
             },
             {
-              "function": "minecraft:set_custom_data",
+              "type": "minecraft:set_custom_data",
               "tag": {
                 "PublicBukkitValues": {
                   "fib:fib_item": "legendary_template"
@@ -259,9 +265,9 @@
           "type": "minecraft:item",
           "name": "minecraft:slime_ball",
           "weight": 9,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 1,
               "add": false
             }
@@ -271,9 +277,9 @@
           "type": "minecraft:item",
           "name": "minecraft:egg",
           "weight": 20,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 1
             }
           ]
@@ -282,10 +288,11 @@
           "type": "minecraft:item",
           "name": "minecraft:copper_ingot",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": {
+                "type": "minecraft:uniform",
                 "min": 1,
                 "max": 3
               },
@@ -297,13 +304,13 @@
           "type": "minecraft:item",
           "name": "minecraft:leather_boots",
           "weight": 21,
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:enchant_with_levels",
+              "type": "minecraft:enchant_with_levels",
               "levels": 30
             },
             {
-              "function": "minecraft:set_count",
+              "type": "minecraft:set_count",
               "count": 1,
               "add": false
             }

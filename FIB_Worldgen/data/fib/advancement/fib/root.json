@@ -14,9 +14,13 @@
   },
   "criteria": {
     "crafted_antimatter_locator": {
-      "trigger": "minecraft:recipe_crafted",
+      "trigger": "minecraft:inventory_changed",
       "conditions": {
-        "recipe_id": "fib:antimatter_locator"
+        "items": [
+          {
+            "items": "minecraft:knowledge_book"
+          }
+        ]
       }
     }
   },

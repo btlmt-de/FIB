@@ -7,9 +7,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:torchflower",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_custom_model_data",
+              "type": "minecraft:set_custom_model_data",
               "strings": {
                 "values": [
                   "old_book"
@@ -18,7 +18,7 @@
               }
             },
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Weathered Captain's Journal",
                 "color": "#008000"
@@ -26,7 +26,7 @@
               "target": "item_name"
             },
             {
-              "function": "minecraft:set_lore",
+              "type": "minecraft:set_lore",
               "mode": "replace_all",
               "lore": [
                 {
@@ -42,7 +42,7 @@
               ]
             },
             {
-              "function": "minecraft:set_custom_data",
+              "type": "minecraft:set_custom_data",
               "tag": "{PublicBukkitValues:{\"fib:journal\":1b}}"
             }
           ]

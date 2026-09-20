@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Zap, Crown, Star, Gem, Diamond, AlertTriangle } from 'lucide-react';
+import { Sparkles, Zap, Crown, Star, Gem, Diamond, Map, AlertTriangle } from 'lucide-react';
 import { COLORS } from '../config/constants';
 import { WHEEL_TEXTURE_URL } from '../../../config/constants.js';
 import { RARITY, RARITY_KEYS, getRarityInk } from '../../../utils/rarityHelpers.jsx';
@@ -11,6 +11,7 @@ const RARITY_ICON = {
     insane: Crown,
     mythic: Sparkles,
     legendary: Star,
+    relic: Map,
     exotic: Gem,
     rare: Diamond,
 };

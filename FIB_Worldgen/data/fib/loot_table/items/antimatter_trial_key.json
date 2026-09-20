@@ -7,9 +7,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:ominous_trial_key",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_custom_model_data",
+              "type": "minecraft:set_custom_model_data",
               "strings": {
                 "values": [
                   "antimatter_trial_key"
@@ -18,7 +18,7 @@
               }
             },
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "Antimatter Trial Key",
                 "color": "#C060FF"

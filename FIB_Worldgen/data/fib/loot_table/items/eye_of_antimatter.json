@@ -7,9 +7,9 @@
         {
           "type": "minecraft:item",
           "name": "minecraft:torchflower_seeds",
-          "functions": [
+          "modifier": [
             {
-              "function": "minecraft:set_custom_model_data",
+              "type": "minecraft:set_custom_model_data",
               "strings": {
                 "values": [
                   "eye_of_antimatter"
@@ -18,7 +18,7 @@
               }
             },
             {
-              "function": "minecraft:set_name",
+              "type": "minecraft:set_name",
               "name": {
                 "text": "» ",
                 "color": "dark_gray",

@@ -79,6 +79,16 @@ export const IMAGE_BASE_URL     = '/fib-items';
 export const CUSTOM_IMAGE_BASE_URL = '/fib-custom';
 
 /**
+ * The relic tier's artwork — isometric renders of the server's structures.
+ *
+ * A directory of its own rather than a corner of /fib-custom, because these are
+ * not pack textures at all: they are 256px square renders, trimmed of their
+ * transparent margin and padded back to a square so every tile in the tier shares
+ * one aspect ratio. Nothing vendors them; they are committed as-is.
+ */
+export const RELIC_IMAGE_BASE_URL = '/fib-relics';
+
+/**
  * The upstream pack. Kept for tooling and for anything that genuinely wants the
  * canonical remote URL. Not a runtime fallback for the pool — see above.
  */
@@ -145,13 +155,45 @@ export const STRIP_LENGTH       = FINAL_INDEX + 1 + TAIL_LENGTH;
 
 // ── Special items (unchanged) ─────────────────────────────────────────────────
 
+/*
+ * The legendary tier, mirroring SEED_SPECIAL_ITEMS in the wheel-backend.
+ *
+ * Offline fallback and strip filler only — the live roster and the real odds come
+ * from /api/items, exactly as for EXOTIC_ITEMS and RELIC_ITEMS below.
+ *
+ * These chances went stale once already: they still read 0.0003 / 0.0004 / 0.0005
+ * after the backend compressed the tier for the relic band, so the fallback quoted
+ * odds nearly twice the real ones. When seed.js moves a legendary weight, move it
+ * here in the same commit.
+ *
+ * Wandering Trader is back in this list, and never left it in a shipped release.
+ * It spent part of the relic branch in MYTHIC_ITEMS — promoted on its weight alone,
+ * because at 0.005% it was rarer than anything here — and came back before any of
+ * that went live, at 1,500 rather than the 500 it left with, second-rarest in the
+ * tier. The Special Trader holds the mythic slot instead. The full argument is in
+ * seed.js, next to the row; players see one change, not two, because the relic
+ * release has not gone out yet and the changelog says so in a single entry.
+ *
+ * Its texture still says `legendary_`, which is an id and not a label, and which
+ * happens to read true again.
+ *
+ * ENTRIES CARRY AN EXPLICIT `texture` WHERE THEY HAVE ONE, and both consumers of
+ * this list must prefer it. CollectionBook and AdminPanel both build a texture as
+ * `special_${username}`, which is right for the four heads and silently wrong for
+ * the two item-shaped members: ChromaRGBDirt and the Wandering Trader have no
+ * username, so that template produced the string `special_null` — the same string
+ * for both of them. It was a latent collision with one such member; adding a
+ * second is what surfaced it.
+ */
 export const TEAM_MEMBERS = [
     { name: 'apppaa',          username: 'apppaa',          chance: 0.0001,   rarity: 'legendary' },
-    { name: 'threeseconds',    username: 'threeseconds',    chance: 0.0003,   rarity: 'legendary' },
-    { name: 'CH0RD',           username: 'CH0RD',           chance: 0.0004,   rarity: 'legendary' },
-    { name: 'stupxd',          username: 'stupxd',          chance: 0.0005,   rarity: 'legendary' },
-    { name: 'Wandering Trader',username: null,               chance: 0.00005,  rarity: 'legendary', imageUrl: '/wandering_trader.png' },
-    { name: 'ChromaRGBDirt',   username: null,               chance: 0.0002,   rarity: 'legendary', imageUrl: '/chromargbdirt.gif' },
+    { name: 'threeseconds',    username: 'threeseconds',    chance: 0.00022,  rarity: 'legendary' },
+    { name: 'CH0RD',           username: 'CH0RD',           chance: 0.00024,  rarity: 'legendary' },
+    { name: 'stupxd',          username: 'stupxd',          chance: 0.00025,  rarity: 'legendary' },
+    { name: 'ChromaRGBDirt',   username: null,              chance: 0.00019,  rarity: 'legendary',
+        texture: 'legendary_chromargbdirt', imageUrl: '/chromargbdirt.gif' },
+    { name: 'Wandering Trader', username: null,             chance: 0.00015,  rarity: 'legendary',
+        texture: 'legendary_wandering_trader', imageUrl: '/wandering_trader.png' },
 ];
 
 /**
@@ -207,17 +249,54 @@ export const EXOTIC_ITEMS = [
         imageUrl: `${CUSTOM_IMAGE_BASE_URL}/kiln_fired_brush.png` },
 ];
 
+/**
+ * The relic tier — the server's structures.
+ *
+ * Every other tier on the wheel is a person (rare, legendary, mythic) or an object
+ * (exotic, insane). These are PLACES, which is the identity of the tier and the
+ * reason the artwork is a render rather than a sprite.
+ *
+ * Same contract as EXOTIC_ITEMS above: this mirrors SEED_SPECIAL_ITEMS in the
+ * wheel-backend and is used only for the strip's visual filler and the offline
+ * collection-book fallback. The live roster and the real odds come from
+ * `/api/items`. Textures must match the backend's exactly, or the collection book
+ * files a pull under a texture it has no entry for.
+ *
+ * Ordered rarest first, which is also weight order: 0.026% up to 0.038%, totalling
+ * 0.2% — one relic in 500 spins. The band was 0.035–0.050% for one iteration and was
+ * narrowed because 1 in 392 sat too close to exotic's 1 in 227 to read as its own
+ * tier; the legendary heads below it then came down so the six could keep a spread
+ * anyone can feel. The full reasoning is in the wheel-backend's seed.js.
+ */
+export const RELIC_ITEMS = [
+    { name: 'Trial Chambers', texture: 'relic_trial_chambers', chance: 0.00026, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/trial_chambers.png` },
+    { name: 'End Ship', texture: 'relic_end_ship', chance: 0.00028, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/end_ship.png` },
+    { name: 'Antimatter Depths', texture: 'relic_antimatter_depths', chance: 0.0003, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/antimatter_depths.png` },
+    { name: 'Antimatter Portal', texture: 'relic_antimatter_portal', chance: 0.00033, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/antimatter_portal.png` },
+    { name: 'Antimatter Teleporter', texture: 'relic_antimatter_teleporter', chance: 0.00036, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/antimatter_teleporter.png` },
+    { name: 'Cleric', texture: 'relic_cleric', chance: 0.00037, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/cleric.png` },
+    { name: 'Abandoned Camp', texture: 'relic_abandoned_camp', chance: 0.00038, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/abandoned_camp.png` },
+];
+
 export const RARE_MEMBERS = [
     { name: 'shabana02',    username: 'shabana02',    chance: 0.0007,  rarity: 'rare' },
     { name: 'McPlayHD',     username: 'McPlayHD',     chance: 0.00067, rarity: 'rare' },
     { name: 'Owen1212055',  username: 'Owen1212055',  chance: 0.0006,  rarity: 'rare' },
     { name: '170yt',        username: '170yt',        chance: 0.00069, rarity: 'rare' },
-    { name: 'BastiGHG',     username: 'BastiGHG',     chance: 0.0006,  rarity: 'rare' },
+    { name: 'BastiGHG',     username: 'BastiGHG',     chance: 0.00061, rarity: 'rare' },
     { name: 'LennraZ',      username: 'LennraZ',      chance: 0.00072, rarity: 'rare' },
-    { name: 'NubPanda',     username: 'NubPanda',     chance: 0.0007,  rarity: 'rare' },
+    { name: 'NubPanda',     username: 'NubPanda',     chance: 0.00071, rarity: 'rare' },
     { name: 'Johnlongears', username: 'Johnlongears', chance: 0.00068, rarity: 'rare' },
     { name: 'steez',        username: 'steez',        chance: 0.00062, rarity: 'rare' },
     { name: 'lacios',       username: 'lacios',       chance: 0.00065, rarity: 'rare' },
+    { name: 'rzem',         username: 'rzem',         chance: 0.00064, rarity: 'rare' },
 ];
 
 export const INSANE_ITEMS = [
@@ -231,6 +310,14 @@ export const MYTHIC_ITEMS = [
     { name: 'eltobito',     texture: 'mythic_eltobito',     chance: 0.00003, type: 'mythic', username: 'eltobito' },
     { name: 'Gros Michel',  texture: 'mythic_gros_michel',  chance: 0.00004, type: 'mythic',
         imageUrl: `${CUSTOM_IMAGE_BASE_URL}/gros_michel.png` },
+    // Holds the slot, and the exact 0.005%, that the Wandering Trader vacated when
+    // it went back to legendary — so this tier's rate did not move across the swap.
+    // The two traders are one entity in the plugin (TraderKind.WANDERING /
+    // TraderKind.SPECIAL), which is why the head is the same render with its cloth
+    // recoloured to the <light_purple> the plugin already gives this one. See
+    // scripts/repixel-special-trader.py.
+    { name: 'Special Trader', texture: 'mythic_special_trader', chance: 0.00005, type: 'mythic',
+        imageUrl: '/special_trader.png' },
 ];
 export const MYTHIC_ITEM = MYTHIC_ITEMS[0];
 

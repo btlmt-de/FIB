@@ -72,7 +72,6 @@ const ROULETTE_TEARDOWN_MS = 14200;
 export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
     const [rareFeed, setRareFeed] = useState([]); // All-time mythic/insane, for the board
-    const [serverTime, setServerTime] = useState(null);
     const [lastId, setLastId] = useState(null);
     const [newItems, setNewItems] = useState([]);
     const [initialized, setInitialized] = useState(false);
@@ -353,7 +352,6 @@ export function ActivityProvider({ children }) {
 
             if (allData.feed) {
                 if (allData.serverTime) {
-                    setServerTime(new Date(allData.serverTime).getTime());
                     // The authoritative clock sample: it is the only one whose
                     // travel time is known, so it is the only one that can be
                     // corrected for it. Runs on mount, on reconnect and whenever
@@ -387,6 +385,45 @@ export function ActivityProvider({ children }) {
                     }
                 }
 
+                /*
+                 * Hold back anything still inside its reveal window, the same way
+                 * the SSE path does.
+                 *
+                 * The SSE handler already delays a live drop so the ticker cannot
+                 * print your item while your own reel is still turning, and its
+                 * note there spotted half of this hole: it moves `lastId`
+                 * immediately so "anything after this?" cannot re-fetch the very
+                 * drop being delayed. That guard only covers `newItems`. This
+                 * function replaces the WHOLE feed from the server's list, which
+                 * is not gated on `lastId` at all, so a fetch landing inside the
+                 * window put the held item straight back on screen early.
+                 *
+                 * Not just theoretical on the polling path either: fetchActivity
+                 * runs on mount, on SSE reconnect and on tab refocus, and a
+                 * reconnect inside the 4.2s window is an ordinary thing for a
+                 * phone to do mid-spin.
+                 *
+                 * Held items are the youngest by definition, so they fire oldest
+                 * first and plain prepending keeps the feed newest-first without
+                 * a re-sort. The id guard is the SSE path's, for the case where
+                 * its timer and this one are holding the same drop.
+                 */
+                const revealNow = [];
+                const revealLater = [];
+                for (const item of mergedFeed) {
+                    (spinRevealDelay(item.created_at) > 0 ? revealLater : revealNow).push(item);
+                }
+                for (const item of revealLater) {
+                    const revealTimeout = setTimeout(() => {
+                        setFeed(prev => (prev.some(f => f.id === item.id)
+                            ? prev
+                            : [item, ...prev].slice(0, 150)));
+                        feedRevealTimeoutsRef.current =
+                            feedRevealTimeoutsRef.current.filter(id => id !== revealTimeout);
+                    }, spinRevealDelay(item.created_at));
+                    feedRevealTimeoutsRef.current.push(revealTimeout);
+                }
+
                 const newestId = mergedFeed[0]?.id;
                 const currentLastId = lastIdRef.current;
                 const isInit = initializedRef.current;
@@ -394,14 +431,14 @@ export function ActivityProvider({ children }) {
                 if (!isInit) {
                     setLastId(newestId);
                     setInitialized(true);
-                    setFeed(mergedFeed);
+                    setFeed(revealNow);
                 } else if (currentLastId !== null && newestId && newestId > currentLastId) {
                     const newlyDetected = mergedFeed.filter(item => item.id > currentLastId);
                     setNewItems(newlyDetected);
                     setLastId(newestId);
-                    setFeed(mergedFeed);
+                    setFeed(revealNow);
                 } else {
-                    setFeed(mergedFeed);
+                    setFeed(revealNow);
                     setNewItems([]);
                 }
             }
@@ -531,7 +568,7 @@ export function ActivityProvider({ children }) {
                                         ...prev,
                                         active,
                                         pending,
-                                        type: data.eventType || (data.boostedRarity ? 'gold_rush' : prev.type),
+                                        type: data.eventType || prev.type,
                                         data: data.boostedRarity
                                             ? { boostedRarity: data.boostedRarity, multiplier: data.multiplier }
                                             : data.eventType === 'community_goal'
@@ -895,18 +932,30 @@ export function ActivityProvider({ children }) {
 
                             case 'activity':
                                 if (data.item && data.item.id) {
-                                    // Update serverTime from SSE message if provided and valid
-                                    // This prevents stale timestamps that cause delayed celebrations
-                                    if (data.serverTime) {
-                                        const parsedTime = new Date(data.serverTime).getTime();
-                                        if (Number.isFinite(parsedTime)) {
-                                            setServerTime(parsedTime);
-                                        } else {
-                                            console.warn('[ActivityContext] Invalid serverTime from SSE:', data.serverTime);
-                                            setServerTime(null);
-                                        }
-                                    }
-                                    // If no serverTime provided, leave it unchanged (don't default to Date.now())
+                                    /*
+                                     * There is deliberately no clock handling here any more.
+                                     *
+                                     * This block used to read `data.serverTime` and push it
+                                     * into a `serverTime` state, under a comment saying it
+                                     * "prevents stale timestamps that cause delayed
+                                     * celebrations". It never once ran: `broadcastToAll`
+                                     * stamps the envelope `timestamp`, not `serverTime`
+                                     * (wheel-backend routes/api.js), so the guard was always
+                                     * false and that state stayed frozen at whatever the last
+                                     * `fetchActivity` had put in it — page load, tab refocus
+                                     * or SSE reconnect, and nothing else.
+                                     *
+                                     * Which made it the exact stale clock it was written to
+                                     * avoid, with a reload as the only cure. The celebration
+                                     * read it to decide when to fire and so ran on a clock
+                                     * that stopped minutes ago.
+                                     *
+                                     * The frame's real stamp is already taken above the
+                                     * switch, by `noteServerTime(data.timestamp)`, and every
+                                     * surface now reads it back through `serverNow()` rather
+                                     * than through a React snapshot of it. One clock, always
+                                     * current, no state to go stale.
+                                     */
 
                                     // Prepend to feed — but not before the reel that
                                     // produced this drop has finished turning.
@@ -1201,7 +1250,10 @@ export function ActivityProvider({ children }) {
     const value = {
         feed,
         rareFeed,
-        serverTime,
+        // `serverTime` is deliberately absent. It was a React snapshot of the
+        // server's clock that only three components read, and all three read it
+        // wrong — see the note in the 'activity' handler. The clock lives in
+        // utils/serverClock.js now; ask it with `serverNow()`.
         newItems,
         clearNewItems,
         initialized,

@@ -1,8 +1,8 @@
-[
-  {
-    "function": "minecraft:set_components",
-    "components": {
-      "minecraft:custom_data": { "fib_loot": "claimed" }
+{
+  "type": "minecraft:set_components",
+  "components": {
+    "minecraft:custom_data": {
+      "fib_loot": "claimed"
     }
   }
-]
+}

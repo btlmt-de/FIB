@@ -203,6 +203,7 @@ function tierRim(ctx, type, x, size, time) {
             const flat = getRarityColor('legendary');
             return { stroke: flat, bloom: flat, drift: 0.17, blur: 15 };
         }
+        case 'relic':
         case 'exotic':
         case 'rare':
         case 'event': {
@@ -246,6 +247,18 @@ function drawTierGlyph(ctx, type, cx, cy, r) {
                 const py = cy + Math.sin(a) * rad;
                 if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
             }
+            ctx.closePath();
+            break;
+        }
+        case 'relic': { // a folded map: two creases and a torn lower edge
+            ctx.moveTo(cx - r, cy - r * 0.62);
+            ctx.lineTo(cx - r * 0.33, cy - r * 0.9);
+            ctx.lineTo(cx + r * 0.33, cy - r * 0.62);
+            ctx.lineTo(cx + r, cy - r * 0.9);
+            ctx.lineTo(cx + r, cy + r * 0.62);
+            ctx.lineTo(cx + r * 0.33, cy + r * 0.9);
+            ctx.lineTo(cx - r * 0.33, cy + r * 0.62);
+            ctx.lineTo(cx - r, cy + r * 0.9);
             ctx.closePath();
             break;
         }
@@ -403,14 +416,14 @@ function drawItem(ctx, item, x, y, size, isCollected, count, images, time, isHov
 
     // ── 6. The count ─────────────────────────────────────────────────────────
     if (count > 1) {
-        ctx.font = "700 11px 'Barlow Condensed', system-ui, sans-serif";
+        ctx.font = "700 13px 'Barlow Condensed', system-ui, sans-serif";
         ctx.textAlign = 'right';
         ctx.textBaseline = 'alphabetic';
         ctx.shadowColor = 'rgba(0,0,0,0.9)';
         ctx.shadowBlur = 3;
         ctx.fillStyle = isSpecial
             ? rgbaOf(hexToRgb(getRarityInk(type)), 0.98)
-            : 'rgba(206,214,236,0.48)';
+            : 'rgba(206,214,236,0.86)';
         ctx.fillText(`${count}`, x + size - 5, y + size - 5);
         ctx.shadowBlur = 0;
     }
@@ -761,14 +774,18 @@ export function CanvasCollectionGrid({
      * waking when the lift moves to a different cell, and never when the pointer
      * merely travelled a few pixels inside the one it was already on.
      */
-    const announce = useCallback((idx) => {
-        if (idx === hoveredIndexRef.current) return;
+    const announce = useCallback((idx, force = false) => {
+        if (idx === hoveredIndexRef.current && !force) return;
         hoveredIndexRef.current = idx;
         requestDraw();
         if (!onItemFocus) return;
         const item = idx >= 0 ? itemsRef.current[idx] : null;
+        const rect = scrollerRef.current?.getBoundingClientRect();
+        const { cols, cellSize } = layoutRef.current;
+        const left = rect ? Math.min(rect.left + GRID_PADDING + (idx % cols) * cellSize, window.innerWidth - 284) : 16;
+        const top = rect ? Math.max(8, rect.top + GRID_PADDING + Math.floor(idx / cols) * cellSize - scrollTopRef.current - 88) : 16;
         onItemFocus(item
-            ? { name: item.name, type: item.type || 'common', held: collectionRef.current[item.texture] || 0 }
+            ? { name: item.name, type: item.type || 'common', held: collectionRef.current[item.texture] || 0, left: Math.max(8, left), top }
             : null);
     }, [onItemFocus, requestDraw]);
 
@@ -804,7 +821,7 @@ export function CanvasCollectionGrid({
         // a frame ago is now a different item. Skip if keyboard owns the platform.
         const pt = pointerRef.current;
         if (pt && focusedIndexRef.current < 0) {
-            announce(getItemIndexAtPoint(pt.x, pt.y, e.target.getBoundingClientRect()));
+            announce(getItemIndexAtPoint(pt.x, pt.y, e.target.getBoundingClientRect()), true);
         }
     }, [announce, getItemIndexAtPoint, requestDraw]);
 

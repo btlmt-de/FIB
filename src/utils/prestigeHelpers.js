@@ -17,7 +17,7 @@
 import { RARITY, getRarityColor, getRarityInk, getRarityIcon, isIridescentRarity } from './rarityHelpers.jsx';
 
 /** Level 1 is the first index. Mirrors PRESTIGE_LEVELS in the wheel backend. */
-export const PRESTIGE_LEVELS = ['rare', 'exotic', 'legendary', 'mythic', 'insane'];
+export const PRESTIGE_LEVELS = ['rare', 'exotic', 'relic', 'legendary', 'mythic', 'insane'];
 export const MAX_PRESTIGE_LEVEL = PRESTIGE_LEVELS.length;
 
 /** The rarity key for a level, or null for 0 / out of range. */

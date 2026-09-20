@@ -150,7 +150,6 @@ export function SpinLanes({
     isResult = false,
     isMobile = false,
     accentColor = COLORS.gold,
-    goldRushBoostedRarity = null,
 }) {
     const laneIndices = [...Array(laneCount).keys()];
     const height = LANE_HEIGHT(isMobile);
@@ -203,7 +202,6 @@ export function SpinLanes({
                             accentColor={accentColor}
                             itemWidthOverride={pitch}
                             isLuckySpin={isTripleLucky}
-                            goldRushBoostedRarity={isTripleLucky ? null : goldRushBoostedRarity}
                         />
                     </div>
                     {laneIdx < laneCount - 1 && <TrackSeam isMobile={isMobile} />}
