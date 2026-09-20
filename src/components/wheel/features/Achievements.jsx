@@ -1,74 +1,11 @@
-/*
- * ═══════════════════════════════════════════════════════════════════════════
- * THE CONCOURSE — the achievements board
- * ═══════════════════════════════════════════════════════════════════════════
- *
- * The fourth surface on the board, after the collection (DESIGN.md §9), the
- * leaderboard and the player record. §9's scope note lists achievements as one
- * of the parts of `/wheel` still uncovered; this is that part, and it needed no
- * new direction — a board of things you have and things you are chasing is the
- * departure board with the sort turned round one more time.
- *
- * What it replaces: a 16px-radius modal with a gradient header, a rounded
- * progress pill, a row of pill-shaped filter chips and a grid of 12px-radius
- * bordered cards, each tinted in a per-category hue. Every one of those is a
- * thing THE NOCTURNE's contract bans outright, and the surface had drifted far
- * enough that opening it from the collection board read as leaving the site.
- *
- * ── THE CASE AND THE CHASE, IN ONE GRID ──────────────────────────────────────
- *
- * DESIGN.md §7 splits these into two — a shelf of what you hold, a progress list
- * of what you are near — and §9 borrows the same split for the collection's
- * register and platform. Here they are one field of cells under one lens,
- * because unlike the collection there is no second object to show: an
- * achievement has no sprite, so "the case" would be the same cell with its lamp
- * lit. The split is carried by the ORDER instead — the chase comes first,
- * closest to done at the top, and the case sits behind it — and by the lens,
- * which can show either alone. What you can still act on is what you see first.
- *
- * **The cells are not a concession, and the ruled list they replaced was a real
- * mistake.** The first build of this board made the platform a register: one
- * ruled row per achievement, in the collection board's own grammar. The owner
- * rejected it on the one job this panel has — you could not see at a glance
- * which ones you hold or how close the rest were. A register is read DOWN a
- * column, one figure at a time, which is right for seven tiers and wrong for
- * forty-nine peers: "which of these do I have" is answered by pattern across a
- * field, not by scanning a column. The material was right and the form was
- * borrowed. **Reusing a board's material is not the same as reusing its
- * structure, and the structure belongs to the question.**
- *
- * Achievements a career stat cannot measure carry no figure and sort last, which
- * is §7's rule verbatim and for its reason: a made-up percentage is worse than
- * an honest blank.
- *
- * ── WHY THE CATEGORY COLOURS ARE GONE ────────────────────────────────────────
- *
- * The old board gave each of the six categories a hue: gold, purple, red, aqua,
- * green, orange. Four of those are rarity on every other surface of this site,
- * and one of them was gold — which is also a placing metal on the leaderboard
- * next door. So a "special" achievement was drawn in the aqua that means mythic,
- * and an "events" one in the gold that means legendary AND first place, on a
- * board where neither rarity nor rank exists at all.
- *
- * Colour on THE CONCOURSE means one of two things and nothing else: a tier hue
- * where the subject is a tier, and station amber where the board is telling you
- * something. A category is neither, so a category is a WORD here — its own
- * register row, and a column on every achievement. The inverse of §9's "the mark
- * is the colour, not a word": that register is read down a column of figures,
- * this one is read along rows of prose, and the two want opposite marks.
- *
- * Amber is the one signal: it washes a held cell, lights the foot of its mark
- * and fills its meter. That is unambiguous on this board because there is no
- * podium on it — the metals stay on the leaderboard, where they are named for
- * what they mean.
- */
-
+/* Compact badge cabinet with category colours, explicit earned states, and readable progress. */
 import React, { useState, useEffect, useMemo } from 'react';
 import { API_BASE_URL } from '../../../config/constants.js';
 import { DECK, rail } from '../config/constants';
 import { X, Trophy, Search, HelpCircle, Check, Lock } from 'lucide-react';
 import { AchievementIcon } from '../../../utils/achievementIcons.jsx';
-import { FlapText, BoardLabel, RowLamp, BoardMeter, Plinth, Segmented } from './collection/FlapBoard.jsx';
+import { FlapText, BoardLabel, BoardMeter, Plinth, Segmented } from './collection/FlapBoard.jsx';
+import './Achievements.css';
 import { useWheelViewport } from '../config/breakpoints.js';
 
 function fmt(n) {
@@ -109,6 +46,9 @@ const CATEGORY_LABEL = {
     events: 'Events',
     special: 'Milestones',
 };
+
+const CATEGORY_COLOR = { beginner: '#9EB4CC', spins: '#84BAFF', collection: '#65D9BC', duplicates: '#C5A0FF', events: '#FFA876', special: '#EFD277' };
+const categoryColor = key => CATEGORY_COLOR[key] || DECK.inkMid;
 
 const categoryLabel = key => CATEGORY_LABEL[key] || key;
 
@@ -315,16 +255,6 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
         });
     }, [rows, categoryFilter, lens, search, unlockedAt]);
 
-    /* The register's headings and its rows share one template, so the two must
-       resolve identically — §9's "a shared template only lines up when every
-       track resolves the same" is why every track here is a fixed length or a
-       single minmax(0, 1fr). The cells below have no shared template at all:
-       they are one auto-fill grid, which is the other half of why a field
-       scans where a register does not. */
-    const registerTemplate = isPhone
-        ? '10px minmax(0, 1fr) 54px 78px'
-        : '10px minmax(0, 1fr) 72px 82px 120px 96px';
-
     const boardTitle = isOwnProfile ? 'Achievements' : `${username || 'Player'}`;
 
     return (
@@ -332,6 +262,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
             onClick={e => { if (e.target === e.currentTarget) onClose(); }}
             role="dialog"
             aria-modal="true"
+            className="fib-achievements"
             aria-label={isOwnProfile ? 'Your achievements' : `${username}'s achievements`}
             style={{
                 position: 'fixed', inset: 0,
@@ -438,9 +369,10 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                                 <div
                                     key={f.label}
                                     style={{
-                                        padding: isPhone ? '0 12px' : '0 26px',
+                                        paddingTop: 0, paddingBottom: 0,
+                                        paddingLeft: i === 0 ? 0 : isPhone ? '12px' : '26px',
+                                        paddingRight: isPhone ? '12px' : '26px',
                                         boxShadow: i > 0 ? `inset 1px 0 0 ${rail(0.07)}` : undefined,
-                                        ...(i === 0 ? { paddingLeft: 0 } : null),
                                     }}
                                 >
                                     <FlapText
@@ -469,91 +401,23 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                         />
                     </div>
 
-                    {/* ── THE REGISTER ────────────────────────────────────── */}
-                    <div style={{ flex: '0 0 auto', padding: isPhone ? '0 16px' : '0 26px' }}>
-                        <div style={{
-                            display: 'grid', gridTemplateColumns: registerTemplate,
-                            alignItems: 'center', gap: '0 12px',
-                            padding: isPhone ? '20px 0 6px' : '24px 0 8px',
-                        }}>
-                            <span />
-                            <BoardLabel>Kind</BoardLabel>
-                            <BoardLabel style={{ textAlign: 'right' }}>Held</BoardLabel>
-                            <BoardLabel style={{ textAlign: 'right' }}>Missing</BoardLabel>
-                            {!isPhone && <span />}
-                            {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Status</BoardLabel>}
-                        </div>
 
-                        <div role="group" aria-label="Filter the list by kind">
-                            {register.map((row, i) => {
-                                const active = categoryFilter === row.key;
-                                const statusWord = {
-                                    complete: 'Complete', none: 'None yet', tracking: 'Chasing', empty: '—',
-                                }[row.status];
-
-                                return (
-                                    <button
-                                        key={row.key}
-                                        className={`fib-board-hit fib-register-row${active ? ' is-active' : ''}`}
-                                        onClick={() => setCategoryFilter(active ? null : row.key)}
-                                        aria-pressed={active}
-                                        aria-label={[
-                                            row.label,
-                                            `${fmt(row.held)} of ${fmt(row.total)} unlocked`,
-                                            row.missing > 0 ? `${fmt(row.missing)} still to find` : null,
-                                            statusWord,
-                                        ].filter(Boolean).join('. ')}
-                                        style={{
-                                            display: 'grid', gridTemplateColumns: registerTemplate,
-                                            alignItems: 'center', gap: '0 12px',
-                                            width: '100%', padding: isPhone ? '7px 0' : '12px 0',
-                                            border: 'none', textAlign: 'left', font: 'inherit',
-                                            // The register's one per-row value. Amber
-                                            // rather than a tier hue, because the
-                                            // subject of this board is not a tier.
-                                            '--fib-row-wash': `${DECK.amber}14`,
-                                            '--fib-row-tone': DECK.amber,
-                                        }}
-                                    >
-                                        <RowLamp
-                                            state={row.status === 'complete' ? 'lit' : 'dark'}
-                                            tone={DECK.amber}
-                                        />
-                                        <FlapText
-                                            text={row.label}
-                                            size={isPhone ? 15 : 16}
-                                            tone={DECK.ink}
-                                            weight={700}
-                                            delay={280 + i * 55}
-                                        />
-                                        <FlapText
-                                            text={fmt(row.held)} digits size={16}
-                                            tone={DECK.ink} delay={300 + i * 55}
-                                            style={{ justifyContent: 'flex-end' }}
-                                        />
-                                        <FlapText
-                                            text={fmt(row.missing)} digits size={16}
-                                            tone={row.missing > 0 ? DECK.inkMid : DECK.inkDim}
-                                            delay={315 + i * 55}
-                                            style={{ justifyContent: 'flex-end' }}
-                                        />
-                                        {!isPhone && (
-                                            <BoardMeter
-                                                value={row.total > 0 ? row.held / row.total : 0}
-                                                tone={DECK.amber}
-                                                spent={row.status === 'complete'}
-                                            />
-                                        )}
-                                        {!isPhone && (
-                                            <BoardLabel
-                                                tone={row.status === 'complete' ? DECK.amber : DECK.inkMid}
-                                                style={{ textAlign: 'right' }}
-                                            >{statusWord}</BoardLabel>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    <div className="fib-achievement-categories" role="group" aria-label="Filter achievements by category">
+                        <button type="button" className="fib-achievement-category fib-board-hit"
+                            aria-pressed={!categoryFilter} onClick={() => setCategoryFilter(null)}
+                            style={{ '--achievement-color': DECK.inkMid }}>All categories</button>
+                        {register.map(row => (
+                            <button type="button" key={row.key}
+                                className="fib-achievement-category fib-board-hit"
+                                aria-pressed={categoryFilter === row.key}
+                                aria-label={`${row.label}, ${fmt(row.held)} of ${fmt(row.total)} unlocked`}
+                                onClick={() => setCategoryFilter(categoryFilter === row.key ? null : row.key)}
+                                style={{ '--achievement-color': categoryColor(row.key) }}>
+                                <span>{row.label}</span>
+                                <span className="fib-achievement-category-count">{fmt(row.held)} / {fmt(row.total)}</span>
+                                {row.status === 'complete' && <Check size={12} aria-hidden="true" />}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -596,7 +460,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                             size={16}
                             tone={DECK.ink}
                         />
-                        <BoardLabel tone={DECK.inkDim}>{fmt(shown.length)} shown</BoardLabel>
+                        <BoardLabel tone={DECK.inkMid}>{fmt(shown.length)} shown</BoardLabel>
 
                         <div style={{ flex: '1 1 auto', minWidth: '12px' }} />
 
@@ -620,7 +484,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                                     background: 'transparent', border: 'none', outline: 'none',
                                     color: DECK.ink,
                                     fontFamily: "'Barlow Condensed', system-ui, sans-serif",
-                                    fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em',
+                                    fontSize: '14px', fontWeight: 600, letterSpacing: '0.08em',
                                     textTransform: 'uppercase',
                                 }}
                             />
@@ -654,184 +518,50 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                                     : 'No achievements yet'}
                             </Notice>
                         ) : (
-                            /*
-                             * ── THE CASE, AS CELLS ──────────────────────────
-                             *
-                             * This was a ruled list for one build, and the owner
-                             * rejected it on the one thing an achievement panel
-                             * exists for: you could not see at a glance which
-                             * ones you hold, or how close the rest are. The list
-                             * was right about the material and wrong about the
-                             * form — a register is read DOWN one column at a
-                             * time, and "which of these forty-nine do I have" is
-                             * not a question anyone reads down a column. It is
-                             * answered by pattern across a field.
-                             *
-                             * So the cells come back. What does not come back is
-                             * the card: no radius, no border, no per-category
-                             * tint. A cell is a square section of the deck under
-                             * the board's own grain — the same plinth the player
-                             * record wears its badges in, and the same one the
-                             * stage flanks are cut from — washed and lit along
-                             * its foot in station amber when you hold it. Held
-                             * and not-held are a difference in MATERIAL, not two
-                             * hues from a ladder that means rarity elsewhere.
-                             *
-                             * Every cell is the same height and every cell
-                             * carries a meter, whether or not it has a number.
-                             * A grid whose cells are different heights cannot be
-                             * scanned, and a bar present on some cells and
-                             * missing from others reads as "no progress" where
-                             * the truth is "no measurement".
-                             */
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: `repeat(auto-fill, minmax(${isPhone ? 200 : 264}px, 1fr))`,
-                                gap: isPhone ? '8px' : '10px',
-                                padding: isPhone ? '0 16px 16px' : '0 26px 22px',
-                                alignContent: 'start',
-                            }}>
-                                {shown.map(row => (
-                                    <Plinth
-                                        key={row.id}
-                                        live={row.isUnlocked}
-                                        style={{
-                                            display: 'flex', flexDirection: 'column', gap: '8px',
-                                            padding: isPhone ? '11px 12px 12px' : '13px 14px 14px',
-                                            // One height for every cell in the grid.
-                                            // The description is clamped to two lines
-                                            // rather than left to push the meter down,
-                                            // so the meters line up across a row and
-                                            // the eye can run along them.
-                                            minHeight: isPhone ? '122px' : '134px',
-                                            // A held cell is not only underlined: its
-                                            // whole face carries a faint amber wash,
-                                            // which is what makes the answer visible
-                                            // from across the grid instead of one line
-                                            // at a time. `backgroundColor` and not
-                                            // `background`, so it sits UNDER the
-                                            // plinth's own grain rather than replacing
-                                            // it — the material has to survive the
-                                            // state, which is the rule FlapBoard's
-                                            // header records paying for once already.
-                                            backgroundColor: row.isUnlocked ? 'rgba(255,183,94,0.05)' : undefined,
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                            {/* The mark, in a well cut into the cell,
-                                                so each cell has one lit object in it
-                                                rather than being lit all over. */}
-                                            <span style={{
-                                                width: '30px', height: '30px', flex: '0 0 auto',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                background: 'rgba(0,0,0,0.38)',
-                                                boxShadow: row.isUnlocked
-                                                    ? `inset 0 1px 0 ${rail(0.10)}, inset 0 -2px 0 ${DECK.amber}`
-                                                    : `inset 0 1px 0 ${rail(0.06)}`,
-                                                color: row.isUnlocked ? DECK.amber : DECK.inkDim,
-                                            }}>
-                                                {row.isSecret
-                                                    ? <HelpCircle size={15} />
-                                                    : <AchievementIcon name={row.icon} size={15} color="currentColor" />}
-                                            </span>
 
-                                            <span style={{ minWidth: 0, flex: '1 1 auto' }}>
-                                                <BoardLabel
-                                                    size={12}
-                                                    tone={row.isUnlocked ? DECK.ink : DECK.inkMid}
-                                                    style={{ whiteSpace: 'normal', display: 'block' }}
-                                                >{row.name}</BoardLabel>
-                                                <span style={{ display: 'block', marginTop: '4px' }}>
-                                                    <BoardLabel size={10} tone={DECK.inkDim}>
-                                                        {row.isCensored ? 'Secret' : categoryLabel(row.category)}
-                                                    </BoardLabel>
+                            <div className="fib-achievement-grid">
+                                {shown.map(row => {
+                                    const tone = row.isSecret ? DECK.inkMid : categoryColor(row.category);
+                                    return (
+                                        <article key={row.id}
+                                            className={`fib-achievement-card${row.isUnlocked ? ' is-earned' : ''}`}
+                                            style={{ '--achievement-color': tone }}>
+                                            <div className="fib-achievement-card-head">
+                                                <span className="fib-achievement-badge" aria-hidden="true">
+                                                    {row.isSecret ? <HelpCircle size={22} /> : <AchievementIcon name={row.icon} size={22} color="currentColor" />}
                                                 </span>
-                                            </span>
-
-                                            {/* The state as a mark, in the corner the
-                                                eye already checks. A second copy of
-                                                what the wash and the foot bar say, and
-                                                deliberately so: colour alone never
-                                                carries a state on this surface, and a
-                                                tick survives greyscale and every kind
-                                                of colour blindness. */}
-                                            <span
-                                                aria-hidden="true"
-                                                style={{
-                                                    flex: '0 0 auto',
-                                                    color: row.isUnlocked ? DECK.amber : DECK.inkDim,
-                                                    opacity: row.isUnlocked ? 1 : 0.7,
-                                                }}
-                                            >
-                                                {row.isUnlocked ? <Check size={14} /> : <Lock size={12} />}
-                                            </span>
-                                        </div>
-
-                                        {/* Prose, in the shell's own stack. The board's
-                                            Barlow caps name things; a sentence is not a
-                                            name, and setting one on a drum face is how a
-                                            description stops being read. The full text
-                                            stays in `title` for the rare row the clamp
-                                            cuts. */}
-                                        <div
-                                            title={row.description}
-                                            style={{
-                                                color: DECK.inkDim,
-                                                fontSize: isPhone ? '11px' : '11.5px',
-                                                lineHeight: 1.45,
-                                                flex: '1 1 auto',
-                                                display: '-webkit-box',
-                                                WebkitLineClamp: 2,
-                                                WebkitBoxOrient: 'vertical',
-                                                overflow: 'hidden',
-                                            }}
-                                        >{row.description}</div>
-
-                                        {/* The foot: the bar, and what the bar is
-                                            worth. Every cell has one. */}
-                                        <div>
-                                            <BoardMeter
-                                                value={row.isUnlocked ? 1 : (row.progressValue ?? 0)}
-                                                tone={DECK.amber}
-                                                height={4}
-                                            />
-                                            <div style={{
-                                                marginTop: '6px',
-                                                display: 'flex', alignItems: 'baseline',
-                                                justifyContent: 'space-between', gap: '8px',
-                                            }}>
-                                                <BoardLabel size={10} tone={row.isUnlocked ? DECK.amber : DECK.inkMid}>
-                                                    {row.isUnlocked
-                                                        ? 'Unlocked'
-                                                        : row.progressValue != null
-                                                            ? `${fmt(row.current)} / ${fmt(row.target)}`
-                                                            // No number, and no invented
-                                                            // one. §7's rule: no lifetime
-                                                            // total says how close you are
-                                                            // to a single-round
-                                                            // achievement, so the cell
-                                                            // says that instead of
-                                                            // printing a 0 that would read
-                                                            // as a measurement.
-                                                            : 'Not tracked'}
-                                                </BoardLabel>
-                                                {/* The date, and only the date.
-                                                    A percentage sat here for one
-                                                    build and it was the same fact
-                                                    three times in one 24px strip —
-                                                    the bar, the fraction beside it
-                                                    and "77%". The bar IS the
-                                                    percentage; what the fraction
-                                                    adds is the scale, which the
-                                                    bar cannot show. */}
-                                                <BoardLabel size={10} tone={DECK.inkDim}>
-                                                    {row.isUnlocked ? (row.date || '') : ''}
-                                                </BoardLabel>
+                                                <span className="fib-achievement-state" aria-label={row.isUnlocked ? 'Unlocked' : 'Locked'}>
+                                                    {row.isUnlocked ? <Check size={16} /> : <Lock size={14} />}
+                                                </span>
                                             </div>
-                                        </div>
-                                    </Plinth>
-                                ))}
+                                            <div>
+                                                <BoardLabel size={12} tone={tone}>{row.isSecret ? 'Secret' : categoryLabel(row.category)}</BoardLabel>
+                                                <h3 className="fib-achievement-name">{row.name}</h3>
+                                                <p className="fib-achievement-description">{row.description}</p>
+                                            </div>
+                                            <div className="fib-achievement-progress">
+                                                {(row.isUnlocked || row.progressValue != null) && (
+                                                    <div role="progressbar" aria-label={`${row.name} progress`}
+                                                        aria-valuemin={0} aria-valuemax={100}
+                                                        aria-valuenow={row.isUnlocked ? 100 : Math.round(row.progressValue * 100)}
+                                                        aria-valuetext={row.isUnlocked ? 'Unlocked' : `${fmt(row.current)} of ${fmt(row.target)}`}>
+                                                        <BoardMeter value={row.isUnlocked ? 1 : row.progressValue} tone={tone} height={3} spent={row.isUnlocked} />
+                                                    </div>
+                                                )}
+                                                <div className="fib-achievement-progress-labels">
+                                                    <BoardLabel size={12} tone={row.isUnlocked ? tone : DECK.inkMid}>
+                                                        {row.isUnlocked ? 'Unlocked' : row.progressValue != null
+                                                            ? `${fmt(row.current)} / ${fmt(row.target)}`
+                                                            : row.isSecret ? 'Keep exploring' : 'Not tracked'}
+                                                    </BoardLabel>
+                                                    <BoardLabel size={12} tone={DECK.inkMid}>{row.date || ''}</BoardLabel>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
                             </div>
+
                         )}
                     </div>
                 </div>

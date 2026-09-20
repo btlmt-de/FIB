@@ -92,6 +92,33 @@ export const CHANGELOG = [
                     'colour the server already gives it.',
             },
             {
+                kind: 'tier',
+                rarity: 'rare',
+                heading: 'And a new face at the bottom of the ladder',
+                rate: '1 in 1,563',
+                // Own roster, not the whole tier: eleven heads under this heading
+                // would announce eleven arrivals. See TIER_ROSTERS in
+                // ChangelogModal - the block's roster is the picture of what
+                // actually changed, and here exactly one thing did.
+                //
+                // The head URL is written out for the same reason every rate in
+                // this file is. mc-heads serves whatever skin the account wears
+                // today, which is the right behaviour for the wheel and the wrong
+                // one for a record of a date - but a literal URL is at least the
+                // same shape as the one helpers.getMinecraftHeadUrl builds, so a
+                // reader can see it is the ordinary head render and not a special
+                // asset.
+                roster: [
+                    { texture: 'rare_rzem', name: 'rzem', imageUrl: 'https://mc-heads.net/avatar/rzem/64' },
+                ],
+                body:
+                    'rzem joins Rare, the eleventh head in the tier. Rare is the ' +
+                    'wheel\'s widest tier and the one most people meet first, so this ' +
+                    'is the pull you are most likely to see of everything in this ' +
+                    'release - and the tier was re-dealt around it, so every head in ' +
+                    'it now drops at a rate of its own.',
+            },
+            {
                 kind: 'ladder',
                 heading: 'Where it sits',
                 note: 'Bar length is how often a tier drops, log-scaled - a linear scale would render everything above Legendary as a dot.',
@@ -130,7 +157,7 @@ export const CHANGELOG = [
                         label: 'Rare',
                         from: '10 heads',
                         to: '11 heads',
-                        note: 'rzem joins at 1 in 1,563. Every head in the tier now has odds of its own; two pairs previously shared a weight.',
+                        note: 'rzem joins - see above. The tier was re-dealt at the same time: every head in it now has odds of its own, where two pairs used to share a weight.',
                     },
                 ],
             },
