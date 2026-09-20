@@ -75,13 +75,30 @@ export const CHANGELOG = [
                     'like any other special.',
             },
             {
+                kind: 'tier',
+                rarity: 'mythic',
+                heading: 'And one more, further up',
+                rate: '1 in 20,000',
+                // Written out rather than filtered from MYTHIC_ITEMS, for the same
+                // reason every rate in this file is: the block announces ONE item,
+                // and a live filter would quietly grow it into a group portrait of
+                // the whole tier the next time something joins.
+                roster: [
+                    { texture: 'mythic_special_trader', name: 'Special Trader', imageUrl: '/special_trader.png' },
+                ],
+                body:
+                    'The Special Trader joins Mythic. It is the rarer of the two traders in ' +
+                    'game and it is the rarer of the two here — same head, purple cloth, the ' +
+                    'colour the server already gives it.',
+            },
+            {
                 kind: 'ladder',
                 heading: 'Where it sits',
                 note: 'Bar length is how often a tier drops, log-scaled — a linear scale would render everything above Legendary as a dot.',
                 rows: [
                     { rarity: 'insane', label: 'Insane', rate: '1 in 1,000,000', oneIn: 1000000 },
                     { rarity: 'mythic', label: 'Mythic', rate: '1 in 7,143', oneIn: 7143 },
-                    { rarity: 'legendary', label: 'Legendary', rate: '1 in 1,000', oneIn: 1000 },
+                    { rarity: 'legendary', label: 'Legendary', rate: '1 in 870', oneIn: 870 },
                     { rarity: 'relic', label: 'Relic', rate: '1 in 500', oneIn: 500, isNew: true },
                     { rarity: 'exotic', label: 'Exotic', rate: '1 in 227', oneIn: 227 },
                     { rarity: 'rare', label: 'Rare', rate: '1 in 137', oneIn: 137 },
@@ -94,14 +111,20 @@ export const CHANGELOG = [
                     {
                         label: 'Legendary',
                         from: '1 in 645',
-                        to: '1 in 1,000',
-                        note: 'Compressed to open the band Relic now occupies. apppaa is untouched at 0.010%.',
+                        to: '1 in 870',
+                        note: 'Spread out to open the band Relic now occupies. apppaa is untouched at 0.010%.',
                     },
                     {
                         label: 'Wandering Trader',
-                        from: 'Legendary',
-                        to: 'Mythic',
-                        note: 'Same 0.005% it always had — it just sits with the tier that matches its odds now.',
+                        from: '1 in 20,000',
+                        to: '1 in 6,667',
+                        note: 'Three times commoner, and staying in Legendary. It was the tier\'s rarest pull by a distance; now it is second, behind apppaa.',
+                    },
+                    {
+                        label: 'Mythic',
+                        from: '1 in 11,111',
+                        to: '1 in 7,143',
+                        note: 'The Special Trader joins at 0.005%. Nothing already in the tier moved.',
                     },
                     {
                         label: 'Rare',
@@ -118,6 +141,13 @@ export const CHANGELOG = [
                     {
                         label: 'Cartographer',
                         body: 'A new achievement for collecting all six Relics.',
+                    },
+                    {
+                        label: 'Two to hunt, not one',
+                        body:
+                            'The Special Trader is a separate entry in the book from the ' +
+                            'Wandering Trader, a tier above it. Owning one says nothing ' +
+                            'about the other.',
                     },
                     {
                         label: 'Full House',

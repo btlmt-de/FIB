@@ -24,7 +24,10 @@ function UserCollectionEditor({ user, allItems, onClose, onAddItem, onRemoveItem
 
     const specialItems = [
         { texture: 'mythic_cavendish', name: 'Cavendish', type: 'mythic' },
-        ...TEAM_MEMBERS.map(m => ({ texture: `special_${m.username}`, name: m.name, type: 'legendary' })),
+        // m.texture first: the two item-shaped legendaries have no username, and the
+        // template alone gave both of them `special_null` — granting one from this
+        // panel would have written a texture no spin can produce. See constants.js.
+        ...TEAM_MEMBERS.map(m => ({ texture: m.texture || `special_${m.username}`, name: m.name, type: 'legendary' })),
         ...EXOTIC_ITEMS.map(i => ({ texture: i.texture, name: i.name, type: 'exotic' })),
         ...RELIC_ITEMS.map(i => ({ texture: i.texture, name: i.name, type: 'relic' })),
         ...RARE_MEMBERS.map(m => ({ texture: `rare_${m.username}`, name: m.name, type: 'rare' }))

@@ -30,6 +30,14 @@ import { getRarityColor, getRarityIcon, getRarityOnColor } from '../../../utils/
 // because only relic has one worth showing off; a future tier block for a rarity
 // that is not listed simply renders its heading and body with no grid, which is a
 // degradation rather than a crash.
+// The whole-tier rosters. A `tier` block for one of these draws every item in it
+// without having to list them, which is what the relic entry wanted: the tier WAS
+// the release, so showing all six was showing the release.
+//
+// A block can also carry its own `roster` instead, and that is not the same thing
+// said twice. An entry announcing ONE addition to an existing tier must not draw
+// the tier — six renders under the heading "New in Mythic" says six things are
+// new. The block's own roster is the picture of what actually changed.
 const TIER_ROSTERS = { relic: RELIC_ITEMS };
 
 /* ── Blocks ──────────────────────────────────────────────────────────────── */
@@ -94,7 +102,7 @@ function RationaleBlock({ block }) {
 
 function TierBlock({ block, isMobile }) {
     const color = getRarityColor(block.rarity);
-    const roster = TIER_ROSTERS[block.rarity] || [];
+    const roster = block.roster || TIER_ROSTERS[block.rarity] || [];
 
     return (
         <section style={{ marginBottom: '26px' }}>
@@ -144,7 +152,12 @@ function TierBlock({ block, isMobile }) {
                     display: 'grid',
                     // Three across on a phone, six on desktop: the roster is the
                     // picture, so it stays a grid rather than collapsing to a list.
-                    gridTemplateColumns: `repeat(${isMobile ? 3 : 6}, 1fr)`,
+                    //
+                    // Capped at the roster's own length so a short one is not laid
+                    // out against six columns it cannot fill — a single render
+                    // pinned into the first sixth of the width reads as five missing
+                    // ones rather than as one item.
+                    gridTemplateColumns: `repeat(${Math.min(roster.length, isMobile ? 3 : 6)}, 1fr)`,
                     gap: '8px',
                 }}>
                     {/* No tile, no radius, no shadow.

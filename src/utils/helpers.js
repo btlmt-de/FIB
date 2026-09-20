@@ -398,6 +398,12 @@ export function getItemImageUrl(item) {
     if (texture === 'wandering_trader' || texture === 'special_wandering_trader' || texture === 'legendary_wandering_trader') {
         return '/wandering_trader.png';
     }
+    // Its own head, not a tinted copy drawn at runtime: the recolour is baked into
+    // the PNG (scripts/repixel-special-trader.py) so the canvas strip and the DOM
+    // grid cannot disagree about what purple means.
+    if (texture === 'special_trader' || texture === 'mythic_special_trader') {
+        return '/special_trader.png';
+    }
     if (texture === 'chromargbdirt' || texture === 'special_chromargbdirt' || texture === 'legendary_chromargbdirt') {
         return '/chromargbdirt.gif';
     }

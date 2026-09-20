@@ -166,16 +166,34 @@ export const STRIP_LENGTH       = FINAL_INDEX + 1 + TAIL_LENGTH;
  * odds nearly twice the real ones. When seed.js moves a legendary weight, move it
  * here in the same commit.
  *
- * Wandering Trader is NOT in this list any more — it was promoted to mythic when
- * relic landed and lives in MYTHIC_ITEMS now. Its texture still says `legendary_`,
- * which is an id and not a label; see the note in seed.js.
+ * Wandering Trader is back in this list, and never left it in a shipped release.
+ * It spent part of the relic branch in MYTHIC_ITEMS — promoted on its weight alone,
+ * because at 0.005% it was rarer than anything here — and came back before any of
+ * that went live, at 1,500 rather than the 500 it left with, second-rarest in the
+ * tier. The Special Trader holds the mythic slot instead. The full argument is in
+ * seed.js, next to the row; players see one change, not two, because the relic
+ * release has not gone out yet and the changelog says so in a single entry.
+ *
+ * Its texture still says `legendary_`, which is an id and not a label, and which
+ * happens to read true again.
+ *
+ * ENTRIES CARRY AN EXPLICIT `texture` WHERE THEY HAVE ONE, and both consumers of
+ * this list must prefer it. CollectionBook and AdminPanel both build a texture as
+ * `special_${username}`, which is right for the four heads and silently wrong for
+ * the two item-shaped members: ChromaRGBDirt and the Wandering Trader have no
+ * username, so that template produced the string `special_null` — the same string
+ * for both of them. It was a latent collision with one such member; adding a
+ * second is what surfaced it.
  */
 export const TEAM_MEMBERS = [
     { name: 'apppaa',          username: 'apppaa',          chance: 0.0001,   rarity: 'legendary' },
     { name: 'threeseconds',    username: 'threeseconds',    chance: 0.00022,  rarity: 'legendary' },
     { name: 'CH0RD',           username: 'CH0RD',           chance: 0.00024,  rarity: 'legendary' },
     { name: 'stupxd',          username: 'stupxd',          chance: 0.00025,  rarity: 'legendary' },
-    { name: 'ChromaRGBDirt',   username: null,               chance: 0.00019,  rarity: 'legendary', imageUrl: '/chromargbdirt.gif' },
+    { name: 'ChromaRGBDirt',   username: null,              chance: 0.00019,  rarity: 'legendary',
+        texture: 'legendary_chromargbdirt', imageUrl: '/chromargbdirt.gif' },
+    { name: 'Wandering Trader', username: null,             chance: 0.00015,  rarity: 'legendary',
+        texture: 'legendary_wandering_trader', imageUrl: '/wandering_trader.png' },
 ];
 
 /**
@@ -290,12 +308,14 @@ export const MYTHIC_ITEMS = [
     { name: 'eltobito',     texture: 'mythic_eltobito',     chance: 0.00003, type: 'mythic', username: 'eltobito' },
     { name: 'Gros Michel',  texture: 'mythic_gros_michel',  chance: 0.00004, type: 'mythic',
         imageUrl: `${CUSTOM_IMAGE_BASE_URL}/gros_michel.png` },
-    // Promoted from legendary when the relic tier landed, at an unchanged 0.005%.
-    // The `legendary_` texture is deliberate and must stay: it is the id every
-    // collection, spin-history and activity row already holds, so renaming it would
-    // orphan every Wandering Trader anyone owns. See seed.js.
-    { name: 'Wandering Trader', texture: 'legendary_wandering_trader', chance: 0.00005, type: 'mythic',
-        imageUrl: '/wandering_trader.png' },
+    // Holds the slot, and the exact 0.005%, that the Wandering Trader vacated when
+    // it went back to legendary — so this tier's rate did not move across the swap.
+    // The two traders are one entity in the plugin (TraderKind.WANDERING /
+    // TraderKind.SPECIAL), which is why the head is the same render with its cloth
+    // recoloured to the <light_purple> the plugin already gives this one. See
+    // scripts/repixel-special-trader.py.
+    { name: 'Special Trader', texture: 'mythic_special_trader', chance: 0.00005, type: 'mythic',
+        imageUrl: '/special_trader.png' },
 ];
 export const MYTHIC_ITEM = MYTHIC_ITEMS[0];
 

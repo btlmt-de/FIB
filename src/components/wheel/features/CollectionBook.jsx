@@ -467,9 +467,14 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             chance: i.display_chance || i.chance,
             username: i.username, imageUrl: i.image_url || i.imageUrl
         }));
+        // `m.texture ||` is not defensive padding. The template below is right for a
+        // head and wrong for anything else in a member list: ChromaRGBDirt and the
+        // Wandering Trader have no username, so it built `special_null` for BOTH of
+        // them and the book showed one entry where there are two. Members that are
+        // not heads carry their real texture in constants.js; prefer it.
         const fromMembers = (members, tier, prefix) => members.map(m => ({
-            name: m.name, texture: `${prefix}_${m.username}`, type: tier,
-            username: m.username, chance: m.chance
+            name: m.name, texture: m.texture || `${prefix}_${m.username}`, type: tier,
+            username: m.username, chance: m.chance, imageUrl: m.imageUrl
         }));
 
         let insane, mythic, legendary, relic, exotic, rare;
