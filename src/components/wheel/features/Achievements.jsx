@@ -31,20 +31,14 @@ function fmtDate(dateStr) {
  */
 const REGISTER_ORDER = ['beginner', 'spins', 'collection', 'duplicates', 'events', 'special'];
 
-/*
- * The name a category answers to. The payload's keys are lower-case identifiers
- * and two of them do not survive being title-cased into a heading: "duplicates"
- * is what the database counts, "spares" is what a player holds, and "special" is
- * the catch-all rather than a rarity — which on this site is a word with a
- * meaning, and one this board must not appear to be using.
- */
+/* Special is the hidden-achievement category, revealed as achievements are earned. */
 const CATEGORY_LABEL = {
     beginner: 'Beginner',
     spins: 'Spins',
     collection: 'Collection',
     duplicates: 'Duplicates',
     events: 'Events',
-    special: 'Milestones',
+    special: 'Special',
 };
 
 const CATEGORY_COLOR = { beginner: '#9EB4CC', spins: '#84BAFF', collection: '#65D9BC', duplicates: '#C5A0FF', events: '#FFA876', special: '#EFD277' };
@@ -150,21 +144,12 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
         };
     }, [achievements, userAchievements]);
 
-    /*
-     * What this reader is allowed to see at all, before any control is applied.
-     *
-     * A hidden achievement someone else has not unlocked is not on their board —
-     * not dimmed, not "???", absent — because a visitor counting the ??? rows
-     * would be reading a list of secrets nobody has found yet. Your own board
-     * keeps them as "???", which is the point of a secret you can still chase.
-     */
-    const visible = useMemo(() => achievementList.filter(a => (
-        !a.hidden || unlockedIds.has(a.id)
-    )), [achievementList, unlockedIds]);
+    // Missing secrets remain in the cabinet as anonymous, untracked placeholders.
+    const visible = achievementList;
 
     const totalAchievements = achievementList.length;
     const unlockedCount = unlockedIds.size;
-    const hiddenCount = useMemo(() => achievementList.filter(a => a.hidden).length, [achievementList]);
+    const hiddenCount = useMemo(() => achievementList.filter(a => a.hidden || a.category === 'special').length, [achievementList]);
 
     /*
      * A row's own facts, computed once for the register and the list both.
@@ -176,7 +161,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
     const rows = useMemo(() => visible.map(a => {
         const isUnlocked = unlockedIds.has(a.id);
         const isCensored = unlockedCensored.has(a.id);
-        const isSecret = (a.hidden && !isUnlocked) || isCensored;
+        const isSecret = ((a.hidden || a.category === 'special') && !isUnlocked) || isCensored;
         const prog = progress[a.id];
         const measurable = !!prog && !prog.special && !isUnlocked && !isSecret
             && Number.isFinite(prog.current) && Number.isFinite(prog.target) && prog.target > 0;
@@ -191,7 +176,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
             name: isCensored ? '??? Secret achievement' : (isSecret ? '???' : a.name),
             description: isCensored
                 ? 'This player has unlocked a secret achievement'
-                : (isSecret ? 'Hidden achievement — discover it yourself' : a.description),
+                : (isSecret ? 'Hidden achievement - discover it yourself!' : a.description),
             current: measurable ? prog.current : null,
             target: measurable ? prog.target : null,
             progressValue: measurable ? Math.min(prog.current / prog.target, 1) : null,
@@ -521,7 +506,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
 
                             <div className="fib-achievement-grid">
                                 {shown.map(row => {
-                                    const tone = row.isSecret ? DECK.inkMid : categoryColor(row.category);
+                                    const tone = categoryColor(row.category);
                                     return (
                                         <article key={row.id}
                                             className={`fib-achievement-card${row.isUnlocked ? ' is-earned' : ''}`}
@@ -535,7 +520,7 @@ export function Achievements({ onClose, userId, username, isOwnProfile = true })
                                                 </span>
                                             </div>
                                             <div>
-                                                <BoardLabel size={12} tone={tone}>{row.isSecret ? 'Secret' : categoryLabel(row.category)}</BoardLabel>
+                                                <BoardLabel size={12} tone={tone}>{categoryLabel(row.category)}</BoardLabel>
                                                 <h3 className="fib-achievement-name">{row.name}</h3>
                                                 <p className="fib-achievement-description">{row.description}</p>
                                             </div>

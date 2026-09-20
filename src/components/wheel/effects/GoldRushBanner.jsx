@@ -438,7 +438,12 @@ function GoldRushBanner({
                             inline = false,
                         }) {
     const { globalEventStatus, updateGlobalEventStatus, feed } = useActivity();
-    const { playSound, startGoldRushSoundtrack, stopGoldRushSoundtrack } = useSound();
+    // No bed any more: gold.mp3 and its wiring came out of SoundContext when this
+    // event stopped being reachable from the admin panel - the note above
+    // EVENT_SOUNDTRACK there has the reasoning. The stings below still fire; they
+    // are synthesised by playSfx rather than loaded from a file, so they never
+    // depended on gold.mp3.
+    const { playSound } = useSound();
 
     const [remainingTime, setRemainingTime] = useState(0);
     const [countdownTime, setCountdownTime] = useState(0);
@@ -450,8 +455,12 @@ function GoldRushBanner({
     const [goldDropCount, setGoldDropCount] = useState(0);
 
     const hasPlayedSoundRef = useRef(false);
-    const hasSoundtrackStartedRef = useRef(false);
-    const lastEventStartTimeRef = useRef(null); // Track which event we started soundtrack for
+    // Named for the soundtrack it used to gate. What it actually guards, and still
+    // does, is eventStartTimeRef below - the timestamp the drop filter measures
+    // against. Without it, any re-render that re-created this effect would stamp
+    // the event as starting again and the filter would drop everything won so far.
+    const hasEventStartedRef = useRef(false);
+    const lastEventStartTimeRef = useRef(null); // Which event hasEventStartedRef refers to
     const wasActiveRef = useRef(false);
     const wasPendingRef = useRef(false);
     const lastActivityIdRef = useRef(null);
@@ -472,23 +481,21 @@ function GoldRushBanner({
 
         // Check if this is a new event (different start time than last tracked)
         if (isActive && lastEventStartTimeRef.current !== currentEventStart) {
-            // New event detected - reset soundtrack state
-            hasSoundtrackStartedRef.current = false;
+            // New event detected - let it stamp its own start time below
+            hasEventStartedRef.current = false;
             lastEventStartTimeRef.current = currentEventStart;
         }
 
-        if (isActive && !hasSoundtrackStartedRef.current) {
-            startGoldRushSoundtrack?.();
-            hasSoundtrackStartedRef.current = true;
+        if (isActive && !hasEventStartedRef.current) {
+            hasEventStartedRef.current = true;
             // Record when this event started for filtering drops
             eventStartTimeRef.current = currentEventStart || Date.now();
         }
-        if (!isActive && !isPending && hasSoundtrackStartedRef.current) {
-            stopGoldRushSoundtrack?.();
-            hasSoundtrackStartedRef.current = false;
+        if (!isActive && !isPending && hasEventStartedRef.current) {
+            hasEventStartedRef.current = false;
             lastEventStartTimeRef.current = null;
         }
-    }, [isActive, isPending, startGoldRushSoundtrack, stopGoldRushSoundtrack, globalEventStatus?.activatesAt]);
+    }, [isActive, isPending, globalEventStatus?.activatesAt]);
 
     // Track gold drops from activity feed
     // Only count drops that happened AFTER the event started, with delay for spin animation
@@ -645,20 +652,20 @@ function GoldRushBanner({
                 hasPlayedSoundRef.current = false;
                 wasActiveRef.current = false;
                 wasPendingRef.current = false;
-                // Stop the soundtrack, but keep lastEventStartTimeRef pointing at this
-                // event. Clearing it used to look like "a new event arrived" to the
-                // soundtrack effect the next time its callbacks were re-created (any
-                // isPlaying/isRecursionPlaying change does that), which restarted the
-                // music we had just stopped. A genuinely new event has a different
+                // lastEventStartTimeRef is deliberately NOT cleared here, and the
+                // reason outlived the soundtrack this used to stop. Clearing it looks
+                // like "a new event arrived" to the effect above the next time that
+                // effect re-runs, which used to restart the music we had just stopped
+                // and would now re-stamp eventStartTimeRef and hide every drop the
+                // event has already shown. A genuinely new event has a different
                 // activatesAt and still resets tracking on its own.
-                stopGoldRushSoundtrack?.();
             }
         };
 
         updateTimer();
         const stop = visibleInterval(updateTimer, 1000);
         return stop;
-    }, [isActive, globalEventStatus?.expiresAt, isVisible, stopGoldRushSoundtrack]);
+    }, [isActive, globalEventStatus?.expiresAt, isVisible]);
 
     // Admin test functions
     const triggerTestEvent = useCallback(async (rarity = null) => {

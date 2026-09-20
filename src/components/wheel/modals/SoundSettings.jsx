@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, Map, X, RotateCcw, Play, Square, Swords, Coins, Droplet, Target, TrainFront, PackageOpen, Spade } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, Map, X, RotateCcw, Play, Square, Swords, Droplet, Target, TrainFront, PackageOpen, Spade } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { COLORS } from '../config/constants';
 // The rarity rows take their colour from the ladder rather than naming hues here.
@@ -513,42 +513,6 @@ export function SoundSettingsPanel({ onClose }) {
                                 />
                             </div>
 
-                            {/* Gold Rush Soundtrack row */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                            }}>
-                                <div style={{
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '6px',
-                                    background: `${COLORS.insane}15`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: COLORS.insane,
-                                    flexShrink: 0,
-                                }}>
-                                    <Coins size={16} />
-                                </div>
-                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
-                                    Gold Rush
-                                </span>
-                                <PreviewButton
-                                    onClick={() => previewSound('goldRushSoundtrack')}
-                                    disabled={!settings.enabled}
-                                    isActive={previewingSound === 'goldRushSoundtrack'}
-                                />
-                                <ToggleSwitch
-                                    checked={settings.goldRushSoundtrackEnabled}
-                                    onChange={(v) => updateSetting('goldRushSoundtrackEnabled', v)}
-                                    disabled={!settings.enabled}
-                                    color={COLORS.insane}
-                                    ariaLabel="Toggle Gold Rush music"
-                                />
-                            </div>
-
                             {/* First Blood Soundtrack row */}
                             <div style={{
                                 display: 'flex',
@@ -715,7 +679,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 <VolumeSlider
                                     value={settings.musicVolume}
                                     onChange={(v) => updateSetting('musicVolume', v)}
-                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.goldRushSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled && !settings.arrivalSoundtrackEnabled && !settings.parlourSoundtrackEnabled)}
+                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled && !settings.arrivalSoundtrackEnabled && !settings.parlourSoundtrackEnabled)}
                                     color={COLORS.accent}
                                     ariaLabel="Music volume"
                                 />
