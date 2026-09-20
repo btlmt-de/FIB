@@ -271,6 +271,8 @@ export const EXOTIC_ITEMS = [
 export const RELIC_ITEMS = [
     { name: 'Trial Chambers', texture: 'relic_trial_chambers', chance: 0.00026, type: 'relic',
         imageUrl: `${RELIC_IMAGE_BASE_URL}/trial_chambers.png` },
+    { name: 'End Ship', texture: 'relic_end_ship', chance: 0.00028, type: 'relic',
+        imageUrl: `${RELIC_IMAGE_BASE_URL}/end_ship.png` },
     { name: 'Antimatter Depths', texture: 'relic_antimatter_depths', chance: 0.0003, type: 'relic',
         imageUrl: `${RELIC_IMAGE_BASE_URL}/antimatter_depths.png` },
     { name: 'Antimatter Portal', texture: 'relic_antimatter_portal', chance: 0.00033, type: 'relic',

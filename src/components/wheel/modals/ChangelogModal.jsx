@@ -100,6 +100,12 @@ function RationaleBlock({ block }) {
     );
 }
 
+function gridColumns(count, ceiling) {
+    if (count <= ceiling) return count;
+    const rows = Math.ceil(count / ceiling);
+    return Math.ceil(count / rows);
+}
+
 function TierBlock({ block, isMobile }) {
     const color = getRarityColor(block.rarity);
     const roster = block.roster || TIER_ROSTERS[block.rarity] || [];
@@ -153,11 +159,25 @@ function TierBlock({ block, isMobile }) {
                     // Three across on a phone, six on desktop: the roster is the
                     // picture, so it stays a grid rather than collapsing to a list.
                     //
-                    // Capped at the roster's own length so a short one is not laid
-                    // out against six columns it cannot fill — a single render
-                    // pinned into the first sixth of the width reads as five missing
-                    // ones rather than as one item.
-                    gridTemplateColumns: `repeat(${Math.min(roster.length, isMobile ? 3 : 6)}, 1fr)`,
+                    // The count is a CEILING, not the answer. Two things bend it:
+                    //
+                    //   A roster shorter than the ceiling takes its own length. Six
+                    //   columns holding one render puts it in the first sixth of the
+                    //   width, which reads as five missing ones rather than as one
+                    //   item.
+                    //
+                    //   A roster longer than the ceiling balances its rows instead of
+                    //   filling them. Seven relics against six columns is a full row
+                    //   and then a single orphan underneath, which looks like a
+                    //   layout accident; the same seven at four columns is 4 + 3 and
+                    //   looks like a set. `rows` is what the ceiling would give, and
+                    //   the columns are then whatever spreads the roster evenly over
+                    //   that many rows.
+                    //
+                    // At six or fewer this is exactly the old behaviour, which is why
+                    // the relic tier still draws as one row of six until the seventh
+                    // arrives.
+                    gridTemplateColumns: `repeat(${gridColumns(roster.length, isMobile ? 3 : 6)}, 1fr)`,
                     gap: '8px',
                 }}>
                     {/* No tile, no radius, no shadow.

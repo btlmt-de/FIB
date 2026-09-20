@@ -13,7 +13,7 @@
 // should be resisted. A changelog is a record of what changed on a date. If these
 // numbers tracked the live weights, then the next time a tier is retuned this
 // entry would quietly start describing the new odds while still claiming to be the
-// announcement of the old ones — a document that rewrites its own history is worse
+// announcement of the old ones - a document that rewrites its own history is worse
 // than no document. `/api/items` is where the current odds live; this is where
 // September's odds live, permanently.
 //
@@ -22,18 +22,18 @@
 // Prepend an entry and give it a new `version`. Nothing else has to change: the
 // popup, the unseen mark and the modal all read from this file, and every visitor
 // sees the new entry once on their next load. Bump `version` ONLY for things worth
-// interrupting someone over — a rarity ladder changing is; a bugfix is not.
+// interrupting someone over - a rarity ladder changing is; a bugfix is not.
 
 /**
  * Block kinds the modal knows how to draw. Everything here is data, so a future
  * entry composes a page out of the same four shapes rather than shipping its own
  * layout:
  *
- *   rationale — why the release happened, in prose. Put it first.
- *   tier      — a rarity's colour, its rate, and the items that live in it
- *   ladder    — the whole rarity ladder as log-scaled bars, one row per tier
- *   changes   — a before/after table
- *   notes     — short labelled paragraphs for everything that is not a number
+ *   rationale - why the release happened, in prose. Put it first.
+ *   tier      - a rarity's colour, its rate, and the items that live in it
+ *   ladder    - the whole rarity ladder as log-scaled bars, one row per tier
+ *   changes   - a before/after table
+ *   notes     - short labelled paragraphs for everything that is not a number
  */
 export const CHANGELOG = [
     {
@@ -43,7 +43,7 @@ export const CHANGELOG = [
         tagline: 'A seventh rarity, and the odds around it rebuilt to make room.',
         blocks: [
             // Leads the entry, deliberately. The first draft opened on the new tier
-            // and never said why it exists — a release note that lists what moved
+            // and never said why it exists - a release note that lists what moved
             // without saying what was wrong reads as change for its own sake, which
             // is how players decide an update was done to them rather than for them.
             {
@@ -51,7 +51,7 @@ export const CHANGELOG = [
                 heading: 'Why the odds changed',
                 paragraphs: [
                     'The ladder had names that did not mean anything. A single Legendary ' +
-                    'dropped at 0.050% and a single Exotic at 0.055% — two tiers, different ' +
+                    'dropped at 0.050% and a single Exotic at 0.055% - two tiers, different ' +
                     'colours, all but identical odds. You could not tell from the word which ' +
                     'was the harder pull, because in practice neither was.',
 
@@ -60,7 +60,7 @@ export const CHANGELOG = [
 
                     'So Legendary was spread out to open that gap, Relic was given the room ' +
                     'it made, and the tiers around them were re-spaced. Each step up the ' +
-                    'ladder is now roughly twice as rare as the one below it — so a tier\'s ' +
+                    'ladder is now roughly twice as rare as the one below it - so a tier\'s ' +
                     'name finally tells you something about what it took to get.',
                 ],
             },
@@ -68,17 +68,17 @@ export const CHANGELOG = [
                 kind: 'tier',
                 rarity: 'relic',
                 heading: 'A new rarity',
-                rate: '1 in 500',
+                rate: '1 in 439',
                 body:
                     'Relics are places. Every other tier on the wheel is a person or an ' +
-                    'object — Relic is six of the server\'s own structures, and they drop ' +
+                    'object - Relic is seven of the server\'s own structures, and they drop ' +
                     'like any other special.',
             },
             {
                 kind: 'tier',
                 rarity: 'mythic',
                 heading: 'And one more, further up',
-                rate: '1 in 20,000',
+                rate: '0.005% - same chance as the old Wandering Trader',
                 // Written out rather than filtered from MYTHIC_ITEMS, for the same
                 // reason every rate in this file is: the block announces ONE item,
                 // and a live filter would quietly grow it into a group portrait of
@@ -88,18 +88,18 @@ export const CHANGELOG = [
                 ],
                 body:
                     'The Special Trader joins Mythic. It is the rarer of the two traders in ' +
-                    'game and it is the rarer of the two here — same head, purple cloth, the ' +
+                    'game and it is the rarer of the two here - same head, purple cloth, the ' +
                     'colour the server already gives it.',
             },
             {
                 kind: 'ladder',
                 heading: 'Where it sits',
-                note: 'Bar length is how often a tier drops, log-scaled — a linear scale would render everything above Legendary as a dot.',
+                note: 'Bar length is how often a tier drops, log-scaled - a linear scale would render everything above Legendary as a dot.',
                 rows: [
                     { rarity: 'insane', label: 'Insane', rate: '1 in 1,000,000', oneIn: 1000000 },
                     { rarity: 'mythic', label: 'Mythic', rate: '1 in 7,143', oneIn: 7143 },
                     { rarity: 'legendary', label: 'Legendary', rate: '1 in 870', oneIn: 870 },
-                    { rarity: 'relic', label: 'Relic', rate: '1 in 500', oneIn: 500, isNew: true },
+                    { rarity: 'relic', label: 'Relic', rate: '1 in 439', oneIn: 439, isNew: true },
                     { rarity: 'exotic', label: 'Exotic', rate: '1 in 227', oneIn: 227 },
                     { rarity: 'rare', label: 'Rare', rate: '1 in 137', oneIn: 137 },
                 ],
@@ -140,7 +140,7 @@ export const CHANGELOG = [
                 items: [
                     {
                         label: 'Cartographer',
-                        body: 'A new achievement for collecting all six Relics.',
+                        body: 'A new achievement for collecting all seven Relics.',
                     },
                     {
                         label: 'Two to hunt, not one',
@@ -170,7 +170,7 @@ export const LATEST_VERSION = CHANGELOG[0].version;
 // Per-browser rather than per-account, deliberately: /wheel is readable without
 // logging in, and an announcement about the odds is for everyone looking at them.
 // The cost is that it can reappear on a second device or after site data is
-// cleared, which for release notes is the right way round — showing it twice is a
+// cleared, which for release notes is the right way round - showing it twice is a
 // smaller failure than never showing it to the half of the audience that is not
 // signed in. There is no server-side read tracking for this and deliberately so:
 // it would need a migration, an endpoint and an account.
