@@ -1445,6 +1445,21 @@ export function ActivityProvider({ children }) {
             setRouletteTable(null);
             setRouletteResult(null);
             setRouletteMyBetState(null);
+            /*
+             * And the status with it, because reaching here means the end
+             * broadcast never landed either. `roulette_open` is what set this
+             * event active - no `global_event_start` exists for the parlour -
+             * so nothing else is going to unset it, and a status stuck active
+             * costs the milestone meter and holds the navigation compact for
+             * the rest of the session. Only for a roulette: any other type here
+             * is a LATER event that started while this timer was pending, and
+             * clearing that would be the resurrection bug's mirror image.
+             * `milestone` is kept: it is the last count anyone read, and the
+             * meter's own poll refreshes it as soon as it is back on screen.
+             */
+            setGlobalEventStatus(prev => (prev?.type === 'roulette'
+                ? { ...prev, active: false, pending: false, type: null, data: null }
+                : prev));
         }, Math.max(0, openedAt + ROULETTE_MAX_LIFETIME_MS - serverNow()));
         return () => clearTimeout(id);
     }, [roulette?.openedAt]);
