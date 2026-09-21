@@ -48,7 +48,7 @@ const REFRESH_MS = 20_000;
 export function MilestoneMeter({ isMobile, onOpen }) {
     const { globalEventStatus, eventSelection, refreshMilestone,
         communityGoalResult, communityGoalResultPending, firstBloodWinner,
-        firstBloodResultPending, kotwWinner, kotwWinnerPending } = useActivity();
+        firstBloodResultPending, kotwWinner, kotwWinnerPending, roulette } = useActivity();
 
     // `eventSelection` counts as active. The roll happens in this same slot, and it
     // fires *before* the event itself flips to active — so without this the meter
@@ -69,7 +69,24 @@ export function MilestoneMeter({ isMobile, onOpen }) {
     const aftermathVisible = !!communityGoalResult || communityGoalResultPending
         || !!firstBloodWinner || firstBloodResultPending
         || !!kotwWinner || kotwWinnerPending;
-    const effectiveActive = active || aftermathVisible;
+    /*
+     * THE PARLOUR counts as active for as long as the room is on screen, and it
+     * is asked about separately from `globalEventStatus` on purpose.
+     *
+     * Its scenery is not a banner in this slot - it takes the reel itself and
+     * warms the whole surface, so the meter does not get covered up by it the
+     * way the arrival's shutters cover it. It sits in the middle of the room
+     * saying "next global event", which is both wrong and the one sentence that
+     * breaks the illusion the event is built on.
+     *
+     * The status is right about the parlour now (the `roulette_open` handler
+     * sets it), so this is belt and braces - but the two do not end on the same
+     * tick. The server closes the event ~0.4s after the client's teardown timer
+     * is due, and a late `roulette_result` or a throttled background tab pushes
+     * that timer the other side of the end broadcast. `roulette` being set is
+     * the question actually being asked: is there a room here?
+     */
+    const effectiveActive = active || aftermathVisible || !!roulette;
     const milestone = globalEventStatus?.milestone;
 
     // The number arrives pushed: `global_event_milestone` lands here after every

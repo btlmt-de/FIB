@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/constants';
 import { parseActivityDate, spinRevealDelay } from '../utils/helpers.js';
-import { noteServerTime } from '../utils/serverClock.js';
+import { noteServerTime, serverNow } from '../utils/serverClock.js';
 /*
  * The arrival's own end, imported rather than copied.
  *
@@ -68,6 +68,29 @@ const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
  */
 const ROULETTE_TEARDOWN_MS = 14200;
 
+/*
+ * The parlour's dead-man switch: the longest the table may stay mounted,
+ * measured from the moment it opened on the SERVER's clock.
+ *
+ * Nothing should ever reach this. The ordinary teardown is armed by
+ * `roulette_result` and runs 14.2s later, which lands at ~30.4s past the open,
+ * four seconds inside this. It exists because the table is the one takeover
+ * that owns the reel outright: while `roulette` is set the band is not the
+ * reel's, WheelSpinner refuses to start a spin, and the ONLY thing that hands
+ * it back is that timer. Every path that sets the table without arming one is
+ * therefore a page you have to reload, and there were two of them - a mid-event
+ * page load that arrived after the ball had already dropped, and a stale spin
+ * response resurrecting a table the client had already torn down (see
+ * `recoverGlobalEventStatus`). Both are fixed at the source; this is the
+ * guarantee that the next one cannot cost a reload.
+ *
+ * Server clock, not local: `openedAt` is server milliseconds, so the remaining
+ * time has to be measured with `serverNow()` like every other beat of this
+ * event. A table restored from a payload whose open is already in the past
+ * simply clears on the next tick, which is the correct answer for it.
+ */
+const ROULETTE_MAX_LIFETIME_MS = 34000;
+
 
 export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
@@ -85,6 +108,23 @@ export function ActivityProvider({ children }) {
     useEffect(() => {
         globalEventStatusRef.current = globalEventStatus;
     }, [globalEventStatus]);
+
+    /*
+     * The `activatesAt` of the most recent event INSTANCE this client has seen -
+     * still running or long finished - in raw server milliseconds.
+     *
+     * `recoverGlobalEventStatus` needs to tell "an event I have never heard of"
+     * from "the event that just ended", and `globalEventStatus` cannot: the end
+     * broadcast wipes `type` back to null, so a stale response naming a finished
+     * event looks exactly like a missed one. The start does not move for the
+     * life of an event, so it identifies the instance, which is the question
+     * actually being asked.
+     *
+     * Raw, uncorrected, because that is what the payloads carry. The clock
+     * correction in `applyGlobalEventStatus` rewrites its argument in place, so
+     * this is captured before it runs.
+     */
+    const knownEventStartRef = useRef(null);
 
     // King of the Wheel state
     const [kotwLeaderboard, setKotwLeaderboard] = useState([]);
@@ -253,6 +293,7 @@ export function ActivityProvider({ children }) {
              * derivation is ever tuned.
              */
             const rawActivatesAt = data.activatesAt;
+            if (data.type && rawActivatesAt) knownEventStartRef.current = rawActivatesAt;
 
             // Apply clock sync if serverTime is provided
             if (data.serverTime && (data.activatesAt || data.expiresAt)) {
@@ -375,6 +416,27 @@ export function ActivityProvider({ children }) {
         // anything a spin response can carry.
         const current = globalEventStatusRef.current;
         if (current?.type === payload.type && (current.active || current.pending)) return;
+
+        /*
+         * Already seen this one, and it is over. The check above only catches an
+         * event the client still believes is running; `global_event_end` sets
+         * `type` to null, so from that moment the finished event and an event
+         * this client never heard of are indistinguishable BY TYPE. They are not
+         * indistinguishable by start.
+         *
+         * The window is small and it is real. A spin response is built while the
+         * server still has the event and can arrive after the end broadcast that
+         * cleared it - and for THE PARLOUR that window is exactly the moment a
+         * player is most likely to spin, because the client hands the reel back
+         * (its teardown timer) a few hundred milliseconds BEFORE the server
+         * closes the event. Spin into that gap and the response re-opened a
+         * table the client had already dismantled: `roulette` set again from a
+         * payload whose `roulette_result` had long since been and gone, so
+         * nothing was left to arm the teardown, the band never came back, and
+         * the page had to be reloaded. Recovery may fill a gap; it may not
+         * re-run an event this client has already lived through.
+         */
+        if (payload.activatesAt && payload.activatesAt === knownEventStartRef.current) return;
 
         console.log('[Spin] Recovered a missed global event from the spin response:', payload.type);
         // Not awaited: the caller is a spin handler mid-animation and has nothing to do
@@ -593,6 +655,9 @@ export function ActivityProvider({ children }) {
                                         specialDrops: data.specialDrops ?? prev?.specialDrops ?? 0,
                                     }));
                                 }
+                                // The instance, before the offset correction below
+                                // rewrites it. See knownEventStartRef.
+                                if (data.activatesAt) knownEventStartRef.current = data.activatesAt;
                                 setGlobalEventStatus(prev => {
                                     // Determine active/pending based on event type
                                     let active = prev.active;
@@ -831,6 +896,45 @@ export function ActivityProvider({ children }) {
                                 setRouletteMyBetState(null);
                                 setRouletteTable({ seats: data.seats || [], counts: data.counts });
                                 setRoulette(data);
+
+                                /*
+                                 * And tell the rest of the page that an event is
+                                 * running, because nothing else will.
+                                 *
+                                 * THE PARLOUR is the one event that never sends
+                                 * `global_event_start`: it has no activation
+                                 * countdown, so it broadcasts the table opening
+                                 * instead and that is the whole of its start.
+                                 * Which means `globalEventStatus` sat inactive
+                                 * for the entire event on any client that was
+                                 * already connected - only a page loaded
+                                 * mid-table ever learned otherwise, through
+                                 * `/global-event/status`.
+                                 *
+                                 * It showed: MilestoneMeter fills the banner row
+                                 * whenever no event is running, and the event
+                                 * selection roll that hides it lasts four
+                                 * seconds. So four seconds into the table, "next
+                                 * global event - 0 spins to go" faded up into the
+                                 * middle of the room. Every other consumer of
+                                 * this state was wrong for the same half minute;
+                                 * the meter is just the one you can see.
+                                 *
+                                 * `openedAt` is kept RAW here and corrected only
+                                 * into the status, for the reason
+                                 * applyGlobalEventStatus records: the timeline
+                                 * reads `roulette.openedAt` through serverNow().
+                                 */
+                                knownEventStartRef.current = data.openedAt;
+                                const parlourOffset = data.serverTime ? data.serverTime - Date.now() : 0;
+                                setGlobalEventStatus(prev => ({
+                                    ...prev,
+                                    active: true,
+                                    pending: false,
+                                    type: 'roulette',
+                                    activatesAt: data.openedAt ? data.openedAt - parlourOffset : prev.activatesAt,
+                                    expiresAt: data.expiresAt ? data.expiresAt - parlourOffset : prev.expiresAt,
+                                }));
 
                                 /*
                                  * NOT deferred behind a spin in flight, and it is
@@ -1307,6 +1411,58 @@ export function ActivityProvider({ children }) {
     const setRouletteMyBet = useCallback((bet) => {
         setRouletteMyBetState(bet === null || bet === undefined ? null : { bet });
     }, []);
+
+    /*
+     * The table cannot outstay its own timeline - whatever put it on screen.
+     *
+     * The ordinary teardown is armed by `roulette_result`, and that is the path
+     * every client takes. This is the one that covers the paths that never
+     * reach it: a page loaded after the ball had already dropped (the restore
+     * in applyGlobalEventStatus sets the table and the pocket, and the result
+     * it would have been torn down by was broadcast before the tab existed),
+     * and anything else that ever sets `roulette` without a result to follow.
+     *
+     * It has to exist because of what the table OWNS. While it is up the reel
+     * is not the reel, spinning is refused, and no other timer is running - so
+     * a table with no teardown is not a cosmetic leftover, it is a wheel page
+     * that cannot be used again until it is reloaded. That was a real report.
+     *
+     * Deliberately later than the real end (T_END is 29.6s from the open) so it
+     * can never cut the pockets' turn-back short: reaching this at all means
+     * something else has already failed, and the cost of being four seconds
+     * late is nothing next to the cost of being early.
+     */
+    useEffect(() => {
+        const openedAt = roulette?.openedAt;
+        if (!openedAt) return undefined;
+        const id = setTimeout(() => {
+            console.warn('[Parlour] Table outlived its timeline - clearing.');
+            if (rouletteClearTimeoutRef.current) {
+                clearTimeout(rouletteClearTimeoutRef.current);
+                rouletteClearTimeoutRef.current = null;
+            }
+            setRoulette(null);
+            setRouletteTable(null);
+            setRouletteResult(null);
+            setRouletteMyBetState(null);
+            /*
+             * And the status with it, because reaching here means the end
+             * broadcast never landed either. `roulette_open` is what set this
+             * event active - no `global_event_start` exists for the parlour -
+             * so nothing else is going to unset it, and a status stuck active
+             * costs the milestone meter and holds the navigation compact for
+             * the rest of the session. Only for a roulette: any other type here
+             * is a LATER event that started while this timer was pending, and
+             * clearing that would be the resurrection bug's mirror image.
+             * `milestone` is kept: it is the last count anyone read, and the
+             * meter's own poll refreshes it as soon as it is back on screen.
+             */
+            setGlobalEventStatus(prev => (prev?.type === 'roulette'
+                ? { ...prev, active: false, pending: false, type: null, data: null }
+                : prev));
+        }, Math.max(0, openedAt + ROULETTE_MAX_LIFETIME_MS - serverNow()));
+        return () => clearTimeout(id);
+    }, [roulette?.openedAt]);
 
     const value = {
         feed,

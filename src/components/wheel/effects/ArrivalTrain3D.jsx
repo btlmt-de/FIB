@@ -70,6 +70,8 @@ import {
     SCENE_FADE_S, SHOT_TWO, SHOT_THREE, LID_DELAY_S, LID_OPEN_S, CRATE_FALL_S,
     MAX_CRATES, crateFallsAt,
 } from './arrivalTimeline.js';
+import { createArrivalCrateFactory } from './arrivalCrates.js';
+import { buildArrivalScenery, detailArrivalLocomotive } from './arrivalScenery.js';
 import { prefersReducedMotion } from '../../../utils/motion.js';
 
 /*
@@ -412,47 +414,6 @@ function windowTexture() {
     return finish(new CanvasTexture(c));
 }
 
-/**
- * A stencilled shipping mark, painted on the end of every crate.
- *
- * The one piece of copy on the cargo, and it is a MARK rather than a number:
- * stencilling the amount on the outside of the box would hand the player the
- * figure a beat before their own drum resolves it, and the board waiting for the
- * crates is the whole shape of this event.
- *
- * Drawn hollow, in the enamel-sign amber, with the two "this way up" arrows a
- * real packing case carries. Shared by every crate.
- */
-function crateMarkTexture() {
-    const w = 128, h = 128;
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const g = c.getContext('2d');
-
-    g.strokeStyle = 'rgba(255,170,0,0.62)';
-    g.fillStyle = 'rgba(255,170,0,0.62)';
-    g.lineWidth = 4;
-    g.lineCap = 'square';
-
-    g.font = '700 40px "Barlow Condensed","Arial Narrow",system-ui,sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('F I B', w / 2, 44);
-
-    g.beginPath();
-    g.moveTo(30, 68); g.lineTo(98, 68);
-    g.stroke();
-
-    // Two arrows, one either side of the rule, pointing at the lid.
-    for (const ax of [46, 82]) {
-        g.beginPath();
-        g.moveTo(ax, 108); g.lineTo(ax, 82);
-        g.moveTo(ax - 9, 91); g.lineTo(ax, 82); g.lineTo(ax + 9, 91);
-        g.stroke();
-    }
-    return finish(new CanvasTexture(c));
-}
-
 /** The sky behind everything: a night gradient with a faint sodium horizon. */
 function skyTexture() {
     const c = document.createElement('canvas');
@@ -678,6 +639,8 @@ export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, s
         /** Anything with a `dispose()` goes through here and nowhere else. */
         const track = (x) => { disposables.push(x); return x; };
 
+        buildArrivalScenery(scene, M, track);
+
         const glowTex = track(radialTexture(GLOW_STOPS));
         const smokeTex = track(radialTexture(SMOKE_STOPS));
         const streakTex = track(streakTexture());
@@ -809,7 +772,8 @@ export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, s
 
         // The coping stone at the edge, catching the light along its lip.
         const coping = new Mesh(track(new BoxGeometry(160, 0.36, 0.16)), M.trim);
-        coping.position.set(0, 0.18, 1.28);
+        // Also offset the coping front from the platform slab at z=1.2.
+        coping.position.set(0, 0.18, 1.25);
         coping.receiveShadow = true;
         scene.add(coping);
 
@@ -894,7 +858,9 @@ export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, s
         canopy.position.set(0, 2.85, -5.2);
         scene.add(canopy);
         const canopyLip = new Mesh(track(new BoxGeometry(160, 0.2, 0.1)), M.trim);
-        canopyLip.position.set(0, 2.76, -2.95);
+        // The roof front is z=-2.9. Keep the fascia proud of it, rather than
+        // coplanar: overlapping faces shimmer as the camera moves.
+        canopyLip.position.set(0, 2.76, -2.86);
         scene.add(canopyLip);
         // Ribs across the underside, receding — the cheapest possible way to
         // give a flat roof plane a direction and a scale.
@@ -1380,6 +1346,8 @@ export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, s
             }
         }
 
+        detailArrivalLocomotive(loco, M, track);
+
         const DRIVER_XS = [1.35, 0.35, -0.95];
         const driverMeshes = addWheels(loco, DRIVER_XS, DRIVER_R);
 
@@ -1615,25 +1583,7 @@ export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, s
         // ── the freight cars ────────────────────────────────────────────────
         const crateMeshes = [];
 
-        /*
-         * Every crate is built from these, and they are built once.
-         *
-         * Eight crates of fourteen pieces is a hundred and twelve meshes for
-         * eight distinct shapes; a fresh `BoxGeometry` inside the loop — which is
-         * what the corner brackets used to do — is a hundred and twelve buffer
-         * uploads describing the same box over and over.
-         */
-        const crateBoxGeo = track(new BoxGeometry(0.62, 0.62, 0.62));
-        const crateUprightGeo = track(new BoxGeometry(0.075, 0.63, 0.075));
-        const crateRailGeo = track(new BoxGeometry(0.638, 0.055, 0.638));
-        const crateBraceGeo = track(new BoxGeometry(0.30, 0.048, 0.016));
-        const crateSkidGeo = track(new BoxGeometry(0.66, 0.07, 0.13));
-        const crateLidGeo = track(new BoxGeometry(0.66, 0.06, 0.66));
-        const crateCleatGeo = track(new BoxGeometry(0.686, 0.05, 0.11));
-        const crateMarkGeo = track(new PlaneGeometry(0.34, 0.34));
-        const crateMarkMat = track(new MeshBasicMaterial({
-            map: track(crateMarkTexture()), transparent: true,
-        }));
+        const makeCrate = createArrivalCrateFactory(M, track, addGlow);
 
         for (let i = 0; i < cars; i++) {
             const car = place(CAR_LEN);
@@ -1689,128 +1639,7 @@ export function ArrivalTrain3D({ crateCount = 0, epoch = null, emitRef = null, s
             bufferPair(car, CAR_LEN / 2 + 0.06);
             bufferPair(car, -CAR_LEN / 2 - 0.06);
 
-            /*
-             * A crate is the one object the player actually cares about, and it
-             * was a plain box with a wireframe on it — which reads as a
-             * developer placeholder, because that is exactly what a glowing
-             * wireframe cube is.
-             *
-             * Now it is built: a body, banding straps around both axes, corner
-             * brackets, and a lit seam under the lid. All primitives, all
-             * catching the rim light, and the amber is on the METAL rather than
-             * on an outline — the same move as the tier rims elsewhere, where
-             * the glow belongs to a material and not to a stroke.
-             */
-            const crate = new Group();
-            const box = new Mesh(crateBoxGeo, M.crate);
-            box.castShadow = true;
-            crate.add(box);
-
-            /*
-             * ── WHY IT IS FRAMED AND NOT STRAPPED ────────────────────────────
-             *
-             * It used to be a box with a brass band round it one way and another
-             * band crossing it the other, which is a RIBBON: six of them stood on
-             * a platform read as a row of gift presents. Owner's note, and the
-             * diagnosis is the crossing — a single centred vertical over a single
-             * centred horizontal is the one arrangement that means "wrapped".
-             *
-             * A packing case is not strapped, it is FRAMED: uprights at the
-             * corners, two rails round the sides, a diagonal brace across the
-             * face and skids underneath to get a bar under it. None of those is
-             * centred, none of them crosses in the middle, and every one of them
-             * is a piece of timber doing a job.
-             */
-            for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-                const upright = new Mesh(crateUprightGeo, M.crateFrame);
-                upright.position.set(sx * 0.295, 0, sz * 0.295);
-                upright.castShadow = true;
-                crate.add(upright);
-            }
-            for (const y of [-0.19, 0.15]) {
-                const rail = new Mesh(crateRailGeo, M.crateFrame);
-                rail.position.y = y;
-                crate.add(rail);
-            }
-            /*
-             * Bracing, on the face the camera is on — and it is two corner
-             * gussets rather than one diagonal corner to corner.
-             *
-             * The full diagonal was right for the timber and wrong for the
-             * panel: it ran straight through the middle of the face, which is
-             * the one part of a packing case that is kept clear, because that is
-             * where the shipping mark goes.
-             *
-             * Both gussets are at the BOTTOM, mirrored, which is where a real
-             * case is braced and — the reason it changed twice — is the only
-             * arrangement that leaves the whole upper half of the face clear.
-             * At opposite corners the top one landed straight across the B.
-             */
-            for (const s of [-1, 1]) {
-                const brace = new Mesh(crateBraceGeo, M.crateFrame);
-                brace.position.set(s * 0.15, -0.16, 0.313);
-                brace.rotation.z = s * 0.62;
-                crate.add(brace);
-            }
-
-            // Skids. A crate sits on runners so something can get under it, and
-            // the gap is also what gives it a shadow with daylight beneath.
-            for (const sz of [-1, 1]) {
-                const skid = new Mesh(crateSkidGeo, M.crateFrame);
-                skid.position.set(0, -0.345, sz * 0.2);
-                skid.castShadow = true;
-                crate.add(skid);
-            }
-
-            const mark = new Mesh(crateMarkGeo, crateMarkMat);
-            mark.position.set(0, 0.055, 0.316);
-            crate.add(mark);
-
-            // The lid seam, lit. One glowing line, where there used to be twelve.
-            const seam = new Mesh(track(new BoxGeometry(0.64, 0.012, 0.64)), M.glow);
-            seam.position.y = 0.2;
-            crate.add(seam);
-            const seamGlow = addGlow(crate, 0, 0.2, 0, 1.1, AMBER, 0.2);
-
-            /*
-             * THE LID, and why it is a pivot rather than a moving box.
-             *
-             * A crate that is already open when it touches the paving is a crate
-             * that was never shut, so the lid throws back a beat AFTER the
-             * landing — and it throws back on a hinge at its far edge, which is
-             * what a lid does. Rotating the box itself would swing it about its
-             * own centre and drive half of it down through the crate.
-             *
-             * An `Object3D` and not a `Group`: it carries one child and nothing
-             * ever needs to find it.
-             */
-            const lidPivot = new Object3D();
-            lidPivot.position.set(0, 0.31, -0.31);
-            /*
-             * The crate's own timber, and thin. In the hull's colour the open lid
-             * was the largest flat surface in the close shot and the only one
-             * facing the key light square on, so six of them came up as a row of
-             * pale slabs brighter than the crates they came off — the crate
-             * out-lit by its own lid. It is boards now, like the rest of it,
-             * with one cleat across them.
-             */
-            const lid = new Mesh(crateLidGeo, M.crateLid);
-            lid.position.set(0, 0.02, 0.31);
-            lid.castShadow = true;
-            lidPivot.add(lid);
-            const lidCleat = new Mesh(crateCleatGeo, M.crateFrame);
-            lidCleat.position.set(0, 0.03, 0.31);
-            lidPivot.add(lidCleat);
-            crate.add(lidPivot);
-
-            /*
-             * What is inside. It is not an object — a lucky spin has no shape —
-             * so it is a light: an additive core completely hidden by the closed
-             * lid that floods out of the box as the lid clears it. §8's rule one
-             * storey down: the payout is light, and light is what a rarity has
-             * always been on this surface.
-             */
-            const core = addGlow(crate, 0, 0.16, 0, 0.9, AMBER, 0);
+            const { crate, lidPivot, seamGlow, core } = makeCrate(i);
 
             scene.add(crate);
             crateMeshes.push({
