@@ -77,7 +77,7 @@ import { LaneResultsRow } from './spin/LaneResultsRow.jsx';
 import {
     API_BASE_URL, IMAGE_BASE_URL,
     ITEM_WIDTH, STRIP_HEIGHT, STRIP_LENGTH, FINAL_INDEX,
-    TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
+    TEAM_MEMBERS, EXOTIC_ITEMS, RELIC_ITEMS, RARE_MEMBERS, MYTHIC_ITEMS, MYTHIC_ITEM, EVENT_ITEM, BONUS_EVENTS, INSANE_ITEMS, RECURSION_ITEM
 } from '../../config/constants.js';
 import { COLORS, SPACE, Z, SURFACE_NOISE } from './config/constants';
 // getMinecraftHeadUrl, isEventItem and isRecursionItem left with the local
@@ -185,7 +185,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     /*
      * THE ARRIVAL TAKES THE REEL.
      *
-     * Every other global event runs *alongside* the wheel — Gold Rush changed
+     * Every other global event runs *alongside* the wheel — Gold Rush used to change
      * the odds of a spin you were still taking, KOTW scored the spins you took,
      * the Community Goal counted them. The arrival is the one event that is not
      * about spinning at all, and it is the only one that owns the track the reel
@@ -259,11 +259,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const id = setInterval(() => setParlourTick(n => n + 1), 250);
         return () => clearInterval(id);
     }, [parlourOpenedAt]);
-
-    // Get Gold Rush boosted rarity if event is active
-    const goldRushBoostedRarity = globalEventStatus?.active && globalEventStatus?.type === 'gold_rush'
-        ? globalEventStatus.data?.boostedRarity
-        : null;
 
 
     // Get sound functions
@@ -523,7 +518,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
         // Not awaited, and deliberately not cancelled on unmount — an in-flight
         // sweep that outlives the component is just cache the next mount inherits.
-        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...EXOTIC_ITEMS, ...TEAM_MEMBERS]);
+        warmImageCache([...INSANE_ITEMS, ...MYTHIC_ITEMS, ...RARE_MEMBERS, ...EXOTIC_ITEMS, ...RELIC_ITEMS, ...TEAM_MEMBERS]);
 
         return () => {
             isMounted = false;
@@ -552,6 +547,32 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const winner = strip[FINAL_INDEX];
         preloadItemImages(winner ? [winner, ...strip] : strip);
     }, [strip]);
+
+    /*
+     * The phone's tap, in the same shape as the spacebar below it — one list of
+     * states, read by both, because they are one decision. A payoff restarts
+     * the reel, idle starts it, and every other state is the machine mid-move.
+     *
+     * `tripleResult` and `tripleLuckyResult` are in the list and always were;
+     * what they never had was an element to tap, because the handler sat on the
+     * reel mount and the lanes replace the mount. It lives on the band now —
+     * see the wrapper down in the render.
+     */
+    const bandTapRestarts = state === 'result' || state === 'recursion' || state === 'luckyResult'
+        || state === 'tripleResult' || state === 'tripleLuckyResult';
+    // `!bandIsTaken` is the cursor's share of the refusal `spin` and `respin`
+    // already make: while the train or the table has the band, a pointer over
+    // it is offering something that returns early.
+    const bandTappable = Boolean(user) && allItems.length > 0 && !bandIsTaken
+        && (bandTapRestarts || state === 'idle');
+    const handleBandTap = () => {
+        if (!isMobile || !bandTappable) return;
+        if (bandTapRestarts) {
+            respinRef.current?.();
+        } else {
+            spinRef.current?.();
+        }
+    };
 
     // Spacebar to spin/respin
     useEffect(() => {
@@ -696,6 +717,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const shuffledMythic = shuffleArray([...MYTHIC_ITEMS]);
         const shuffledRare = shuffleArray([...RARE_MEMBERS]);
         const shuffledExotic = shuffleArray([...EXOTIC_ITEMS]);
+        const shuffledRelic = shuffleArray([...RELIC_ITEMS]);
         const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
         // Use indices to iterate through shuffled arrays (guarantees distribution)
@@ -704,6 +726,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         let mythicIndex = 0;
         let rareIndex = 0;
         let exoticIndex = 0;
+        let relicIndex = 0;
         let legendaryIndex = 0;
 
         for (let i = 0; i < length; i++) {
@@ -729,10 +752,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     const rare = shuffledRare[rareIndex % shuffledRare.length];
                     rareIndex++;
                     newItem = { ...rare, isRare: true, texture: `rare_${rare.username}` };
-                } else if (roll < 0.043 && shuffledExotic.length > 0) {
-                    // 1% chance for exotic. These bands are decoration only — they
+                } else if (roll < 0.040 && shuffledExotic.length > 0) {
+                    // 0.7% chance for exotic. These bands are decoration only — they
                     // decide what flashes past during the spin, not what is won,
-                    // which the server already decided. Exotic takes its 1% out of
+                    // which the server already decided. Exotic took its share out of
                     // the band that used to be legendary's rather than lengthening
                     // the run of specials, so the strip's overall density of
                     // non-common tiles is unchanged.
@@ -741,8 +764,33 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     const exotic = shuffledExotic[exoticIndex % shuffledExotic.length];
                     exoticIndex++;
                     newItem = { ...exotic, isExotic: true };
+                } else if (roll < 0.046 && shuffledRelic.length > 0) {
+                    /*
+                     * 0.6% chance for relic.
+                     *
+                     * Relic shipped without a band here at all, which meant the tier
+                     * could not appear on the reel as decoration — the only way to
+                     * see one go past was to win one, and the tier is 1 in 500. So
+                     * the newest rarity was also the only invisible one, and it read
+                     * as "relic is broken" rather than "relic is rare".
+                     *
+                     * Its share comes out of the 2% exotic and legendary were
+                     * splitting, on the same rule the exotic note above records: the
+                     * run of specials keeps its 5.3% and the tiers inside it divide
+                     * that, so adding a rarity never makes the strip busier. The
+                     * three-way split is 0.7 / 0.6 / 0.7 rather than exact thirds
+                     * because round bands are readable and the difference is 0.09 of
+                     * a tile across an 89-tile strip — invisible in the only place it
+                     * could show up.
+                     *
+                     * Relic items carry their own whole texture (`relic_*`), like
+                     * exotic and unlike the member tiers.
+                     */
+                    const relic = shuffledRelic[relicIndex % shuffledRelic.length];
+                    relicIndex++;
+                    newItem = { ...relic, isRelic: true };
                 } else if (roll < 0.053 && shuffledLegendary.length > 0) {
-                    // 1% chance for legendary
+                    // 0.7% chance for legendary
                     const member = shuffledLegendary[legendaryIndex % shuffledLegendary.length];
                     legendaryIndex++;
                     newItem = {
@@ -1596,21 +1644,22 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // this the two read as unrelated — a coloured announcement pasted above a
     // surface that carries on as though nothing is happening.
     //
-    // This is presentation only. Gold Rush's actual mechanic still travels through
-    // `goldRushBoostedRarity` into drawItem, which is what makes the boosted tier's
-    // columns light up; the accent here does not change any tile's rarity.
+    // This is presentation only - the accent does not change any tile's rarity.
+    // It used to be worth saying that explicitly because Gold Rush DID reach into
+    // the reel, boosting one tier's weights and lighting its columns through a
+    // separate `goldRushBoostedRarity` prop. That event and that prop are gone, and
+    // no event modifies the reel's contents any more; they only colour it.
     //
     // A lucky spin outranks it. Recursion and KOTW lucky spins are things happening
     // to *you*, and for those four seconds they own the band — an ambient event
     // tint underneath would just muddy the colour that is telling you something.
     //
     // Declared here, below KOTW_CRIMSON and the lucky-spin flags, because it reads
-    // all three. It was first written up beside the goldRushBoostedRarity lookup
-    // near the top of the component, which put every one of those references in the
-    // temporal dead zone — the build was clean and the page rendered blank.
+    // all three. It was first written up near the top of the component, which put
+    // every one of those references in the temporal dead zone — the build was clean
+    // and the page rendered blank.
     const EVENT_ACCENT = {
         king_of_wheel: arenaVisible ? ARENA.gold : KOTW_CRIMSON,
-        gold_rush: COLORS.gold,
         first_blood: COLORS.red,
         community_goal: COLORS.aqua,
     };
@@ -1707,6 +1756,40 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // decision and were written together.
     const spinningState = state === 'spinning' || state === 'tripleSpinning' || state === 'tripleLuckySpinning' || state === 'luckySpinning' || state === 'bonusWheel';
     const resultState = state === 'result' || state === 'tripleResult' || state === 'luckyResult' || state === 'tripleLuckyResult' || state === 'recursion' || state === 'bonusResult';
+    /*
+     * THE PARLOUR ARRIVES OVER A RESULT.
+     *
+     * The arrival is held back until any spin in flight has landed, and it
+     * shutters the band, so it can never open on top of a payoff. The table is
+     * neither: it is not held back — it opens a window the player has to act
+     * inside — and it draws *over* a reel that keeps rendering underneath. So
+     * it lands on players who are still looking at their last pull, and the
+     * pull stayed on screen: SpinResult stacked under the table in the apron on
+     * desktop, and on a phone ShaftResult drew the previous item straight over
+     * the pockets.
+     *
+     * The reel is put away instead, and `state` goes back to idle rather than
+     * the panels merely being hidden — a result hidden for the event and then
+     * restored when it closes is the same stale pull arriving a second time, a
+     * minute late. Keyed on the state as well as the takeover so the spin that
+     * was in flight when the table opened is put away when it lands, not only
+     * if it had already landed. Nothing is lost by it: the pull is recorded
+     * server-side before the animation ends and is in the history panel.
+     *
+     * Only the two states that draw a payoff over an otherwise idle band. The
+     * bonus board and the 3x/5x lanes replace the band's content outright, so
+     * there is nothing of the parlour underneath them to protect, and cutting
+     * them short would strand a multi-spin flow mid-way.
+     */
+    useEffect(() => {
+        if (!parlourOwnsReel) return;
+        if (state !== 'result' && state !== 'luckyResult') return;
+        setState('idle');
+        setResult(null);
+        setIsNewItem(false);
+        setPrestigePull(null);
+    }, [parlourOwnsReel, state]);
+
     const consoleColor = arenaVisible ? ARENA.ink : state === 'recursion' ? COLORS.recursion
         : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange
             : state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult' ? COLORS.green
@@ -2127,9 +2210,30 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             // whole width and whatever height is left.
                             ? { padding: 0, flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }
                             : { padding: '8px 0 22px' }}>
-                            <div style={isMobile
-                                ? { position: 'relative', flex: '1 1 0', minHeight: 0 }
-                                : { position: 'relative' }}>
+                            {/* THE PHONE'S ONE GESTURE, and it belongs to the
+                                band rather than to the reel mount.
+
+                                It lived on the mount, which is only the LAST
+                                arm of the three-way switch below — so the
+                                3x/5x lanes and the bonus board, which stand in
+                                that band in place of the mount, had no tap
+                                target at all. The lanes come to rest on
+                                `tripleResult` / `tripleLuckyResult` and the
+                                phone has no way out of either: Try Again is
+                                desktop-only (see the bar above, and DESIGN.md
+                                §8 on why), so the only exit from a multi-spin
+                                payoff was reloading the page.
+
+                                One handler on the band covers every arm, which
+                                is also what the gesture always meant — "tap the
+                                reel" is the band, not whichever machine happens
+                                to be standing in it. Desktop is unaffected: the
+                                handler returns immediately off the phone. */}
+                            <div
+                                onClick={handleBandTap}
+                                style={isMobile
+                                    ? { position: 'relative', flex: '1 1 0', minHeight: 0, cursor: bandTappable ? 'pointer' : 'default' }
+                                    : { position: 'relative' }}>
                                 {/* The street glow — THE NOCTURNE.
 
                                     Not a screen sheen: the wet street under the
@@ -2263,19 +2367,14 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         isResult={state === 'tripleResult' || state === 'tripleLuckyResult'}
                                         isMobile={isMobile}
                                         accentColor={modeAccent || COLORS.gold}
-                                        goldRushBoostedRarity={goldRushBoostedRarity}
                                     />
                                 ) : (
                             <div
                                 ref={reelMountRef}
-                                onClick={() => {
-                                    if (!isMobile || !user || allItems.length === 0) return;
-                                    if (state === 'result' || state === 'recursion' || state === 'luckyResult' || state === 'tripleResult' || state === 'tripleLuckyResult') {
-                                        respinRef.current?.();
-                                    } else if (state === 'idle') {
-                                        spinRef.current?.();
-                                    }
-                                }}
+                                /* The tap is the band's, one level up — the
+                                   lanes and the bonus board replace this mount
+                                   and were left with no target when it was
+                                   here. */
                                 style={{
                                     position: 'relative',
                                     // The shaft takes the height the stage row can
@@ -2298,7 +2397,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     // behind it. Everything else inset is gone —
                                     // depth inside the band is the canvas's job.
                                     boxShadow: '0 16px 36px -20px rgba(0,0,0,0.85)',
-                                    cursor: isMobile && (state === 'idle' || state === 'result' || state === 'recursion') ? 'pointer' : 'default',
+                                    // The cursor travelled with the handler; it
+                                    // is on the band now, and covers the lane
+                                    // and board states this list had missed.
                                 }}>
 
                                 {/* The arrival takes the band and then opens out
@@ -2544,7 +2645,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     stripWidth={undefined}
                                     stripHeight={isMobile ? undefined : STRIP_HEIGHT}
                                     finalIndex={FINAL_INDEX}
-                                    goldRushBoostedRarity={goldRushBoostedRarity}
                                     isLuckySpin={showAnySpinLuckyEffects || isLuckyMode}
                                 />
 
@@ -2610,7 +2710,12 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     </div>
                                 )}
 
-                                {isMobile && (state === 'result' || state === 'luckyResult')
+                                {/* `!parlourOwnsReel` closes the single frame
+                                    between the table opening and the effect
+                                    above putting the reel away — on a phone
+                                    that frame is the last pull painted across
+                                    the pockets. */}
+                                {isMobile && !parlourOwnsReel && (state === 'result' || state === 'luckyResult')
                                     && (state === 'result' ? result : luckyResult) && shaftHeight > 0 && (
                                     <ShaftResult
                                         arena={arenaVisible}
@@ -2816,7 +2921,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             answer itself (ShaftResult, up in the reel), which is
                             what lets the apron below shrink to the idle text and
                             hand the difference to the shaft. */}
-                        {!isMobile && state === 'result' && result && (
+                        {/* `!parlourOwnsReel` for the same reason as the phone's
+                            ShaftResult: one frame of the last pull stacked
+                            under the table before the reel is put away. */}
+                        {!isMobile && !parlourOwnsReel && state === 'result' && result && (
                             <>
                                 <SpinResult
                                     arena={arenaVisible}

@@ -6,7 +6,10 @@ import './FirstBloodRoom.css';
 import EventStartCountdown from './EventStartCountdown.jsx';
 import EventWinnerReveal from './EventWinnerReveal.jsx';
 
-const REWARDS = [['rare','9–12'],['exotic','11–14'],['legendary','13–16'],['mythic','17–20'],['insane','20–25']];
+// Mirrors FIRST_BLOOD_REWARDS in wheel-backend/src/server/services/globalEvents.js.
+// The bands are deliberately non-overlapping there - a tier's floor clears the tier
+// below it - so this list reads as a ladder rather than six near-identical spans.
+const REWARDS = [['rare','9–12'],['exotic','13–16'],['relic','18–21'],['legendary','23–27'],['mythic','29–34'],['insane','36–42']];
 
 export function FirstBloodRoom({ visible }) {
     const host = useRef(null);

@@ -6,13 +6,24 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { COLORS } from '../config/constants';
-import { getDiscordAvatarUrl, getItemImageUrl, getMinecraftHeadUrl } from '../../../utils/helpers.js';
+import {
+    getDiscordAvatarUrl,
+    getItemImageUrl,
+    getMinecraftHeadUrl,
+    celebrationDelay,
+    pullAge,
+    STALE_PULL_GRACE_MS,
+} from '../../../utils/helpers.js';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Sparkles, Star, Crown, Diamond } from 'lucide-react';
 
 // Configuration - must match original
-const CELEBRATION_DELAY = 4500;
+//
+// CELEBRATION_DELAY is gone. It was 4500 here and 4500 in MythicCelebration, a
+// third number for an idea that already had SPIN_REVEAL_MS, and each copy was
+// applied against a different clock. `celebrationDelay()` in utils/helpers.js is
+// the one rule now; the note there records what the two copies got wrong.
 const CELEBRATION_DURATION = 12000;
 const CONFETTI_COUNT = 500;
 
@@ -326,7 +337,7 @@ function CanvasBackgroundPulse({ active, colors }) {
 // ============================================
 
 export function PixiMythicCelebration({ currentUserId }) {
-    const { newItems, serverTime } = useActivity();
+    const { newItems } = useActivity();
     const { playRaritySound } = useSound();
     const [celebration, setCelebration] = useState(null);
     const [showFlash, setShowFlash] = useState(false);
@@ -430,8 +441,10 @@ export function PixiMythicCelebration({ currentUserId }) {
             !processedItemsRef.current.has(item.id)
         );
 
-        if (specialPulls.length > 0) {
-            const specialItem = specialPulls[0];
+        // One takeover at a time — the newest pull that is still news. A loop
+        // rather than `specialPulls[0]` because the first candidate can now be
+        // rejected as stale, and when it is, the one behind it deserves the look.
+        for (const specialItem of specialPulls) {
             processedItemsRef.current.add(specialItem.id);
 
             if (processedItemsRef.current.size > 50) {
@@ -439,38 +452,17 @@ export function PixiMythicCelebration({ currentUserId }) {
                 processedItemsRef.current = new Set(arr.slice(-25));
             }
 
-            const isCurrentUser = currentUserId != null && specialItem.user_id === currentUserId;
-            let delay = CELEBRATION_DELAY;
-
-            let createdAtStr = specialItem.created_at;
-            if (createdAtStr && !createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
-            }
-            const createdAt = createdAtStr ? new Date(createdAtStr).getTime() : null;
-
-            if (isCurrentUser) {
-                if (createdAt) {
-                    const age = Date.now() - createdAt;
-                    delay = Math.max(0, CELEBRATION_DELAY - age);
-                } else {
-                    delay = 500;
-                }
-            } else {
-                if (serverTime && createdAt) {
-                    const age = serverTime - createdAt;
-                    if (age >= 0) {
-                        delay = Math.max(2000, CELEBRATION_DELAY - age);
-                    }
-                }
-            }
+            // Too old to be news. See STALE_PULL_GRACE_MS.
+            if (pullAge(specialItem.created_at) > STALE_PULL_GRACE_MS) continue;
 
             const timeoutId = setTimeout(() => {
                 triggerCelebration(specialItem);
-            }, delay);
+            }, celebrationDelay(specialItem.created_at));
 
             delayTimeoutsRef.current.push(timeoutId);
+            break;
         }
-    }, [newItems, serverTime, triggerCelebration, currentUserId]);
+    }, [newItems, triggerCelebration]);
 
     if (!celebration && !confettiActive && !pulseBackground) return null;
 

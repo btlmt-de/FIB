@@ -67,7 +67,7 @@ import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
  */
 const ROTATION = ['arrival', 'roulette', 'king_of_wheel', 'first_blood', 'community_goal'];
 
-const fmt = n => (n == null ? '—' : Number(n).toLocaleString());
+const fmt = n => (n == null ? '—' : Number(n).toLocaleString('en-US'));
 
 /**
  * How long ago, in the shortest true form.
@@ -86,7 +86,7 @@ function ago(ms) {
     if (hours < 24) return `${Math.floor(hours)}h ago`;
     const days = hours / 24;
     if (days < 7) return `${Math.floor(days)}d ago`;
-    return new Date(ms).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+    return new Date(ms).toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
 }
 
 /** The absolute time, for the title. The relative form above loses it. */
@@ -108,7 +108,7 @@ function Winner({ winner, tone }) {
         // A dash, never a zero and never a blank. Three of the five events
         // single nobody out by design, and an empty cell reads as data that
         // failed to load rather than as a result.
-        return <BoardLabel tone={DECK.inkDim}>—</BoardLabel>;
+        return <BoardLabel tone={DECK.inkMid}>—</BoardLabel>;
     }
 
     return (
@@ -123,7 +123,7 @@ function Winner({ winner, tone }) {
                 />
             </PrestigeRing>
             <span style={{
-                fontSize: '13px', color: tone || DECK.ink, minWidth: 0,
+                fontSize: '14px', color: tone || DECK.ink, minWidth: 0,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>{winner.username || 'Unknown'}</span>
         </span>
@@ -188,7 +188,7 @@ export function EventHistoryBoard({ onClose }) {
 
     const logTrack = isPhone
         ? '16px minmax(0, 1fr) 62px 74px'
-        : '16px 132px minmax(0, 1fr) minmax(0, 0.9fr) 66px 78px';
+        : '16px 146px minmax(0, 1fr) minmax(0, 0.9fr) 66px 78px';
 
     const head = [
         { value: fmt(summary.fired), label: 'Events', tone: DECK.amber },
@@ -202,6 +202,7 @@ export function EventHistoryBoard({ onClose }) {
             role="dialog"
             aria-modal="true"
             aria-label="Global event log"
+            className="fib-event-log"
             style={{
                 position: 'fixed', inset: 0,
                 background: 'rgba(0,0,0,0.8)',
@@ -281,9 +282,10 @@ export function EventHistoryBoard({ onClose }) {
                         }}>
                             {head.map((f, i) => (
                                 <div key={f.label} style={{
-                                    padding: isPhone ? '0 10px' : '0 26px',
+                                    paddingTop: 0, paddingBottom: 0,
+                                    paddingLeft: i === 0 ? 0 : isPhone ? '10px' : '26px',
+                                    paddingRight: isPhone ? '10px' : '26px',
                                     boxShadow: i > 0 ? `inset 1px 0 0 ${rail(0.07)}` : undefined,
-                                    ...(i === 0 ? { paddingLeft: 0 } : null),
                                 }}>
                                     <FlapText
                                         text={f.value}
@@ -330,7 +332,7 @@ export function EventHistoryBoard({ onClose }) {
 
                     {isPhone && milestone && (
                         <div style={{ padding: '12px 0 2px' }}>
-                            <BoardLabel tone={DECK.inkDim}>
+                            <BoardLabel tone={DECK.inkMid}>
                                 {`${fmt(milestone.remaining)} spins to the next event`}
                             </BoardLabel>
                         </div>
@@ -382,11 +384,11 @@ export function EventHistoryBoard({ onClose }) {
                                 justifyContent: 'space-between', gap: '12px',
                                 paddingBottom: '10px',
                             }}>
-                                <BoardLabel size={11}>The run-up</BoardLabel>
+                                <BoardLabel size={12} tone={DECK.ink}>The run-up</BoardLabel>
                                 {/* On an empty log there is no last event to
                                     measure from, and the caption says "so far"
                                     rather than inventing a boundary. */}
-                                <BoardLabel tone={DECK.inkDim}>
+                                <BoardLabel tone={DECK.inkMid}>
                                     {`${fmt(runUp.spins)} spins ${runUp.since ? 'since the last event' : 'so far'} · ${fmt(runUp.contributors)} ${runUp.contributors === 1 ? 'player' : 'players'}`}
                                 </BoardLabel>
                             </div>
@@ -404,7 +406,7 @@ export function EventHistoryBoard({ onClose }) {
 
                             {(runUp.top || []).length === 0 && (
                                 <div style={{ padding: '14px 0' }}>
-                                    <BoardLabel tone={DECK.inkDim}>
+                                    <BoardLabel tone={DECK.inkMid}>
                                         {loading ? 'Counting…' : 'Nobody has spun since the last event'}
                                     </BoardLabel>
                                 </div>
@@ -461,7 +463,7 @@ export function EventHistoryBoard({ onClose }) {
 
                                         {!isPhone && (
                                             <BoardLabel
-                                                tone={DECK.inkDim}
+                                                tone={DECK.inkMid}
                                                 style={{ display: 'block', textAlign: 'right' }}
                                                 title={fullTime(row.lastSpinAt)}
                                             >
@@ -478,7 +480,7 @@ export function EventHistoryBoard({ onClose }) {
                                 not spin rather than somebody who did not fit. */}
                             {runUp.contributors > (runUp.top || []).length && (
                                 <div style={{ paddingTop: '10px' }}>
-                                    <BoardLabel tone={DECK.inkDim}>
+                                    <BoardLabel tone={DECK.inkMid}>
                                         {`+ ${fmt(runUp.contributors - (runUp.top || []).length)} more`}
                                     </BoardLabel>
                                 </div>
@@ -489,7 +491,7 @@ export function EventHistoryBoard({ onClose }) {
                     {/* ── THE ROTATION ────────────────────────────────────────── */}
                     <section>
                         <div style={{ paddingBottom: '10px' }}>
-                            <BoardLabel size={11}>The rotation</BoardLabel>
+                            <BoardLabel size={12} tone={DECK.ink}>The rotation</BoardLabel>
                         </div>
 
                         <div style={{
@@ -531,7 +533,7 @@ export function EventHistoryBoard({ onClose }) {
                                     <Icon size={15} color={id.color} aria-hidden="true" />
                                     <FlapText
                                         text={id.name} size={isPhone ? 14 : 16}
-                                        tone={id.color} weight={700}
+                                        tone={`color-mix(in srgb, ${id.color}, white 12%)`} weight={700}
                                         delay={140 + i * 55}
                                         style={{ minWidth: 0, overflow: 'hidden' }}
                                     />
@@ -564,7 +566,7 @@ export function EventHistoryBoard({ onClose }) {
                     {/* ── THE LOG ─────────────────────────────────────────────── */}
                     <section style={{ paddingTop: '30px' }}>
                         <div style={{ paddingBottom: '10px' }}>
-                            <BoardLabel size={11}>Recent events</BoardLabel>
+                            <BoardLabel size={12} tone={DECK.ink}>Recent events</BoardLabel>
                         </div>
 
                         {/* The event on screen right now, above the log rather
@@ -608,7 +610,7 @@ export function EventHistoryBoard({ onClose }) {
 
                         {recent.length === 0 && !error && (
                             <div style={{ padding: '14px 0' }}>
-                                <BoardLabel tone={DECK.inkDim}>
+                                <BoardLabel tone={DECK.inkMid}>
                                     {loading ? 'Reading the log…' : 'No events logged yet'}
                                 </BoardLabel>
                                 {!loading && (
@@ -623,9 +625,11 @@ export function EventHistoryBoard({ onClose }) {
 
                         {recent.map((row, i) => {
                             const id = EVENT_IDENTITY[row.eventType]
-                                // A retired type can still be in the log — an admin
-                                // can force a Gold Rush, and one that ran is history
-                                // whether or not the rotation can still draw it.
+                                // A retired type can still be in the log. Gold Rush
+                                // is gone from the codebase entirely now and cannot
+                                // be forced by anyone, but the rows it wrote while it
+                                // ran are still rows, and a board that rendered them
+                                // as blanks would be lying about the server's past.
                                 || { name: String(row.eventType || 'Unknown').replace(/_/g, ' ').toUpperCase(), color: DECK.inkMid };
                             const Icon = EVENT_ICONS[row.eventType];
 
@@ -646,7 +650,7 @@ export function EventHistoryBoard({ onClose }) {
 
                                     {!isPhone && (
                                         <FlapText
-                                            text={id.name} size={13} tone={id.color} weight={700}
+                                            text={id.name} size={14} tone={`color-mix(in srgb, ${id.color}, white 12%)`} weight={700}
                                             delay={120 + i * 26}
                                             style={{ minWidth: 0, overflow: 'hidden' }}
                                         />
@@ -660,17 +664,17 @@ export function EventHistoryBoard({ onClose }) {
                                         constant — §9's rule is that rows must not
                                         change height between STATES, not that a
                                         row cannot be two lines tall. */}
-                                    <span style={{ minWidth: 0 }}>
+                                    <span title={`${id.name}: ${row.outcome || 'No result recorded'}${row.forced ? ' · forced' : ''}`} style={{ minWidth: 0 }}>
                                         {isPhone && (
                                             <span style={{
-                                                display: 'block', fontSize: '13px', fontWeight: 700,
-                                                color: id.color, overflow: 'hidden',
+                                                display: 'block', fontSize: '14px', fontWeight: 700,
+                                                color: `color-mix(in srgb, ${id.color}, white 12%)`, overflow: 'hidden',
                                                 textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                             }}>{id.name}</span>
                                         )}
                                         <span style={{
                                             display: 'block',
-                                            fontSize: isPhone ? '12px' : '13px',
+                                            fontSize: '14px',
                                             color: DECK.inkMid,
                                             marginTop: isPhone ? '2px' : 0,
                                             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -697,7 +701,7 @@ export function EventHistoryBoard({ onClose }) {
                                         style={{ justifyContent: 'flex-end' }}
                                     />
 
-                                    <BoardLabel tone={DECK.inkDim} style={{ display: 'block', textAlign: 'right' }}>
+                                    <BoardLabel tone={DECK.inkMid} style={{ display: 'block', textAlign: 'right' }}>
                                         {ago(row.endedAt)}
                                     </BoardLabel>
                                 </div>
@@ -706,10 +710,8 @@ export function EventHistoryBoard({ onClose }) {
 
                         {isPhone && recent.some(r => r.winner) && (
                             <div style={{ paddingTop: '12px' }}>
-                                <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.65, color: DECK.inkDim }}>
-                                    Winners are named on a wider screen — the column needs a face and a
-                                    name beside four other columns, and starving those to fit it is how
-                                    a ranking ends up with no names on it.
+                                <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: DECK.inkMid }}>
+                                    Winner names are available in the desktop view.
                                 </p>
                             </div>
                         )}
@@ -723,8 +725,8 @@ export function EventHistoryBoard({ onClose }) {
                     boxShadow: `inset 0 1px 0 ${rail(0.07)}`,
                     background: 'rgba(0,0,0,0.22)',
                 }}>
-                    <BoardLabel tone={DECK.inkDim}>
-                        Paid is what an event cost, never what anyone holds · No event runs twice in a row · The run-up counts spins that produced an item
+                    <BoardLabel tone={DECK.inkMid} style={{ display: 'block', whiteSpace: 'normal', lineHeight: 1.5 }}>
+                        Paid = lucky spins awarded · No consecutive repeat events · Run-up counts spins that produced an item
                     </BoardLabel>
                 </div>
             </div>

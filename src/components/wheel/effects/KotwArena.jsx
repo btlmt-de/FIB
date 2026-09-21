@@ -8,7 +8,7 @@ import './KotwArena.css';
 import EventStartCountdown from './EventStartCountdown.jsx';
 import EventWinnerReveal from './EventWinnerReveal.jsx';
 
-const SCORING = [['common', '1 pt'], ['rare', '~150 pts'], ['exotic', '~180 pts'], ['legendary', '~500 pts'], ['mythic', '~3k pts'], ['insane', '~100k pts']];
+const SCORING = [['common', '1 pt'], ['rare', '~150 pts'], ['exotic', '~180 pts'], ['relic', '~300 pts'], ['legendary', '~600 pts'], ['mythic', '~3k pts'], ['insane', '~100k pts']];
 
 export function KotwArenaAtmosphere({ visible }) {
     if (!visible) return null;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ═══════════════════════════════════════════════════════════════════════════
  * THE CONCOURSE — the collection board
  * ═══════════════════════════════════════════════════════════════════════════
@@ -61,7 +61,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
+import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS, RELIC_ITEMS, RARE_MEMBERS, API_BASE_URL } from '../../../config/constants.js';
 import { COLORS, DECK, rail, SURFACE_NOISE } from '../config/constants';
 import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
 import { RARITY, getRarityColor, getRarityInk, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
@@ -75,7 +75,7 @@ import { useWheelViewport } from '../config/breakpoints.js';
 /* The board's register order. Common is on the board too, which the old tier
    strip left off entirely — it is 1,536 of 1,559 items, so a register that
    skipped it was describing 1.5% of the collection. */
-const REGISTER_ORDER = ['insane', 'mythic', 'legendary', 'exotic', 'rare', 'common'];
+const REGISTER_ORDER = ['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare', 'common'];
 
 /* A prestige level is worn as a numeral, not a digit: "II" reads as a rank where
    "2" reads as a quantity, and the badge sits beside counts that are quantities. */
@@ -87,7 +87,7 @@ const EMPTY = Object.freeze({});
    "everything that is not common", because the pool's items reach this file
    under two different names depending on where they were read from — 'regular'
    from the wheel's own tables, 'common' from the roster this board assembles. */
-const SPECIAL_TYPES = new Set(['insane', 'mythic', 'legendary', 'exotic', 'rare']);
+const SPECIAL_TYPES = new Set(['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare']);
 
 /* Tiers with no dry streak to show. Insane is the decision the old book recorded
    and it is still right: one item at 0.000001% makes the streak every player's
@@ -467,17 +467,23 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             chance: i.display_chance || i.chance,
             username: i.username, imageUrl: i.image_url || i.imageUrl
         }));
+        // `m.texture ||` is not defensive padding. The template below is right for a
+        // head and wrong for anything else in a member list: ChromaRGBDirt and the
+        // Wandering Trader have no username, so it built `special_null` for BOTH of
+        // them and the book showed one entry where there are two. Members that are
+        // not heads carry their real texture in constants.js; prefer it.
         const fromMembers = (members, tier, prefix) => members.map(m => ({
-            name: m.name, texture: `${prefix}_${m.username}`, type: tier,
-            username: m.username, chance: m.chance
+            name: m.name, texture: m.texture || `${prefix}_${m.username}`, type: tier,
+            username: m.username, chance: m.chance, imageUrl: m.imageUrl
         }));
 
-        let insane, mythic, legendary, exotic, rare;
+        let insane, mythic, legendary, relic, exotic, rare;
 
         if (hasApiData) {
             insane = fromApi('insane');
             mythic = fromApi('mythic');
             legendary = fromApi('legendary');
+            relic = fromApi('relic');
             exotic = fromApi('exotic');
             rare = fromApi('rare');
         } else {
@@ -487,6 +493,8 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             // Exotic is a list of items, not members — its textures are already
             // whole, so it maps like INSANE_ITEMS rather than through fromMembers.
             exotic = EXOTIC_ITEMS.map(i => ({ ...i, type: 'exotic' }));
+            // Same shape as exotic: whole textures, not member names.
+            relic = RELIC_ITEMS.map(i => ({ ...i, type: 'relic' }));
             rare = fromMembers(RARE_MEMBERS, 'rare', 'rare');
         }
 
@@ -495,8 +503,8 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
         const commons = allItems.map(i => (i.type ? i : { ...i, type: 'common' }));
 
         return {
-            tierItems: { insane, mythic, legendary, exotic, rare, common: commons },
-            allItemsWithSpecial: [...insane, ...mythic, ...legendary, ...exotic, ...rare, ...commons],
+            tierItems: { insane, mythic, legendary, relic, exotic, rare, common: commons },
+            allItemsWithSpecial: [...insane, ...mythic, ...legendary, ...relic, ...exotic, ...rare, ...commons],
         };
     }, [dynamicItems, allItems]);
 
@@ -568,7 +576,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
     const totals = useMemo(() => {
         const total = allItemsWithSpecial.length;
         const held = allItemsWithSpecial.filter(i => activeCollection[i.texture] > 0).length;
-        const specials = ['insane', 'mythic', 'legendary', 'exotic', 'rare']
+        const specials = ['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare']
             .reduce((sum, k) => sum + (stats?.[`${k}Count`] || 0), 0);
         return {
             held,
@@ -760,20 +768,10 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             },
         ];
 
-    // The register's columns, and the order is an argument.
-    //
-    // The meter sits next to HELD and MISSING because it measures them, not off
-    // at the right where it was competing with STATUS. SINCE sits last before
-    // STATUS because it is the board's headline claim — how long you have been
-    // waiting — and it was previously the dimmest, smallest figure in the row,
-    // parked behind a number the player already knows.
-    //
-    // On a phone MISSING gives way rather than SINCE: missing is total minus
-    // held, derivable from two columns still on screen, while the wait is
-    // derivable from nothing.
+    // Keep the register compact: owned / total, progress, then pull history.
     const gridTemplate = isPhone
-        ? '10px minmax(0, 1fr) 46px 74px 76px'
-        : '10px minmax(92px, 1fr) 54px 62px minmax(70px, 0.62fr) 82px 84px 88px';
+        ? '8px minmax(68px, 1fr) 86px 48px 72px'
+        : '10px minmax(120px, 0.85fr) 110px minmax(100px, 1fr) 90px 88px 92px';
 
     return (
         <div
@@ -783,6 +781,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             role="dialog"
             aria-modal="true"
             aria-label={viewingUser ? `${viewingUser}'s collection` : 'Your collection'}
+            className="fib-collection-book"
             style={{
                 position: 'fixed', inset: 0,
                 // The scrim ladder's middle step: this pushes the stage back
@@ -826,7 +825,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                  * own controls want about 520px between them, which left the
                  * platform 160px — two rows of a 1,559-item grid, on the surface
                  * whose whole job is showing them. The platform now holds a floor
-                 * of 262px on a phone and the upper deck gives way instead, which
+                 * of 322px on a phone and the upper deck gives way instead, which
                  * is the right way round: the numbers are a few rows you can
                  * scroll back to, and the items are the thing you came for.
                  * Above phone width nothing here ever scrolls.
@@ -1026,9 +1025,10 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                 key={f.label}
                                 title={f.title}
                                 style={{
-                                    padding: isPhone ? '0 12px' : '0 26px',
+                                    paddingTop: 0, paddingBottom: 0,
+                                    paddingRight: isPhone ? '12px' : '26px',
+                                    paddingLeft: i === 0 ? 0 : isPhone ? '12px' : '26px',
                                     boxShadow: i > 0 ? `inset 1px 0 0 ${rail(0.07)}` : undefined,
-                                    ...(i === 0 ? { paddingLeft: 0 } : null),
                                 }}
                             >
                                 <FlapText
@@ -1056,11 +1056,13 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                         prestige board, where the title, the badge and the level
                         selector all already carry it; station amber is the main
                         board's own signal and stays there. */}
+                    <div role="progressbar" aria-label="Collection completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(totals.pct.toFixed(1))} aria-valuetext={`${fmt(totals.held)} of ${fmt(totals.held + totals.missing)} items held`}>
                     <BoardMeter
                         value={totals.pct / 100}
                         tone={(prestigeView && prestigeColor(shownLevel)) || DECK.amber}
                         height={3}
                     />
+                    </div>
 
                     {/*
                      * The spin figures, folded into one tracked line.
@@ -1090,13 +1092,12 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                         borders. More space above a heading than below it. */}
                     <div style={{
                         display: 'grid', gridTemplateColumns: gridTemplate,
-                        alignItems: 'center', gap: '0 12px',
+                        alignItems: 'center', gap: isPhone ? '0 6px' : '0 14px',
                         padding: isPhone ? '20px 0 6px' : '24px 0 8px',
                     }}>
                         <span />
                         <BoardLabel>Tier</BoardLabel>
-                        <BoardLabel style={{ textAlign: 'right' }}>Held</BoardLabel>
-                        {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Missing</BoardLabel>}
+                        <BoardLabel style={{ textAlign: 'right' }}>Held / total</BoardLabel>
                         {!isPhone && <span />}
                         {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Last pull</BoardLabel>}
                         <BoardLabel style={{ textAlign: 'right' }}>Since</BoardLabel>
@@ -1140,7 +1141,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     // one nobody on a phone can reach anyway.
                                     style={{
                                         display: 'grid', gridTemplateColumns: gridTemplate,
-                                        alignItems: 'center', gap: '0 12px',
+                                        alignItems: 'center', gap: isPhone ? '0 6px' : '0 14px',
                                         width: '100%', padding: isPhone ? '7px 0' : '12px 0',
                                         border: 'none', textAlign: 'left', font: 'inherit',
                                         // The tier's own wash and base bar are the
@@ -1167,19 +1168,10 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                         weight={700}
                                         delay={280 + i * 55}
                                     />
-                                    <FlapText
-                                        text={fmt(row.held)} digits size={16}
-                                        tone={DECK.ink} delay={300 + i * 55}
-                                        style={{ justifyContent: 'flex-end' }}
-                                    />
-                                    {!isPhone && (
-                                        <FlapText
-                                            text={fmt(row.missing)} digits size={16}
-                                            tone={row.missing > 0 ? DECK.inkMid : DECK.inkDim}
-                                            delay={315 + i * 55}
-                                            style={{ justifyContent: 'flex-end' }}
-                                        />
-                                    )}
+                                    <span style={{ textAlign: 'right', whiteSpace: 'nowrap', fontFamily: "'Barlow Condensed', system-ui, sans-serif", fontSize: isPhone ? '15px' : '16px', fontWeight: 600, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                                        <span style={{ color: DECK.ink }}>{fmt(row.held)}</span>
+                                        <span style={{ color: DECK.inkMid }}> / {fmt(row.total)}</span>
+                                    </span>
                                     {!isPhone && (
                                         <BoardMeter
                                             value={row.held / row.total}
@@ -1190,7 +1182,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     {!isPhone && (
                                         <FlapText
                                             text={fmtDate(row.last) || '—'}
-                                            size={13} tone={DECK.inkDim} weight={600}
+                                            size={14} tone={DECK.inkMid} weight={600}
                                             delay={330 + i * 55}
                                             style={{ justifyContent: 'flex-end' }}
                                         />
@@ -1212,7 +1204,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                         delay={345 + i * 55}
                                         style={{ justifyContent: 'flex-end' }}
                                     />
-                                    <BoardLabel size={11} tone={statusTone} style={{ textAlign: 'right' }}>
+                                    <BoardLabel size={12} tone={statusTone} style={{ textAlign: 'right' }}>
                                         {statusWord}
                                     </BoardLabel>
                                 </button>
@@ -1225,7 +1217,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                 {/* ── THE PLATFORM ─────────────────────────────────────────── */}
                 <div style={{
                     flex: '1 1 auto',
-                    minHeight: isPhone ? '262px' : 0,
+                    minHeight: isPhone ? '322px' : 0,
                     display: 'flex', flexDirection: 'column',
                     marginTop: isPhone ? '10px' : '14px',
                     // The platform is cut one step deeper than the board it sits
@@ -1247,33 +1239,23 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                             {fmt(shown.length)} shown
                         </BoardLabel>
 
-                        {/*
-                         * The readout, and it is not decoration.
-                         *
-                         * The platform is 1,559 unlabelled sprites on a canvas,
-                         * and a canvas cannot carry a title attribute — so
-                         * identifying one meant opening its plaque and closing it
-                         * again, a modal round trip per guess, on the surface
-                         * whose whole job is finding a thing. Naming what is under
-                         * the cursor costs a line the control bar already had
-                         * spare.
-                         *
-                         * A BoardLabel and not a FlapText on purpose: a split-flap
-                         * cascade firing on every pointer move would be the board
-                         * shouting at the mouse.
-                         */}
+                        {/* A floating readout identifies the hovered or focused item without
+                            changing the toolbar layout or the compact canvas geometry. */}
                         {readout && (
                             <span
                                 role="status"
                                 aria-live="polite"
                                 style={{
-                                    display: 'flex', alignItems: 'baseline', gap: '8px',
-                                    minWidth: 0, overflow: 'hidden',
+                                    position: 'fixed', zIndex: 1200, pointerEvents: 'none',
+                                    left: readout.left, top: readout.top,
+                                    display: 'flex', flexDirection: 'column', gap: '6px',
+                                    maxWidth: '260px', padding: '10px 12px',
+                                    background: DECK.faceMid, boxShadow: `inset 2px 0 0 ${getRarityColor(readout.type)}, 0 4px 16px rgba(0,0,0,0.6)`,
                                 }}
                             >
                                 <BoardLabel
-                                    size={13}
-                                    tone={readout.held ? DECK.ink : DECK.inkDim}
+                                    size={15}
+                                    tone={DECK.ink}
                                     style={{ letterSpacing: '0.03em', overflow: 'hidden', textOverflow: 'ellipsis' }}
                                 >
                                     {readout.name}
@@ -1282,7 +1264,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     {(RARITY[readout.type] || RARITY.common).label}
                                 </BoardLabel>
                                 <BoardLabel tone={DECK.inkDim}>
-                                    {readout.held ? `Held x${readout.held}` : 'Not collected'}
+                                    {readout.held ? `Owned: ${fmt(readout.held)}` : 'Not collected'}
                                 </BoardLabel>
                             </span>
                         )}
@@ -1314,21 +1296,21 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
 
                         <Plinth className="fib-board-search" style={{
                             display: 'flex', alignItems: 'center', gap: '7px',
-                            padding: '0 4px 0 10px', height: '30px',
+                            padding: '0 4px 0 10px', height: '32px',
                         }}>
-                            <Search size={13} color={DECK.inkDim} />
+                            <Search size={14} color={DECK.inkMid} />
                             <input
                                 type="text"
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
-                                placeholder="SEARCH"
+                                placeholder="SEARCH ITEMS"
                                 aria-label="Search items by name"
                                 style={{
                                     width: isPhone ? '100px' : '128px',
                                     background: 'transparent', border: 'none', outline: 'none',
                                     color: DECK.ink,
                                     fontFamily: "'Barlow Condensed', system-ui, sans-serif",
-                                    fontSize: '13px', fontWeight: 700, letterSpacing: '0.08em',
+                                    fontSize: '14px', fontWeight: 600, letterSpacing: '0.06em',
                                     textTransform: 'uppercase',
                                 }}
                             />

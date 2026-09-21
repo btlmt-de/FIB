@@ -2,7 +2,7 @@
 // Client-side utility functions
 // ============================================
 
-import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, EXOTIC_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
+import { IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL, MYTHIC_ITEMS, INSANE_ITEMS, EXOTIC_ITEMS, RELIC_ITEMS, TEAM_MEMBERS, COLORS } from '../config/constants.js';
 import { getRarityColor } from './rarityHelpers.jsx';
 import { serverNow } from './serverClock.js';
 
@@ -118,6 +118,75 @@ export function spinRevealDelay(dateString, now = serverNow()) {
     return Math.max(0, SPIN_REVEAL_MS - age);
 }
 
+/**
+ * How old a drop is, on the server's clock, in ms.
+ *
+ * The same subtraction `spinRevealDelay` makes, exposed on its own because the
+ * celebration needs the age itself and not just the wait — it has to decide
+ * whether a pull is worth a full-screen takeover at all, which is a different
+ * question from when to show it.
+ *
+ * Unparseable dates come back as 0 — "just happened" — because the alternative
+ * is `NaN` propagating into a comparison that then silently answers false, and
+ * between showing a celebration that should not have fired and swallowing one
+ * that should, showing it is the kinder failure.
+ */
+export function pullAge(dateString, now = serverNow()) {
+    const date = parseServerDate(dateString);
+    if (!date) return 0;
+    return Math.max(0, now - date.getTime());
+}
+
+/**
+ * The extra beat the mythic/insane takeover sits behind the reveal, in ms.
+ *
+ * The celebration is the loudest thing on the page and it should land just after
+ * the feed has printed the drop, not with it — the same reasoning as First
+ * Blood's announce beat, one tier up. Small, because the two are plainly the same
+ * moment and a long gap reads as a second, unrelated event.
+ */
+export const CELEBRATION_BEAT_MS = 300;
+
+/**
+ * Past this age, a mythic/insane pull gets no celebration at all.
+ *
+ * Not a timing rule — a relevance one. `newItems` is fed from two places: the SSE
+ * stream, where a drop is seconds old, and `fetchActivity`'s catch-up branch,
+ * which fires on mount, on every tab refocus and on every SSE reconnect and hands
+ * over everything that landed while the client was away. A full-screen takeover
+ * for a pull from twenty minutes ago is not a celebration, it is a jump scare:
+ * nothing on screen caused it, the reel is idle, and the drop is already sitting
+ * in the ticker and on the board where it belongs.
+ *
+ * This is what the old code's `Math.max(2000, …)` floor was doing by accident and
+ * in the wrong direction — it guaranteed that a stale catch-up pull celebrated,
+ * two seconds after you tabbed back in.
+ *
+ * Generous enough to cover the cases that ARE news: a brief tab-out, a reconnect
+ * blip, a slow initial render. Anything beyond it happened while nobody was
+ * watching, and the page has other places that say so.
+ */
+export const STALE_PULL_GRACE_MS = 60_000;
+
+/**
+ * When to fire the celebration for a drop, in ms from now.
+ *
+ * One clock and one rule, which is the whole point of it living here. Both
+ * celebration components computed this themselves and each got it wrong in a
+ * different way: the current user's branch measured age with a raw `Date.now()`,
+ * so a browser running a second fast fired a second early — straight over a reel
+ * that was still turning, which is the one thing the delay exists to prevent —
+ * and everyone else's branch measured it against a `serverTime` React snapshot
+ * that, because of a field-name mismatch on the wire, had not updated since the
+ * page loaded.
+ *
+ * `spinRevealDelay` already knows when the reel lands, on a clock that has been
+ * corrected for skew and latency. The celebration wants that, plus a beat.
+ */
+export function celebrationDelay(dateString) {
+    return spinRevealDelay(dateString) + CELEBRATION_BEAT_MS;
+}
+
 // Format time ago string
 export function formatTimeAgo(dateString) {
     const date = parseServerDate(dateString);
@@ -220,6 +289,12 @@ export function isExoticItem(item) {
     return item?.isExotic || item?.type === 'exotic' || item?.texture?.startsWith('exotic_');
 }
 
+// Relic is the wheel's own tier: the server's structures. Its prefix is `relic_`,
+// matching the tier name like exotic's does, and unlike legendary's `special_`.
+export function isRelicItem(item) {
+    return item?.isRelic || item?.type === 'relic' || item?.texture?.startsWith('relic_');
+}
+
 export function isRareItem(item) {
     return item?.isRare || item?.type === 'rare' || item?.texture?.startsWith('rare_');
 }
@@ -267,6 +342,19 @@ export function getItemImageUrl(item) {
         return `${IMAGE_BASE_URL}/barrier.png`;
     }
 
+    // Relic items are structure renders under public/fib-relics, and they need the
+    // same early exit as the exotics directly above for the same reason: their
+    // textures are whole names (`relic_trial_chambers`), so the `<tier>_<username>`
+    // split would hand "trial_chambers" to the player-head branch and try to fetch
+    // a Minecraft skin for a building.
+    if (type === 'relic' || texture?.startsWith('relic_')) {
+        if (item.imageUrl) return item.imageUrl;
+        if (item.image_url) return item.image_url;
+        const relic = RELIC_ITEMS?.find(r => r.texture === texture);
+        if (relic?.imageUrl) return relic.imageUrl;
+        return `${IMAGE_BASE_URL}/barrier.png`;
+    }
+
     // Insane items have custom image URLs
     if (type === 'insane' || texture?.startsWith('insane_')) {
         if (item.imageUrl) return item.imageUrl;
@@ -309,6 +397,12 @@ export function getItemImageUrl(item) {
     // Check all possible texture name variations
     if (texture === 'wandering_trader' || texture === 'special_wandering_trader' || texture === 'legendary_wandering_trader') {
         return '/wandering_trader.png';
+    }
+    // Its own head, not a tinted copy drawn at runtime: the recolour is baked into
+    // the PNG (scripts/repixel-special-trader.py) so the canvas strip and the DOM
+    // grid cannot disagree about what purple means.
+    if (texture === 'special_trader' || texture === 'mythic_special_trader') {
+        return '/special_trader.png';
     }
     if (texture === 'chromargbdirt' || texture === 'special_chromargbdirt' || texture === 'legendary_chromargbdirt') {
         return '/chromargbdirt.gif';
@@ -377,6 +471,7 @@ export function getItemRarity(item) {
     if (isInsaneItem(item)) return 'insane';
     if (isMythicItem(item)) return 'mythic';
     if (isSpecialItem(item)) return 'legendary';
+    if (isRelicItem(item)) return 'relic';
     if (isExoticItem(item)) return 'exotic';
     if (isRareItem(item)) return 'rare';
     if (isEventItem(item)) return 'event';

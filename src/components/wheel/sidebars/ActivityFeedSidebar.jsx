@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { COLORS } from '../config/constants';
 import { Activity, Sparkles, Crown, Radio } from 'lucide-react';
 import { formatTimeAgo, getItemImageUrl, getDiscordAvatarUrl, parseActivityDate } from '../../../utils/helpers.js';
@@ -33,83 +33,41 @@ function formatExactTime(dateStr) {
 }
 
 export function ActivityFeedSidebar() {
-    const { feed: rawFeed, rareFeed, initialized, serverTime } = useActivity();
+    const { feed: rawFeed, rareFeed, initialized } = useActivity();
     const [activeTab, setActiveTab] = useState('all'); // 'all' or 'special'
-    const [delayedFeed, setDelayedFeed] = useState([]);
-    const processedIdsRef = useRef(new Set());
-    const timeoutsRef = useRef([]);
-    const isMountedRef = useRef(true);
-    const serverTimeRef = useRef(serverTime);
 
-    // Keep serverTimeRef in sync without causing effect re-runs
-    useEffect(() => {
-        serverTimeRef.current = serverTime;
-    }, [serverTime]);
-
-    // Track mounted state and cleanup timeouts on unmount only
-    useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-            // Clear timeouts only on unmount
-            timeoutsRef.current.forEach(id => clearTimeout(id));
-            timeoutsRef.current = [];
-        };
-    }, []);
-
-    // Delay new items by 4.5 seconds to respect spin animation (bonus spins take ~4.8s)
-    useEffect(() => {
-        if (!rawFeed) return;
-
-        // Use serverTime if available to avoid client clock skew (read from ref to avoid dependency)
-        const now = serverTimeRef.current || Date.now();
-
-        rawFeed.forEach(item => {
-            if (item.event_type === 'achievement_unlock') return;
-            if (processedIdsRef.current.has(item.id)) return;
-
-            processedIdsRef.current.add(item.id);
-
-            // Check if item is fresh (< 2 seconds old = from SSE)
-            const itemAge = now - parseActivityDate(item.created_at);
-
-            if (itemAge < 2000) {
-                // Fresh SSE item - delay by 4.5 seconds to cover spin animations
-                const timeoutId = setTimeout(() => {
-                    if (!isMountedRef.current) return;
-                    setDelayedFeed(prev => {
-                        if (prev.some(i => i.id === item.id)) return prev;
-                        return [item, ...prev].slice(0, 150);
-                    });
-                    // Remove this timeout from the ref after it executes
-                    timeoutsRef.current = timeoutsRef.current.filter(id => id !== timeoutId);
-                }, 4500);
-                timeoutsRef.current.push(timeoutId);
-            } else {
-                // Older item from initial fetch - show immediately
-                if (isMountedRef.current) {
-                    setDelayedFeed(prev => {
-                        if (prev.some(i => i.id === item.id)) return prev;
-                        return [item, ...prev].slice(0, 150);
-                    });
-                }
-            }
-        });
-
-        // Keep processedIds clean
-        if (processedIdsRef.current.size > 200) {
-            const ids = Array.from(processedIdsRef.current);
-            processedIdsRef.current = new Set(ids.slice(-100));
-        }
-        // Note: No cleanup here - timeouts are managed separately and cleared on unmount
-    }, [rawFeed]); // serverTime accessed via ref to avoid frequent re-runs
-
-    // Sort delayed feed by created_at and filter out any achievements that may have slipped through
+    /*
+     * ── THE SECOND DELAY, AND WHY IT IS GONE ─────────────────────────────────
+     *
+     * This component used to hold every fresh drop back by a further 4500ms
+     * before showing it, on top of whatever the context had already done. That
+     * was correct when it was written: the context prepended to `feed` the
+     * instant an SSE frame landed, so each surface had to protect the reel
+     * itself, and this one did it with a local timer.
+     *
+     * The context gained that rule afterwards (`spinRevealDelay`, on the
+     * server-corrected clock) and this copy was never removed, so a drop was
+     * held twice — 4200ms there, then 4500ms again here, nearly nine seconds
+     * behind the reel it belonged to. Which is the harmless half.
+     *
+     * The harmful half was the branch that decided WHETHER to double it. It
+     * asked whether the item was under two seconds old, measured against
+     * `serverTime || Date.now()` — and `serverTime` was a context snapshot that
+     * had not updated since page load (the SSE field it read does not exist on
+     * the wire), so that comparison answered from a clock minutes stale, or,
+     * whenever the snapshot happened to be null, from the browser's own. The
+     * same drop therefore appeared at 4.2s or at 8.7s depending on which of two
+     * wrong clocks answered, and a player watching the strip and the drawer side
+     * by side saw them disagree about when a pull happened.
+     *
+     * `feed` is already the delayed feed. There is nothing left to do here but
+     * sort it, which is what the rest of this component wanted all along.
+     */
     const feed = useMemo(() => {
-        return [...delayedFeed]
+        return [...rawFeed]
             .filter(item => item.event_type !== 'achievement_unlock')
             .sort((a, b) => parseActivityDate(b.created_at) - parseActivityDate(a.created_at));
-    }, [delayedFeed]);
+    }, [rawFeed]);
 
     // Mythic & Insane board - all time, not just what is still in the live feed.
     // rawFeed is capped at the most recent 150 entries and the delayed feed inherits that

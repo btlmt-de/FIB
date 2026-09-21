@@ -6,13 +6,22 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { COLORS } from '../config/constants';
-import { getDiscordAvatarUrl, getItemImageUrl, getMinecraftHeadUrl } from '../../../utils/helpers.js';
+import {
+    getDiscordAvatarUrl,
+    getItemImageUrl,
+    getMinecraftHeadUrl,
+    celebrationDelay,
+    pullAge,
+    STALE_PULL_GRACE_MS,
+} from '../../../utils/helpers.js';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { useSound } from '../../../context/SoundContext.jsx';
 import { Sparkles, Star, Crown, Diamond } from 'lucide-react';
 
 // Configuration
-const CELEBRATION_DELAY = 4500;
+//
+// CELEBRATION_DELAY is gone — see the note in PixiMythicCelebration.jsx, which is
+// the component actually mounted. The timing rule lives in utils/helpers.js.
 const CELEBRATION_DURATION = 12000;
 const CONFETTI_COUNT = 500;
 
@@ -64,7 +73,7 @@ function ConfettiParticle({ delay, color, left, size, duration }) {
 }
 
 export function MythicCelebration({ currentUserId }) {
-    const { newItems, serverTime } = useActivity();
+    const { newItems } = useActivity();
     const { playRaritySound } = useSound();
     const [celebration, setCelebration] = useState(null);
     const [confetti, setConfetti] = useState([]);
@@ -159,8 +168,9 @@ export function MythicCelebration({ currentUserId }) {
         );
 
 
-        if (specialPulls.length > 0) {
-            const specialItem = specialPulls[0];
+        // One takeover at a time — the newest pull that is still news. See the
+        // matching loop in PixiMythicCelebration.jsx.
+        for (const specialItem of specialPulls) {
             processedItemsRef.current.add(specialItem.id);
 
             if (processedItemsRef.current.size > 50) {
@@ -168,45 +178,17 @@ export function MythicCelebration({ currentUserId }) {
                 processedItemsRef.current = new Set(arr.slice(-25));
             }
 
-            const isCurrentUser = currentUserId != null && specialItem.user_id === currentUserId;
-            let delay = CELEBRATION_DELAY;
-
-            // Parse the item's creation time
-            let createdAtStr = specialItem.created_at;
-            if (createdAtStr && !createdAtStr.includes('Z') && !createdAtStr.includes('+')) {
-                createdAtStr = createdAtStr.replace(' ', 'T') + 'Z';
-            }
-            const createdAt = createdAtStr ? new Date(createdAtStr).getTime() : null;
-
-            if (isCurrentUser) {
-                // Current user: Use Date.now() for accurate age calculation
-                // The spin just finished, so the item was created very recently
-                if (createdAt) {
-                    const age = Date.now() - createdAt;
-                    delay = Math.max(0, CELEBRATION_DELAY - age);
-                } else {
-                    // Fallback: minimal delay since they already see the result
-                    delay = 500;
-                }
-            } else {
-                // Other users: Use serverTime for sync (with fallback to full delay)
-                if (serverTime && createdAt) {
-                    const age = serverTime - createdAt;
-                    // Only use age-based calculation if age is positive (serverTime is fresh)
-                    if (age >= 0) {
-                        delay = Math.max(2000, CELEBRATION_DELAY - age);
-                    }
-                    // If age is negative, serverTime is stale - use full delay
-                }
-            }
+            // Too old to be news. See STALE_PULL_GRACE_MS.
+            if (pullAge(specialItem.created_at) > STALE_PULL_GRACE_MS) continue;
 
             const timeoutId = setTimeout(() => {
                 triggerCelebration(specialItem);
-            }, delay);
+            }, celebrationDelay(specialItem.created_at));
 
             pendingCelebrationsRef.current.push(timeoutId);
+            break;
         }
-    }, [newItems, serverTime, triggerCelebration]);
+    }, [newItems, triggerCelebration]);
 
     if (!celebration && confetti.length === 0 && !pulseBackground) return null;
 

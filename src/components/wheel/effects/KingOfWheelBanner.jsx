@@ -1027,7 +1027,16 @@ function KingOfWheelBanner({
                                                 from RARITY. */}
                                             <span>Exotic <strong style={{ color: getRarityInk('exotic') }}>~180pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
-                                            <span>Legendary <strong style={{ color: getRarityInk('legendary') }}>~500pt</strong></span>
+                                            {/* Relic, on the same 1,000,000 / weight rule. The six
+                                                are seeded 2,600-3,800, so 1e6/w lands between 263
+                                                and 385 — above exotic's flat 182 and below the
+                                                legendary band, which is where its supply sits.
+                                                This label has now tracked the band twice; if it
+                                                stops matching seed.js, seed.js is right. */}
+                                            <span>Relic <strong style={{ color: getRarityInk('relic') }}>~300pt</strong></span>
+                                            <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
+                                            {/* Legendary is 1,000-2,500, so 400-1,000pt. */}
+                                            <span>Legendary <strong style={{ color: getRarityInk('legendary') }}>~600pt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>
                                             <span>Mythic <strong style={{ color: getRarityInk('mythic') }}>~3kpt</strong></span>
                                             <span style={{ color: KOTW_PRIMARY, opacity: 0.5 }}>|</span>

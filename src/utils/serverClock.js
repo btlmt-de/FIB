@@ -57,6 +57,11 @@ let offsetMs = 0;
 let synced = false;
 // null | 'seeded' (biased by one-way latency) | 'measured' (round trip removed).
 let quality = null;
+// The round trip of the measured sample the current offset came from, and when it
+// was taken. Both exist to stop one unlucky request owning the session — see
+// MAX_CREDIBLE_RTT_MS and SAMPLE_TTL_MS.
+let bestRttMs = Infinity;
+let measuredAt = 0;
 
 /**
  * How far an unmeasured sample must disagree with the stored offset before it is
@@ -75,8 +80,42 @@ const RESYNC_THRESHOLD_MS = 5000;
  * queued behind something, or a connection that dropped and retried. Half of it
  * would be a large forward correction built on nothing, and forward is the
  * direction that spoils spins, so such a sample is demoted to unmeasured.
+ *
+ * ── WHY THIS IS 1000 AND NOT 4000 ───────────────────────────────────────────
+ *
+ * The half-RTT correction assumes the trip was symmetric: out and back took the
+ * same time, so the body was stamped in the middle. That assumption is sound for
+ * a fast request and worthless for a slow one — a request that spent two seconds
+ * queued behind a cold VPS, a waking mobile radio or another tab's upload was not
+ * slow *symmetrically*, and half of its RTT is not where the stamp happened. It
+ * is just a large forward number.
+ *
+ * At 4000 the ceiling admitted a +2000ms correction, and `quality = 'measured'`
+ * then LOCKED it: SSE frames are refused below unless they disagree by more than
+ * RESYNC_THRESHOLD_MS, so nothing could talk the offset back down. One unlucky
+ * initial fetch bought a session where `serverNow()` ran two seconds ahead, every
+ * drop read two seconds older than it was, and every reveal window on the page
+ * fired two seconds early — the ticker printing your item over a still-turning
+ * reel, the celebration landing mid-spin. Invisible from the outside, fixed by a
+ * reload, and blamed on the reveal delay rather than on the clock under it.
+ *
+ * 1000 caps that at +500ms, and the best-sample rule below drives it far lower in
+ * practice. Rejecting a genuinely slow-but-honest trip costs nothing: a demoted
+ * sample is still taken as 'seeded', biased in the SAFE direction (late).
  */
-const MAX_CREDIBLE_RTT_MS = 4000;
+const MAX_CREDIBLE_RTT_MS = 1000;
+
+/**
+ * How long a measured sample stays authoritative enough to refuse a worse one.
+ *
+ * Without this, the first good round trip of the session would keep every later
+ * measurement out forever — which is the lock-in above wearing better clothes.
+ * A clock does not drift meaningfully in five minutes, so inside that window the
+ * quicker sample genuinely is the better one; past it, freshness wins and the
+ * next `fetchActivity` (mount, tab refocus, SSE reconnect) re-measures from
+ * scratch.
+ */
+const SAMPLE_TTL_MS = 5 * 60 * 1000;
 
 /**
  * Record the server's clock from a message that carries it.
@@ -105,9 +144,29 @@ export function noteServerTime(serverTime, roundTripMs) {
     const candidate = ms + (timed ? roundTripMs / 2 : 0) - Date.now();
 
     if (timed) {
-        offsetMs = candidate;
-        quality = 'measured';
-        synced = true;
+        /*
+         * Keep the QUICKEST sample, not the latest — the same rule NTP settles on,
+         * and for the same reason: of several measurements of one offset, the one
+         * that travelled least had the least room to be asymmetric, so it is the
+         * one whose half-RTT correction is closest to true. Taking the latest
+         * instead meant a session's accuracy was decided by whichever request
+         * happened to run last, which on a mobile connection is a coin toss.
+         *
+         * Three things still get past a good sample, in the order they are cheap
+         * to check: nothing measured yet; the stored sample has aged out; or the
+         * clock has plainly stepped, which is a different fact from a slow trip
+         * and must not be mistaken for one.
+         */
+        const stale = Date.now() - measuredAt > SAMPLE_TTL_MS;
+        const stepped = Math.abs(candidate - offsetMs) > RESYNC_THRESHOLD_MS;
+
+        if (quality !== 'measured' || roundTripMs <= bestRttMs || stale || stepped) {
+            offsetMs = candidate;
+            quality = 'measured';
+            synced = true;
+            bestRttMs = roundTripMs;
+            measuredAt = Date.now();
+        }
         return;
     }
 

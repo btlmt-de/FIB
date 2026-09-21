@@ -432,6 +432,22 @@ html[data-saver="on"] *::after {
 }
 .fib-board-search input::placeholder { color: #7C859C; opacity: 1; }
 
+/* Board polish stays local: preserve density and shared controls elsewhere. */
+.fib-collection-book,
+.fib-leaderboard,
+.fib-profile,
+.fib-event-log,
+.fib-achievements {
+  --fib-board-label-size: 12px;
+  --fib-board-label-ink: #A8B0C6;
+  --fib-board-label-track: 0.09em;
+}
+.fib-collection-book [role="radio"],
+.fib-leaderboard [role="radio"],
+.fib-achievements [role="radio"] { min-height: 32px; }
+.fib-collection-book .fib-board-search input::placeholder { color: #A8B0C6; }
+
+
 /* One flap on the drum: two tones meeting at a lit hinge. */
 .fib-flap-cell {
   background-image: linear-gradient(

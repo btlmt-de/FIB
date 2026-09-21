@@ -1,493 +1,401 @@
-// ============================================
-// Luck Rating Info Modal - Weighted Glory System
-// ============================================
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * THE CONCOURSE — the luck record
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * What this replaces was the same drift `features/Achievements.jsx` was built
+ * to undo, and its header lists the offences exactly: a 16px-radius modal with
+ * a gradient header, rounded cards at 10px, per-section tinted panels and a
+ * row of coloured chips. Every one of those is banned outright by THE NOCTURNE
+ * (DESIGN.md §8) and none of them survived into §9's board. Opening this from
+ * the player record read as leaving the site, which is the precise symptom the
+ * achievements pass was called in to fix on the surface next door.
+ *
+ * So this is the departure board again: deck ground, ruled registers, station
+ * amber as the only signal, rarity hue used only where the subject IS a tier.
+ *
+ * ── TWO WINDOWS, AND WHY BOTH ────────────────────────────────────────────────
+ *
+ * The panel's centre is now a pair, not a single figure, because the server
+ * measures luck twice and the two answers are different questions rather than
+ * competing estimates of one.
+ *
+ * THE RUN is the 5,000-spin peak the rating already used: endurance, the
+ * stretch where somebody was quietly lucky for a long time. THE CLUSTER is the
+ * short window — fifty to five hundred spins — where several specials landed on
+ * top of each other. A run cannot see a cluster, because fifty good pulls
+ * diluted across five thousand ordinary ones barely move its score; a cluster
+ * cannot see a run, because it is only ever a few dozen spins wide.
+ *
+ * They routinely disagree by orders of magnitude and both are right. The panel
+ * therefore prints them side by side with equal weight and never reconciles
+ * them into one number, which would destroy the only interesting thing about
+ * having two.
+ *
+ * ── THE ODDS ARE THE HEADLINE, NOT THE RATING ────────────────────────────────
+ *
+ * Every figure here already existed in the payload and this panel already drew
+ * most of them. The one thing it never said was what any of it MEANT: it
+ * reported "peak 172" and explained Poisson underneath, and a rating of 172
+ * moves nobody. `peakWindowOneIn` and `tightestCluster.oneIn` are the same
+ * measurement expressed as "1 in 158,489", which is the form a person repeats
+ * out loud. Both come from the server so the odds and the rating cannot drift
+ * apart — they are one log-improbability printed two ways.
+ *
+ * ── THE CAVEAT IS PART OF THE FIGURE ─────────────────────────────────────────
+ *
+ * A cluster's odds are the odds of ONE window turning out that way, and the
+ * server tried thousands of windows to find the best one. In a long history a
+ * 1-in-a-million window is roughly what you should expect to exist, so the
+ * number describes a window and never a person. That sentence sits under the
+ * figure rather than in a tooltip, because a rarity claim with the search
+ * silently removed is the kind of thing players quote at each other and then
+ * get corrected on.
+ */
 
-import React from 'react';
-import { COLORS } from '../config/constants';
+import React, { useEffect } from 'react';
+import { DECK, rail } from '../config/constants';
 import { getRarityInk } from '../../../utils/rarityHelpers.jsx';
-import {
-    X, TrendingUp, Target, Calculator, Award, Info,
-    Crown, Sparkles, Star, Diamond, Gem, Shuffle
-} from 'lucide-react';
+import { FlapText } from '../features/collection/FlapBoard.jsx';
+import { X } from 'lucide-react';
 
-// The two pull breakdowns below take their colours from getRarityInk rather than naming
-// COLORS entries directly. They used to name them, and the names had gone stale: this
-// modal painted Legendary with COLORS.purple, which the ladder rework reassigned to
-// EXOTIC. Adding an exotic row on top of that would have put two magentas side by side
-// labelled differently. Icons are text for contrast purposes, so ink is correct here.
+// Rarest first, matching the ladder everywhere else on the surface.
+const TIERS = ['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare'];
+const TIER_LABEL = {
+    insane: 'Insane', mythic: 'Mythic', legendary: 'Legendary',
+    relic: 'Relic', exotic: 'Exotic', rare: 'Rare'
+};
 
-export function LuckInfoModal({ onClose, luckRating, isMobile }) {
+const num = n => (typeof n === 'number' ? n.toLocaleString() : '—');
 
-    // Stat Cell Component (matching OddsInfoModal)
-    const StatCell = ({ label, value, sublabel, color, isFirst }) => (
+/** A ruled register row: label on the left, figure on the right. */
+function Row({ label, value, tone = DECK.ink, note, last }) {
+    return (
         <div style={{
-            background: COLORS.bgLighter,
-            padding: '12px 6px',
-            textAlign: 'center',
-            borderLeft: isFirst ? 'none' : `1px solid ${COLORS.border}44`
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '9px 14px',
+            borderBottom: last ? 'none' : `1px solid ${rail(0.07)}`
         }}>
-            <div style={{
-                color: color || COLORS.text,
-                fontSize: '15px',
-                fontWeight: '700',
-                fontFamily: 'monospace',
-                marginBottom: '3px',
-                textShadow: color ? `0 0 12px ${color}66` : 'none'
-            }}>
-                {value}
-            </div>
-            {sublabel && (
-                <div style={{ color: COLORS.textMuted, fontSize: '10px', marginBottom: '4px' }}>
-                    {sublabel}
-                </div>
-            )}
-            <div style={{
-                color: COLORS.text,
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontWeight: '600'
+            <span style={{
+                color: DECK.inkMid, fontSize: 12, letterSpacing: '0.02em',
+                display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0
             }}>
                 {label}
-            </div>
+                {note && <span style={{ color: DECK.inkDim, fontSize: 11 }}>{note}</span>}
+            </span>
+            <span style={{
+                color: tone, fontSize: 13, fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap'
+            }}>
+                {value}
+            </span>
         </div>
     );
+}
+
+/** A section head — Barlow Condensed, per the refresh correction. */
+function Head({ children, tone = DECK.inkDim }) {
+    return (
+        <div style={{
+            fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+            fontSize: 13, fontWeight: 700, letterSpacing: '0.08em',
+            textTransform: 'uppercase', color: tone, margin: '0 0 8px'
+        }}>
+            {children}
+        </div>
+    );
+}
+
+/**
+ * One of the two windows. Both carry the same furniture — a span, an odds
+ * headline, the tiers that made it — so the eye can compare them directly
+ * rather than learning two layouts.
+ */
+function WindowCard({ title, span, oneIn, basis, pulls, lucky, footnote, isMobile }) {
+    const tiers = TIERS.filter(t => (pulls?.[t] || 0) > 0);
+    const totalPulls = TIERS.reduce((n, t) => n + (pulls?.[t] || 0), 0);
+    const luckyPulls = lucky?.pulls || 0;
+    // Flagged from the first lucky pull, not from a majority. The odds already
+    // price these correctly, so this is not a correction — it is context, and a
+    // single lucky mythic is enough to change what the window means.
+    const luckyDriven = luckyPulls > 0;
+    return (
+        <div style={{
+            background: DECK.plinth,
+            border: `1px solid ${rail(0.09)}`,
+            borderTop: `1px solid ${DECK.amber}55`,
+            padding: '12px 14px 13px'
+        }}>
+            <Head tone={DECK.amber}>{title}</Head>
+
+            <div style={{ color: DECK.inkDim, fontSize: 11, marginBottom: 8 }}>
+                {span}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: tiers.length ? 10 : 0 }}>
+                <span style={{ color: DECK.inkDim, fontSize: 11 }}>≈ 1 in</span>
+                <FlapText
+                    text={num(oneIn)}
+                    size={isMobile ? 20 : 23}
+                    tone={DECK.amber}
+                    weight={800}
+                    digits
+                />
+            </div>
+
+            {/* The two cards are measured differently and the figures must not be
+                read against each other — see the note below the pair. Saying which
+                basis each one uses is what stops the comparison being made. */}
+            {basis && (
+                <div style={{ color: DECK.inkDim, fontSize: 10.5, marginBottom: 10 }}>
+                    {basis}
+                </div>
+            )}
+
+            {tiers.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+                    {tiers.map(t => (
+                        <span key={t} style={{
+                            color: getRarityInk(t), fontSize: 12, fontWeight: 600,
+                            fontVariantNumeric: 'tabular-nums'
+                        }}>
+                            {pulls[t]}× {TIER_LABEL[t]}
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            {luckyDriven && (
+                <div style={{
+                    marginTop: 10,
+                    padding: '6px 8px',
+                    background: 'rgba(148,168,212,0.06)',
+                    borderLeft: `2px solid ${getRarityInk('mythic')}`,
+                    color: DECK.inkMid, fontSize: 10.5, lineHeight: 1.5
+                }}>
+                    <b style={{ color: DECK.ink }}>Lucky-driven</b> — {luckyPulls} of {totalPulls}{' '}
+                    {totalPulls === 1 ? 'pull' : 'pulls'} came from lucky spins, where every item is
+                    equally likely. Counted at those odds.
+                </div>
+            )}
+
+            {footnote && (
+                <div style={{ color: DECK.inkDim, fontSize: 10.5, lineHeight: 1.5, marginTop: 10 }}>
+                    {footnote}
+                </div>
+            )}
+        </div>
+    );
+}
+
+export function LuckInfoModal({ onClose, luckRating, isMobile }) {
+    /*
+     * Escape closes it, which until now nothing did.
+     *
+     * This is the one overlay on the player record where the key was completely
+     * dead, and the reason is worth keeping because it looks like a safe
+     * omission and is not. UserProfile deliberately STANDS DOWN while any child
+     * of its is open — `childOpen` lists this modal by name — on the contract
+     * that "every child listed here either handles Escape itself or is dismissed
+     * by its own controls". This one only ever satisfied the second half, so
+     * with it open the key did nothing at all: the parent had stepped aside for
+     * a handler that was never written.
+     *
+     * Capture phase plus stopPropagation, matching the item plaque in
+     * CollectionBook.jsx. The profile's own note records why the phase matters:
+     * `stopPropagation` governs propagation BETWEEN nodes and does nothing to a
+     * listener already registered on the node you are standing on, so two
+     * bubble-phase listeners on `window` both run. Claiming the event in capture
+     * stops it before any of them, which is the right shape for the topmost
+     * thing on the screen — while this is open, it owns the key.
+     */
+    useEffect(() => {
+        const onKey = e => {
+            if (e.key !== 'Escape') return;
+            e.stopPropagation();
+            onClose();
+        };
+        window.addEventListener('keydown', onKey, true);
+        return () => window.removeEventListener('keydown', onKey, true);
+    }, [onClose]);
+
+    const cluster = luckRating?.tightestCluster;
+    const stats = luckRating?.stats;
+    const hasPulls = stats && TIERS.some(t => (stats[t] || 0) > 0);
 
     return (
         <div
             style={{
-                position: 'fixed',
-                top: 0, left: 0, right: 0, bottom: 0,
-                background: 'rgba(0, 0, 0, 0.85)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10000,
-                padding: '16px',
-                boxSizing: 'border-box'
+                position: 'fixed', inset: 0,
+                background: 'rgba(3,5,10,0.88)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10000, padding: 16, boxSizing: 'border-box'
             }}
             onClick={onClose}
         >
             <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Luck rating"
                 style={{
-                    background: COLORS.bg,
-                    borderRadius: '16px',
-                    padding: isMobile ? '20px' : '24px',
-                    maxWidth: '480px',
-                    width: '100%',
-                    maxHeight: '90vh',
-                    overflow: 'auto',
-                    border: `1px solid ${COLORS.border}`
+                    background: DECK.face,
+                    border: `1px solid ${rail(0.12)}`,
+                    maxWidth: 520, width: '100%', maxHeight: '90vh',
+                    overflow: 'auto', boxSizing: 'border-box'
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <TrendingUp size={20} color={COLORS.gold} />
-                        <span style={{ color: COLORS.gold, fontSize: '18px', fontWeight: '600' }}>
-                            Luck Rating
-                        </span>
+                {/* Board head. Amber underline, no gradient, no radius. */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 16px',
+                    borderBottom: `1px solid ${DECK.amber}44`,
+                    background: DECK.amberWash
+                }}>
+                    <div style={{
+                        fontFamily: "'Barlow Condensed', system-ui, sans-serif",
+                        fontSize: 20, fontWeight: 700, letterSpacing: '0.1em',
+                        textTransform: 'uppercase', color: DECK.ink
+                    }}>
+                        Luck Record
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Close"
                         style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: 'none',
-                            color: COLORS.textMuted,
-                            cursor: 'pointer',
-                            padding: '8px',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            background: 'transparent', border: `1px solid ${rail(0.12)}`,
+                            color: DECK.inkMid, cursor: 'pointer', padding: 6,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}
                     >
-                        <X size={18} />
+                        <X size={16} />
                     </button>
                 </div>
 
-                {/* Formula */}
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        padding: '14px 16px',
-                        background: `linear-gradient(135deg, ${COLORS.bg} 0%, ${COLORS.gold}08 100%)`,
-                        borderRadius: '10px',
-                        border: `1px solid ${COLORS.gold}33`
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                            <Calculator size={14} color={COLORS.gold} />
-                            <span style={{ color: COLORS.gold, fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                The Formula
-                            </span>
-                        </div>
-                        <code style={{ color: COLORS.text, fontSize: '14px', fontWeight: '500' }}>
-                            Rating = (Lifetime × 0.3) + (Peak × 0.7)
-                        </code>
-                    </div>
-                </div>
+                <div style={{ padding: isMobile ? 14 : 16, display: 'grid', gap: 18 }}>
 
-                {/* Your Rating */}
-                {luckRating && (
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{
-                            color: COLORS.textMuted,
-                            fontSize: '11px',
-                            marginBottom: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                        }}>
-                            <Award size={12} /> Your Rating
-                        </div>
-                        <div style={{
-                            background: COLORS.bgLight,
-                            borderRadius: '10px',
-                            border: `1px solid ${COLORS.border}`,
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(3, 1fr)'
-                            }}>
-                                <StatCell
-                                    label="Lifetime"
-                                    value={luckRating.lifetimeRating || '--'}
-                                    sublabel="× 0.3"
-                                    isFirst
-                                />
-                                <StatCell
-                                    label="Peak"
-                                    value={luckRating.peakWindowRating || '--'}
-                                    sublabel="× 0.7"
-                                    color={COLORS.gold}
-                                />
-                                <StatCell
-                                    label="Final"
-                                    value={luckRating.rating || '--'}
-                                    color={COLORS.green}
-                                />
+                    {/* ── THE RATING ─────────────────────────────────────── */}
+                    {luckRating && (
+                        <section>
+                            <Head>The Rating</Head>
+                            <div style={{ background: DECK.plinth, border: `1px solid ${rail(0.09)}` }}>
+                                <Row label="Lifetime" note="× 0.3" value={luckRating.lifetimeRating ?? '—'} />
+                                <Row label="Best run" note="× 0.7" value={luckRating.peakWindowRating ?? '—'} tone={DECK.amber} />
+                                <Row label="Final" value={luckRating.rating ?? '—'} tone={DECK.amber} last />
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Peak Window */}
-                {luckRating?.peakWindowRange && (
-                    <div style={{ marginBottom: '20px' }}>
-                        <div style={{
-                            color: COLORS.textMuted,
-                            fontSize: '11px',
-                            marginBottom: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                        }}>
-                            <Target size={12} /> Best 5,000-Spin Window
-                        </div>
-                        <div style={{
-                            background: COLORS.bgLight,
-                            borderRadius: '10px',
-                            border: `1px solid ${COLORS.gold}33`,
-                            overflow: 'hidden'
-                        }}>
-                            <div style={{
-                                padding: '12px 14px',
-                                background: `${COLORS.gold}11`,
-                                borderBottom: `1px solid ${COLORS.gold}22`,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}>
-                                <span style={{ color: COLORS.text, fontSize: '13px' }}>
-                                    Spins #{typeof luckRating.peakWindowRange.start === 'number' ? luckRating.peakWindowRange.start.toLocaleString() : '—'} – #{typeof luckRating.peakWindowRange.end === 'number' ? luckRating.peakWindowRange.end.toLocaleString() : '—'}
-                                </span>
-                                <span style={{ color: COLORS.gold, fontSize: '14px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                    {luckRating.peakWindowRating}
-                                </span>
-                            </div>
-                            {luckRating.peakWindowPulls && (
-                                <div style={{ padding: '12px 14px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                                    {luckRating.peakWindowPulls.insane > 0 && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Crown size={14} color={getRarityInk('insane')} />
-                                            <span style={{ color: getRarityInk('insane'), fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.insane}× Insane
-                                            </span>
-                                        </div>
-                                    )}
-                                    {luckRating.peakWindowPulls.mythic > 0 && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Sparkles size={14} color={getRarityInk('mythic')} />
-                                            <span style={{ color: getRarityInk('mythic'), fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.mythic}× Mythic
-                                            </span>
-                                        </div>
-                                    )}
-                                    {luckRating.peakWindowPulls.legendary > 0 && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Star size={14} color={getRarityInk('legendary')} />
-                                            <span style={{ color: getRarityInk('legendary'), fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.legendary}× Legendary
-                                            </span>
-                                        </div>
-                                    )}
-                                    {luckRating.peakWindowPulls.exotic > 0 && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Gem size={14} color={getRarityInk('exotic')} />
-                                            <span style={{ color: getRarityInk('exotic'), fontSize: '13px', fontWeight: '600' }}>
-                                                {luckRating.peakWindowPulls.exotic}× Exotic
-                                            </span>
-                                        </div>
-                                    )}
-                                    {luckRating.peakWindowPulls.rare > 0 && (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                            <Diamond size={14} color={getRarityInk('rare')} />
-                                            <span style={{ color: getRarityInk('rare'), fontSize: '13px' }}>
-                                                {luckRating.peakWindowPulls.rare}× Rare
-                                            </span>
-                                        </div>
-                                    )}
+                            {luckRating.message && (
+                                <div style={{ color: DECK.inkDim, fontSize: 11, marginTop: 7 }}>
+                                    {luckRating.message}
+                                    {typeof luckRating.percentile === 'number' && ` · luckier than ${luckRating.percentile}% of players`}
                                 </div>
                             )}
-                        </div>
-                    </div>
-                )}
+                        </section>
+                    )}
 
-                {/* Understanding the Numbers */}
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        color: COLORS.textMuted,
-                        fontSize: '11px',
-                        marginBottom: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>
-                        <Info size={12} /> How It Works
-                    </div>
-                    <div style={{
-                        padding: '14px',
-                        background: COLORS.bgLight,
-                        borderRadius: '10px',
-                        border: `1px solid ${COLORS.border}`,
-                        fontSize: '12px',
-                        color: COLORS.textMuted,
-                        lineHeight: 1.7
-                    }}>
-                        <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.text, fontWeight: '500' }}>Lifetime (30%)</span> – Overall luck across all your spins using z-scores.
+                    {/* ── THE TWO WINDOWS ────────────────────────────────── */}
+                    {(luckRating?.peakWindowRange || cluster) && (
+                        <section>
+                            <Head>The Windows</Head>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                                gap: 10
+                            }}>
+                                {luckRating?.peakWindowRange && (
+                                    <WindowCard
+                                        title="The Run"
+                                        span={`5,000 spins · #${num(luckRating.peakWindowRange.start)} – #${num(luckRating.peakWindowRange.end)}`}
+                                        oneIn={luckRating.peakWindowOneIn}
+                                        basis="its strongest tier alone"
+                                        pulls={luckRating.peakWindowPulls}
+                                        lucky={luckRating.peakWindowLucky}
+                                        footnote="Sustained luck — your best long stretch."
+                                        isMobile={isMobile}
+                                    />
+                                )}
+                                {cluster && (
+                                    <WindowCard
+                                        title="The Cluster"
+                                        span={`${num(cluster.window)} spins · #${num(cluster.windowStart)} – #${num(cluster.windowEnd)}`}
+                                        oneIn={cluster.oneIn}
+                                        basis="everything in it, together"
+                                        pulls={cluster.windowPulls}
+                                        lucky={{ spins: cluster.luckySpins, pulls: cluster.luckyPulls }}
+                                        footnote="Density — specials landing on top of each other."
+                                        isMobile={isMobile}
+                                    />
+                                )}
+                            </div>
+                            <div style={{ color: DECK.inkDim, fontSize: 10.5, lineHeight: 1.6, marginTop: 9 }}>
+                                The two numbers are measured differently and are not meant to be
+                                compared — the run is priced on its strongest tier, the cluster on
+                                everything in it at once, and a longer window always accumulates more.
+                                Both describe <em>one</em> window turning out that way, and thousands
+                                were searched to find them. Over a long history a very improbable window
+                                is roughly what you should expect to exist, so these are facts about a
+                                stretch of spins, not about you.
+                            </div>
+                        </section>
+                    )}
+
+                    {/* ── LIFETIME PULLS ─────────────────────────────────── */}
+                    {hasPulls && (
+                        <section>
+                            <Head>Lifetime Pulls</Head>
+                            <div style={{ background: DECK.plinth, border: `1px solid ${rail(0.09)}` }}>
+                                {TIERS.map((t, i) => (
+                                    <Row
+                                        key={t}
+                                        label={<span style={{ color: getRarityInk(t) }}>{TIER_LABEL[t]}</span>}
+                                        value={num(stats[t] || 0)}
+                                        tone={getRarityInk(t)}
+                                        last={i === TIERS.length - 1}
+                                    />
+                                ))}
+                            </div>
+                            {typeof stats.totalSpins === 'number' && (
+                                <div style={{ color: DECK.inkDim, fontSize: 11, marginTop: 7 }}>
+                                    {num(stats.totalSpins)} spins
+                                    {typeof stats.luckySpins === 'number' && `, ${num(stats.luckySpins)} of them lucky`}
+                                </div>
+                            )}
+                        </section>
+                    )}
+
+                    {/* ── HOW IT READS ───────────────────────────────────── */}
+                    <section>
+                        <Head>How It Reads</Head>
+                        <div style={{
+                            background: DECK.plinth,
+                            border: `1px solid ${rail(0.09)}`,
+                            padding: '12px 14px',
+                            color: DECK.inkMid, fontSize: 11.5, lineHeight: 1.65,
+                            display: 'grid', gap: 8
+                        }}>
+                            <div>
+                                <b style={{ color: DECK.ink }}>Lifetime</b> weighs every spin you have ever
+                                taken. It moves slowly and sits near 100 for almost everyone.
+                            </div>
+                            <div>
+                                <b style={{ color: DECK.amber }}>Best run</b> takes your luckiest
+                                5,000-spin stretch, so one good evening can carry it.
+                            </div>
+                            <div>
+                                <b style={{ color: DECK.ink }}>Clusters count double.</b> Four mythics
+                                together beat one insane, because together they are rarer.
+                            </div>
+                            <div>
+                                <b style={{ color: DECK.ink }}>Lucky spins are priced differently.</b>
+                                {' '}A normal spin uses the weighted table; a lucky spin gives every item an
+                                equal chance, which makes the top tiers hundreds of times likelier. Both
+                                are counted, each at its own odds.
+                            </div>
                         </div>
-                        <div style={{ marginBottom: '10px' }}>
-                            <span style={{ color: COLORS.gold, fontWeight: '500' }}>Peak (70%)</span> – Your luckiest 5,000-spin stretch using Poisson probability.
-                        </div>
-                        <div>
-                            <span style={{ color: COLORS.aqua, fontWeight: '500' }}>Clusters valued</span> – Getting 4 mythics beats 1 insane because it's mathematically rarer!
-                        </div>
-                    </div>
+                    </section>
                 </div>
-
-                {/* Spin Types */}
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        color: COLORS.textMuted,
-                        fontSize: '11px',
-                        marginBottom: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>
-                        <Shuffle size={12} /> Spin Types
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <div style={{
-                            padding: '12px',
-                            background: `${COLORS.green}11`,
-                            borderRadius: '10px',
-                            border: `1px solid ${COLORS.green}33`
-                        }}>
-                            <div style={{ color: COLORS.green, fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
-                                Normal Spins
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '11px', lineHeight: 1.4 }}>
-                                Weight-based odds
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '4px', fontFamily: 'monospace' }}>
-                                ~1/1M for insane
-                            </div>
-                        </div>
-                        <div style={{
-                            padding: '12px',
-                            background: `${COLORS.purple}11`,
-                            borderRadius: '10px',
-                            border: `1px solid ${COLORS.purple}33`
-                        }}>
-                            <div style={{ color: COLORS.purple, fontSize: '12px', fontWeight: '600', marginBottom: '6px' }}>
-                                Lucky Spins
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '11px', lineHeight: 1.4 }}>
-                                Equal chance for all
-                            </div>
-                            <div style={{ color: COLORS.textMuted, fontSize: '10px', marginTop: '4px', fontFamily: 'monospace' }}>
-                                ~1/1.4K for insane
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Rating Scale */}
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        color: COLORS.textMuted,
-                        fontSize: '11px',
-                        marginBottom: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                    }}>
-                        <TrendingUp size={12} /> Rating Scale
-                    </div>
-                    <div style={{
-                        background: COLORS.bgLight,
-                        borderRadius: '10px',
-                        border: `1px solid ${COLORS.border}`,
-                        overflow: 'hidden'
-                    }}>
-                        {[
-                            { rating: '200+', label: 'Unbelievably Lucky', color: COLORS.insane },
-                            { rating: '175+', label: 'Insanely Lucky', color: '#ffa500' },
-                            { rating: '150+', label: 'Incredibly Lucky', color: COLORS.gold },
-                            { rating: '125+', label: 'Very Lucky', color: COLORS.green },
-                            { rating: '100', label: 'Average', color: COLORS.text, highlight: true },
-                            { rating: '<80', label: 'Unlucky', color: COLORS.textMuted }
-                        ].map((item, i, arr) => (
-                            <div key={i} style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '8px 14px',
-                                background: item.highlight ? `${COLORS.gold}15` : 'transparent',
-                                borderBottom: i < arr.length - 1 ? `1px solid ${COLORS.border}` : 'none'
-                            }}>
-                                <span style={{ color: item.color, fontWeight: '600', fontSize: '13px', fontFamily: 'monospace' }}>
-                                    {item.rating}
-                                </span>
-                                <span style={{ color: item.color, fontSize: '12px' }}>
-                                    {item.label}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Lifetime Stats */}
-                {luckRating?.stats && (luckRating.stats.insane > 0 || luckRating.stats.mythic > 0 || luckRating.stats.legendary > 0 || luckRating.stats.exotic > 0 || luckRating.stats.rare > 0) && (
-                    <div style={{ marginBottom: '16px' }}>
-                        <div style={{
-                            color: COLORS.textMuted,
-                            fontSize: '11px',
-                            marginBottom: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                        }}>
-                            <Star size={12} /> Lifetime Pulls
-                        </div>
-                        {/* Five tiers now, so the row is three-up on a phone rather than
-                            five 60px slivers. */}
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(5, 1fr)',
-                            gap: '8px'
-                        }}>
-                            <div style={{
-                                padding: '12px',
-                                background: COLORS.bgLight,
-                                borderRadius: '8px',
-                                border: `1px solid ${COLORS.border}`,
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ color: getRarityInk('insane'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                    {luckRating.stats.insane || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Insane</div>
-                            </div>
-                            <div style={{
-                                padding: '12px',
-                                background: COLORS.bgLight,
-                                borderRadius: '8px',
-                                border: `1px solid ${COLORS.border}`,
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ color: getRarityInk('mythic'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                    {luckRating.stats.mythic || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Mythic</div>
-                            </div>
-                            <div style={{
-                                padding: '12px',
-                                background: COLORS.bgLight,
-                                borderRadius: '8px',
-                                border: `1px solid ${COLORS.border}`,
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ color: getRarityInk('legendary'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                    {luckRating.stats.legendary || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Legend</div>
-                            </div>
-                            <div style={{
-                                padding: '12px',
-                                background: COLORS.bgLight,
-                                borderRadius: '8px',
-                                border: `1px solid ${COLORS.border}`,
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ color: getRarityInk('exotic'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                    {luckRating.stats.exotic || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Exotic</div>
-                            </div>
-                            <div style={{
-                                padding: '12px',
-                                background: COLORS.bgLight,
-                                borderRadius: '8px',
-                                border: `1px solid ${COLORS.border}`,
-                                textAlign: 'center'
-                            }}>
-                                <div style={{ color: getRarityInk('rare'), fontSize: '16px', fontWeight: '600', fontFamily: 'monospace' }}>
-                                    {luckRating.stats.rare || 0}
-                                </div>
-                                <div style={{ color: COLORS.textMuted, fontSize: '10px' }}>Rare</div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Footer */}
-                {luckRating?.stats && (
-                    <div style={{
-                        color: COLORS.textMuted,
-                        fontSize: '10px',
-                        textAlign: 'center',
-                        paddingTop: '8px',
-                        borderTop: `1px solid ${COLORS.border}`
-                    }}>
-                        {typeof luckRating.stats?.totalSpins === 'number' ? luckRating.stats.totalSpins.toLocaleString() : '—'} total spins ÷ Both normal and lucky spins count
-                    </div>
-                )}
             </div>
         </div>
     );

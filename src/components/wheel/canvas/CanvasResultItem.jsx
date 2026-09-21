@@ -7,7 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IMAGE_BASE_URL } from '../../../config/constants.js';
 import { COLORS } from '../config/constants';
-import { getItemImageUrl, isInsaneItem, isSpecialItem, isExoticItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
+import { getItemImageUrl, isInsaneItem, isSpecialItem, isExoticItem, isRelicItem, isRareItem, isMythicItem, isEventItem, isRecursionItem } from '../../../utils/helpers.js';
 import { sampleHolo, sampleRamp, createHoloGradient } from '../../../utils/rarityHelpers.jsx';
 import { useSaverMode } from '../../../config/power.js';
 import { getAtlasSprite, drawItemSprite, needsOwnImage } from './atlas.js';
@@ -141,14 +141,18 @@ export function CanvasResultItem({
     const isMythic = isMythicItem(item);
     const isSpecial = isSpecialItem(item);
     const isExotic = isExoticItem(item);
+    const isRelic = isRelicItem(item);
     const isRare = isRareItem(item);
     const isEvent = isEventItem(item);
     const isRecursionType = isRecursionItem(item);
 
     // For lucky spins, common items should show green instead of gold
-    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRare && !isEvent && !isRecursionType;
+    // Every tier must appear in both of these — see the note in CanvasSpinningStrip:
+    // `isSpecialType` gates the glow and the ring, so a tier left out of it reveals
+    // as a bare common.
+    const isLuckyCommon = isLuckySpin && !isInsane && !isMythic && !isSpecial && !isExotic && !isRelic && !isRare && !isEvent && !isRecursionType;
 
-    const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRare || isEvent || isRecursionType || isLuckyCommon;
+    const isSpecialType = isInsane || isMythic || isSpecial || isExotic || isRelic || isRare || isEvent || isRecursionType || isLuckyCommon;
 
     // Canvas dimensions (extra space for glow)
     const canvasSize = size + GLOW_PADDING * 2;
@@ -260,6 +264,12 @@ export function CanvasResultItem({
                 } else if (isSpecial) {
                     // Legendary — steady gold, no cycle.
                     glowColor = hexToRgb(COLORS.insane);
+                } else if (isRelic) {
+                    // The same slow breathe exotic and rare use, toward a lit step
+                    // of its own green rather than toward another tier's hue.
+                    const relicPhase = (time % 2.25) / 2.25;
+                    const relicPulse = Math.sin(relicPhase * Math.PI * 2) * 0.5 + 0.5;
+                    glowColor = lerpColor(COLORS.relic, '#7FE8A8', relicPulse);
                 } else if (isExotic) {
                     const exoticPhase = (time % 2.25) / 2.25;
                     const exoticPulse = Math.sin(exoticPhase * Math.PI * 2) * 0.5 + 0.5;
@@ -321,6 +331,12 @@ export function CanvasResultItem({
                     intensity = 0.8;
                     glowColor1 = hexToRgb(COLORS.insane);
                     glowColor2 = hexToRgb(COLORS.insane);
+                } else if (isRelic) {
+                    const phase = (time % 2.25) / 2.25;
+                    const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
+                    intensity = 0.55 + pulse * 0.35;
+                    glowColor1 = lerpColor(COLORS.relic, '#7FE8A8', pulse);
+                    glowColor2 = hexToRgb(COLORS.relic);
                 } else if (isExotic) {
                     const phase = (time % 2.25) / 2.25;
                     const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
@@ -396,6 +412,9 @@ export function CanvasResultItem({
                 // Legendary — gold, one hue, two alphas.
                 bgGradient.addColorStop(0, `${COLORS.insane}33`);
                 bgGradient.addColorStop(1, `${COLORS.insane}22`);
+            } else if (isRelic) {
+                bgGradient.addColorStop(0, `${COLORS.relic}33`);
+                bgGradient.addColorStop(1, `${COLORS.relic}22`);
             } else if (isExotic) {
                 bgGradient.addColorStop(0, `${COLORS.purple}33`);
                 bgGradient.addColorStop(1, `${COLORS.purple}22`);
@@ -440,6 +459,11 @@ export function CanvasResultItem({
             } else if (isSpecial) {
                 // Legendary — flat gold, no cycle.
                 borderColor = COLORS.insane;
+            } else if (isRelic) {
+                const phase = (time % 2.25) / 2.25;
+                const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
+                const bc = lerpColor(COLORS.relic, '#7FE8A8', pulse);
+                borderColor = `rgb(${bc.r}, ${bc.g}, ${bc.b})`;
             } else if (isExotic) {
                 const phase = (time % 2.25) / 2.25;
                 const pulse = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;

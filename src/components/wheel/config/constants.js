@@ -81,6 +81,26 @@ export const COLORS = {
     // Ratios below are the worst of the three surfaces, i.e. on bgLighter.
     purpleInk: '#DE6BDE',   // Exotic as text — 4.58:1
     redInk: '#FF8A8A',      // Rare as text — 5.84:1
+    // ── Relic: the mossy green ────────────────────────────────────────────────
+    // Relic is the structures tier, and green is the only hue left on the ladder
+    // with real separation: rare is red, exotic magenta, legendary gold, mythic
+    // aqua, event orange, insane platinum.
+    //
+    // Deliberately a MOSSY emerald rather than Minecraft's lime #55FF55, which is
+    // already a token here as COLORS.green. Two reasons, and the second is the one
+    // that decided it. Lime sits close enough to recursion's #00FF00 matrix green
+    // to be confusable on a dark panel; and in loot-game grammar bright green is
+    // the tier just above common, so a lime badge between magenta and gold would
+    // read as ranking BELOW exotic to anyone who has played anything else. A
+    // weathered, overgrown green says "old structure" and carries no such baggage.
+    //
+    // No `relicInk` step, and that is the rule being followed rather than an
+    // omission: this fill measures 7.22 / 6.25 / 5.61 across the three panel steps,
+    // so it clears AA as text on its own and doubles as its own ink. Exotic and
+    // rare need a lifted step because the Minecraft chat colours were chosen for a
+    // black chat box; relic was chosen for these panels and did not inherit that
+    // problem. Dark text on the fill: 7.37 against white's 2.36, hence lightFill.
+    relic: '#3FBF6F',
     // Common's old #888 is 3.74:1 on bgLighter, under the floor, and a neutral
     // grey on a midnight-blue field reads as dead rather than quiet. This is the
     // same grey pulled toward the field's own hue.

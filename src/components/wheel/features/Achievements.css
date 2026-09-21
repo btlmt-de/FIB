@@ -1,0 +1,26 @@
+.fib-achievement-categories { display: flex; flex-wrap: wrap; gap: 6px; padding: 16px 26px 0; }
+.fib-achievement-category { display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 34px; border: 0; border-radius: 0; background: transparent; color: var(--achievement-color); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--achievement-color) 35%, transparent); font: 600 13px 'Barlow Condensed', sans-serif; letter-spacing: .04em; text-transform: uppercase; }
+.fib-achievement-category:hover { background: color-mix(in srgb, var(--achievement-color) 7%, transparent); }
+.fib-achievement-category[aria-pressed="true"] { background: color-mix(in srgb, var(--achievement-color) 12%, transparent); box-shadow: inset 0 -2px 0 var(--achievement-color); }
+.fib-achievement-category-count { color: #A8B0C6; font-variant-numeric: tabular-nums; }
+.fib-achievement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); align-content: start; gap: 10px; padding: 0 26px 22px; }
+.fib-achievement-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #0b101b; box-shadow: inset 0 2px 0 color-mix(in srgb, var(--achievement-color) 50%, transparent), inset 0 -1px 0 rgba(206,214,236,.06); }
+.fib-achievement-card.is-earned { background: color-mix(in srgb, var(--achievement-color) 7%, #0b101b); box-shadow: inset 0 2px 0 var(--achievement-color), inset 0 -1px 0 rgba(206,214,236,.06); }
+.fib-achievement-card:hover { background: color-mix(in srgb, var(--achievement-color) 10%, #0b101b); }
+.fib-achievement-card-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.fib-achievement-badge { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; color: var(--achievement-color); background: #080d15; box-shadow: inset 0 -2px 0 var(--achievement-color); }
+.fib-achievement-state { color: #A8B0C6; }
+.fib-achievement-card.is-earned .fib-achievement-state { color: var(--achievement-color); }
+.fib-achievement-name { margin: 5px 0 0; color: #E8ECF6; font: 700 17px/1.2 'Barlow Condensed', sans-serif; letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; }
+.fib-achievement-description { margin: 5px 0 0; font-size: 13px; line-height: 1.45; color: #A8B0C6; }
+.fib-achievement-progress { margin-top: auto; padding-top: 2px; }
+.fib-achievement-progress-labels { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.fib-achievements .fib-board-search input::placeholder { color: #A8B0C6; }
+@media (max-width: 599px) {
+  .fib-achievement-categories { padding: 12px 16px 0; gap: 5px; }
+  .fib-achievement-category { padding: 7px 8px; }
+  .fib-achievement-grid { padding: 0 16px 16px; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .fib-achievement-card { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 10px; padding: 12px; }
+  .fib-achievement-card-head { flex-direction: column; align-items: center; gap: 10px; }
+  .fib-achievement-progress { grid-column: 2; }
+}
