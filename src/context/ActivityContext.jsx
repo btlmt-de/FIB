@@ -78,6 +78,14 @@ export function ActivityProvider({ children }) {
     const [recursionStatus, setRecursionStatus] = useState({ active: false });
     const [globalEventStatus, setGlobalEventStatus] = useState({ active: false, milestone: null });
 
+    // Mirrors globalEventStatus so recoverGlobalEventStatus can ask what the client
+    // currently believes without reading it inside a state updater - React may run an
+    // updater twice, and that one has a side effect.
+    const globalEventStatusRef = useRef(globalEventStatus);
+    useEffect(() => {
+        globalEventStatusRef.current = globalEventStatus;
+    }, [globalEventStatus]);
+
     // King of the Wheel state
     const [kotwLeaderboard, setKotwLeaderboard] = useState([]);
     const [kotwUserStats, setKotwUserStats] = useState(null);
@@ -218,10 +226,17 @@ export function ActivityProvider({ children }) {
     }, []);
 
     // Fetch global event status
-    const fetchGlobalEventStatus = useCallback(async () => {
+    /*
+     * Apply a getEventState() payload - whatever produced it.
+     *
+     * Split out of fetchGlobalEventStatus so the same handling can be fed from somewhere
+     * other than a fetch. Every one of these payloads has the same shape because they all
+     * come from the one server function: the REST endpoint returns it, and so does every
+     * spin response.
+     */
+    const applyGlobalEventStatus = useCallback(async (data) => {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
-            const data = await res.json();
+            if (!data) return;
 
             /*
              * Kept before the block below rewrites it onto the local clock.
@@ -317,9 +332,55 @@ export function ActivityProvider({ children }) {
                 }
             }
         } catch (e) {
-            console.error('[ActivityContext] Failed to fetch global event status:', e);
+            console.error('[ActivityContext] Failed to apply global event status:', e);
         }
     }, []);
+
+    const fetchGlobalEventStatus = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/global-event/status`, { credentials: 'include' });
+            await applyGlobalEventStatus(await res.json());
+        } catch (e) {
+            console.error('[ActivityContext] Failed to fetch global event status:', e);
+        }
+    }, [applyGlobalEventStatus]);
+
+    /*
+     * Fill in an event the client missed, from a payload it was given anyway.
+     *
+     * Every spin response carries `globalEventStatus` - the complete server-side event
+     * state, on every single spin - and until now nothing read it. `recursionStatus` rides
+     * along on the same responses for exactly this purpose and always has been consumed;
+     * this is its neglected twin.
+     *
+     * It matters because it is the last line of defence. A client whose SSE connection has
+     * died without saying so, and whose visibility refetch failed or never ran, has no
+     * other way back: it can spin all the way through a five-minute King of the Wheel,
+     * scoring on the server's leaderboard the whole time, while showing no event at all.
+     * That is a real report, not a hypothetical.
+     *
+     * RECOVERY ONLY, and that restriction is the important part. A spin response is built
+     * before it is sent, so one that started before an event ended can arrive after the
+     * `global_event_end` broadcast that cleared it. Treating these as a general sync would
+     * let a slow response resurrect a finished event - and the banners, the accent colour
+     * and the aftermath cards all key off that state. So this only ever fills a gap: it
+     * acts when the payload shows an event running and the client believes there is none,
+     * and is otherwise silent. It can add what was missed; it can never undo an ending.
+     */
+    const recoverGlobalEventStatus = useCallback((payload) => {
+        if (!payload?.type) return;
+        if (!payload.active && !payload.pending) return;
+
+        // Already knows about this one: leave it alone. The live state is fresher than
+        // anything a spin response can carry.
+        const current = globalEventStatusRef.current;
+        if (current?.type === payload.type && (current.active || current.pending)) return;
+
+        console.log('[Spin] Recovered a missed global event from the spin response:', payload.type);
+        // Not awaited: the caller is a spin handler mid-animation and has nothing to do
+        // with the result. applyGlobalEventStatus swallows its own failures.
+        applyGlobalEventStatus(payload);
+    }, [applyGlobalEventStatus]);
 
     // Fetch activity feed - uses refs to avoid dependency issues
     const fetchActivity = useCallback(async () => {
@@ -1260,6 +1321,8 @@ export function ActivityProvider({ children }) {
         recursionStatus,
         updateRecursionStatus,
         globalEventStatus,
+        // Fed from a spin response, to fill in an event the client missed entirely.
+        recoverGlobalEventStatus,
         updateGlobalEventStatus,
         refreshMilestone,
         // King of the Wheel

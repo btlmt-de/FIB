@@ -177,7 +177,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     const { spinDuration } = useWheelConfig();
 
     // Get recursion status from ActivityContext - no separate polling!
-    const { recursionStatus, updateRecursionStatus, globalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
+    const { recursionStatus, updateRecursionStatus, globalEventStatus, recoverGlobalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
         firstBloodWinner, firstBloodResultPending, communityGoalResult,
         communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
         roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout } = useActivity();
@@ -997,6 +997,14 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
                     spinResult = await res.json();
 
+                    // Every spin response carries the server's view of the global event.
+                    // Normally that is redundant, because the stream has already said so -
+                    // but it is the only route back for a client whose stream died without
+                    // saying it had. Without this you can spin through a whole King of the
+                    // Wheel, scoring on the server's leaderboard the entire time, and never
+                    // see the event. Recovery only; see recoverGlobalEventStatus.
+                    recoverGlobalEventStatus(spinResult.globalEventStatus);
+
                     // Handle rate limit / cooldown
                     if (res.status === 429 || spinResult.cooldown) {
                         setError("Don't spin too fast!");
@@ -1298,6 +1306,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             });
             const spinResult = await res.json();
 
+            // Same recovery as the ordinary spin. It matters more here, if anything: a
+            // player spending lucky spins won from an earlier event is exactly the person
+            // likely to be mid-event now.
+            recoverGlobalEventStatus(spinResult.globalEventStatus);
+
             // Check for errors (no cooldown check - this is a bonus reward)
             if (!res.ok || !spinResult.result) {
                 setError(spinResult.error || 'Spin failed. Please wait a moment and try again.');
@@ -1376,6 +1389,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         body: JSON.stringify({ bonus: true })
                     });
                     const result = await res.json();
+
+                    // Same recovery as the ordinary spin above.
+                    recoverGlobalEventStatus(result.globalEventStatus);
 
                     // Handle rate limit / cooldown - throw to abort triple spin
                     if (res.status === 429 || result.cooldown) {
@@ -1511,6 +1527,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     credentials: 'include'
                 });
                 const data = await res.json();
+
+                // Same recovery as above.
+                recoverGlobalEventStatus(data.globalEventStatus);
 
                 if (!res.ok) {
                     throw new Error(data.error || 'Lucky spin failed');
