@@ -58,14 +58,14 @@ import { getDiscordAvatarUrl } from '../../../utils/helpers.js';
  * The rotation, in the order the odds board lists it.
  *
  * Hardcoded rather than read from the payload on purpose: this register's job is
- * to show all five INCLUDING the ones that have not fired lately, and a list
+ * to show all six INCLUDING the ones that have not fired lately, and a list
  * built from `totals` would silently drop exactly the type a reader is looking
  * for. Gold Rush is not here for the same reason it is not on the odds board —
  * it was retired from the rotation and only an admin can run one. A forced Gold
  * Rush still appears in THE LOG below, where the subject is what happened rather
  * than what can happen.
  */
-const ROTATION = ['arrival', 'roulette', 'king_of_wheel', 'first_blood', 'community_goal'];
+const ROTATION = ['arrival', 'roulette', 'high_roller', 'king_of_wheel', 'first_blood', 'community_goal'];
 
 const fmt = n => (n == null ? '—' : Number(n).toLocaleString('en-US'));
 

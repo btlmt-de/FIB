@@ -91,6 +91,24 @@ const ROULETTE_TEARDOWN_MS = 14200;
  */
 const ROULETTE_MAX_LIFETIME_MS = 34000;
 
+/*
+ * HIGH ROLLER's two timers, the Parlour's pair one table along.
+ *
+ * TEARDOWN runs from `high_roller_result` and hands the band back to the reel.
+ * Just inside the server's HIGH_ROLLER_SETTLE_MS (12s) for the Parlour's
+ * reason: unmounting is what returns the reel, and the server's end broadcast
+ * should find the table already gone rather than the other way round. The
+ * reveal it protects is still a placeholder - retune this with the visual
+ * design, and keep it under the server's settle.
+ *
+ * MAX_LIFETIME is the dead-man switch, measured from the open on the server's
+ * clock. The longest a table can legitimately run is the deal, the full play
+ * window and the settle - 34.5s - so this is that plus slack. Reaching it
+ * means the result never arrived.
+ */
+const HIGH_ROLLER_TEARDOWN_MS = 11500;
+const HIGH_ROLLER_MAX_LIFETIME_MS = 40000;
+
 
 export function ActivityProvider({ children }) {
     const [feed, setFeed] = useState([]);
@@ -186,6 +204,26 @@ export function ActivityProvider({ children }) {
     const [rouletteMyBet, setRouletteMyBetState] = useState(null);
     const [roulettePayout, setRoulettePayout] = useState(null);
 
+    /*
+     * HIGH ROLLER, split the Parlour's way.
+     *
+     *   `highRoller`        the table's fixed facts: payouts and the three
+     *                       timestamps (openedAt, actsFrom, playClosesAt). Its
+     *                       presence is what makes the event exist.
+     *   `highRollerTable`   the dealer as far as it may be seen, and every seat's
+     *                       hand. Replaced wholesale by each `high_roller_table`
+     *                       frame and by this player's own action responses.
+     *   `highRollerResult`  the turned-over dealer and every seat's payout.
+     *   `highRollerPayout`  this player's own outcome and new balance, private.
+     */
+    const [highRoller, setHighRoller] = useState(null);
+    const [highRollerTable, setHighRollerTableState] = useState(null);
+    const [highRollerResult, setHighRollerResult] = useState(null);
+    const [highRollerPayout, setHighRollerPayout] = useState(null);
+    // Read by applyHighRollerTable: an action's response can land after the
+    // result, and must not put the hole card back face down.
+    const highRollerSettledRef = useRef(false);
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     // The SSE reconnect's backoff state. Both live outside the effect's closure
@@ -202,6 +240,7 @@ export function ActivityProvider({ children }) {
     const firstBloodTimeoutRef = useRef(null);
     const firstBloodClearTimeoutRef = useRef(null);
     const rouletteClearTimeoutRef = useRef(null);
+    const highRollerClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
     const arrivalTimeoutRef = useRef(null);
@@ -370,6 +409,30 @@ export function ActivityProvider({ children }) {
                         results: [],
                         totalPaid: 0,
                     });
+                }
+            }
+            /*
+             * HIGH ROLLER, for anyone arriving mid-table - the Parlour's case
+             * exactly, and with a hand to play it matters as much. `describe`
+             * folds the table in: the dealer (up card only until the settle),
+             * every seat, and the results once there are some. The origin is
+             * `rawActivatesAt`, server milliseconds, like the Parlour's.
+             */
+            if (data?.active && data?.type === 'high_roller' && data?.data) {
+                const table = data.data;
+                setHighRoller({
+                    payouts: table.payouts,
+                    openedAt: rawActivatesAt,
+                    actsFrom: table.actsFrom,
+                    playClosesAt: table.playClosesAt,
+                    expiresAt: data.expiresAt,
+                });
+                setHighRollerTableState({ dealer: table.dealer, seats: table.seats || [] });
+                // Walked in on the reveal: show it. Nothing arms the teardown
+                // from here, which is what the dead-man switch below is for.
+                if (table.results) {
+                    highRollerSettledRef.current = true;
+                    setHighRollerResult({ dealer: table.dealer, results: table.results });
                 }
             }
         } catch (e) {
@@ -1007,6 +1070,84 @@ export function ActivityProvider({ children }) {
                                 setRoulettePayout(data);
                                 break;
 
+                            case 'high_roller_open': {
+                                console.log('[SSE] High Roller table open:', data);
+                                if (highRollerClearTimeoutRef.current) {
+                                    clearTimeout(highRollerClearTimeoutRef.current);
+                                    highRollerClearTimeoutRef.current = null;
+                                }
+                                highRollerSettledRef.current = false;
+                                setHighRollerResult(null);
+                                setHighRollerPayout(null);
+                                setHighRollerTableState({ dealer: data.dealer, seats: data.seats || [] });
+                                setHighRoller({
+                                    payouts: data.payouts,
+                                    openedAt: data.openedAt,
+                                    actsFrom: data.actsFrom,
+                                    playClosesAt: data.playClosesAt,
+                                    expiresAt: data.expiresAt,
+                                });
+                                /*
+                                 * No `global_event_start` for this one either, so
+                                 * the status is set here - see the long note on
+                                 * `roulette_open` for what happens when it is not.
+                                 * Not deferred behind a spin in flight, for the
+                                 * Parlour's reason: it opens a window to act in,
+                                 * and there is no result yet to spoil.
+                                 */
+                                knownEventStartRef.current = data.openedAt;
+                                const highRollerOffset = data.serverTime ? data.serverTime - Date.now() : 0;
+                                setGlobalEventStatus(prev => ({
+                                    ...prev,
+                                    active: true,
+                                    pending: false,
+                                    type: 'high_roller',
+                                    activatesAt: data.openedAt ? data.openedAt - highRollerOffset : prev.activatesAt,
+                                    expiresAt: data.expiresAt ? data.expiresAt - highRollerOffset : prev.expiresAt,
+                                }));
+                                break;
+                            }
+
+                            case 'high_roller_table':
+                                // Wholesale, as `roulette_bets`. Never after the
+                                // settle: a throttled frame landing late would turn
+                                // the hole card back over.
+                                if (!highRollerSettledRef.current) {
+                                    setHighRollerTableState({ dealer: data.dealer, seats: data.seats || [] });
+                                }
+                                break;
+
+                            case 'high_roller_result': {
+                                console.log('[SSE] High Roller result:', data);
+                                highRollerSettledRef.current = true;
+                                setHighRollerResult(data);
+                                setHighRollerTableState({ dealer: data.dealer, seats: data.results || [] });
+                                // The table settles early when everyone is done,
+                                // and the server pulls its expiry in to match.
+                                if (data.expiresAt) {
+                                    const offset = data.serverTime ? data.serverTime - Date.now() : 0;
+                                    setGlobalEventStatus(prev => (prev?.type === 'high_roller'
+                                        ? { ...prev, expiresAt: data.expiresAt - offset }
+                                        : prev));
+                                }
+                                if (highRollerClearTimeoutRef.current) {
+                                    clearTimeout(highRollerClearTimeoutRef.current);
+                                }
+                                highRollerClearTimeoutRef.current = setTimeout(() => {
+                                    setHighRoller(null);
+                                    setHighRollerTableState(null);
+                                    setHighRollerResult(null);
+                                    highRollerClearTimeoutRef.current = null;
+                                }, HIGH_ROLLER_TEARDOWN_MS);
+                                break;
+                            }
+
+                            case 'high_roller_payout':
+                                // This player's own outcome and new balance.
+                                console.log('[SSE] High Roller payout:', data);
+                                setHighRollerPayout(data);
+                                break;
+
                             case 'arrival_crate':
                                 // This player's own crate and new balance.
                                 console.log('[SSE] Arrival crate:', data);
@@ -1366,6 +1507,10 @@ export function ActivityProvider({ children }) {
                 clearTimeout(rouletteClearTimeoutRef.current);
                 rouletteClearTimeoutRef.current = null;
             }
+            if (highRollerClearTimeoutRef.current) {
+                clearTimeout(highRollerClearTimeoutRef.current);
+                highRollerClearTimeoutRef.current = null;
+            }
             feedRevealTimeoutsRef.current.forEach(clearTimeout);
             feedRevealTimeoutsRef.current = [];
             deferredResultGuardsRef.current.forEach(clearTimeout);
@@ -1464,6 +1609,40 @@ export function ActivityProvider({ children }) {
         return () => clearTimeout(id);
     }, [roulette?.openedAt]);
 
+    /**
+     * This player's own action, applied from its response rather than waiting on
+     * the broadcast throttle - a card you asked for should arrive with the reply.
+     * Refused once the table has settled, for `high_roller_table`'s reason.
+     */
+    const applyHighRollerTable = useCallback((table) => {
+        if (highRollerSettledRef.current || !table) return;
+        setHighRollerTableState({ dealer: table.dealer, seats: table.seats || [] });
+    }, []);
+
+    /*
+     * HIGH ROLLER's dead-man switch - the Parlour's, for the same reason: while
+     * `highRoller` is set the band is not the reel's and spinning is refused, so
+     * a table nothing tears down is a page that needs a reload.
+     */
+    useEffect(() => {
+        const openedAt = highRoller?.openedAt;
+        if (!openedAt) return undefined;
+        const id = setTimeout(() => {
+            console.warn('[High Roller] Table outlived its timeline - clearing.');
+            if (highRollerClearTimeoutRef.current) {
+                clearTimeout(highRollerClearTimeoutRef.current);
+                highRollerClearTimeoutRef.current = null;
+            }
+            setHighRoller(null);
+            setHighRollerTableState(null);
+            setHighRollerResult(null);
+            setGlobalEventStatus(prev => (prev?.type === 'high_roller'
+                ? { ...prev, active: false, pending: false, type: null, data: null }
+                : prev));
+        }, Math.max(0, openedAt + HIGH_ROLLER_MAX_LIFETIME_MS - serverNow()));
+        return () => clearTimeout(id);
+    }, [highRoller?.openedAt]);
+
     const value = {
         feed,
         rareFeed,
@@ -1512,6 +1691,12 @@ export function ActivityProvider({ children }) {
         rouletteMyBet,
         setRouletteMyBet,
         roulettePayout,
+        // High Roller
+        highRoller,
+        highRollerTable,
+        highRollerResult,
+        highRollerPayout,
+        applyHighRollerTable,
     };
 
     return (

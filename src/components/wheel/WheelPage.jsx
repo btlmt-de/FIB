@@ -357,13 +357,15 @@ function WheelOfFortunePage({ onBack }) {
     const {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
         arrival, arrivalCrate, roulette, roulettePayout, rouletteResult, globalEventStatus,
+        highRoller, highRollerPayout, highRollerResult,
     } = useActivity();
     const [arenaVisible, setArenaVisible] = useState(false);
     const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
     const [forgeVisible, setForgeVisible] = useState(false);
     // Keep compact navigation through the event's reveal, then restore the panels.
     const compactEventNavigation = !!(forgeVisible || firstBloodRoomVisible || arenaVisible
-        || arrival || roulette || rouletteResult || globalEventStatus?.active || globalEventStatus?.pending);
+        || arrival || roulette || rouletteResult || highRoller || highRollerResult
+        || globalEventStatus?.active || globalEventStatus?.pending);
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -641,6 +643,31 @@ function WheelOfFortunePage({ onBack }) {
     }, [roulette, roulettePayout, user?.id]);
 
     useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
+
+    /*
+     * HIGH ROLLER's payout into the lucky-spin pool.
+     *
+     * Applied as it arrives, with no hold, unlike the Parlour's - for now. The
+     * Parlour waits for the ball because its balance would give the pocket away
+     * before the animation shows it. Here the private payout and the public
+     * result are sent together, and the placeholder table shows the dealer's
+     * hand the moment it lands, so there is nothing yet to spoil. When the
+     * visual design gives the dealer's draw a reveal, hold this until that
+     * reveal ends, the way `dueAt` does above.
+     */
+    const processedHighRollerRef = useRef(null);
+    useEffect(() => {
+        if (!highRoller || !highRollerPayout || !user?.id) return;
+        const newTotal = highRollerPayout.luckySpinsTotal;
+        // A loss carries no balance: there is nothing to apply.
+        if (typeof newTotal !== 'number') return;
+        const key = `${highRoller.openedAt}-${newTotal}`;
+        if (processedHighRollerRef.current === key) return;
+        processedHighRollerRef.current = key;
+        console.log('[WheelPage] High Roller paid out', highRollerPayout.luckySpinsAwarded, 'lucky spins');
+        kotwLuckySpinsRef.current = newTotal;
+        setKotwLuckySpins(newTotal);
+    }, [highRoller, highRollerPayout, user?.id]);
 
 
     // Fetch items and user data

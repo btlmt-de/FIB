@@ -91,6 +91,7 @@ import { CanvasRouletteStrip } from './canvas/CanvasRouletteStrip.jsx';
 import RouletteTable from './effects/RouletteTable.jsx';
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourDeck from './effects/ParlourDeck.jsx';
+import { HighRollerDealer, HighRollerTable } from './effects/HighRollerTable.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -180,7 +181,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     const { recursionStatus, updateRecursionStatus, globalEventStatus, recoverGlobalEventStatus, kotwUserStats, updateKotwUserStats, markKotwSpinStart, markSpinInFlight, markSpinLanded,
         firstBloodWinner, firstBloodResultPending, communityGoalResult,
         communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
-        roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout } = useActivity();
+        roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout,
+        highRoller, highRollerTable, highRollerResult, highRollerPayout, applyHighRollerTable } = useActivity();
 
     /*
      * THE ARRIVAL TAKES THE REEL.
@@ -224,8 +226,23 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      */
     const parlourOwnsReel = Boolean(roulette);
 
-    /** Either takeover means the band is not the reel's for the moment. */
-    const bandIsTaken = arrivalOwnsReel || parlourOwnsReel;
+    /*
+     * AND HIGH ROLLER, the second table. It takes the band for the dealer's hand
+     * and the apron for the player's, and refuses spins for the Parlour's
+     * reasons, including not waiting on a spin in flight - it opens a window to
+     * act in. Its layout is a placeholder until the visual design lands; see
+     * HighRollerTable.jsx.
+     */
+    const highRollerOwnsReel = Boolean(highRoller);
+
+    /**
+     * Either table owns the reel. Everything that hides the idle controls or the
+     * last pull while the Parlour is up hides them for High Roller too.
+     */
+    const tableOwnsReel = parlourOwnsReel || highRollerOwnsReel;
+
+    /** Any takeover means the band is not the reel's for the moment. */
+    const bandIsTaken = arrivalOwnsReel || tableOwnsReel;
 
     /*
      * The event's clock, the server's, as a stable function.
@@ -1801,13 +1818,13 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      * them short would strand a multi-spin flow mid-way.
      */
     useEffect(() => {
-        if (!parlourOwnsReel) return;
+        if (!tableOwnsReel) return;
         if (state !== 'result' && state !== 'luckyResult') return;
         setState('idle');
         setResult(null);
         setIsNewItem(false);
         setPrestigePull(null);
-    }, [parlourOwnsReel, state]);
+    }, [tableOwnsReel, state]);
 
     const consoleColor = arenaVisible ? ARENA.ink : state === 'recursion' ? COLORS.recursion
         : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange
@@ -2496,6 +2513,19 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     />
                                 )}
 
+                                {/* HIGH ROLLER's dealer, over the reel - the hand
+                                    every seat is playing against sits where every
+                                    spin's answer normally lands. Placeholder
+                                    layout; keyed on the table like the Parlour. */}
+                                {highRollerOwnsReel && (
+                                    <HighRollerDealer
+                                        key={`hr-dealer-${highRoller.openedAt || 'table'}`}
+                                        table={highRollerTable}
+                                        result={highRollerResult}
+                                        isMobile={isMobile}
+                                    />
+                                )}
+
                                 {/* Matrix scanlines overlay - Recursion only */}
                                 {showSpinRecursionEffects && (
                                     <div style={{
@@ -2699,7 +2729,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     over: the reel is a roulette wheel for those
                                     forty-five seconds and tapping it does
                                     nothing. */}
-                                {isMobile && state === 'idle' && !parlourOwnsReel && (
+                                {isMobile && state === 'idle' && !tableOwnsReel && (
                                     <div style={{
                                         position: 'absolute',
                                         left: 0, right: 0, bottom: 0,
@@ -2734,7 +2764,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     above putting the reel away — on a phone
                                     that frame is the last pull painted across
                                     the pockets. */}
-                                {isMobile && !parlourOwnsReel && (state === 'result' || state === 'luckyResult')
+                                {isMobile && !tableOwnsReel && (state === 'result' || state === 'luckyResult')
                                     && (state === 'result' ? result : luckyResult) && shaftHeight > 0 && (
                                     <ShaftResult
                                         arena={arenaVisible}
@@ -2784,7 +2814,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // it, and the result still reads as sitting under the reel
                         // because that is where it starts.
                         justifyContent: 'flex-start',
-                        paddingTop: parlourOwnsReel || arenaVisible || firstBloodVisible || forgeVisible ? '8px' : `${SPACE.md}px`,
+                        paddingTop: tableOwnsReel || arenaVisible || firstBloodVisible || forgeVisible ? '8px' : `${SPACE.md}px`,
                         zIndex: Z.content,
                         // On a phone the stage is a fixed-height apron under the
                         // shaft rather than the page's leftover space: the shaft
@@ -2900,7 +2930,22 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             />
                         )}
 
-                        {!isMobile && state === 'idle' && !parlourOwnsReel && !arenaVisible && !firstBloodVisible && !forgeVisible && (
+                        {/* HIGH ROLLER's seat, in the apron like the Parlour's bet. */}
+                        {highRollerOwnsReel && (
+                            <HighRollerTable
+                                key={`hr-table-${highRoller.openedAt || 'table'}`}
+                                table={highRollerTable}
+                                result={highRollerResult}
+                                payout={highRollerPayout}
+                                payouts={highRoller.payouts}
+                                actsFrom={highRoller.actsFrom}
+                                playClosesAt={highRoller.playClosesAt}
+                                onTable={applyHighRollerTable}
+                                isMobile={isMobile}
+                            />
+                        )}
+
+                        {!isMobile && state === 'idle' && !tableOwnsReel && !arenaVisible && !firstBloodVisible && !forgeVisible && (
                             <EnhancedWheelIdleState
                                 user={user}
                                 allItems={allItems}
@@ -2916,14 +2961,14 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             />
                         )}
 
-                        {!isMobile && state === 'idle' && !parlourOwnsReel && forgeVisible && (
+                        {!isMobile && state === 'idle' && !tableOwnsReel && forgeVisible && (
                             <ForgeSpinControl onSpin={spin} user={user} isLoading={!atlasReady} error={error}/>
                         )}
-                        {!isMobile && state === 'idle' && !parlourOwnsReel && arenaVisible && (
+                        {!isMobile && state === 'idle' && !tableOwnsReel && arenaVisible && (
                             <KotwSpinControl onSpin={spin} user={user} isLoading={!atlasReady} error={error}/>
                         )}
 
-                        {!isMobile && state === 'idle' && !parlourOwnsReel && firstBloodVisible && !arenaVisible && (
+                        {!isMobile && state === 'idle' && !tableOwnsReel && firstBloodVisible && !arenaVisible && (
                             <FirstBloodSpinControl onSpin={spin} user={user} isLoading={!atlasReady} error={error}
                                 luckySpins={kotwLuckySpins} recursionSpins={recursionActive ? recursionSpinsRemaining : 0}/>
                         )}
@@ -2943,7 +2988,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         {/* `!parlourOwnsReel` for the same reason as the phone's
                             ShaftResult: one frame of the last pull stacked
                             under the table before the reel is put away. */}
-                        {!isMobile && !parlourOwnsReel && state === 'result' && result && (
+                        {!isMobile && !tableOwnsReel && state === 'result' && result && (
                             <>
                                 <SpinResult
                                     arena={arenaVisible}

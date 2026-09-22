@@ -48,7 +48,7 @@ const REFRESH_MS = 20_000;
 export function MilestoneMeter({ isMobile, onOpen }) {
     const { globalEventStatus, eventSelection, refreshMilestone,
         communityGoalResult, communityGoalResultPending, firstBloodWinner,
-        firstBloodResultPending, kotwWinner, kotwWinnerPending, roulette } = useActivity();
+        firstBloodResultPending, kotwWinner, kotwWinnerPending, roulette, highRoller } = useActivity();
 
     // `eventSelection` counts as active. The roll happens in this same slot, and it
     // fires *before* the event itself flips to active — so without this the meter
@@ -86,7 +86,7 @@ export function MilestoneMeter({ isMobile, onOpen }) {
      * that timer the other side of the end broadcast. `roulette` being set is
      * the question actually being asked: is there a room here?
      */
-    const effectiveActive = active || aftermathVisible || !!roulette;
+    const effectiveActive = active || aftermathVisible || !!roulette || !!highRoller;
     const milestone = globalEventStatus?.milestone;
 
     // The number arrives pushed: `global_event_milestone` lands here after every

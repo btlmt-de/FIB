@@ -102,7 +102,7 @@ const BONUS = {
 
 const GLOBAL = {
     minSpins: 300,          // MIN_SPINS_BETWEEN_EVENTS
-    maxSpins: 600,          // MAX_SPINS_BETWEEN_EVENTS
+    maxSpins: 450,          // MAX_SPINS_BETWEEN_EVENTS
     selectSeconds: 4,       // EVENT_SELECTION_DURATION_MS
     countdownSeconds: 5,    // ACTIVATION_DELAY_MS — the three timed events only
 };
@@ -116,8 +116,9 @@ const GLOBAL = {
  * 1/length — and the last time it was typed, an event was removed from the
  * rotation and the number stayed at 25%.
  *
- * `acts` marks the one event with a decision in it. It drives the lamp; see the
- * header.
+ * `acts` marks the events with a decision in them - the two tables. It drives
+ * the lamp; see the header. `actsLabel` is what the lamp means for that event,
+ * read out to a screen reader in place of the colour.
  */
 const EVENTS = [
     {
@@ -136,12 +137,25 @@ const EVENTS = [
         pays: '0–30',
         runs: '0:31',
         acts: true,
+        actsLabel: 'asks you to place a bet',
         body: 'Roulette, and the only event that asks you a question. Everyone in the room is handed 5 lucky spins as chips and fifteen seconds to place them. Fold and the 5 are yours. Put them on red or black to double them, or on green for six times. Twelve pockets: five red, five black, and two green sitting opposite each other.',
         figures: [['5', 'Fold, certain'], ['10', 'Red or black hits'], ['30', 'Green hits']],
         figureLabel: 'Lucky spins',
         // The one thing about this table a player genuinely cannot work out
         // from the payouts, and the reason the event is worth explaining at all.
         note: 'The stake is house money — you bring nothing to the table, so nobody can lose here, only win less. Green is the only bet the house takes no cut on: it is worth 5.00 lucky spins on average, exactly what folding pays with certainty, while red or black is worth 4.17.',
+    },
+    {
+        key: 'high_roller',
+        tagline: 'One hand against the dealer',
+        pays: '0–50',
+        runs: '0:35',
+        acts: true,
+        actsLabel: 'asks you to play a hand',
+        body: 'Blackjack. Everyone in the room is dealt one hand against the same dealer and has twenty seconds to hit or stand. Beat the dealer for 30 lucky spins, tie for 10, and a blackjack - an ace and a ten-card as your first two - pays 50. The dealer draws to 17 and stands on every 17, soft or hard.',
+        figures: [['30', 'Win'], ['50', 'Blackjack'], ['10', 'Push']],
+        figureLabel: 'Lucky spins',
+        note: 'The stake is house money here too: you bring nothing, so a loss costs nothing. Played sensibly a hand is worth about 14.75 lucky spins on average - the most generous event in the rotation. Once every seat has stood the dealer plays straight away, so the table can finish early.',
     },
     {
         key: 'king_of_wheel',
@@ -916,10 +930,10 @@ export function OddsInfoModal({ onClose, dynamicItems, allItems }) {
                         <Prose style={{ marginBottom: '16px' }}>
                             Every {GLOBAL.minSpins}–{GLOBAL.maxSpins} spins across the whole server, a
                             wheel spins for {GLOBAL.selectSeconds} seconds and lands on one of these
-                            five. It is not tied to your spins or to your luck — everyone online gets
+                            six. It is not tied to your spins or to your luck — everyone online gets
                             the same event at the same moment. The three five-minute events open after
-                            a {GLOBAL.countdownSeconds} second countdown; The Arrival and The Parlour
-                            start on the spot.
+                            a {GLOBAL.countdownSeconds} second countdown; The Arrival, The Parlour and
+                            High Roller start on the spot.
                         </Prose>
 
                         <div style={{
@@ -953,7 +967,7 @@ export function OddsInfoModal({ onClose, dynamicItems, allItems }) {
                                             `${EVENT_SHARE} of triggers`,
                                             `pays ${event.pays} lucky spins`,
                                             `runs ${event.runs}`,
-                                            event.acts ? 'asks you to place a bet' : null,
+                                            event.acts ? event.actsLabel : null,
                                         ].filter(Boolean).join('. ')}
                                         style={{
                                             display: 'grid', gridTemplateColumns: eventTrack,
@@ -964,7 +978,7 @@ export function OddsInfoModal({ onClose, dynamicItems, allItems }) {
                                             '--fib-row-tone': id.color,
                                         }}
                                     >
-                                        {/* Lit on the one event with a decision in it. See
+                                        {/* Lit on the events with a decision in them. See
                                             the header for why the ladder above has none. */}
                                         <RowLamp state={event.acts ? 'lit' : 'dark'} tone={id.color} />
                                         <Icon size={15} color={id.color} aria-hidden="true" />

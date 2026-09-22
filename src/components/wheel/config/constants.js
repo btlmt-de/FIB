@@ -267,4 +267,7 @@ export const EVENT_IDENTITY = {
     first_blood:    { name: 'FIRST BLOOD',       color: '#DC2626' },
     community_goal: { name: 'COMMUNITY GOAL',    color: '#2DD4BF' },
     roulette:       { name: 'THE PARLOUR',       color: '#19B36B' },
+    // Placeholder violet: the event's real palette comes with its visual design.
+    // Picked only to be the one hue this table did not already use.
+    high_roller:    { name: 'HIGH ROLLER',       color: '#8B5CF6' },
 };
