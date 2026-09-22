@@ -190,7 +190,33 @@ export function LeaderboardSidebar({ onClose }) {
 
     const isPeriod = period !== 'all';
 
+    /*
+     * The newest request wins, whatever order the responses arrive in.
+     *
+     * Every load is stamped, and a response whose stamp is no longer the newest
+     * writes nothing. Without it the board renders whichever request happened to
+     * finish last: flick from Items to Spins to Events and a slow first response
+     * can land on top of a fast third, leaving rows ranked one way under a lens
+     * naming another.
+     *
+     * The two lenses made that worse than a stale number. They select between two
+     * endpoints with two different row SHAPES — the career board has
+     * `total_spins` and prestige columns, the period board has `spins` and tier
+     * counts for the window — so a late career response arriving while the board
+     * is in period mode is read through the period accessors, and every cell
+     * resolves undefined. The grid keeps its period width because that comes from
+     * state rather than from the data, so the result is a full board of dots
+     * rather than anything that looks like a failure.
+     *
+     * A stamp rather than an AbortController because this also has to settle the
+     * refresh timer overlapping a lens change, where nothing was aborted and both
+     * requests are legitimately in flight.
+     */
+    const requestIdRef = useRef(0);
+
     const loadLeaderboard = useCallback(async () => {
+        const requestId = ++requestIdRef.current;
+        const superseded = () => requestId !== requestIdRef.current;
         try {
             const url = period === 'all'
                 ? `${API_BASE_URL}/api/leaderboard?sort=${activeTab}`
@@ -198,13 +224,18 @@ export function LeaderboardSidebar({ onClose }) {
             const res = await fetch(url);
             if (!res.ok) throw new Error('Failed to fetch');
             const data = await res.json();
+            if (superseded()) return;
             setLeaderboard(data.leaderboard || []);
             setPeriodMeta(period === 'all' ? null : { label: data.label, since: data.since });
             setLastUpdated(new Date());
         } catch (e) {
+            if (superseded()) return;
             console.error('Failed to load leaderboard:', e);
         } finally {
-            setLoading(false);
+            // A superseded request must not clear the spinner either: the load
+            // that replaced it is still running, and the board it will fill is
+            // still the wrong one until it does.
+            if (!superseded()) setLoading(false);
         }
     }, [activeTab, period]);
 
@@ -1161,6 +1192,23 @@ export function LeaderboardSidebar({ onClose }) {
                         // announced as "null, rank 4" while the row read "Unknown".
                         const name = entry.custom_username || 'Unknown';
                         const prestigeValue = prestigeValueFor(entry);
+                        /*
+                         * What the row says out loud, and it has to match what
+                         * the row shows: aria-label REPLACES a button's inner
+                         * content, so whatever this leaves out is not announced
+                         * at all, however plainly it is printed.
+                         *
+                         * The desktop period row prints four measures and was
+                         * announcing one, because the label was written when
+                         * there was only ever one column to name. Everywhere
+                         * else — phone, and every career row — one measure is
+                         * genuinely all there is, so those keep the short form.
+                         */
+                        const measureSpeech = (isPeriod && !isPhone)
+                            ? PERIOD_COLUMNS
+                                .map(col => `${fmtNum(entry[col.field] ?? 0)} ${col.label.toLowerCase()}`)
+                                .join(', ')
+                            : `${fmtNum(value)} ${sortOptions[activeTab].label.toLowerCase()}`;
                         // The medal metals, which DESIGN.md SS8 sanctions for
                         // placings and nothing else. Beyond third the numeral is
                         // ordinary ink: a board where every rank is decorated has
@@ -1175,7 +1223,7 @@ export function LeaderboardSidebar({ onClose }) {
                                 key={entry.id}
                                 className={`fib-board-hit fib-register-row${isMe ? ' is-active' : ''}`}
                                 onClick={() => setSelectedUser(entry.id)}
-                                aria-label={`${name}, rank ${rank}, ${fmtNum(value)} ${sortOptions[activeTab].label.toLowerCase()}${isPeriod && periodMeta ? ` ${periodMeta.label.toLowerCase()}` : ''}${level > 0 ? `, ${prestigeLabel(level)}` : ''}`}
+                                aria-label={`${name}, rank ${rank}, ${measureSpeech}${isPeriod && periodMeta ? ` ${periodMeta.label.toLowerCase()}` : ''}${level > 0 ? `, ${prestigeLabel(level)}` : ''}`}
                                 style={{
                                     display: 'grid', gridTemplateColumns: boardColumns,
                                     alignItems: 'center', gap: '0 12px',
