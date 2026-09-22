@@ -1,5 +1,20 @@
 // Only public hand information is used. Jimbo never knows the hole card.
-export function jimboLine({ mine, dealer, settled, dealing, open, secondsLeft, intent, signedIn }) {
+// The welcome, while he shuffles. One per table, picked by the table's open time
+// so every client in the room hears the same greeting, and it does not change
+// under the player as the component re-renders.
+const WELCOMES = [
+    'Evening, high rollers. My table, my deck, my rules: beat my hand, stay under twenty-one.',
+    'Pull up a chair. Let me give these a shuffle. An honest shuffle. Mostly honest.',
+    'Welcome to the private table! Twenty-one wins, twenty-two does not, and I stand on seventeen.',
+    'Ah, company. Sit, sit. The spins are on the house tonight. The cards, sadly, are on me.',
+];
+
+export function welcomeLine(seed) {
+    return WELCOMES[Math.abs(Math.floor((seed ?? 0) / 1000)) % WELCOMES.length];
+}
+
+export function jimboLine({ mine, dealer, settled, intro, dealing, open, secondsLeft, intent, signedIn, seed }) {
+    if (intro && !settled) return welcomeLine(seed);
     if (settled) {
         if (!mine) return 'That’s the table, folks. Same smile, fewer secrets.';
         if (mine.outcome === 'blackjack') return 'A natural! I taught you absolutely none of that. You’re welcome.';

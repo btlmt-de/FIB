@@ -2522,6 +2522,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                         key={`hr-dealer-${highRoller.openedAt || 'table'}`}
                                         table={highRollerTable}
                                         result={highRollerResult}
+                                        dealAt={highRoller.dealAt}
                                         actsFrom={highRoller.actsFrom}
                                         playClosesAt={highRoller.playClosesAt}
                                         intent={highRollerIntent}

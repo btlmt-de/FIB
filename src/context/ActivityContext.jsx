@@ -95,19 +95,19 @@ const ROULETTE_MAX_LIFETIME_MS = 34000;
  * HIGH ROLLER's two timers, the Parlour's pair one table along.
  *
  * TEARDOWN runs from `high_roller_result` and hands the band back to the reel.
- * Just inside the server's HIGH_ROLLER_SETTLE_MS (12s) for the Parlour's
+ * Just inside the server's HIGH_ROLLER_SETTLE_MS (14s) for the Parlour's
  * reason: unmounting is what returns the reel, and the server's end broadcast
- * should find the table already gone rather than the other way round. The
- * reveal it protects is still a placeholder - retune this with the visual
- * design, and keep it under the server's settle.
+ * should find the table already gone rather than the other way round. It must
+ * also outlast the reveal in effects/highRollerTimeline.js - the longest
+ * dealer hand ends at ~9.9s - with the outcome left on screen to be read.
  *
  * MAX_LIFETIME is the dead-man switch, measured from the open on the server's
- * clock. The longest a table can legitimately run is the deal, the full play
- * window and the settle - 34.5s - so this is that plus slack. Reaching it
- * means the result never arrived.
+ * clock. The longest a table can legitimately run is the intro, the deal, the
+ * full play window and the settle - 41.5s - so this is that plus slack.
+ * Reaching it means the result never arrived.
  */
-const HIGH_ROLLER_TEARDOWN_MS = 11500;
-const HIGH_ROLLER_MAX_LIFETIME_MS = 40000;
+const HIGH_ROLLER_TEARDOWN_MS = 13000;
+const HIGH_ROLLER_MAX_LIFETIME_MS = 48000;
 
 
 export function ActivityProvider({ children }) {
@@ -423,6 +423,7 @@ export function ActivityProvider({ children }) {
                 setHighRoller({
                     payouts: table.payouts,
                     openedAt: rawActivatesAt,
+                    dealAt: table.dealAt,
                     actsFrom: table.actsFrom,
                     playClosesAt: table.playClosesAt,
                     expiresAt: data.expiresAt,
@@ -1083,6 +1084,7 @@ export function ActivityProvider({ children }) {
                                 setHighRoller({
                                     payouts: data.payouts,
                                     openedAt: data.openedAt,
+                                    dealAt: data.dealAt,
                                     actsFrom: data.actsFrom,
                                     playClosesAt: data.playClosesAt,
                                     expiresAt: data.expiresAt,

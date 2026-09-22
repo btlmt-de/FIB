@@ -741,7 +741,7 @@ const EVENT_TYPES = [
     {
         id: 'high_roller',
         label: 'High Roller',
-        color: '#8B5CF6',
+        color: '#E4C78B',
         // Ignores the duration field like the Parlour: a 20s play window plus the
         // dealer's reveal, and it settles early once every seat is done.
         blurb: 'Blackjack. Everyone in the room plays one hand against the dealer. Win 30, blackjack 50, push 10.',

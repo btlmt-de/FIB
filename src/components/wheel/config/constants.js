@@ -267,7 +267,8 @@ export const EVENT_IDENTITY = {
     first_blood:    { name: 'FIRST BLOOD',       color: '#DC2626' },
     community_goal: { name: 'COMMUNITY GOAL',    color: '#2DD4BF' },
     roulette:       { name: 'THE PARLOUR',       color: '#19B36B' },
-    // Placeholder violet: the event's real palette comes with its visual design.
-    // Picked only to be the one hue this table did not already use.
-    high_roller:    { name: 'HIGH ROLLER',       color: '#8B5CF6' },
+    // The table's brass - the trim on its rail and the Hit button - rather than
+    // its teal felt, which would sit on top of the Community Goal's teal. Pale
+    // enough to stay apart from the Arrival's saturated platform amber.
+    high_roller:    { name: 'HIGH ROLLER',       color: '#E4C78B' },
 };

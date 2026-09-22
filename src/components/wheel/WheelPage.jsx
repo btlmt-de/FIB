@@ -75,6 +75,7 @@ import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
 import { KotwArenaAtmosphere } from './effects/KotwArena.jsx';
 import { HighRollerAtmosphere } from './effects/HighRollerTable.jsx';
+import { revealDuration } from './effects/highRollerTimeline.js';
 import { FirstBloodRoom } from './effects/FirstBloodRoom.jsx';
 import { serverNow } from '../../utils/serverClock.js';
 import {
@@ -646,29 +647,52 @@ function WheelOfFortunePage({ onBack }) {
     useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
 
     /*
-     * HIGH ROLLER's payout into the lucky-spin pool.
+     * HIGH ROLLER's payout into the lucky-spin pool, held until the reveal ends.
      *
-     * Applied as it arrives, with no hold, unlike the Parlour's - for now. The
-     * Parlour waits for the ball because its balance would give the pocket away
-     * before the animation shows it. Here the private payout and the public
-     * result are sent together, and the placeholder table shows the dealer's
-     * hand the moment it lands, so there is nothing yet to spoil. When the
-     * visual design gives the dealer's draw a reveal, hold this until that
-     * reveal ends, the way `dueAt` does above.
+     * The Parlour's rule, one table along: the balance IS the result. It used to
+     * be applied the moment the private payout arrived, which was harmless while
+     * the table showed the dealer's hand at once - and gave the hand away the
+     * moment the design gave the house a reveal, with the topbar reading +30
+     * while the hole card was still turning. The table animates the dealer's
+     * turn from highRollerTimeline.js, and so does this wait, so the two land
+     * together however many cards the house draws.
+     *
+     * The payout is sent just before the public result, so this waits for both:
+     * the result carries the settle time and the dealer's hand the wait is
+     * measured from.
      */
     const processedHighRollerRef = useRef(null);
+    const highRollerPayoutTimeoutRef = useRef(null);
     useEffect(() => {
-        if (!highRoller || !highRollerPayout || !user?.id) return;
+        if (!highRoller || !highRollerPayout || !highRollerResult || !user?.id) return;
         const newTotal = highRollerPayout.luckySpinsTotal;
         // A loss carries no balance: there is nothing to apply.
         if (typeof newTotal !== 'number') return;
         const key = `${highRoller.openedAt}-${newTotal}`;
         if (processedHighRollerRef.current === key) return;
         processedHighRollerRef.current = key;
-        console.log('[WheelPage] High Roller paid out', highRollerPayout.luckySpinsAwarded, 'lucky spins');
-        kotwLuckySpinsRef.current = newTotal;
-        setKotwLuckySpins(newTotal);
-    }, [highRoller, highRollerPayout, user?.id]);
+
+        const pay = () => {
+            console.log('[WheelPage] High Roller paid out', highRollerPayout.luckySpinsAwarded, 'lucky spins');
+            kotwLuckySpinsRef.current = newTotal;
+            setKotwLuckySpins(newTotal);
+            highRollerPayoutTimeoutRef.current = null;
+        };
+
+        const settledAt = highRollerResult.settledAt;
+        const dueAt = settledAt ? settledAt + revealDuration(highRollerResult.dealer?.cards?.length) : 0;
+        const waitMs = prefersCalm() ? 0 : Math.max(0, dueAt - serverNow());
+        if (waitMs <= 0) {
+            pay();
+            return;
+        }
+        clearTimeout(highRollerPayoutTimeoutRef.current);
+        highRollerPayoutTimeoutRef.current = setTimeout(pay, waitMs);
+    }, [highRoller, highRollerPayout, highRollerResult, user?.id]);
+
+    // Only on unmount. The table tearing down must NOT cancel a pending payout -
+    // it is the player's real balance, and the teardown lands after the reveal.
+    useEffect(() => () => clearTimeout(highRollerPayoutTimeoutRef.current), []);
 
 
     // Fetch items and user data

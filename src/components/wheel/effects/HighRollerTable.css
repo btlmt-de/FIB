@@ -21,23 +21,49 @@
 .hr-experience { container-type:size; position:absolute; inset:0; z-index:5; overflow:auto; color:#f3ead7; scrollbar-width:thin; scrollbar-color:#b5a27655 transparent; padding:clamp(12px,4vh,48px) 24px 16px; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; }
 .hr-dealer { width:min(100%,620px); flex:none; display:flex; flex-direction:column; align-items:center; padding:0 0 clamp(6px,2cqh,20px); }
 .hr-brand { text-align:center; text-shadow:0 3px 18px #000; }
-.hr-brand > span { font:600 11px/1.4 system-ui,sans-serif; letter-spacing:.28em; color:#e2cba1; }
 .hr-brand h2 { margin:3px 0 clamp(6px,1.8cqh,16px); font:600 clamp(26px,5.2cqh,40px)/1 Georgia,serif; letter-spacing:.09em; color:#f3e6c9; }
 .hr-brand em { font-style:normal; color:#e4c78b; }
-.hr-host { display:flex; align-items:center; gap:17px; width:min(100%,460px); padding:12px 20px; box-sizing:border-box; background:linear-gradient(90deg,#0a1514c7,#0b1514b8); border-radius:5px; box-shadow:0 10px 35px #0002; }
-.hr-jimbo { width:auto; height:clamp(44px,8cqh,71px); aspect-ratio:53/71; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 4px 4px #0008); transform:rotate(-6deg); flex-shrink:0; }
+/*
+ * Jimbo talks. His lines used to sit in a dark translucent panel - the last
+ * plain web box on the table once the rail went. He is a jester on a playing
+ * card, so he gets a speech bubble in the cards' own cream stock, its tail
+ * pointing back at him: the one light surface in the room, which is also what
+ * makes his line the easiest thing on the table to read.
+ */
+.hr-host { display:flex; align-items:center; gap:22px; width:min(100%,560px); box-sizing:border-box; }
+/*
+ * Jimbo is the host, so he is sized like one: as tall as a dealt card and then
+ * some, not a thumbnail beside his own speech. He was 71px at the most, a third
+ * the height of his bubble's column, and read as an avatar next to a chat line.
+ * He sways a little while the table is live, the way a card on a hanging stand
+ * would, which says "a character" without animating a pixel sprite.
+ */
+.hr-jimbo { width:auto; height:clamp(96px,22cqh,200px); aspect-ratio:142/190; object-fit:contain; image-rendering:pixelated; filter:drop-shadow(0 8px 10px #000a); transform:rotate(-6deg); transform-origin:50% 90%; flex-shrink:0; animation:hr-sway 5s ease-in-out infinite; }
+@keyframes hr-sway { 0%,100% { transform:rotate(-6deg); } 50% { transform:rotate(-2deg) translateY(-2px); } }
 /* Holds two lines of the longest line Jimbo says, so the table does not jump as he talks. */
-.hr-speech { flex:1; min-height:calc(2 * 1.45 * 15px + 22px); }
-.hr-speech > span { color:#e0c28c; font-size:11px; font-weight:700; letter-spacing:.14em; }
-.hr-speech i { color:#c9c9b8; font-size:12px; font-weight:400; font-style:normal; letter-spacing:0; margin-left:5px; }
-.hr-speech p { margin:6px 0 0; font:italic 15px/1.45 Georgia,serif; text-wrap:pretty; animation:hr-line-in .2s ease-out; }
+.hr-speech { position:relative; flex:1; min-height:calc(2 * 1.45 * 15px + 22px); padding:9px 16px 10px; border-radius:10px; background:linear-gradient(135deg,#fff8e6,#efe2c4); color:#2c2216; box-shadow:0 1px 0 #fffbef inset,0 -2px 0 #c9b48c inset,0 8px 18px #020c0bb0,0 1px 3px #020c0b; }
+.hr-speech::before { content:''; position:absolute; left:-9px; top:50%; width:18px; height:18px; margin-top:-9px; background:#f8eed5; transform:rotate(45deg); border-radius:0 0 0 4px; box-shadow:-3px 3px 5px #020c0b40; }
+.hr-speech > span { position:relative; color:#7a5422; font-size:11px; font-weight:700; letter-spacing:.14em; }
+.hr-speech i { color:#7d6a4f; font-size:12px; font-weight:400; font-style:normal; letter-spacing:0; margin-left:5px; }
+.hr-speech p { position:relative; margin:4px 0 0; font:italic 15px/1.45 Georgia,serif; text-wrap:pretty; animation:hr-line-in .2s ease-out; }
 .hr-player-table { width:min(100%,570px); flex:none; box-sizing:border-box; padding:0 20px 14px; background:radial-gradient(ellipse at 50% 42%,#062b2b55,transparent 75%); }
 .hr-status { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:0 0 10px; }
 .hr-eyebrow { font:600 11px/1.4 system-ui,sans-serif; letter-spacing:.12em; color:#ece1c9; text-transform:uppercase; }
-.hr-clock { font:13px/1.3 system-ui,sans-serif; color:#d0d7c9; font-variant-numeric:tabular-nums; }
-.hr-clock[data-urgent="true"] { color:#ffb096; }
-.hr-time-track { height:2px; background:#e0d7b322; overflow:hidden; }
-.hr-time-track > span { display:block; height:100%; background:#e4c78b; transform-origin:left; transition:transform .25s linear; }
+/*
+ * The play window. The seconds are set large in the table's serif, because a
+ * clock is read at a glance; the track under the row is a lit brass bar that
+ * drains, not a hairline. In the last five seconds both turn ember and the
+ * number beats once a second - the one place on the table that is allowed to
+ * nag, since standing on whatever you hold is what happens when it runs out.
+ */
+.hr-clock { font:13px/1.3 system-ui,sans-serif; color:#d8ddd0; font-variant-numeric:tabular-nums; }
+.hr-clock b { display:inline-block; min-width:1.2em; margin-right:2px; font:600 20px/1 Georgia,serif; color:#f3dca2; text-align:right; }
+.hr-clock[data-urgent="true"],.hr-clock[data-urgent="true"] b { color:#ff9b73; }
+.hr-clock[data-urgent="true"] b { animation:hr-beat 1s ease-out infinite; }
+.hr-time-track { height:4px; border-radius:2px; background:#e0d7b31f; overflow:hidden; box-shadow:0 1px 0 #0006 inset; }
+.hr-time-track > span { display:block; height:100%; border-radius:2px; background:linear-gradient(90deg,#a97c38,#f3dca2); box-shadow:0 0 8px #f3dca280; transform-origin:left; transition:transform .25s linear,background .3s; }
+.hr-time-track[data-urgent="true"] > span { background:linear-gradient(90deg,#b8442a,#ff9b73); box-shadow:0 0 10px #ff9b7399; }
+@keyframes hr-beat { 0% { transform:scale(1.22); } 40%,100% { transform:scale(1); } }
 .hr-house-hand,.hr-player-hand { display:grid; grid-template-columns:110px minmax(0,1fr) 54px; align-items:center; gap:14px; min-height:105px; padding:14px 0; }
 .hr-house-hand { border-bottom:1px solid #d9dabc23; }
 .hr-hand-heading span { display:block; color:#f0e5ca; font-size:11px; font-weight:700; letter-spacing:.15em; }
@@ -48,7 +74,7 @@
 .hr-score[data-bust="true"] strong { color:#ffb096; }
 .hr-your-seat { padding:0; }
 .hr-player-table button { font:inherit; cursor:pointer; }
-.hr-player-table button:focus-visible,.hr-other-seats summary:focus-visible { outline:2px solid #f9dc9e; outline-offset:4px; }
+.hr-player-table button:focus-visible { outline:2px solid #f9dc9e; outline-offset:4px; }
 .hr-seat-note { font-size:12px; line-height:1.5; color:#d3dacd; margin:8px 0 0; text-align:center; }
 /*
  * The pay table and the table's total sit on the busiest pixels in the room -
@@ -65,8 +91,42 @@
 .hr-table-total { margin:6px 0 0; padding:5px 44px; font-size:14px; color:#eef0e4; text-align:center; }
 .hr-empty-seat { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:20px 0 10px; }.hr-empty-suit { font-size:38px; color:#d5c18a; }.hr-empty-seat strong { font:19px Georgia,serif; }.hr-empty-seat p { margin:7px 0; font-size:13px; color:#d3dacd; }
 .hr-error { color:#ffb096; font-size:13px; }
-.hr-other-seats { margin-top:4px; font-size:12px; }.hr-other-seats summary { padding:8px 0; cursor:pointer; color:#dde2d2; }.hr-other-seats summary > span { float:right; color:#cfdad2; font-size:12px; }
-.hr-other-seats ul { list-style:none; padding:0; margin:4px 0; background:#061a19b3; }.hr-other-seats li { display:flex; align-items:center; gap:12px; padding:9px; }.hr-seat-name { width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.hr-other-seats li > span:last-child { margin-left:auto; text-align:right; font-size:12px; }
+/*
+ * The shuffle, in the middle of the felt. Two half-decks split apart, tip up
+ * towards each other and riffle back into one; three times over, timed from the
+ * server's clock through --hr-shuffle-delay (negative for a page that arrives
+ * mid-shuffle, which simply joins in). The cards are the deck's own backs, at
+ * the size the dealt cards will be, so the deck that is shuffled reads as the
+ * deck that deals. Absolutely placed over the empty hand rows so it costs the
+ * layout nothing.
+ */
+/* The table's own deck waits unseen until the shuffled one arrives in its place. */
+.hr-player-table[data-intro="true"] .hr-deck { visibility:hidden; }
+.hr-shuffle { position:absolute; left:50%; top:calc(var(--hr-card-h) * .5 + 56px); width:calc(var(--hr-card-h) * 1.6); height:var(--hr-card-h); margin-left:calc(var(--hr-card-h) * -.8); pointer-events:none; animation:hr-shuffle-in .5s cubic-bezier(.16,1,.3,1) both; }
+.hr-shuffle-half { position:absolute; top:0; left:50%; height:100%; aspect-ratio:84/118; margin-left:calc(var(--hr-card-h) * -.356); animation:var(--hr-shuffle-ms) cubic-bezier(.45,0,.2,1) var(--hr-shuffle-delay) var(--hr-shuffle-n) both; }
+.hr-shuffle-half::before { content:''; position:absolute; inset:5px -2px -6px 2px; border-radius:5px; background:repeating-linear-gradient(0deg,#b8ad99 0 1px,#e8ddc5 1px 3px); box-shadow:3px 10px 14px #00131088; }
+.hr-shuffle-half > .hr-card { position:absolute; inset:0; width:100%; height:100%; box-sizing:border-box; border-radius:5px; box-shadow:inset 0 0 0 4px #d6be8f,inset 0 0 0 6px #372540,0 1px 0 #f1e8d4; }
+.hr-shuffle-half > .hr-card > span { width:50%; height:49%; font-size:calc(var(--hr-card-h) * .28); }
+.hr-shuffle-l { animation-name:hr-riffle-l; }
+.hr-shuffle-r { animation-name:hr-riffle-r; }
+@keyframes hr-riffle-l { 0%,100% { transform:none; } 30% { transform:translateX(-82%) rotate(-10deg); } 48% { transform:translateX(-70%) rotate(-17deg) translateY(-8px); } 72% { transform:translateX(-8%) rotate(-3deg); } }
+@keyframes hr-riffle-r { 0%,100% { transform:none; } 30% { transform:translateX(82%) rotate(10deg); } 48% { transform:translateX(70%) rotate(17deg) translateY(-8px); } 72% { transform:translateX(8%) rotate(3deg); } }
+@keyframes hr-shuffle-in { from { opacity:0; transform:translateY(10px) scale(.94); } to { opacity:1; transform:none; } }
+
+/*
+ * The rest of the table. Each seat is a small plaque on the felt - name, their
+ * cards at a glance, and where they stand - and after the reveal, what they won.
+ * Shaded rather than boxed, for the pay table's reason: the felt is busy and a
+ * name has to read over it, but an edge would make it a card in a grid.
+ */
+.hr-others { list-style:none; margin:clamp(2px,.8cqh,8px) 0 0; padding:0; display:flex; flex-wrap:wrap; justify-content:center; gap:6px 10px; }
+.hr-other { display:flex; align-items:center; gap:8px; padding:5px 12px 5px 10px; border-radius:4px; background:#03090999; box-shadow:0 0 0 1px #c79d5626 inset; font-size:12px; color:#dde2d2; text-shadow:0 1px 2px #000; }
+.hr-other-name { max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; color:#f0e5ca; }
+.hr-other-state { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.hr-other[data-bust="true"] .hr-other-state,.hr-other[data-outcome="loss"] .hr-other-state { color:#bfc6bb; }
+.hr-other[data-outcome="win"] .hr-other-state,.hr-other[data-outcome="blackjack"] .hr-other-state { color:#f4d690; font-weight:700; }
+.hr-other[data-outcome="blackjack"] { box-shadow:0 0 0 1px #f4d690aa inset,0 0 14px #f4d69055; }
+.hr-other-more { color:#cfdad2; }
 .hr-hand { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .hr-card { position:relative; display:block; width:52px; height:72px; flex-shrink:0; border-radius:4px; background:linear-gradient(120deg,#fff5dd,#dfd1b5); color:#202331; box-shadow:0 3px 0 #aa9b82,0 7px 12px #0005;  }
 .hr-card[data-red="true"] { color:#a52d42; }
@@ -81,20 +141,21 @@
 @keyframes hr-line-in { from { opacity:.3; transform:translateY(3px); } to { opacity:1; transform:none; } }
 @media(max-width:700px) {
  .hr-room-wall { background-size:auto 100%; }
- .hr-experience { padding:clamp(22px,6vh,50px) 16px 24px; }.hr-dealer { padding-bottom:30px; }.hr-brand > span { font-size:11px; letter-spacing:.2em; }
- .hr-host { padding:10px 12px; gap:12px; }.hr-jimbo { width:41px; height:55px; }.hr-speech { min-height:calc(2 * 1.45 * 13px + 22px); }.hr-speech p { font-size:13px; }.hr-speech i { font-size:11px; }
+ .hr-experience { padding:clamp(22px,6vh,50px) 16px 24px; }.hr-dealer { padding-bottom:30px; }
+ .hr-host { gap:14px; }.hr-speech { padding:8px 12px 9px; }.hr-jimbo { height:clamp(76px,16cqh,130px); }.hr-speech { min-height:calc(2 * 1.45 * 13px + 22px); }.hr-speech p { font-size:13px; }.hr-speech i { font-size:11px; }
  .hr-player-table { padding:0 4px 10px; }.hr-hand-heading span { font-size:11px; }.hr-hand-heading small { font-size:11px; }.hr-score small { font-size:11px; letter-spacing:.02em; }
- .hr-actions button { min-height:50px; padding-left:13px; }.hr-other-seats li { gap:8px; }.hr-seat-name { width:60px; }
+ .hr-actions button { min-height:50px; padding-left:13px; }.hr-other { padding:4px 9px; gap:6px; }.hr-other-name { max-width:72px; }.hr-other .hr-hand-small { display:none; }
 }
 @media(prefers-reduced-motion:reduce) { .hr-card,.hr-speech p { animation:none; }.hr-player-table button,.hr-time-track > span { transition:none; } }
 html[data-saver="on"] .hr-card,html[data-saver="on"] .hr-speech p { animation:none; }
 
 /* Physical cards: the slot flies in screen space, the card lies on the felt. */
-.hr-player-table { position:relative; width:min(100%,680px); flex:1 0 auto; min-height:0; display:flex; flex-direction:column; }
+.hr-player-table { --hr-card-h:clamp(50px,12.5cqh,118px); position:relative; width:min(100%,680px); flex:1 0 auto; min-height:0; display:flex; flex-direction:column; }
+.hr-house-hand .hr-hand,.hr-player-hand .hr-hand { min-height:var(--hr-card-h); }
 .hr-your-seat { display:flex; flex-direction:column; flex:1; }
 .hr-house-hand,.hr-player-hand { min-height:0; padding:clamp(4px,1.3cqh,12px) 0; }
 .hr-hand { gap:0; padding:clamp(4px,1cqh,8px) 5px; }
-.hr-card-slot { position:relative; display:block; height:clamp(50px,12.5cqh,118px); aspect-ratio:84/118; flex-shrink:0; perspective:650px; }
+.hr-card-slot { position:relative; display:block; height:var(--hr-card-h); aspect-ratio:84/118; flex-shrink:0; perspective:650px; }
 .hr-card-slot + .hr-card-slot { margin-left:-12px; }
 .hr-card-pose { position:absolute; inset:0; transform:rotateX(43deg) rotateZ(var(--card-angle,0deg)); transform-style:preserve-3d; }
 .hr-card-turn { position:absolute; inset:0; transform-style:preserve-3d; }
@@ -109,8 +170,7 @@ html[data-saver="on"] .hr-card,html[data-saver="on"] .hr-speech p { animation:no
 .hr-card-slot .hr-card-back > span { width:50%; height:49%; font-size:clamp(22px,3.5cqh,33px); }
 .hr-player-table[data-moving="true"] .hr-score { opacity:.25; }
 .hr-score { transition:opacity .3s; }
-.hr-deck { position:absolute; right:-96px; top:78px; width:83px; text-align:center; pointer-events:none; }
-.hr-deck-label { display:block; font:600 11px/1.3 system-ui,sans-serif; letter-spacing:.1em; color:#e2dcc4; text-shadow:0 1px 3px #000c; }
+.hr-deck { position:absolute; right:-96px; top:64px; width:83px; text-align:center; pointer-events:none; }
 .hr-deck-stack { position:relative; height:clamp(62px,11cqh,104px); aspect-ratio:76/104; margin:11px auto 0; transform:perspective(650px) rotateX(27deg) rotateZ(9deg); }
 .hr-deck-stack > .hr-card { position:absolute; inset:0; width:100%; height:100%; box-sizing:border-box; box-shadow:inset 0 0 0 4px #d6be8f,inset 0 0 0 6px #372540,0 1px 0 #f1e8d4; }
 .hr-deck-stack > .hr-card > span { width:53%; height:53%; font-size:clamp(20px,3.3cqh,32px); }
@@ -143,7 +203,28 @@ html[data-saver="on"] .hr-card,html[data-saver="on"] .hr-speech p { animation:no
 .hr-outcome { gap:4px; padding-bottom:10px; color:#e3dac6; text-align:center; text-shadow:0 2px 12px #000d; }
 .hr-outcome strong { font:600 30px/1.1 Georgia,serif; letter-spacing:.04em; }
 .hr-outcome span { font-size:14px; }
-.hr-outcome[data-win="true"] { color:#f6dc9c; }
+/*
+ * A win is a moment. When the reveal ends the outcome settles in out of a pool
+ * of brass light that blooms and dies back, and the winning hand lifts off the
+ * felt. A blackjack gets it bigger, plus a ring of light that runs out from the
+ * word - the table's one fanfare, matching its sound. A loss and a push simply
+ * appear: nothing to celebrate, and a flourish on "House wins" would read as the
+ * house gloating.
+ */
+.hr-outcome { position:relative; }
+.hr-outcome[data-outcome="win"],.hr-outcome[data-outcome="blackjack"] { color:#f6dc9c; }
+.hr-outcome[data-outcome] strong { animation:hr-outcome-in .5s cubic-bezier(.16,1,.3,1) both; }
+.hr-outcome[data-outcome="win"]::before,.hr-outcome[data-outcome="blackjack"]::before { content:''; position:absolute; left:50%; top:40%; width:340px; height:120px; margin:-60px 0 0 -170px; border-radius:50%; background:radial-gradient(closest-side,#f3dca273,#f3dca200); pointer-events:none; animation:hr-bloom 2.2s cubic-bezier(.16,1,.3,1) both; }
+.hr-outcome[data-outcome="blackjack"]::before { width:460px; height:170px; margin:-85px 0 0 -230px; background:radial-gradient(closest-side,#ffe7a8a6,#f3dca200); }
+.hr-outcome[data-outcome="blackjack"]::after { content:''; position:absolute; left:50%; top:40%; width:120px; height:120px; margin:-60px 0 0 -60px; border-radius:50%; box-shadow:0 0 0 2px #ffe7a8,0 0 18px #ffe7a8; pointer-events:none; animation:hr-ring 1.1s cubic-bezier(.2,.7,.3,1) both; }
+.hr-outcome[data-outcome="blackjack"] strong { font-size:36px; letter-spacing:.08em; animation:hr-outcome-in .6s cubic-bezier(.16,1,.3,1) both,hr-glint 2.4s ease-out .3s both; }
+.hr-outcome strong,.hr-outcome span { position:relative; }
+.hr-player-hand .hr-card-slot { transition:transform .6s cubic-bezier(.16,1,.3,1),filter .6s; }
+.hr-player-hand[data-won="true"] .hr-card-slot { transform:translateY(-8px); filter:drop-shadow(0 10px 10px #f3dca240); }
+@keyframes hr-outcome-in { from { opacity:0; transform:translateY(8px) scale(.92); } to { opacity:1; transform:none; } }
+@keyframes hr-bloom { 0% { opacity:0; transform:scale(.6); } 25% { opacity:1; } 100% { opacity:.35; transform:scale(1); } }
+@keyframes hr-ring { from { opacity:1; transform:scale(.4); } to { opacity:0; transform:scale(3.2); } }
+@keyframes hr-glint { 0% { text-shadow:0 0 0 #fff0,0 2px 12px #000d; } 20% { text-shadow:0 0 22px #ffe7a8,0 2px 12px #000d; } 100% { text-shadow:0 0 6px #ffe7a866,0 2px 12px #000d; } }
 .hr-hand-small .hr-card-slot { width:27px; height:37px; perspective:none; }
 .hr-hand-small .hr-card-slot + .hr-card-slot { margin-left:3px; }
 .hr-hand-small .hr-card-pose { transform:none; }
@@ -161,12 +242,21 @@ html[data-saver="on"] .hr-card,html[data-saver="on"] .hr-speech p { animation:no
  .hr-house-hand,.hr-player-hand { padding-right:60px; }
  .hr-house-hand { grid-template-columns:56px minmax(0,1fr) 46px; }
  .hr-paytable { gap:2px 14px; padding:6px 24px; font-size:13px; }.hr-paytable b { font-size:15px; }.hr-table-total { padding:4px 24px; font-size:13px; }.hr-house-hand .hr-hand-heading small { display:none; }
- .hr-card-slot { height:clamp(48px,11cqh,85px); }.hr-card-slot + .hr-card-slot { margin-left:-13px; }.hr-hand { padding:4px 0; }
+ .hr-player-table { --hr-card-h:clamp(48px,11cqh,85px); }.hr-card-slot + .hr-card-slot { margin-left:-13px; }.hr-hand { padding:4px 0; }
  .hr-card-slot .hr-card-corner { top:5px; left:5px; font-size:clamp(13px,2cqh,16px); }.hr-card-slot .hr-card-corner small { font-size:10px; margin-top:1px; }.hr-card-slot .hr-card-bottom { top:auto; left:auto; bottom:5px; right:5px; }.hr-card-slot .hr-card-suit { font-size:clamp(22px,3.6cqh,29px); }.hr-card-slot .hr-card-back > span { font-size:clamp(18px,3cqh,25px); }
- .hr-deck { right:0; top:48px; width:56px; }.hr-deck-label { font-size:11px; letter-spacing:.02em; }.hr-deck-stack { height:clamp(48px,8cqh,65px); margin-top:6px; }.hr-deck-stack > .hr-card > span { font-size:clamp(16px,2.6cqh,21px); }.hr-deck-leaves { bottom:-7px; }
- .hr-actions { gap:10px; }.hr-player-table .hr-action { flex:1; min-width:0; min-height:54px; padding:0 12px; font-size:16px; }.hr-controls .hr-seat-note { font-size:11px; }.hr-outcome strong { font-size:25px; }
+ .hr-deck { right:0; top:40px; width:56px; }.hr-deck-stack { height:clamp(48px,8cqh,65px); margin-top:6px; }.hr-deck-stack > .hr-card > span { font-size:clamp(16px,2.6cqh,21px); }.hr-deck-leaves { bottom:-7px; }
+ .hr-actions { gap:10px; }.hr-player-table .hr-action { flex:1; min-width:0; min-height:54px; padding:0 12px; font-size:16px; }.hr-controls .hr-seat-note { font-size:11px; }.hr-outcome strong { font-size:25px; }.hr-outcome[data-outcome="blackjack"] strong { font-size:30px; }
 }
-@media(prefers-reduced-motion:reduce) { .hr-score,.hr-player-table .hr-action { transition:none; } }
+/* Reduced motion keeps the meaning and drops the movement: the bloom stays as
+   a still pool of light, the hand still sits raised, nothing beats or rings. */
+@media(prefers-reduced-motion:reduce) {
+ .hr-jimbo,.hr-shuffle,.hr-shuffle-half { animation:none!important; }
+ .hr-score,.hr-player-table .hr-action,.hr-player-hand .hr-card-slot { transition:none; }
+ .hr-outcome[data-outcome] strong,.hr-outcome[data-outcome]::before,.hr-clock b { animation:none!important; }
+ .hr-outcome[data-outcome="win"]::before,.hr-outcome[data-outcome="blackjack"]::before { opacity:.35; }
+ .hr-outcome[data-outcome="blackjack"]::after { display:none; }
+}
+html[data-saver="on"] .hr-jimbo,html[data-saver="on"] .hr-shuffle-half,html[data-saver="on"] .hr-outcome[data-outcome] strong,html[data-saver="on"] .hr-outcome::before,html[data-saver="on"] .hr-outcome::after,html[data-saver="on"] .hr-clock b { animation:none!important; }
 
 /*
  * A short room - a laptop with its bookmarks bar, a phone with its browser
@@ -177,10 +267,11 @@ html[data-saver="on"] .hr-card,html[data-saver="on"] .hr-speech p { animation:no
  */
 @media (max-height:680px) { .hr-experience { padding-top:8px; } }
 @container (max-height:560px) {
- .hr-brand > span { display:none; }
  .hr-brand h2 { font-size:24px; margin:0 0 6px; }
- .hr-host { padding:8px 16px; }
+ .hr-speech { padding:6px 14px 7px; }
+ .hr-jimbo { height:clamp(64px,16cqh,110px); }
  .hr-status { padding-bottom:6px; }
  .hr-controls .hr-seat-note { display:none; }
+ .hr-other .hr-hand-small { display:none; }
  .hr-player-table .hr-action { min-height:44px; }
 }
