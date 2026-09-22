@@ -183,12 +183,29 @@ export function HighRollerTable({ table, result, payout, payouts, actsFrom, play
     const awarded = payout?.luckySpinsAwarded ?? mine?.payout ?? 0;
     const progress = Math.max(0, Math.min(1, (playClosesAt - now) / Math.max(1, playClosesAt - actsFrom)));
     const status = moving ? (settled ? 'The reveal' : 'Dealing your cards') : settled ? 'Round complete' : dealing ? 'Dealing' : !open ? 'Jimbo’s turn' : !mine ? 'Table open' : mine.bust ? 'Busted' : mine.natural ? 'Blackjack' : mine.done ? 'Standing' : 'Your turn';
+    // H hits, S stands. Never while the player is typing - live chat sits on
+    // this same page - and never with a modifier, so browser shortcuts survive.
+    const act = useRef(null);
+    act.current = canAct ? action => post('action', { action }) : null;
+    useEffect(() => {
+        const onKey = e => {
+            if (!act.current || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+            const t = e.target;
+            if (t?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName)) return;
+            const action = { h: 'hit', s: 'stand' }[e.key.toLowerCase()];
+            if (!action) return;
+            e.preventDefault();
+            act.current(action);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
     const hover = action => ({ onMouseEnter: () => canAct && onIntent?.(action), onMouseLeave: () => onIntent?.(null),
         onFocus: () => canAct && onIntent?.(action), onBlur: () => onIntent?.(null) });
 
     return <div className="hr-player-table" data-settled={settled} data-moving={moving}>
         <div className="hr-status"><span className="hr-eyebrow">{status}</span><span className="hr-clock" data-urgent={open && seconds <= 5}>{open ? seconds + 's left' : settled ? 'Until next time' : dealing ? 'Take your seat' : 'All hands locked'}</span></div>
-        <div className="hr-deck" aria-hidden="true"><span className="hr-deck-label">JIMBO’S DECK</span><div className="hr-deck-stack" ref={deck}><span className="hr-deck-leaves"/><span className="hr-card hr-card-back"><span>♠</span></span></div><span className="hr-deck-caption">HOUSE RESERVE</span></div>
+        <div className="hr-deck" aria-hidden="true"><span className="hr-deck-label">JIMBO’S DECK</span><div className="hr-deck-stack" ref={deck}><span className="hr-deck-leaves"/><span className="hr-card hr-card-back"><span>♠</span></span></div></div>
         <div className="hr-time-track" aria-hidden="true"><span style={{ transform: 'scaleX(' + (settled ? 0 : Number.isFinite(progress) ? progress : 0) + ')' }}/></div>
         <section className="hr-house-hand" aria-label="Jimbo’s hand">
             <div className="hr-hand-heading"><span>JIMBO</span><small>{dealer?.holeCard ? 'Dealer · one card hidden' : settled ? 'Dealer · revealed' : 'Dealer'}</small></div>
@@ -200,18 +217,18 @@ export function HighRollerTable({ table, result, payout, payouts, actsFrom, play
                 <div className="hr-player-hand"><div className="hr-hand-heading"><span>YOU</span><small>{mine.bust ? 'Over 21' : mine.natural ? 'Natural blackjack' : mine.done ? 'Hand locked' : mine.soft ? 'Ace counts as 11' : 'Your hand'}</small></div><Hand cards={mine.cards} deckRef={deck} onMotion={trackMotion}/>
                     <div className="hr-score" data-bust={mine.bust}><strong>{moving ? '…' : mine.total}</strong><small>{mine.natural ? 'NATURAL' : mine.bust ? 'BUST' : mine.soft ? 'SOFT' : 'TOTAL'}</small></div>
                 </div>
-                {settled ? <div className="hr-outcome hr-front-rail" role="status" data-win={mine.outcome === 'win' || mine.outcome === 'blackjack'}><strong>{moving ? 'Turning the cards…' : OUTCOMES[mine.outcome] ?? mine.outcome}</strong><span>{moving ? 'The house reveals' : awarded > 0 ? '+' + awarded + ' lucky spins' : 'No lucky spins this hand'}</span></div>
-                    : <div className="hr-front-rail"><div className="hr-rail-engraving" aria-hidden="true">♠ &nbsp; MAKE YOUR PLAY &nbsp; ♠</div><div className="hr-actions">
-                        <button type="button" className="hr-hit" disabled={!canAct} onClick={() => post('action', { action: 'hit' })} {...hover('hit')}><b>Hit me</b><small>One more card</small><span aria-hidden="true">＋</span></button>
-                        <button type="button" className="hr-stand" disabled={!canAct} onClick={() => post('action', { action: 'stand' })} {...hover('stand')}><b>Stand</b><small>Keep my hand</small><span className="hr-stop-icon" aria-hidden="true">−</span></button>
+                {settled ? <div className="hr-controls hr-outcome" role="status" data-win={mine.outcome === 'win' || mine.outcome === 'blackjack'}><strong>{moving ? 'Turning the cards…' : OUTCOMES[mine.outcome] ?? mine.outcome}</strong><span>{moving ? 'The house reveals' : awarded > 0 ? '+' + awarded + ' lucky spins' : 'No lucky spins this hand'}</span></div>
+                    : <div className="hr-controls"><div className="hr-actions">
+                        <button type="button" className="hr-action hr-hit" disabled={!canAct} aria-keyshortcuts="H" onClick={() => post('action', { action: 'hit' })} {...hover('hit')}>Hit<kbd aria-hidden="true">H</kbd></button>
+                        <button type="button" className="hr-action hr-stand" disabled={!canAct} aria-keyshortcuts="S" onClick={() => post('action', { action: 'stand' })} {...hover('stand')}>Stand<kbd aria-hidden="true">S</kbd></button>
                     </div><p className="hr-seat-note" role="status">{moving ? 'Cards on the felt. One moment…' : busy ? 'Jimbo is on it…' : mine.bust ? 'Busted. Stay for the reveal.' : mine.done ? 'Your hand is locked. Waiting for Jimbo.' : dealing ? 'Cards first. Decisions in a moment.' : open ? 'Get closer to 21 than Jimbo. Don’t go over.' : 'No more cards. Jimbo is revealing his hand.'}</p></div>}
             </> : <div className="hr-empty-seat"><span className="hr-empty-suit" aria-hidden="true">♠</span><div><strong>A seat with your name on it.</strong><p>{!user ? 'Sign in to join Jimbo’s table.' : canSit ? 'Play a hand. Win lucky spins.' : 'Watch Jimbo reveal the table.'}</p></div>
-                {canSit && <button className="hr-sit" disabled={busy} onClick={() => post('sit')}>{busy ? 'Taking your seat…' : 'Deal me in'} <span aria-hidden="true">↗</span></button>}</div>}
+                {canSit && <button type="button" className="hr-action hr-hit hr-sit" disabled={busy} onClick={() => post('sit')}>{busy ? 'Taking your seat…' : 'Deal me in'}</button>}</div>}
             {error && <p className="hr-error" role="alert">{error}</p>}
         </section>
         {payouts && <div className="hr-paytable" aria-label="Lucky spin rewards"><span>LUCKY SPINS</span>{['blackjack', 'win', 'push', 'loss'].map(key => <span key={key}>{key === 'blackjack' ? 'Blackjack' : key[0].toUpperCase() + key.slice(1)} <b>+{payouts[key] ?? 0}</b></span>)}</div>}
         {others.length > 0 && <details className="hr-other-seats"><summary>Around the table <span>{others.length} other player{others.length === 1 ? '' : 's'}</span></summary><ul>{others.map(seat => <li key={seat.userId}><span className="hr-seat-name">{seat.username}</span><Hand cards={seat.cards} compact/><span>{settled ? (seat.outcome === 'win' ? 'Win' : seat.outcome === 'loss' ? 'Loss' : OUTCOMES[seat.outcome] ?? seat.outcome) + (seat.payout ? ' +' + seat.payout : '') : handLabel(seat) + (seat.done && !seat.bust && !seat.natural ? ' · Locked' : '')}</span></li>)}</ul></details>}
-        {settled && typeof result.totalPaid === 'number' && <p className="hr-seat-note">{result.totalPaid} lucky spins paid across {seats.length} seat{seats.length === 1 ? '' : 's'}.</p>}
+        {settled && typeof result.totalPaid === 'number' && <p className="hr-table-total">{result.totalPaid} lucky spins paid across {seats.length} seat{seats.length === 1 ? '' : 's'}.</p>}
     </div>;
 }
 export default HighRollerTable;
