@@ -91,7 +91,7 @@ import { CanvasRouletteStrip } from './canvas/CanvasRouletteStrip.jsx';
 import RouletteTable from './effects/RouletteTable.jsx';
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourDeck from './effects/ParlourDeck.jsx';
-import { HighRollerDealer, HighRollerTable } from './effects/HighRollerTable.jsx';
+import { HighRollerRoom } from './effects/HighRollerTable.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -234,6 +234,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      * HighRollerTable.jsx.
      */
     const highRollerOwnsReel = Boolean(highRoller);
+    const [highRollerIntent, setHighRollerIntent] = useState(null);
 
     /**
      * Either table owns the reel. Everything that hides the idle controls or the
@@ -1909,7 +1910,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                 intent anyway: a recursion spin should tint the whole surface, not
                 a rectangle in the middle of it. */}
                     {/* ── Row 2: the reel band ─────────────────────────────── */}
-                    <div className="kotw-reel-band" style={{
+                    <div className={highRollerOwnsReel ? "kotw-reel-band hr-active-band" : "kotw-reel-band"} style={{
                         gridRow: 4,
                         gridColumn: '1 / -1',
                         position: 'relative',
@@ -1923,7 +1924,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // are overlays below, not borders. A constant full-width
                         // line is a rectangle's edge; these fade to nothing at
                         // the sides, like the canvas's own machined edges.
-                        background: parlourOwnsReel
+                        background: highRollerOwnsReel ? 'transparent' : parlourOwnsReel
                             ? 'linear-gradient(180deg, #350a13 0%, #26060e 44%, #180409 100%)'
                             : showSpinRecursionEffects
                             ? 'linear-gradient(180deg, #0a150a 0%, #12240e 46%, #0a150a 100%)'
@@ -2126,7 +2127,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                                                 state === 'luckyResult' ? 'Lucky Win!' :
                                                                     state === 'tripleLuckySpinning' ? '3x Lucky Spinning...' :
                                                                         state === 'tripleLuckyResult' ? '3x Lucky Win!' :
-                                                                            state === 'idle' ? (firstBloodVisible ? 'First Blood is on the line' : arenaVisible ? 'The crown is in play' : 'Ready to spin') :
+                                                                            state === 'idle' ? (highRollerOwnsReel ? (highRollerResult ? 'High Roller · Table settled' : 'High Roller · Jimbo’s table') : firstBloodVisible ? 'First Blood is on the line' : arenaVisible ? 'The crown is in play' : 'Ready to spin') :
                                                                                 (firstBloodVisible ? 'Your latest pull' : arenaVisible ? 'Points on the board' : 'Gamba!')}
                             </span>
                             </div>
@@ -2420,7 +2421,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     // 390px of height to spend and a phone in
                                     // portrait has 844, and a fixed 260 served
                                     // neither.
-                                    height: isMobile ? '100%' : `${STRIP_HEIGHT}px`,
+                                    height: isMobile || highRollerOwnsReel ? '100%' : `${STRIP_HEIGHT}px`,
                                     width: '100%',
                                     overflow: 'hidden',
                                     // No corners on either breakpoint now: the band
@@ -2432,7 +2433,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     // The mount's shadow, falling onto the page
                                     // behind it. Everything else inset is gone —
                                     // depth inside the band is the canvas's job.
-                                    boxShadow: '0 16px 36px -20px rgba(0,0,0,0.85)',
+                                    boxShadow: highRollerOwnsReel ? 'none' : '0 16px 36px -20px rgba(0,0,0,0.85)',
                                     // The cursor travelled with the handler; it
                                     // is on the band now, and covers the lane
                                     // and board states this list had missed.
@@ -2515,13 +2516,19 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
                                 {/* HIGH ROLLER's dealer, over the reel - the hand
                                     every seat is playing against sits where every
-                                    spin's answer normally lands. Placeholder
-                                    layout; keyed on the table like the Parlour. */}
+                                    spin's answer normally lands. Keyed on the table like the Parlour. */}
                                 {highRollerOwnsReel && (
-                                    <HighRollerDealer
+                                    <HighRollerRoom
                                         key={`hr-dealer-${highRoller.openedAt || 'table'}`}
                                         table={highRollerTable}
                                         result={highRollerResult}
+                                        actsFrom={highRoller.actsFrom}
+                                        playClosesAt={highRoller.playClosesAt}
+                                        intent={highRollerIntent}
+                                        payout={highRollerPayout}
+                                        payouts={highRoller.payouts}
+                                        onTable={applyHighRollerTable}
+                                        onIntent={setHighRollerIntent}
                                         isMobile={isMobile}
                                     />
                                 )}
@@ -2796,6 +2803,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
                     {/* ── Row 3: the stage ─────────────────────────────────── */}
                     <div className="kotw-result-stage" style={{
+                        ...(highRollerOwnsReel ? { visibility: 'hidden' } : null),
                         gridRow: 5,
                         gridColumn: stageColumn,
                         minHeight: 0,
@@ -2877,7 +2885,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         ...(isMobile
                             ? {
                                 flex: '0 0 auto',
-                                height: isBonusMode || isTripleMode ? '236px' : '0px',
+                                height: highRollerOwnsReel ? '0px' : isBonusMode || isTripleMode ? '236px' : '0px',
                                 paddingLeft: `${SPACE.md}px`,
                                 paddingRight: `${SPACE.md}px`,
                                 paddingTop: `${SPACE.sm}px`,
@@ -2926,21 +2934,6 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                 myBet={rouletteMyBet}
                                 onBet={setRouletteMyBet}
                                 t={parlourT}
-                                isMobile={isMobile}
-                            />
-                        )}
-
-                        {/* HIGH ROLLER's seat, in the apron like the Parlour's bet. */}
-                        {highRollerOwnsReel && (
-                            <HighRollerTable
-                                key={`hr-table-${highRoller.openedAt || 'table'}`}
-                                table={highRollerTable}
-                                result={highRollerResult}
-                                payout={highRollerPayout}
-                                payouts={highRoller.payouts}
-                                actsFrom={highRoller.actsFrom}
-                                playClosesAt={highRoller.playClosesAt}
-                                onTable={applyHighRollerTable}
                                 isMobile={isMobile}
                             />
                         )}

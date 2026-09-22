@@ -74,6 +74,7 @@ import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimelin
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
 import { KotwArenaAtmosphere } from './effects/KotwArena.jsx';
+import { HighRollerAtmosphere } from './effects/HighRollerTable.jsx';
 import { FirstBloodRoom } from './effects/FirstBloodRoom.jsx';
 import { serverNow } from '../../utils/serverClock.js';
 import {
@@ -982,6 +983,8 @@ function WheelOfFortunePage({ onBack }) {
             // scrolls, which it is already set up to do.
             gridTemplateRows: isMobile
                 ? 'auto auto auto minmax(0, 1fr)'
+                : highRoller
+                    ? 'auto auto 0px minmax(0, 1fr) 0px'
                 : roulette
                     ? 'auto auto 0.22fr auto minmax(0, 1fr)'
                     : forgeVisible
@@ -1005,11 +1008,11 @@ function WheelOfFortunePage({ onBack }) {
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             // The event changes the furniture's material as well as the room.
             // Unset variables restore each surface's usual blue-hour palette.
-            '--wheel-panel-top': roulette ? '#310a12' : forgeVisible ? '#30251c' : firstBloodRoomVisible ? '#301a13' : arenaVisible ? '#102133' : undefined,
-            '--wheel-panel-bottom': roulette ? '#19050b' : forgeVisible ? '#07121c' : firstBloodRoomVisible ? '#100a08' : arenaVisible ? '#050c15' : undefined,
-            '--wheel-control-top': roulette ? '#3b131b' : undefined,
-            '--wheel-control-bottom': roulette ? '#230a11' : undefined,
-            '--wheel-surface-light': roulette ? '225,126,111' : firstBloodRoomVisible ? '216,139,90' : arenaVisible ? '214,174,100' : undefined,
+            '--wheel-panel-top': highRoller ? '#302039' : roulette ? '#310a12' : forgeVisible ? '#30251c' : firstBloodRoomVisible ? '#301a13' : arenaVisible ? '#102133' : undefined,
+            '--wheel-panel-bottom': highRoller ? '#160f1d' : roulette ? '#19050b' : forgeVisible ? '#07121c' : firstBloodRoomVisible ? '#100a08' : arenaVisible ? '#050c15' : undefined,
+            '--wheel-control-top': highRoller ? '#392940' : roulette ? '#3b131b' : undefined,
+            '--wheel-control-bottom': highRoller ? '#211728' : roulette ? '#230a11' : undefined,
+            '--wheel-surface-light': highRoller ? '209,178,116' : roulette ? '225,126,111' : firstBloodRoomVisible ? '216,139,90' : arenaVisible ? '214,174,100' : undefined,
             position: 'relative',
             overflow: isMobile ? 'hidden' : 'auto',
             boxSizing: 'border-box',
@@ -1029,6 +1032,7 @@ function WheelOfFortunePage({ onBack }) {
             <CanvasNocturneField />
             <KotwArenaAtmosphere visible={arenaVisible} />
             <FirstBloodRoom visible={firstBloodRoomVisible} />
+            {highRoller && <HighRollerAtmosphere />}
             <CommunityForgeAtmosphere visible={forgeVisible} />
 
             {/* THE PARLOUR's light, over the whole surface.
