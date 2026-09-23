@@ -479,8 +479,10 @@ export function ActivityProvider({ children }) {
                 setHighRollerTableState({ dealer: table.dealer, seats: table.seats || [] });
                 // Walked in on the reveal: show it. Nothing arms the teardown
                 // from here, which is what the dead-man switch below is for.
+                // Set either way: a table walked in on mid-hand must not inherit
+                // the previous table's settled flag, or its moves are refused.
+                highRollerSettledRef.current = !!table.results;
                 if (table.results) {
-                    highRollerSettledRef.current = true;
                     setHighRollerResult({ dealer: table.dealer, results: table.results });
                 }
             }

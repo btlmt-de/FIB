@@ -42,6 +42,7 @@ import { CommunityForgeAtmosphere } from './effects/CommunityForge.jsx';
 import MilestoneMeter from './effects/MilestoneMeter.jsx';
 import { DailyBountyPlaque, BountyCelebration } from './effects/DailyBounty.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
+import { useEventSlotBusy } from './effects/useEventSlotBusy.js';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
 import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
 import { StageShortcuts } from './spin/StageShortcuts.jsx';
@@ -363,6 +364,9 @@ function WheelOfFortunePage({ onBack }) {
         highRoller, highRollerPayout, highRollerResult,
         refreshDailyBounty,
     } = useActivity();
+    // The plaque and the meter both step aside for an event; their shared
+    // wrapper does too, so its padding and gap do not linger in an empty slot.
+    const eventSlotBusy = useEventSlotBusy();
     const [arenaVisible, setArenaVisible] = useState(false);
     const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
     const [forgeVisible, setForgeVisible] = useState(false);
@@ -1789,18 +1793,20 @@ function WheelOfFortunePage({ onBack }) {
                     rule (useEventSlotBusy), so the slot still holds one kind of
                     news at a time. The meter is the one that carries the
                     bottom padding, so the bounty's row takes it on the phone. */}
-                <div style={{
-                    display: 'flex',
-                    flexDirection: isMobile ? 'column' : 'row',
-                    justifyContent: 'center',
-                    alignItems: isMobile ? 'stretch' : 'flex-end',
-                    gap: isMobile ? `${SPACE.xs}px` : `${SPACE.sm}px`,
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isMobile ? 0 : `${SPACE.sm}px` }}>
-                        <DailyBountyPlaque isMobile={isMobile} />
+                {!eventSlotBusy && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        justifyContent: 'center',
+                        alignItems: isMobile ? 'stretch' : 'flex-end',
+                        gap: isMobile ? `${SPACE.xs}px` : `${SPACE.sm}px`,
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isMobile ? 0 : `${SPACE.sm}px` }}>
+                            <DailyBountyPlaque isMobile={isMobile} />
+                        </div>
+                        <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
                     </div>
-                    <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
-                </div>
+                )}
             </div>
 
             {/* Notification Center */}

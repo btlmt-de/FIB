@@ -236,7 +236,7 @@ export function SpinResult({
                 </span>
                 {/* Beside the tier, never in place of it: the item keeps its
                     own rarity colour, and the box is how it arrived. */}
-                {result.isMystery && <MysteryTag size={11} />}
+                {!!result.isMystery &&<MysteryTag size={11} />}
                 {isNewItem && (
                     <span style={{
                         fontSize: '10px',

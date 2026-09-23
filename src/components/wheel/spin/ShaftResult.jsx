@@ -175,7 +175,7 @@ export function ShaftResult({ result, isNewItem, prestigePull, collection, cente
                 >
                     {(RARITY[rarity] || RARITY.common).label}
                 </span>
-                {result.isMystery && <MysteryTag />}
+                {!!result.isMystery &&<MysteryTag />}
                 {isNewItem && (
                     <span style={{
                         fontSize: '10px',

@@ -671,12 +671,12 @@ export function ChangelogModal({ onClose, isMobile }) {
                                 gap: '4px',
                                 background: 'none',
                                 border: 'none',
+                                font: 'inherit',
                                 padding: '0 0 14px',
                                 color: COLORS.gold,
                                 fontSize: '12px',
                                 fontWeight: 700,
                                 cursor: 'pointer',
-                                font: 'inherit',
                             }}
                         >
                             <ChevronLeft size={14} /> Back to the latest release

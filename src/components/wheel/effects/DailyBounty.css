@@ -95,7 +95,7 @@
     to   { opacity: 1; transform: translate(-50%, 0); }
 }
 @keyframes fibBountyLeave {
-    to { opacity: 0; transform: translate(-50%, -8px); }
+    to { opacity: 0; transform: translate(-50%, -8px); visibility: hidden; }
 }
 
 /* The winner's card owns the centre of the screen and can be dismissed. */
@@ -112,7 +112,7 @@
     to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 @keyframes fibBountyLeaveMine {
-    to { opacity: 0; transform: translate(-50%, calc(-50% - 10px)); }
+    to { opacity: 0; transform: translate(-50%, calc(-50% - 10px)); visibility: hidden; }
 }
 
 /* The flash: one sweep of sight white across the card as the corners lock.
@@ -181,6 +181,8 @@
     .fib-bounty-celebration.is-mine { animation: fibBountyLeaveCalm 1ms linear 6.9s forwards; }
     .fib-bounty-celebration.is-mine { transform: translate(-50%, -50%); }
 }
+/* Hidden as well as transparent: the winner's card takes clicks, and a card
+   nobody can see must not keep catching them until it unmounts. */
 @keyframes fibBountyLeaveCalm {
-    to { opacity: 0; }
+    to { opacity: 0; visibility: hidden; }
 }
