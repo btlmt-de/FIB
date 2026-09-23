@@ -67,7 +67,7 @@ function PlayingCard({ card, hidden, compact, deckRef, delay = 0, angle = 0, onM
             travel?.cancel(); turn?.cancel(); finish();
         };
     }, [identity, hidden, compact, calm, deckRef, delay, onMotion, onSound]);
-    return <span ref={slot} className="hr-card-slot" style={{ '--card-angle': angle + 'deg' }}
+    return <span ref={slot} className="hr-card-slot" style={{ '--card-angle': angle + 'deg', ...(compact ? { '--hr-mini-delay': delay + 'ms' } : null) }}
         aria-label={hidden ? 'Face-down card' : card.rank + ' of ' + SUIT_NAMES[card.suit]}>
         <span className="hr-card-pose"><span className="hr-card-turn">
             {!hidden && <span className="hr-card hr-card-front" data-red={card.suit === 'H' || card.suit === 'D'} aria-hidden="true">
@@ -84,13 +84,18 @@ function PlayingCard({ card, hidden, compact, deckRef, delay = 0, angle = 0, onM
 // player's hit lands at once - it is the answer to a click - but the house's
 // draws are the reveal, dealt one by one after the hole card has turned (see
 // highRollerTimeline.js), so its total climbs in beats you can read.
-function Hand({ cards = [], holeCard = false, compact = false, deckRef, onMotion, onSound, house = false }) {
+//
+// A compact hand (another seat) does not fly: its cards appear. `dealElapsed` is
+// how far into the deal it was mounted, and the dealt cards appear when the same
+// card lands on its owner's screen - player slots are the even steps of the deal.
+function Hand({ cards = [], holeCard = false, compact = false, deckRef, onMotion, onSound, house = false, dealElapsed = Infinity }) {
     const [initialCount] = useState(cards.length + (holeCard ? 1 : 0));
     const all = holeCard ? [...cards, null] : cards;
     return <div className={'hr-hand' + (compact ? ' hr-hand-small' : '')}>
         {all.map((card, i) => <PlayingCard key={i} card={card} hidden={!card} compact={compact}
             deckRef={deckRef} onMotion={onMotion} onSound={onSound} angle={compact ? 0 : (i % 3 - 1) * 4}
-            delay={i < initialCount ? (i * 2 + (house ? 1 : 0)) * DEAL_STEP_MS : house ? drawDelay(i - initialCount) : 0}/>)}
+            delay={compact ? (i < initialCount ? Math.max(0, i * 2 * DEAL_STEP_MS + CARD_TRAVEL_MS - dealElapsed) : 0)
+                : i < initialCount ? (i * 2 + (house ? 1 : 0)) * DEAL_STEP_MS : house ? drawDelay(i - initialCount) : 0}/>)}
     </div>;
 }
 
@@ -168,24 +173,69 @@ const SEAT_OUTCOME = { blackjack: 'Blackjack', win: 'Won', push: 'Push', loss: '
  * into a collapsed "Around the table" list, which made a table of four feel like
  * playing alone. Four seats show; a busier room is summarised rather than allowed
  * to push the player's own hand off the screen.
+ *
+ * They sit on a rail to the LEFT of the felt, the deck's mirror, not on it. They
+ * were first laid out between Jimbo's hand and the player's, which put three or
+ * four plaques of cards exactly where the eye goes between "his hand" and "my
+ * hand" - the owner found a full table confusing to read. Where the screen has no
+ * room beside the felt the rail is not shown at all (HighRollerTable.css): other
+ * people's hands are colour, and the two that matter must never be crowded by them.
  */
-function OtherSeats({ seats, settled, revealed }) {
+function OtherSeats({ seats, settled, revealed, dealAt, dealing }) {
     if (!seats.length) return null;
     const shown = seats.slice(0, 4);
     const rest = seats.length - shown.length;
     return <ul className="hr-others" aria-label="Other players at the table">
-        {shown.map(seat => {
-            const outcome = settled && revealed ? seat.outcome : null;
-            const label = outcome ? SEAT_OUTCOME[outcome] + (seat.payout ? ' +' + seat.payout : '')
-                : handLabel(seat) + (seat.done && !seat.bust && !seat.natural ? ' · stood' : '');
-            return <li key={seat.userId} className="hr-other" data-outcome={outcome ?? undefined} data-bust={!outcome && seat.bust ? true : undefined}>
-                <span className="hr-other-name" title={seat.username}>{seat.username}</span>
-                <Hand cards={seat.cards} compact/>
-                <span className="hr-other-state">{label}</span>
-            </li>;
-        })}
+        <li className="hr-others-heading" aria-hidden="true">At the table</li>
+        {shown.map(seat => <OtherSeat key={seat.userId} seat={seat} settled={settled} revealed={revealed} dealAt={dealAt} dealing={dealing}/>)}
         {rest > 0 && <li className="hr-other hr-other-more" title={seats.slice(4).map(s => s.username).join(', ')}>+{rest} more</li>}
     </ul>;
+}
+
+/*
+ * A seat as its OWNER is seeing it. The server's update reaches the whole room at
+ * once, but the owner watches their new card fly from the deck for CARD_TRAVEL_MS
+ * before it is on their felt - so everyone else used to see the card, and the
+ * bust it caused, a second before the person it happened to. A new card is
+ * therefore held back for the length of that flight; anything that adds no card
+ * (standing, the result) shows at once, because it shows at once for the owner.
+ * Under reduced motion the owner's cards do not fly, so nothing is held.
+ */
+function useSeatAsOwnerSeesIt(seat) {
+    const calm = useCalm();
+    const [landed, setLanded] = useState(seat);
+    const latest = useRef(seat);
+    useEffect(() => { latest.current = seat; }, [seat]);
+    const cardsNow = seat.cards?.length ?? 0;
+    const cardsLanded = landed.cards?.length ?? 0;
+    const inFlight = !calm && cardsNow > cardsLanded;
+    // Keyed on the counts, not the seat: a table broadcast re-sends every seat, and
+    // restarting the timer on each one would keep a card in the air indefinitely.
+    // `landed` is only ever read while a card is in flight, and only card counts
+    // decide that, so it is refreshed when a flight ends and nowhere else. The
+    // changes that add no card (standing, the result) come straight from `seat`.
+    useEffect(() => {
+        if (!inFlight) return undefined;
+        const timer = setTimeout(() => setLanded(latest.current), CARD_TRAVEL_MS);
+        return () => clearTimeout(timer);
+    }, [inFlight, cardsNow]);
+    return inFlight ? landed : seat;
+}
+
+function OtherSeat({ seat: live, settled, revealed, dealAt, dealing }) {
+    const seat = useSeatAsOwnerSeesIt(live);
+    // How far into the deal this plaque appeared, so its first two cards land when
+    // their owner's do rather than all at once the moment the deal starts. Fixed at
+    // mount: a re-render must not move a card that is already on its way.
+    const [dealElapsed] = useState(() => (dealAt ? serverNow() - dealAt : Infinity));
+    const outcome = settled && revealed ? seat.outcome : null;
+    const label = outcome ? SEAT_OUTCOME[outcome] + (seat.payout ? ' +' + seat.payout : '')
+        : dealing ? '…' : handLabel(seat) + (seat.done && !seat.bust && !seat.natural ? ' · stood' : '');
+    return <li className="hr-other" data-outcome={outcome ?? undefined} data-bust={!outcome && !dealing && seat.bust ? true : undefined}>
+        <span className="hr-other-name" title={seat.username}>{seat.username}</span>
+        <Hand cards={seat.cards} compact dealElapsed={dealElapsed}/>
+        <span className="hr-other-state">{label}</span>
+    </li>;
 }
 
 // Hover chatter coalesces; a line stays readable instead of changing every pointer move.
@@ -236,7 +286,10 @@ export function HighRollerDealer({ table, result, dealAt, actsFrom, playClosesAt
     // - the hole card turning, the outcome landing - and after a bust the "over
     // twenty-one" line was still being held when the hole card had already turned,
     // so Jimbo announced the flip late.
-    const spoken = useReadableLine(line, Boolean(result) || now >= playClosesAt - 5000, presentationBusy && !result);
+    // The hold is for a HIT's card, so it starts once the deal is over: during the
+    // deal the cards are moving the whole time, and holding then kept the welcome
+    // up across it and swallowed the dealing line entirely.
+    const spoken = useReadableLine(line, Boolean(result) || now >= playClosesAt - 5000, presentationBusy && !result && now >= actsFrom);
     return <section className="hr-dealer" aria-label="Jimbo’s blackjack table">
         
         <div className="hr-brand"><h2>HIGH <em>ROLLER</em></h2></div>
@@ -260,9 +313,6 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
     const [motionCount, setMotionCount] = useState(0);
     const trackMotion = useCallback(delta => setMotionCount(n => Math.max(0, n + delta)), []);
     const moving = motionCount > 0;
-    // A layout effect, so Jimbo is told a card is moving before the frame paints:
-    // a passive one left a gap in which he could already react to where it lands.
-    useLayoutEffect(() => { onPresentation?.(moving); }, [moving, onPresentation]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
     const pending = useRef(false);
@@ -315,6 +365,17 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
     const revealAt = settled ? (result.settledAt ?? 0) + (calm ? 0 : revealDuration(result.dealer?.cards?.length)) : Infinity;
     const revealed = settled && !moving && now >= revealAt;
     const outcome = revealed ? mine?.outcome : null;
+    /*
+     * Jimbo is "presenting" while a card is moving, and after the result for as
+     * long as the table has not shown it. It used to be `moving` alone, and the
+     * one render between the result arriving and the hole card starting to turn
+     * - the gap `revealed` above already guards - let him say the outcome first.
+     *
+     * A layout effect, so he is told before the frame paints: a passive one left
+     * a gap in which he could already react to where a hit's card lands.
+     */
+    const presenting = moving || (settled && !revealed);
+    useLayoutEffect(() => { onPresentation?.(presenting); }, [presenting, onPresentation]);
     const won = outcome === 'win' || outcome === 'blackjack';
     const cardSound = useCallback(name => playSfx?.(name), [playSfx]);
     const announced = useRef(false);
@@ -385,7 +446,7 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
                 still being dealt would call the hand before the table shows it. */}
             <div className="hr-score" data-bust={revealed && dealer?.bust}><strong>{intro ? '—' : dealer?.holeCard ? '?' : moving || (settled && !revealed) ? '…' : dealer?.total ?? '—'}</strong><small>{intro ? 'DEALER' : dealer?.holeCard ? 'HIDDEN' : settled && !revealed ? 'DRAWING' : dealer?.bust ? 'BUST' : dealer?.soft ? 'SOFT' : 'TOTAL'}</small></div>
         </section>
-        {intro ? <Shuffle dealAt={dealAt} deckRef={deck} onSound={cardSound}/> : <OtherSeats seats={others} settled={settled} revealed={revealed}/>}
+        {intro && <Shuffle dealAt={dealAt} deckRef={deck} onSound={cardSound}/>}
         <section className="hr-your-seat" aria-label="Your seat" aria-busy={busy}>
             {mine ? <>
                 <div className="hr-player-hand" data-won={won || undefined}><div className="hr-hand-heading"><span>YOU</span><small>{intro || cardsLanding ? 'Your hand' : mineBust ? 'Over 21' : mine.natural ? 'Natural blackjack' : mine.done ? 'Hand locked' : mine.soft ? 'Ace counts as 11' : 'Your hand'}</small></div>{intro ? <div className="hr-hand"/> : <Hand cards={mine.cards} deckRef={deck} onMotion={trackMotion} onSound={cardSound}/>}
@@ -400,7 +461,11 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
                 {canSit && <button type="button" className="hr-action hr-hit hr-sit" disabled={busy} onClick={() => post('sit')}>{busy ? 'Taking your seat…' : 'Deal me in'}</button>}</div>}
             {error && <p className="hr-error" role="alert">{error}</p>}
         </section>
-        {payouts && <div className="hr-paytable" aria-label="Lucky spin rewards"><span>LUCKY SPINS</span>{['blackjack', 'win', 'push'].map(key => <span key={key}>{key === 'blackjack' ? 'Blackjack' : key[0].toUpperCase() + key.slice(1)} <b>+{payouts[key] ?? 0}</b></span>)}</div>}
+        {!intro && <OtherSeats seats={others} settled={settled} revealed={revealed} dealAt={dealAt} dealing={dealing}/>}
+        {/* The table's total takes the pay table's place once the hand is paid,
+            rather than arriving under it: an extra line at the very end of the
+            round was what made a table that fitted its band start to scroll. */}
+        {payouts && !(revealed && typeof result.totalPaid === 'number') && <div className="hr-paytable" aria-label="Lucky spin rewards"><span>LUCKY SPINS</span>{['blackjack', 'win', 'push'].map(key => <span key={key}>{key === 'blackjack' ? 'Blackjack' : key[0].toUpperCase() + key.slice(1)} <b>+{payouts[key] ?? 0}</b></span>)}</div>}
         {revealed && typeof result.totalPaid === 'number' && <p className="hr-table-total">{result.totalPaid} lucky spins paid across {seats.length} seat{seats.length === 1 ? '' : 's'}.</p>}
     </div>;
 }

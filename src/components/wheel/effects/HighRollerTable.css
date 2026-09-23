@@ -88,7 +88,8 @@
 .hr-paytable { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:4px 18px; margin-top:clamp(8px,2cqh,18px); padding:7px 44px; font-size:14px; color:#eef0e4; }
 .hr-paytable > span:first-child { font-size:12px; font-weight:600; letter-spacing:.14em; color:#e8cf9a; }
 .hr-paytable b { margin-left:5px; font-size:16px; font-weight:700; color:#f4d690; font-variant-numeric:tabular-nums; }
-.hr-table-total { margin:6px 0 0; padding:5px 44px; font-size:14px; color:#eef0e4; text-align:center; }
+/* Takes the pay table's slot at the end, so it is given the pay table's box. */
+.hr-table-total { margin:clamp(8px,2cqh,18px) 0 0; padding:7px 44px; font-size:14px; line-height:21px; color:#eef0e4; text-align:center; }
 .hr-empty-seat { display:flex; align-items:center; flex-wrap:wrap; gap:14px; padding:20px 0 10px; }.hr-empty-suit { font-size:38px; color:#d5c18a; }.hr-empty-seat strong { font:19px Georgia,serif; }.hr-empty-seat p { margin:7px 0; font-size:13px; color:#d3dacd; }
 .hr-error { color:#ffb096; font-size:13px; }
 /*
@@ -114,14 +115,36 @@
 @keyframes hr-shuffle-in { from { opacity:0; transform:translateY(10px) scale(.94); } to { opacity:1; transform:none; } }
 
 /*
- * The rest of the table. Each seat is a small plaque on the felt - name, their
- * cards at a glance, and where they stand - and after the reveal, what they won.
- * Shaded rather than boxed, for the pay table's reason: the felt is busy and a
- * name has to read over it, but an edge would make it a card in a grid.
+ * The rest of the table. Each seat is a small plaque - name, their cards at a
+ * glance, and where they stand - and after the reveal, what they won. Shaded
+ * rather than boxed, for the pay table's reason: the felt is busy and a name has
+ * to read over it, but an edge would make it a card in a grid.
+ *
+ * They hang in a column off the LEFT edge of the table, level with the house
+ * row: the deck's mirror image on the other side. They used to be laid out on
+ * the felt between the two hands that matter, and a full table was confusing to
+ * read. Absolutely placed, so they cost the table's height nothing - the table
+ * fits its band the same with one player or five.
  */
-.hr-others { list-style:none; margin:clamp(2px,.8cqh,8px) 0 0; padding:0; display:flex; flex-wrap:wrap; justify-content:center; gap:6px 10px; }
-.hr-other { display:flex; align-items:center; gap:8px; padding:5px 12px 5px 10px; border-radius:4px; background:#03090999; box-shadow:0 0 0 1px #c79d5626 inset; font-size:12px; color:#dde2d2; text-shadow:0 1px 2px #000; }
-.hr-other-name { max-width:96px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; color:#f0e5ca; }
+.hr-others { position:absolute; right:calc(100% + 28px); top:64px; width:200px; list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.hr-others-heading { padding:0 2px 2px; font:600 11px/1.4 system-ui,sans-serif; letter-spacing:.12em; text-transform:uppercase; color:#e8cf9a; text-shadow:0 1px 3px #000; }
+/* Two rows - who and where they stand, then their cards - on one line each, so a
+   plaque is the same height with two cards or six and the column cannot grow
+   past the table into a scrollbar. The cards overlap to fit a long hand. */
+.hr-other { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 8px; padding:6px 10px 7px; border-radius:4px; background:#03090999; box-shadow:0 0 0 1px #c79d5626 inset; font-size:12px; color:#dde2d2; text-shadow:0 1px 2px #000; }
+.hr-other .hr-hand-small { grid-column:1 / -1; grid-row:2; flex-wrap:nowrap; justify-content:flex-start; padding:0; overflow:hidden; }
+.hr-other .hr-hand-small .hr-card-slot + .hr-card-slot { margin-left:-9px; }
+.hr-other-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; color:#f0e5ca; }
+.hr-other-more { display:block; }
+/* A seat's card arrives when it lands for its owner (--hr-mini-delay, set per card
+   in HighRollerTable.jsx) and is not there before: `both` keeps it invisible
+   through the delay. A short drop onto the plaque, not a flight - the flight is
+   the owner's to watch. */
+.hr-other .hr-card-slot { animation:hr-mini-in .28s cubic-bezier(.16,1,.3,1) var(--hr-mini-delay,0ms) both; }
+@keyframes hr-mini-in { from { opacity:0; transform:translateY(-6px) scale(.9); } to { opacity:1; transform:none; } }
+/* No room beside the felt: the rail goes rather than land back on it. Measured
+   against the room, not the viewport, since the room is the container. */
+@container (max-width:1199px) { .hr-others { display:none; } }
 .hr-other-state { font-variant-numeric:tabular-nums; white-space:nowrap; }
 .hr-other[data-bust="true"] .hr-other-state,.hr-other[data-outcome="loss"] .hr-other-state { color:#bfc6bb; }
 .hr-other[data-outcome="win"] .hr-other-state,.hr-other[data-outcome="blackjack"] .hr-other-state { color:#f4d690; font-weight:700; }
@@ -250,13 +273,13 @@ html[data-saver="on"] .hr-card,html[data-saver="on"] .hr-speech p { animation:no
 /* Reduced motion keeps the meaning and drops the movement: the bloom stays as
    a still pool of light, the hand still sits raised, nothing beats or rings. */
 @media(prefers-reduced-motion:reduce) {
- .hr-jimbo,.hr-shuffle,.hr-shuffle-half { animation:none!important; }
+ .hr-jimbo,.hr-shuffle,.hr-shuffle-half,.hr-other .hr-card-slot { animation:none!important; }
  .hr-score,.hr-player-table .hr-action,.hr-player-hand .hr-card-slot { transition:none; }
  .hr-outcome[data-outcome] strong,.hr-outcome[data-outcome]::before,.hr-clock b { animation:none!important; }
  .hr-outcome[data-outcome="win"]::before,.hr-outcome[data-outcome="blackjack"]::before { opacity:.35; }
  .hr-outcome[data-outcome="blackjack"]::after { display:none; }
 }
-html[data-saver="on"] .hr-jimbo,html[data-saver="on"] .hr-shuffle-half,html[data-saver="on"] .hr-outcome[data-outcome] strong,html[data-saver="on"] .hr-outcome::before,html[data-saver="on"] .hr-outcome::after,html[data-saver="on"] .hr-clock b { animation:none!important; }
+html[data-saver="on"] .hr-jimbo,html[data-saver="on"] .hr-shuffle-half,html[data-saver="on"] .hr-other .hr-card-slot,html[data-saver="on"] .hr-outcome[data-outcome] strong,html[data-saver="on"] .hr-outcome::before,html[data-saver="on"] .hr-outcome::after,html[data-saver="on"] .hr-clock b { animation:none!important; }
 
 /*
  * A short room - a laptop with its bookmarks bar, a phone with its browser
