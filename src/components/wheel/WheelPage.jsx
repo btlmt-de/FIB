@@ -40,6 +40,7 @@ import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
 import { CommunityForgeAtmosphere } from './effects/CommunityForge.jsx';
 import MilestoneMeter from './effects/MilestoneMeter.jsx';
+import { DailyBountyPlaque, BountyCelebration } from './effects/DailyBounty.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
 import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
@@ -360,6 +361,7 @@ function WheelOfFortunePage({ onBack }) {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
         arrival, arrivalCrate, roulette, roulettePayout, rouletteResult, globalEventStatus,
         highRoller, highRollerPayout, highRollerResult,
+        bountyCelebration, bountyPayout,
     } = useActivity();
     const [arenaVisible, setArenaVisible] = useState(false);
     const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
@@ -645,6 +647,31 @@ function WheelOfFortunePage({ onBack }) {
     }, [roulette, roulettePayout, user?.id]);
 
     useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
+
+    /*
+     * The daily bounty's payout, applied when the celebration goes up and not
+     * when the private payout arrives - the Parlour's rule, because the payout
+     * leaves the server inside the winning spin, while that reel is still turning.
+     *
+     * Won through /api/spin this is usually a no-op: that response carries the
+     * post-award balance and the wheel applies it on landing, a beat before the
+     * celebration. /api/spin/lucky carries no balance at all, so a bounty landed
+     * on a lucky spin is only ever paid into the counter from here.
+     */
+    const processedBountyRef = useRef(null);
+    useEffect(() => {
+        if (!bountyCelebration || !bountyPayout || !user?.id) return;
+        if (bountyCelebration.winner?.userId !== user.id) return;
+        if (bountyPayout.day !== bountyCelebration.day) return;
+        if (processedBountyRef.current === bountyCelebration.day) return;
+        processedBountyRef.current = bountyCelebration.day;
+
+        if (typeof bountyPayout.luckySpinsTotal === 'number') {
+            console.log('[WheelPage] Daily bounty paid out', bountyPayout.luckySpinsAwarded, 'lucky spins');
+            kotwLuckySpinsRef.current = bountyPayout.luckySpinsTotal;
+            setKotwLuckySpins(bountyPayout.luckySpinsTotal);
+        }
+    }, [bountyCelebration, bountyPayout, user?.id]);
 
     /*
      * HIGH ROLLER's payout into the lucky-spin pool, held until the reveal ends.
@@ -1670,6 +1697,10 @@ function WheelOfFortunePage({ onBack }) {
             {/* Insane Item Celebration */}
             <MythicCelebration currentUserId={user?.id} />
 
+            {/* The daily bounty's claim. ActivityContext decides when it shows
+                (after the winning reel lands); this only draws it. */}
+            <BountyCelebration currentUserId={user?.id} />
+
             {/* Live events — row 3, the gap between the ticker and the reel.
                 
                 The banners are unchanged: same countdowns, progress bars, counters
@@ -1768,8 +1799,25 @@ function WheelOfFortunePage({ onBack }) {
 
                 {/* What this slot says when none of the above are firing, which is
                     most of the time. It renders null during an event and during the
-                    roll, so it never shares the space with them. */}
-                <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
+                    roll, so it never shares the space with them.
+
+                    Two plinths now: the day's bounty beside the meter on a wide
+                    stage, above it on a phone. Both yield to an event on the same
+                    rule (useEventSlotBusy), so the slot still holds one kind of
+                    news at a time. The meter is the one that carries the
+                    bottom padding, so the bounty's row takes it on the phone. */}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    justifyContent: 'center',
+                    alignItems: isMobile ? 'stretch' : 'flex-end',
+                    gap: isMobile ? `${SPACE.xs}px` : `${SPACE.sm}px`,
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isMobile ? 0 : `${SPACE.sm}px` }}>
+                        <DailyBountyPlaque isMobile={isMobile} />
+                    </div>
+                    <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
+                </div>
             </div>
 
             {/* Notification Center */}

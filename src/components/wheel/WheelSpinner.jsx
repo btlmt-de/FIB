@@ -182,7 +182,29 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         firstBloodWinner, firstBloodResultPending, communityGoalResult,
         communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
         roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout,
-        highRoller, highRollerTable, highRollerResult, highRollerPayout, applyHighRollerTable } = useActivity();
+        highRoller, highRollerTable, highRollerResult, highRollerPayout, applyHighRollerTable,
+        dailyBounty } = useActivity();
+
+    /*
+     * Today's bounty while it is still open, as the strip needs it: the pool's
+     * own entry for the item, so a teased tile is the same object any other
+     * common would be. Held in a ref too, because buildStrip is called from the
+     * spin's async path and has to see the bounty as it is now, not as it was
+     * when that closure was made.
+     *
+     * "Open" is this client's view, which the claim's celebration deliberately
+     * lags (ActivityContext holds it until the winning reel lands) - so the
+     * winner's own landing tile still wears the mark, which is the point.
+     */
+    const openBountyTexture = dailyBounty && !dailyBounty.winner ? dailyBounty.texture : null;
+    const openBounty = useMemo(() => {
+        if (!openBountyTexture) return null;
+        return allItems.find(i => i.texture === openBountyTexture)
+            || { texture: openBountyTexture, name: dailyBounty.name, type: 'regular' };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [openBountyTexture, allItems]);
+    const openBountyRef = useRef(openBounty);
+    openBountyRef.current = openBounty;
 
     /*
      * THE ARRIVAL TAKES THE REEL.
@@ -671,7 +693,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     const dormantStrip = useMemo(
         () => (allItems.length ? buildStrip(allItems[0]) : []),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [allItems.length],
+        [allItems.length, openBounty],
     );
 
     // The drift itself. Writes the same ref the spin animation writes, so the two
@@ -721,6 +743,19 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         return () => { if (raf) cancelAnimationFrame(raf); };
     }, [state, dormantStrip.length, calm]);
 
+    /*
+     * Flag a tile as today's bounty, for the canvas's reticle. Commons only: the
+     * bounty is drawn from the regular pool, and a special that happened to share
+     * a texture would be a different item wearing the mark.
+     */
+    function markBounty(item) {
+        const bounty = openBountyRef.current;
+        if (!bounty || !item || item.isBounty) return item;
+        if (item.texture !== bounty.texture) return item;
+        if (item.type && item.type !== 'regular') return item;
+        return { ...item, isBounty: true };
+    }
+
     function buildStrip(finalItem, length = STRIP_LENGTH) {
         const newStrip = [];
         // The pinned constant, not `length - 8`. The winner's slot is fixed and
@@ -738,6 +773,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const shuffledRelic = shuffleArray([...RELIC_ITEMS]);
         const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
+        const bounty = openBountyRef.current;
+
         // Use indices to iterate through shuffled arrays (guarantees distribution)
         let itemIndex = 0;
         let insaneIndex = 0;
@@ -749,7 +786,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
         for (let i = 0; i < length; i++) {
             if (i === finalIndex) {
-                newStrip.push(finalItem);
+                newStrip.push(markBounty(finalItem));
             } else {
                 const roll = Math.random();
                 let newItem = null;
@@ -816,6 +853,15 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         isSpecial: true,
                         texture: member.username ? `special_${member.username}` : member.name.toLowerCase().replace(/\s+/g, '_')
                     };
+                } else if (roll < 0.058 && bounty) {
+                    // 0.5% chance for today's open bounty, band for band with the
+                    // server's buildStrip in wheel-backend services/spin.js, and
+                    // carved out of the commons for the reason given there: the
+                    // bounty is a common, so this changes which common goes past
+                    // rather than how many specials do. Without it a one-in-~1,650
+                    // item would essentially never cross the reel, and the one
+                    // thing the room is chasing would be the one thing it never sees.
+                    newItem = { ...bounty, isBounty: true };
                 } else if (shuffledItems.length > 0) {
                     // Regular items - iterate through shuffled pool for maximum variety
                     newItem = shuffledItems[itemIndex % shuffledItems.length];
@@ -824,7 +870,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
                 // ALWAYS push an item - fallback to first available item if needed
                 if (newItem) {
-                    newStrip.push(newItem);
+                    // The shuffled pool contains the bounty too, so an ordinary
+                    // draw of it is marked like a teased one.
+                    newStrip.push(markBounty(newItem));
                 } else if (shuffledItems.length > 0) {
                     // Fallback: use a regular item
                     newStrip.push(shuffledItems[itemIndex % shuffledItems.length]);
@@ -1089,7 +1137,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         const newStrip = [...prevStrip];
                         // Use constant FINAL_INDEX to ensure consistency with animation target
                         if (FINAL_INDEX >= 0 && FINAL_INDEX < newStrip.length) {
-                            newStrip[FINAL_INDEX] = finalItem;
+                            newStrip[FINAL_INDEX] = markBounty(finalItem);
                         }
                         return newStrip;
                     });

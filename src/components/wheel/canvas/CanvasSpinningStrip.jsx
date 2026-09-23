@@ -1253,9 +1253,79 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
 
         ctx.shadowBlur = 0;
 
+        if (item.isBounty) {
+            drawBountyMark(ctx, imgX, imgY, imgSize, time, calm, rowMode, isWinning);
+        }
+
         ctx.imageSmoothingEnabled = true;
     }
 
+    ctx.restore();
+}
+
+/**
+ * The daily bounty's mark: an iron sight around the item, and the word.
+ *
+ * A bounty is a common, and the rule for commons on this surface is that they get
+ * their wash and base bar and nothing else - no edge, no frame, no colour of their
+ * own (DESIGN.md §8, Don't). This is the second sanctioned exception, and it is
+ * built on the first one's argument: candidacy's rim is allowed because it
+ * describes the OBJECT rather than the slot, and so is this. The four corners hug
+ * the sprite's own box, travel with it and scale with it; nothing here knows
+ * where the slot's edges are, so the reel still has no boxes in it.
+ *
+ * Corners rather than a closed frame for the reason candidacy's third build was
+ * rejected: a closed rectangle around a pickaxe is a rectangle. Four short ticks
+ * with the middle of each side left open read as a sight picking the item out,
+ * which is the whole meaning - this is the thing being hunted.
+ *
+ * It is the one mark on the reel that is not light. No `lighter` compositing and
+ * no glow, because it is not the tier's and must not read as the tier getting
+ * brighter; `COLORS.bounty` is a near-white chosen to mean nothing (see its note).
+ * Only its alpha breathes, slowly, and under reduced motion it holds still at
+ * full strength - the mark is content, not ambience.
+ *
+ * The word is 10px bold and letter-spaced, the `LUCKY` badge's size and for its
+ * reason: at the label step a badge stops reading as a badge. It sits above the
+ * sprite on the band and beside it in the phone's shaft, where a row is too
+ * short to take it on top.
+ */
+function drawBountyMark(ctx, imgX, imgY, imgSize, time, calm, rowMode, isWinning) {
+    const c = hexToRgb(COLORS.bounty);
+    const alpha = calm ? 1 : 0.78 + 0.22 * Math.sin(time * 2.4);
+    const pad = imgSize * 0.12;
+    const x0 = imgX - pad;
+    const y0 = imgY - pad;
+    const x1 = imgX + imgSize + pad;
+    const y1 = imgY + imgSize + pad;
+    const arm = imgSize * 0.24;
+    const lw = isWinning ? 2.5 : 2;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'square';
+    ctx.beginPath();
+    // top-left, top-right, bottom-right, bottom-left
+    ctx.moveTo(x0, y0 + arm); ctx.lineTo(x0, y0); ctx.lineTo(x0 + arm, y0);
+    ctx.moveTo(x1 - arm, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y0 + arm);
+    ctx.moveTo(x1, y1 - arm); ctx.lineTo(x1, y1); ctx.lineTo(x1 - arm, y1);
+    ctx.moveTo(x0 + arm, y1); ctx.lineTo(x0, y1); ctx.lineTo(x0, y1 - arm);
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(${c.r}, ${c.g}, ${c.b}, ${Math.min(1, alpha + 0.1)})`;
+    ctx.font = "700 10px 'Segoe UI', system-ui, sans-serif";
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '1.5px';
+    if (rowMode) {
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('BOUNTY', x1 + 8, imgY + imgSize / 2);
+    } else {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('BOUNTY', imgX + imgSize / 2, y0 - 5);
+    }
     ctx.restore();
 }
 

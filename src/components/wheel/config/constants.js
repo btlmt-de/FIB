@@ -132,6 +132,21 @@ export const COLORS = {
     // owns: aqua, azure, teal. Teal is far enough from recursion's #00FF00 matrix
     // green, which is a spin mode rather than a tier in any case.
     mythicCycle: ['#55FFFF', '#2E86FF', '#3BE8B0', '#55FFFF'],
+
+    // ── The daily bounty: sight white ─────────────────────────────────────────
+    // The bounty is a MARK on a common, not a tier and not a mode, so it may not
+    // take a hue that means either. Every saturated colour on this surface is
+    // spoken for - seven tiers, four modes, five events - so it takes none: a
+    // warm near-white, the colour of an iron sight catching the station lamp.
+    //
+    // Checked against its two nearest neighbours. Insane's flat platinum
+    // (#F2ECFF) is cool and only ever spent where a flat is unavoidable (canvas
+    // shadowColor); on the reel insane is always the moving slick, never a flat
+    // white, so the two never sit side by side. High Roller's brass (#E4C78B) is
+    // two lightness steps down and saturated enough to read as gold; this reads
+    // as white. What carries the identity is the SHAPE - a reticle and a word -
+    // and the hue only has to stay out of the way of everything else.
+    bounty: '#FFF1D6',
 };
 
 /**

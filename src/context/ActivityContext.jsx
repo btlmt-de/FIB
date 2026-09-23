@@ -54,6 +54,19 @@ const RARE_FEED_MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
 
 /*
+ * The daily bounty's celebration: how long after the winning reel lands it
+ * waits, and how long it stays up.
+ *
+ * The beat is First Blood's and for First Blood's reason, one step removed: the
+ * bounty is a common, so no feed row is printed for it and the thing being
+ * reacted to is the reel stopping rather than the ticker. The claim is made
+ * inside the winning spin's request, so `wonAt` is the pull on the server's
+ * clock and `spinRevealDelay(wonAt)` is when that reel comes to rest.
+ */
+const BOUNTY_ANNOUNCE_BEAT_MS = 900;
+const BOUNTY_CELEBRATION_MS = 7000;
+
+/*
  * How long THE PARLOUR's table stays mounted after the ball stops.
  *
  * Measured from the result rather than from the table opening, so it is a
@@ -223,6 +236,28 @@ export function ActivityProvider({ children }) {
     // Read by applyHighRollerTable: an action's response can land after the
     // result, and must not put the hole card back face down.
     const highRollerSettledRef = useRef(false);
+
+    /*
+     * THE DAILY BOUNTY. Not a global event - it runs all day underneath them
+     * (wheel-backend services/dailyBounty.js says why) - so it has its own three
+     * pieces, split the Parlour's way:
+     *
+     *   `dailyBounty`        today's item, its reward and, once claimed, the
+     *                        winner. What the card and the strip read.
+     *   `bountyCelebration`  the claim, set only for the celebration's
+     *                        lifetime. Its presence is what shows it.
+     *   `bountyPayout`       this player's own new balance, private.
+     *
+     * A claim updates `dailyBounty` at the same moment it raises the
+     * celebration, never on arrival: the broadcast leaves the server while the
+     * winner's reel is still turning, and a card reading "claimed by you" beside
+     * a wheel that has not stopped yet spoils the one pull the day was about.
+     */
+    const [dailyBounty, setDailyBounty] = useState(null);
+    const [bountyCelebration, setBountyCelebration] = useState(null);
+    const [bountyPayout, setBountyPayout] = useState(null);
+    const bountyRevealTimeoutRef = useRef(null);
+    const bountyClearTimeoutRef = useRef(null);
 
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
@@ -438,6 +473,22 @@ export function ActivityProvider({ children }) {
             }
         } catch (e) {
             console.error('[ActivityContext] Failed to apply global event status:', e);
+        }
+    }, []);
+
+    // Today's bounty. On mount and on every return to the tab, like the event
+    // status, because the claim and the midnight rollover are both broadcasts a
+    // backgrounded tab can miss. Never while a celebration is pending: that
+    // would print the winner the celebration is still holding back.
+    const fetchDailyBounty = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/bounty`, { credentials: 'include' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (bountyRevealTimeoutRef.current) return;
+            setDailyBounty(data.bounty || null);
+        } catch (e) {
+            console.error('[ActivityContext] Failed to fetch daily bounty:', e);
         }
     }, []);
 
@@ -670,6 +721,7 @@ export function ActivityProvider({ children }) {
     useEffect(() => {
         fetchActivity();
         fetchGlobalEventStatus();
+        fetchDailyBounty();
 
         const connectSSE = () => {
             if (eventSourceRef.current?.readyState === EventSource.OPEN) return;
@@ -1163,6 +1215,65 @@ export function ActivityProvider({ children }) {
                                 setCommunityGoalReward(data);
                                 break;
 
+                            case 'daily_bounty':
+                                // A new day opened (the midnight rollover, or the
+                                // first request after a server that was down over it).
+                                // Nothing to hold back - there is no pull behind it.
+                                console.log('[SSE] Daily bounty:', data.bounty);
+                                if (!bountyRevealTimeoutRef.current) {
+                                    setDailyBounty(data.bounty || null);
+                                }
+                                break;
+
+                            case 'daily_bounty_claimed': {
+                                console.log('[SSE] Daily bounty claimed:', data.bounty);
+                                const claimed = data.bounty;
+                                if (!claimed?.winner) break;
+
+                                if (bountyRevealTimeoutRef.current) {
+                                    clearTimeout(bountyRevealTimeoutRef.current);
+                                }
+                                if (bountyClearTimeoutRef.current) {
+                                    clearTimeout(bountyClearTimeoutRef.current);
+                                }
+
+                                const reveal = () => {
+                                    bountyRevealTimeoutRef.current = null;
+                                    setDailyBounty(claimed);
+                                    setBountyCelebration(claimed);
+                                    bountyClearTimeoutRef.current = setTimeout(() => {
+                                        setBountyCelebration(null);
+                                        bountyClearTimeoutRef.current = null;
+                                    }, BOUNTY_CELEBRATION_MS);
+                                };
+
+                                // First Blood's two waits, for its reasons: the reel
+                                // that won it (measured from `wonAt` on the server's
+                                // clock) and this client's own wheel if it is turning.
+                                const revealAt = Date.now() + spinRevealDelay(claimed.winner.wonAt) + BOUNTY_ANNOUNCE_BEAT_MS;
+                                const revealAfterPull = () => {
+                                    const wait = revealAt - Date.now();
+                                    // Held in the ref even at zero so fetchDailyBounty
+                                    // cannot print the winner first in between.
+                                    bountyRevealTimeoutRef.current = setTimeout(reveal, Math.max(0, wait));
+                                };
+                                // Marks the reveal as pending for fetchDailyBounty's
+                                // guard while it waits on the landing, too.
+                                bountyRevealTimeoutRef.current = -1;
+                                if (spinInFlightRef.current) {
+                                    deferResultUntilLanding(revealAfterPull);
+                                } else {
+                                    revealAfterPull();
+                                }
+                                break;
+                            }
+
+                            case 'daily_bounty_payout':
+                                // This player's own new balance - see bountyPayout.
+                                console.log('[SSE] Daily bounty payout:', data);
+                                setBountyPayout(data);
+                                break;
+
                             case 'first_blood_result': {
                                 console.log('[SSE] First Blood result:', data);
                                 // Clear any existing timeouts
@@ -1459,6 +1570,7 @@ export function ActivityProvider({ children }) {
             reconnectAttemptRef.current = 0;
             fetchActivity();
             fetchGlobalEventStatus();
+            fetchDailyBounty();
             if (eventSourceRef.current?.readyState !== EventSource.OPEN) {
                 connectSSE();
             }
@@ -1513,13 +1625,21 @@ export function ActivityProvider({ children }) {
                 clearTimeout(highRollerClearTimeoutRef.current);
                 highRollerClearTimeoutRef.current = null;
             }
+            if (bountyRevealTimeoutRef.current) {
+                clearTimeout(bountyRevealTimeoutRef.current);
+                bountyRevealTimeoutRef.current = null;
+            }
+            if (bountyClearTimeoutRef.current) {
+                clearTimeout(bountyClearTimeoutRef.current);
+                bountyClearTimeoutRef.current = null;
+            }
             feedRevealTimeoutsRef.current.forEach(clearTimeout);
             feedRevealTimeoutsRef.current = [];
             deferredResultGuardsRef.current.forEach(clearTimeout);
             deferredResultGuardsRef.current = [];
             deferredResultRevealsRef.current = [];
         };
-    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus, deferResultUntilLanding]);
+    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus, fetchDailyBounty, deferResultUntilLanding]);
 
     const clearNewItems = useCallback(() => {
         setNewItems([]);
@@ -1699,6 +1819,10 @@ export function ActivityProvider({ children }) {
         highRollerResult,
         highRollerPayout,
         applyHighRollerTable,
+        // Daily bounty
+        dailyBounty,
+        bountyCelebration,
+        bountyPayout,
     };
 
     return (

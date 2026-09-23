@@ -1,0 +1,143 @@
+/*
+ * The daily bounty: the plaque in the banner slot, and the claim's celebration.
+ *
+ * One vocabulary, shared with the reel's mark in CanvasSpinningStrip: an iron
+ * sight around the item (four corners, never a closed frame) in sight white,
+ * `--bounty`, set inline from COLORS.bounty so the token stays the one source.
+ * The mark is not light - no glow on the corners anywhere - because it is not a
+ * tier and must not read as one getting brighter. The celebration is the one
+ * place light is spent, and it is spent on the flash, not on the mark.
+ */
+
+/* ── The sight ───────────────────────────────────────────────────────────── */
+
+.fib-bounty-sight {
+    position: relative;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+}
+
+.fib-bounty-sight img {
+    display: block;
+    image-rendering: pixelated;
+}
+
+.fib-bounty-sight > i {
+    position: absolute;
+    width: 28%;
+    height: 28%;
+    border: 0 solid var(--bounty);
+    pointer-events: none;
+}
+.fib-bounty-sight > i:nth-of-type(1) { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; }
+.fib-bounty-sight > i:nth-of-type(2) { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
+.fib-bounty-sight > i:nth-of-type(3) { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+.fib-bounty-sight > i:nth-of-type(4) { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; }
+
+/* Claimed: the sight stands down. Dimmed rather than removed, so the plaque
+   keeps its shape and the day's item is still recognisably the day's item. */
+.fib-bounty-sight.is-claimed > i { opacity: 0.35; }
+.fib-bounty-sight.is-claimed img { opacity: 0.55; filter: grayscale(0.4); }
+
+/* The lock: the corners start wide and close onto the item. Geometry moves
+   exactly once, on arrival, and then holds - the surface's rule that geometry
+   holds still and light breathes. */
+@keyframes fibBountyLock {
+    0%   { transform: translate(var(--lx), var(--ly)); opacity: 0; }
+    60%  { opacity: 1; }
+    100% { transform: translate(0, 0); opacity: 1; }
+}
+.fib-bounty-sight.is-locking > i { animation: fibBountyLock 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fib-bounty-sight.is-locking > i:nth-of-type(1) { --lx: -10px; --ly: -10px; }
+.fib-bounty-sight.is-locking > i:nth-of-type(2) { --lx: 10px;  --ly: -10px; }
+.fib-bounty-sight.is-locking > i:nth-of-type(3) { --lx: 10px;  --ly: 10px; }
+.fib-bounty-sight.is-locking > i:nth-of-type(4) { --lx: -10px; --ly: 10px; }
+
+/* ── The plaque ──────────────────────────────────────────────────────────── */
+
+.fib-bounty-plaque {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+    /* The meter's material, deliberately: the two plinths are one deck. */
+    box-shadow: inset 0 1px 0 rgba(206, 214, 236, 0.10), inset 0 -1px 0 rgba(255, 241, 214, 0.22);
+}
+.fib-bounty-plaque.is-claimed {
+    box-shadow: inset 0 1px 0 rgba(206, 214, 236, 0.10), inset 0 -1px 0 rgba(206, 214, 236, 0.06);
+}
+
+.fib-bounty-eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* ── The celebration ─────────────────────────────────────────────────────── */
+
+.fib-bounty-celebration {
+    position: fixed;
+    left: 50%;
+    top: 84px;
+    transform: translateX(-50%);
+    width: min(440px, calc(100vw - 32px));
+    pointer-events: none;
+    animation: fibBountyDrop 420ms cubic-bezier(0.22, 1, 0.36, 1) both,
+               fibBountyLeave 360ms ease-in 6.6s forwards;
+}
+@keyframes fibBountyDrop {
+    from { opacity: 0; transform: translate(-50%, -14px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes fibBountyLeave {
+    to { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+/* The winner's card owns the centre of the screen and can be dismissed. */
+.fib-bounty-celebration.is-mine {
+    top: 50%;
+    width: min(420px, calc(100vw - 32px));
+    pointer-events: auto;
+    cursor: pointer;
+    animation: fibBountyRise 460ms cubic-bezier(0.22, 1, 0.36, 1) both,
+               fibBountyLeaveMine 360ms ease-in 6.6s forwards;
+}
+@keyframes fibBountyRise {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 18px)) scale(0.96); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes fibBountyLeaveMine {
+    to { opacity: 0; transform: translate(-50%, calc(-50% - 10px)); }
+}
+
+/* The flash: one sweep of sight white across the card as the corners lock.
+   Once, not looped - it is the shot, not a shimmer. */
+.fib-bounty-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 241, 214, 0.22) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: fibBountyFlash 900ms cubic-bezier(0.4, 0, 0.2, 1) 240ms both;
+    mix-blend-mode: screen;
+}
+@keyframes fibBountyFlash {
+    to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fib-bounty-sight.is-locking > i,
+    .fib-bounty-flash { animation: none; }
+    .fib-bounty-flash { display: none; }
+    .fib-bounty-celebration,
+    .fib-bounty-celebration.is-mine { animation: fibBountyLeaveCalm 1ms linear 6.9s forwards; }
+    .fib-bounty-celebration.is-mine { transform: translate(-50%, -50%); }
+}
+@keyframes fibBountyLeaveCalm {
+    to { opacity: 0; }
+}
