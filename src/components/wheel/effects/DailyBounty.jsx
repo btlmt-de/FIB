@@ -3,6 +3,7 @@ import { Gift } from 'lucide-react';
 import { COLORS, SPACE, SURFACE_NOISE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { getDiscordAvatarUrl, getItemImageUrl } from '../../../utils/helpers.js';
+import { RARITY, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { serverNow } from '../../../utils/serverClock.js';
 import { visibleInterval } from '../../../config/power.js';
 import { useEventSlotBusy } from './useEventSlotBusy.js';
@@ -45,14 +46,14 @@ function useMinuteTick() {
     useEffect(() => visibleInterval(() => setTick(t => t + 1), 60_000), []);
 }
 
-function Sight({ texture, name, size, claimed = false, locking = false }) {
+function Sight({ texture, name, rarity = 'regular', imageUrl = null, size, claimed = false, locking = false }) {
     return (
         <span
             className={`fib-bounty-sight${claimed ? ' is-claimed' : ''}${locking ? ' is-locking' : ''}`}
             style={{ ...bountyVar, width: size, height: size }}
         >
             <img
-                src={getItemImageUrl({ texture, type: 'regular' })}
+                src={getItemImageUrl({ texture, type: rarity, imageUrl })}
                 alt={name}
                 width={Math.round(size * 0.66)}
                 height={Math.round(size * 0.66)}
@@ -95,6 +96,11 @@ export function DailyBountyPlaque({ isMobile }) {
     if (busy || !dailyBounty) return null;
 
     const claimed = !!dailyBounty.winner;
+    // Most days the bounty is a common; about one in 45 it is a special, and then
+    // the plaque says so in the tier's own ink - it changes how the day plays.
+    const special = !!dailyBounty.rarity && dailyBounty.rarity !== 'regular';
+    const tierLabel = special ? (RARITY[dailyBounty.rarity]?.label || dailyBounty.rarity) : null;
+    const tierInk = special ? getRarityInk(dailyBounty.rarity) : null;
     const left = formatLeft(Date.parse(dailyBounty.endsAt) - serverNow());
     const winnerName = dailyBounty.winner?.username || 'someone';
     // The prize is a mystery box, and the word is the gilt one on this plaque.
@@ -102,7 +108,7 @@ export function DailyBountyPlaque({ isMobile }) {
 
     const title = claimed
         ? `Today's bounty was ${dailyBounty.name}, claimed by ${winnerName}${dailyBounty.box ? `, whose mystery box held ${dailyBounty.box.name}` : ''}. A new bounty is drawn at 00:00 UTC, in ${left}.`
-        : `Today's bounty: the first player to pull ${dailyBounty.name} wins a mystery box: one special item, every special at equal odds. The bounty itself is an ordinary common - every spin has the same chance at it. Resets at 00:00 UTC, in ${left}.`;
+        : `Today's bounty: the first player to pull ${dailyBounty.name} wins a mystery box: one special item, every special at equal odds.${special ? ` It is a ${RARITY[dailyBounty.rarity]?.label || dailyBounty.rarity} today, so it drops at its own odds - and a lucky spin, which draws every item equally, is the way to chase it.` : ' It is a common today, so every spin has the same chance at it.'} Resets at 00:00 UTC, in ${left}.`;
 
     const plinth = {
         ...bountyVar,
@@ -117,9 +123,9 @@ export function DailyBountyPlaque({ isMobile }) {
                 title={title}
                 style={{ ...plinth, width: '100%', gap: '8px', padding: '6px 16px', zIndex: Z.content }}
             >
-                <Sight texture={dailyBounty.texture} name={dailyBounty.name} size={26} claimed={claimed} />
-                <span className="fib-bounty-eyebrow" style={{ color: claimed ? COLORS.textMuted : COLORS.bounty }}>
-                    {claimed ? 'Claimed' : 'Bounty'}
+                <Sight texture={dailyBounty.texture} name={dailyBounty.name} rarity={dailyBounty.rarity} imageUrl={dailyBounty.imageUrl} size={26} claimed={claimed} />
+                <span className="fib-bounty-eyebrow" style={{ color: claimed ? COLORS.textMuted : special ? tierInk : COLORS.bounty }}>
+                    {claimed ? 'Claimed' : special ? `${tierLabel} bounty` : 'Bounty'}
                 </span>
                 <span style={{
                     flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 700,
@@ -141,7 +147,7 @@ export function DailyBountyPlaque({ isMobile }) {
             title={title}
             style={{ ...plinth, width: '300px', padding: '10px 18px 12px', zIndex: Z.content }}
         >
-            <Sight texture={dailyBounty.texture} name={dailyBounty.name} size={54} claimed={claimed} />
+            <Sight texture={dailyBounty.texture} name={dailyBounty.name} rarity={dailyBounty.rarity} imageUrl={dailyBounty.imageUrl} size={54} claimed={claimed} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
                 <span style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
@@ -153,13 +159,22 @@ export function DailyBountyPlaque({ isMobile }) {
                     </span>
                 </span>
 
-                <strong style={{
-                    fontSize: '17px', fontWeight: 800, lineHeight: 1.2,
-                    color: claimed ? COLORS.textMuted : COLORS.text,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                    {dailyBounty.name}
-                </strong>
+                <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
+                    <strong style={{
+                        fontSize: '17px', fontWeight: 800, lineHeight: 1.2,
+                        color: claimed ? COLORS.textMuted : COLORS.text,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>
+                        {dailyBounty.name}
+                    </strong>
+                    {/* The tier word, in its ink: the one line that says today is not a
+                        common day. Ink, not the tier's fill - it is text. */}
+                    {special && (
+                        <span className="fib-bounty-eyebrow" style={{ color: claimed ? COLORS.textMuted : tierInk, flexShrink: 0 }}>
+                            {tierLabel}
+                        </span>
+                    )}
+                </span>
 
                 <span style={{
                     fontSize: '12px', color: COLORS.textMuted,
@@ -249,7 +264,7 @@ export function BountyCelebration({ currentUserId }) {
     return (
         <div className="fib-bounty-celebration" role="status" aria-live="polite" style={{ zIndex: Z.banner }}>
             <div style={{ ...card, padding: `${SPACE.md}px ${SPACE.md + 2}px`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <Sight texture={bountyCelebration.texture} name={bountyCelebration.name} size={56} locking />
+                <Sight texture={bountyCelebration.texture} name={bountyCelebration.name} rarity={bountyCelebration.rarity} imageUrl={bountyCelebration.imageUrl} size={56} locking />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, flex: 1 }}>
                     <span className="fib-bounty-eyebrow" style={{ color: COLORS.bounty }}>Bounty claimed</span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>

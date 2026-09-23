@@ -198,13 +198,39 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      * lags (ActivityContext holds it until the winning reel lands) - so the
      * winner's own landing tile still wears the mark, which is the point.
      */
+    // Every collectible special, shaped the way buildStrip shapes each tier's tiles
+    // (flags, and the member tiers' textures built from their usernames). The
+    // mystery box's reel is made of these, and a special bounty is looked up here,
+    // so both draw a special exactly as the ordinary strip would.
+    const specialContents = useMemo(() => [
+        ...INSANE_ITEMS.map(i => ({ ...i, isInsane: true })),
+        ...MYTHIC_ITEMS.map(i => ({ ...i, isMythic: true })),
+        ...TEAM_MEMBERS.map(m => ({
+            ...m,
+            isSpecial: true,
+            texture: m.username ? `special_${m.username}` : m.name.toLowerCase().replace(/\s+/g, '_'),
+        })),
+        ...RELIC_ITEMS.map(i => ({ ...i, isRelic: true })),
+        ...EXOTIC_ITEMS.map(i => ({ ...i, isExotic: true })),
+        ...RARE_MEMBERS.map(r => ({ ...r, isRare: true, texture: `rare_${r.username}` })),
+    ], []);
+
     const openBountyTexture = dailyBounty && !dailyBounty.winner ? dailyBounty.texture : null;
     const openBounty = useMemo(() => {
         if (!openBountyTexture) return null;
+        // The bounty can be any item (wheel-backend services/dailyBounty.js), so it is
+        // looked for among the commons and the specials both. The fallback is built
+        // from the bounty's own fields, which carry its tier and artwork.
         return allItems.find(i => i.texture === openBountyTexture)
-            || { texture: openBountyTexture, name: dailyBounty.name, type: 'regular' };
+            || specialContents.find(i => i.texture === openBountyTexture)
+            || {
+                texture: openBountyTexture,
+                name: dailyBounty.name,
+                type: dailyBounty.rarity || 'regular',
+                imageUrl: dailyBounty.imageUrl || null,
+            };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [openBountyTexture, allItems]);
+    }, [openBountyTexture, allItems, specialContents]);
     const openBountyRef = useRef(openBounty);
     openBountyRef.current = openBounty;
 
@@ -770,15 +796,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     }, [state, dormantStrip.length, calm]);
 
     /*
-     * Flag a tile as today's bounty, for the canvas's reticle. Commons only: the
-     * bounty is drawn from the regular pool, and a special that happened to share
-     * a texture would be a different item wearing the mark.
+     * Flag a tile as today's bounty, for the canvas's reticle. By texture alone:
+     * the bounty can be any item, and textures are unique across the tiers (the
+     * specials' carry their tier as a prefix), so a match is the item itself.
+     *
+     * This used to also require `type === 'regular'`, from when the bounty could
+     * only be a common. A special bounty would have gone past unmarked.
      */
     function markBounty(item) {
         const bounty = openBountyRef.current;
         if (!bounty || !item || item.isBounty) return item;
         if (item.texture !== bounty.texture) return item;
-        if (item.type && item.type !== 'regular') return item;
         return { ...item, isBounty: true };
     }
 
@@ -794,18 +822,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
      * other strip: the winner at FINAL_INDEX is the server's.
      */
     function buildMysteryStrip(finalItem, length = STRIP_LENGTH) {
-        const contents = [
-            ...INSANE_ITEMS.map(i => ({ ...i, isInsane: true })),
-            ...MYTHIC_ITEMS.map(i => ({ ...i, isMythic: true })),
-            ...TEAM_MEMBERS.map(m => ({
-                ...m,
-                isSpecial: true,
-                texture: m.username ? `special_${m.username}` : m.name.toLowerCase().replace(/\s+/g, '_'),
-            })),
-            ...RELIC_ITEMS.map(i => ({ ...i, isRelic: true })),
-            ...EXOTIC_ITEMS.map(i => ({ ...i, isExotic: true })),
-            ...RARE_MEMBERS.map(r => ({ ...r, isRare: true, texture: `rare_${r.username}` })),
-        ];
+        const contents = specialContents;
         if (contents.length === 0) return buildStrip(finalItem || allItems[0], length);
 
         const newStrip = [];
@@ -918,11 +935,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                 } else if (roll < 0.058 && bounty) {
                     // 0.5% chance for today's open bounty, band for band with the
                     // server's buildStrip in wheel-backend services/spin.js, and
-                    // carved out of the commons for the reason given there: the
-                    // bounty is a common, so this changes which common goes past
-                    // rather than how many specials do. Without it a one-in-~1,650
-                    // item would essentially never cross the reel, and the one
-                    // thing the room is chasing would be the one thing it never sees.
+                    // carved out of the commons for the reason given there. Usually
+                    // the bounty is a common and this only changes which common goes
+                    // past; on a special day (about one in 45) it is that special,
+                    // wearing its own tier colour. Without it the one thing the room
+                    // is chasing would be the one thing the reel never shows.
                     newItem = { ...bounty, isBounty: true };
                 } else if (shuffledItems.length > 0) {
                     // Regular items - iterate through shuffled pool for maximum variety
@@ -1226,7 +1243,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         const newStrip = [...prevStrip];
                         // Use constant FINAL_INDEX to ensure consistency with animation target
                         if (FINAL_INDEX >= 0 && FINAL_INDEX < newStrip.length) {
-                            newStrip[FINAL_INDEX] = markBounty(finalItem);
+                            // A box pull never claims the bounty (the server skips it),
+                            // so a box that produces today's bounty special must not
+                            // wear the sight as if it had.
+                            newStrip[FINAL_INDEX] = opensBox ? finalItem : markBounty(finalItem);
                         }
                         return newStrip;
                     });

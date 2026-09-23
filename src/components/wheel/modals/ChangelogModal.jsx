@@ -19,9 +19,9 @@
 // per-user and authored in the admin panel, this is per-release and authored in the
 // repo. Neither can show the other's content.
 
-import React, { useEffect } from 'react';
-import { X, Sparkles } from 'lucide-react';
-import { COLORS } from '../config/constants';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Sparkles, Spade, Crosshair, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
+import { COLORS, EVENT_IDENTITY } from '../config/constants';
 import { CHANGELOG } from '../../../config/changelog.js';
 import { RELIC_ITEMS } from '../../../config/constants.js';
 import { getRarityColor, getRarityIcon, getRarityOnColor } from '../../../utils/rarityHelpers.jsx';
@@ -388,13 +388,153 @@ function NotesBlock({ block }) {
     );
 }
 
+/*
+ * A `feature` block's identity, by key. The data file names a feature and never
+ * a colour, for the reason rarities are keyed and not spelled: the identity is
+ * owned elsewhere (EVENT_IDENTITY, COLORS.bounty, COLORS.mysteryGilt) and a copy
+ * here would be the drift DESIGN.md keeps recording.
+ *
+ * `gilt` marks the one identity that is a metal and never a flat colour - the
+ * mystery box - so its title takes the ramp and its facts' labels the ramp's
+ * middle stop.
+ */
+const FEATURE_IDENTITY = {
+    high_roller: { color: EVENT_IDENTITY.high_roller.color, Icon: Spade },
+    bounty: { color: COLORS.bounty, Icon: Crosshair },
+    mystery: { color: COLORS.mystery, Icon: Gift, gilt: true },
+};
+
+function FeatureBlock({ block }) {
+    const identity = FEATURE_IDENTITY[block.accent] || { color: COLORS.gold, Icon: Sparkles };
+    const { color, Icon, gilt } = identity;
+    const [pale, mid, deep] = COLORS.mysteryGilt;
+
+    return (
+        <section style={{ marginBottom: '26px' }}>
+            <SectionHeading>{block.heading}</SectionHeading>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Icon size={18} color={color} strokeWidth={2} />
+                <span style={{
+                    fontSize: '17px',
+                    fontWeight: 800,
+                    letterSpacing: '0.02em',
+                    ...(gilt
+                        ? {
+                            background: `linear-gradient(100deg, ${pale}, ${mid} 55%, ${deep})`,
+                            WebkitBackgroundClip: 'text',
+                            backgroundClip: 'text',
+                            color: 'transparent',
+                            WebkitTextFillColor: 'transparent',
+                        }
+                        : { color }),
+                }}>
+                    {block.title}
+                </span>
+            </div>
+
+            {block.body.map((text, i) => (
+                <p key={i} style={{ color: COLORS.text, fontSize: '13px', lineHeight: 1.55, margin: '0 0 10px' }}>
+                    {text}
+                </p>
+            ))}
+
+            {block.facts?.length > 0 && (
+                // A definition list, because that is what it is: a few named facts,
+                // label beside value, no table chrome.
+                <dl style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'auto 1fr',
+                    columnGap: '12px',
+                    rowGap: '5px',
+                    margin: '4px 0 0',
+                }}>
+                    {block.facts.map(fact => (
+                        <React.Fragment key={fact.label}>
+                            <dt style={{ color, fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                {fact.label}
+                            </dt>
+                            <dd style={{ color: COLORS.neutralInk, fontSize: '12px', lineHeight: 1.5, margin: 0 }}>
+                                {fact.value}
+                            </dd>
+                        </React.Fragment>
+                    ))}
+                </dl>
+            )}
+        </section>
+    );
+}
+
 const BLOCKS = {
     rationale: RationaleBlock,
     tier: TierBlock,
     ladder: LadderBlock,
     changes: ChangesBlock,
     notes: NotesBlock,
+    feature: FeatureBlock,
 };
+
+/** A release's date as the header prints it. */
+function formatReleaseDate(date) {
+    // timeZone: 'UTC' because the entry dates in changelog.js are bare 'YYYY-MM-DD'
+    // strings, which Date parses as UTC midnight. Formatting that in the viewer's
+    // own zone moves it BACKWARDS for everyone west of UTC, so a release dated the
+    // 20th announced itself as the 19th across the Americas while reading correctly
+    // in Europe - which is why nobody here would have seen it.
+    return new Date(date).toLocaleDateString(undefined, {
+        day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+    });
+}
+
+/*
+ * The older releases, listed under the one being read.
+ *
+ * Only the newest release pops up, but a release is a record and stays one: the
+ * Relic Update's ladder and odds are still the best explanation of the ladder
+ * anyone has written. Each row opens its entry in full, in this same modal.
+ */
+function EarlierReleases({ current, onSelect }) {
+    const others = CHANGELOG.map((entry, index) => ({ entry, index })).filter(({ index }) => index !== current);
+    if (others.length === 0) return null;
+
+    return (
+        <section style={{ marginBottom: '22px', paddingTop: '14px', borderTop: `1px solid ${COLORS.border}` }}>
+            <SectionHeading>{current === 0 ? 'Earlier releases' : 'Other releases'}</SectionHeading>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {others.map(({ entry, index }) => (
+                    <button
+                        key={entry.version}
+                        onClick={() => onSelect(index)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            width: '100%',
+                            textAlign: 'left',
+                            background: COLORS.bgLight,
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                            font: 'inherit',
+                        }}
+                    >
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: 'block', color: COLORS.text, fontSize: '13px', fontWeight: 700 }}>
+                                {entry.title}
+                                {index === 0 && <span style={{ color: COLORS.gold, fontSize: '11px', marginLeft: '8px' }}>Latest</span>}
+                            </span>
+                            <span style={{ display: 'block', color: COLORS.neutralInk, fontSize: '12px', marginTop: '2px' }}>
+                                v{entry.version} · {formatReleaseDate(entry.date)}
+                            </span>
+                        </span>
+                        <ChevronRight size={16} color={COLORS.neutralInk} />
+                    </button>
+                ))}
+            </div>
+        </section>
+    );
+}
 
 /* ── The modal ───────────────────────────────────────────────────────────── */
 
@@ -407,15 +547,18 @@ export function ChangelogModal({ onClose, isMobile }) {
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
-    const entry = CHANGELOG[0];
-    // timeZone: 'UTC' because the entry dates in changelog.js are bare 'YYYY-MM-DD'
-    // strings, which Date parses as UTC midnight. Formatting that in the viewer's
-    // own zone moves it BACKWARDS for everyone west of UTC, so a release dated the
-    // 20th announced itself as the 19th across the Americas while reading correctly
-    // in Europe - which is why nobody here would have seen it.
-    const dated = new Date(entry.date).toLocaleDateString(undefined, {
-        day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-    });
+    // Which release is open. Always the newest when the modal opens - that is the
+    // one it is announcing - and any older one from the list at the bottom.
+    const [current, setCurrent] = useState(0);
+    const bodyRef = useRef(null);
+    const selectRelease = (index) => {
+        setCurrent(index);
+        // A new entry starts at its top, not wherever the last one was scrolled to.
+        if (bodyRef.current) bodyRef.current.scrollTop = 0;
+    };
+
+    const entry = CHANGELOG[current];
+    const dated = formatReleaseDate(entry.date);
 
     return (
         <div
@@ -515,17 +658,38 @@ export function ChangelogModal({ onClose, isMobile }) {
                 </div>
 
                 {/* Body */}
-                <div style={{
+                <div ref={bodyRef} style={{
                     overflowY: 'auto',
                     padding: isMobile ? '6px 18px 0' : '8px 24px 0',
                 }}>
+                    {current !== 0 && (
+                        <button
+                            onClick={() => selectRelease(0)}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: 'none',
+                                border: 'none',
+                                padding: '0 0 14px',
+                                color: COLORS.gold,
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                font: 'inherit',
+                            }}
+                        >
+                            <ChevronLeft size={14} /> Back to the latest release
+                        </button>
+                    )}
                     {entry.blocks.map((block, i) => {
                         const Block = BLOCKS[block.kind];
                         // An unknown kind is skipped rather than thrown: a data file
                         // one release ahead of this renderer should degrade, not
                         // white-screen the wheel.
-                        return Block ? <Block key={i} block={block} isMobile={isMobile} /> : null;
+                        return Block ? <Block key={`${current}-${i}`} block={block} isMobile={isMobile} /> : null;
                     })}
+                    <EarlierReleases current={current} onSelect={selectRelease} />
                 </div>
 
                 {/* Footer */}

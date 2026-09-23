@@ -34,8 +34,118 @@
  *   ladder    - the whole rarity ladder as log-scaled bars, one row per tier
  *   changes   - a before/after table
  *   notes     - short labelled paragraphs for everything that is not a number
+ *   feature   - one new thing to do: an accent, a title, prose, and a few facts.
+ *               `accent` is a key the modal maps to its identity (high_roller,
+ *               bounty, mystery) so this file never spells a colour.
+ *
+ * ── OLDER RELEASES STAY READABLE ────────────────────────────────────────────
+ *
+ * Only the newest entry pops up, but every entry here stays in the modal's
+ * "Earlier releases" list and opens in full. So a release is never deleted to
+ * make room for the next one - prepend, and the previous one moves down a slot.
  */
 export const CHANGELOG = [
+    {
+        version: '2.1',
+        date: '2026-09-23',
+        title: 'High Roller & the Daily Bounty',
+        tagline: 'A blackjack table, a hunt that resets every day, and a box that can hold any special.',
+        // No rationale block this time, on purpose: the Relic Update needed one because
+        // it moved odds people already knew, and a change like that has to say why.
+        // Nothing here moves an existing odd - three new things, each of which explains
+        // itself - so the entry opens straight onto them.
+        blocks: [
+            {
+                kind: 'feature',
+                accent: 'high_roller',
+                heading: 'New global event',
+                title: 'High Roller',
+                body: [
+                    'Jimbo deals blackjack. Everyone on the wheel when the table opens is ' +
+                    'dealt one hand against his, and you play it out with Hit or Stand. ' +
+                    'When every seat is done, or the clock runs out, he turns his hole ' +
+                    'card over and plays his own hand - then everyone is paid at once.',
+                ],
+                facts: [
+                    { label: 'Pays', value: 'Blackjack +50 · Win +30 · Push +10 lucky spins' },
+                    { label: 'Rules', value: 'Dealer stands on every 17. Hit or stand - no doubling or splitting.' },
+                    { label: 'Clock', value: '30 seconds to play your hand' },
+                    { label: 'When', value: 'Drawn like any global event - and it only deals if someone is here to play' },
+                ],
+            },
+            {
+                kind: 'feature',
+                accent: 'bounty',
+                heading: 'New every day',
+                title: 'The Daily Bounty',
+                body: [
+                    'Each day one item is the bounty - and it can be any item on the wheel, ' +
+                    'from a block of dirt to the Insane. The first player to pull it wins ' +
+                    'the day\'s prize. Then it is claimed until midnight, when a new one is drawn.',
+                    'Most days it is a common, and it falls within hours. Some days it is ' +
+                    'a special, and then it drops at that special\'s own odds - a Mythic ' +
+                    'bounty may well survive the day. Today\'s is shown above the reel, and ' +
+                    'marked on the reel itself when it goes past.',
+                ],
+                facts: [
+                    { label: 'Resets', value: '00:00 UTC, every day' },
+                    { label: 'Who wins', value: 'The first player to pull it - one winner a day' },
+                    { label: 'Prize', value: 'A mystery box' },
+                    { label: 'Special days', value: 'About one day in 45 the bounty is a special' },
+                ],
+            },
+            {
+                kind: 'feature',
+                accent: 'mystery',
+                heading: 'The prize',
+                title: 'Mystery Box',
+                body: [
+                    'One special item - any of them. Every special on the wheel, from the ' +
+                    'commonest Rare to the Insane, has exactly the same chance of being in it.',
+                    'While you hold a box the wheel is gilded, and your next spin opens it on ' +
+                    'a reel made of nothing but specials. What comes out carries a MYSTERY ' +
+                    'tag wherever a pull is shown, the way a lucky spin carries LUCKY.',
+                ],
+                facts: [
+                    { label: 'Contents', value: 'Any of 37 specials, each 1 in 37' },
+                    { label: 'The Insane', value: '1 in 37 per box - about 2.7%' },
+                    { label: 'Opens', value: 'On your next spin' },
+                ],
+            },
+            {
+                kind: 'notes',
+                heading: 'Good to know',
+                items: [
+                    {
+                        label: 'It waits',
+                        body:
+                            'A box will not open during a global event or a recursion window - ' +
+                            'it would score for neither and eat your time. It waits, gilding ' +
+                            'and all, until the moment is free. It never expires.',
+                    },
+                    {
+                        label: 'Lucky spins',
+                        body:
+                            'A lucky spin draws every item at the same odds, so on a special ' +
+                            'bounty day it is by far the best way to chase it.',
+                    },
+                    {
+                        label: 'Not a spin',
+                        body:
+                            'Opening a box adds the item to your collection and history, but ' +
+                            'it does not count as a spin, reset a dry streak, score for any ' +
+                            'event, or claim the bounty.',
+                    },
+                    {
+                        label: 'Luck stats',
+                        body:
+                            'Box pulls are counted apart from ordinary pulls, like lucky spins ' +
+                            'are, so a guaranteed special never shows up as a lucky streak.',
+                    },
+                ],
+            },
+        ],
+    },
     {
         version: '2.0',
         date: '2026-09-20',
