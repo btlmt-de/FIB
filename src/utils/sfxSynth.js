@@ -217,6 +217,26 @@ const VOICES = {
     },
 
     /**
+     * Over 21. A falling minor third on a muted, sagging pitch with a dull thud
+     * under it - a groan rather than a buzzer, because the table's losses are
+     * house money and nobody should feel punished, only that it went wrong.
+     * Heard as the busting card lands, which is the moment the bust is shown.
+     */
+    hr_bust(c, at) {
+        noiseHit(c, at, { freq: 420, q: 0.7, peak: 0.20, attack: 0.002, decay: 0.07, type: 'lowpass' });
+        [[262, 0], [220, 0.14]].forEach(([f, off]) => {
+            const osc = c.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, at + off);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.94, at + off + 0.3);
+            const g = envelope(c, at + off, 0.2, 0.01, 0.3);
+            osc.connect(g);
+            osc.start(at + off);
+            osc.stop(at + off + 0.34);
+        });
+    },
+
+    /**
      * A natural. The win's rise, a fifth higher and carried into a held bell -
      * the table's one fanfare, so it is allowed to be one.
      */

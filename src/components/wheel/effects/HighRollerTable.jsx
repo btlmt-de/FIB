@@ -4,7 +4,7 @@ import { useAuth } from '../../../context/AuthContext.jsx';
 import { serverNow } from '../../../utils/serverClock.js';
 import { useCalm, visibleInterval } from '../../../config/power.js';
 import { useSound } from '../../../context/SoundContext.jsx';
-import { jimboLine } from './highRollerDialogue.js';
+import { jimboLine, revealLine } from './highRollerDialogue.js';
 import {
     CARD_TRAVEL_MS, DEAL_STEP_MS, HOLE_FLIP_DELAY_MS, HOLE_FLIP_MS, SHUFFLE_ENDS_BEFORE_DEAL_MS, SHUFFLE_RIFFLES,
     SHUFFLE_RIFFLE_MS, SHUFFLE_TO_DECK_MS, drawDelay, revealDuration,
@@ -189,17 +189,20 @@ function OtherSeats({ seats, settled, revealed }) {
 }
 
 // Hover chatter coalesces; a line stays readable instead of changing every pointer move.
-function useReadableLine(line, urgent) {
+// `hold` keeps the current line while a card is still in flight: the table's state
+// already knows where a hit landed, and Jimbo reacting to a bust before the card
+// is on the felt tells the player how it ended before the table shows it.
+function useReadableLine(line, urgent, hold = false) {
     const [shown, setShown] = useState(line);
     const since = useRef(0);
     useEffect(() => {
         if (!since.current) since.current = Date.now();
-        if (line === shown) return;
+        if (line === shown || hold) return;
         const readingTime = Math.min(4200, Math.max(2800, shown.length * 34));
         const wait = urgent ? 0 : Math.max(250, readingTime - (Date.now() - since.current));
         const timer = setTimeout(() => { since.current = Date.now(); setShown(line); }, wait);
         return () => clearTimeout(timer);
-    }, [line, shown, urgent]);
+    }, [line, shown, urgent, hold]);
     return shown;
 }
 
@@ -225,9 +228,15 @@ export function HighRollerDealer({ table, result, dealAt, actsFrom, playClosesAt
     const now = useTableClock(!result);
     const dealer = result?.dealer ?? table?.dealer;
     const mine = (result?.results ?? table?.seats ?? []).find(s => s.userId === user?.id);
-    const line = presentationBusy && result ? 'My turn. Let’s turn these over. No more secrets.' : jimboLine({ mine, dealer, settled: !!result, intro: now < (dealAt ?? 0), seed: dealAt, dealing: now < actsFrom,
+    const revealing = Boolean(presentationBusy && result);
+    const line = revealing ? revealLine(dealAt) : jimboLine({ mine, dealer, settled: !!result, intro: now < (dealAt ?? 0), seed: dealAt, dealing: now < actsFrom,
         open: now >= actsFrom && now < playClosesAt, secondsLeft: Math.ceil((playClosesAt - now) / 1000), intent, signedIn: !!user });
-    const spoken = useReadableLine(line, !result && now >= playClosesAt - 5000);
+    // Once the result is in, every line cuts in rather than waiting out the reading
+    // time of whatever came before. Each is tied to something happening on the felt
+    // - the hole card turning, the outcome landing - and after a bust the "over
+    // twenty-one" line was still being held when the hole card had already turned,
+    // so Jimbo announced the flip late.
+    const spoken = useReadableLine(line, Boolean(result) || now >= playClosesAt - 5000, presentationBusy && !result);
     return <section className="hr-dealer" aria-label="Jimbo’s blackjack table">
         
         <div className="hr-brand"><h2>HIGH <em>ROLLER</em></h2></div>
@@ -251,7 +260,9 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
     const [motionCount, setMotionCount] = useState(0);
     const trackMotion = useCallback(delta => setMotionCount(n => Math.max(0, n + delta)), []);
     const moving = motionCount > 0;
-    useEffect(() => { onPresentation?.(moving); }, [moving, onPresentation]);
+    // A layout effect, so Jimbo is told a card is moving before the frame paints:
+    // a passive one left a gap in which he could already react to where it lands.
+    useLayoutEffect(() => { onPresentation?.(moving); }, [moving, onPresentation]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
     const pending = useRef(false);
@@ -282,6 +293,18 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
     const seats = settled ? result.results ?? [] : table?.seats ?? [];
     const mine = user ? seats.find(s => s.userId === user.id) : null;
     const others = seats.filter(s => s !== mine);
+    // The hit's response already knows the hand is over 21, but the card that put
+    // it there is still flying in. Call the bust when it lands, not when it leaves.
+    const cardsLanding = moving && !settled;
+    const mineBust = !intro && !cardsLanding && Boolean(mine?.bust);
+    // Heard on the change, not on the state: a page reloaded onto a hand that
+    // busted a minute ago should not groan at the player on arrival.
+    const bustHeard = useRef(null);
+    useEffect(() => {
+        const was = bustHeard.current;
+        bustHeard.current = mineBust;
+        if (was === false && mineBust) playSfx?.('hr_bust');
+    }, [mineBust, playSfx]);
     /*
      * The reveal is over: the hole card has turned and the last card the house
      * drew has landed. Both halves are needed. `moving` alone is false for the
@@ -365,14 +388,14 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
         {intro ? <Shuffle dealAt={dealAt} deckRef={deck} onSound={cardSound}/> : <OtherSeats seats={others} settled={settled} revealed={revealed}/>}
         <section className="hr-your-seat" aria-label="Your seat" aria-busy={busy}>
             {mine ? <>
-                <div className="hr-player-hand" data-won={won || undefined}><div className="hr-hand-heading"><span>YOU</span><small>{intro ? 'Your hand' : mine.bust ? 'Over 21' : mine.natural ? 'Natural blackjack' : mine.done ? 'Hand locked' : mine.soft ? 'Ace counts as 11' : 'Your hand'}</small></div>{intro ? <div className="hr-hand"/> : <Hand cards={mine.cards} deckRef={deck} onMotion={trackMotion} onSound={cardSound}/>}
-                    <div className="hr-score" data-bust={!intro && mine.bust}><strong>{intro ? '—' : moving ? '…' : mine.total}</strong><small>{intro ? 'YOURS' : mine.natural ? 'NATURAL' : mine.bust ? 'BUST' : mine.soft ? 'SOFT' : 'TOTAL'}</small></div>
+                <div className="hr-player-hand" data-won={won || undefined}><div className="hr-hand-heading"><span>YOU</span><small>{intro || cardsLanding ? 'Your hand' : mineBust ? 'Over 21' : mine.natural ? 'Natural blackjack' : mine.done ? 'Hand locked' : mine.soft ? 'Ace counts as 11' : 'Your hand'}</small></div>{intro ? <div className="hr-hand"/> : <Hand cards={mine.cards} deckRef={deck} onMotion={trackMotion} onSound={cardSound}/>}
+                    <div className="hr-score" data-bust={mineBust}><strong>{intro ? '—' : moving ? '…' : mine.total}</strong><small>{intro ? 'YOURS' : cardsLanding ? 'TOTAL' : mine.natural ? 'NATURAL' : mineBust ? 'BUST' : mine.soft ? 'SOFT' : 'TOTAL'}</small></div>
                 </div>
                 {settled ? <div className="hr-controls hr-outcome" role="status" data-outcome={outcome ?? undefined}><strong key={outcome ?? 'reveal'}>{outcome ? OUTCOMES[outcome] ?? outcome : 'Turning the cards…'}</strong><span>{!outcome ? 'The house reveals' : awarded > 0 ? '+' + awarded + ' lucky spins' : 'No lucky spins this hand'}</span></div>
                     : <div className="hr-controls"><div className="hr-actions">
                         <button type="button" className="hr-action hr-hit" disabled={!canAct} aria-keyshortcuts="H" onClick={() => post('action', { action: 'hit' })} {...hover('hit')}>Hit<kbd aria-hidden="true">H</kbd></button>
                         <button type="button" className="hr-action hr-stand" disabled={!canAct} aria-keyshortcuts="S" onClick={() => post('action', { action: 'stand' })} {...hover('stand')}>Stand<kbd aria-hidden="true">S</kbd></button>
-                    </div><p className="hr-seat-note" role="status">{intro ? 'Jimbo is shuffling. Cards in a moment.' : moving ? 'Cards on the felt. One moment…' : busy ? 'Jimbo is on it…' : mine.bust ? 'Busted. Stay for the reveal.' : mine.done ? 'Your hand is locked. Waiting for Jimbo.' : dealing ? 'Cards first. Decisions in a moment.' : open ? 'Get closer to 21 than Jimbo. Don’t go over.' : 'No more cards. Jimbo is revealing his hand.'}</p></div>}
+                    </div><p className="hr-seat-note" role="status">{intro ? 'Jimbo is shuffling. Cards in a moment.' : moving ? 'Cards on the felt. One moment…' : busy ? 'Jimbo is on it…' : mine.bust ? 'Busted. Stay for the reveal.' : mine.done ? 'Your hand is locked. Waiting for Jimbo.' : dealing ? 'Cards first. Decisions in a moment.' : open && seconds <= 5 ? 'When the clock runs out, you stand on ' + mine.total + '.' : open ? 'Get closer to 21 than Jimbo. Don’t go over.' : 'No more cards. Jimbo is revealing his hand.'}</p></div>}
             </> : <div className="hr-empty-seat"><span className="hr-empty-suit" aria-hidden="true">♠</span><div><strong>A seat with your name on it.</strong><p>{!user ? 'Sign in to join Jimbo’s table.' : canSit ? 'Play a hand. Win lucky spins.' : 'Watch Jimbo reveal the table.'}</p></div>
                 {canSit && <button type="button" className="hr-action hr-hit hr-sit" disabled={busy} onClick={() => post('sit')}>{busy ? 'Taking your seat…' : 'Deal me in'}</button>}</div>}
             {error && <p className="hr-error" role="alert">{error}</p>}

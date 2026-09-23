@@ -29,6 +29,13 @@
  *   - The reveal must end inside ActivityContext's HIGH_ROLLER_TEARDOWN_MS (13s)
  *     with time left to read the outcome: a dealer drawing seven cards - about
  *     as long a hand as the house plays - ends at 9.9s.
+ *   - CARD_TRAVEL_MS must stay well under the server's
+ *     HIGH_ROLLER_ALL_DONE_GRACE_MS (2.5s, wheel-backend highRollerTuning.js):
+ *     that grace is how long a table where everyone is done waits before the
+ *     result, and so how long a player's last card has to land and be read.
+ *     When it was 800ms against this 1.3s flight, a solo player's busting card
+ *     was still in the air when the dealer turned over. Nothing enforces this
+ *     across the two repos - slow the card down and raise the grace with it.
  *
  * All milliseconds. Deal times are measured from `dealAt`; reveal times from
  * the moment the result arrives.
