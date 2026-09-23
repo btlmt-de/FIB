@@ -132,6 +132,36 @@ export const COLORS = {
     // owns: aqua, azure, teal. Teal is far enough from recursion's #00FF00 matrix
     // green, which is a spin mode rather than a tier in any case.
     mythicCycle: ['#55FFFF', '#2E86FF', '#3BE8B0', '#55FFFF'],
+
+    // ── The daily bounty: sight white ─────────────────────────────────────────
+    // The bounty is a MARK on a common, not a tier and not a mode, so it may not
+    // take a hue that means either. Every saturated colour on this surface is
+    // spoken for - seven tiers, four modes, five events - so it takes none: a
+    // warm near-white, the colour of an iron sight catching the station lamp.
+    //
+    // Checked against its two nearest neighbours. Insane's flat platinum
+    // (#F2ECFF) is cool and only ever spent where a flat is unavoidable (canvas
+    // shadowColor); on the reel insane is always the moving slick, never a flat
+    // white, so the two never sit side by side. High Roller's brass (#E4C78B) is
+    // two lightness steps down and saturated enough to read as gold; this reads
+    // as white. What carries the identity is the SHAPE - a reticle and a word -
+    // and the hue only has to stay out of the way of everything else.
+    bounty: '#FFF1D6',
+
+    // ── The mystery box: gilt ─────────────────────────────────────────────────
+    // What the bounty pays, and the one thing on this surface allowed to turn
+    // the whole reel gold (the owner's brief: "golden coated"). Gold is already
+    // spent twice - legendary's #FFD700 and the chrome's #FFAA00 - so the box is
+    // never painted flat: it is gilt, a METAL, a three-stop ramp from pale leaf
+    // through deep gold to bronze, and it always travels. A flat legendary tile
+    // on a gilded band still reads as a legendary because it is a flat colour on
+    // a moving metal, not the same colour twice.
+    //
+    // `mystery` is the ramp's middle stop, for the few places that cannot take a
+    // gradient (a canvas shadow, a border). The tiles on a gilded reel keep their
+    // own tier colours throughout - the box is the band's coat, never an item's.
+    mystery: '#F2C14E',
+    mysteryGilt: ['#FFF0B8', '#F2C14E', '#B7791F', '#FFF0B8'],
 };
 
 /**
@@ -267,4 +297,8 @@ export const EVENT_IDENTITY = {
     first_blood:    { name: 'FIRST BLOOD',       color: '#DC2626' },
     community_goal: { name: 'COMMUNITY GOAL',    color: '#2DD4BF' },
     roulette:       { name: 'THE PARLOUR',       color: '#19B36B' },
+    // The table's brass - the trim on its rail and the Hit button - rather than
+    // its teal felt, which would sit on top of the Community Goal's teal. Pale
+    // enough to stay apart from the Arrival's saturated platform amber.
+    high_roller:    { name: 'HIGH ROLLER',       color: '#E4C78B' },
 };

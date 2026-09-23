@@ -4,6 +4,7 @@ import { COLORS } from '../config/constants';
 import { formatTimeAgo, getItemImageUrl } from '../../../utils/helpers.js';
 import { getRarityColor, getRarityBadge } from '../../../utils/rarityHelpers.jsx';
 import { X, ScrollText } from 'lucide-react';
+import { MysteryTag } from '../spin/MysteryTag.jsx';
 
 export function SpinHistory({ history, onClose }) {
     function getItemColor(type) {
@@ -192,7 +193,7 @@ export function SpinHistory({ history, onClose }) {
                                                 gap: '6px'
                                             }}>
                                                 {spin.item_name}
-                                                {spin.is_lucky === 1 && (
+                                                {spin.is_mystery === 1 ? <MysteryTag /> : spin.is_lucky === 1 && (
                                                     <span title="Lucky Spin" style={{
                                                         fontSize: '10px',
                                                         background: `${COLORS.gold}33`,

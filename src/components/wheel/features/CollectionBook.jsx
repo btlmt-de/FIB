@@ -65,7 +65,7 @@ import { IMAGE_BASE_URL, INSANE_ITEMS, MYTHIC_ITEMS, TEAM_MEMBERS, EXOTIC_ITEMS,
 import { COLORS, DECK, rail, SURFACE_NOISE } from '../config/constants';
 import { formatChance, getItemImageUrl } from '../../../utils/helpers.js';
 import { RARITY, getRarityColor, getRarityInk, getRarityOrder } from '../../../utils/rarityHelpers.jsx';
-import { X, Search, Sparkles, Coins, Crown } from 'lucide-react';
+import { X, Search, Sparkles, Coins, Crown, Gift } from 'lucide-react';
 import { CanvasCollectionGrid } from '../canvas/CanvasCollectionGrid.jsx';
 import { FlapText, BoardLabel, RowLamp, BoardMeter, Plinth, Segmented } from './collection/FlapBoard.jsx';
 import { prestigeLabel, prestigeName, prestigeColor, prestigeInk, prestigeIcon, isIridescentPrestige, MAX_PRESTIGE_LEVEL } from '../../../utils/prestigeHelpers.js';
@@ -253,7 +253,15 @@ function ItemPlaque({ item, details, onClose }) {
                         one boxed object on the surface. */}
                     {collected && (details?.isLucky || details?.is_lucky === 1 || details?.isGoldRush || details?.is_gold_rush === 1) && (
                         <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '12px', boxShadow: `inset 0 1px 0 ${rail(0.07)}` }}>
-                            {(details?.isLucky || details?.is_lucky === 1) && (
+                            {/* A box pull is lucky too (is_lucky = 1, for the luck
+                                statistics' sake), so the box is named instead of the
+                                spin, never beside it. */}
+                            {(details?.isMystery || details?.is_mystery === 1) ? (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: COLORS.mystery }}>
+                                    <Gift size={12} />
+                                    <BoardLabel tone={COLORS.mystery}>Mystery box</BoardLabel>
+                                </span>
+                            ) : (details?.isLucky || details?.is_lucky === 1) && (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: COLORS.green }}>
                                     <Sparkles size={12} />
                                     <BoardLabel tone={COLORS.green}>Lucky spin</BoardLabel>

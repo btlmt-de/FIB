@@ -40,7 +40,9 @@ import FirstBloodBanner from './effects/FirstBloodBanner.jsx';
 import CommunityGoalBanner from './effects/CommunityGoalBanner.jsx';
 import { CommunityForgeAtmosphere } from './effects/CommunityForge.jsx';
 import MilestoneMeter from './effects/MilestoneMeter.jsx';
+import { DailyBountyPlaque, BountyCelebration } from './effects/DailyBounty.jsx';
 import EventSelectionWheel from './effects/EventSelectionWheel.jsx';
+import { useEventSlotBusy } from './effects/useEventSlotBusy.js';
 import { ActivityFeedSidebar } from './sidebars/ActivityFeedSidebar.jsx';
 import { ActivityTicker } from './sidebars/ActivityTicker.jsx';
 import { StageShortcuts } from './spin/StageShortcuts.jsx';
@@ -74,6 +76,8 @@ import { sortManifest, rowLandsAt, totalLandsAt } from './effects/arrivalTimelin
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourAtmosphere from './effects/ParlourAtmosphere.jsx';
 import { KotwArenaAtmosphere } from './effects/KotwArena.jsx';
+import { HighRollerAtmosphere } from './effects/HighRollerTable.jsx';
+import { revealDuration } from './effects/highRollerTimeline.js';
 import { FirstBloodRoom } from './effects/FirstBloodRoom.jsx';
 import { serverNow } from '../../utils/serverClock.js';
 import {
@@ -357,13 +361,19 @@ function WheelOfFortunePage({ onBack }) {
     const {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
         arrival, arrivalCrate, roulette, roulettePayout, rouletteResult, globalEventStatus,
+        highRoller, highRollerPayout, highRollerResult,
+        refreshDailyBounty,
     } = useActivity();
+    // The plaque and the meter both step aside for an event; their shared
+    // wrapper does too, so its padding and gap do not linger in an empty slot.
+    const eventSlotBusy = useEventSlotBusy();
     const [arenaVisible, setArenaVisible] = useState(false);
     const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
     const [forgeVisible, setForgeVisible] = useState(false);
     // Keep compact navigation through the event's reveal, then restore the panels.
     const compactEventNavigation = !!(forgeVisible || firstBloodRoomVisible || arenaVisible
-        || arrival || roulette || rouletteResult || globalEventStatus?.active || globalEventStatus?.pending);
+        || arrival || roulette || rouletteResult || highRoller || highRollerResult
+        || globalEventStatus?.active || globalEventStatus?.pending);
     const [allItems, setAllItems] = useState([]);
     const [dynamicItems, setDynamicItems] = useState([]);
     /*
@@ -641,6 +651,62 @@ function WheelOfFortunePage({ onBack }) {
     }, [roulette, roulettePayout, user?.id]);
 
     useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
+
+    // The daily bounty's box count is per player, and ActivityContext first reads
+    // it before anyone has signed in - so read it again whenever who is signed in
+    // changes. (The bounty used to pay lucky spins, applied from here on the
+    // celebration; it pays a box now, and ActivityContext holds that itself.)
+    useEffect(() => {
+        refreshDailyBounty();
+    }, [user?.id, refreshDailyBounty]);
+
+    /*
+     * HIGH ROLLER's payout into the lucky-spin pool, held until the reveal ends.
+     *
+     * The Parlour's rule, one table along: the balance IS the result. It used to
+     * be applied the moment the private payout arrived, which was harmless while
+     * the table showed the dealer's hand at once - and gave the hand away the
+     * moment the design gave the house a reveal, with the topbar reading +30
+     * while the hole card was still turning. The table animates the dealer's
+     * turn from highRollerTimeline.js, and so does this wait, so the two land
+     * together however many cards the house draws.
+     *
+     * The payout is sent just before the public result, so this waits for both:
+     * the result carries the settle time and the dealer's hand the wait is
+     * measured from.
+     */
+    const processedHighRollerRef = useRef(null);
+    const highRollerPayoutTimeoutRef = useRef(null);
+    useEffect(() => {
+        if (!highRoller || !highRollerPayout || !highRollerResult || !user?.id) return;
+        const newTotal = highRollerPayout.luckySpinsTotal;
+        // A loss carries no balance: there is nothing to apply.
+        if (typeof newTotal !== 'number') return;
+        const key = `${highRoller.openedAt}-${newTotal}`;
+        if (processedHighRollerRef.current === key) return;
+        processedHighRollerRef.current = key;
+
+        const pay = () => {
+            console.log('[WheelPage] High Roller paid out', highRollerPayout.luckySpinsAwarded, 'lucky spins');
+            kotwLuckySpinsRef.current = newTotal;
+            setKotwLuckySpins(newTotal);
+            highRollerPayoutTimeoutRef.current = null;
+        };
+
+        const settledAt = highRollerResult.settledAt;
+        const dueAt = settledAt ? settledAt + revealDuration(highRollerResult.dealer?.cards?.length) : 0;
+        const waitMs = prefersCalm() ? 0 : Math.max(0, dueAt - serverNow());
+        if (waitMs <= 0) {
+            pay();
+            return;
+        }
+        clearTimeout(highRollerPayoutTimeoutRef.current);
+        highRollerPayoutTimeoutRef.current = setTimeout(pay, waitMs);
+    }, [highRoller, highRollerPayout, highRollerResult, user?.id]);
+
+    // Only on unmount. The table tearing down must NOT cancel a pending payout -
+    // it is the player's real balance, and the teardown lands after the reveal.
+    useEffect(() => () => clearTimeout(highRollerPayoutTimeoutRef.current), []);
 
 
     // Fetch items and user data
@@ -955,6 +1021,8 @@ function WheelOfFortunePage({ onBack }) {
             // scrolls, which it is already set up to do.
             gridTemplateRows: isMobile
                 ? 'auto auto auto minmax(0, 1fr)'
+                : highRoller
+                    ? 'auto auto 0px minmax(0, 1fr) 0px'
                 : roulette
                     ? 'auto auto 0.22fr auto minmax(0, 1fr)'
                     : forgeVisible
@@ -978,11 +1046,11 @@ function WheelOfFortunePage({ onBack }) {
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             // The event changes the furniture's material as well as the room.
             // Unset variables restore each surface's usual blue-hour palette.
-            '--wheel-panel-top': roulette ? '#310a12' : forgeVisible ? '#30251c' : firstBloodRoomVisible ? '#301a13' : arenaVisible ? '#102133' : undefined,
-            '--wheel-panel-bottom': roulette ? '#19050b' : forgeVisible ? '#07121c' : firstBloodRoomVisible ? '#100a08' : arenaVisible ? '#050c15' : undefined,
-            '--wheel-control-top': roulette ? '#3b131b' : undefined,
-            '--wheel-control-bottom': roulette ? '#230a11' : undefined,
-            '--wheel-surface-light': roulette ? '225,126,111' : firstBloodRoomVisible ? '216,139,90' : arenaVisible ? '214,174,100' : undefined,
+            '--wheel-panel-top': highRoller ? '#302039' : roulette ? '#310a12' : forgeVisible ? '#30251c' : firstBloodRoomVisible ? '#301a13' : arenaVisible ? '#102133' : undefined,
+            '--wheel-panel-bottom': highRoller ? '#160f1d' : roulette ? '#19050b' : forgeVisible ? '#07121c' : firstBloodRoomVisible ? '#100a08' : arenaVisible ? '#050c15' : undefined,
+            '--wheel-control-top': highRoller ? '#392940' : roulette ? '#3b131b' : undefined,
+            '--wheel-control-bottom': highRoller ? '#211728' : roulette ? '#230a11' : undefined,
+            '--wheel-surface-light': highRoller ? '209,178,116' : roulette ? '225,126,111' : firstBloodRoomVisible ? '216,139,90' : arenaVisible ? '214,174,100' : undefined,
             position: 'relative',
             overflow: isMobile ? 'hidden' : 'auto',
             boxSizing: 'border-box',
@@ -1002,6 +1070,7 @@ function WheelOfFortunePage({ onBack }) {
             <CanvasNocturneField />
             <KotwArenaAtmosphere visible={arenaVisible} />
             <FirstBloodRoom visible={firstBloodRoomVisible} />
+            {highRoller && <HighRollerAtmosphere />}
             <CommunityForgeAtmosphere visible={forgeVisible} />
 
             {/* THE PARLOUR's light, over the whole surface.
@@ -1615,6 +1684,10 @@ function WheelOfFortunePage({ onBack }) {
             {/* Insane Item Celebration */}
             <MythicCelebration currentUserId={user?.id} />
 
+            {/* The daily bounty's claim. ActivityContext decides when it shows
+                (after the winning reel lands); this only draws it. */}
+            <BountyCelebration currentUserId={user?.id} />
+
             {/* Live events — row 3, the gap between the ticker and the reel.
                 
                 The banners are unchanged: same countdowns, progress bars, counters
@@ -1713,8 +1786,27 @@ function WheelOfFortunePage({ onBack }) {
 
                 {/* What this slot says when none of the above are firing, which is
                     most of the time. It renders null during an event and during the
-                    roll, so it never shares the space with them. */}
-                <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
+                    roll, so it never shares the space with them.
+
+                    Two plinths now: the day's bounty beside the meter on a wide
+                    stage, above it on a phone. Both yield to an event on the same
+                    rule (useEventSlotBusy), so the slot still holds one kind of
+                    news at a time. The meter is the one that carries the
+                    bottom padding, so the bounty's row takes it on the phone. */}
+                {!eventSlotBusy && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: isMobile ? 'column' : 'row',
+                        justifyContent: 'center',
+                        alignItems: isMobile ? 'stretch' : 'flex-end',
+                        gap: isMobile ? `${SPACE.xs}px` : `${SPACE.sm}px`,
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isMobile ? 0 : `${SPACE.sm}px` }}>
+                            <DailyBountyPlaque isMobile={isMobile} />
+                        </div>
+                        <MilestoneMeter isMobile={isMobile} onOpen={() => setShowEventLog(true)} />
+                    </div>
+                )}
             </div>
 
             {/* Notification Center */}

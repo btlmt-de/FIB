@@ -185,6 +185,74 @@ const VOICES = {
         src.stop(at + 0.42);
     },
 
+    /**
+     * HIGH ROLLER: a card leaving the deck and landing on felt. A short
+     * high-passed swish for the slide, then a soft low tap as it lands - felt
+     * swallows the click a card would make on wood, so the tap is mostly thud.
+     */
+    hr_card(c, at) {
+        noiseHit(c, at, { freq: 5200, q: 0.7, peak: 0.12, attack: 0.012, decay: 0.09, type: 'highpass' });
+        noiseHit(c, at + 0.10, { freq: 900, q: 0.8, peak: 0.16, attack: 0.001, decay: 0.03 });
+        tone(c, at + 0.10, 150, 0.12, 0.002, 0.05);
+    },
+
+    /**
+     * One riffle of the shuffle: two half-decks' worth of corners slapping past
+     * each other - a burst of tiny ticks that speeds up and thins out - and the
+     * soft bridge as the halves square back into one deck.
+     */
+    hr_shuffle(c, at) {
+        let t = at;
+        for (let i = 0; i < 18; i++) {
+            noiseHit(c, t, { freq: 2600 + (i % 3) * 500, q: 1.2, peak: 0.06 + 0.05 * Math.sin((i / 17) * Math.PI), attack: 0.0006, decay: 0.012 });
+            t += 0.028 - i * 0.0009;
+        }
+        noiseHit(c, t + 0.05, { freq: 900, q: 0.7, peak: 0.12, attack: 0.004, decay: 0.08 });
+    },
+
+    /** The hole card turning over: a crisp paper snap, brighter than a deal. */
+    hr_flip(c, at) {
+        noiseHit(c, at, { freq: 3200, q: 1.4, peak: 0.24, attack: 0.001, decay: 0.022 });
+        noiseHit(c, at + 0.035, { freq: 1800, q: 1.0, peak: 0.12, attack: 0.001, decay: 0.03 });
+    },
+
+    /**
+     * Over 21. A falling minor third on a muted, sagging pitch with a dull thud
+     * under it - a groan rather than a buzzer, because the table's losses are
+     * house money and nobody should feel punished, only that it went wrong.
+     * Heard as the busting card lands, which is the moment the bust is shown.
+     */
+    hr_bust(c, at) {
+        noiseHit(c, at, { freq: 420, q: 0.7, peak: 0.20, attack: 0.002, decay: 0.07, type: 'lowpass' });
+        [[262, 0], [220, 0.14]].forEach(([f, off]) => {
+            const osc = c.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, at + off);
+            osc.frequency.exponentialRampToValueAtTime(f * 0.94, at + off + 0.3);
+            const g = envelope(c, at + off, 0.2, 0.01, 0.3);
+            osc.connect(g);
+            osc.start(at + off);
+            osc.stop(at + off + 0.34);
+        });
+    },
+
+    /**
+     * A natural. The win's rise, a fifth higher and carried into a held bell -
+     * the table's one fanfare, so it is allowed to be one.
+     */
+    hr_blackjack(c, at) {
+        const notes = [784, 988, 1175, 1568];
+        notes.forEach((f, i) => {
+            const when = at + i * 0.075;
+            tone(c, when, f, 0.24, 0.004, 0.22, 'triangle');
+            tone(c, when, f * 2, 0.08, 0.004, 0.14);
+        });
+        const bell = at + notes.length * 0.075;
+        tone(c, bell, 2093, 0.20, 0.004, 1.4);
+        tone(c, bell, 4186, 0.07, 0.003, 0.6);
+        tone(c, bell, 2637, 0.10, 0.004, 0.9);
+    },
+
     /** Somebody won. A three-note rise, bright and over quickly. */
     event_win(c, at) {
         const notes = [784, 988, 1319];

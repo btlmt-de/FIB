@@ -54,6 +54,19 @@ const RARE_FEED_MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
 
 /*
+ * The daily bounty's celebration: how long after the winning reel lands it
+ * waits, and how long it stays up.
+ *
+ * The beat is First Blood's and for First Blood's reason, one step removed: the
+ * bounty is a common, so no feed row is printed for it and the thing being
+ * reacted to is the reel stopping rather than the ticker. The claim is made
+ * inside the winning spin's request, so `wonAt` is the pull on the server's
+ * clock and `spinRevealDelay(wonAt)` is when that reel comes to rest.
+ */
+const BOUNTY_ANNOUNCE_BEAT_MS = 900;
+const BOUNTY_CELEBRATION_MS = 7000;
+
+/*
  * How long THE PARLOUR's table stays mounted after the ball stops.
  *
  * Measured from the result rather than from the table opening, so it is a
@@ -90,6 +103,24 @@ const ROULETTE_TEARDOWN_MS = 14200;
  * simply clears on the next tick, which is the correct answer for it.
  */
 const ROULETTE_MAX_LIFETIME_MS = 34000;
+
+/*
+ * HIGH ROLLER's two timers, the Parlour's pair one table along.
+ *
+ * TEARDOWN runs from `high_roller_result` and hands the band back to the reel.
+ * Just inside the server's HIGH_ROLLER_SETTLE_MS (14s) for the Parlour's
+ * reason: unmounting is what returns the reel, and the server's end broadcast
+ * should find the table already gone rather than the other way round. It must
+ * also outlast the reveal in effects/highRollerTimeline.js - the longest
+ * dealer hand ends at ~9.9s - with the outcome left on screen to be read.
+ *
+ * MAX_LIFETIME is the dead-man switch, measured from the open on the server's
+ * clock. The longest a table can legitimately run is the intro, the deal, the
+ * full play window and the settle - 41.5s - so this is that plus slack.
+ * Reaching it means the result never arrived.
+ */
+const HIGH_ROLLER_TEARDOWN_MS = 13000;
+const HIGH_ROLLER_MAX_LIFETIME_MS = 48000;
 
 
 export function ActivityProvider({ children }) {
@@ -186,6 +217,61 @@ export function ActivityProvider({ children }) {
     const [rouletteMyBet, setRouletteMyBetState] = useState(null);
     const [roulettePayout, setRoulettePayout] = useState(null);
 
+    /*
+     * HIGH ROLLER, split the Parlour's way.
+     *
+     *   `highRoller`        the table's fixed facts: payouts and the three
+     *                       timestamps (openedAt, actsFrom, playClosesAt). Its
+     *                       presence is what makes the event exist.
+     *   `highRollerTable`   the dealer as far as it may be seen, and every seat's
+     *                       hand. Replaced wholesale by each `high_roller_table`
+     *                       frame and by this player's own action responses.
+     *   `highRollerResult`  the turned-over dealer and every seat's payout.
+     *   `highRollerPayout`  this player's own outcome and new balance, private.
+     */
+    const [highRoller, setHighRoller] = useState(null);
+    const [highRollerTable, setHighRollerTableState] = useState(null);
+    const [highRollerResult, setHighRollerResult] = useState(null);
+    const [highRollerPayout, setHighRollerPayout] = useState(null);
+    // Read by applyHighRollerTable: an action's response can land after the
+    // result, and must not put the hole card back face down.
+    const highRollerSettledRef = useRef(false);
+
+    /*
+     * THE DAILY BOUNTY. Not a global event - it runs all day underneath them
+     * (wheel-backend services/dailyBounty.js says why) - so it has its own three
+     * pieces, split the Parlour's way:
+     *
+     *   `dailyBounty`        today's item, its reward and, once claimed, the
+     *                        winner. What the card and the strip read.
+     *   `bountyCelebration`  the claim, set only for the celebration's
+     *                        lifetime. Its presence is what shows it.
+     *   `mysteryBoxes`       this player's own unopened boxes, private (below).
+     *
+     * A claim updates `dailyBounty` at the same moment it raises the
+     * celebration, never on arrival: the broadcast leaves the server while the
+     * winner's reel is still turning, and a card reading "claimed by you" beside
+     * a wheel that has not stopped yet spoils the one pull the day was about.
+     */
+    const [dailyBounty, setDailyBounty] = useState(null);
+    const [bountyCelebration, setBountyCelebration] = useState(null);
+    const bountyRevealTimeoutRef = useRef(null);
+    const bountyClearTimeoutRef = useRef(null);
+
+    /*
+     * How many mystery boxes this player holds unopened - the bounty's prize.
+     * Private, like every balance: read from /api/bounty (which only ever
+     * reports the asker's own) and pushed by the `daily_bounty_payout` that only
+     * the winner receives.
+     *
+     * The payout is held until the celebration reveals, for the reason the
+     * celebration itself is held: the wheel turns gold the moment this goes
+     * above zero, and a reel gilding over a spin that has not landed yet would
+     * be the result arriving before the wheel said so.
+     */
+    const [mysteryBoxes, setMysteryBoxes] = useState(0);
+    const pendingBoxesRef = useRef(null);
+
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
     // The SSE reconnect's backoff state. Both live outside the effect's closure
@@ -202,6 +288,7 @@ export function ActivityProvider({ children }) {
     const firstBloodTimeoutRef = useRef(null);
     const firstBloodClearTimeoutRef = useRef(null);
     const rouletteClearTimeoutRef = useRef(null);
+    const highRollerClearTimeoutRef = useRef(null);
     const communityGoalResultTimeoutRef = useRef(null);
     const communityGoalClearTimeoutRef = useRef(null);
     const arrivalTimeoutRef = useRef(null);
@@ -372,8 +459,52 @@ export function ActivityProvider({ children }) {
                     });
                 }
             }
+            /*
+             * HIGH ROLLER, for anyone arriving mid-table - the Parlour's case
+             * exactly, and with a hand to play it matters as much. `describe`
+             * folds the table in: the dealer (up card only until the settle),
+             * every seat, and the results once there are some. The origin is
+             * `rawActivatesAt`, server milliseconds, like the Parlour's.
+             */
+            if (data?.active && data?.type === 'high_roller' && data?.data) {
+                const table = data.data;
+                setHighRoller({
+                    payouts: table.payouts,
+                    openedAt: rawActivatesAt,
+                    dealAt: table.dealAt,
+                    actsFrom: table.actsFrom,
+                    playClosesAt: table.playClosesAt,
+                    expiresAt: data.expiresAt,
+                });
+                setHighRollerTableState({ dealer: table.dealer, seats: table.seats || [] });
+                // Walked in on the reveal: show it. Nothing arms the teardown
+                // from here, which is what the dead-man switch below is for.
+                // Set either way: a table walked in on mid-hand must not inherit
+                // the previous table's settled flag, or its moves are refused.
+                highRollerSettledRef.current = !!table.results;
+                if (table.results) {
+                    setHighRollerResult({ dealer: table.dealer, results: table.results });
+                }
+            }
         } catch (e) {
             console.error('[ActivityContext] Failed to apply global event status:', e);
+        }
+    }, []);
+
+    // Today's bounty. On mount and on every return to the tab, like the event
+    // status, because the claim and the midnight rollover are both broadcasts a
+    // backgrounded tab can miss. Never while a celebration is pending: that
+    // would print the winner the celebration is still holding back.
+    const fetchDailyBounty = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/bounty`, { credentials: 'include' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (bountyRevealTimeoutRef.current) return;
+            setDailyBounty(data.bounty || null);
+            setMysteryBoxes(data.mysteryBoxes || 0);
+        } catch (e) {
+            console.error('[ActivityContext] Failed to fetch daily bounty:', e);
         }
     }, []);
 
@@ -606,6 +737,7 @@ export function ActivityProvider({ children }) {
     useEffect(() => {
         fetchActivity();
         fetchGlobalEventStatus();
+        fetchDailyBounty();
 
         const connectSSE = () => {
             if (eventSourceRef.current?.readyState === EventSource.OPEN) return;
@@ -1007,6 +1139,85 @@ export function ActivityProvider({ children }) {
                                 setRoulettePayout(data);
                                 break;
 
+                            case 'high_roller_open': {
+                                console.log('[SSE] High Roller table open:', data);
+                                if (highRollerClearTimeoutRef.current) {
+                                    clearTimeout(highRollerClearTimeoutRef.current);
+                                    highRollerClearTimeoutRef.current = null;
+                                }
+                                highRollerSettledRef.current = false;
+                                setHighRollerResult(null);
+                                setHighRollerPayout(null);
+                                setHighRollerTableState({ dealer: data.dealer, seats: data.seats || [] });
+                                setHighRoller({
+                                    payouts: data.payouts,
+                                    openedAt: data.openedAt,
+                                    dealAt: data.dealAt,
+                                    actsFrom: data.actsFrom,
+                                    playClosesAt: data.playClosesAt,
+                                    expiresAt: data.expiresAt,
+                                });
+                                /*
+                                 * No `global_event_start` for this one either, so
+                                 * the status is set here - see the long note on
+                                 * `roulette_open` for what happens when it is not.
+                                 * Not deferred behind a spin in flight, for the
+                                 * Parlour's reason: it opens a window to act in,
+                                 * and there is no result yet to spoil.
+                                 */
+                                knownEventStartRef.current = data.openedAt;
+                                const highRollerOffset = data.serverTime ? data.serverTime - Date.now() : 0;
+                                setGlobalEventStatus(prev => ({
+                                    ...prev,
+                                    active: true,
+                                    pending: false,
+                                    type: 'high_roller',
+                                    activatesAt: data.openedAt ? data.openedAt - highRollerOffset : prev.activatesAt,
+                                    expiresAt: data.expiresAt ? data.expiresAt - highRollerOffset : prev.expiresAt,
+                                }));
+                                break;
+                            }
+
+                            case 'high_roller_table':
+                                // Wholesale, as `roulette_bets`. Never after the
+                                // settle: a throttled frame landing late would turn
+                                // the hole card back over.
+                                if (!highRollerSettledRef.current) {
+                                    setHighRollerTableState({ dealer: data.dealer, seats: data.seats || [] });
+                                }
+                                break;
+
+                            case 'high_roller_result': {
+                                console.log('[SSE] High Roller result:', data);
+                                highRollerSettledRef.current = true;
+                                setHighRollerResult(data);
+                                setHighRollerTableState({ dealer: data.dealer, seats: data.results || [] });
+                                // The table settles early when everyone is done,
+                                // and the server pulls its expiry in to match.
+                                if (data.expiresAt) {
+                                    const offset = data.serverTime ? data.serverTime - Date.now() : 0;
+                                    setGlobalEventStatus(prev => (prev?.type === 'high_roller'
+                                        ? { ...prev, expiresAt: data.expiresAt - offset }
+                                        : prev));
+                                }
+                                if (highRollerClearTimeoutRef.current) {
+                                    clearTimeout(highRollerClearTimeoutRef.current);
+                                }
+                                highRollerClearTimeoutRef.current = setTimeout(() => {
+                                    setHighRoller(null);
+                                    setHighRollerTableState(null);
+                                    setHighRollerResult(null);
+                                    highRollerClearTimeoutRef.current = null;
+                                }, HIGH_ROLLER_TEARDOWN_MS);
+                                break;
+                            }
+
+                            case 'high_roller_payout':
+                                // This player's own outcome and new balance.
+                                console.log('[SSE] High Roller payout:', data);
+                                setHighRollerPayout(data);
+                                break;
+
                             case 'arrival_crate':
                                 // This player's own crate and new balance.
                                 console.log('[SSE] Arrival crate:', data);
@@ -1018,6 +1229,78 @@ export function ActivityProvider({ children }) {
                                 // new balance, so no arithmetic on this side.
                                 console.log('[SSE] Community Goal reward:', data);
                                 setCommunityGoalReward(data);
+                                break;
+
+                            case 'daily_bounty':
+                                // A new day opened (the midnight rollover, or the
+                                // first request after a server that was down over it).
+                                // Nothing to hold back - there is no pull behind it.
+                                console.log('[SSE] Daily bounty:', data.bounty);
+                                if (!bountyRevealTimeoutRef.current) {
+                                    setDailyBounty(data.bounty || null);
+                                }
+                                break;
+
+                            case 'daily_bounty_claimed': {
+                                console.log('[SSE] Daily bounty claimed:', data.bounty);
+                                const claimed = data.bounty;
+                                if (!claimed?.winner) break;
+
+                                if (bountyRevealTimeoutRef.current) {
+                                    clearTimeout(bountyRevealTimeoutRef.current);
+                                }
+                                if (bountyClearTimeoutRef.current) {
+                                    clearTimeout(bountyClearTimeoutRef.current);
+                                }
+
+                                const reveal = () => {
+                                    bountyRevealTimeoutRef.current = null;
+                                    setDailyBounty(claimed);
+                                    setBountyCelebration(claimed);
+                                    // The winner's box, held with the rest - see
+                                    // mysteryBoxes. Only the winner ever has one.
+                                    if (pendingBoxesRef.current !== null) {
+                                        setMysteryBoxes(pendingBoxesRef.current);
+                                        pendingBoxesRef.current = null;
+                                    }
+                                    bountyClearTimeoutRef.current = setTimeout(() => {
+                                        setBountyCelebration(null);
+                                        bountyClearTimeoutRef.current = null;
+                                    }, BOUNTY_CELEBRATION_MS);
+                                };
+
+                                // First Blood's two waits, for its reasons: the reel
+                                // that won it (measured from `wonAt` on the server's
+                                // clock) and this client's own wheel if it is turning.
+                                const revealAt = Date.now() + spinRevealDelay(claimed.winner.wonAt) + BOUNTY_ANNOUNCE_BEAT_MS;
+                                const revealAfterPull = () => {
+                                    const wait = revealAt - Date.now();
+                                    // Held in the ref even at zero so fetchDailyBounty
+                                    // cannot print the winner first in between.
+                                    bountyRevealTimeoutRef.current = setTimeout(reveal, Math.max(0, wait));
+                                };
+                                // Marks the reveal as pending for fetchDailyBounty's
+                                // guard while it waits on the landing, too.
+                                bountyRevealTimeoutRef.current = -1;
+                                if (spinInFlightRef.current) {
+                                    deferResultUntilLanding(revealAfterPull);
+                                } else {
+                                    revealAfterPull();
+                                }
+                                break;
+                            }
+
+                            case 'daily_bounty_payout':
+                                // This player's own box count - see mysteryBoxes. Sent
+                                // right after the claim broadcast, so the reveal is
+                                // normally still pending and picks it up; if it has
+                                // already gone up, there is nothing left to wait for.
+                                console.log('[SSE] Daily bounty payout:', data);
+                                if (bountyRevealTimeoutRef.current) {
+                                    pendingBoxesRef.current = data.mysteryBoxes ?? 0;
+                                } else {
+                                    setMysteryBoxes(data.mysteryBoxes ?? 0);
+                                }
                                 break;
 
                             case 'first_blood_result': {
@@ -1316,6 +1599,7 @@ export function ActivityProvider({ children }) {
             reconnectAttemptRef.current = 0;
             fetchActivity();
             fetchGlobalEventStatus();
+            fetchDailyBounty();
             if (eventSourceRef.current?.readyState !== EventSource.OPEN) {
                 connectSSE();
             }
@@ -1366,13 +1650,25 @@ export function ActivityProvider({ children }) {
                 clearTimeout(rouletteClearTimeoutRef.current);
                 rouletteClearTimeoutRef.current = null;
             }
+            if (highRollerClearTimeoutRef.current) {
+                clearTimeout(highRollerClearTimeoutRef.current);
+                highRollerClearTimeoutRef.current = null;
+            }
+            if (bountyRevealTimeoutRef.current) {
+                clearTimeout(bountyRevealTimeoutRef.current);
+                bountyRevealTimeoutRef.current = null;
+            }
+            if (bountyClearTimeoutRef.current) {
+                clearTimeout(bountyClearTimeoutRef.current);
+                bountyClearTimeoutRef.current = null;
+            }
             feedRevealTimeoutsRef.current.forEach(clearTimeout);
             feedRevealTimeoutsRef.current = [];
             deferredResultGuardsRef.current.forEach(clearTimeout);
             deferredResultGuardsRef.current = [];
             deferredResultRevealsRef.current = [];
         };
-    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus, deferResultUntilLanding]);
+    }, [fetchActivity, fetchRecursionStatus, fetchGlobalEventStatus, fetchDailyBounty, deferResultUntilLanding]);
 
     const clearNewItems = useCallback(() => {
         setNewItems([]);
@@ -1464,6 +1760,40 @@ export function ActivityProvider({ children }) {
         return () => clearTimeout(id);
     }, [roulette?.openedAt]);
 
+    /**
+     * This player's own action, applied from its response rather than waiting on
+     * the broadcast throttle - a card you asked for should arrive with the reply.
+     * Refused once the table has settled, for `high_roller_table`'s reason.
+     */
+    const applyHighRollerTable = useCallback((table) => {
+        if (highRollerSettledRef.current || !table) return;
+        setHighRollerTableState({ dealer: table.dealer, seats: table.seats || [] });
+    }, []);
+
+    /*
+     * HIGH ROLLER's dead-man switch - the Parlour's, for the same reason: while
+     * `highRoller` is set the band is not the reel's and spinning is refused, so
+     * a table nothing tears down is a page that needs a reload.
+     */
+    useEffect(() => {
+        const openedAt = highRoller?.openedAt;
+        if (!openedAt) return undefined;
+        const id = setTimeout(() => {
+            console.warn('[High Roller] Table outlived its timeline - clearing.');
+            if (highRollerClearTimeoutRef.current) {
+                clearTimeout(highRollerClearTimeoutRef.current);
+                highRollerClearTimeoutRef.current = null;
+            }
+            setHighRoller(null);
+            setHighRollerTableState(null);
+            setHighRollerResult(null);
+            setGlobalEventStatus(prev => (prev?.type === 'high_roller'
+                ? { ...prev, active: false, pending: false, type: null, data: null }
+                : prev));
+        }, Math.max(0, openedAt + HIGH_ROLLER_MAX_LIFETIME_MS - serverNow()));
+        return () => clearTimeout(id);
+    }, [highRoller?.openedAt]);
+
     const value = {
         feed,
         rareFeed,
@@ -1512,6 +1842,20 @@ export function ActivityProvider({ children }) {
         rouletteMyBet,
         setRouletteMyBet,
         roulettePayout,
+        // High Roller
+        highRoller,
+        highRollerTable,
+        highRollerResult,
+        highRollerPayout,
+        applyHighRollerTable,
+        // Daily bounty
+        dailyBounty,
+        bountyCelebration,
+        mysteryBoxes,
+        // Set from a box-opening spin's response, which carries the new count.
+        setMysteryBoxes,
+        // Re-read on sign-in: the box count is per player.
+        refreshDailyBounty: fetchDailyBounty,
     };
 
     return (

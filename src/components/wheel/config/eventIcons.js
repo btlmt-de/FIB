@@ -26,7 +26,7 @@
  * left to each surface to pick.
  */
 
-import { TrainFront, Crown, Crosshair, Target, CircleDot } from 'lucide-react';
+import { TrainFront, Crown, Crosshair, Target, CircleDot, Spade } from 'lucide-react';
 
 export const EVENT_ICONS = {
     arrival: TrainFront,
@@ -34,6 +34,7 @@ export const EVENT_ICONS = {
     first_blood: Crosshair,
     community_goal: Target,
     roulette: CircleDot,
+    high_roller: Spade,
 };
 
 export default EVENT_ICONS;

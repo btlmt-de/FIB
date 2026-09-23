@@ -738,6 +738,14 @@ const EVENT_TYPES = [
         // dial. A "2 minute roulette" would be 90 seconds of a locked table.
         blurb: 'Roulette. Everyone in the room gets 5 lucky spins to fold or bet on red, black or green.',
     },
+    {
+        id: 'high_roller',
+        label: 'High Roller',
+        color: '#E4C78B',
+        // Ignores the duration field like the Parlour: a 20s play window plus the
+        // dealer's reveal, and it settles early once every seat is done.
+        blurb: 'Blackjack. Everyone in the room plays one hand against the dealer. Win 30, blackjack 50, push 10.',
+    },
 ];
 
 export function AdminPanel({ onClose, allItems }) {
