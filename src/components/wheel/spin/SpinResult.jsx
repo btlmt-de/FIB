@@ -12,6 +12,7 @@ import {
     isIridescentRarity,
 } from '../../../utils/rarityHelpers.jsx';
 import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
+import { MysteryTag } from './MysteryTag.jsx';
 
 /**
  * The payoff panel: what you just won.
@@ -233,6 +234,9 @@ export function SpinResult({
                       */}
                     {resultWasRecursionSpin ? 'Recursion' : resultWasKotwLuckySpin ? 'Lucky Spin' : label}
                 </span>
+                {/* Beside the tier, never in place of it: the item keeps its
+                    own rarity colour, and the box is how it arrived. */}
+                {result.isMystery && <MysteryTag size={11} />}
                 {isNewItem && (
                     <span style={{
                         fontSize: '10px',

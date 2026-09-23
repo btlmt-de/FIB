@@ -1263,6 +1263,93 @@ function drawItem(ctx, item, x, y, size, isWinning, showRecursionEffects, images
     ctx.restore();
 }
 
+/*
+ * THE GILDED REEL - the mystery box's takeover of the band.
+ *
+ * The brief was a reel that is "golden coated", and the word doing the work is
+ * COATED: the gold is the band's material, not a colour on its tiles. Every tile
+ * on a box's reel is a special and keeps its own tier colour - a legendary is
+ * still gold, an exotic still magenta - so the gilt lives only where no tier
+ * does: the ground under the columns, the two rails, and a glint that crosses
+ * the whole surface. It is the one mode allowed to put metal on the band, and it
+ * is always the three-stop ramp (COLORS.mysteryGilt), never a flat gold, which is
+ * what keeps it from reading as legendary's #FFD700 or the chrome's #FFAA00.
+ *
+ * Three passes, because they sit at three depths:
+ *   gildedGround  the band's ground, under everything (a fill for the shared rect)
+ *   drawGildedCoat  the leaf's lustre and the rails, over the ground, under tiles
+ *   drawGildedSheen the glint, OVER the tiles, additive - a coat catches light
+ *                   across its whole surface, including where things stand on it
+ */
+const GILT_DEEP = '#150E03';
+
+function gildedGround(ctx, width, height, isMobile) {
+    // Along the travel axis, like every themed ground: dark at the ends, where
+    // the vignette takes the reel, and burnished in the middle, where it lands.
+    const g = ctx.createLinearGradient(0, 0, isMobile ? 0 : width, isMobile ? height : 0);
+    g.addColorStop(0, GILT_DEEP);
+    g.addColorStop(0.5, '#3A2708');
+    g.addColorStop(1, GILT_DEEP);
+    return g;
+}
+
+function drawGildedCoat(ctx, width, height, isMobile) {
+    const [pale, mid, deep] = COLORS.mysteryGilt;
+    ctx.save();
+
+    // The leaf's lustre across the band: pale where the light hits the top of
+    // the recess, deepening to bronze at the floor. Low alpha - it is a surface
+    // finish under the columns, and the columns are the content.
+    const lustre = ctx.createLinearGradient(0, 0, isMobile ? width : 0, isMobile ? 0 : height);
+    lustre.addColorStop(0, `${pale}1F`);
+    lustre.addColorStop(0.45, `${mid}0D`);
+    lustre.addColorStop(1, `${deep}33`);
+    ctx.fillStyle = lustre;
+    ctx.fillRect(0, 0, width, height);
+
+    // The rails: the recess's two edges, gilded. Each is the ramp run along its
+    // length, so the metal is never one flat colour anywhere on the band.
+    const rail = ctx.createLinearGradient(0, 0, isMobile ? 0 : width, isMobile ? height : 0);
+    rail.addColorStop(0, deep);
+    rail.addColorStop(0.3, mid);
+    rail.addColorStop(0.5, pale);
+    rail.addColorStop(0.7, mid);
+    rail.addColorStop(1, deep);
+    ctx.fillStyle = rail;
+    ctx.globalAlpha = 0.85;
+    if (isMobile) {
+        ctx.fillRect(0, 0, 3, height);
+        ctx.fillRect(width - 3, 0, 3, height);
+    } else {
+        ctx.fillRect(0, 0, width, 3);
+        ctx.fillRect(0, height - 3, width, 3);
+    }
+    ctx.restore();
+}
+
+function drawGildedSheen(ctx, width, height, isMobile, time) {
+    // One slow glint every ~4.2s, travelling the band's length on a skew. Off
+    // under reduced motion (the caller checks): a glint is ambience, and the
+    // gilding itself - the ground, the lustre, the rails - stays.
+    const PERIOD = 4.2;
+    const t = (time % PERIOD) / PERIOD;
+    const span = isMobile ? height : width;
+    const band = Math.max(140, span * 0.16);
+    const pos = -band + t * (span + band * 2);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = isMobile
+        ? ctx.createLinearGradient(0, pos - band, width * 0.3, pos + band)
+        : ctx.createLinearGradient(pos - band, 0, pos + band, height * 0.6);
+    g.addColorStop(0, 'rgba(255,240,184,0)');
+    g.addColorStop(0.5, 'rgba(255,240,184,0.13)');
+    g.addColorStop(1, 'rgba(255,240,184,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+}
+
 /**
  * The daily bounty's mark: an iron sight around the item, and the word.
  *
@@ -1797,6 +1884,8 @@ export function CanvasSpinningStrip({
             // Determine theme colors based on themeType or isRecursion
             const isArenaTheme = themeType === 'kotw-arena';
             const isFirstBloodTheme = themeType === 'first-blood';
+            // The daily bounty's mystery box: the band gilded. See drawGilding.
+            const isMysteryTheme = themeType === 'mystery';
             const isKotwTheme = themeType === 'kotw' || isArenaTheme;
             const isRecursionTheme = isRecursion || themeType === 'recursion';
 
@@ -1806,7 +1895,7 @@ export function CanvasSpinningStrip({
             const KOTW_SLATE_DARK = isArenaTheme ? ARENA.navy : '#0F172A';
 
             const accentColor = accentOverride || (isRecursionTheme ? COLORS.recursion : COLORS.gold);
-            const bgColor = isFirstBloodTheme ? '#160B09' : isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
+            const bgColor = isMysteryTheme ? GILT_DEEP : isFirstBloodTheme ? '#160B09' : isKotwTheme ? KOTW_SLATE_DARK : (isRecursionTheme ? COLORS.recursionDark : COLORS.bg);
 
             // Pre-compute hexToRgb once per frame instead of per-item
             const accentRgb = hexToRgb(accentColor);
@@ -1815,7 +1904,10 @@ export function CanvasSpinningStrip({
             ctx.clearRect(0, 0, width, height);
 
             // Background
-            if (isRecursionTheme || isKotwTheme || isFirstBloodTheme) {
+            if (isMysteryTheme) {
+                // Sets the fill; the shared fillRect below lays it down.
+                ctx.fillStyle = gildedGround(ctx, width, height, isMobile);
+            } else if (isRecursionTheme || isKotwTheme || isFirstBloodTheme) {
                 // Themed background
                 const bgGradient = ctx.createLinearGradient(
                     isMobile ? 0 : 0,
@@ -1852,6 +1944,10 @@ export function CanvasSpinningStrip({
                 ctx.fillStyle = bgGradient;
             }
             ctx.fillRect(0, 0, width, height);
+
+            if (isMysteryTheme) {
+                drawGildedCoat(ctx, width, height, isMobile);
+            }
 
             // Warm metal edging around the item recess, on either reel axis.
             if (isFirstBloodTheme) {
@@ -2005,6 +2101,12 @@ export function CanvasSpinningStrip({
             }
 
             ctx.restore();
+
+            // The coat catching the light, over the tiles as well as the band -
+            // it is the surface that is gilded, so the glint crosses everything.
+            if (isMysteryTheme && !calm) {
+                drawGildedSheen(ctx, width, height, isMobile, time);
+            }
 
             // Motion blur (rendered at z-index 4 equivalent)
             if (motionIntensity > 0.1) {

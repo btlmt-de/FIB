@@ -147,6 +147,21 @@ export const COLORS = {
     // as white. What carries the identity is the SHAPE - a reticle and a word -
     // and the hue only has to stay out of the way of everything else.
     bounty: '#FFF1D6',
+
+    // ── The mystery box: gilt ─────────────────────────────────────────────────
+    // What the bounty pays, and the one thing on this surface allowed to turn
+    // the whole reel gold (the owner's brief: "golden coated"). Gold is already
+    // spent twice - legendary's #FFD700 and the chrome's #FFAA00 - so the box is
+    // never painted flat: it is gilt, a METAL, a three-stop ramp from pale leaf
+    // through deep gold to bronze, and it always travels. A flat legendary tile
+    // on a gilded band still reads as a legendary because it is a flat colour on
+    // a moving metal, not the same colour twice.
+    //
+    // `mystery` is the ramp's middle stop, for the few places that cannot take a
+    // gradient (a canvas shadow, a border). The tiles on a gilded reel keep their
+    // own tier colours throughout - the box is the band's coat, never an item's.
+    mystery: '#F2C14E',
+    mysteryGilt: ['#FFF0B8', '#F2C14E', '#B7791F', '#FFF0B8'],
 };
 
 /**

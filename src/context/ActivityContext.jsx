@@ -246,7 +246,7 @@ export function ActivityProvider({ children }) {
      *                        winner. What the card and the strip read.
      *   `bountyCelebration`  the claim, set only for the celebration's
      *                        lifetime. Its presence is what shows it.
-     *   `bountyPayout`       this player's own new balance, private.
+     *   `mysteryBoxes`       this player's own unopened boxes, private (below).
      *
      * A claim updates `dailyBounty` at the same moment it raises the
      * celebration, never on arrival: the broadcast leaves the server while the
@@ -255,9 +255,22 @@ export function ActivityProvider({ children }) {
      */
     const [dailyBounty, setDailyBounty] = useState(null);
     const [bountyCelebration, setBountyCelebration] = useState(null);
-    const [bountyPayout, setBountyPayout] = useState(null);
     const bountyRevealTimeoutRef = useRef(null);
     const bountyClearTimeoutRef = useRef(null);
+
+    /*
+     * How many mystery boxes this player holds unopened - the bounty's prize.
+     * Private, like every balance: read from /api/bounty (which only ever
+     * reports the asker's own) and pushed by the `daily_bounty_payout` that only
+     * the winner receives.
+     *
+     * The payout is held until the celebration reveals, for the reason the
+     * celebration itself is held: the wheel turns gold the moment this goes
+     * above zero, and a reel gilding over a spin that has not landed yet would
+     * be the result arriving before the wheel said so.
+     */
+    const [mysteryBoxes, setMysteryBoxes] = useState(0);
+    const pendingBoxesRef = useRef(null);
 
     const isVisibleRef = useRef(true);
     const eventSourceRef = useRef(null);
@@ -487,6 +500,7 @@ export function ActivityProvider({ children }) {
             const data = await res.json();
             if (bountyRevealTimeoutRef.current) return;
             setDailyBounty(data.bounty || null);
+            setMysteryBoxes(data.mysteryBoxes || 0);
         } catch (e) {
             console.error('[ActivityContext] Failed to fetch daily bounty:', e);
         }
@@ -1241,6 +1255,12 @@ export function ActivityProvider({ children }) {
                                     bountyRevealTimeoutRef.current = null;
                                     setDailyBounty(claimed);
                                     setBountyCelebration(claimed);
+                                    // The winner's box, held with the rest - see
+                                    // mysteryBoxes. Only the winner ever has one.
+                                    if (pendingBoxesRef.current !== null) {
+                                        setMysteryBoxes(pendingBoxesRef.current);
+                                        pendingBoxesRef.current = null;
+                                    }
                                     bountyClearTimeoutRef.current = setTimeout(() => {
                                         setBountyCelebration(null);
                                         bountyClearTimeoutRef.current = null;
@@ -1269,9 +1289,16 @@ export function ActivityProvider({ children }) {
                             }
 
                             case 'daily_bounty_payout':
-                                // This player's own new balance - see bountyPayout.
+                                // This player's own box count - see mysteryBoxes. Sent
+                                // right after the claim broadcast, so the reveal is
+                                // normally still pending and picks it up; if it has
+                                // already gone up, there is nothing left to wait for.
                                 console.log('[SSE] Daily bounty payout:', data);
-                                setBountyPayout(data);
+                                if (bountyRevealTimeoutRef.current) {
+                                    pendingBoxesRef.current = data.mysteryBoxes ?? 0;
+                                } else {
+                                    setMysteryBoxes(data.mysteryBoxes ?? 0);
+                                }
                                 break;
 
                             case 'first_blood_result': {
@@ -1822,7 +1849,11 @@ export function ActivityProvider({ children }) {
         // Daily bounty
         dailyBounty,
         bountyCelebration,
-        bountyPayout,
+        mysteryBoxes,
+        // Set from a box-opening spin's response, which carries the new count.
+        setMysteryBoxes,
+        // Re-read on sign-in: the box count is per player.
+        refreshDailyBounty: fetchDailyBounty,
     };
 
     return (

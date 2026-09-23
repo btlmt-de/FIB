@@ -6,6 +6,7 @@ import { RARITY, RARITY_KEYS, getRarityIcon, getRarityColor, getRarityInk } from
 import { prestigeStanding } from '../../../utils/prestigeHelpers.js';
 import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
+import { MysteryTag } from '../spin/MysteryTag.jsx';
 
 // Format exact timestamp for Mythic & Insane tab
 function formatExactTime(dateStr) {
@@ -477,7 +478,7 @@ export function ActivityFeedSidebar() {
                                         }}>
                                             {item.item_name}
                                         </span>
-                                        {item.is_lucky === 1 && (
+                                        {item.is_mystery === 1 ? <MysteryTag size={9} /> : item.is_lucky === 1 && (
                                             <span style={{
                                                 fontSize: '9px',
                                                 background: 'linear-gradient(135deg, #00440033, #00FF0022)',

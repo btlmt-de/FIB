@@ -8,6 +8,7 @@ import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { Trophy, Sparkles } from 'lucide-react';
 import { AchievementIcon } from '../../../utils/achievementIcons.jsx';
+import { MysteryTag } from '../spin/MysteryTag.jsx';
 
 // Achievement category colors (matching Achievements.jsx)
     const ACHIEVEMENT_CATEGORY_COLORS = {
@@ -386,7 +387,7 @@ export function LiveActivityToast() {
                                 </span>
                             </div>
                             {/* Lucky Spin Banner */}
-                            {toast.is_lucky === 1 && (
+                            {toast.is_mystery === 1 ? <div style={{ marginTop: '6px' }}><MysteryTag size={11} /></div> : toast.is_lucky === 1 && (
                                 <div style={{
                                     display: 'flex',
                                     alignItems: 'center',

@@ -130,7 +130,50 @@
     to { transform: translateX(100%); }
 }
 
+/* ── The mystery box: gilt ───────────────────────────────────────────────────
+ * The box's metal, per COLORS.mysteryGilt: always the ramp, never a flat gold,
+ * and it drifts, because metal catches moving light. `--gilt-*` are set inline
+ * from the token, so there is still one source for the three stops. */
+
+.fib-gilt-text {
+    background: linear-gradient(100deg, var(--gilt-pale), var(--gilt-mid) 45%, var(--gilt-deep) 70%, var(--gilt-pale));
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: fibGiltDrift 3.6s linear infinite;
+}
+
+.fib-mystery-box {
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--gilt-pale), var(--gilt-mid) 38%, var(--gilt-deep) 62%, var(--gilt-mid) 82%, var(--gilt-pale));
+    background-size: 240% 240%;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        /* The block's underside, as a soft shade rather than a hard 3px edge:
+           depth without drawing a one-sided border on it. */
+        inset 0 -10px 16px -12px rgba(58, 39, 8, 0.7),
+        0 10px 30px rgba(242, 193, 78, 0.28);
+    animation: fibGiltDrift 3.6s linear infinite, fibBoxSettle 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fibGiltDrift {
+    from { background-position: 0% 50%; }
+    to   { background-position: 220% 50%; }
+}
+/* Arrives once, from a little below, and then holds: geometry moves exactly once. */
+@keyframes fibBoxSettle {
+    from { transform: translateY(10px) scale(0.92); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+    /* The metal stays a gradient - frozen, never flattened. */
+    .fib-gilt-text,
+    .fib-mystery-box { animation: none; }
     .fib-bounty-sight.is-locking > i,
     .fib-bounty-flash { animation: none; }
     .fib-bounty-flash { display: none; }

@@ -183,7 +183,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
         roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout,
         highRoller, highRollerTable, highRollerResult, highRollerPayout, applyHighRollerTable,
-        dailyBounty } = useActivity();
+        dailyBounty, mysteryBoxes, setMysteryBoxes } = useActivity();
+    const mysteryBoxesRef = useRef(mysteryBoxes);
+    mysteryBoxesRef.current = mysteryBoxes;
 
     /*
      * Today's bounty while it is still open, as the strip needs it: the pool's
@@ -417,6 +419,26 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Recursion active state - derived from ActivityContext
     const recursionActive = recursionStatus?.active || false;
     const recursionSpinsRemaining = recursionStatus?.userSpinsRemaining ?? 0;
+
+    /*
+     * THE MYSTERY BOX - the daily bounty's prize (wheel-backend
+     * services/dailyBounty.js). While a player holds one, the wheel is gilded and
+     * their next spin opens it on a reel of nothing but specials.
+     *
+     * Held back, not spent, while anything else owns the moment: a global event
+     * (a box pull scores for none of them, so opening one mid-KOTW would silently
+     * cost the player a scoring spin) or a recursion window (whose sixty seconds a
+     * box would eat). The box waits; it does not expire. `boxReadyRef` is what
+     * performSpin reads, so a click decides against the state it was made in.
+     */
+    const boxReady = !!user && mysteryBoxes > 0
+        && !globalEventStatus?.active && !globalEventStatus?.pending
+        && !(recursionActive && recursionSpinsRemaining > 0);
+    const boxReadyRef = useRef(boxReady);
+    boxReadyRef.current = boxReady;
+    const currentSpinIsMysteryRef = useRef(false);
+    const [currentSpinIsMystery, setCurrentSpinIsMystery] = useState(false);
+    const pendingMysteryBoxesRef = useRef(null);
 
     // Track if the CURRENT RESULT was from a recursion lucky spin
     // This persists during result display even after user runs out of spins
@@ -690,10 +712,14 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Built once per pool rather than per render: `buildStrip` shuffles, so
     // rebuilding it on every render would make the dormant reel flicker between
     // different items every frame.
+    // A player holding a mystery box sees the box's own reel at rest: the gilded
+    // band full of specials is the invitation, before a word of copy says so.
     const dormantStrip = useMemo(
-        () => (allItems.length ? buildStrip(allItems[0]) : []),
+        () => (allItems.length
+            ? (boxReady ? buildMysteryStrip(null) : buildStrip(allItems[0]))
+            : []),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [allItems.length, openBounty],
+        [allItems.length, openBounty, boxReady],
     );
 
     // The drift itself. Writes the same ref the spin animation writes, so the two
@@ -754,6 +780,42 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         if (item.texture !== bounty.texture) return item;
         if (item.type && item.type !== 'regular') return item;
         return { ...item, isBounty: true };
+    }
+
+    /*
+     * The mystery box's reel: every tile a special, drawn at EQUAL odds per item,
+     * because that is exactly what the box is - the server rolls one special
+     * uniformly (services/dailyBounty.js openBox). The ordinary strip's bands
+     * would be a lie here; this one is an honest picture of the box's contents,
+     * so an insane goes past about as often as it can come out: one tile in 37.
+     *
+     * Same item shapes and flags buildStrip gives each tier, so the canvas draws
+     * every tile in its own tier colour on the gilded band. Decoration, like the
+     * other strip: the winner at FINAL_INDEX is the server's.
+     */
+    function buildMysteryStrip(finalItem, length = STRIP_LENGTH) {
+        const contents = [
+            ...INSANE_ITEMS.map(i => ({ ...i, isInsane: true })),
+            ...MYTHIC_ITEMS.map(i => ({ ...i, isMythic: true })),
+            ...TEAM_MEMBERS.map(m => ({
+                ...m,
+                isSpecial: true,
+                texture: m.username ? `special_${m.username}` : m.name.toLowerCase().replace(/\s+/g, '_'),
+            })),
+            ...RELIC_ITEMS.map(i => ({ ...i, isRelic: true })),
+            ...EXOTIC_ITEMS.map(i => ({ ...i, isExotic: true })),
+            ...RARE_MEMBERS.map(r => ({ ...r, isRare: true, texture: `rare_${r.username}` })),
+        ];
+        if (contents.length === 0) return buildStrip(finalItem || allItems[0], length);
+
+        const newStrip = [];
+        for (let i = 0; i < length; i++) {
+            // No winner for the dormant reel: every slot is the box's contents.
+            newStrip.push(i === FINAL_INDEX && finalItem
+                ? finalItem
+                : contents[Math.floor(Math.random() * contents.length)]);
+        }
+        return newStrip;
     }
 
     function buildStrip(finalItem, length = STRIP_LENGTH) {
@@ -945,9 +1007,18 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // when the event ends, so every lucky spin is spent afterwards. This used to also
         // require an active event and only looked right because the client never learned
         // that events had ended, leaving `active` stuck at true.
+        // A held mystery box takes this spin ahead of everything else it could be.
+        // Decided once, here, against the state the click was made in; the reel,
+        // the endpoint and the theme all read this one answer for the whole spin.
+        const opensBox = boxReadyRef.current;
+        currentSpinIsMysteryRef.current = opensBox;
+        setCurrentSpinIsMystery(opensBox);
+        if (opensBox) currentSpinIsRecursionRef.current = false;
+
         const currentKotwSpins = kotwLuckySpinsRef?.current ?? kotwLuckySpins;
         const isKotwEventActive = globalEventStatus?.type === 'king_of_wheel' && globalEventStatus?.active;
-        const willUseKotwLucky = !currentSpinIsRecursionRef.current && currentKotwSpins > 0;
+        // Opening a box spends no lucky spin - the server never looks at the balance.
+        const willUseKotwLucky = !opensBox && !currentSpinIsRecursionRef.current && currentKotwSpins > 0;
         currentSpinIsKotwLuckyRef.current = willUseKotwLucky;
 
         // Set state for KOTW spin - this triggers re-render with correct styling
@@ -967,6 +1038,12 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                 onKotwLuckySpinsUpdate(pendingKotwLuckySpinsRef.current);
             }
             pendingKotwLuckySpinsRef.current = null;
+            // The box count too, on the same rule: the gilding comes off when
+            // the reel lands, not while it is still turning.
+            if (pendingMysteryBoxesRef.current !== null) {
+                setMysteryBoxes(pendingMysteryBoxesRef.current);
+            }
+            pendingMysteryBoxesRef.current = null;
         };
 
         // Helper to flush KOTW pending state on any exit path
@@ -1028,7 +1105,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             // IMMEDIATELY build a placeholder strip and start animation
             // This makes the wheel feel instant - no waiting for API
             const placeholderItem = allItems[Math.floor(Math.random() * allItems.length)];
-            const placeholderStrip = buildStrip(placeholderItem);
+            // A box's reel is the box's contents from the first frame; the winner
+            // is swapped into FINAL_INDEX when the server answers, as ever.
+            const placeholderStrip = opensBox ? buildMysteryStrip(null) : buildStrip(placeholderItem);
             setStrip(placeholderStrip);
             offsetRef.current = 0;
             canvasOffsetRef.current = 0;
@@ -1051,7 +1130,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             // Make API call in parallel with animation
             const apiCall = (async () => {
                 try {
-                    const res = await fetch(`${API_BASE_URL}/api/spin`, {
+                    const res = await fetch(`${API_BASE_URL}${opensBox ? '/api/spin/mystery' : '/api/spin'}`, {
                         method: 'POST',
                         credentials: 'include',
                         signal: controller.signal
@@ -1069,7 +1148,15 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     // saying it had. Without this you can spin through a whole King of the
                     // Wheel, scoring on the server's leaderboard the entire time, and never
                     // see the event. Recovery only; see recoverGlobalEventStatus.
+                    // (A box opening carries none, and this tolerates that.)
                     recoverGlobalEventStatus(spinResult.globalEventStatus);
+
+                    // The box count the server reports after this open, held for the
+                    // landing like the lucky-spin balance. A 403 means the box was
+                    // already gone - another tab opened it - so the count is 0.
+                    if (opensBox) {
+                        pendingMysteryBoxesRef.current = res.status === 403 ? 0 : (spinResult.mysteryBoxes ?? null);
+                    }
 
                     // Handle rate limit / cooldown
                     if (res.status === 429 || spinResult.cooldown) {
@@ -1125,7 +1212,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         isRare: spinResult.result.type === 'rare',
                         isMythic: spinResult.result.type === 'mythic',
                         isEvent: spinResult.result.type === 'event',
-                        isRecursion: spinResult.result.type === 'recursion'
+                        isRecursion: spinResult.result.type === 'recursion',
+                        // Out of the box: the result panels print MYSTERY for it.
+                        isMystery: !!spinResult.isMystery,
                     };
 
                     // Check again before updating state
@@ -1710,7 +1799,15 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Use state variable which is set at spin start for immediate effect
     const showSpinKotwLuckyEffects = (state === 'spinning' || state === 'result')
         ? currentSpinIsKotwLucky
-        : (!showSpinRecursionEffects && kotwLuckySpins > 0);
+        : (!showSpinRecursionEffects && !boxReady && kotwLuckySpins > 0);
+
+    // The gilded reel: while a box waits at rest, and through the spin that opens
+    // it and its result. Outranks the lucky themes because the box is what the
+    // next spin will actually be; yields only to an event's own takeover, which
+    // boxReady already refuses to open over.
+    const showMysteryEffects = (state === 'spinning' || state === 'result')
+        ? currentSpinIsMystery
+        : (state === 'idle' && boxReady);
 
     // Combined flag for any lucky spin effects (for shared logic like equal odds)
     const showAnySpinLuckyEffects = showSpinRecursionEffects || showSpinKotwLuckyEffects;
@@ -1795,7 +1892,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         && (globalEventStatus?.type !== 'king_of_wheel' || landedKotwPoints.expiresAt === globalEventStatus.expiresAt)
         ? landedKotwPoints.points : null;
 
-    const bandAccent = arenaVisible ? ARENA.gold : showSpinRecursionEffects
+    const bandAccent = arenaVisible ? ARENA.gold : showMysteryEffects ? COLORS.mystery : showSpinRecursionEffects
         ? COLORS.recursion
         : showSpinKotwLuckyEffects
             ? KOTW_GOLD
@@ -1824,7 +1921,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // The band's two rules, tinted per state. The old borderBlock computed the
     // same ternary inline; it is hoisted because the rules are now overlays
     // painted in two places instead of one border property.
-    const ruleColor = arenaVisible ? `${ARENA.gold}99` : showSpinRecursionEffects
+    const ruleColor = arenaVisible ? `${ARENA.gold}99` : showMysteryEffects ? `${COLORS.mystery}88` : showSpinRecursionEffects
         ? `${COLORS.recursion}40`
         : showSpinKotwLuckyEffects
             ? `${KOTW_CRIMSON}50`
@@ -1875,7 +1972,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         setPrestigePull(null);
     }, [tableOwnsReel, state]);
 
-    const consoleColor = arenaVisible ? ARENA.ink : state === 'recursion' ? COLORS.recursion
+    const consoleColor = arenaVisible ? ARENA.ink : showMysteryEffects ? COLORS.mystery : state === 'recursion' ? COLORS.recursion
         : state === 'event' || state === 'bonusWheel' || state === 'bonusResult' ? COLORS.orange
             : state === 'luckySpinning' || state === 'luckyResult' || state === 'tripleLuckySpinning' || state === 'tripleLuckyResult' ? COLORS.green
                 : showSpinRecursionEffects ? COLORS.recursion
@@ -1974,6 +2071,11 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         // the sides, like the canvas's own machined edges.
                         background: highRollerOwnsReel ? 'transparent' : parlourOwnsReel
                             ? 'linear-gradient(180deg, #350a13 0%, #26060e 44%, #180409 100%)'
+                            : showMysteryEffects
+                            // The box's gilded deck, the canvas's GILT_DEEP ramp
+                            // carried out to the band's DOM ground so the two
+                            // never show a seam between them.
+                            ? 'linear-gradient(180deg, #2a1c05 0%, #3a2708 46%, #150e03 100%)'
                             : showSpinRecursionEffects
                             ? 'linear-gradient(180deg, #0a150a 0%, #12240e 46%, #0a150a 100%)'
                             : showSpinKotwLuckyEffects
@@ -2161,7 +2263,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                             : 'none',
                                 }}>
                                 {state === 'spinning' ? (
-                                        showSpinRecursionEffects ? 'Lucky Spinning...'
+                                        showMysteryEffects ? 'Opening the box...'
+                                        : showSpinRecursionEffects ? 'Lucky Spinning...'
                                             : showSpinKotwLuckyEffects ? 'Event Lucky Spin...'
                                                 : 'Spinning...'
                                     ) :
@@ -2175,8 +2278,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                                                 state === 'luckyResult' ? 'Lucky Win!' :
                                                                     state === 'tripleLuckySpinning' ? '3x Lucky Spinning...' :
                                                                         state === 'tripleLuckyResult' ? '3x Lucky Win!' :
-                                                                            state === 'idle' ? (highRollerOwnsReel ? (highRollerResult ? 'High Roller · Table settled' : 'High Roller · Jimbo’s table') : firstBloodVisible ? 'First Blood is on the line' : arenaVisible ? 'The crown is in play' : 'Ready to spin') :
-                                                                                (firstBloodVisible ? 'Your latest pull' : arenaVisible ? 'Points on the board' : 'Gamba!')}
+                                                                            state === 'idle' ? (highRollerOwnsReel ? (highRollerResult ? 'High Roller · Table settled' : 'High Roller · Jimbo’s table') : firstBloodVisible ? 'First Blood is on the line' : arenaVisible ? 'The crown is in play' : showMysteryEffects ? 'Mystery box · spin to open' : 'Ready to spin') :
+                                                                                (firstBloodVisible ? 'Your latest pull' : arenaVisible ? 'Points on the board' : showMysteryEffects ? 'Out of the box!' : 'Gamba!')}
                             </span>
                             </div>
 
@@ -2741,8 +2844,8 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                     isResult={state === 'result' || state === 'event' || state === 'luckyResult'}
                                     spinProgress={spinProgress}
                                     isRecursion={showSpinRecursionEffects}
-                                    themeType={arenaVisible ? 'kotw-arena' : showSpinKotwLuckyEffects ? 'kotw' : firstBloodVisible && !showSpinRecursionEffects && !isLuckyMode ? 'first-blood' : null}
-                                    accentColor={arenaVisible ? ARENA.gold : showSpinKotwLuckyEffects ? KOTW_GOLD : showSpinRecursionEffects ? COLORS.recursion : isLuckyMode ? COLORS.green : firstBloodVisible ? '#D65B45' : eventAccent || null}
+                                    themeType={arenaVisible ? 'kotw-arena' : showMysteryEffects ? 'mystery' : showSpinKotwLuckyEffects ? 'kotw' : firstBloodVisible && !showSpinRecursionEffects && !isLuckyMode ? 'first-blood' : null}
+                                    accentColor={arenaVisible ? ARENA.gold : showMysteryEffects ? COLORS.mystery : showSpinKotwLuckyEffects ? KOTW_GOLD : showSpinRecursionEffects ? COLORS.recursion : isLuckyMode ? COLORS.green : firstBloodVisible ? '#D65B45' : eventAccent || null}
                                     // Neither axis is fixed on a phone any more:
                                     // the shaft fills its mount and the canvas
                                     // measures its own box, the way the desktop
@@ -2995,6 +3098,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                 recursionActive={recursionActive}
                                 recursionSpinsRemaining={recursionSpinsRemaining}
                                 kotwLuckySpins={kotwLuckySpins}
+                                mysteryBox={boxReady}
                                 error={error}
                                 onSpin={spin}
                                 isMobile={isMobile}

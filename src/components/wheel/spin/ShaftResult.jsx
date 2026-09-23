@@ -11,6 +11,7 @@ import {
     isIridescentRarity,
 } from '../../../utils/rarityHelpers.jsx';
 import { PrestigeFlag, PrestigeCount } from './PrestigeFlag.jsx';
+import { MysteryTag } from './MysteryTag.jsx';
 
 /**
  * The phone's payoff: the winning row grows into the answer.
@@ -174,6 +175,7 @@ export function ShaftResult({ result, isNewItem, prestigePull, collection, cente
                 >
                     {(RARITY[rarity] || RARITY.common).label}
                 </span>
+                {result.isMystery && <MysteryTag />}
                 {isNewItem && (
                     <span style={{
                         fontSize: '10px',

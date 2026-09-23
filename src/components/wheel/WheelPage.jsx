@@ -361,7 +361,7 @@ function WheelOfFortunePage({ onBack }) {
         kotwWinner, firstBloodWinner, communityGoalReward, communityGoalResult,
         arrival, arrivalCrate, roulette, roulettePayout, rouletteResult, globalEventStatus,
         highRoller, highRollerPayout, highRollerResult,
-        bountyCelebration, bountyPayout,
+        refreshDailyBounty,
     } = useActivity();
     const [arenaVisible, setArenaVisible] = useState(false);
     const [firstBloodRoomVisible, setFirstBloodRoomVisible] = useState(false);
@@ -648,30 +648,13 @@ function WheelOfFortunePage({ onBack }) {
 
     useEffect(() => () => clearTimeout(parlourPayoutTimeoutRef.current), []);
 
-    /*
-     * The daily bounty's payout, applied when the celebration goes up and not
-     * when the private payout arrives - the Parlour's rule, because the payout
-     * leaves the server inside the winning spin, while that reel is still turning.
-     *
-     * Won through /api/spin this is usually a no-op: that response carries the
-     * post-award balance and the wheel applies it on landing, a beat before the
-     * celebration. /api/spin/lucky carries no balance at all, so a bounty landed
-     * on a lucky spin is only ever paid into the counter from here.
-     */
-    const processedBountyRef = useRef(null);
+    // The daily bounty's box count is per player, and ActivityContext first reads
+    // it before anyone has signed in - so read it again whenever who is signed in
+    // changes. (The bounty used to pay lucky spins, applied from here on the
+    // celebration; it pays a box now, and ActivityContext holds that itself.)
     useEffect(() => {
-        if (!bountyCelebration || !bountyPayout || !user?.id) return;
-        if (bountyCelebration.winner?.userId !== user.id) return;
-        if (bountyPayout.day !== bountyCelebration.day) return;
-        if (processedBountyRef.current === bountyCelebration.day) return;
-        processedBountyRef.current = bountyCelebration.day;
-
-        if (typeof bountyPayout.luckySpinsTotal === 'number') {
-            console.log('[WheelPage] Daily bounty paid out', bountyPayout.luckySpinsAwarded, 'lucky spins');
-            kotwLuckySpinsRef.current = bountyPayout.luckySpinsTotal;
-            setKotwLuckySpins(bountyPayout.luckySpinsTotal);
-        }
-    }, [bountyCelebration, bountyPayout, user?.id]);
+        refreshDailyBounty();
+    }, [user?.id, refreshDailyBounty]);
 
     /*
      * HIGH ROLLER's payout into the lucky-spin pool, held until the reveal ends.

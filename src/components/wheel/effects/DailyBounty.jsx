@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Gift } from 'lucide-react';
 import { COLORS, SPACE, SURFACE_NOISE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { getDiscordAvatarUrl, getItemImageUrl } from '../../../utils/helpers.js';
@@ -22,7 +23,12 @@ import './DailyBounty.css';
  * See that token's note for why the bounty takes no hue of its own.
  */
 
-const bountyVar = { '--bounty': COLORS.bounty };
+const bountyVar = {
+    '--bounty': COLORS.bounty,
+    '--gilt-pale': COLORS.mysteryGilt[0],
+    '--gilt-mid': COLORS.mysteryGilt[1],
+    '--gilt-deep': COLORS.mysteryGilt[2],
+};
 
 /** "4h 12m", "38m", "under a minute" - to the next UTC midnight. */
 function formatLeft(ms) {
@@ -57,6 +63,19 @@ function Sight({ texture, name, size, claimed = false, locking = false }) {
 }
 
 /**
+ * The box, closed: a gilt block with the gift mark cut into it. The gilt is the
+ * ramp, drifting (fib-mystery-box in DailyBounty.css), because the box's metal
+ * is never flat - see COLORS.mysteryGilt.
+ */
+function MysteryBoxGlyph({ size }) {
+    return (
+        <span className="fib-mystery-box" style={{ width: size, height: size }} aria-hidden="true">
+            <Gift size={Math.round(size * 0.5)} strokeWidth={1.6} color="#3A2708" />
+        </span>
+    );
+}
+
+/**
  * The plaque, in the banner slot beside the milestone meter.
  *
  * It shares that slot's one rule: when an event owns the slot, this steps aside
@@ -78,11 +97,12 @@ export function DailyBountyPlaque({ isMobile }) {
     const claimed = !!dailyBounty.winner;
     const left = formatLeft(Date.parse(dailyBounty.endsAt) - serverNow());
     const winnerName = dailyBounty.winner?.username || 'someone';
-    const reward = `+${dailyBounty.reward} lucky spins`;
+    // The prize is a mystery box, and the word is the gilt one on this plaque.
+    const reward = 'a mystery box';
 
     const title = claimed
-        ? `Today's bounty was ${dailyBounty.name}, claimed by ${winnerName}. A new bounty is drawn at 00:00 UTC, in ${left}.`
-        : `Today's bounty: the first player to pull ${dailyBounty.name} wins ${dailyBounty.reward} lucky spins. It is an ordinary common - every spin has the same chance at it. Resets at 00:00 UTC, in ${left}.`;
+        ? `Today's bounty was ${dailyBounty.name}, claimed by ${winnerName}${dailyBounty.box ? `, whose mystery box held ${dailyBounty.box.name}` : ''}. A new bounty is drawn at 00:00 UTC, in ${left}.`
+        : `Today's bounty: the first player to pull ${dailyBounty.name} wins a mystery box: one special item, every special at equal odds. The bounty itself is an ordinary common - every spin has the same chance at it. Resets at 00:00 UTC, in ${left}.`;
 
     const plinth = {
         ...bountyVar,
@@ -109,7 +129,7 @@ export function DailyBountyPlaque({ isMobile }) {
                     {claimed ? winnerName : dailyBounty.name}
                 </span>
                 <span style={{ fontSize: '11px', color: COLORS.textMuted, whiteSpace: 'nowrap' }}>
-                    {claimed ? `new in ${left}` : `+${dailyBounty.reward}`}
+                    {claimed ? `new in ${left}` : 'box'}
                 </span>
             </div>
         );
@@ -146,8 +166,8 @@ export function DailyBountyPlaque({ isMobile }) {
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                     {claimed
-                        ? <>by <span style={{ color: COLORS.text, fontWeight: 700 }}>{winnerName}</span></>
-                        : <>first to pull it · <span style={{ color: COLORS.bounty, fontWeight: 700 }}>{reward}</span></>}
+                        ? <>by <span style={{ color: COLORS.text, fontWeight: 700 }}>{winnerName}</span>{dailyBounty.box && <> · box held <span style={{ color: COLORS.text }}>{dailyBounty.box.name}</span></>}</>
+                        : <>first to pull it wins <span style={{ color: COLORS.mystery, fontWeight: 700 }}>{reward}</span></>}
                 </span>
             </div>
         </div>
@@ -188,7 +208,8 @@ export function BountyCelebration({ currentUserId }) {
         backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
         boxShadow: [
             'inset 0 1px 0 rgba(206,214,236,0.12)',
-            `inset 0 0 0 1px ${COLORS.bounty}33`,
+            // The winner's card is the box's, so its hairline is the gilt.
+            `inset 0 0 0 1px ${mine ? `${COLORS.mystery}66` : `${COLORS.bounty}33`}`,
             '0 18px 50px rgba(0,0,0,0.55)',
         ].join(', '),
     };
@@ -204,17 +225,20 @@ export function BountyCelebration({ currentUserId }) {
             >
                 <div style={{ ...card, padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
                     <span className="fib-bounty-eyebrow" style={{ color: COLORS.bounty }}>
-                        You claimed today's bounty
+                        You claimed today's bounty · {bountyCelebration.name}
                     </span>
-                    <Sight texture={bountyCelebration.texture} name={bountyCelebration.name} size={104} locking />
-                    <strong style={{ fontSize: '22px', fontWeight: 800, color: COLORS.text, lineHeight: 1.2 }}>
-                        {bountyCelebration.name}
+                    {/* The box itself, closed. What is in it is decided when it
+                        is opened, not now - see services/dailyBounty.js - so the
+                        card shows the box and the reel does the reveal. */}
+                    <MysteryBoxGlyph size={112} />
+                    <strong className="fib-gilt-text" style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1.1, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        Mystery box
                     </strong>
-                    <span style={{ fontSize: '28px', fontWeight: 800, color: COLORS.bounty, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
-                        +{bountyCelebration.reward} lucky spins
+                    <span style={{ fontSize: '14px', color: COLORS.text }}>
+                        One special - any of them, every one at equal odds.
                     </span>
                     <span style={{ fontSize: '12px', color: COLORS.textMuted }}>
-                        They spend themselves on your next spins. Tap to close.
+                        Your next spin opens it. Tap to close.
                     </span>
                     <span className="fib-bounty-flash" aria-hidden="true" />
                 </div>
@@ -243,7 +267,7 @@ export function BountyCelebration({ currentUserId }) {
                     </span>
                     <span style={{ fontSize: '12px', color: COLORS.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         pulled {bountyCelebration.name} ·{' '}
-                        <span style={{ color: COLORS.bounty, fontWeight: 700 }}>+{bountyCelebration.reward} lucky spins</span>
+                        <span className="fib-gilt-text" style={{ fontWeight: 700 }}>won the mystery box</span>
                     </span>
                 </div>
                 <span className="fib-bounty-flash" aria-hidden="true" />

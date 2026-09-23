@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Zap, Crown, Star, Gem, Diamond, Map, AlertTriangle } from 'lucide-react';
+import { Sparkles, Zap, Crown, Star, Gem, Diamond, Map, AlertTriangle, Gift } from 'lucide-react';
 import { COLORS } from '../config/constants';
 import { WHEEL_TEXTURE_URL } from '../../../config/constants.js';
 import { RARITY, RARITY_KEYS, getRarityInk } from '../../../utils/rarityHelpers.jsx';
@@ -217,6 +217,8 @@ export function EnhancedWheelIdleState({
                                            recursionActive,
                                            recursionSpinsRemaining,
                                            kotwLuckySpins = 0,
+                                           // A daily bounty box is waiting: the next spin opens it.
+                                           mysteryBox = false,
                                            error,
                                            onSpin,
                                            // `onShowOddsInfo` used to be here. It
@@ -279,8 +281,11 @@ export function EnhancedWheelIdleState({
     const isDisabled = !ready || isSpinning;
     const active = (isHovered || isFocused) && !isDisabled;
     const pressed = isPressed && !isDisabled;
+    // WheelSpinner only passes `mysteryBox` when no recursion window is open, so
+    // the box outranks the banked lucky spins here exactly as it does on the reel:
+    // the card names what the next spin will actually be.
     const showRecursionEffects = recursionActive && recursionSpinsRemaining > 0;
-    const showKotwLuckyEffects = kotwLuckySpins > 0 && !showRecursionEffects;
+    const showKotwLuckyEffects = kotwLuckySpins > 0 && !showRecursionEffects && !mysteryBox;
     const showAnyLuckyEffects = showRecursionEffects || showKotwLuckyEffects;
 
     // KOTW Theme colors - crimson/gold royal aesthetic.
@@ -590,6 +595,20 @@ export function EnhancedWheelIdleState({
                     }}>
                         {!user ? 'Login to spin!'
                             : allItems.length === 0 ? 'Fetching item pool...'
+                                : mysteryBox
+                                    ? (
+                                        // The one line on the card allowed the gilt:
+                                        // it names the prize the reel is dressed for.
+                                        <span style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '8px',
+                                            letterSpacing: '2px', textTransform: 'uppercase',
+                                            background: `linear-gradient(100deg, ${COLORS.mysteryGilt[0]}, ${COLORS.mysteryGilt[1]} 55%, ${COLORS.mysteryGilt[2]})`,
+                                            WebkitBackgroundClip: 'text', backgroundClip: 'text',
+                                            color: 'transparent', WebkitTextFillColor: 'transparent',
+                                        }}>
+                                            <Gift size={isMobile ? 16 : 18} color={COLORS.mystery} /> Mystery box
+                                        </span>
+                                    )
                                 : showRecursionEffects
                                     ? (
                                         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -635,7 +654,11 @@ export function EnhancedWheelIdleState({
                     fontSize: isMobile ? '11px' : '13px',
                     marginBottom: isMobile ? '8px' : '12px',
                 }}>
-                    {showRecursionEffects ? (
+                    {mysteryBox && user ? (
+                        <span style={{ color: COLORS.mystery, fontWeight: '600' }}>
+                            One special · every one at equal odds
+                        </span>
+                    ) : showRecursionEffects ? (
                         <span style={{
                             color: COLORS.recursion,
                             fontWeight: '500',

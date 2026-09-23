@@ -7,6 +7,7 @@ import { prestigeStanding } from '../../../utils/prestigeHelpers.js';
 import { PrestigeRing } from '../spin/StageFlanks.jsx';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { visibleInterval } from '../../../config/power.js';
+import { MysteryTag } from '../spin/MysteryTag.jsx';
 
 /**
  * Live drops as a horizontal strip above the reel.
@@ -349,7 +350,7 @@ export function ActivityTicker({ onOpenFull }) {
                                         matrix green, a spin *mode*, and borrowing it
                                         here would have the ticker disagreeing with
                                         the reel about what lucky looks like. */}
-                                    {item.is_lucky === 1 && (
+                                    {item.is_mystery === 1 ? <MysteryTag /> : item.is_lucky === 1 && (
                                         <span style={{
                                             flexShrink: 0,
                                             // 10px, one step up from the sidebar's
