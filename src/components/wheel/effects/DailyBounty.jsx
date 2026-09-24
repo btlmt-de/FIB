@@ -100,10 +100,16 @@ function MysteryBoxGlyph({ size }) {
 function readBoard(board, winsToday) {
     const bounties = board.bounties || [];
     const lead = board.bounty || null;
-    const hunting = bounties.filter(b => !b.winner);
-    const state = lead && !lead.winner ? 'hunting' : board.next ? 'waiting' : 'done';
+    // A bounty closes when the next one opens (wheel-backend services/dailyBounty.js),
+    // so an expired one is out of the hunt as surely as a claimed one - and since the
+    // server leads with the live one, `others` is empty in practice now. It is kept
+    // for an older server, which could still have several open at once.
+    const hunting = bounties.filter(b => !b.winner && !b.expired);
+    const state = lead && !lead.winner && !lead.expired ? 'hunting' : board.next ? 'waiting' : 'done';
     const now = serverNow();
     const nextIn = board.next ? Date.parse(board.next.opensAt) - now : null;
+    // When the live one stops being claimable: the next opening, or midnight for the last.
+    const closesIn = state === 'hunting' && lead.endsAt ? Date.parse(lead.endsAt) - now : null;
     const lastClaimed = [...bounties].reverse().find(b => b.winner) || null;
 
     return {
@@ -112,12 +118,14 @@ function readBoard(board, winsToday) {
         others: state === 'hunting' ? hunting.filter(b => b.id !== lead.id) : [],
         next: board.next,
         nextIn,
+        closesIn,
         imminent: state === 'waiting' && nextIn !== null && nextIn <= IMMINENT_MS,
         dayLeft: Date.parse(board.dayEndsAt) - now,
         slots: board.slots || 5,
         winsPerDay: board.winsPerDay || 2,
         capped: winsToday >= (board.winsPerDay || 2),
         claimedCount: bounties.filter(b => b.winner).length,
+        expiredCount: bounties.filter(b => b.expired).length,
         lastClaimed,
     };
 }
@@ -130,6 +138,11 @@ function readBoard(board, winsToday) {
  * arithmetic for nearly everyone who reads it.
  */
 function whenLabel(view, compact = false) {
+    // While one is live, the clock that matters is ITS: it goes when the next opens.
+    if (view.state === 'hunting' && view.closesIn !== null) {
+        if (view.closesIn <= 60_000) return compact ? 'closing' : 'closing now';
+        return `${compact ? '' : 'closes in '}${formatLeft(view.closesIn)}${compact ? ' left' : ''}`;
+    }
     if (view.state === 'waiting' && !compact) {
         const at = new Date(Date.parse(view.next.opensAt));
         return `at ${at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -144,7 +157,7 @@ function whenLabel(view, compact = false) {
 function plaqueTitle(view) {
     const rules = `${view.slots} bounties a day, each opening at a random time - the next one is announced here, but not what it is until it opens. `
         + `The first player to pull one wins a mystery box: one special item, every special at equal odds. `
-        + `Each player can take ${view.winsPerDay} a day, and a bounty nobody pulls stays open until 00:00 UTC.`;
+        + `Each player can take ${view.winsPerDay} a day. A bounty is only open until the next one opens - then it is gone, claimed or not - and the last one of the day runs to 00:00 UTC.`;
 
     if (view.state === 'hunting') {
         const { lead } = view;
@@ -160,7 +173,10 @@ function plaqueTitle(view) {
     if (view.state === 'waiting') {
         return `Bounty ${view.next.slot + 1} of ${view.slots} opens in ${formatLeft(view.nextIn)}. ${rules}`;
     }
-    return `All of today's bounties have been claimed. New ones from 00:00 UTC, in ${formatLeft(view.dayLeft)}. ${rules}`;
+    const got = view.expiredCount > 0
+        ? `${view.claimedCount} of today's bounties were claimed and ${view.expiredCount} got away.`
+        : `All of today's bounties have been claimed.`;
+    return `${got} New ones from 00:00 UTC, in ${formatLeft(view.dayLeft)}. ${rules}`;
 }
 
 /**
@@ -208,7 +224,8 @@ export function DailyBountyPlaque({ isMobile }) {
         ? (special ? `${tierLabel} bounty` : `Bounty ${lead.slot + 1}/${view.slots}`)
         : state === 'waiting'
             ? `Bounty ${view.next.slot + 1}/${view.slots}`
-            : `All ${view.claimedCount} claimed`;
+            // Some may have closed unclaimed now, so "all claimed" is not a given.
+            : view.expiredCount > 0 ? `${view.claimedCount}/${view.slots} claimed` : `All ${view.claimedCount} claimed`;
     const eyebrowInk = dim ? COLORS.textMuted : special ? tierInk : COLORS.bounty;
 
     // ── The phone: one line, the meter's own compaction ──────────────────

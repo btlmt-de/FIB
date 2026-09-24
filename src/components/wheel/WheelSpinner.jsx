@@ -220,11 +220,12 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // A string key, so the memo below re-runs when the open set changes and not
     // on every board broadcast that leaves it as it was.
     const openBountyKey = (bountyBoard?.bounties || [])
-        .filter(b => !b.winner)
+        .filter(b => !b.winner && !b.expired)
         .map(b => b.texture)
         .join('|');
     const openBounties = useMemo(() => {
-        const open = (bountyBoard?.bounties || []).filter(b => !b.winner);
+        // Expired ones too: a bounty closes when the next opens (services/dailyBounty.js).
+        const open = (bountyBoard?.bounties || []).filter(b => !b.winner && !b.expired);
         // A bounty can be any item (wheel-backend services/dailyBounty.js), so it is
         // looked for among the commons and the specials both. The fallback is built
         // from the bounty's own fields, which carry its tier and artwork.

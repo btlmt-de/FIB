@@ -70,12 +70,14 @@ export const CHANGELOG = [
                     'somewhere in every fifth of the day, never two close together. The ' +
                     'plaque above the reel counts down to the next one, but what it is stays ' +
                     'a secret until the moment it opens.',
-                    'A bounty nobody pulls stays open until midnight, so on a busy day ' +
-                    'there can be more than one to hunt at once. Every one still pays a ' +
-                    'full mystery box.',
+                    'Each bounty is only open until the next one opens - then it is gone, ' +
+                    'claimed or not - so there is always exactly one to hunt, and the ' +
+                    'plaque shows how long it has left. The last of the day runs to ' +
+                    'midnight. Every one still pays a full mystery box.',
                 ],
                 facts: [
                     { label: 'Per day', value: 'Five, each at a random time' },
+                    { label: 'Open for', value: 'Until the next one opens - the last one until midnight' },
                     { label: 'Per player', value: 'Two a day - pull a third and it stays open for someone else' },
                     { label: 'Announced', value: 'The next opening is counted down above the reel' },
                     { label: 'Prize', value: 'A mystery box, every time' },
