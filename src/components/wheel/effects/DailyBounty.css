@@ -40,6 +40,17 @@
 .fib-bounty-sight.is-claimed > i { opacity: 0.35; }
 .fib-bounty-sight.is-claimed img { opacity: 0.55; filter: grayscale(0.4); }
 
+/* Sealed: a bounty whose time has not come. The server has drawn its item and
+   will not say what it is, so the sight holds nothing but the question - the
+   corners at full strength, because this one is still to be hunted. */
+.fib-bounty-sight.is-sealed > b {
+    font-size: 0.42em;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--bounty);
+    opacity: 0.7;
+}
+
 /* The lock: the corners start wide and close onto the item. Geometry moves
    exactly once, on arrival, and then holds - the surface's rule that geometry
    holds still and light breathes. */
@@ -78,57 +89,25 @@
     white-space: nowrap;
 }
 
-/* ── The celebration ─────────────────────────────────────────────────────── */
-
-.fib-bounty-celebration {
-    position: fixed;
-    left: 50%;
-    top: 84px;
-    transform: translateX(-50%);
-    width: min(440px, calc(100vw - 32px));
-    pointer-events: none;
-    animation: fibBountyDrop 420ms cubic-bezier(0.22, 1, 0.36, 1) both,
-               fibBountyLeave 360ms ease-in 6.6s forwards;
-}
-@keyframes fibBountyDrop {
-    from { opacity: 0; transform: translate(-50%, -14px); }
-    to   { opacity: 1; transform: translate(-50%, 0); }
-}
-@keyframes fibBountyLeave {
-    to { opacity: 0; transform: translate(-50%, -8px); visibility: hidden; }
+/* The other bounties still open, beside the one the plaque leads with. */
+.fib-bounty-others {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
 }
 
-/* The winner's card owns the centre of the screen and can be dismissed. */
-.fib-bounty-celebration.is-mine {
-    top: 50%;
-    width: min(420px, calc(100vw - 32px));
-    pointer-events: auto;
-    cursor: pointer;
-    animation: fibBountyRise 460ms cubic-bezier(0.22, 1, 0.36, 1) both,
-               fibBountyLeaveMine 360ms ease-in 6.6s forwards;
+/* The last ten minutes before a sealed bounty opens: the eyebrow breathes.
+   Light, not geometry - the plaque itself holds still. */
+@keyframes fibBountyImminent {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
 }
-@keyframes fibBountyRise {
-    from { opacity: 0; transform: translate(-50%, calc(-50% + 18px)) scale(0.96); }
-    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-@keyframes fibBountyLeaveMine {
-    to { opacity: 0; transform: translate(-50%, calc(-50% - 10px)); visibility: hidden; }
+.fib-bounty-plaque.is-imminent .fib-bounty-eyebrow {
+    animation: fibBountyImminent 1.6s ease-in-out infinite;
 }
 
-/* The flash: one sweep of sight white across the card as the corners lock.
-   Once, not looped - it is the shot, not a shimmer. */
-.fib-bounty-flash {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(100deg, transparent 30%, rgba(255, 241, 214, 0.22) 50%, transparent 70%);
-    transform: translateX(-100%);
-    animation: fibBountyFlash 900ms cubic-bezier(0.4, 0, 0.2, 1) 240ms both;
-    mix-blend-mode: screen;
-}
-@keyframes fibBountyFlash {
-    to { transform: translateX(100%); }
-}
+/* The room's celebration of a claim lives in BountyRoom.css. */
 
 /* ── The mystery box: gilt ───────────────────────────────────────────────────
  * The box's metal, per COLORS.mysteryGilt: always the ramp, never a flat gold,
@@ -174,15 +153,6 @@
     /* The metal stays a gradient - frozen, never flattened. */
     .fib-gilt-text,
     .fib-mystery-box { animation: none; }
-    .fib-bounty-sight.is-locking > i,
-    .fib-bounty-flash { animation: none; }
-    .fib-bounty-flash { display: none; }
-    .fib-bounty-celebration,
-    .fib-bounty-celebration.is-mine { animation: fibBountyLeaveCalm 1ms linear 6.9s forwards; }
-    .fib-bounty-celebration.is-mine { transform: translate(-50%, -50%); }
-}
-/* Hidden as well as transparent: the winner's card takes clicks, and a card
-   nobody can see must not keep catching them until it unmounts. */
-@keyframes fibBountyLeaveCalm {
-    to { opacity: 0; visibility: hidden; }
+    .fib-bounty-sight.is-locking > i { animation: none; }
+    .fib-bounty-plaque.is-imminent .fib-bounty-eyebrow { animation: none; }
 }

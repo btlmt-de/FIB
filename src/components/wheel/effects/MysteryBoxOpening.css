@@ -1,0 +1,624 @@
+/*
+ * The mystery box, unwrapped by hand, and the coat it leaves on the reel.
+ * See MysteryBoxOpening.jsx for the sequence.
+ *
+ * Every colour here comes in through custom properties set inline from the
+ * tokens: `--gilt-*` from COLORS.mysteryGilt (the box is metal, so always the
+ * ramp, never a flat gold) and `--bounty` for the ribbon - the sight's white,
+ * so the prize is visibly the bounty's.
+ *
+ * The unwrap, in order:
+ *   0ms      the lid comes off, a gilt flash, the box jolts
+ *   ~260ms   the room comes back: wash, rays and words fade, so the reel the
+ *            box is heading for is visible before anything reaches it
+ *   ~380ms   the box drops into the reel band (--fly-x / --fly-y, measured),
+ *            shrinking as it goes, and the gilt stream arcs out after it
+ *   ~1050ms  the reel takes the coat (.fib-mbox-coat, WheelSpinner)
+ */
+
+.fib-mbox-scene {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    overflow: hidden;
+    /* Portalled to <body>, so it does not inherit the wheel shell's face. */
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    animation: fibMboxSceneIn 380ms ease-out both;
+}
+@keyframes fibMboxSceneIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+/* Once it is going to the reel, the scene takes no more clicks. */
+.fib-mbox-scene.is-leaving { pointer-events: none; }
+
+/* The room goes dark around the box, and warm at its centre. */
+.fib-mbox-wash {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 46% 40% at 50% 44%, rgba(242, 193, 78, 0.14) 0%, transparent 70%),
+        rgba(5, 7, 14, 0.84);
+    backdrop-filter: blur(3px);
+    transition: opacity 420ms ease-out 240ms;
+}
+.fib-mbox-scene.is-leaving .fib-mbox-wash { opacity: 0; }
+
+/* Light rays behind the box, turning slowly. */
+.fib-mbox-rays {
+    position: absolute;
+    left: 50%;
+    top: 44%;
+    width: 1100px;
+    height: 1100px;
+    margin: -550px 0 0 -550px;
+    background: repeating-conic-gradient(from 0deg, rgba(255, 240, 184, 0.9) 0deg 5deg, transparent 5deg 18deg);
+    -webkit-mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.5) 22%, transparent 55%);
+    mask-image: radial-gradient(circle, #000 0%, rgba(0, 0, 0, 0.5) 22%, transparent 55%);
+    opacity: 0.14;
+    animation: fibMboxRays 38s linear infinite;
+    transition: opacity 300ms ease-out 200ms;
+    pointer-events: none;
+}
+.fib-mbox-scene.is-leaving .fib-mbox-rays { opacity: 0; }
+@keyframes fibMboxRays {
+    to { transform: rotate(360deg); }
+}
+
+.fib-mbox-flash {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 42%, #fff8e0 0%, rgba(242, 193, 78, 0.55) 25%, transparent 60%);
+    animation: fibMboxFlash 520ms ease-out both;
+    pointer-events: none;
+}
+@keyframes fibMboxFlash {
+    0%   { opacity: 0.9; }
+    100% { opacity: 0; }
+}
+
+/* ── The stage ────────────────────────────────────────────────────────────── */
+
+.fib-mbox-stage {
+    position: relative;
+    width: 320px;
+    height: 220px;
+    flex-shrink: 0;
+}
+
+.fib-mbox-hit {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.fib-mbox-hit:disabled { cursor: default; }
+
+/* The flight: measured from the box's centre to the reel band's. Rides on
+   `translate`/`scale`, not `transform`, so it composes with the phone's
+   centring transform on the same element. */
+.fib-mbox-scene.is-unwrapping.is-flying .fib-mbox-hit {
+    animation: fibMboxFly 720ms cubic-bezier(0.55, 0, 0.8, 0.4) 380ms both;
+}
+@keyframes fibMboxFly {
+    0%   { translate: 0 0; scale: 1; opacity: 1; }
+    25%  { translate: calc(var(--fly-x) * 0.1) -40px; scale: 0.9; opacity: 1; }
+    100% { translate: var(--fly-x) var(--fly-y); scale: 0.12; opacity: 0; }
+}
+
+/* "Later": the box, still shut, shrinks up and away to the shelf in the reel
+   header. A hop first, so it reads as picked up rather than sucked out. */
+.fib-mbox-scene.is-shelving.is-flying .fib-mbox-hit {
+    animation: fibMboxStow 760ms cubic-bezier(0.5, 0, 0.75, 0.3) both;
+}
+.fib-mbox-scene.is-shelving .fib-mbox { animation: none; }
+@keyframes fibMboxStow {
+    0%   { translate: 0 0; scale: 1; opacity: 1; }
+    22%  { translate: 0 -24px; scale: 0.92; opacity: 1; }
+    90%  { opacity: 1; }
+    100% { translate: var(--fly-x) var(--fly-y); scale: 0.1; opacity: 0.4; }
+}
+
+/* ── The box ──────────────────────────────────────────────────────────────── */
+
+.fib-mbox {
+    position: relative;
+    display: block;
+    width: 176px;
+    height: 170px;
+    transform-origin: 50% 100%;
+    animation: fibMboxFloat 2.8s ease-in-out infinite, fibMboxWiggle 3.4s ease-in-out 1.2s infinite;
+}
+.fib-mbox-hit:not(:disabled):hover .fib-mbox { filter: brightness(1.08); }
+.fib-mbox-scene.is-unwrapping .fib-mbox {
+    animation: fibMboxJolt 300ms ease-out both;
+}
+
+/* Resting, and every few seconds a small knock from inside. */
+@keyframes fibMboxFloat {
+    0%, 100% { translate: 0 0; }
+    50%      { translate: 0 -8px; }
+}
+@keyframes fibMboxWiggle {
+    0%, 78%, 100% { rotate: 0deg; }
+    82% { rotate: -5deg; }
+    86% { rotate: 4deg; }
+    90% { rotate: -3deg; }
+    94% { rotate: 1.5deg; }
+}
+/* The lid going: the body is pushed down and springs back. */
+@keyframes fibMboxJolt {
+    0%   { transform: scale(1, 1); }
+    35%  { transform: scale(1.08, 0.88); }
+    100% { transform: scale(1, 1); }
+}
+
+.fib-mbox-shadow {
+    position: absolute;
+    left: 50%;
+    bottom: -10px;
+    width: 190px;
+    height: 22px;
+    margin-left: -95px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(242, 193, 78, 0.26) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 72%);
+}
+.fib-mbox-scene.is-leaving .fib-mbox-shadow { opacity: 0; transition: opacity 200ms; }
+
+.fib-mbox-body,
+.fib-mbox-lid {
+    position: absolute;
+    left: 50%;
+    display: block;
+    background: linear-gradient(135deg, var(--gilt-pale), var(--gilt-mid) 34%, var(--gilt-deep) 62%, var(--gilt-mid) 84%, var(--gilt-pale));
+    background-size: 240% 240%;
+    animation: fibGiltDrift 3.6s linear infinite;
+}
+
+.fib-mbox-body {
+    bottom: 0;
+    width: 150px;
+    height: 116px;
+    margin-left: -75px;
+    border-radius: 6px 6px 14px 14px;
+    box-shadow:
+        inset 0 -14px 22px -12px rgba(58, 39, 8, 0.75),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35),
+        0 14px 36px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+/* Open: the light inside, seen over the rim. */
+.fib-mbox-scene.is-unwrapping .fib-mbox-body {
+    box-shadow:
+        inset 0 18px 26px -10px #fff3c4,
+        inset 0 -14px 22px -12px rgba(58, 39, 8, 0.75),
+        0 0 40px rgba(242, 193, 78, 0.6);
+}
+
+.fib-mbox-lid {
+    bottom: 110px;
+    width: 170px;
+    height: 40px;
+    margin-left: -85px;
+    border-radius: 9px;
+    z-index: 2;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.6),
+        inset 0 -8px 12px -8px rgba(58, 39, 8, 0.7),
+        0 6px 12px rgba(58, 39, 8, 0.35);
+}
+.fib-mbox-scene.is-unwrapping .fib-mbox-lid {
+    animation: fibGiltDrift 3.6s linear infinite, fibMboxLidOff 700ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes fibMboxLidOff {
+    0%   { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    18%  { transform: translate(-4px, -30px) rotate(-8deg); opacity: 1; }
+    100% { transform: translate(-170px, -260px) rotate(-62deg); opacity: 0; }
+}
+
+/* The ribbon is the sight's white: the prize is marked as the bounty's. */
+.fib-mbox-ribbon {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 22px;
+    margin-left: -11px;
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.08), var(--bounty) 30%, var(--bounty) 70%, rgba(0, 0, 0, 0.12));
+    box-shadow: 0 0 0 1px rgba(58, 39, 8, 0.18);
+}
+
+.fib-mbox-bow {
+    position: absolute;
+    left: 50%;
+    top: -26px;
+    width: 0;
+    height: 0;
+}
+.fib-mbox-bow > i {
+    position: absolute;
+    top: 0;
+    width: 36px;
+    height: 28px;
+    border: 7px solid var(--bounty);
+    border-radius: 50% 50% 40% 40%;
+    box-shadow: inset 0 0 0 1px rgba(58, 39, 8, 0.15), 0 2px 3px rgba(58, 39, 8, 0.25);
+}
+.fib-mbox-bow > i:first-child { right: 1px; transform: rotate(-24deg); transform-origin: 100% 100%; }
+.fib-mbox-bow > i:last-child  { left: 1px;  transform: rotate(24deg);  transform-origin: 0 100%; }
+
+.fib-mbox-mark {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -46%);
+    display: grid;
+    place-items: center;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(160deg, #4a330c, #2b1d05);
+    color: var(--gilt-pale);
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* The seam between lid and body, where the light gets out. */
+.fib-mbox-seam {
+    position: absolute;
+    left: 50%;
+    bottom: 108px;
+    width: 146px;
+    height: 5px;
+    margin-left: -73px;
+    border-radius: 3px;
+    z-index: 1;
+    background: #fff8e0;
+    opacity: 0.55;
+    box-shadow: 0 0 10px 2px rgba(255, 224, 140, 0.95), 0 0 30px 4px rgba(242, 193, 78, 0.55);
+    animation: fibMboxSeam 1.8s ease-in-out infinite;
+}
+.fib-mbox-scene.is-unwrapping .fib-mbox-seam { display: none; }
+@keyframes fibMboxSeam {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.35); }
+}
+
+/* ── The stream: gilt poured from the box onto the reel ───────────────────── */
+
+.fib-mbox-stream > i {
+    position: fixed;
+    margin: -3px 0 0 -3px;
+    border-radius: 50%;
+    opacity: 0;
+    box-shadow: 0 0 6px rgba(255, 224, 140, 0.8);
+    animation-name: fibMboxStream;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.7, 1);
+    animation-fill-mode: both;
+    pointer-events: none;
+}
+@keyframes fibMboxStream {
+    0%   { opacity: 0; translate: 0 0; scale: 0.6; }
+    8%   { opacity: 1; }
+    45%  { translate: calc(var(--dx) * 0.4) calc(var(--dy) * 0.25 + var(--lift)); scale: 1.2; }
+    92%  { opacity: 1; }
+    100% { opacity: 0; translate: var(--dx) var(--dy); scale: 0.5; }
+}
+
+/* ── The words ────────────────────────────────────────────────────────────── */
+
+.fib-mbox-copy {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    max-width: min(440px, calc(100vw - 32px));
+    text-align: center;
+    animation: fibMboxCopyIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transition: opacity 220ms ease-out;
+}
+/* `animation: none` as well: the entrance keyframe's fill holds opacity at 1
+   and would win over the fade. */
+.fib-mbox-scene.is-leaving .fib-mbox-copy { animation: none; opacity: 0; }
+@keyframes fibMboxCopyIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.fib-mbox-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--bounty);
+    opacity: 0.85;
+}
+
+.fib-mbox-title {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.fib-mbox-sub {
+    font-size: 14px;
+    color: #d8dbe6;
+}
+.fib-mbox-hint {
+    font-size: 12px;
+    color: #8b90a3;
+}
+
+.fib-mbox-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.fib-mbox-open {
+    min-width: 150px;
+    padding: 12px 26px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(100deg, var(--gilt-pale), var(--gilt-mid) 45%, var(--gilt-deep) 70%, var(--gilt-pale));
+    background-size: 220% 100%;
+    color: #2b1d05;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 8px 24px rgba(242, 193, 78, 0.25);
+    animation: fibGiltDrift 3.6s linear infinite;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.fib-mbox-open:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 30px rgba(242, 193, 78, 0.4); }
+.fib-mbox-open:active:not(:disabled) { transform: translateY(1px); }
+.fib-mbox-open:focus-visible,
+.fib-mbox-later:focus-visible { outline: 2px solid var(--bounty); outline-offset: 3px; }
+.fib-mbox-open:disabled {
+    cursor: default;
+    filter: grayscale(0.7) brightness(0.7);
+    animation: none;
+}
+
+.fib-mbox-later {
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #a9aec0;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.fib-mbox-later:hover { color: #e6e8ef; background: rgba(255, 255, 255, 0.05); }
+
+/* ── The coat: the reel band taking the gilt ────────────────────────────────
+ * Mounted inside the band by WheelSpinner for the length of the hand-over.
+ * The reel underneath has already switched to the box's strip and deck; this
+ * is the moment of it happening - a sheen that spreads out from the middle,
+ * where the box went in, to both ends, a bright edge riding its front, and
+ * the last of the gilt settling onto the tiles and going out. */
+
+.fib-mbox-coat {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.fib-mbox-coat-sheen {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 240, 184, 0.55) 0%, rgba(242, 193, 78, 0.35) 45%, rgba(183, 121, 31, 0.25) 100%);
+    mix-blend-mode: screen;
+    animation: fibMboxCoatSpread 900ms cubic-bezier(0.22, 1, 0.36, 1) both,
+               fibMboxCoatFade 900ms ease-out 700ms forwards;
+}
+@keyframes fibMboxCoatSpread {
+    from { clip-path: inset(0 50% 0 50%); }
+    to   { clip-path: inset(0 0 0 0); }
+}
+@keyframes fibMboxCoatFade {
+    to { opacity: 0; }
+}
+
+/* The front of the coat, one bright line running out each way. */
+.fib-mbox-coat-edge {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 60px;
+    margin-left: -30px;
+    background: linear-gradient(90deg, transparent, rgba(255, 248, 224, 0.95), transparent);
+    mix-blend-mode: screen;
+    opacity: 0;
+    animation: fibMboxCoatEdge 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.fib-mbox-coat-edge.is-left { --edge-to: -52vw; }
+.fib-mbox-coat-edge.is-right { --edge-to: 52vw; }
+@keyframes fibMboxCoatEdge {
+    0%   { opacity: 1; translate: 0 0; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; translate: var(--edge-to) 0; }
+}
+
+/* Glitter settling onto the tiles: a pinpoint that flares and goes out. */
+.fib-mbox-coat-glint {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    border-radius: 50%;
+    background: #fff8e0;
+    box-shadow: 0 0 8px 2px rgba(255, 224, 140, 0.9);
+    opacity: 0;
+    animation: fibMboxGlint 900ms ease-out both;
+}
+@keyframes fibMboxGlint {
+    0%   { opacity: 0; scale: 0.3; }
+    30%  { opacity: 1; scale: 1.4; }
+    100% { opacity: 0; scale: 0.6; }
+}
+
+/* ── The shelf ───────────────────────────────────────────────────────────────
+ * Boxes held and not yet opened, in the reel header beside the `?`. The
+ * plinth language of the controls around it - ground, lit rail on top - with
+ * the one gilt thing on it being the box itself. */
+
+.fib-mbox-shelf-anchor {
+    display: inline-block;
+    width: 0;
+    height: 28px;
+}
+
+.fib-mbox-shelf {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 28px;
+    padding: 0 10px 0 6px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1f1a10 0%, #14110a 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 240, 184, 0.16),
+        inset 0 0 0 1px rgba(242, 193, 78, 0.28),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+    color: var(--gilt-pale);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: box-shadow 150ms ease, filter 150ms ease;
+}
+.fib-mbox-shelf:hover {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 240, 184, 0.22),
+        inset 0 0 0 1px rgba(242, 193, 78, 0.5),
+        inset 0 0 18px rgba(242, 193, 78, 0.16),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.45);
+}
+.fib-mbox-shelf:focus-visible { outline: 2px solid var(--bounty); outline-offset: 2px; }
+
+/* The little box: gilt, a ribbon, and now and then a glint across it so a
+   waiting box is noticed without anything blinking. */
+.fib-mbox-shelf-box {
+    position: relative;
+    display: block;
+    width: 18px;
+    height: 16px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, var(--gilt-pale), var(--gilt-mid) 40%, var(--gilt-deep) 70%, var(--gilt-pale));
+    background-size: 240% 240%;
+    box-shadow: inset 0 3px 0 -1px rgba(255, 255, 255, 0.45), 0 0 8px rgba(242, 193, 78, 0.35);
+    overflow: hidden;
+    animation: fibGiltDrift 3.6s linear infinite;
+}
+.fib-mbox-shelf-box::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    margin-left: -2px;
+    background: var(--bounty);
+}
+.fib-mbox-shelf-box > i {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%);
+    translate: -120% 0;
+    animation: fibMboxShelfGlint 4.2s ease-in-out 1s infinite;
+}
+@keyframes fibMboxShelfGlint {
+    0%, 70% { translate: -120% 0; }
+    90%, 100% { translate: 120% 0; }
+}
+
+.fib-mbox-shelf-count {
+    color: #f1f2f6;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A box just landed on it: the shelf dips and takes the light. */
+.fib-mbox-shelf.is-caught {
+    animation: fibMboxShelfCatch 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes fibMboxShelfCatch {
+    0%   { translate: 0 0; filter: brightness(1); }
+    25%  { translate: 0 3px; filter: brightness(1.8); }
+    100% { translate: 0 0; filter: brightness(1); }
+}
+
+/* During an event: still there, dimmed - held, not openable. */
+.fib-mbox-shelf.is-held {
+    color: #a9aec0;
+    filter: saturate(0.5);
+}
+.fib-mbox-shelf.is-held .fib-mbox-shelf-box,
+.fib-mbox-shelf.is-held .fib-mbox-shelf-box > i { animation: none; }
+
+/* ── Phones ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+    .fib-mbox-stage {
+        width: 280px;
+        height: 200px;
+    }
+    .fib-mbox-hit { transform: translateX(-50%) scale(0.86); transform-origin: 50% 100%; }
+    .fib-mbox-title { font-size: 28px; }
+}
+
+/* ── Reduced motion: the box goes straight to the reel, nothing travels ───── */
+
+@media (prefers-reduced-motion: reduce) {
+    .fib-mbox,
+    .fib-mbox-rays,
+    .fib-mbox-seam,
+    .fib-mbox-body,
+    .fib-mbox-lid,
+    .fib-mbox-open { animation: none; }
+    /* The unwrap's own rules are more specific than the ones above, so they
+       need overrides of the same weight or the jolt and the lid still run. */
+    .fib-mbox-scene.is-unwrapping .fib-mbox,
+    .fib-mbox-scene.is-unwrapping .fib-mbox-lid { animation: none; }
+    .fib-mbox-scene.is-flying .fib-mbox-hit,
+    .fib-mbox-scene.is-unwrapping.is-flying .fib-mbox-hit,
+    .fib-mbox-scene.is-shelving.is-flying .fib-mbox-hit { animation: none; }
+    .fib-mbox-shelf-box,
+    .fib-mbox-shelf-box > i,
+    .fib-mbox-shelf.is-caught { animation: none; }
+    .fib-mbox-flash,
+    .fib-mbox-stream,
+    .fib-mbox-coat { display: none; }
+}

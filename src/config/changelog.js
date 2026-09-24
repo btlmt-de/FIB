@@ -46,6 +46,46 @@
  */
 export const CHANGELOG = [
     {
+        version: '2.2',
+        date: '2026-09-24',
+        title: 'Five Bounties a Day',
+        tagline: 'The bounty no longer belongs to whoever is up at 2am.',
+        blocks: [
+            {
+                kind: 'rationale',
+                heading: 'Why',
+                paragraphs: [
+                    'One bounty a day, drawn at midnight UTC, usually fell within a couple ' +
+                    'of hours - so it went to whoever was spinning in the small hours, and ' +
+                    'everyone who came by later found it already claimed.',
+                ],
+            },
+            {
+                kind: 'feature',
+                accent: 'bounty',
+                heading: 'Changed',
+                title: 'Five Bounties a Day',
+                body: [
+                    'There are now five bounties a day, each opening at a random time - one ' +
+                    'somewhere in every fifth of the day, never two close together. The ' +
+                    'plaque above the reel counts down to the next one, but what it is stays ' +
+                    'a secret until the moment it opens.',
+                    'Each bounty is only open until the next one opens - then it is gone, ' +
+                    'claimed or not - so there is always exactly one to hunt, and the ' +
+                    'plaque shows how long it has left. The last of the day runs to ' +
+                    'midnight. Every one still pays a full mystery box.',
+                ],
+                facts: [
+                    { label: 'Per day', value: 'Five, each at a random time' },
+                    { label: 'Open for', value: 'Until the next one opens - the last one until midnight' },
+                    { label: 'Per player', value: 'Two a day - pull a third and it stays open for someone else' },
+                    { label: 'Announced', value: 'The next opening is counted down above the reel' },
+                    { label: 'Prize', value: 'A mystery box, every time' },
+                ],
+            },
+        ],
+    },
+    {
         version: '2.1',
         date: '2026-09-23',
         title: 'High Roller & the Daily Bounty',
