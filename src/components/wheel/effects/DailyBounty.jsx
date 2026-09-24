@@ -8,6 +8,7 @@ import { serverNow } from '../../../utils/serverClock.js';
 import { visibleInterval, useCalm } from '../../../config/power.js';
 import { useEventSlotBusy } from './useEventSlotBusy.js';
 import './DailyBounty.css';
+import './BountyRoom.css';
 
 /*
  * THE DAILY BOUNTIES - the plaque that names what is being hunted, or when the
@@ -326,20 +327,27 @@ export function DailyBountyPlaque({ isMobile }) {
     );
 }
 
-/** Gilt and sight-white confetti for the room's celebration, drawn once per claim. */
-function makeConfetti(count) {
-    const colors = [...COLORS.mysteryGilt.slice(0, 3), COLORS.bounty];
-    return Array.from({ length: count }, (_, i) => ({
-        id: i,
-        left: Math.random() * 100,
-        delay: Math.random() * 1400,
-        dur: 2600 + Math.random() * 1800,
-        drift: (Math.random() - 0.5) * 220,
-        spin: (Math.random() > 0.5 ? 1 : -1) * (540 + Math.random() * 720),
-        w: 6 + Math.random() * 6,
-        h: Math.random() > 0.5 ? 12 + Math.random() * 8 : 6 + Math.random() * 4,
-        color: colors[i % colors.length],
-    }));
+/**
+ * The motes for the room's celebration: small points of light that rise off
+ * the claimed item and go out. Drawn once per claim.
+ */
+function makeMotes(count) {
+    const colors = [COLORS.bounty, COLORS.bounty, ...COLORS.mysteryGilt.slice(0, 2)];
+    return Array.from({ length: count }, (_, i) => {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 20 + Math.random() * 70;
+        return {
+            id: i,
+            x: Math.cos(angle) * r,
+            y: Math.sin(angle) * r * 0.6,
+            rise: 120 + Math.random() * 220,
+            drift: (Math.random() - 0.5) * 140,
+            size: 2 + Math.random() * 4,
+            delay: 500 + Math.random() * 2600,
+            dur: 1800 + Math.random() * 1800,
+            color: colors[i % colors.length],
+        };
+    });
 }
 
 /**
@@ -348,19 +356,30 @@ function makeConfetti(count) {
  * Raised by ActivityContext once the winning reel has landed, and cleared by
  * it too; this renders whatever `bountyCelebration` holds and nothing else.
  *
- * It was a card that dropped in under the topbar, and the owner's note on it
- * was that nobody noticed: a claim read as the plaque's text changing. So it
- * is a takeover now, on the mythic celebration's model and at a lower pitch -
- * a flash of sight white, the room washed warm, gilt falling, and the claim in
- * the middle of it: the item with the corners locking on, who took it, and the
- * box they took. It stays pointer-transparent throughout, because this is news
- * about somebody else's spin and must never cost the viewer theirs.
+ * History, because the next person will want to put a card back:
+ *   1. A card that dropped in under the topbar. The owner's note: nobody
+ *      noticed it - a claim read as the plaque's text changing.
+ *   2. A takeover built around a framed plate, with rectangular gilt confetti
+ *      falling over the page. Noticed, and turned down as blocky: a rectangle
+ *      in the middle of the screen with rectangles raining on it.
+ *   3. This: no plate at all. A beam of light comes down from the top of the
+ *      screen onto the item, which hangs in it with the sight locking on; a
+ *      ring of light goes out from it; the words sit under it on a soft scrim
+ *      that has no edge; and points of light rise off it rather than paper
+ *      falling. Nothing on screen has a corner except the sight - which is the
+ *      bounty's mark, and the one shape that is meant to.
  *
- * The winner does not see this. Theirs is the box itself, on their own screen,
- * waiting to be opened - MysteryBoxOpening, mounted by WheelSpinner, since
- * opening it IS a spin.
+ * The sight's corners still take no glow (see DailyBounty.css): the light is
+ * the beam's, the halo's and the motes', never the mark's.
  *
- * Reduced motion keeps the card and its words and drops everything that moves.
+ * Pointer-transparent throughout: this is news about somebody else's spin and
+ * must never cost the viewer theirs.
+ *
+ * The winner does not see this. Theirs is the box itself, on their own screen
+ * - MysteryBoxOpening, mounted by WheelSpinner.
+ *
+ * Reduced motion keeps the item, the lit ground and the words, and drops
+ * everything that moves.
  */
 export function BountyCelebration({ currentUserId }) {
     const { bountyCelebration } = useActivity();
@@ -368,8 +387,8 @@ export function BountyCelebration({ currentUserId }) {
 
     const winner = bountyCelebration?.winner || null;
     const key = winner ? `${bountyCelebration.id ?? bountyCelebration.day}-${winner.userId}` : null;
-    // New confetti per claim, not per render.
-    const confetti = useMemo(() => (key && !calm ? makeConfetti(90) : []), [key, calm]);
+    // New motes per claim, not per render.
+    const motes = useMemo(() => (key && !calm ? makeMotes(46) : []), [key, calm]);
 
     if (!winner) return null;
     const mine = currentUserId != null && winner.userId === currentUserId;
@@ -386,69 +405,68 @@ export function BountyCelebration({ currentUserId }) {
             aria-live="polite"
             style={{ ...bountyVar, zIndex: Z.modal }}
         >
-            <span className="fib-bounty-room-wash" aria-hidden="true" />
-            <span className="fib-bounty-room-flash" aria-hidden="true" />
-            <span className="fib-bounty-room-confetti" aria-hidden="true">
-                {confetti.map(c => (
-                    <i
-                        key={c.id}
-                        style={{
-                            left: `${c.left}%`,
-                            width: c.w,
-                            height: c.h,
-                            background: c.color,
-                            animationDelay: `${c.delay}ms`,
-                            animationDuration: `${c.dur}ms`,
-                            '--drift': `${c.drift}px`,
-                            '--spin': `${c.spin}deg`,
-                        }}
-                    />
-                ))}
-            </span>
+            <span className="fib-bounty-room-dim" aria-hidden="true" />
+            <span className="fib-bounty-room-beam" aria-hidden="true" />
 
-            <div className="fib-bounty-room-card">
-                <span className="fib-bounty-room-rays" aria-hidden="true" />
-                <div
-                    className="fib-bounty-room-plate"
-                    style={{ backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #111829 0%, #0a0d18 100%)` }}
-                >
-                    <span className="fib-bounty-room-eyebrow">
-                        <i aria-hidden="true" />
-                        {special ? `${tierLabel} bounty claimed` : 'Bounty claimed'}
-                        <i aria-hidden="true" />
-                    </span>
-
-                    <div className="fib-bounty-room-main">
+            <div className="fib-bounty-room-center">
+                <div className="fib-bounty-room-focus">
+                    <span className="fib-bounty-room-halo" aria-hidden="true" />
+                    <span className="fib-bounty-room-rays" aria-hidden="true" />
+                    <span className="fib-bounty-room-ring" aria-hidden="true" />
+                    <span className="fib-bounty-room-item">
                         <Sight
                             texture={bountyCelebration.texture}
                             name={bountyCelebration.name}
                             rarity={bountyCelebration.rarity}
                             imageUrl={bountyCelebration.imageUrl}
-                            size={84}
+                            size={116}
                             locking
                         />
-                        <div className="fib-bounty-room-text">
-                            <span className="fib-bounty-room-who">
-                                <img
-                                    src={getDiscordAvatarUrl(winner.discordId, winner.discordAvatar)}
-                                    alt=""
-                                    width={28}
-                                    height={28}
-                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
-                                />
-                                <strong>{winner.username}</strong>
-                            </span>
-                            <span className="fib-bounty-room-what">
-                                pulled <b style={special ? { color: getRarityInk(bountyCelebration.rarity) } : undefined}>{bountyCelebration.name}</b> first
-                            </span>
-                        </div>
-                    </div>
-
-                    <span className="fib-bounty-room-prize">
-                        <MysteryBoxGlyph size={30} />
-                        <span className="fib-gilt-text">won a mystery box</span>
                     </span>
-                    <span className="fib-bounty-flash" aria-hidden="true" />
+                    <span className="fib-bounty-room-motes" aria-hidden="true">
+                        {motes.map(m => (
+                            <i
+                                key={m.id}
+                                style={{
+                                    left: m.x,
+                                    top: m.y,
+                                    width: m.size,
+                                    height: m.size,
+                                    background: m.color,
+                                    color: m.color,
+                                    '--rise': `${-m.rise}px`,
+                                    '--drift': `${m.drift}px`,
+                                    animationDelay: `${m.delay}ms`,
+                                    animationDuration: `${m.dur}ms`,
+                                }}
+                            />
+                        ))}
+                    </span>
+                </div>
+
+                <div className="fib-bounty-room-words">
+                    <span className="fib-bounty-room-kicker">
+                        {special
+                            ? <><span style={{ color: getRarityInk(bountyCelebration.rarity) }}>{tierLabel}</span> bounty claimed</>
+                            : 'Bounty claimed'}
+                    </span>
+                    <span className="fib-bounty-room-who">
+                        <img
+                            src={getDiscordAvatarUrl(winner.discordId, winner.discordAvatar)}
+                            alt=""
+                            width={40}
+                            height={40}
+                            onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
+                        />
+                        <strong data-text={winner.username}>{winner.username}</strong>
+                    </span>
+                    <span className="fib-bounty-room-what">
+                        pulled <b>{bountyCelebration.name}</b> first
+                    </span>
+                    <span className="fib-bounty-room-prize">
+                        <MysteryBoxGlyph size={22} />
+                        <span className="fib-gilt-text">wins a mystery box</span>
+                    </span>
                 </div>
             </div>
         </div>

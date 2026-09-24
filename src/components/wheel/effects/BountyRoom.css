@@ -1,0 +1,351 @@
+/*
+ * The room's celebration of a bounty claim. See BountyCelebration in
+ * DailyBounty.jsx for why it looks like this and what it replaced.
+ *
+ * The rule it is built on: nothing has a corner except the sight. Every layer
+ * here is light - a beam, a halo, a ring, a scrim, motes - and every one of
+ * them fades to nothing at its edges. The sight is the only hard shape, and it
+ * is the bounty's own mark.
+ *
+ * Timeline (all from mount; the whole thing leaves at 6.4s, inside the 7s
+ * ActivityContext holds `bountyCelebration` for):
+ *     0ms   the room dims at its edges; the beam starts down from the top
+ *   180ms   the item arrives in the beam, out of focus and settling
+ *   ~500ms  the sight locks on (DailyBounty.css, .is-locking); the ring goes out
+ *   600ms+  the words, one line at a time; motes start to rise
+ *   6.4s    everything lifts a little and goes
+ *
+ * Colours come in from the tokens as custom properties: `--bounty` (sight
+ * white) for the light, `--gilt-*` for the box's line.
+ */
+
+.fib-bounty-room {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    animation: fibRoomLeave 600ms ease-in 6.4s forwards;
+}
+@keyframes fibRoomLeave {
+    to { opacity: 0; visibility: hidden; }
+}
+
+/* The room darkens toward its edges and stays lit where the claim is - a
+   vignette, not a veil, so the page is still there around it. */
+.fib-bounty-room-dim {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 62% at 50% 36%, rgba(5, 7, 14, 0.55) 0%, rgba(5, 7, 14, 0.74) 55%, rgba(5, 7, 14, 0.88) 100%);
+    animation: fibRoomFade 700ms ease-out both;
+}
+@keyframes fibRoomFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* The beam: from above the screen down onto the item, wide at the bottom,
+   soft on both sides and gone before it reaches the words. */
+.fib-bounty-room-beam {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 420px;
+    height: calc(var(--room-y) + 90px);
+    margin-left: -210px;
+    background: linear-gradient(180deg, rgba(255, 241, 214, 0.03) 0%, rgba(255, 241, 214, 0.20) 70%, rgba(255, 241, 214, 0) 100%);
+    clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+    mix-blend-mode: screen;
+    transform-origin: 50% 0;
+    animation: fibRoomBeam 900ms cubic-bezier(0.22, 1, 0.36, 1) both, fibRoomBreathe 3.2s ease-in-out 1.2s infinite;
+}
+@keyframes fibRoomBeam {
+    from { transform: scaleY(0); opacity: 0; }
+    to   { transform: scaleY(1); opacity: 1; }
+}
+@keyframes fibRoomBreathe {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.75; }
+}
+
+/* Where the item hangs. `--room-y` is the item's centre, shared by the beam. */
+.fib-bounty-room {
+    --room-y: max(150px, 30vh);
+}
+.fib-bounty-room-center {
+    position: absolute;
+    left: 50%;
+    top: var(--room-y);
+    width: min(560px, calc(100vw - 32px));
+    translate: -50% -64px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.fib-bounty-room-focus {
+    position: relative;
+    width: 128px;
+    height: 128px;
+    display: grid;
+    place-items: center;
+}
+
+/* A soft pool of light behind the item. */
+.fib-bounty-room-halo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 340px;
+    height: 340px;
+    margin: -170px 0 0 -170px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 241, 214, 0.32) 0%, rgba(242, 193, 78, 0.12) 32%, transparent 66%);
+    animation: fibRoomFade 900ms ease-out 200ms both, fibRoomBreathe 3.2s ease-in-out 1.4s infinite;
+}
+
+/* Fine rays, turning very slowly, gone before they can make a shape. */
+.fib-bounty-room-rays {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 620px;
+    height: 620px;
+    margin: -310px 0 0 -310px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(255, 241, 214, 0.5) 0deg 1.2deg, transparent 1.2deg 12deg);
+    -webkit-mask-image: radial-gradient(circle, transparent 12%, #000 20%, rgba(0, 0, 0, 0.35) 38%, transparent 60%);
+    mask-image: radial-gradient(circle, transparent 12%, #000 20%, rgba(0, 0, 0, 0.35) 38%, transparent 60%);
+    opacity: 0;
+    animation: fibRoomRaysIn 1200ms ease-out 350ms forwards, fibRoomTurn 60s linear infinite;
+}
+@keyframes fibRoomRaysIn {
+    to { opacity: 0.32; }
+}
+@keyframes fibRoomTurn {
+    to { rotate: 360deg; }
+}
+
+/* One ring of light going out as the sight locks. */
+.fib-bounty-room-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 120px;
+    height: 120px;
+    margin: -60px 0 0 -60px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255, 241, 214, 0.7), 0 0 24px 4px rgba(255, 241, 214, 0.35);
+    opacity: 0;
+    animation: fibRoomRing 1100ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both;
+}
+@keyframes fibRoomRing {
+    0%   { opacity: 0.9; scale: 0.6; }
+    100% { opacity: 0; scale: 3.4; }
+}
+
+/* The item: arrives out of focus from a little above and settles into the
+   sight. The image takes a light of its own; the corners do not. */
+.fib-bounty-room-item {
+    position: relative;
+    animation: fibRoomArrive 700ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+}
+.fib-bounty-room-item img {
+    filter: drop-shadow(0 0 18px rgba(255, 241, 214, 0.45)) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+}
+@keyframes fibRoomArrive {
+    from { opacity: 0; translate: 0 -26px; scale: 1.25; filter: blur(8px); }
+    to   { opacity: 1; translate: 0 0; scale: 1; filter: blur(0); }
+}
+/* The sight at this size wants a heavier stroke and a wider lock. */
+.fib-bounty-room-item .fib-bounty-sight > i { border-width: 0; }
+.fib-bounty-room-item .fib-bounty-sight > i:nth-of-type(1) { border-top-width: 3px; border-left-width: 3px; }
+.fib-bounty-room-item .fib-bounty-sight > i:nth-of-type(2) { border-top-width: 3px; border-right-width: 3px; }
+.fib-bounty-room-item .fib-bounty-sight > i:nth-of-type(3) { border-bottom-width: 3px; border-right-width: 3px; }
+.fib-bounty-room-item .fib-bounty-sight > i:nth-of-type(4) { border-bottom-width: 3px; border-left-width: 3px; }
+.fib-bounty-room-item .fib-bounty-sight.is-locking > i { animation-delay: 380ms; }
+.fib-bounty-room-item .fib-bounty-sight.is-locking > i:nth-of-type(1) { --lx: -22px; --ly: -22px; }
+.fib-bounty-room-item .fib-bounty-sight.is-locking > i:nth-of-type(2) { --lx: 22px;  --ly: -22px; }
+.fib-bounty-room-item .fib-bounty-sight.is-locking > i:nth-of-type(3) { --lx: 22px;  --ly: 22px; }
+.fib-bounty-room-item .fib-bounty-sight.is-locking > i:nth-of-type(4) { --lx: -22px; --ly: 22px; }
+
+/* Motes: points of light lifting off the item and going out. */
+.fib-bounty-room-motes {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+}
+.fib-bounty-room-motes > i {
+    position: absolute;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px 1px currentColor;
+    opacity: 0;
+    animation-name: fibRoomMote;
+    animation-timing-function: ease-out;
+    animation-fill-mode: both;
+}
+@keyframes fibRoomMote {
+    0%   { opacity: 0; translate: 0 0; scale: 0.4; }
+    15%  { opacity: 1; scale: 1; }
+    70%  { opacity: 0.8; }
+    100% { opacity: 0; translate: var(--drift) var(--rise); scale: 0.3; }
+}
+
+/* ── The words ──────────────────────────────────────────────────────────── */
+
+.fib-bounty-room-words {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 30px;
+    padding: 18px 48px 24px;
+    max-width: 100%;
+    text-align: center;
+}
+/* The scrim: a soft pool of dark behind the words so they read over anything,
+   with no edge to it at all. */
+.fib-bounty-room-words::before {
+    content: '';
+    position: absolute;
+    inset: -40px -90px;
+    z-index: -1;
+    background: radial-gradient(ellipse closest-side, rgba(5, 7, 14, 0.92) 0%, rgba(5, 7, 14, 0.8) 50%, transparent 100%);
+    animation: fibRoomFade 600ms ease-out 450ms both;
+}
+.fib-bounty-room-words > * {
+    animation: fibRoomLine 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.fib-bounty-room-words > :nth-child(1) { animation-delay: 560ms; }
+.fib-bounty-room-words > :nth-child(2) { animation-delay: 680ms; }
+.fib-bounty-room-words > :nth-child(3) { animation-delay: 820ms; }
+.fib-bounty-room-words > :nth-child(4) { animation-delay: 960ms; }
+@keyframes fibRoomLine {
+    from { opacity: 0; translate: 0 10px; }
+    to   { opacity: 1; translate: 0 0; }
+}
+
+/* A kicker between two hairlines that fade in from nothing. */
+.fib-bounty-room-kicker {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--bounty);
+    white-space: nowrap;
+}
+.fib-bounty-room-kicker::before,
+.fib-bounty-room-kicker::after {
+    content: '';
+    width: 44px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 241, 214, 0.7));
+}
+.fib-bounty-room-kicker::after { transform: scaleX(-1); }
+
+.fib-bounty-room-who {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    max-width: 100%;
+}
+.fib-bounty-room-who img {
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(255, 241, 214, 0.85), 0 0 18px rgba(255, 241, 214, 0.3);
+}
+/* The name, large, with one pass of light across it. The pass is a copy of
+   the word (`data-text`) clipped to a moving band, so the name's own colour
+   never has to change for it. */
+.fib-bounty-room-who strong {
+    position: relative;
+    min-width: 0;
+    font-size: clamp(28px, 3.6vw, 36px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    color: #f4f1ea;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
+}
+.fib-bounty-room-who strong::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    color: transparent;
+    background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.95) 50%, transparent 65%);
+    background-size: 250% 100%;
+    background-position: 120% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: none;
+    animation: fibRoomSheen 1100ms ease-in-out 1150ms both;
+}
+@keyframes fibRoomSheen {
+    from { background-position: 120% 0; }
+    to   { background-position: -20% 0; }
+}
+
+.fib-bounty-room-what {
+    max-width: 100%;
+    font-size: 15px;
+    color: #b8bccb;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.fib-bounty-room-what b {
+    color: #f4f1ea;
+    font-weight: 700;
+}
+
+.fib-bounty-room-prize {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+/* ── Phones ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+    .fib-bounty-room { --room-y: max(130px, 26vh); }
+    .fib-bounty-room-beam { width: 300px; margin-left: -150px; }
+    .fib-bounty-room-words { padding: 14px 20px 20px; }
+    .fib-bounty-room-kicker { letter-spacing: 0.22em; font-size: 11px; }
+    .fib-bounty-room-kicker::before,
+    .fib-bounty-room-kicker::after { width: 24px; }
+    .fib-bounty-room-what { font-size: 14px; }
+}
+
+/* ── Reduced motion: lit and still ────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .fib-bounty-room { animation: fibRoomLeave 1ms linear 6.9s forwards; }
+    .fib-bounty-room-dim,
+    .fib-bounty-room-beam,
+    .fib-bounty-room-halo,
+    .fib-bounty-room-item,
+    .fib-bounty-room-words::before,
+    .fib-bounty-room-words > * { animation: none; }
+    .fib-bounty-room-rays { animation: none; opacity: 0.4; }
+    .fib-bounty-room-ring,
+    .fib-bounty-room-motes,
+    .fib-bounty-room-who strong::after { display: none; }
+}
