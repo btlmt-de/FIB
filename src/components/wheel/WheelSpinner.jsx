@@ -515,7 +515,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     const boxShelfRef = useRef(null);
     const boxGilded = boxReady && boxArmed;
     // What waits on the shelf: every box held, less the one on the reel.
-    const shelvedBoxes = Math.max(0, mysteryBoxes - (boxArmed ? 1 : 0));
+    // Only a box the reel is actually wearing leaves the shelf: an armed box an
+    // event has made unready is not on the reel, so it stays on the shelf.
+    const shelvedBoxes = Math.max(0, mysteryBoxes - (boxGilded ? 1 : 0));
 
     // Nothing to arm without a box.
     useEffect(() => {
@@ -536,7 +538,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
     /** Take a box down from the shelf: the same scene, without a claim. */
     function openBoxFromShelf() {
-        if (shelvedBoxes <= 0 || boxSceneOpen) return;
+        // The armed box, held back by an event, is already opened and waits for
+        // the reel; only the boxes behind it can be taken down meanwhile.
+        const takeable = shelvedBoxes - (boxArmed && !boxReady ? 1 : 0);
+        if (takeable <= 0 || boxSceneOpen) return;
         setBoxClaimName(null);
         setBoxUnwrapping(false);
         setBoxSceneOpen(true);

@@ -64,6 +64,8 @@ const FIRST_BLOOD_ANNOUNCE_BEAT_MS = 1200;
  * clock and `spinRevealDelay(wonAt)` is when that reel comes to rest.
  */
 const BOUNTY_ANNOUNCE_BEAT_MS = 900;
+/** How often to re-ask for the board while it still shows an opening that has passed. */
+const BOUNTY_STALE_RETRY_MS = 30_000;
 const BOUNTY_CELEBRATION_MS = 7000;
 
 /*
@@ -531,15 +533,26 @@ export function ActivityProvider({ children }) {
     // leave the card counting down to a moment already gone. So once the time
     // passes, ask. A few seconds late on purpose: the broadcast usually lands
     // first, and then this re-reads what the card already shows.
+    //
+    // And if that read comes back with the board still pointing at the moment that
+    // has passed (the server's tick not yet run, a dropped request), ask again every
+    // BOUNTY_STALE_RETRY_MS until it moves on - `bountyRetry` is what re-runs this
+    // effect, since an unchanged board leaves `nextBountyAt` unchanged too.
     const nextBountyAt = bountyBoard?.next?.opensAt || bountyBoard?.dayEndsAt || null;
+    const [bountyRetry, setBountyRetry] = useState(0);
     useEffect(() => {
         if (!nextBountyAt) return undefined;
         const wait = Date.parse(nextBountyAt) - serverNow() + 5000;
-        // Already long past, or beyond setTimeout's range: the next fetch will do.
-        if (!(wait > 0) || wait > 2 ** 31 - 1) return undefined;
-        const timer = setTimeout(fetchDailyBounty, wait);
+        if (!Number.isFinite(wait)) return undefined;
+        // Beyond setTimeout's range: nothing opens that far out; a later fetch will do.
+        if (wait > 2 ** 31 - 1) return undefined;
+        const stale = wait <= 0;
+        const timer = setTimeout(() => {
+            fetchDailyBounty();
+            if (stale) setBountyRetry(n => n + 1);
+        }, stale ? BOUNTY_STALE_RETRY_MS : wait);
         return () => clearTimeout(timer);
-    }, [nextBountyAt, fetchDailyBounty]);
+    }, [nextBountyAt, bountyRetry, fetchDailyBounty]);
 
     const fetchGlobalEventStatus = useCallback(async () => {
         try {
@@ -1616,6 +1629,9 @@ export function ActivityProvider({ children }) {
                 console.log('[SSE] Attempting reconnection...');
                 connectSSE();
                 fetchActivity();
+                // Openings, claims and the midnight rollover are all broadcasts
+                // the dead connection may have missed.
+                fetchDailyBounty();
             }, delay);
         };
 

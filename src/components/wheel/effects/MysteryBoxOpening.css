@@ -608,6 +608,10 @@
     .fib-mbox-body,
     .fib-mbox-lid,
     .fib-mbox-open { animation: none; }
+    /* The unwrap's own rules are more specific than the ones above, so they
+       need overrides of the same weight or the jolt and the lid still run. */
+    .fib-mbox-scene.is-unwrapping .fib-mbox,
+    .fib-mbox-scene.is-unwrapping .fib-mbox-lid { animation: none; }
     .fib-mbox-scene.is-flying .fib-mbox-hit,
     .fib-mbox-scene.is-unwrapping.is-flying .fib-mbox-hit,
     .fib-mbox-scene.is-shelving.is-flying .fib-mbox-hit { animation: none; }

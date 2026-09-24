@@ -236,7 +236,7 @@ export function DailyBountyPlaque({ isMobile }) {
                 ? (view.nextIn <= 60_000 ? 'opening now' : `opens in ${formatLeft(view.nextIn)}`)
                 : (view.lastClaimed?.winner?.username || '');
         const side = hunting
-            ? (view.others.length ? `+${view.others.length} open` : view.capped ? 'got your 2' : whenLabel(view, true))
+            ? (view.others.length ? `+${view.others.length} open` : view.capped ? `got your ${view.winsPerDay}` : whenLabel(view, true))
             : state === 'waiting' ? 'box' : whenLabel(view, true);
         return (
             <div
