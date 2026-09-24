@@ -92,6 +92,7 @@ import RouletteTable from './effects/RouletteTable.jsx';
 import { T_REVEAL } from './effects/rouletteTimeline.js';
 import ParlourDeck from './effects/ParlourDeck.jsx';
 import { HighRollerRoom } from './effects/HighRollerTable.jsx';
+import { MysteryBoxOpening, MysteryCoat, MysteryBoxShelf } from './effects/MysteryBoxOpening.jsx';
 import { useSound } from '../../context/SoundContext.jsx';
 import { useCalm } from '../../config/power.js';
 
@@ -183,7 +184,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
         roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout,
         highRoller, highRollerTable, highRollerResult, highRollerPayout, applyHighRollerTable,
-        bountyBoard, mysteryBoxes, setMysteryBoxes } = useActivity();
+        bountyBoard, mysteryBoxes, setMysteryBoxes, bountyCelebration } = useActivity();
     const mysteryBoxesRef = useRef(mysteryBoxes);
     mysteryBoxesRef.current = mysteryBoxes;
 
@@ -472,6 +473,74 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     const [currentSpinIsMystery, setCurrentSpinIsMystery] = useState(false);
     const pendingMysteryBoxesRef = useRef(null);
 
+    /*
+     * The box as an object on the screen (effects/MysteryBoxOpening.jsx): shown
+     * on the player's own claim, and again whenever they take one down from the
+     * shelf.
+     *
+     * A held box does NOT gild the reel by itself any more. Boxes wait on the
+     * shelf (MysteryBoxShelf, in the reel header) until the player opens one,
+     * and opening does not spin - it unwraps: the box bursts and pours itself
+     * into the reel band, and the reel becomes the box's reel (`boxArmed`). The
+     * reel is the opening, and the next spin is what opens it.
+     *
+     * Three decisions the owner made, in the order they were made:
+     *   - A version that ran the spin inside the scene, the item rising out of
+     *     the box over the turning reel, was built and turned down: nothing may
+     *     sit over the reel while it is the event.
+     *   - The gilding waits for the tap, or there is nothing for the box to
+     *     turn into.
+     *   - "Later" puts the box somewhere it can be taken back from, instead of
+     *     gilding the reel anyway - and that is the same place a box claimed
+     *     during an event waits, because a box must not open inside one.
+     *
+     * Which is why `boxReady` alone no longer decides a spin: a box on the shelf
+     * is held, but a spin must not spend it. performSpin opens a box only when
+     * it is armed AND ready; ready is still the event/recursion rule it was.
+     */
+    const [boxSceneOpen, setBoxSceneOpen] = useState(false);
+    const [boxUnwrapping, setBoxUnwrapping] = useState(false);
+    const [boxClaimName, setBoxClaimName] = useState(null);
+    const [boxArmed, setBoxArmed] = useState(false);
+    const boxArmedRef = useRef(false);
+    boxArmedRef.current = boxArmed;
+    // Non-zero while the reel is taking the coat; a counter, so a second box
+    // restarts the coat rather than being swallowed by the first.
+    const [boxCoating, setBoxCoating] = useState(0);
+    // Bumped when a box lands on the shelf, so it can catch it.
+    const [boxShelved, setBoxShelved] = useState(0);
+    const boxCoatTimerRef = useRef(null);
+    const reelBandRef = useRef(null);
+    const boxShelfRef = useRef(null);
+    const boxGilded = boxReady && boxArmed;
+    // What waits on the shelf: every box held, less the one on the reel.
+    const shelvedBoxes = Math.max(0, mysteryBoxes - (boxArmed ? 1 : 0));
+
+    // Nothing to arm without a box.
+    useEffect(() => {
+        if (mysteryBoxes <= 0 && boxArmed) setBoxArmed(false);
+    }, [mysteryBoxes, boxArmed]);
+
+    const ownClaimKey = bountyCelebration?.winner && user?.id != null && bountyCelebration.winner.userId === user.id
+        ? `${bountyCelebration.id ?? bountyCelebration.day}-${bountyCelebration.winner.userId}`
+        : null;
+    useEffect(() => {
+        if (!ownClaimKey) return;
+        setBoxClaimName(bountyCelebration.name);
+        setBoxUnwrapping(false);
+        setBoxSceneOpen(true);
+        // Keyed on the claim, not on the object ActivityContext rebuilds.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ownClaimKey]);
+
+    /** Take a box down from the shelf: the same scene, without a claim. */
+    function openBoxFromShelf() {
+        if (shelvedBoxes <= 0 || boxSceneOpen) return;
+        setBoxClaimName(null);
+        setBoxUnwrapping(false);
+        setBoxSceneOpen(true);
+    }
+
     // Track if the CURRENT RESULT was from a recursion lucky spin
     // This persists during result display even after user runs out of spins
     const [resultWasRecursionSpin, setResultWasRecursionSpin] = useState(false);
@@ -668,6 +737,72 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         }
     };
 
+    // ── The box scene ────────────────────────────────────────────────────────
+    // Shown while the box is: only while there is a box to show. A scene opened
+    // by a claim is also allowed a moment empty (see the note below) so a
+    // payout landing just after the claim still finds it waiting.
+    const boxShown = boxSceneOpen && (mysteryBoxes > 0 || boxUnwrapping);
+    const boxSceneOpenRef = useRef(false);
+    boxSceneOpenRef.current = boxShown;
+
+    function closeBoxScene() {
+        setBoxSceneOpen(false);
+        setBoxUnwrapping(false);
+        setBoxClaimName(null);
+    }
+
+    // "Later": the box has flown to the shelf, which catches it.
+    function shelveBox() {
+        closeBoxScene();
+        setBoxShelved(n => n + 1);
+    }
+
+    // Nothing left to show - the box went elsewhere (another tab opened it) -
+    // so the scene closes rather than sitting empty.
+    //
+    // Only once it HAS shown something. The claim and the box count are two
+    // broadcasts (`daily_bounty_claimed`, `daily_bounty_payout`) and the count
+    // can land a beat after the claim; closing on that first empty render
+    // swallowed the scene before the box it was opened for arrived.
+    const boxShownWasRef = useRef(false);
+    useEffect(() => {
+        if (boxSceneOpen && !boxShown && boxShownWasRef.current) closeBoxScene();
+        boxShownWasRef.current = boxShown;
+    }, [boxSceneOpen, boxShown]);
+    // ...and a claim whose box never turns up does not leave the scene waiting
+    // to spring open at some unrelated later moment.
+    useEffect(() => {
+        if (!boxSceneOpen) return undefined;
+        const t = setTimeout(() => {
+            if (!boxSceneOpenRef.current) closeBoxScene();
+        }, 10_000);
+        return () => clearTimeout(t);
+    }, [boxSceneOpen]);
+
+    useEffect(() => () => clearTimeout(boxCoatTimerRef.current), []);
+
+    /*
+     * The gilt reaches the reel. The reel goes back to rest - it is still
+     * showing the winning pull, which the player has had the whole claim
+     * celebration to look at - and at rest, armed, it is the box's reel:
+     * gilded deck, a strip of nothing but specials. The coat is the moment of
+     * that change, drawn over the band until the sheen has run out.
+     */
+    function gildReelFromBox() {
+        setBoxUnwrapping(true);
+        if (state === 'result') {
+            setStrip([]);
+            setResult(null);
+            setIsNewItem(false);
+            setPrestigePull(null);
+            setState('idle');
+        }
+        setBoxArmed(true);
+        setBoxCoating(c => c + 1);
+        clearTimeout(boxCoatTimerRef.current);
+        boxCoatTimerRef.current = setTimeout(() => setBoxCoating(0), 1800);
+    }
+
     // Spacebar to spin/respin
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -677,6 +812,12 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
 
                 // Check if we can spin
                 if (!user || allItems.length === 0) return;
+
+                // The box scene owns the keyboard while it is up: its focused
+                // button takes Space, and a spin fired underneath it would
+                // either open the box behind the player's back or start a
+                // second spin over the reveal.
+                if (boxSceneOpenRef.current) return;
 
                 e.preventDefault();
 
@@ -748,10 +889,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // band full of specials is the invitation, before a word of copy says so.
     const dormantStrip = useMemo(
         () => (allItems.length
-            ? (boxReady ? buildMysteryStrip(null) : buildStrip(allItems[0]))
+            ? (boxGilded ? buildMysteryStrip(null) : buildStrip(allItems[0]))
             : []),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [allItems.length, openBounties, boxReady],
+        [allItems.length, openBounties, boxGilded],
     );
 
     // The drift itself. Writes the same ref the spin animation writes, so the two
@@ -1034,10 +1175,16 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         // when the event ends, so every lucky spin is spent afterwards. This used to also
         // require an active event and only looked right because the client never learned
         // that events had ended, leaving `active` stuck at true.
-        // A held mystery box takes this spin ahead of everything else it could be.
+        // An ARMED mystery box takes this spin ahead of everything else it could
+        // be - one the player has taken off the shelf and poured into the reel.
+        // A box merely held stays on the shelf and this is an ordinary spin.
         // Decided once, here, against the state the click was made in; the reel,
         // the endpoint and the theme all read this one answer for the whole spin.
-        const opensBox = boxReadyRef.current;
+        const opensBox = boxReadyRef.current && boxArmedRef.current;
+        // Spent by this spin, so disarmed now: the spin's own theme runs off
+        // currentSpinIsMystery, and any further box waits on the shelf for its
+        // own unwrapping rather than gilding the next reel unasked.
+        if (opensBox) setBoxArmed(false);
         currentSpinIsMysteryRef.current = opensBox;
         setCurrentSpinIsMystery(opensBox);
         if (opensBox) currentSpinIsRecursionRef.current = false;
@@ -1829,7 +1976,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // Use state variable which is set at spin start for immediate effect
     const showSpinKotwLuckyEffects = (state === 'spinning' || state === 'result')
         ? currentSpinIsKotwLucky
-        : (!showSpinRecursionEffects && !boxReady && kotwLuckySpins > 0);
+        : (!showSpinRecursionEffects && !boxGilded && kotwLuckySpins > 0);
 
     // The gilded reel: while a box waits at rest, and through the spin that opens
     // it and its result. Outranks the lucky themes because the box is what the
@@ -1837,7 +1984,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     // boxReady already refuses to open over.
     const showMysteryEffects = (state === 'spinning' || state === 'result')
         ? currentSpinIsMystery
-        : (state === 'idle' && boxReady);
+        : (state === 'idle' && boxGilded);
 
     // Combined flag for any lucky spin effects (for shared logic like equal odds)
     const showAnySpinLuckyEffects = showSpinRecursionEffects || showSpinKotwLuckyEffects;
@@ -2085,7 +2232,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                 intent anyway: a recursion spin should tint the whole surface, not
                 a rectangle in the middle of it. */}
                     {/* ── Row 2: the reel band ─────────────────────────────── */}
-                    <div className={highRollerOwnsReel ? "kotw-reel-band hr-active-band" : "kotw-reel-band"} style={{
+                    <div ref={reelBandRef} className={highRollerOwnsReel ? "kotw-reel-band hr-active-band" : "kotw-reel-band"} style={{
                         gridRow: 4,
                         gridColumn: '1 / -1',
                         position: 'relative',
@@ -2149,6 +2296,9 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             */}
                         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${ruleColor} 14%, ${ruleColor} 86%, transparent)` }} />
                         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${ruleColor} 14%, ${ruleColor} 86%, transparent)` }} />
+
+                        {/* The box's coat going on - see gildReelFromBox. */}
+                        {boxCoating > 0 && <MysteryCoat key={boxCoating} />}
 
                         {/* Header.
                             No divider under it: the seam between the header and
@@ -2327,6 +2477,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                             <EventPayout luckySpins={kotwLuckySpins} isMobile={isMobile} />
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: isMobile ? '0 0 auto' : '1 1 0', minWidth: 0, justifyContent: 'flex-end' }}>
+                                {/* The box shelf: boxes held but not yet opened.
+                                    Mounted even when empty, invisibly, so a box
+                                    being put away always has somewhere to fly. */}
+                                <MysteryBoxShelf
+                                    ref={boxShelfRef}
+                                    count={shelvedBoxes}
+                                    held={!boxReady}
+                                    caught={boxShelved}
+                                    compact={isMobile}
+                                    onOpen={openBoxFromShelf}
+                                />
                                 {/* Info button — a machined control now, in the
                                     plinth language: ground, lit rail on top, and
                                     the light rising through it on hover (aqua,
@@ -3128,7 +3289,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                                 recursionActive={recursionActive}
                                 recursionSpinsRemaining={recursionSpinsRemaining}
                                 kotwLuckySpins={kotwLuckySpins}
-                                mysteryBox={boxReady}
+                                mysteryBox={boxGilded}
                                 error={error}
                                 onSpin={spin}
                                 isMobile={isMobile}
@@ -3291,6 +3452,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         )}
                     </div>
 
+            {boxShown && (
+                <MysteryBoxOpening
+                    held={!boxReady}
+                    claimedName={boxClaimName}
+                    targetRef={reelBandRef}
+                    shelfRef={boxShelfRef}
+                    onGild={gildReelFromBox}
+                    onDone={closeBoxScene}
+                    onShelved={shelveBox}
+                />
+            )}
         </div>
     );
 }

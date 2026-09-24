@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Gift } from 'lucide-react';
-import { COLORS, SPACE, SURFACE_NOISE, Z } from '../config/constants';
+import { COLORS, SURFACE_NOISE, Z } from '../config/constants';
 import { useActivity } from '../../../context/ActivityContext.jsx';
 import { getDiscordAvatarUrl, getItemImageUrl } from '../../../utils/helpers.js';
 import { RARITY, getRarityInk } from '../../../utils/rarityHelpers.jsx';
 import { serverNow } from '../../../utils/serverClock.js';
-import { visibleInterval } from '../../../config/power.js';
+import { visibleInterval, useCalm } from '../../../config/power.js';
 import { useEventSlotBusy } from './useEventSlotBusy.js';
 import './DailyBounty.css';
 
@@ -79,7 +79,7 @@ function Sight({ texture, name, rarity = 'regular', imageUrl = null, size, claim
  */
 function MysteryBoxGlyph({ size }) {
     return (
-        <span className="fib-mystery-box" style={{ width: size, height: size }} aria-hidden="true">
+        <span className="fib-mystery-box" style={{ width: size, height: size, borderRadius: Math.round(size * 0.18) }} aria-hidden="true">
             <Gift size={Math.round(size * 0.5)} strokeWidth={1.6} color="#3A2708" />
         </span>
     );
@@ -326,103 +326,130 @@ export function DailyBountyPlaque({ isMobile }) {
     );
 }
 
+/** Gilt and sight-white confetti for the room's celebration, drawn once per claim. */
+function makeConfetti(count) {
+    const colors = [...COLORS.mysteryGilt.slice(0, 3), COLORS.bounty];
+    return Array.from({ length: count }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 1400,
+        dur: 2600 + Math.random() * 1800,
+        drift: (Math.random() - 0.5) * 220,
+        spin: (Math.random() > 0.5 ? 1 : -1) * (540 + Math.random() * 720),
+        w: 6 + Math.random() * 6,
+        h: Math.random() > 0.5 ? 12 + Math.random() * 8 : 6 + Math.random() * 4,
+        color: colors[i % colors.length],
+    }));
+}
+
 /**
- * The claim, for everyone - and a larger version for the player who made it.
+ * The claim, for the room.
  *
  * Raised by ActivityContext once the winning reel has landed, and cleared by
  * it too; this renders whatever `bountyCelebration` holds and nothing else.
- * The room sees a card drop in under the topbar, out of the way of the reel
- * that is the actual event. The winner sees theirs in the centre of the screen
- * with the payout as the headline, because for them the payout IS the news,
- * and can wave it away.
  *
- * The corners lock onto the item as it arrives - the one geometric move the
- * mark ever makes - and a single sweep of sight white crosses the card. Both
- * are frozen under reduced motion; the card and its words are the content and
- * stay.
+ * It was a card that dropped in under the topbar, and the owner's note on it
+ * was that nobody noticed: a claim read as the plaque's text changing. So it
+ * is a takeover now, on the mythic celebration's model and at a lower pitch -
+ * a flash of sight white, the room washed warm, gilt falling, and the claim in
+ * the middle of it: the item with the corners locking on, who took it, and the
+ * box they took. It stays pointer-transparent throughout, because this is news
+ * about somebody else's spin and must never cost the viewer theirs.
+ *
+ * The winner does not see this. Theirs is the box itself, on their own screen,
+ * waiting to be opened - MysteryBoxOpening, mounted by WheelSpinner, since
+ * opening it IS a spin.
+ *
+ * Reduced motion keeps the card and its words and drops everything that moves.
  */
 export function BountyCelebration({ currentUserId }) {
     const { bountyCelebration } = useActivity();
-    const [dismissed, setDismissed] = useState(null);
+    const calm = useCalm();
 
-    if (!bountyCelebration?.winner) return null;
-    const key = `${bountyCelebration.id ?? bountyCelebration.day}-${bountyCelebration.winner.userId}`;
-    if (dismissed === key) return null;
+    const winner = bountyCelebration?.winner || null;
+    const key = winner ? `${bountyCelebration.id ?? bountyCelebration.day}-${winner.userId}` : null;
+    // New confetti per claim, not per render.
+    const confetti = useMemo(() => (key && !calm ? makeConfetti(90) : []), [key, calm]);
 
-    const { winner } = bountyCelebration;
+    if (!winner) return null;
     const mine = currentUserId != null && winner.userId === currentUserId;
+    if (mine) return null;
 
-    const card = {
-        ...bountyVar,
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: '20px',
-        backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
-        boxShadow: [
-            'inset 0 1px 0 rgba(206,214,236,0.12)',
-            // The winner's card is the box's, so its hairline is the gilt.
-            `inset 0 0 0 1px ${mine ? `${COLORS.mystery}66` : `${COLORS.bounty}33`}`,
-            '0 18px 50px rgba(0,0,0,0.55)',
-        ].join(', '),
-    };
+    const special = bountyCelebration.rarity && bountyCelebration.rarity !== 'regular';
+    const tierLabel = special ? (RARITY[bountyCelebration.rarity]?.label || bountyCelebration.rarity) : null;
 
-    if (mine) {
-        return (
-            <div
-                className="fib-bounty-celebration is-mine"
-                role="status"
-                aria-live="polite"
-                onClick={() => setDismissed(key)}
-                style={{ zIndex: Z.modal }}
-            >
-                <div style={{ ...card, padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
-                    <span className="fib-bounty-eyebrow" style={{ color: COLORS.bounty }}>
-                        You claimed a bounty · {bountyCelebration.name}
+    return (
+        <div
+            key={key}
+            className="fib-bounty-room"
+            role="status"
+            aria-live="polite"
+            style={{ ...bountyVar, zIndex: Z.modal }}
+        >
+            <span className="fib-bounty-room-wash" aria-hidden="true" />
+            <span className="fib-bounty-room-flash" aria-hidden="true" />
+            <span className="fib-bounty-room-confetti" aria-hidden="true">
+                {confetti.map(c => (
+                    <i
+                        key={c.id}
+                        style={{
+                            left: `${c.left}%`,
+                            width: c.w,
+                            height: c.h,
+                            background: c.color,
+                            animationDelay: `${c.delay}ms`,
+                            animationDuration: `${c.dur}ms`,
+                            '--drift': `${c.drift}px`,
+                            '--spin': `${c.spin}deg`,
+                        }}
+                    />
+                ))}
+            </span>
+
+            <div className="fib-bounty-room-card">
+                <span className="fib-bounty-room-rays" aria-hidden="true" />
+                <div
+                    className="fib-bounty-room-plate"
+                    style={{ backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #111829 0%, #0a0d18 100%)` }}
+                >
+                    <span className="fib-bounty-room-eyebrow">
+                        <i aria-hidden="true" />
+                        {special ? `${tierLabel} bounty claimed` : 'Bounty claimed'}
+                        <i aria-hidden="true" />
                     </span>
-                    {/* The box itself, closed. What is in it is decided when it
-                        is opened, not now - see services/dailyBounty.js - so the
-                        card shows the box and the reel does the reveal. */}
-                    <MysteryBoxGlyph size={112} />
-                    <strong className="fib-gilt-text" style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1.1, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                        Mystery box
-                    </strong>
-                    <span style={{ fontSize: '14px', color: COLORS.text }}>
-                        One special - any of them, every one at equal odds.
-                    </span>
-                    <span style={{ fontSize: '12px', color: COLORS.textMuted }}>
-                        Your next spin opens it. Tap to close.
+
+                    <div className="fib-bounty-room-main">
+                        <Sight
+                            texture={bountyCelebration.texture}
+                            name={bountyCelebration.name}
+                            rarity={bountyCelebration.rarity}
+                            imageUrl={bountyCelebration.imageUrl}
+                            size={84}
+                            locking
+                        />
+                        <div className="fib-bounty-room-text">
+                            <span className="fib-bounty-room-who">
+                                <img
+                                    src={getDiscordAvatarUrl(winner.discordId, winner.discordAvatar)}
+                                    alt=""
+                                    width={28}
+                                    height={28}
+                                    onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
+                                />
+                                <strong>{winner.username}</strong>
+                            </span>
+                            <span className="fib-bounty-room-what">
+                                pulled <b style={special ? { color: getRarityInk(bountyCelebration.rarity) } : undefined}>{bountyCelebration.name}</b> first
+                            </span>
+                        </div>
+                    </div>
+
+                    <span className="fib-bounty-room-prize">
+                        <MysteryBoxGlyph size={30} />
+                        <span className="fib-gilt-text">won a mystery box</span>
                     </span>
                     <span className="fib-bounty-flash" aria-hidden="true" />
                 </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="fib-bounty-celebration" role="status" aria-live="polite" style={{ zIndex: Z.banner }}>
-            <div style={{ ...card, padding: `${SPACE.md}px ${SPACE.md + 2}px`, display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <Sight texture={bountyCelebration.texture} name={bountyCelebration.name} rarity={bountyCelebration.rarity} imageUrl={bountyCelebration.imageUrl} size={56} locking />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, flex: 1 }}>
-                    <span className="fib-bounty-eyebrow" style={{ color: COLORS.bounty }}>Bounty claimed</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
-                        <img
-                            src={getDiscordAvatarUrl(winner.discordId, winner.discordAvatar)}
-                            alt=""
-                            width={20}
-                            height={20}
-                            onError={(e) => { e.target.onerror = null; e.target.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; }}
-                            style={{ borderRadius: '50%', flexShrink: 0 }}
-                        />
-                        <strong style={{ fontSize: '15px', color: COLORS.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {winner.username}
-                        </strong>
-                    </span>
-                    <span style={{ fontSize: '12px', color: COLORS.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        pulled {bountyCelebration.name} ·{' '}
-                        <span className="fib-gilt-text" style={{ fontWeight: 700 }}>won the mystery box</span>
-                    </span>
-                </div>
-                <span className="fib-bounty-flash" aria-hidden="true" />
             </div>
         </div>
     );
