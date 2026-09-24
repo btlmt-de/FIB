@@ -238,25 +238,39 @@ export function ActivityProvider({ children }) {
     const highRollerSettledRef = useRef(false);
 
     /*
-     * THE DAILY BOUNTY. Not a global event - it runs all day underneath them
-     * (wheel-backend services/dailyBounty.js says why) - so it has its own three
+     * THE DAILY BOUNTIES. Not a global event - they run all day underneath them
+     * (wheel-backend services/dailyBounty.js says why) - so they have their own
      * pieces, split the Parlour's way:
      *
-     *   `dailyBounty`        today's item, its reward and, once claimed, the
-     *                        winner. What the card and the strip read.
+     *   `bountyBoard`        today as the room sees it: every bounty opened so
+     *                        far (`bounties`), the one the card leads with
+     *                        (`bounty`), and when the next opens (`next` - a
+     *                        time and a number, never the item, which the
+     *                        server keeps secret until then). What the card
+     *                        and the strip read.
+     *   `bountyWinsToday`    how many of today's this player has taken, against
+     *                        the board's `winsPerDay`. Private, like the boxes.
      *   `bountyCelebration`  the claim, set only for the celebration's
      *                        lifetime. Its presence is what shows it.
      *   `mysteryBoxes`       this player's own unopened boxes, private (below).
      *
-     * A claim updates `dailyBounty` at the same moment it raises the
-     * celebration, never on arrival: the broadcast leaves the server while the
-     * winner's reel is still turning, and a card reading "claimed by you" beside
-     * a wheel that has not stopped yet spoils the one pull the day was about.
+     * A claim updates the board at the same moment it raises the celebration,
+     * never on arrival: the broadcast leaves the server while the winner's reel
+     * is still turning, and a card reading "claimed by you" beside a wheel that
+     * has not stopped yet spoils the one pull the bounty was about.
+     *
+     * It was one bounty a day, held as `dailyBounty`, until the day grew five.
      */
-    const [dailyBounty, setDailyBounty] = useState(null);
+    const [bountyBoard, setBountyBoard] = useState(null);
+    const [bountyWinsToday, setBountyWinsToday] = useState(0);
     const [bountyCelebration, setBountyCelebration] = useState(null);
     const bountyRevealTimeoutRef = useRef(null);
     const bountyClearTimeoutRef = useRef(null);
+    // A board that arrived while a claim's reveal was holding the card back, and
+    // was dropped because it would have shown the claim early. Set, the reveal
+    // refetches once it has shown, so an opening in that window is not lost.
+    const bountyBoardStaleRef = useRef(false);
+    const pendingWinsTodayRef = useRef(null);
 
     /*
      * How many mystery boxes this player holds unopened - the bounty's prize.
@@ -491,22 +505,41 @@ export function ActivityProvider({ children }) {
         }
     }, []);
 
-    // Today's bounty. On mount and on every return to the tab, like the event
-    // status, because the claim and the midnight rollover are both broadcasts a
-    // backgrounded tab can miss. Never while a celebration is pending: that
-    // would print the winner the celebration is still holding back.
+    // Today's board. On mount and on every return to the tab, like the event
+    // status, because the claims, the openings and the midnight rollover are
+    // all broadcasts a backgrounded tab can miss. Never while a celebration is
+    // pending: that would print the winner the celebration is still holding back.
     const fetchDailyBounty = useCallback(async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/bounty`, { credentials: 'include' });
             if (!res.ok) return;
             const data = await res.json();
-            if (bountyRevealTimeoutRef.current) return;
-            setDailyBounty(data.bounty || null);
+            if (bountyRevealTimeoutRef.current) {
+                bountyBoardStaleRef.current = true;
+                return;
+            }
+            setBountyBoard(data.bounties ? data : null);
             setMysteryBoxes(data.mysteryBoxes || 0);
+            setBountyWinsToday(data.winsToday || 0);
         } catch (e) {
             console.error('[ActivityContext] Failed to fetch daily bounty:', e);
         }
     }, []);
+
+    // The safety net under the opening broadcast. A slot opens because its time
+    // has passed - the server announces it, but a dropped SSE connection would
+    // leave the card counting down to a moment already gone. So once the time
+    // passes, ask. A few seconds late on purpose: the broadcast usually lands
+    // first, and then this re-reads what the card already shows.
+    const nextBountyAt = bountyBoard?.next?.opensAt || bountyBoard?.dayEndsAt || null;
+    useEffect(() => {
+        if (!nextBountyAt) return undefined;
+        const wait = Date.parse(nextBountyAt) - serverNow() + 5000;
+        // Already long past, or beyond setTimeout's range: the next fetch will do.
+        if (!(wait > 0) || wait > 2 ** 31 - 1) return undefined;
+        const timer = setTimeout(fetchDailyBounty, wait);
+        return () => clearTimeout(timer);
+    }, [nextBountyAt, fetchDailyBounty]);
 
     const fetchGlobalEventStatus = useCallback(async () => {
         try {
@@ -1232,12 +1265,20 @@ export function ActivityProvider({ children }) {
                                 break;
 
                             case 'daily_bounty':
-                                // A new day opened (the midnight rollover, or the
-                                // first request after a server that was down over it).
-                                // Nothing to hold back - there is no pull behind it.
-                                console.log('[SSE] Daily bounty:', data.bounty);
-                                if (!bountyRevealTimeoutRef.current) {
-                                    setDailyBounty(data.bounty || null);
+                            case 'daily_bounty_day':
+                                // `daily_bounty`: a bounty opened - its time came and
+                                // the server announced it, with the whole board.
+                                // `daily_bounty_day`: midnight - a new day, nothing
+                                // open yet, the first slot's time on the board, and
+                                // this player's count against the cap back to zero.
+                                // Nothing to hold back for either: no pull is behind it.
+                                console.log(`[SSE] ${data.type}:`, data.bounty || data.board);
+                                if (data.type === 'daily_bounty_day') setBountyWinsToday(0);
+                                if (!data.board) break;
+                                if (bountyRevealTimeoutRef.current) {
+                                    bountyBoardStaleRef.current = true;
+                                } else {
+                                    setBountyBoard(data.board);
                                 }
                                 break;
 
@@ -1255,13 +1296,23 @@ export function ActivityProvider({ children }) {
 
                                 const reveal = () => {
                                     bountyRevealTimeoutRef.current = null;
-                                    setDailyBounty(claimed);
+                                    if (data.board) setBountyBoard(data.board);
                                     setBountyCelebration(claimed);
                                     // The winner's box, held with the rest - see
                                     // mysteryBoxes. Only the winner ever has one.
                                     if (pendingBoxesRef.current !== null) {
                                         setMysteryBoxes(pendingBoxesRef.current);
                                         pendingBoxesRef.current = null;
+                                    }
+                                    if (pendingWinsTodayRef.current !== null) {
+                                        setBountyWinsToday(pendingWinsTodayRef.current);
+                                        pendingWinsTodayRef.current = null;
+                                    }
+                                    // Something arrived while this was held back -
+                                    // an opening, most likely. Read it now.
+                                    if (bountyBoardStaleRef.current) {
+                                        bountyBoardStaleRef.current = false;
+                                        fetchDailyBounty();
                                     }
                                     bountyClearTimeoutRef.current = setTimeout(() => {
                                         setBountyCelebration(null);
@@ -1298,8 +1349,10 @@ export function ActivityProvider({ children }) {
                                 console.log('[SSE] Daily bounty payout:', data);
                                 if (bountyRevealTimeoutRef.current) {
                                     pendingBoxesRef.current = data.mysteryBoxes ?? 0;
+                                    pendingWinsTodayRef.current = data.winsToday ?? null;
                                 } else {
                                     setMysteryBoxes(data.mysteryBoxes ?? 0);
+                                    if (data.winsToday != null) setBountyWinsToday(data.winsToday);
                                 }
                                 break;
 
@@ -1848,8 +1901,9 @@ export function ActivityProvider({ children }) {
         highRollerResult,
         highRollerPayout,
         applyHighRollerTable,
-        // Daily bounty
-        dailyBounty,
+        // Daily bounties
+        bountyBoard,
+        bountyWinsToday,
         bountyCelebration,
         mysteryBoxes,
         // Set from a box-opening spin's response, which carries the new count.

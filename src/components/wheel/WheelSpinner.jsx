@@ -183,16 +183,17 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         communityGoalResultPending, kotwWinner, kotwWinnerPending, arrival,
         roulette, rouletteTable, rouletteResult, rouletteMyBet, setRouletteMyBet, roulettePayout,
         highRoller, highRollerTable, highRollerResult, highRollerPayout, applyHighRollerTable,
-        dailyBounty, mysteryBoxes, setMysteryBoxes } = useActivity();
+        bountyBoard, mysteryBoxes, setMysteryBoxes } = useActivity();
     const mysteryBoxesRef = useRef(mysteryBoxes);
     mysteryBoxesRef.current = mysteryBoxes;
 
     /*
-     * Today's bounty while it is still open, as the strip needs it: the pool's
-     * own entry for the item, so a teased tile is the same object any other
-     * common would be. Held in a ref too, because buildStrip is called from the
-     * spin's async path and has to see the bounty as it is now, not as it was
-     * when that closure was made.
+     * Today's bounties still open, as the strip needs them: the pool's own entry
+     * for each item, so a teased tile is the same object any other common would
+     * be. Several can be open at once - five open a day and each lasts until it
+     * is claimed or the day ends. Held in a ref too, because buildStrip is
+     * called from the spin's async path and has to see them as they are now,
+     * not as they were when that closure was made.
      *
      * "Open" is this client's view, which the claim's celebration deliberately
      * lags (ActivityContext holds it until the winning reel lands) - so the
@@ -215,24 +216,29 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         ...RARE_MEMBERS.map(r => ({ ...r, isRare: true, texture: `rare_${r.username}` })),
     ], []);
 
-    const openBountyTexture = dailyBounty && !dailyBounty.winner ? dailyBounty.texture : null;
-    const openBounty = useMemo(() => {
-        if (!openBountyTexture) return null;
-        // The bounty can be any item (wheel-backend services/dailyBounty.js), so it is
+    // A string key, so the memo below re-runs when the open set changes and not
+    // on every board broadcast that leaves it as it was.
+    const openBountyKey = (bountyBoard?.bounties || [])
+        .filter(b => !b.winner)
+        .map(b => b.texture)
+        .join('|');
+    const openBounties = useMemo(() => {
+        const open = (bountyBoard?.bounties || []).filter(b => !b.winner);
+        // A bounty can be any item (wheel-backend services/dailyBounty.js), so it is
         // looked for among the commons and the specials both. The fallback is built
         // from the bounty's own fields, which carry its tier and artwork.
-        return allItems.find(i => i.texture === openBountyTexture)
-            || specialContents.find(i => i.texture === openBountyTexture)
+        return open.map(b => allItems.find(i => i.texture === b.texture)
+            || specialContents.find(i => i.texture === b.texture)
             || {
-                texture: openBountyTexture,
-                name: dailyBounty.name,
-                type: dailyBounty.rarity || 'regular',
-                imageUrl: dailyBounty.imageUrl || null,
-            };
+                texture: b.texture,
+                name: b.name,
+                type: b.rarity || 'regular',
+                imageUrl: b.imageUrl || null,
+            });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [openBountyTexture, allItems, specialContents]);
-    const openBountyRef = useRef(openBounty);
-    openBountyRef.current = openBounty;
+    }, [openBountyKey, allItems, specialContents]);
+    const openBountiesRef = useRef(openBounties);
+    openBountiesRef.current = openBounties;
 
     /*
      * THE ARRIVAL TAKES THE REEL.
@@ -745,7 +751,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
             ? (boxReady ? buildMysteryStrip(null) : buildStrip(allItems[0]))
             : []),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [allItems.length, openBounty, boxReady],
+        [allItems.length, openBounties, boxReady],
     );
 
     // The drift itself. Writes the same ref the spin animation writes, so the two
@@ -796,17 +802,18 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
     }, [state, dormantStrip.length, calm]);
 
     /*
-     * Flag a tile as today's bounty, for the canvas's reticle. By texture alone:
-     * the bounty can be any item, and textures are unique across the tiers (the
-     * specials' carry their tier as a prefix), so a match is the item itself.
+     * Flag a tile as one of today's open bounties, for the canvas's reticle. By
+     * texture alone: a bounty can be any item, and textures are unique across the
+     * tiers (the specials' carry their tier as a prefix), so a match is the item
+     * itself.
      *
      * This used to also require `type === 'regular'`, from when the bounty could
      * only be a common. A special bounty would have gone past unmarked.
      */
     function markBounty(item) {
-        const bounty = openBountyRef.current;
-        if (!bounty || !item || item.isBounty) return item;
-        if (item.texture !== bounty.texture) return item;
+        const open = openBountiesRef.current;
+        if (!open.length || !item || item.isBounty) return item;
+        if (!open.some(b => b.texture === item.texture)) return item;
         return { ...item, isBounty: true };
     }
 
@@ -852,7 +859,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
         const shuffledRelic = shuffleArray([...RELIC_ITEMS]);
         const shuffledLegendary = shuffleArray([...TEAM_MEMBERS]);
 
-        const bounty = openBountyRef.current;
+        const bounties = openBountiesRef.current;
 
         // Use indices to iterate through shuffled arrays (guarantees distribution)
         let itemIndex = 0;
@@ -932,7 +939,7 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                         isSpecial: true,
                         texture: member.username ? `special_${member.username}` : member.name.toLowerCase().replace(/\s+/g, '_')
                     };
-                } else if (roll < 0.058 && bounty) {
+                } else if (roll < 0.058 && bounties.length > 0) {
                     // 0.5% chance for today's open bounty, band for band with the
                     // server's buildStrip in wheel-backend services/spin.js, and
                     // carved out of the commons for the reason given there. Usually
@@ -940,7 +947,10 @@ function WheelSpinnerComponent({ allItems, collection, prestige, onSpinComplete,
                     // past; on a special day (about one in 45) it is that special,
                     // wearing its own tier colour. Without it the one thing the room
                     // is chasing would be the one thing the reel never shows.
-                    newItem = { ...bounty, isBounty: true };
+                    //
+                    // With several open, each teased tile is one of them at random,
+                    // as the server's strip does, so a spin advertises them all.
+                    newItem = { ...bounties[Math.floor(Math.random() * bounties.length)], isBounty: true };
                 } else if (shuffledItems.length > 0) {
                     // Regular items - iterate through shuffled pool for maximum variety
                     newItem = shuffledItems[itemIndex % shuffledItems.length];

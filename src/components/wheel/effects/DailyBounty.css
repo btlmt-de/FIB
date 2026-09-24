@@ -40,6 +40,17 @@
 .fib-bounty-sight.is-claimed > i { opacity: 0.35; }
 .fib-bounty-sight.is-claimed img { opacity: 0.55; filter: grayscale(0.4); }
 
+/* Sealed: a bounty whose time has not come. The server has drawn its item and
+   will not say what it is, so the sight holds nothing but the question - the
+   corners at full strength, because this one is still to be hunted. */
+.fib-bounty-sight.is-sealed > b {
+    font-size: 0.42em;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--bounty);
+    opacity: 0.7;
+}
+
 /* The lock: the corners start wide and close onto the item. Geometry moves
    exactly once, on arrival, and then holds - the surface's rule that geometry
    holds still and light breathes. */
@@ -76,6 +87,24 @@
     letter-spacing: 0.09em;
     text-transform: uppercase;
     white-space: nowrap;
+}
+
+/* The other bounties still open, beside the one the plaque leads with. */
+.fib-bounty-others {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* The last ten minutes before a sealed bounty opens: the eyebrow breathes.
+   Light, not geometry - the plaque itself holds still. */
+@keyframes fibBountyImminent {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+}
+.fib-bounty-plaque.is-imminent .fib-bounty-eyebrow {
+    animation: fibBountyImminent 1.6s ease-in-out infinite;
 }
 
 /* ── The celebration ─────────────────────────────────────────────────────── */
@@ -177,6 +206,7 @@
     .fib-bounty-sight.is-locking > i,
     .fib-bounty-flash { animation: none; }
     .fib-bounty-flash { display: none; }
+    .fib-bounty-plaque.is-imminent .fib-bounty-eyebrow { animation: none; }
     .fib-bounty-celebration,
     .fib-bounty-celebration.is-mine { animation: fibBountyLeaveCalm 1ms linear 6.9s forwards; }
     .fib-bounty-celebration.is-mine { transform: translate(-50%, -50%); }

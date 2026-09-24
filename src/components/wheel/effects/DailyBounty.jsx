@@ -10,12 +10,13 @@ import { useEventSlotBusy } from './useEventSlotBusy.js';
 import './DailyBounty.css';
 
 /*
- * THE DAILY BOUNTY - the plaque that names the day's item, and the moment
- * somebody pulls it.
+ * THE DAILY BOUNTIES - the plaque that names what is being hunted, or when the
+ * next hunt opens, and the moment somebody pulls one.
  *
- * The rules live in wheel-backend services/dailyBounty.js: one common a day,
- * drawn at 00:00 UTC, the first player to pull it takes the reward. This file
- * only says so. What it deliberately does NOT do is hold any of that state -
+ * The rules live in wheel-backend services/dailyBounty.js: five a day, each
+ * opening at a random time inside its own fifth of the day, the first player
+ * to pull one takes a mystery box, two per player per day. This file only says
+ * so. What it deliberately does NOT do is hold any of that state -
  * ActivityContext owns it, and in particular owns WHEN a claim becomes visible,
  * which is after the winning reel has landed and never on arrival.
  *
@@ -31,7 +32,7 @@ const bountyVar = {
     '--gilt-deep': COLORS.mysteryGilt[2],
 };
 
-/** "4h 12m", "38m", "under a minute" - to the next UTC midnight. */
+/** "4h 12m", "38m", "under a minute". */
 function formatLeft(ms) {
     if (ms <= 60_000) return 'under a minute';
     const mins = Math.floor(ms / 60_000);
@@ -40,24 +41,32 @@ function formatLeft(ms) {
     return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
-/** Re-renders once a minute while visible, for the reset countdown. */
+/** Re-renders once a minute while visible, for the countdowns. */
 function useMinuteTick() {
     const [, setTick] = useState(0);
     useEffect(() => visibleInterval(() => setTick(t => t + 1), 60_000), []);
 }
 
-function Sight({ texture, name, rarity = 'regular', imageUrl = null, size, claimed = false, locking = false }) {
+/** The last stretch before a sealed bounty opens, when the plaque says so. */
+const IMMINENT_MS = 10 * 60_000;
+
+function Sight({ texture, name, rarity = 'regular', imageUrl = null, size, claimed = false, locking = false, sealed = false }) {
     return (
         <span
-            className={`fib-bounty-sight${claimed ? ' is-claimed' : ''}${locking ? ' is-locking' : ''}`}
-            style={{ ...bountyVar, width: size, height: size }}
+            className={`fib-bounty-sight${claimed ? ' is-claimed' : ''}${locking ? ' is-locking' : ''}${sealed ? ' is-sealed' : ''}`}
+            style={{ ...bountyVar, width: size, height: size, fontSize: size }}
+            title={sealed ? undefined : name}
         >
-            <img
-                src={getItemImageUrl({ texture, type: rarity, imageUrl })}
-                alt={name}
-                width={Math.round(size * 0.66)}
-                height={Math.round(size * 0.66)}
-            />
+            {sealed
+                ? <b aria-hidden="true">?</b>
+                : (
+                    <img
+                        src={getItemImageUrl({ texture, type: rarity, imageUrl })}
+                        alt={name}
+                        width={Math.round(size * 0.66)}
+                        height={Math.round(size * 0.66)}
+                    />
+                )}
             <i /><i /><i /><i />
         </span>
     );
@@ -77,11 +86,88 @@ function MysteryBoxGlyph({ size }) {
 }
 
 /**
+ * Where the day stands, worked out once for both layouts.
+ *
+ *   hunting  a bounty is open. The plaque leads with the newest, and lists
+ *            any others still open beside it.
+ *   waiting  nothing open, the next one sealed: the plaque counts down to it.
+ *   done     every slot has opened and none is left to hunt.
+ *
+ * "Next" is always the next OPENING, never the next day, until the day has no
+ * openings left - then it is the reset.
+ */
+function readBoard(board, winsToday) {
+    const bounties = board.bounties || [];
+    const lead = board.bounty || null;
+    const hunting = bounties.filter(b => !b.winner);
+    const state = lead && !lead.winner ? 'hunting' : board.next ? 'waiting' : 'done';
+    const now = serverNow();
+    const nextIn = board.next ? Date.parse(board.next.opensAt) - now : null;
+    const lastClaimed = [...bounties].reverse().find(b => b.winner) || null;
+
+    return {
+        state,
+        lead,
+        others: state === 'hunting' ? hunting.filter(b => b.id !== lead.id) : [],
+        next: board.next,
+        nextIn,
+        imminent: state === 'waiting' && nextIn !== null && nextIn <= IMMINENT_MS,
+        dayLeft: Date.parse(board.dayEndsAt) - now,
+        slots: board.slots || 5,
+        winsPerDay: board.winsPerDay || 2,
+        capped: winsToday >= (board.winsPerDay || 2),
+        claimedCount: bounties.filter(b => b.winner).length,
+        lastClaimed,
+    };
+}
+
+/**
+ * The top-right line: when the next one opens, or when the day turns over.
+ *
+ * While waiting, the headline is already the countdown, so this line gives the
+ * other half - the clock time, in the viewer's own zone, since "02:46 UTC" is
+ * arithmetic for nearly everyone who reads it.
+ */
+function whenLabel(view, compact = false) {
+    if (view.state === 'waiting' && !compact) {
+        const at = new Date(Date.parse(view.next.opensAt));
+        return `at ${at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    if (view.next) {
+        if (view.nextIn <= 60_000) return compact ? 'any moment' : 'next any moment';
+        return `${compact ? '' : 'next in '}${formatLeft(view.nextIn)}`;
+    }
+    return compact ? `new ${formatLeft(view.dayLeft)}` : `new day in ${formatLeft(view.dayLeft)}`;
+}
+
+function plaqueTitle(view) {
+    const rules = `${view.slots} bounties a day, each opening at a random time - the next one is announced here, but not what it is until it opens. `
+        + `The first player to pull one wins a mystery box: one special item, every special at equal odds. `
+        + `Each player can take ${view.winsPerDay} a day, and a bounty nobody pulls stays open until 00:00 UTC.`;
+
+    if (view.state === 'hunting') {
+        const { lead } = view;
+        const special = lead.rarity && lead.rarity !== 'regular';
+        const tier = special ? (RARITY[lead.rarity]?.label || lead.rarity) : null;
+        const odds = special
+            ? ` It is a ${tier}, so it drops at its own odds - and a lucky spin, which draws every item equally, is the way to chase it.`
+            : ' It is a common, so every spin has the same chance at it.';
+        const others = view.others.length ? ` Also open: ${view.others.map(b => b.name).join(', ')}.` : '';
+        const cap = view.capped ? ` You have taken your ${view.winsPerDay} for today.` : '';
+        return `Bounty ${lead.slot + 1} of ${view.slots}: ${lead.name}.${odds}${others}${cap} ${rules}`;
+    }
+    if (view.state === 'waiting') {
+        return `Bounty ${view.next.slot + 1} of ${view.slots} opens in ${formatLeft(view.nextIn)}. ${rules}`;
+    }
+    return `All of today's bounties have been claimed. New ones from 00:00 UTC, in ${formatLeft(view.dayLeft)}. ${rules}`;
+}
+
+/**
  * The plaque, in the banner slot beside the milestone meter.
  *
  * It shares that slot's one rule: when an event owns the slot, this steps aside
- * with the meter (`useEventSlotBusy`). The bounty is still live underneath -
- * the reel keeps marking it - only the plaque yields, because the slot holds
+ * with the meter (`useEventSlotBusy`). The bounties are still live underneath -
+ * the reel keeps marking them - only the plaque yields, because the slot holds
  * one kind of news at a time and an event is louder news than an all-day hunt.
  *
  * Not a control. There is nowhere for it to go that is worth a click, and a
@@ -89,101 +175,152 @@ function MysteryBoxGlyph({ size }) {
  * tooltip instead, where whoever wonders can find them.
  */
 export function DailyBountyPlaque({ isMobile }) {
-    const { dailyBounty } = useActivity();
+    const { bountyBoard, bountyWinsToday } = useActivity();
     const busy = useEventSlotBusy();
     useMinuteTick();
 
-    if (busy || !dailyBounty) return null;
+    if (busy || !bountyBoard) return null;
 
-    const claimed = !!dailyBounty.winner;
-    // Most days the bounty is a common; about one in 45 it is a special, and then
-    // the plaque says so in the tier's own ink - it changes how the day plays.
-    const special = !!dailyBounty.rarity && dailyBounty.rarity !== 'regular';
-    const tierLabel = special ? (RARITY[dailyBounty.rarity]?.label || dailyBounty.rarity) : null;
-    const tierInk = special ? getRarityInk(dailyBounty.rarity) : null;
-    const left = formatLeft(Date.parse(dailyBounty.endsAt) - serverNow());
-    const winnerName = dailyBounty.winner?.username || 'someone';
-    // The prize is a mystery box, and the word is the gilt one on this plaque.
-    const reward = 'a mystery box';
-
-    const title = claimed
-        ? `Today's bounty was ${dailyBounty.name}, claimed by ${winnerName}${dailyBounty.box ? `, whose mystery box held ${dailyBounty.box.name}` : ''}. A new bounty is drawn at 00:00 UTC, in ${left}.`
-        : `Today's bounty: the first player to pull ${dailyBounty.name} wins a mystery box: one special item, every special at equal odds.${special ? ` It is a ${RARITY[dailyBounty.rarity]?.label || dailyBounty.rarity} today, so it drops at its own odds - and a lucky spin, which draws every item equally, is the way to chase it.` : ' It is a common today, so every spin has the same chance at it.'} Resets at 00:00 UTC, in ${left}.`;
+    const view = readBoard(bountyBoard, bountyWinsToday);
+    const { state, lead } = view;
+    const hunting = state === 'hunting';
+    const dim = state === 'done';
+    // A special bounty says so in the tier's own ink - it changes how the hunt plays.
+    const special = hunting && !!lead.rarity && lead.rarity !== 'regular';
+    const tierLabel = special ? (RARITY[lead.rarity]?.label || lead.rarity) : null;
+    const tierInk = special ? getRarityInk(lead.rarity) : null;
+    const title = plaqueTitle(view);
 
     const plinth = {
         ...bountyVar,
         backgroundImage: `${SURFACE_NOISE}, linear-gradient(180deg, #0d1322 0%, #0a0d18 100%)`,
     };
+    const className = `fib-bounty-plaque${dim ? ' is-claimed' : ''}${view.imminent ? ' is-imminent' : ''}`;
+
+    // The item in the sight: the hunted one, a sealed one, or the day's last claim.
+    const shown = hunting ? lead : state === 'done' ? (view.lastClaimed || lead) : null;
+    const sight = (size) => (shown
+        ? <Sight texture={shown.texture} name={shown.name} rarity={shown.rarity} imageUrl={shown.imageUrl} size={size} claimed={dim} />
+        : <Sight size={size} sealed />);
+
+    const eyebrow = hunting
+        ? (special ? `${tierLabel} bounty` : `Bounty ${lead.slot + 1}/${view.slots}`)
+        : state === 'waiting'
+            ? `Bounty ${view.next.slot + 1}/${view.slots}`
+            : `All ${view.claimedCount} claimed`;
+    const eyebrowInk = dim ? COLORS.textMuted : special ? tierInk : COLORS.bounty;
 
     // ── The phone: one line, the meter's own compaction ──────────────────
     if (isMobile) {
+        const main = hunting
+            ? lead.name
+            : state === 'waiting'
+                ? (view.nextIn <= 60_000 ? 'opening now' : `opens in ${formatLeft(view.nextIn)}`)
+                : (view.lastClaimed?.winner?.username || '');
+        const side = hunting
+            ? (view.others.length ? `+${view.others.length} open` : view.capped ? 'got your 2' : whenLabel(view, true))
+            : state === 'waiting' ? 'box' : whenLabel(view, true);
         return (
             <div
-                className={`fib-bounty-plaque${claimed ? ' is-claimed' : ''}`}
+                className={className}
                 title={title}
                 style={{ ...plinth, width: '100%', gap: '8px', padding: '6px 16px', zIndex: Z.content }}
             >
-                <Sight texture={dailyBounty.texture} name={dailyBounty.name} rarity={dailyBounty.rarity} imageUrl={dailyBounty.imageUrl} size={26} claimed={claimed} />
-                <span className="fib-bounty-eyebrow" style={{ color: claimed ? COLORS.textMuted : special ? tierInk : COLORS.bounty }}>
-                    {claimed ? 'Claimed' : special ? `${tierLabel} bounty` : 'Bounty'}
-                </span>
+                {sight(26)}
+                <span className="fib-bounty-eyebrow" style={{ color: eyebrowInk }}>{eyebrow}</span>
                 <span style={{
                     flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 700,
-                    color: claimed ? COLORS.textMuted : COLORS.text,
+                    color: dim ? COLORS.textMuted : COLORS.text,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    fontVariantNumeric: 'tabular-nums',
                 }}>
-                    {claimed ? winnerName : dailyBounty.name}
+                    {main}
                 </span>
                 <span style={{ fontSize: '11px', color: COLORS.textMuted, whiteSpace: 'nowrap' }}>
-                    {claimed ? `new in ${left}` : 'box'}
+                    {side}
                 </span>
             </div>
         );
     }
 
+    // The big line: what is hunted, or how long until the next is.
+    const headline = hunting
+        ? lead.name
+        : state === 'waiting'
+            ? (view.nextIn <= 60_000 ? 'Opening now' : `Opens in ${formatLeft(view.nextIn)}`)
+            : (view.lastClaimed?.name || '');
+
+    // The small line under it.
+    let detail;
+    if (hunting && view.capped) {
+        detail = <>you have taken your <span style={{ color: COLORS.text, fontWeight: 700 }}>{view.winsPerDay}</span> today</>;
+    } else if (hunting && view.others.length > 0) {
+        // The others still open, small, in place of the prize line: the plaque
+        // leads with one, but a player chasing any of them should see them all,
+        // and a fourth line would outgrow the plinth the meter sets. The prize
+        // is the same for every one of them and the tooltip still says it.
+        detail = (
+            <span className="fib-bounty-others">
+                <span>also open</span>
+                {view.others.map(b => (
+                    <Sight key={b.id} texture={b.texture} name={b.name} rarity={b.rarity} imageUrl={b.imageUrl} size={18} />
+                ))}
+                <span>· <span style={{ color: COLORS.mystery, fontWeight: 700 }}>a box</span> each</span>
+            </span>
+        );
+    } else if (hunting) {
+        detail = <>first to pull it wins <span style={{ color: COLORS.mystery, fontWeight: 700 }}>a mystery box</span></>;
+    } else if (state === 'waiting' && view.capped) {
+        // Worth saying before it opens, not after: the countdown is for the room,
+        // and this player would otherwise wait up for one they cannot take.
+        detail = <>you have taken your <span style={{ color: COLORS.text, fontWeight: 700 }}>{view.winsPerDay}</span> today</>;
+    } else if (state === 'waiting' && view.lastClaimed) {
+        detail = <>last: {view.lastClaimed.name}, by <span style={{ color: COLORS.text, fontWeight: 700 }}>{view.lastClaimed.winner.username}</span></>;
+    } else if (state === 'waiting') {
+        detail = <>what it is stays secret until it opens</>;
+    } else {
+        const last = view.lastClaimed;
+        detail = last
+            ? <>by <span style={{ color: COLORS.text, fontWeight: 700 }}>{last.winner.username}</span>{last.box && <> · box held <span style={{ color: COLORS.text }}>{last.box.name}</span></>}</>
+            : null;
+    }
+
     return (
         <div
-            className={`fib-bounty-plaque${claimed ? ' is-claimed' : ''}`}
+            className={className}
             title={title}
             style={{ ...plinth, width: '300px', padding: '10px 18px 12px', zIndex: Z.content }}
         >
-            <Sight texture={dailyBounty.texture} name={dailyBounty.name} rarity={dailyBounty.rarity} imageUrl={dailyBounty.imageUrl} size={54} claimed={claimed} />
+            {sight(54)}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
                 <span style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-                    <span className="fib-bounty-eyebrow" style={{ color: claimed ? COLORS.textMuted : COLORS.bounty }}>
-                        {claimed ? 'Bounty claimed' : "Today's bounty"}
+                    <span className="fib-bounty-eyebrow" style={{ color: eyebrowInk }}>
+                        {eyebrow}
                     </span>
                     <span style={{ fontSize: '11px', color: COLORS.textMuted, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                        {claimed ? `new in ${left}` : `${left} left`}
+                        {whenLabel(view)}
                     </span>
                 </span>
 
-                <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0 }}>
-                    <strong style={{
-                        fontSize: '17px', fontWeight: 800, lineHeight: 1.2,
-                        color: claimed ? COLORS.textMuted : COLORS.text,
+                <strong style={{
+                    fontSize: '17px', fontWeight: 800, lineHeight: 1.2,
+                    color: dim ? COLORS.textMuted : COLORS.text,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    fontVariantNumeric: 'tabular-nums',
+                }}>
+                    {headline}
+                </strong>
+
+                {detail && (
+                    <span style={{
+                        fontSize: '12px', color: COLORS.textMuted,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>
-                        {dailyBounty.name}
-                    </strong>
-                    {/* The tier word, in its ink: the one line that says today is not a
-                        common day. Ink, not the tier's fill - it is text. */}
-                    {special && (
-                        <span className="fib-bounty-eyebrow" style={{ color: claimed ? COLORS.textMuted : tierInk, flexShrink: 0 }}>
-                            {tierLabel}
-                        </span>
-                    )}
-                </span>
+                        {detail}
+                    </span>
+                )}
 
-                <span style={{
-                    fontSize: '12px', color: COLORS.textMuted,
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                    {claimed
-                        ? <>by <span style={{ color: COLORS.text, fontWeight: 700 }}>{winnerName}</span>{dailyBounty.box && <> · box held <span style={{ color: COLORS.text }}>{dailyBounty.box.name}</span></>}</>
-                        : <>first to pull it wins <span style={{ color: COLORS.mystery, fontWeight: 700 }}>{reward}</span></>}
-                </span>
             </div>
         </div>
     );
@@ -209,7 +346,7 @@ export function BountyCelebration({ currentUserId }) {
     const [dismissed, setDismissed] = useState(null);
 
     if (!bountyCelebration?.winner) return null;
-    const key = `${bountyCelebration.day}-${bountyCelebration.winner.userId}`;
+    const key = `${bountyCelebration.id ?? bountyCelebration.day}-${bountyCelebration.winner.userId}`;
     if (dismissed === key) return null;
 
     const { winner } = bountyCelebration;
@@ -240,7 +377,7 @@ export function BountyCelebration({ currentUserId }) {
             >
                 <div style={{ ...card, padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
                     <span className="fib-bounty-eyebrow" style={{ color: COLORS.bounty }}>
-                        You claimed today's bounty · {bountyCelebration.name}
+                        You claimed a bounty · {bountyCelebration.name}
                     </span>
                     {/* The box itself, closed. What is in it is decided when it
                         is opened, not now - see services/dailyBounty.js - so the
