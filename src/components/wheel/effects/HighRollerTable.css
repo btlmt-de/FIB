@@ -146,7 +146,7 @@
    against the room, not the viewport, since the room is the container. */
 @container (max-width:1199px) { .hr-others { display:none; } }
 .hr-other-state { font-variant-numeric:tabular-nums; white-space:nowrap; }
-.hr-other[data-bust="true"] .hr-other-state,.hr-other[data-outcome="loss"] .hr-other-state { color:#bfc6bb; }
+.hr-other[data-bust="true"] .hr-other-state,.hr-other[data-outcome="loss"] .hr-other-state,.hr-other[data-outcome="away"] .hr-other-state { color:#bfc6bb; }
 .hr-other[data-outcome="win"] .hr-other-state,.hr-other[data-outcome="blackjack"] .hr-other-state { color:#f4d690; font-weight:700; }
 .hr-other[data-outcome="blackjack"] { box-shadow:0 0 0 1px #f4d690aa inset,0 0 14px #f4d69055; }
 .hr-other-more { color:#cfdad2; }

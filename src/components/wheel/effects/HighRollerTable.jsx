@@ -13,7 +13,8 @@ import './HighRollerTable.css';
 
 const SUITS = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const SUIT_NAMES = { S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' };
-const OUTCOMES = { blackjack: 'Blackjack!', win: 'You win', push: 'A push', loss: 'House wins' };
+// `away` is a seat dealt in but never played, which the server settles for nothing.
+const OUTCOMES = { blackjack: 'Blackjack!', win: 'You win', push: 'A push', loss: 'House wins', away: 'You sat this one out' };
 
 // Each slot stays in the hand; its card travels from the measured deck position.
 // Stable slot keys let the dealer's hole card turn over without being re-dealt.
@@ -166,7 +167,7 @@ function Shuffle({ dealAt, deckRef, onSound }) {
     </div>;
 }
 
-const SEAT_OUTCOME = { blackjack: 'Blackjack', win: 'Won', push: 'Push', loss: 'Lost' };
+const SEAT_OUTCOME = { blackjack: 'Blackjack', win: 'Won', push: 'Push', loss: 'Lost', away: 'Away' };
 
 /*
  * Everyone else at the table, face up, as a real table is. They used to be folded
@@ -452,7 +453,7 @@ export function HighRollerTable({ table, result, payout, payouts, dealAt, actsFr
                 <div className="hr-player-hand" data-won={won || undefined}><div className="hr-hand-heading"><span>YOU</span><small>{intro || cardsLanding ? 'Your hand' : mineBust ? 'Over 21' : mine.natural ? 'Natural blackjack' : mine.done ? 'Hand locked' : mine.soft ? 'Ace counts as 11' : 'Your hand'}</small></div>{intro ? <div className="hr-hand"/> : <Hand cards={mine.cards} deckRef={deck} onMotion={trackMotion} onSound={cardSound}/>}
                     <div className="hr-score" data-bust={mineBust}><strong>{intro ? '—' : moving ? '…' : mine.total}</strong><small>{intro ? 'YOURS' : cardsLanding ? 'TOTAL' : mine.natural ? 'NATURAL' : mineBust ? 'BUST' : mine.soft ? 'SOFT' : 'TOTAL'}</small></div>
                 </div>
-                {settled ? <div className="hr-controls hr-outcome" role="status" data-outcome={outcome ?? undefined}><strong key={outcome ?? 'reveal'}>{outcome ? OUTCOMES[outcome] ?? outcome : 'Turning the cards…'}</strong><span>{!outcome ? 'The house reveals' : awarded > 0 ? '+' + awarded + ' lucky spins' : 'No lucky spins this hand'}</span></div>
+                {settled ? <div className="hr-controls hr-outcome" role="status" data-outcome={outcome ?? undefined}><strong key={outcome ?? 'reveal'}>{outcome ? OUTCOMES[outcome] ?? outcome : 'Turning the cards…'}</strong><span>{!outcome ? 'The house reveals' : awarded > 0 ? '+' + awarded + ' lucky spins' : outcome === 'away' ? 'Hit or stand to be paid' : 'No lucky spins this hand'}</span></div>
                     : <div className="hr-controls"><div className="hr-actions">
                         <button type="button" className="hr-action hr-hit" disabled={!canAct} aria-keyshortcuts="H" onClick={() => post('action', { action: 'hit' })} {...hover('hit')}>Hit<kbd aria-hidden="true">H</kbd></button>
                         <button type="button" className="hr-action hr-stand" disabled={!canAct} aria-keyshortcuts="S" onClick={() => post('action', { action: 'stand' })} {...hover('stand')}>Stand<kbd aria-hidden="true">S</kbd></button>
