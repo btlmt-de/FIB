@@ -40,6 +40,10 @@ export function jimboLine({ mine, dealer, settled, intro, dealing, open, seconds
             'That’s the table, folks. Same smile, fewer secrets.',
             'And that’s the hand. Next time, pull up a chair.',
         ], 1);
+        if (mine.outcome === 'away') return say([
+            'Empty chair, full hand. The house thanks you for your donation.',
+            'You weren’t even looking. Can’t pay a hand nobody played.',
+        ], 8);
         if (mine.outcome === 'blackjack') return say([
             'A natural! I taught you absolutely none of that. You’re welcome.',
             'Blackjack. On my own table. I’d be proud if it weren’t so expensive.',

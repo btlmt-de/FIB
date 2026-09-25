@@ -270,6 +270,11 @@ function RouletteTable({
     const { user } = useAuth();
     const requestRef = useRef(false);
     const awaitingTableRef = useRef(false);
+    // Which table this client has made a choice at, keyed by its deadline so a new
+    // table starts untouched. An untouched seat is settled `away` for nothing, so
+    // KEEP must not look chosen until it has been pressed - the server's `acted`
+    // says so authoritatively, and this covers the gap before its broadcast lands.
+    const [touchedTable, setTouchedTable] = useState(null);
 
     // Broadcasts are authoritative, but must not overwrite an in-flight choice.
     useEffect(() => {
@@ -320,6 +325,7 @@ function RouletteTable({
         setError(null);
         playSfx?.('parlour_chip');
         onBet(colour);
+        setTouchedTable(betsCloseAt);
         try {
             const res = await fetch(`${API_BASE_URL}/api/roulette/bet`, {
                 method: 'POST',
@@ -366,10 +372,12 @@ function RouletteTable({
     }, [locked, busy, myBet, onBet, playSfx, betsCloseAt, user?.id]);
 
     const byColour = useMemo(() => {
-        const map = { red: [], black: [], green: [], fold: [] };
-        for (const s of table?.seats || []) map[s.bet || 'fold'].push(s);
+        const map = { red: [], black: [], green: [], fold: [], away: [] };
+        for (const s of table?.seats || []) map[s.bet || (s.acted ? 'fold' : 'away')].push(s);
         return map;
     }, [table]);
+    const keptChosen = !myBet?.bet && (touchedTable === betsCloseAt
+        || Boolean(table?.seats?.find(seat => seat.userId === user?.id)?.acted));
 
     /* ── after the ball: the payout board ─────────────────────────────────── */
     if (result && t >= T_REVEAL) {
@@ -387,7 +395,8 @@ function RouletteTable({
         const totalShown = t >= totalResolvesAt(rows.length);
         const award = mine?.luckySpinsAwarded;
         const headline = mine?.outcome === 'hit' ? 'You called it'
-            : mine?.outcome === 'fold' ? 'You sat out'
+            : mine?.outcome === 'fold' ? 'You kept your spins'
+            : mine?.outcome === 'away' ? 'You sat out'
                 : mine?.outcome === 'loss' ? 'Not this time' : 'The wheel has landed';
         const amount = Number.isFinite(award) ? award.toLocaleString() : null;
 
@@ -416,6 +425,7 @@ function RouletteTable({
                             <div className="fib-parlour-result-note">
                                 {mine?.outcome === 'hit' ? 'Your colour came in.'
                                     : mine?.outcome === 'fold' ? 'Your spins stayed with you.'
+                                    : mine?.outcome === 'away' ? 'Pick a colour or press KEEP to be paid.'
                                         : mine?.outcome === 'loss' ? (
                                             result.pocket?.colour === 'green' && mine.bet !== 'green'
                                                 ? 'The house pocket takes this round.' : 'Your colour did not land.'
@@ -437,7 +447,7 @@ function RouletteTable({
                                     <Avatar seat={r} size={24} ring={c?.ink} />
                                     <span className="fib-parlour-player-name" title={r.username}>{r.username}</span>
                                     <span className="fib-parlour-player-bet" style={{ color: c?.ink || '#c6aaa0' }}>
-                                        {c?.label || 'SAT OUT'}
+                                        {c?.label || (r.outcome === 'away' ? 'AWAY' : 'KEPT')}
                                     </span>
                                     <strong className="fib-parlour-player-payout">
                                         {r.payout > 0 ? '+' + r.payout.toLocaleString() : '0'}
@@ -543,10 +553,10 @@ function RouletteTable({
                 <button
                     type="button"
                     className="fib-parlour-keep"
-                    data-chosen={!myBet?.bet ? 'true' : 'false'}
+                    data-chosen={keptChosen ? 'true' : 'false'}
                     disabled={locked || busy}
                     onClick={() => pick(null)}
-                    aria-pressed={!myBet?.bet}
+                    aria-pressed={keptChosen}
                 >
                     KEEP {stake}
                 </button>
