@@ -119,7 +119,7 @@ function fmtDate(dateStr, withTime = false) {
  * the floor — the reel's grammar at a single slot — and its facts sit under it
  * in the register's own ruled columns.
  */
-function ItemPlaque({ item, details, onClose }) {
+function ItemPlaque({ item, details, onClose, lucky = false, luckyOdds = null }) {
     const collected = details && details.count > 0;
     const tone = getRarityColor(item.type);
     const ink = getRarityInk(item.type);
@@ -133,11 +133,21 @@ function ItemPlaque({ item, details, onClose }) {
         return () => window.removeEventListener('keydown', onKey, true);
     }, [onClose]);
 
-    const facts = [
-        { label: 'Copies held', value: collected ? String(details.count) : '0', tone: collected ? DECK.ink : DECK.inkDim },
-        { label: 'Drop rate', value: item.chance ? `${formatChance(item.chance)}%` : '—', tone: isSpecial ? ink : DECK.inkMid },
-        { label: 'First pull', value: collected ? (fmtDate(details?.firstObtained, true) || '—') : '—', tone: DECK.inkMid },
-    ];
+    // On the Lucky lens the plaque describes lucky pulls, so all three facts change
+    // subject with it: the count is lucky pulls, not copies held, and the drop rate
+    // is the flat table's - on a lucky spin every item is as likely as any other,
+    // so an insane's 0.000001% would be the wrong number by six orders of magnitude.
+    const facts = lucky
+        ? [
+            { label: 'Lucky pulls', value: collected ? String(details.count) : '0', tone: collected ? DECK.ink : DECK.inkDim },
+            { label: 'Lucky odds', value: luckyOdds ? `${formatChance(luckyOdds)}%` : '—', tone: isSpecial ? ink : DECK.inkMid },
+            { label: 'Last lucky pull', value: collected ? (fmtDate(details?.lastPulled, true) || '—') : '—', tone: DECK.inkMid },
+        ]
+        : [
+            { label: 'Copies held', value: collected ? String(details.count) : '0', tone: collected ? DECK.ink : DECK.inkDim },
+            { label: 'Drop rate', value: item.chance ? `${formatChance(item.chance)}%` : '—', tone: isSpecial ? ink : DECK.inkMid },
+            { label: 'First pull', value: collected ? (fmtDate(details?.firstObtained, true) || '—') : '—', tone: DECK.inkMid },
+        ];
 
     return (
         <div
@@ -223,7 +233,7 @@ function ItemPlaque({ item, details, onClose }) {
                         />
                     </div>
                     <BoardLabel tone={isSpecial ? ink : DECK.inkDim}>
-                        {label}{!collected && ' — not collected'}
+                        {label}{!collected && (lucky ? ' - not landed on a lucky spin' : ' — not collected')}
                     </BoardLabel>
 
                     <div style={{
@@ -320,6 +330,9 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
     // a dry-streak column can say: a failed request rendered "you just pulled
     // one" for every tier, and no tier could ever be overdue.
     const [ownDryStreaks, setOwnDryStreaks] = useState(null);
+    // The Lucky ledger (GET /api/lucky): every lucky spin's outcome, rolled up.
+    // `null` until it answers, and the lens is not offered until it does.
+    const [luckyData, setLuckyData] = useState(null);
     const { isPhone } = useWheelViewport();
     const platformRef = useRef(null);
     const [platformHeight, setPlatformHeight] = useState(360);
@@ -333,17 +346,47 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
      * A prestige run is the same board reading a different table.
      */
     const prestigeView = scope === 'prestige';
+    /*
+     * LUCKY
+     *
+     * The third lens, and the same argument as prestige: the board already knows
+     * how to show a collection, a register of tiers and a platform of items, so
+     * "what my lucky spins landed" is this board reading one more table. What
+     * differs is only what the numbers are about - counts are lucky pulls, streaks
+     * are counted in lucky spins, and every expectation is priced on the flat table
+     * a lucky spin draws from rather than the weighted one.
+     *
+     * Commons are off this board entirely. They are the misses, and 1,500 tiles of
+     * misses would bury the forty-odd items the lens exists to show; their count
+     * lives in the head, as the denominator of the hit rate.
+     */
+    const luckyView = scope === 'lucky';
     // Memoised, and not for tidiness: the `|| {}` fallback mints a new object on
     // every render, and three memos below key off these — the register, the
     // totals, and the sort over 1,559 items. Without this the board re-sorts its
     // whole platform on every keystroke in the search field.
+    // The ledger arrives keyed by texture with its own field names; shaped once
+    // here into what the board's collection/details pair already looks like.
+    const luckyCollection = useMemo(() => {
+        const counts = {};
+        const details = {};
+        for (const [texture, i] of Object.entries(luckyData?.items || EMPTY)) {
+            counts[texture] = i.count;
+            details[texture] = { count: i.count, name: i.name, type: i.type, firstObtained: i.first, lastPulled: i.last };
+        }
+        return { counts, details };
+    }, [luckyData]);
     const activeCollection = useMemo(
-        () => (prestigeView ? (prestigeData?.collection || EMPTY) : collection),
-        [prestigeView, prestigeData, collection],
+        () => (prestigeView ? (prestigeData?.collection || EMPTY)
+            : luckyView ? luckyCollection.counts
+            : collection),
+        [prestigeView, prestigeData, luckyView, luckyCollection, collection],
     );
     const activeDetails = useMemo(
-        () => (prestigeView ? (prestigeData?.collectionDetails || EMPTY) : collectionDetails),
-        [prestigeView, prestigeData, collectionDetails],
+        () => (prestigeView ? (prestigeData?.collectionDetails || EMPTY)
+            : luckyView ? luckyCollection.details
+            : collectionDetails),
+        [prestigeView, prestigeData, luckyView, luckyCollection, collectionDetails],
     );
 
     // When viewing someone else, their streaks arrive as a prop alongside the rest of
@@ -411,6 +454,28 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                 if (!cancelled) setPrestige(data);
             } catch (err) {
                 console.error('Failed to load prestige state:', err);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [viewingUserId]);
+
+    // The Lucky ledger, fetched up front rather than when the lens is chosen,
+    // because whether to offer the lens at all depends on it: a player with no
+    // lucky spins gets no third option opening onto an empty board.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const url = viewingUserId
+                ? `${API_BASE_URL}/api/user/${viewingUserId}/lucky`
+                : `${API_BASE_URL}/api/lucky`;
+            try {
+                const res = await fetch(url, { credentials: 'include' });
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                if (!cancelled) setLuckyData(data);
+            } catch (err) {
+                // Left null: the board is simply the board without the lens.
+                console.error('Failed to load lucky ledger:', err);
             }
         })();
         return () => { cancelled = true; };
@@ -516,6 +581,16 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
         };
     }, [dynamicItems, allItems]);
 
+    // What the platform and the totals count over: every item on the main and
+    // prestige boards, only the specials on the Lucky lens (see its note above).
+    const rosterItems = useMemo(
+        () => (luckyView ? allItemsWithSpecial.filter(i => i.type !== 'common') : allItemsWithSpecial),
+        [luckyView, allItemsWithSpecial],
+    );
+    // The flat table's size: a lucky spin picks uniformly from every collectible,
+    // so one item's chance is one over this, and a tier's is its size over this.
+    const luckyPoolSize = allItemsWithSpecial.length;
+
     /* ── The register ─────────────────────────────────────────────────────────
      *
      * One row per tier that has items. Everything in a row is read off the same
@@ -526,6 +601,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
         .map(key => {
             const items = tierItems[key] || [];
             if (items.length === 0) return null;
+            if (luckyView && key === 'common') return null;
 
             const held = items.filter(i => activeCollection[i.texture] > 0).length;
             const missing = items.length - held;
@@ -539,6 +615,9 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                 const at = activeDetails?.[i.texture]?.firstObtained;
                 if (at && (!last || new Date(at) > new Date(last))) last = at;
             }
+            // On the Lucky lens "last pull" is the last time a lucky spin landed
+            // this tier, repeats included - the ledger carries it per tier.
+            if (luckyView) last = luckyData?.tiers?.[key]?.last || null;
 
             // Expected spins between pulls = 1 / (the tier's summed chance).
             //
@@ -550,14 +629,25 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             // reading the accessibility tree rather than the screen, because the
             // number only ever appeared in a title attribute. `formatChance` is
             // the proof: it multiplies by 100 before printing a percent sign.
-            const chanceSum = items.reduce((sum, i) => sum + (Number(i.chance) || 0), 0);
+            //
+            // A lucky spin ignores `chance` altogether: the flat table makes the
+            // tier's odds its size over the pool, so the expectation is that
+            // ratio's reciprocal, counted in lucky spins. Insane stops being exempt
+            // there for the same reason - one item in ~1,560 is a wait a lucky
+            // spinner can actually finish.
+            const chanceSum = luckyView
+                ? (luckyPoolSize > 0 ? items.length / luckyPoolSize : 0)
+                : items.reduce((sum, i) => sum + (Number(i.chance) || 0), 0);
             const expected = chanceSum > 0 ? Math.round(1 / chanceSum) : null;
             // `?? null` rather than `?? 0`, for the same reason: a missing key —
             // during a deploy where the API is briefly older than the page, or on
             // another player's board — is an absence, and the register prints an
             // absence as a dash. A real streak of 0 still arrives as 0 and still
             // prints as 0, which is the case that made the old `?? 0` look right.
-            const since = NO_STREAK.has(key) ? null : (dryStreaks?.[key] ?? null);
+            // A tier the ledger has never seen has waited every lucky spin taken.
+            const since = luckyView
+                ? (luckyData ? (luckyData.tiers?.[key]?.since ?? luckyData.spins) : null)
+                : NO_STREAK.has(key) ? null : (dryStreaks?.[key] ?? null);
             const overdue = expected != null && since != null && since > expected;
 
             // Complete outranks overdue, and the two are not the same claim: a
@@ -579,11 +669,11 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                 label: RARITY[key].label,
             };
         })
-        .filter(Boolean), [tierItems, activeCollection, activeDetails, dryStreaks]);
+        .filter(Boolean), [tierItems, activeCollection, activeDetails, dryStreaks, luckyView, luckyData, luckyPoolSize]);
 
     const totals = useMemo(() => {
-        const total = allItemsWithSpecial.length;
-        const held = allItemsWithSpecial.filter(i => activeCollection[i.texture] > 0).length;
+        const total = rosterItems.length;
+        const held = rosterItems.filter(i => activeCollection[i.texture] > 0).length;
         const specials = ['insane', 'mythic', 'legendary', 'relic', 'exotic', 'rare']
             .reduce((sum, k) => sum + (stats?.[`${k}Count`] || 0), 0);
         return {
@@ -598,11 +688,11 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             // still counted in the numerator.
             perSpecial: specials > 0 ? (stats.totalSpins / specials).toFixed(1) : null,
         };
-    }, [allItemsWithSpecial, activeCollection, stats]);
+    }, [rosterItems, activeCollection, stats]);
 
     const shown = useMemo(() => {
         const q = search.trim().toLowerCase();
-        const filtered = allItemsWithSpecial.filter(item => {
+        const filtered = rosterItems.filter(item => {
             if (q && !item.name.toLowerCase().includes(q)) return false;
             const count = activeCollection[item.texture] || 0;
             if (have === 'held' && count === 0) return false;
@@ -611,8 +701,10 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             return true;
         });
 
+        // `lastPulled` exists only on the Lucky lens, where "recent" means the
+        // latest lucky pull rather than the first copy ever held.
         const at = item => {
-            const d = activeDetails?.[item.texture]?.firstObtained;
+            const d = activeDetails?.[item.texture]?.lastPulled || activeDetails?.[item.texture]?.firstObtained;
             return d ? new Date(d).getTime() : 0;
         };
 
@@ -631,7 +723,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
             if (counts !== 0) return counts;
             return a.name.localeCompare(b.name);
         });
-    }, [allItemsWithSpecial, activeCollection, activeDetails, have, tierFilter, search, sort]);
+    }, [rosterItems, activeCollection, activeDetails, have, tierFilter, search, sort]);
 
     const clearFilters = useCallback(() => {
         setTierFilter(null); setHave('all'); setSearch('');
@@ -702,7 +794,49 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
     // title already says it, and says it as the *selected* state.
     const boardTitle = prestigeView
         ? ((isPhone ? prestigeName(shownLevel) : prestigeLabel(shownLevel)) || 'Prestige')
+        : luckyView ? (isPhone ? 'Lucky' : 'Lucky spins')
         : (viewingUser ? `${viewingUser}` : 'Collection');
+
+    // Offered once the ledger has a lucky spin in it. Most players do - one spin in
+    // twenty grants one - so this is not the rare state prestige is, but a board
+    // with nothing to say should not have a door onto it.
+    const hasLucky = (luckyData?.spins || 0) > 0;
+    const lensOptions = [
+        ['main', 'Collection'],
+        ...(hasPrestige ? [['prestige', 'Prestige']] : []),
+        ...(hasLucky ? [['lucky', 'Lucky']] : []),
+    ];
+    const changeScope = useCallback(next => {
+        setScope(next);
+        // Common has no row on the Lucky lens, so a common filter carried into it
+        // would leave the platform empty for no visible reason.
+        if (next === 'lucky') setTierFilter(f => (f === 'common' ? null : f));
+    }, []);
+
+    // The lens's own facts. The hit rate is the number the lens exists for.
+    //
+    // A "fair odds" figure stood beside it for one build - the share of the flat
+    // table that is special, so a reader could tell a lucky run from a dry one.
+    // The owner cut it. Worth knowing before anyone brings it back: it was priced
+    // on TODAY's roster while the hit rate spans a whole history in which the
+    // relic and exotic tiers did not always exist, so the two numbers never
+    // described quite the same table.
+    const luckyFacts = useMemo(() => {
+        if (!luckyView || !luckyData) return null;
+        const spins = luckyData.spins || 0;
+        const specials = luckyData.specials || 0;
+        let last = null;
+        for (const d of Object.values(luckyCollection.details)) {
+            if (d.lastPulled && (!last || new Date(d.lastPulled) > new Date(last))) last = d.lastPulled;
+        }
+        return {
+            spins,
+            specials,
+            hitRate: spins > 0 ? (specials / spins) * 100 : null,
+            perSpecial: specials > 0 ? (spins / specials).toFixed(1) : null,
+            last,
+        };
+    }, [luckyView, luckyData, luckyCollection]);
 
     // The head's figures. Fixed columns, divided by rules, label under value —
     // the register's own grammar one size up, not a row of stat cards.
@@ -735,7 +869,30 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
         return { dupes, specials, startedAt: run?.startedAt || null };
     }, [prestigeView, activeCollection, activeDetails, prestige, shownLevel]);
 
-    const headFigures = prestigeView
+    const headFigures = luckyView
+        ? [
+            { label: 'Lucky spins', value: fmt(luckyFacts?.spins || 0), tone: DECK.ink, title: 'Every lucky spin that landed an item. Mystery box pulls are not counted' },
+            { label: 'Specials', value: fmt(luckyFacts?.specials || 0), tone: COLORS.green, title: 'Lucky spins that landed a Rare-or-better item' },
+            {
+                label: 'Hit rate',
+                value: luckyFacts?.hitRate != null ? `${luckyFacts.hitRate.toFixed(2)}%` : '—',
+                tone: DECK.ink,
+                title: 'Specials divided by lucky spins',
+            },
+            {
+                label: isPhone ? 'Per special' : 'Lucky per special',
+                value: luckyFacts?.perSpecial ?? '—',
+                tone: DECK.inkMid,
+                title: 'Lucky spins taken for every special they landed',
+            },
+            {
+                label: 'Last special',
+                value: fmtDate(luckyFacts?.last) || '—',
+                tone: DECK.inkMid,
+                title: 'The most recent special a lucky spin landed',
+            },
+        ]
+        : prestigeView
         ? [
             { label: 'Held', value: fmt(totals.held), tone: DECK.ink },
             { label: 'Missing', value: fmt(totals.missing), tone: totals.missing > 0 ? DECK.amber : DECK.inkDim },
@@ -874,12 +1031,19 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                              * learn either. It appears only for a player who has
                              * prestige, so the board grows no furniture for a
                              * state almost nobody is in.
+                             *
+                             * Lucky joined it as a third option rather than as a
+                             * tab beside it, for the reason above: it is one more
+                             * collection to read, and this is the control that
+                             * picks which. Each option is offered only when its
+                             * collection exists, so the lens still vanishes for
+                             * a player who has neither.
                              */}
-                            {hasPrestige && (
+                            {lensOptions.length > 1 && (
                                 <Segmented
                                     value={scope}
-                                    onChange={setScope}
-                                    options={[['main', 'Collection'], ['prestige', 'Prestige']]}
+                                    onChange={changeScope}
+                                    options={lensOptions}
                                     label="Which collection to show"
                                 />
                             )}
@@ -1064,10 +1228,21 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                         prestige board, where the title, the badge and the level
                         selector all already carry it; station amber is the main
                         board's own signal and stays there. */}
-                    <div role="progressbar" aria-label="Collection completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(totals.pct.toFixed(1))} aria-valuetext={`${fmt(totals.held)} of ${fmt(totals.held + totals.missing)} items held`}>
+                    {/* On the Lucky lens the line measures how much of the
+                        special roster lucky spins have landed, in the lucky
+                        family's green - the colour every lucky pull already
+                        wears on the feed and the plaque. */}
+                    <div
+                        role="progressbar"
+                        aria-label={luckyView ? 'Specials landed on a lucky spin' : 'Collection completion'}
+                        aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(totals.pct.toFixed(1))}
+                        aria-valuetext={luckyView
+                            ? `${fmt(totals.held)} of ${fmt(totals.held + totals.missing)} specials landed on a lucky spin`
+                            : `${fmt(totals.held)} of ${fmt(totals.held + totals.missing)} items held`}
+                    >
                     <BoardMeter
                         value={totals.pct / 100}
-                        tone={(prestigeView && prestigeColor(shownLevel)) || DECK.amber}
+                        tone={(prestigeView && prestigeColor(shownLevel)) || (luckyView && COLORS.green) || DECK.amber}
                         height={3}
                     />
                     </div>
@@ -1105,7 +1280,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                     }}>
                         <span />
                         <BoardLabel>Tier</BoardLabel>
-                        <BoardLabel style={{ textAlign: 'right' }}>Held / total</BoardLabel>
+                        <BoardLabel style={{ textAlign: 'right' }}>{luckyView ? 'Landed / total' : 'Held / total'}</BoardLabel>
                         {!isPhone && <span />}
                         {!isPhone && <BoardLabel style={{ textAlign: 'right' }}>Last pull</BoardLabel>}
                         <BoardLabel style={{ textAlign: 'right' }}>Since</BoardLabel>
@@ -1115,7 +1290,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                     <div role="group" aria-label="Filter the platform by tier">
                         {register.map((row, i) => {
                             const active = tierFilter === row.key;
-                            const statusWord = { complete: 'Complete', overdue: 'Overdue', empty: 'None held', tracking: 'Collecting' }[row.status];
+                            const statusWord = { complete: 'Complete', overdue: 'Overdue', empty: luckyView ? 'None yet' : 'None held', tracking: 'Collecting' }[row.status];
                             const statusTone = row.status === 'complete' ? row.ink
                                 : row.status === 'overdue' ? DECK.amber
                                 : row.status === 'empty' ? DECK.inkMid
@@ -1126,8 +1301,9 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                             // phone, unreliable for a screen reader, and the row's
                             // accessible name was a bare run of numerals
                             // ("Rare 10 0 JAN 07 414 Complete").
+                            const unit = luckyView ? 'lucky spins' : 'spins';
                             const waitSentence = row.expected != null && row.since != null
-                                ? `${fmt(row.since)} spins since your last ${row.label}; one costs about ${fmt(row.expected)} spins on average`
+                                ? `${fmt(row.since)} ${unit} since your last ${row.label}; one costs about ${fmt(row.expected)} ${unit} on average`
                                 : null;
 
                             return (
@@ -1138,7 +1314,9 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     aria-pressed={active}
                                     aria-label={[
                                         row.label,
-                                        `${fmt(row.held)} of ${fmt(row.total)} held`,
+                                        luckyView
+                                            ? `${fmt(row.held)} of ${fmt(row.total)} landed on a lucky spin`
+                                            : `${fmt(row.held)} of ${fmt(row.total)} held`,
                                         row.missing > 0 ? `${fmt(row.missing)} missing` : null,
                                         waitSentence,
                                         statusWord,
@@ -1272,7 +1450,9 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     {(RARITY[readout.type] || RARITY.common).label}
                                 </BoardLabel>
                                 <BoardLabel tone={DECK.inkDim}>
-                                    {readout.held ? `Owned: ${fmt(readout.held)}` : 'Not collected'}
+                                    {luckyView
+                                        ? (readout.held ? `Lucky pulls: ${fmt(readout.held)}` : 'Not landed on a lucky spin')
+                                        : (readout.held ? `Owned: ${fmt(readout.held)}` : 'Not collected')}
                                 </BoardLabel>
                             </span>
                         )}
@@ -1288,7 +1468,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                             <Segmented
                                 value={have}
                                 onChange={setHave}
-                                options={[['all', 'All'], ['held', 'Held'], ['missing', 'Missing']]}
+                                options={[['all', 'All'], ['held', luckyView ? 'Landed' : 'Held'], ['missing', 'Missing']]}
                                 label="Show"
                             />
                         </span>
@@ -1398,6 +1578,8 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                     item={selectedItem}
                     details={activeDetails?.[selectedItem.texture]}
                     onClose={() => setSelectedItem(null)}
+                    lucky={luckyView}
+                    luckyOdds={luckyPoolSize > 0 ? 1 / luckyPoolSize : null}
                 />
             )}
         </div>

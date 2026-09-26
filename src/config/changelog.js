@@ -46,6 +46,36 @@
  */
 export const CHANGELOG = [
     {
+        version: '2.3',
+        date: '2026-09-26',
+        title: 'The Lucky Book',
+        tagline: 'Every special your lucky spins ever landed, and how often they landed one.',
+        // No rationale block, for the reason 2.1 gives: nothing here moves an odd.
+        // It is a new way to read spins that already happened.
+        blocks: [
+            {
+                kind: 'feature',
+                accent: 'lucky',
+                heading: 'New in the collection book',
+                title: 'Lucky',
+                body: [
+                    'The collection book has a third view beside Collection and Prestige. ' +
+                    'It shows every special you have ever pulled on a lucky spin, how many ' +
+                    'times, and when the last one landed - going back to your very first ' +
+                    'lucky spin, not just from today.',
+                    'Above it are your lucky spin stats: how many you have taken, how many ' +
+                    'hit a special, and your hit rate. Each tier also ' +
+                    'counts how many lucky spins it has been since you last hit it.',
+                ],
+                facts: [
+                    { label: 'Where', value: 'Collection book - switch to Lucky at the top' },
+                    { label: 'Counts', value: 'Lucky spins only - mystery box pulls are left out' },
+                    { label: 'Profiles', value: 'Works on other players\' collections too' },
+                ],
+            },
+        ],
+    },
+    {
         version: '2.2',
         date: '2026-09-24',
         title: 'Five Bounties a Day',

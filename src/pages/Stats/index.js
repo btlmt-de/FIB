@@ -6,5 +6,5 @@ export {
 } from './tokens.js';
 export { css, injectStyles } from './styles.js';
 export { CATALOGUE, achievementsFor, achievementSummary, unifyStats } from './achievements.js';
-export { ScoreTrend, RaceTrace, RaceMini, Sparkline, RankedBars } from './Charts.jsx';
+export { ScoreTrend, RibbonRace, RaceMini, Sparkline, RankedBars } from './Charts.jsx';
 export * as format from './format.js';

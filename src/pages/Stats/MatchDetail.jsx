@@ -14,37 +14,19 @@
  * teleports would only tell you the order changed.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes,
-  idLabel, idUuid,
+  idUuid, matchHeadline,
 } from './adapter.js';
-import { useFlipRows } from './useFlip.js';
 import { loadMatch } from './api.js';
 import { useAsync } from './useAsync.js';
-import { Section, Avatar, Medal, Sprite, Empty, Figure, RarityTag, AsyncView } from './Primitives.jsx';
-import { Inventory } from './Inventory.jsx';
-import { RaceTrace } from './Charts.jsx';
+import { Section, Avatar, Empty, AsyncView, Segmented } from './Primitives.jsx';
+import { LiveBoard, RoundRecords, TeamReport } from './MatchReport.jsx';
+import { labelFor, phaseSchedule, runOf } from './matchModel.js';
+import { RibbonRace } from './Charts.jsx';
 import * as f from './format.js';
 
-const labelFor = (row) => row.members.map(idLabel).join(' & ');
-
-/* Who pulled an item. A solo match logs the puller on the item itself, but a TEAM match logs only
-   the teamIndex — `item.player` is null there, so reading it directly printed "Unknown" against
-   every team pull. The standings already hold each competitor's members under the same key the item
-   is filed by, so a team pull is labelled with the roster, exactly like its standings row and like
-   the overview's rare-moments feed. "Unknown" is left for a row with neither: genuinely malformed. */
-const pullActor = (standings, item) => {
-  if (item.player) return idLabel(item.player);
-  const row = standings.find((r) => r.key === `t${item.teamIndex}`);
-  return row ? labelFor(row) : 'Unknown';
-};
-
-/* An absolute collection timestamp as an offset into the match, so a pull can be
-   quoted on the same clock the scrubber runs. Clamped at zero: an item logged a
-   beat before `startedAt` is clock skew, not a negative match time. */
-const atMatchTime = (match, at) =>
-    Math.max(0, (new Date(at).getTime() - new Date(match.startedAt).getTime()) / 1000);
 
 /**
  * Server setting keys, in the wiki's own words.
@@ -231,7 +213,6 @@ function MatchGone({ onBack }) {
 }
 
 function MatchDetailBody({ match, onBack, onOpenPlayer }) {
-  const bodyRef = useRef(null);
   /*
    * Two time sources, strictly ranked. `cursor` is PINNED time — set by the
    * range input or the replay loop, and it survives the pointer leaving the
@@ -243,27 +224,21 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
   const [cursor, setCursor] = useState(null);
   const [hover, setHover] = useState(null);
   const [playing, setPlaying] = useState(false);
-
-  /*
-   * One inventory open at a time. Expanding a second row while the first is
-   * still open would push the standings around underneath the reader, and the
-   * comparison this view exists for is between the ROWS, not between two
-   * seventy-slot grids fighting for the same screen.
-   */
-  const [openKey, setOpenKey] = useState(null);
-  const toggle = (key) => setOpenKey((current) => (current === key ? null : key));
+  /* The chart's window, in match seconds. `to` of Infinity means "the end",
+     resolved against the duration below, so the state needs no match to exist. */
+  const [winState, setWin] = useState({ from: 0, to: Infinity });
 
   const model = useMemo(() => {
     if (!match) return null;
     const entries = raceEntries(match);
+    const changeTimes = leadChangeTimes(entries);
     return {
       entries,
       changes: leadChanges(entries),
-      changeTimes: leadChangeTimes(entries),
+      changeTimes,
       finalStandings: matchStandings(match),
-      rare: match.items
-          .filter((i) => ['LEGENDARY', 'RNGESUS', 'EXTRAORDINARY'].includes(i.b2bRarity))
-          .slice(0, 8),
+      runs: entries.map(runOf),
+      phases: phaseSchedule(matchDuration(match), match.settings ?? {}),
     };
   }, [match]);
 
@@ -299,30 +274,44 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
    */
   const finalLead = model?.finalStandings?.[0]?.score ?? 0;
 
-  useFlipRows(bodyRef, live.map((r) => r.entry.key).join('|'));
 
   /* ── Replay ───────────────────────────────────────────────────────────
      A rAF loop drives the same cursor the scrubber owns, so every piece of
      the view — trace cursor, standings, FLIP — moves together. The replay
      pauses when the tab hides (rAF throttles to nothing there and the clock
      would silently jump) and stops on unmount. */
-  /* Wall-clock length of one replay of THIS match; stable while the match is. */
-  const replayLength = match ? replayMs(matchDuration(match)) : 10000;
+  /*
+   * The replay plays the chart's WINDOW, not always the whole match. Choosing
+   * "The finish" and pressing play used to start at 0:00 and spend most of the
+   * replay on forty minutes the reader had just zoomed away from. It now runs
+   * from the window's start - or from the cursor, when the reader has already
+   * scrubbed to a point inside it - to the window's end, paced on the window's
+   * own length so a sixteen-minute finish plays at a speed it can be read at.
+   *
+   * At the end of a window that reaches the final whistle the cursor clears and
+   * the page shows the result, as before. A window that ends mid-match leaves
+   * the cursor parked on its last moment, so the board still describes the
+   * stretch that was just watched rather than jumping to the final score.
+   */
+  const matchEnd = match ? matchDuration(match) : 0;
+  const replayFrom = Math.max(0, Math.min(winState.from, matchEnd));
+  const replayTo = Math.min(matchEnd, winState.to);
+  const replayLength = replayMs(Math.max(1, replayTo - replayFrom));
 
   useEffect(() => {
     if (!playing || !match) return undefined;
 
     let raf = 0;
     let start = 0;
-    const from = cursor ?? 0;
+    const from = cursor != null && cursor >= replayFrom && cursor < replayTo ? cursor : replayFrom;
 
     const tick = (now) => {
       if (!start) start = now;
-      const elapsed = ((now - start) / replayLength) * matchDuration(match);
+      const elapsed = ((now - start) / replayLength) * (replayTo - replayFrom);
       const next = from + elapsed;
-      if (next >= matchDuration(match)) {
+      if (next >= replayTo) {
         setPlaying(false);
-        setCursor(null);
+        setCursor(replayTo >= matchEnd ? null : replayTo);
         return;
       }
       setCursor(next);
@@ -338,17 +327,19 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
       document.removeEventListener('visibilitychange', onHidden);
     };
     // `cursor` is deliberately NOT a dependency: the loop captures its start
-    // point once. Depending on it would restart the clock on every frame.
+    // point once. Depending on it would restart the clock on every frame. The
+    // window IS one: changing it mid-replay restarts inside the new window.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, match]);
+  }, [playing, match, replayFrom, replayTo]);
 
   const replay = () => {
     if (playing) {
       setPlaying(false);
     } else {
-      // A cursor parked at the finish would end the replay on its first
-      // frame; rewind instead of no-oping.
-      if (cursor != null && match && cursor >= matchDuration(match)) setCursor(null);
+      // A cursor parked at the window's end, or outside the window, would end
+      // the replay on its first frame or play a stretch nobody is looking at;
+      // rewind to the window's start instead.
+      if (cursor != null && (cursor >= replayTo || cursor < replayFrom)) setCursor(null);
       setPlaying(true);
     }
   };
@@ -360,93 +351,131 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
     return <MatchGone onBack={onBack} />;
   }
 
-  const { entries, changes, changeTimes, rare, finalStandings } = model;
+  const { entries, changes, changeTimes, finalStandings, runs, phases } = model;
   const scrubbing = hover != null || cursor != null;
+  const duration = matchDuration(match);
+  const headline = matchHeadline(match, changeTimes.length ? changeTimes[changeTimes.length - 1] : null);
 
-  /* The three columns that switch source between the race and the result, resolved
-     once per render. The placement falls back to the derived position for a match
-     whose participants carry no usable one, rather than printing the 0 that would
-     arrive from `matchStandings`. */
+  /* The three board columns that switch source between the race and the result,
+     resolved once per render. At rest the placement and score are the server's
+     (see "At rest the board reads the RESULT" above); while scrubbing they are
+     the race's. */
   const placeOf = (r) => (scrubbing || !(r.entry.placement > 0) ? r.pos : r.entry.placement);
-  const table = live.map((row) => ({
-    row,
+  const board = live.map((row) => ({
+    entry: row.entry,
     place: placeOf(row),
     score: scrubbing ? row.score : row.entry.score,
     gap: scrubbing ? row.gap : row.entry.score - finalLead,
   }));
+  const shared = new Set(board.map((r) => r.place).filter((p, i, all) => all.indexOf(p) !== i));
+  /* Is anybody ahead of anybody? Before the first item lands, no. A standing is
+     a separation, so where there is none the board prints no places at all. */
+  const separated = new Set(board.map((r) => r.place)).size > 1;
 
-  /* Places held by more than one competitor. A shared place is stated, not left
-     to be inferred: a sighted reader has the equal Score and Gap in the same two
-     rows as corroboration, and a screen reader hearing "2" then "2" down a column
-     has nothing but the repetition. */
-  const sharedPlaces = new Set(
-      table.map((r) => r.place).filter((p, i, all) => all.indexOf(p) !== i),
-  );
+  const totalPulls = runs.reduce((n, r) => n + r.pulls.length, 0);
 
   /*
-   * Is anybody actually ahead of anybody?
-   *
-   * Every scrub before the first item lands has the whole field on nothing, and
-   * ranking equals honestly means they all place first — which printed seven gold
-   * medals and seven gold zeroes over a race that had not started. A standing is a
-   * separation, so where there is none the column says so and no score is gilded.
-   * The instant one competitor scores, the medals are real again.
+   * Where "the finish" starts: five minutes before the last lead change, or the
+   * final quarter of the match, whichever is earlier - so the window always
+   * holds the decisive turn with some run-up, and a match whose lead never
+   * changed still zooms onto its last quarter. Rounded down to a whole minute.
    */
-  const separated = new Set(table.map((r) => r.place)).size > 1;
+  const lastTurn = changeTimes.length ? changeTimes[changeTimes.length - 1] : duration;
+  const finishFrom = Math.max(0, Math.floor(Math.min(duration * 0.75, lastTurn - 300) / 60) * 60);
+  const win = { from: Math.max(0, winState.from), to: Math.min(duration, winState.to) };
+  const windowId = win.from === 0 && win.to === duration ? 'all'
+    : win.from === finishFrom && win.to === duration ? 'finish' : 'custom';
+  const [winner, runnerUp] = finalStandings;
 
   return (
       <div className="fib-page">
-        <Section
-            title={`${match.mode === 'SOLO' ? 'Solo' : 'Team'} match`}
-            /* `hours`, not `duration`: a match that runs past the hour reads
-               "60m 3s" through the latter, which is a number the reader has to
-               convert, and this page already prints "1:00:03" on the scrubber
-               eighty pixels below it. */
-            sub={`${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.hours(matchDuration(match))}`}
-            aside={
-              <button type="button" className="fib-btn fib-btn--quiet" onClick={onBack}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M14 6l-6 6 6 6" />
-                </svg>
-                Matches
-              </button>
-            }
-        >
-          <div className="fib-stat-strip" style={{ marginTop: 0, marginBottom: 'var(--fib-space-6)' }}>
-            <Figure size="sm" value={entries.length} label={match.mode === 'SOLO' ? 'Players' : 'Teams'} />
-            <Figure size="sm" value={match.items.filter((i) => !i.skipped).length} label="Items collected" />
-            {/* Diamond, not gold: a contested match is exceptional, but gold in
-              this module means rank, and nobody placed here by changing lead. */}
-            <Figure size="sm" value={changes} label="Lead changes" tone={changes > 3 ? 'diamond' : undefined} />
-            <Figure
-                size="sm"
-                value={match.items.filter((i) => i.skipped).length}
-                label="Items skipped"
-            />
+        <header className="fib-match-head">
+          <button type="button" className="fib-btn fib-btn--quiet fib-hero-back" onClick={onBack}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M14 6l-6 6 6 6" />
+            </svg>
+            Matches
+          </button>
+          <div className="fib-match-head-grid">
+            <div className="fib-match-head-copy">
+              {/* The same headline the overview's featured match carries, so the
+                  story a reader clicked on is the story this page opens with. */}
+              <h1 className="fib-display fib-match-title">{headline.text}</h1>
+              {/* `hours`, not `duration`: past the hour, "60m 3s" is a number the
+                  reader has to convert, and the scrubber below prints "1:00:03". */}
+              <p className="fib-lead-sub">
+                {match.mode === 'SOLO' ? 'Solo' : 'Team'} match · {f.date(match.endedAt)} at {f.timeOfDay(match.endedAt)} · {f.hours(duration)}
+              </p>
+            </div>
+            {winner ? (
+              <div className="fib-lead-board" aria-label={runnerUp ? `Final score ${winner.score} to ${runnerUp.score}` : `Final score ${winner.score}`}>
+                <span className="fib-lead-board-side">
+                  {winner.members.map((m) => <Avatar key={idUuid(m)} uuid={idUuid(m)} size={44} />)}
+                </span>
+                <span className="fib-lead-board-score">
+                  <b data-side="win">{winner.score}</b>
+                  {runnerUp ? <><i aria-hidden="true">–</i><b>{runnerUp.score}</b></> : null}
+                </span>
+                {runnerUp ? (
+                  <span className="fib-lead-board-side" data-side="lose">
+                    {runnerUp.members.map((m) => <Avatar key={idUuid(m)} uuid={idUuid(m)} size={44} />)}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <RaceTrace
+          {/* The round in one line, the overview's ledger shape: counts said as a
+              sentence rather than four equal cells. */}
+          <p className="fib-ledger fib-match-ledger">
+            <span><b>{entries.length}</b> {match.mode === 'SOLO' ? 'players' : 'teams'}</span>
+            <span><b>{match.items.filter((i) => !i.skipped).length}</b> items found</span>
+            <span><b>{match.items.filter((i) => i.skipped).length}</b> skipped</span>
+            <span><b>{totalPulls}</b> back-to-backs</span>
+            <span data-hot={changes >= 5 || undefined}><b>{changes}</b> lead {changes === 1 ? 'change' : 'changes'}</span>
+          </p>
+        </header>
+
+        <section className="fib-section fib-match-race" aria-label="The race">
+          {/* The window the chart shows. Two presets, and whatever range the
+              reader drags across the pace strip, which shows up here as a third
+              option so the control always says what is on screen. The window is
+              a lens on the chart only; the scrubber and the board run on the
+              whole match clock. */}
+          <div className="fib-timeline-bar">
+            <Segmented
+                options={[
+                  { id: 'all', label: 'Whole round' },
+                  { id: 'finish', label: `The finish · ${f.clock(finishFrom)}–${f.clock(duration)}` },
+                  ...(windowId === 'custom' ? [{ id: 'custom', label: `${f.clock(win.from)}–${f.clock(win.to)}` }] : []),
+                ]}
+                value={windowId}
+                onChange={(id) => {
+                  if (id === 'all') setWin({ from: 0, to: duration });
+                  if (id === 'finish') setWin({ from: finishFrom, to: duration });
+                }}
+                label="Chart range"
+            />
+            <span className="fib-meta">Drag across the pace bars to zoom into any stretch</span>
+          </div>
+
+          <RibbonRace
               entries={entries}
-              duration={matchDuration(match)}
+              duration={duration}
+              from={win.from}
+              to={win.to}
+              onWindow={(from, to) => setWin({ from, to })}
               cursor={hover ?? cursor}
+              phases={phases}
+              changeTimes={changeTimes}
               labelFor={labelFor}
-              markers={changeTimes}
               onScrub={playing ? undefined : setHover}
-              iconFor={(entry) => (
-                  <span className="fib-lane-faces" aria-hidden="true">
-              {entry.members.map((m) => (
-                  <Avatar key={idUuid(m)} uuid={idUuid(m)} size={16} />
-              ))}
-            </span>
-              )}
           />
 
           {/*
-          A native range input, styled by the browser. Reinventing a slider for
-          flavour is exactly the kind of custom form control the product
-          register bans — the native one is draggable, keyboard-steppable and
-          screen-reader-labelled for free. The replay button next to it is what
-          makes the whole mechanism discoverable.
+          A native range input, styled by the browser. The native one is
+          draggable, keyboard-steppable and screen-reader-labelled for free; the
+          replay button next to it is what makes the whole mechanism discoverable.
         */}
           <div className="fib-scrub">
             <div className="fib-scrub-row">
@@ -455,8 +484,10 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                   className="fib-replay"
                   onClick={replay}
                   aria-pressed={playing}
-                  aria-label={playing ? 'Pause the replay' : `Replay the match in ${Math.round(replayLength / 1000)} seconds`}
-                  title={playing ? 'Pause' : 'Replay the match'}
+                  aria-label={playing
+                    ? 'Pause the replay'
+                    : `Replay ${windowId === 'all' ? 'the match' : `${f.clock(win.from)} to ${f.clock(win.to)}`} in ${Math.round(replayLength / 1000)} seconds`}
+                  title={playing ? 'Pause' : windowId === 'all' ? 'Replay the match' : `Replay ${f.clock(win.from)}–${f.clock(win.to)}`}
               >
                 {playing ? (
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -473,7 +504,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                   id="fib-scrub-input"
                   type="range"
                   min={0}
-                  max={matchDuration(match)}
+                  max={duration}
                   step={5}
                   value={t}
                   onChange={(e) => {
@@ -481,167 +512,58 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                     if (playing) setPlaying(false);
                     setHover(null);
                     setCursor(Number(e.target.value));
-                    setOpenKey(null);
                   }}
-                  aria-valuetext={`${f.clock(t)} of ${f.clock(matchDuration(match))}`}
+                  aria-valuetext={`${f.clock(t)} of ${f.clock(duration)}`}
               />
             </div>
             <div className="fib-scrub-foot">
-              <span className="fib-meta">{f.clock(t)} / {f.clock(matchDuration(match))}</span>
+              <span className="fib-meta">{f.clock(t)} / {f.clock(duration)}</span>
               {scrubbing ? (
                   <button type="button" className="fib-btn fib-btn--quiet" onClick={() => { setPlaying(false); setHover(null); setCursor(null); }}>
                     Jump to final result
                   </button>
               ) : (
-                  <span className="fib-meta">Drag, hover the chart, or press play — every tick is a lead change</span>
+                  <span className="fib-meta">Drag, hover the chart, or press play</span>
               )}
             </div>
           </div>
+
+          <h2 className="fib-board-title">
+            {scrubbing ? `Standings at ${f.clock(t)}` : 'Final standings'}
+            {scrubbing && !separated ? <span className="fib-meta"> · everyone level, no standing yet</span> : null}
+          </h2>
+          <LiveBoard rows={board} at={t} live={scrubbing} separated={separated} shared={shared} onOpenPlayer={onOpenPlayer} />
+        </section>
+
+        <Section title="The round's records" sub="The extremes across every team, on the match clock.">
+          <RoundRecords entries={entries} runs={runs} />
         </Section>
 
         <Section
-            title={scrubbing ? `Standings at ${f.clock(t)}` : 'Final standings'}
-            /* An all-square field says so rather than leaving seven dashes in the
-               "#" column to be puzzled over. */
-            sub={scrubbing
-                ? (separated ? 'Rows move as the lead changes.' : 'Every competitor is level — no standing yet.')
-                : undefined}
+            title={match.mode === 'SOLO' ? 'Every player\u2019s round' : 'Every team\u2019s round'}
+            sub="Each run in collection order: the pool phase on the floor of every slot, a back-to-back on its rim, skips greyed."
         >
-          <div className="fib-panel fib-panel--flush fib-table-wrap">
-            <table className="fib-table">
-              <caption className="fib-sr">
-                Standings {scrubbing ? `at ${f.clock(t)}` : 'at the end of the match'}
-              </caption>
-              <thead>
-              <tr>
-                <th scope="col" style={{ width: 60 }}>#</th>
-                <th scope="col">{match.mode === 'SOLO' ? 'Player' : 'Team'}</th>
-                <th scope="col" data-num>Score</th>
-                <th scope="col" data-num>Found</th>
-                <th scope="col" data-num>Skipped</th>
-                <th scope="col" data-num>Gap</th>
-                <th scope="col"><span className="fib-sr">Items collected</span></th>
-              </tr>
-              </thead>
-              <tbody ref={bodyRef}>
-              {table.map(({ row, place, score, gap }) => {
-                const key = row.entry.key;
-                const open = openKey === key;
-                const panelId = `fib-inv-${match.matchId}-${key}`;
-                const tied = sharedPlaces.has(place);
-                return (
-                    <React.Fragment key={key}>
-                      <tr
-                          className="fib-row-toggle"
-                          data-flip-key={key}
-                          data-open={open || undefined}
-                          /*
-                           * Convenience only. The row is not a button — it already
-                           * contains player buttons, and nesting interactive
-                           * elements breaks both semantics and keyboard order. The
-                           * real control is the toggle in the last cell; this just
-                           * lets a mouse hit the whole row, ignoring clicks that
-                           * were meant for something else inside it.
-                           */
-                          onClick={(e) => {
-                            if (e.target.closest('button')) return;
-                            toggle(key);
-                          }}
-                      >
-                        <td>
-                          <Medal place={separated ? place : null} />
-                          {separated && tied ? <span className="fib-sr">, tied</span> : null}
-                        </td>
-                        <td>
-                          <div className="fib-cell-players">
-                            {row.entry.members.map((m) => (
-                                <button
-                                    key={idUuid(m)}
-                                    type="button"
-                                    className="fib-cell-player"
-                                    onClick={() => onOpenPlayer?.(idUuid(m))}
-                                >
-                                  <Avatar uuid={idUuid(m)} size={24} />
-                                  <span>{idLabel(m)}</span>
-                                </button>
-                            ))}
-                          </div>
-                        </td>
-                        <td data-num style={{ color: separated && place === 1 ? 'var(--fib-gold)' : undefined }}>
-                          {score}
-                        </td>
-                        <td data-num>{row.found}</td>
-                        <td data-num style={{ color: 'var(--fib-netherite)' }}>{row.skipped}</td>
-                        <td data-num style={{ color: 'var(--fib-netherite)' }}>
-                          {gap === 0 ? '—' : gap}
-                        </td>
-                        <td data-num>
-                          <button
-                              type="button"
-                              className="fib-inv-toggle"
-                              aria-expanded={open}
-                              aria-controls={panelId}
-                              onClick={() => toggle(key)}
-                          >
-                          <span className="fib-sr">
-                            {open ? 'Hide' : 'Show'} the items {labelFor(row.entry)} collected
-                          </span>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="m7 10 5 5 5-5" />
-                            </svg>
-                          </button>
-                        </td>
-                      </tr>
-
-                      {open ? (
-                          <tr className="fib-inv-drawer" data-flip-key={`${key}~inv`}>
-                            <td colSpan={7} id={panelId}>
-                              <Inventory
-                                  entry={row.entry}
-                                  duration={matchDuration(match)}
-                                  ownerLabel={labelFor(row.entry)}
-                                  mode={match.mode}
-                              />
-                            </td>
-                          </tr>
-                      ) : null}
-                    </React.Fragment>
-                );
-              })}
-              </tbody>
-            </table>
+          <div className="fib-reports">
+            {finalStandings.map((row, i) => {
+              const entry = entries.find((e) => e.key === row.key) ?? entries[i];
+              const run = runs[entries.indexOf(entry)];
+              return (
+                  <TeamReport
+                      key={row.key}
+                      entry={entry}
+                      run={run}
+                      place={row.placement > 0 ? row.placement : i + 1}
+                      lead={finalLead}
+                      won={row.won}
+                      duration={duration}
+                      mode={match.mode}
+                      at={scrubbing ? t : null}
+                      onOpenPlayer={onOpenPlayer}
+                  />
+              );
+            })}
           </div>
         </Section>
-
-        {rare.length > 0 ? (
-            <Section title="Rare pulls" sub="Back-to-backs at Legendary tier or above.">
-              <div className="fib-shelf">
-                {rare.map((item, i) => (
-                    <figure key={`${item.itemName}-${i}`} className="fib-artifact fib-sprite-lift">
-                      <Sprite name={item.itemName} size={64} pad={16} tier={item.b2bRarity} />
-                      <figcaption>
-                        <b>{f.itemLabel(item.itemName)}</b>
-                        <RarityTag tier={item.b2bRarity} />
-                        {/*
-                          Who, and when in the MATCH — not what the wall clock
-                          said. Everything else on this page is on match time
-                          (the scrubber, the standings heading, the lead-change
-                          ticks), so "22:07" was the one figure a reader could
-                          not place against the race they had just scrubbed
-                          through. The name is plain text rather than a link:
-                          the standings above own player navigation, and a
-                          second, differently-shaped way to open a profile is
-                          the "save button" problem.
-                        */}
-                        <span className="fib-meta">
-                          {pullActor(finalStandings, item)} · {f.clock(atMatchTime(match, item.collectedAt))}
-                        </span>
-                      </figcaption>
-                    </figure>
-                ))}
-              </div>
-            </Section>
-        ) : null}
 
         <Section title="Settings" sub="The rules this match was played under.">
           {groupSettings(match.settings).map((group) => (

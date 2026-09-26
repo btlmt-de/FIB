@@ -5,42 +5,24 @@
  * (see the media query in styles.js), not a second component: one set of
  * markup, two arrangements, so the two can't drift apart.
  *
- * Icons are inline rather than imported. The module needs five glyphs; pulling
- * five icon modules in to draw five outlines costs more than the outlines do,
- * and hand-drawn ones keep a single stroke weight across the set.
+ * The icons are item sprites, one per destination: a compass for the overview,
+ * a player head for the directory, a gold block for the ranking (the podium's
+ * first-place block), a clock for the match history, a chest for the item
+ * index. They were five hand-drawn line icons at one stroke weight - tidy, and
+ * the last thing on every screen that could have come from any dashboard kit.
+ * Sprites render at 16px, the game's own inventory scale, and sit desaturated
+ * until their item is hovered or current, so colour still says "you are here".
  */
 
 import React from 'react';
+import { ItemImage } from './Primitives.jsx';
 
-const ICON = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' };
-
-const Icons = {
-  overview: (
-    <svg {...ICON} aria-hidden="true">
-      <path d="M3 13.5 12 5l9 8.5" /><path d="M5.5 12v7h13v-7" />
-    </svg>
-  ),
-  players: (
-    <svg {...ICON} aria-hidden="true">
-      <circle cx="9.5" cy="8.5" r="3.2" /><path d="M3.5 19.5c0-3 2.7-5 6-5s6 2 6 5" />
-      <path d="M16.5 7.2a3 3 0 0 1 0 5.6M18 19.5c0-1.9-.6-3.4-1.7-4.4" />
-    </svg>
-  ),
-  leaderboards: (
-    <svg {...ICON} aria-hidden="true">
-      <path d="M4 20v-6h4.5v6M9.75 20V4h4.5v16M15.5 20v-9H20v9" /><path d="M2.5 20h19" />
-    </svg>
-  ),
-  matches: (
-    <svg {...ICON} aria-hidden="true">
-      <circle cx="12" cy="12" r="8.4" /><path d="M12 7.4V12l3 1.8" />
-    </svg>
-  ),
-  items: (
-    <svg {...ICON} aria-hidden="true">
-      <path d="m12 3 8 4.4v9.2L12 21l-8-4.4V7.4z" /><path d="m4 7.4 8 4.4 8-4.4M12 11.8V21" />
-    </svg>
-  ),
+const NAV_ITEM = {
+  overview: 'compass',
+  players: 'player_head',
+  leaderboards: 'gold_block',
+  matches: 'clock',
+  items: 'chest',
 };
 
 const VIEWS = [
@@ -55,8 +37,9 @@ export function Rail({ view, onNavigate, onExitWiki, wikiHref = '/' }) {
   return (
     <nav className="fib-rail" aria-label="Statistics">
       <div className="fib-rail-brand">
-        <b>Statistics</b>
-        <span>Beta</span>
+        <b>FIB</b>
+        <span>Stats</span>
+        <em>Beta</em>
       </div>
 
       <div className="fib-rail-nav">
@@ -68,7 +51,7 @@ export function Rail({ view, onNavigate, onExitWiki, wikiHref = '/' }) {
             aria-current={view === v.id ? 'page' : undefined}
             onClick={() => onNavigate(v.id)}
           >
-            {Icons[v.id]}
+            <ItemImage name={NAV_ITEM[v.id]} size={16} className="fib-nav-sprite" loading="eager" />
             {v.label}
           </button>
         ))}

@@ -52,6 +52,7 @@ import { canObserve } from './env.js';
 import {
   Section, Figure, Avatar, Sprite, Medal, Segmented, Search, Empty,
   RarityRamp, PlayerLink, Reveal, Counter, AsyncView, PCard, CardMeter,
+  ItemImage, PodiumHead,
 } from './Primitives.jsx';
 import { ScoreTrend } from './Charts.jsx';
 import * as f from './format.js';
@@ -254,8 +255,21 @@ function PlayerProfileBody({
 
             <div className="fib-hero-grid">
               <div className="fib-hero-id">
-                <div className="fib-well fib-hero-avatar">
-                  <Avatar uuid={uuid} size={128} />
+                {/*
+                  The player stands on what they earned: the podium's block for a
+                  top-three solo rank (gold, iron, copper), grass for everyone
+                  else - the same ground the directory card stands them on. The
+                  flat face in a well this replaced was the one object on the page
+                  that could have been from any game.
+                */}
+                <div className="fib-hero-stand" aria-hidden="true">
+                  <ItemImage
+                    name={({ 1: 'gold_block', 2: 'iron_block', 3: 'copper_block' })[rank?.rank] ?? 'grass_block'}
+                    size={128}
+                    className="fib-hero-block"
+                    loading="eager"
+                  />
+                  <PodiumHead uuid={uuid} size={112} />
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <h1 className="fib-hero-name">{name}</h1>
@@ -531,87 +545,79 @@ function Record({ stats, field, streaks }) {
     return `${f.ordinal(ahead + 1)} of ${column.length}`;
   };
 
-  const HEADLINE = [
-    {
-      label: 'Matches played', value: stats.gamesPlayed,
-      note: standing('gamesPlayed', stats.gamesPlayed),
-    },
-    {
-      label: 'Matches won', value: stats.gamesWon, tone: 'gold',
-      note: standing('gamesWon', stats.gamesWon),
-    },
-    {
-      /* The one figure with no field to stand in: streak lives on the player
-         record, not in the comparable stat payload. Its own best is the
-         honest context — "4, and you have had 12" says more than a placing. */
-      label: 'Current win streak', value: streaks?.currentWinStreak ?? 0,
-      note: Number.isFinite(streaks?.highestWinStreak)
-          ? `best ${f.num(streaks.highestWinStreak)}`
-          : null,
-    },
-    {
-      label: 'Back-to-back best', value: stats.highestB2BStreak,
-      note: standing('highestB2BStreak', stats.highestB2BStreak),
-    },
-    {
-      label: 'Longest item streak', value: stats.longestItemStreak,
-      /* No board and no roster column carries this one, so it renders bare. */
-      note: standing('longestItemStreak', stats.longestItemStreak),
-    },
-    {
-      label: 'Highest score', value: stats.highestScore, format: f.full,
-      note: standing('highestScore', stats.highestScore),
-    },
-  ];
-
   const perMatch = f.itemsPerGame(stats.totalItemsFound, stats.gamesPlayed);
   const perItem = f.secondsPerItem(stats.totalTimeSpentOnItems, stats.totalItemsFound);
   const pulls = totalPulls(stats);
 
   /*
-   * Eight, in two rows of four that each mean something: items on the top row,
-   * the world on the bottom. It is the same split the career ledger used for
-   * its two groups, carried over now that the grid replaced it — a row is a
-   * free grouping mechanism and there is no reason to waste it.
+   * Three stories and a footnote, each told by one headline figure and the
+   * numbers that explain it.
    *
-   * Total back-to-backs closes the item row deliberately: Collection sits
-   * directly below this block and opens with the same number broken down by
-   * rarity, so the figure and its breakdown are adjacent rather than a section
-   * apart.
+   * *This was six headline figures in a 3x2 grid over eight more in a 4x2
+   * grid* - fourteen numbers whose only grouping was their size, which a
+   * critique in September 2026 read as "numbers that are just there". The
+   * figures, their notes and their standings are unchanged; what changed is
+   * that each now sits under the question it answers. How they win. How they
+   * hunt. How lucky they get. And, set small, what the world did to them on the
+   * way. Each group is labelled by an item sprite for its KIND, the same
+   * kind-not-data rule the achievement glyphs follow.
    */
-  const REST = [
+  const STORIES = [
     {
-      label: 'Items found', value: stats.totalItemsFound, format: f.full,
-      note: standing('totalItemsFound', stats.totalItemsFound),
+      id: 'winning', title: 'Winning', item: 'gold_ingot',
+      lead: {
+        label: 'Matches won', value: stats.gamesWon, tone: 'gold',
+        note: standing('gamesWon', stats.gamesWon),
+      },
+      rest: [
+        { label: 'Matches played', value: stats.gamesPlayed, note: standing('gamesPlayed', stats.gamesPlayed) },
+        {
+          /* No field to stand in: streak lives on the player record, not in the
+             comparable payload. Its own best is the honest context. */
+          label: 'Current win streak', value: streaks?.currentWinStreak ?? 0,
+          note: Number.isFinite(streaks?.highestWinStreak) ? `best ${f.num(streaks.highestWinStreak)}` : null,
+        },
+        { label: 'Highest score', value: stats.highestScore, format: f.full, note: standing('highestScore', stats.highestScore) },
+      ],
     },
     {
-      label: 'Items per match', value: perMatch, format: (n) => f.dec(n, 1),
-      note: standing('itemsPerMatch', perMatch),
+      id: 'hunting', title: 'Hunting', item: 'spyglass',
+      lead: {
+        label: 'Items found', value: stats.totalItemsFound, format: f.full,
+        note: standing('totalItemsFound', stats.totalItemsFound),
+      },
+      rest: [
+        { label: 'Items per match', value: perMatch, format: (n) => f.dec(n, 1), note: standing('itemsPerMatch', perMatch) },
+        {
+          // Time, not a bare second count: `duration` writes m + s past a minute.
+          label: 'Time per item', value: perItem, format: f.duration,
+          note: standing('secondsPerItem', perItem, 'low'),
+        },
+        /* No board and no roster column carries this one, so it renders bare. */
+        { label: 'Longest item streak', value: stats.longestItemStreak, note: standing('longestItemStreak', stats.longestItemStreak) },
+      ],
     },
     {
-      // Time, not a bare second count: `duration` writes m + s past a minute,
-      // so a slow item reads "1m 49s" rather than "108.6s". No `unit` — duration
-      // carries its own.
-      label: 'Time per item', value: perItem, format: f.duration,
-      note: standing('secondsPerItem', perItem, 'low'),
+      /* Total back-to-backs leads here because Collection sits directly below
+         and opens with the same number broken down by rarity. */
+      id: 'luck', title: 'Luck', item: 'rabbit_foot',
+      lead: {
+        label: 'Back-to-back pulls', value: pulls,
+        note: standing('totalPulls', pulls),
+      },
+      rest: [
+        { label: 'Back-to-back best', value: stats.highestB2BStreak, note: standing('highestB2BStreak', stats.highestB2BStreak) },
+        { label: 'Wheel spins', value: stats.wheelOfFortuneUses, note: standing('wheelOfFortuneUses', stats.wheelOfFortuneUses) },
+      ],
     },
+  ];
+
+  const WORLD = [
     {
-      label: 'Total back-to-backs', value: pulls,
-      note: standing('totalPulls', pulls),
-    },
-    {
-      label: 'Distance travelled', value: stats.blocksTravelled, format: f.distance,
-      unit: 'blocks',
+      label: 'Distance travelled', value: stats.blocksTravelled, format: f.distance, unit: 'blocks',
       note: standing('blocksTravelled', stats.blocksTravelled),
     },
-    {
-      label: 'Deaths', value: stats.deaths,
-      note: standing('deaths', stats.deaths, 'low'),
-    },
-    {
-      label: 'Wheel spins', value: stats.wheelOfFortuneUses,
-      note: standing('wheelOfFortuneUses', stats.wheelOfFortuneUses),
-    },
+    { label: 'Deaths', value: stats.deaths, note: standing('deaths', stats.deaths, 'low') },
     {
       label: 'Antimatter trips', value: stats.enteredAntimatterTeleporter,
       note: standing('enteredAntimatterTeleporter', stats.enteredAntimatterTeleporter),
@@ -620,38 +626,55 @@ function Record({ stats, field, streaks }) {
 
   return (
       <Reveal as="section" className="fib-record-block" aria-label="The record">
-        <div className="fib-record">
-          {HEADLINE.map((fig) => (
-              <Figure
-                  key={fig.label}
-                  size="xl"
-                  value={fig.value}
-                  format={fig.format}
-                  label={fig.label}
-                  tone={fig.tone}
-                  note={fig.note}
-              />
+        <div className="fib-stories">
+          {STORIES.map((story) => (
+              <section key={story.id} className="fib-story" aria-labelledby={`fib-story-${story.id}`}>
+                <h2 className="fib-story-head" id={`fib-story-${story.id}`}>
+                  <ItemImage name={story.item} size={32} className="fib-story-emblem" loading="eager" />
+                  {story.title}
+                </h2>
+                {/* The lead counts up; the supporting figures arrive already true,
+                    which is what marks the lead as the headline. */}
+                <Figure
+                    size="xl"
+                    value={story.lead.value}
+                    format={story.lead.format}
+                    label={story.lead.label}
+                    tone={story.lead.tone}
+                    note={story.lead.note}
+                />
+                <dl className="fib-story-rest">
+                  {story.rest.map((fig) => (
+                      <div key={fig.label}>
+                        <dt>{fig.label}</dt>
+                        <dd>
+                          <b>{Number.isFinite(fig.value) ? (fig.format ?? f.num)(fig.value) : '—'}</b>
+                          {fig.note ? <span className="fib-meta">{fig.note}</span> : null}
+                        </dd>
+                      </div>
+                  ))}
+                </dl>
+              </section>
           ))}
         </div>
 
-        {/*
-        Static, where the headline six count up. Thirteen simultaneous count-ups
-        is a slot machine, not an entrance — and the animation is what marks the
-        six as the headline. The supporting tier arrives already true.
-      */}
-        <div className="fib-record-more">
-          {REST.map((fig) => (
-              <Figure
-                  key={fig.label}
-                  size="sm"
-                  value={fig.value}
-                  format={fig.format}
-                  unit={fig.unit}
-                  label={fig.label}
-                  note={fig.note}
-                  count={false}
-              />
-          ))}
+        <div className="fib-story-world">
+          <h2 className="fib-story-head">
+            <ItemImage name="filled_map" size={32} className="fib-story-emblem" loading="eager" />
+            Out in the world
+          </h2>
+          <dl className="fib-story-world-figs">
+            {WORLD.map((fig) => (
+                <div key={fig.label}>
+                  <dt>{fig.label}</dt>
+                  <dd>
+                    <b>{Number.isFinite(fig.value) ? (fig.format ?? f.num)(fig.value) : '—'}</b>
+                    {fig.unit ? <em> {fig.unit}</em> : null}
+                    {fig.note ? <span className="fib-meta">{fig.note}</span> : null}
+                  </dd>
+                </div>
+            ))}
+          </dl>
         </div>
       </Reveal>
   );
@@ -660,28 +683,26 @@ function Record({ stats, field, streaks }) {
 /* ── Honours ──────────────────────────────────────────────────────────── */
 
 /*
- * One glyph per achievement kind. Inline and hand-drawn for the same reason the
- * rail's five are (see Chrome.jsx): four outlines cost less than four icon
- * modules, and drawing them here keeps one stroke weight across the set.
+ * One item per achievement kind: a clock for a single round, a bottle o'
+ * enchanting for a lifetime total (it accrues), a chest for the collection, an
+ * enchanted book for achievements about achievements.
  *
  * These identify the *kind* of achievement, which is the only thing the
- * catalogue tells us about it — there is no per-achievement artwork in the
- * plugin's payload, and inventing one would be decoration pretending to be data.
+ * catalogue tells us about it - there is no per-achievement artwork in the
+ * plugin's payload, and inventing one per row would be decoration pretending to
+ * be data. They were hand-drawn line glyphs (a stopwatch, a trophy, crates, a
+ * star); the kinds are the same, the objects are now the game's own.
  */
-const ACH_ICON = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' };
-
-const ACH_GLYPH = {
-  /* A single round: a stopwatch. */
-  ROUND: <svg {...ACH_ICON} aria-hidden="true"><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 3h5" /></svg>,
-  /* Lifetime: a trophy. */
-  GLOBAL: <svg {...ACH_ICON} aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z" /><path d="M8 5.5H5.5V7a3 3 0 0 0 2.5 3M16 5.5h2.5V7a3 3 0 0 1-2.5 3" /><path d="M12 13v4M9 20h6" /></svg>,
-  /* The collection: a stack of crates. */
-  COLLECTION: <svg {...ACH_ICON} aria-hidden="true"><rect x="3.5" y="13" width="7" height="7" rx="1" /><rect x="13.5" y="13" width="7" height="7" rx="1" /><rect x="8.5" y="4" width="7" height="7" rx="1" /></svg>,
-  /* Meta: achievements about achievements. */
-  META: <svg {...ACH_ICON} aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z" /></svg>,
+const ACH_ITEM = {
+  ROUND: 'clock',
+  GLOBAL: 'experience_bottle',
+  COLLECTION: 'chest',
+  META: 'enchanted_book',
 };
 
-const achGlyph = (scope) => ACH_GLYPH[scope] ?? ACH_GLYPH.GLOBAL;
+const achGlyph = (scope) => (
+  <ItemImage name={ACH_ITEM[scope] ?? ACH_ITEM.GLOBAL} size={32} className="fib-case-sprite" />
+);
 
 /** The kind filters, in the catalogue's own scope order. `all` is not a scope. */
 const ACH_FILTERS = [

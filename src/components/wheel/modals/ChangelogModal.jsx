@@ -402,6 +402,8 @@ const FEATURE_IDENTITY = {
     high_roller: { color: EVENT_IDENTITY.high_roller.color, Icon: Spade },
     bounty: { color: COLORS.bounty, Icon: Crosshair },
     mystery: { color: COLORS.mystery, Icon: Gift, gilt: true },
+    // The lucky family's own mark and colour, as the plaque and the feed wear them.
+    lucky: { color: COLORS.green, Icon: Sparkles },
 };
 
 function FeatureBlock({ block }) {

@@ -59,6 +59,59 @@ export const avatarAt = (uuid, size = 32) => {
 };
 
 /**
+ * The head as an OBJECT rather than a face: mc-heads' isometric render, the same
+ * three-quarter view Minecraft uses for a block in an inventory slot. The podium
+ * stands these on stacked block sprites, and a flat face on an isometric block
+ * reads as a sticker, not a player standing there.
+ *
+ * `facing` is the renderer's own vocabulary: the default render looks right,
+ * `left` looks left. The podium turns the outer two toward the winner.
+ */
+export const headAt = (uuid, size = 128, facing = 'right') => {
+  const step = AVATAR_STEPS.find((s) => s >= size) ?? 128;
+  const id = uuid ?? 'MHF_Steve';
+  return facing === 'left'
+    ? `https://mc-heads.net/head/${id}/left/${step}`
+    : `https://mc-heads.net/head/${id}/${step}`;
+};
+
+/**
+ * One line that says how a match was won, derived only from what the match
+ * record can prove.
+ *
+ * The overview's featured card used to say every match was "decided in the
+ * final stretch" whatever the race actually did - a sentence written once and
+ * printed over every match, which is the interface asserting a story the data
+ * never told it. Each branch below is a fact about the race: no lead change at
+ * all, the last lead change landing in the final fifth of the clock, the
+ * margin. The match page and the overview both headline with this, so the
+ * story a reader clicks on is the story the page they land on tells.
+ *
+ * `lastChange` is the offset of the final lead change in seconds, or null.
+ * Returns { winner, text } where text is the whole headline.
+ */
+export const matchHeadline = (match, lastChange = null) => {
+  const standings = matchStandings(match);
+  const [first, second] = standings;
+  if (!first) return { winner: null, text: 'Match result' };
+  const winner = first.members.map(idLabel).join(' & ');
+  if (!second) return { winner, text: `${winner} won uncontested` };
+
+  const loser = second.members.map(idLabel).join(' & ');
+  const margin = (first.score ?? 0) - (second.score ?? 0);
+  const duration = matchDuration(match);
+  const lateTurn = lastChange != null && duration > 0 && lastChange >= duration * 0.8;
+
+  let text;
+  if (margin === 0) text = `${winner} edged ${loser} level on score`;
+  else if (lateTurn) text = `${winner} came through late against ${loser}`;
+  else if ((match.leadChanges ?? 0) === 0 && lastChange == null) text = `${winner} led ${loser} from start to finish`;
+  else if (margin <= 3) text = `${winner} held off ${loser} by ${margin}`;
+  else text = `${winner} beat ${loser} by ${margin}`;
+  return { winner, text };
+};
+
+/**
  * Shown when the head renderer is unreachable or rate-limits us. It is a third party we do not
  * control, and a row of blank squares reads as a broken page rather than a slow one.
  */

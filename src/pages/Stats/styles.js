@@ -35,6 +35,7 @@ const FONT_HREF =
   'https://fonts.googleapis.com/css2' +
   '?family=Inter:wght@400;500;600;700' +
   '&family=JetBrains+Mono:wght@400;500;700' +
+  '&family=Jersey+10' +
   '&display=swap';
 
 export const css = `
@@ -130,15 +131,25 @@ ${cssVariables()}
   border-right: 1px solid var(--fib-line-soft);
 }
 
+/*
+ * The wordmark. It used to be "Statistics" in 14px Inter Bold beside a mono
+ * "Beta" - a label, not a mark, and the only place on the page that could have
+ * said whose statistics these were. Now it is the game's own initials in the
+ * jersey, with the section name set a step down on the same baseline.
+ */
 .fib-rail-brand {
-  display: flex; align-items: baseline; gap: 8px;
-  padding: 0 var(--fib-space-3) var(--fib-space-5);
+  display: flex; align-items: baseline; gap: 7px;
+  padding: 0 var(--fib-space-3) var(--fib-space-6);
+  font-family: var(--fib-font-display); font-weight: 400;
+  line-height: 0.8;
 }
-.fib-rail-brand b { font-size: var(--fib-text-md); font-weight: 700; letter-spacing: -0.01em; }
-.fib-rail-brand span {
-  font-family: var(--fib-font-mono);
+.fib-rail-brand b { font-size: var(--fib-display-mark); font-weight: 400; color: var(--fib-ink); }
+.fib-rail-brand span { font-size: var(--fib-display-sm); color: var(--fib-ink-3); }
+.fib-rail-brand em {
+  align-self: flex-start;
+  font-style: normal; font-family: var(--fib-font-mono);
   font-size: var(--fib-text-2xs); color: var(--fib-netherite);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.04em; line-height: 1;
 }
 
 .fib-rail-nav { display: flex; flex-direction: column; gap: 2px; }
@@ -159,8 +170,23 @@ ${cssVariables()}
   background: var(--fib-blue-tint); color: var(--fib-blue-ink); font-weight: 600;
   box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
 }
-.fib-nav-item svg { flex: none; opacity: 0.7; }
-.fib-nav-item[aria-current="page"] svg { opacity: 1; color: var(--fib-blue-ink); }
+/* The destination's item. Softened at rest - part-desaturated, slightly dim -
+   not greyed out: fully grey, 16px sprites stopped reading as items at all.
+   Softened so a column of
+   five full-colour sprites does not outshout the labels; full colour on hover
+   and on the current page, where it is the "you are here" cue beside the blue. */
+.fib-nav-item .fib-nav-sprite {
+  flex: none; width: 16px; height: 16px;
+  image-rendering: pixelated;
+  filter: saturate(0.55); opacity: 0.8;
+  transition: filter var(--fib-motion-fast) var(--fib-ease), opacity var(--fib-motion-fast) var(--fib-ease),
+              transform var(--fib-motion-base) var(--fib-ease);
+}
+.fib-nav-item:hover .fib-nav-sprite,
+.fib-nav-item[aria-current="page"] .fib-nav-sprite {
+  filter: drop-shadow(0 1px 1px var(--fib-shadow-deep)); opacity: 1;
+}
+.fib-nav-item:hover .fib-nav-sprite { transform: translateY(-1px); }
 
 .fib-rail-foot { margin-top: auto; padding-top: var(--fib-space-5); }
 
@@ -203,9 +229,22 @@ ${cssVariables()}
 
 /* ── 3. Type + section furniture ──────────────────────────────────────── */
 
+/*
+ * Headings are set in the jersey (see tokens.js, rule 2). One weight, no
+ * tracking: the face is drawn on a pixel grid, and both synthetic bold and
+ * negative letter-spacing push its pixels off that grid. Leading is tight
+ * because the face's ascenders are short - at 1.15 a two-line heading reads
+ * as two separate lines.
+ */
 .fib-h1 {
-  font-size: var(--fib-text-xl); font-weight: 700;
-  letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance;
+  font-family: var(--fib-font-display);
+  font-size: var(--fib-display-md); font-weight: 400;
+  letter-spacing: 0; line-height: 0.95; text-wrap: balance;
+}
+.fib-display {
+  font-family: var(--fib-font-display);
+  font-size: var(--fib-display-xl); font-weight: 400;
+  line-height: 0.9; letter-spacing: 0; text-wrap: balance;
 }
 .fib-h2 {
   font-size: var(--fib-text-lg); font-weight: 600;
@@ -366,10 +405,13 @@ ${cssVariables()}
   padding: var(--fib-space-4) var(--fib-space-4) var(--fib-space-4);
   flex: 1 1 auto; min-width: 0;
 }
+/* An item's name is a name, so it takes the jersey like a player's does. Long
+   ones ("Waxed Oxidized Cut Copper Stairs") wrap to two lines rather than
+   shrinking; balance keeps the break even. */
 .fib-pcard-title {
-  font-size: var(--fib-text-lg); font-weight: 600;
-  letter-spacing: -0.01em; line-height: 1.2;
-  overflow-wrap: anywhere;
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); letter-spacing: 0; line-height: 0.95;
+  overflow-wrap: anywhere; text-wrap: balance;
 }
 .fib-pcard-sub { margin-top: 2px; }
 /* The item card's phase tag: a short uppercase word in the phase colour. Colour
@@ -399,85 +441,168 @@ ${cssVariables()}
 }
 .fib-phase-legend i { width: 9px; height: 9px; border-radius: var(--fib-radius-sm); flex: none; }
 
+/*
+ * The item index's records. Three objects, not three cards of the grid below:
+ * the sprite at 128px on a floor lit in its match phase (the same
+ * green/yellow/red the grid's cards carry), the name in the jersey, the
+ * record in mono. The pressed one is the grid's current sort, rimmed blue.
+ */
+.fib-item-records {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--fib-space-4);
+  margin-bottom: var(--fib-space-7);
+}
+.fib-item-record {
+  display: grid; grid-template-columns: 136px minmax(0, 1fr);
+  align-items: center; gap: var(--fib-space-5);
+  padding: var(--fib-space-4) var(--fib-space-5) var(--fib-space-4) var(--fib-space-4);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+  text-align: left; cursor: pointer;
+  transition: box-shadow var(--fib-motion-fast) var(--fib-ease), transform var(--fib-motion-base) var(--fib-ease);
+}
+.fib-item-record:hover { transform: translateY(-2px); }
+.fib-item-record[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-blue) 60%, var(--fib-line)),
+              inset 0 1px 0 0 var(--fib-gloss-top), 0 14px 34px -22px var(--fib-blue);
+}
+.fib-item-record-media {
+  position: relative; display: grid; place-items: center;
+  width: 136px; height: 136px; border-radius: var(--fib-radius-md);
+  background:
+    radial-gradient(90% 60% at 50% 115%, color-mix(in oklch, var(--phase) 48%, transparent), transparent 70%),
+    linear-gradient(var(--fib-plinth-2), var(--fib-sunk));
+  box-shadow: inset 0 1px 0 0 var(--fib-edge-strong);
+}
+.fib-item-record-media img {
+  width: 112px; height: 112px; image-rendering: pixelated;
+  filter: drop-shadow(0 8px 8px var(--fib-shadow-deep));
+  transition: transform var(--fib-motion-base) var(--fib-ease);
+}
+.fib-item-record:hover .fib-item-record-media img { transform: translateY(-4px) scale(1.03); }
+.fib-item-record-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fib-item-record-name {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1; text-wrap: balance;
+}
+.fib-item-record-figure { color: var(--fib-ink-3); font-size: var(--fib-text-sm); margin-top: var(--fib-space-2); }
+.fib-item-record-figure b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-2xl); font-weight: 600; color: var(--fib-ink); letter-spacing: -0.02em;
+}
+
+@container fib-page (max-width: 520px) {
+  .fib-item-record { grid-template-columns: 88px minmax(0, 1fr); gap: var(--fib-space-4); }
+  .fib-item-record-media { width: 88px; height: 88px; }
+  .fib-item-record-media img { width: 64px; height: 64px; }
+}
+
 /* ── The player directory ─────────────────────────────────────────────────
  *
- * A contacts-list, not a leaderboard: no numbers, just a face and a name that
- * routes into a profile. Grouped A–Z when browsing, flat when searching.
+ * One card per player, grouped by whether they have played lately. See
+ * PlayerCard in Players.jsx. Not a leaderboard: nothing is ordered by a
+ * placing, and no card is gilded for being better than another.
  */
 
-/* The A–Z jump strip, docked to the top of the scroll so it stays reachable as
-   the roster grows. A soft void wash so tiles pass cleanly beneath it. */
-.fib-dir-index {
-  position: sticky; top: 0; z-index: 5;
-  display: flex; flex-wrap: wrap; gap: 4px;
-  padding: var(--fib-space-3) 0;
-  margin-bottom: var(--fib-space-2);
-  background: linear-gradient(var(--fib-void) 72%, transparent);
-}
-.fib-dir-jump {
-  min-width: 26px; height: 26px; padding: 0 6px;
-  border-radius: var(--fib-radius-sm);
-  font-family: var(--fib-font-mono);
-  font-size: var(--fib-text-2xs); font-variant-numeric: tabular-nums;
-  color: var(--fib-ink-3);
-  transition: color var(--fib-motion-fast) var(--fib-ease),
-              background var(--fib-motion-fast) var(--fib-ease);
-}
-.fib-dir-jump:hover { background: var(--fib-blue-tint); color: var(--fib-blue-ink); }
-
-.fib-dir-group { scroll-margin-top: var(--fib-space-6); }
-.fib-dir-group + .fib-dir-group { margin-top: var(--fib-space-6); }
-/* The initial, set in the number face — a quiet divider, not a shout. */
-.fib-dir-letter {
-  font-family: var(--fib-font-mono);
-  font-size: var(--fib-text-lg); font-weight: 600;
-  color: var(--fib-ink-3);
-  padding-bottom: var(--fib-space-2);
+.fib-dir-group + .fib-dir-group { margin-top: var(--fib-space-7); }
+.fib-dir-head {
+  display: flex; align-items: baseline; gap: var(--fib-space-3); flex-wrap: wrap;
   margin-bottom: var(--fib-space-4);
-  border-bottom: 1px solid var(--fib-line-soft);
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1; color: var(--fib-ink-2);
 }
 
-.fib-dir-grid {
+.fib-player-grid {
   display: grid;
-  /* Wider than the 184px it was: the tile now carries two facts under the name,
-     and at 184px "1,203 items · 2 days ago" wrapped to a second line on every
-     tile. */
-  grid-template-columns: repeat(auto-fill, minmax(228px, 1fr));
-  gap: var(--fib-space-3);
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--fib-space-4);
 }
-/* One player: a seated tile that lifts and lights blue on hover, because it IS
-   a link (blue is the module's interactive chrome, never a value colour). */
-.fib-dir-tile {
-  display: flex; align-items: center; gap: var(--fib-space-3);
-  min-width: 0; padding: var(--fib-space-3);
-  border-radius: var(--fib-radius-md);
-  background: var(--fib-plinth);
-  box-shadow: inset 0 0 0 1px var(--fib-line-soft),
-              inset 0 1px 0 0 var(--fib-gloss-top);
+
+/*
+ * The card. A plinth-lit panel that lifts and rims blue on hover, because it
+ * is a link. The head stands on its block in a column of its own, so every
+ * card's name starts on the same x whatever the head render's width.
+ */
+.fib-player-card {
+  display: grid; grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center; gap: var(--fib-space-4);
+  padding: var(--fib-space-4) var(--fib-space-5) var(--fib-space-4) var(--fib-space-4);
+  border-radius: var(--fib-radius-lg);
+  background: linear-gradient(var(--fib-plinth), color-mix(in oklch, var(--fib-plinth) 60%, var(--fib-void)));
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
   text-align: left; cursor: pointer;
-  transition: background var(--fib-motion-fast) var(--fib-ease),
-              box-shadow var(--fib-motion-fast) var(--fib-ease),
-              transform var(--fib-motion-fast) var(--fib-ease);
+  transition: box-shadow var(--fib-motion-fast) var(--fib-ease),
+              transform var(--fib-motion-base) var(--fib-ease);
 }
-.fib-dir-tile:hover {
-  background: var(--fib-plinth-2);
+.fib-player-card:hover {
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-blue) 48%, var(--fib-line)),
               inset 0 1px 0 0 var(--fib-gloss-top),
-              0 10px 22px -14px var(--fib-blue);
+              0 14px 30px -18px var(--fib-blue);
   transform: translateY(-2px);
 }
-.fib-dir-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.fib-dir-name {
-  display: block;
-  font-size: var(--fib-text-sm); font-weight: 500; color: var(--fib-ink);
+/* Players the server has not seen lately stand a step back: the same card,
+   dimmer, so the regulars read first without anyone being hidden. */
+.fib-player-grid[data-away] .fib-player-card { background: var(--fib-void); }
+.fib-player-grid[data-away] .fib-player-stand { opacity: 0.7; filter: saturate(0.6); }
+
+/* The head on its block - the podium's tower, one block high. Same measured
+   fractions as ".fib-podium-tower". */
+.fib-player-stand {
+  --block: 64px;
+  position: relative;
+  display: flex; flex-direction: column-reverse; align-items: center;
+  padding-top: 4px;
+}
+.fib-player-stand::after {
+  content: ''; position: absolute; left: 50%; bottom: -6px;
+  width: 76px; height: 12px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--fib-shadow-deep), transparent);
+}
+.fib-player-block { position: relative; z-index: 1; width: var(--block); height: var(--block); filter: none; }
+.fib-player-stand .fib-podium-head {
+  position: relative; z-index: 2;
+  width: 54px; margin-bottom: calc(var(--block) * -0.29);
+  transition: transform var(--fib-motion-base) var(--fib-ease);
+}
+.fib-player-card:hover .fib-player-stand .fib-podium-head { transform: translateY(-4px); }
+
+.fib-player-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fib-player-name {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* The two facts under a name, separated by a middot rather than by a gap — at
-   this size a gap alone reads as one string with a hole in it. Rendered per-fact
-   so a player missing one (never seen in the recent window) simply shows the
-   other, with no stray separator. */
-.fib-dir-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
-.fib-dir-facts > span + span::before { content: '·'; margin-right: 6px; color: var(--fib-trace-dim); }
+.fib-player-card:hover .fib-player-name { color: var(--fib-blue-ink); }
+
+.fib-player-record {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px var(--fib-space-3);
+  margin-top: var(--fib-space-2);
+}
+.fib-player-wl {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-md); color: var(--fib-ink-3);
+}
+.fib-player-wl b { color: var(--fib-ink); font-weight: 600; }
+.fib-player-record .fib-form-pips { grid-template-columns: repeat(var(--cols, 10), 10px); gap: 3px; }
+.fib-player-record .fib-form-pips i { width: 10px; height: 10px; }
+
+.fib-player-facts {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--fib-space-4);
+  margin-top: var(--fib-space-2);
+  font-size: var(--fib-text-xs); color: var(--fib-ink-3);
+}
+.fib-player-facts b { color: var(--fib-ink-2); font-weight: 600; }
+.fib-player-facts > span:first-child b { font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums; }
+.fib-player-partner { display: inline-flex; align-items: center; gap: 5px; }
+
+@container fib-page (max-width: 420px) {
+  .fib-player-grid { grid-template-columns: minmax(0, 1fr); }
+  .fib-player-card { grid-template-columns: 64px minmax(0, 1fr); padding: var(--fib-space-3); gap: var(--fib-space-3); }
+  .fib-player-stand { --block: 48px; }
+  .fib-player-stand .fib-podium-head { width: 42px; }
+}
 
 /* ── 4. Objects: wells, sprites, avatars, medals ──────────────────────── */
 
@@ -564,10 +689,24 @@ ${cssVariables()}
   transition: transform var(--fib-motion-base) var(--fib-ease);
 }
 
+/*
+ * The background is a head waiting to arrive. Heads come from mc-heads, a third
+ * party that routinely takes a second or two, and until then every avatar was a
+ * flat grey square - five of nine on the player directory at first paint, which
+ * read as missing players rather than slow ones. Two dark pixels on the 8x8 grid
+ * where a face's eyes sit make the placeholder say "a head goes here"; the real
+ * render is opaque and covers it the moment it lands.
+ */
 .fib-avatar {
   image-rendering: pixelated;
   border-radius: var(--fib-radius-sm);
-  background: var(--fib-plinth-2);
+  background:
+    /* Two pixels wide, one tall, at columns 1-2 and 5-6 of row 4 - the 8x8
+       face grid. Percent positions resolve against (box - tile), hence the
+       odd-looking numbers. */
+    linear-gradient(var(--fib-plinth), var(--fib-plinth)) 16.7% 57.1% / 25% 12.5% no-repeat,
+    linear-gradient(var(--fib-plinth), var(--fib-plinth)) 83.3% 57.1% / 25% 12.5% no-repeat,
+    var(--fib-line);
   flex: none;
 }
 
@@ -1051,6 +1190,54 @@ ${cssVariables()}
 }
 .fib-lane-faces .fib-avatar:first-child { margin-left: 0; }
 
+/*
+ * The match page's legend is a lane panel: each competitor's swatch, heads and
+ * name, then what they are doing at the cursor - the item they are hunting and
+ * for how long, or their last find at rest - and their score at that moment.
+ * One card per lane, so the panel reads as a scoreboard beside the race.
+ */
+.fib-chart-legend.fib-lanes {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--fib-space-3);
+  padding-top: var(--fib-space-4);
+}
+.fib-lanes li {
+  display: grid;
+  grid-template-columns: 14px auto minmax(0, 1fr);
+  grid-template-areas: "swatch faces name" "now now now";
+  align-items: center; column-gap: 8px; row-gap: var(--fib-space-3);
+  padding: var(--fib-space-3) var(--fib-space-4);
+  border-radius: var(--fib-radius-md);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+  font-size: var(--fib-text-sm); color: var(--fib-ink);
+}
+.fib-lanes li > i { grid-area: swatch; }
+.fib-lanes li > .fib-lane-faces { grid-area: faces; }
+.fib-lanes li > span:not(.fib-lane-faces):not(.fib-lane-now) { grid-area: name; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fib-lane-now {
+  grid-area: now;
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center; gap: var(--fib-space-3);
+}
+.fib-lane-now-empty { width: 40px; height: 40px; border-radius: var(--fib-radius-md); box-shadow: inset 0 0 0 1px var(--fib-line-soft); }
+.fib-lane-now-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fib-lane-now-text .fib-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fib-text-2xs); }
+.fib-lane-now-text b {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-text-xl); line-height: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fib-lane-now-score {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-2xl); font-weight: 600; letter-spacing: -0.02em;
+}
+
+/* The race's item layers. Sprites in an SVG take no CSS class of their own,
+   so the pixel rendering is set on the group. */
+.fib-race-turn image, .fib-race-pull image { image-rendering: pixelated; }
+.fib-race-turn, .fib-race-pull { transition: opacity var(--fib-motion-base) var(--fib-ease); }
+
 /* ── 9. Achievements, rarity, the trophy case ─────────────────────────── */
 
 .fib-rarity {
@@ -1418,9 +1605,31 @@ ${cssVariables()}
 .fib-hero-avatar { width: 128px; height: 128px; padding: 0; }
 .fib-hero-avatar img { width: 128px; height: 128px; }
 
+/* The profile's head on its block. The podium's measured fractions at hero
+   scale: the head's lowest vertex rests 22% down the block, less the render's
+   own 7% padding - hence -29% of the block. */
+.fib-hero-stand {
+  --block: 128px;
+  position: relative; flex: none;
+  display: flex; flex-direction: column-reverse; align-items: center;
+  width: var(--block);
+}
+.fib-hero-stand::after {
+  content: ''; position: absolute; left: 50%; bottom: -8px;
+  width: calc(var(--block) * 1.15); height: 18px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--fib-shadow-deep), transparent);
+}
+.fib-hero-block { position: relative; z-index: 1; width: var(--block); height: var(--block); filter: none; }
+.fib-hero-stand .fib-podium-head {
+  position: relative; z-index: 2;
+  width: calc(var(--block) * 0.875);
+  margin-bottom: calc(var(--block) * -0.29);
+}
+
 .fib-hero-name {
-  font-size: var(--fib-text-3xl); font-weight: 700;
-  letter-spacing: -0.03em; line-height: 1.05;
+  font-family: var(--fib-font-display);
+  font-size: var(--fib-display-lg); font-weight: 400;
+  letter-spacing: 0; line-height: 0.9;
   /* Minecraft names run to 16 characters and must not overflow at 320px. */
   overflow-wrap: anywhere;
 }
@@ -1511,6 +1720,66 @@ ${cssVariables()}
   border-top: 1px solid var(--fib-line-soft);
   padding-top: var(--fib-space-5);
 }
+
+/*
+ * The record as three stories (Winning, Hunting, Luck) and a footnote (Out in
+ * the world). Each story: an item emblem and a jersey title, one headline
+ * figure, then its supporting numbers as a quiet definition list - label left,
+ * figure and standing right - so the headline is the only large number in the
+ * column. Columns are divided by a rule, never boxed.
+ */
+.fib-stories {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.fib-story {
+  display: flex; flex-direction: column; gap: var(--fib-space-4);
+  padding: 0 var(--fib-space-6);
+  border-left: 1px solid var(--fib-line-soft);
+  container: fib-figure / inline-size;
+  min-width: 0;
+}
+.fib-story:first-child { border-left: none; padding-left: 0; }
+.fib-story:last-child { padding-right: 0; }
+.fib-story-head {
+  display: flex; align-items: center; gap: var(--fib-space-3);
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1; color: var(--fib-ink-2);
+}
+.fib-story-head .fib-story-emblem { width: 32px; height: 32px; }
+.fib-story-rest { display: flex; flex-direction: column; margin: 0; }
+.fib-story-rest > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--fib-space-3);
+  padding: 9px 0;
+  border-top: 1px solid var(--fib-line-soft);
+}
+.fib-story-rest dt { font-size: var(--fib-text-sm); color: var(--fib-ink-3); }
+.fib-story-rest dd { margin: 0; display: flex; align-items: baseline; gap: var(--fib-space-3); text-align: right; }
+.fib-story-rest dd b, .fib-story-world-figs dd b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-lg); font-weight: 600; color: var(--fib-ink);
+}
+
+/* The footnote: one line, three figures, set small. */
+.fib-story-world {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--fib-space-4) var(--fib-space-7);
+  margin-top: var(--fib-space-6); padding-top: var(--fib-space-5);
+  border-top: 1px solid var(--fib-line-soft);
+}
+.fib-story-world .fib-story-head { font-size: var(--fib-text-xl); }
+.fib-story-world-figs { display: flex; flex-wrap: wrap; gap: var(--fib-space-3) var(--fib-space-7); margin: 0; }
+.fib-story-world-figs > div { display: flex; flex-direction: column; gap: 2px; }
+.fib-story-world-figs dt { font-size: var(--fib-text-xs); color: var(--fib-ink-3); order: 2; }
+.fib-story-world-figs dd { margin: 0; display: flex; align-items: baseline; gap: 6px; }
+.fib-story-world-figs dd em { font-style: normal; font-size: var(--fib-text-xs); color: var(--fib-ink-3); }
+
+@container fib-page (max-width: 760px) {
+  .fib-stories { grid-template-columns: minmax(0, 1fr); row-gap: var(--fib-space-6); }
+  .fib-story { border-left: none; padding: 0; }
+  .fib-story + .fib-story { border-top: 1px solid var(--fib-line-soft); padding-top: var(--fib-space-5); }
+}
+
+/* Achievement kinds as items, in the case's emerald-rimmed well. */
+.fib-case-well .fib-case-sprite { width: 32px; height: 32px; }
 
 .fib-record {
   display: grid;
@@ -1651,59 +1920,124 @@ ${cssVariables()}
 .fib-signature-grid dd { margin: 0; }
 
 /*
- * Podium. Uneven by design — first place stands taller, the way a podium
- * does. Not three equal cards with a gold border on one.
+ * Podium - built out of the game. See Podium in Primitives.jsx for the why.
+ *
+ * No cards. Each place is one tower per entrant - a stack of block sprites
+ * with a head on top - the towers stand on one floor, and the names sit in a
+ * row under that floor. The rows are a subgrid, so a name that wraps in one
+ * column does not push the floor out of line in the others.
+ *
+ * "--block" is the block's rendered size. The stacking fractions come from
+ * measuring the 128px sprite: its top face runs from y 1 to y 57 at the centre
+ * column and its vertical edge from 57 to 126, so a block stacked on another
+ * sits 54% of a block higher (overlap: 46%), and the centre of the top face -
+ * where a head's lowest point should rest - is 22% down from the block's top.
+ * The head render (128x136) carries ~7% transparent padding under its lowest
+ * vertex, and is drawn at 60px against a 64px block so it sits inside the
+ * top face rather than overhanging it.
  */
 .fib-podium {
+  --block: 64px;
+  --head: 60px;
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--fib-space-4); align-items: end;
+  grid-template-rows: auto auto auto auto;
+  column-gap: var(--fib-space-4);
+  max-width: 760px; margin-inline: auto;
 }
 .fib-podium-slot {
-  position: relative; overflow: hidden;
-  display: flex; flex-direction: column; align-items: center; gap: var(--fib-space-2);
-  text-align: center; min-width: 0;
-  padding: var(--fib-space-6) var(--fib-space-4) var(--fib-space-5);
-  /* A filled, medal-lit card — the colour falls from the top (where the avatar
-     and medal sit) over an opaque body, so the slot reads as a substantial
-     object rather than a transparent tray with a glow floating around it. */
-  background:
-    radial-gradient(130% 78% at 50% 0, color-mix(in oklch, var(--medal, var(--fib-line)) 20%, transparent), transparent 60%),
-    linear-gradient(var(--fib-plinth-2), var(--fib-plinth));
-  border: 1px solid color-mix(in oklch, var(--medal, var(--fib-line-soft)) 32%, var(--fib-line-soft));
-  border-radius: var(--fib-radius-lg);
-  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
-  transition: transform var(--fib-motion-base) var(--fib-ease),
-              box-shadow var(--fib-motion-base) var(--fib-ease);
+  grid-row: span 4;
+  display: grid; grid-template-rows: subgrid;
+  justify-items: center; text-align: center; min-width: 0;
+  row-gap: 0;
 }
-/* The medal line rides the top edge, the same tone as the bleed. */
-.fib-podium-slot::before {
-  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: var(--medal, var(--fib-line));
-}
-.fib-podium-slot:hover {
-  transform: translateY(-4px);
-  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top),
-              0 18px 44px -22px var(--medal, var(--fib-shadow-deep));
-}
-.fib-podium-slot[data-place="1"] { --medal: var(--fib-medal-gold);   padding-top: var(--fib-space-7); }
-.fib-podium-slot[data-place="2"] { --medal: var(--fib-medal-silver); order: -1; padding-top: var(--fib-space-6); }
-.fib-podium-slot[data-place="3"] { --medal: var(--fib-medal-bronze); padding-top: var(--fib-space-5); }
+.fib-podium-slot[data-place="1"] { --medal: var(--fib-medal-gold); }
+.fib-podium-slot[data-place="2"] { --medal: var(--fib-medal-silver); order: -1; }
+.fib-podium-slot[data-place="3"] { --medal: var(--fib-medal-bronze); }
 
-.fib-podium-faces { display: flex; gap: var(--fib-space-2); }
-.fib-podium-name {
-  font-weight: 600; letter-spacing: -0.01em;
-  overflow-wrap: anywhere; line-height: 1.25;
+/* The floor under a place: one line across all three, and a soft contact
+   shadow under each tower so the blocks stand on it rather than float. */
+.fib-podium-stand {
+  align-self: end;
+  display: flex; justify-content: center; align-items: flex-end;
+  gap: calc(var(--block) * 0.06);
+  width: 100%;
+  padding-bottom: var(--fib-space-4);
+  margin-bottom: var(--fib-space-4);
+  border-bottom: 1px solid var(--fib-line-soft);
 }
-.fib-podium-name button { font: inherit; }
+.fib-podium-tower {
+  position: relative;
+  display: flex; flex-direction: column-reverse; align-items: center;
+}
+.fib-podium-tower::after {
+  content: ''; position: absolute; left: 50%; bottom: -7px;
+  width: calc(var(--block) * 1.2); height: 14px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--fib-shadow-deep), transparent);
+  z-index: 0;
+}
+.fib-podium-block {
+  position: relative; z-index: 1;
+  width: var(--block); height: var(--block);
+  filter: none;
+}
+.fib-podium-block + .fib-podium-block { margin-bottom: calc(var(--block) * -0.46); }
+
+.fib-podium-heads {
+  position: relative; z-index: 2;
+  display: flex; justify-content: center;
+  margin-bottom: calc(var(--block) * -0.29);
+}
+.fib-podium-head {
+  width: var(--head); height: auto; image-rendering: pixelated;
+  filter: drop-shadow(0 6px 5px var(--fib-shadow-mid));
+  opacity: 0; transition: opacity var(--fib-motion-slow) var(--fib-ease);
+}
+.fib-podium-head[data-loaded] { opacity: 1; }
+/* The Earned Glow Rule's one bloom, where the winner actually stands. */
+.fib-podium-slot[data-place="1"] .fib-podium-heads::before {
+  content: ''; position: absolute; inset: -30% -45% -10%; z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--fib-medal-gold) 34%, transparent), transparent);
+  pointer-events: none;
+}
+
+/* Ceremony: the heads land on their blocks bronze, silver, gold. A transition
+   FROM the pending flag, never a keyframe gated on it (Motion Never Withholds). */
+.fib-podium .fib-podium-heads {
+  transition: transform 520ms var(--fib-ease), opacity 320ms var(--fib-ease);
+  transition-delay: calc(var(--ceremony, 0) * 160ms);
+}
+.fib-podium[data-ceremony="pending"] .fib-podium-heads {
+  opacity: 0; transform: translateY(-36px); transition: none;
+}
+.fib-podium-slot:hover .fib-podium-heads { transform: translateY(-6px); transition-delay: 0s; }
+
+.fib-podium-name {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
+  overflow-wrap: anywhere; max-width: 100%;
+}
+/* A duo's names stack, one per tower, rather than running on as "a & b" and
+   wrapping wherever the column happens to end. */
+.fib-podium[data-duo] .fib-podium-name { display: flex; flex-direction: column; gap: 4px; }
+.fib-podium[data-duo] .fib-podium-amp { display: none; }
+.fib-podium-name button { font: inherit; transition: color var(--fib-motion-fast) var(--fib-ease); }
 .fib-podium-name button:hover { color: var(--fib-blue-ink); }
-.fib-podium-amp { color: var(--fib-netherite); font-weight: 400; }
+.fib-podium-amp { color: var(--fib-netherite); }
 .fib-podium-value {
+  margin-top: var(--fib-space-2);
   font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
   font-size: var(--fib-text-3xl); font-weight: 600; letter-spacing: -0.03em;
   line-height: 1.1;
 }
-.fib-podium-slot[data-place="1"] .fib-podium-value { font-size: var(--fib-text-4xl); color: var(--fib-gold); }
+.fib-podium-slot[data-place="1"] .fib-podium-value { color: var(--fib-gold); }
 .fib-podium-move { margin-top: 5px; }
+
+@container fib-page (max-width: 560px) {
+  .fib-podium { --block: 44px; --head: 41px; column-gap: var(--fib-space-2); }
+  .fib-podium[data-duo] { --block: 36px; --head: 34px; }
+  .fib-podium-name { font-size: var(--fib-text-lg); }
+  .fib-podium-value { font-size: var(--fib-text-2xl); }
+}
 
 /* Match feed rows. */
 .fib-match-row { display: grid; grid-template-columns: 96px minmax(0, 1.3fr) minmax(0, 1fr) auto; align-items: center; }
@@ -1734,13 +2068,14 @@ ${cssVariables()}
  */
 .fib-day { margin-top: var(--fib-space-5); }
 .fib-day:first-child { margin-top: 0; }
+/* The day is a heading the reader scans for ("the one on Tuesday"), so it is
+   set in the jersey at a size that can be found, not in 11px uppercase mono. */
 .fib-day > h3 {
   display: flex; align-items: center; gap: var(--fib-space-3);
-  margin-bottom: var(--fib-space-2);
-  font-family: var(--fib-font-mono);
-  font-size: var(--fib-text-2xs); font-weight: 500;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--fib-netherite);
+  margin-bottom: var(--fib-space-3);
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
+  color: var(--fib-ink-2);
 }
 .fib-day > h3::after { content: ''; flex: 1; height: 1px; background: var(--fib-line-soft); }
 
@@ -1820,54 +2155,511 @@ ${cssVariables()}
 }
 .fib-match-id { margin-top: var(--fib-space-6); }
 
-/* Overview. */
-.fib-overview-head { padding-bottom: var(--fib-space-6); }
-.fib-overview-head .fib-lede { margin: var(--fib-space-3) 0 0; }
-.fib-overview-head .fib-pulse { margin-top: var(--fib-space-7); }
+/*
+ * The versus row (MatchVersus). Two sides facing each other across the score:
+ * the winners' names run INTO the centre (right-aligned, heads last), the
+ * beaten side runs OUT of it (heads first), so both sets of heads sit against
+ * the score and the eye reads "these beat those" in one sweep.
+ *
+ * The score column is a fixed width so every row's score sits on one vertical
+ * line down the feed - the way a results table is scanned.
+ */
+.fib-vs {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 128px minmax(0, 1fr) 150px;
+  align-items: center; gap: var(--fib-space-4);
+  width: 100%; padding: var(--fib-space-3) var(--fib-space-4);
+  text-align: left;
+  transition: background var(--fib-motion-fast) var(--fib-ease);
+}
+.fib-vs + .fib-vs { border-top: 1px solid var(--fib-line-soft); }
+.fib-vs:hover { background: var(--fib-plinth-2); }
+.fib-vs[data-compact] { grid-template-columns: 64px minmax(0, 1fr) 104px minmax(0, 1fr); gap: var(--fib-space-3); }
+
+.fib-vs-when { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Ranked by score: the place leads the row, the date sits under it. */
+.fib-vs-rank { flex-direction: row; align-items: center; gap: var(--fib-space-3); }
+.fib-vs[data-ranked] { grid-template-columns: 150px minmax(0, 1fr) 128px minmax(0, 1fr) 150px; }
+
+/* The feed's two lenses side by side: order, then mode. */
+.fib-matches-controls { display: flex; flex-wrap: wrap; gap: var(--fib-space-3); }
+.fib-vs-when b { font-size: var(--fib-text-sm); font-weight: 500; white-space: nowrap; }
+
+.fib-vs-side { display: flex; align-items: center; gap: var(--fib-space-3); min-width: 0; }
+.fib-vs-side[data-side="win"] { justify-content: flex-end; }
+.fib-vs-side[data-side="lose"] { color: var(--fib-ink-2); }
+.fib-vs-names {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 500;
+}
+.fib-vs-side[data-side="win"] .fib-vs-names { font-weight: 600; text-align: right; }
+.fib-vs:hover .fib-vs-side[data-side="win"] .fib-vs-names { color: var(--fib-blue-ink); }
+.fib-vs-heads { display: flex; flex: none; }
+.fib-vs-heads .fib-avatar { box-shadow: 0 0 0 2px var(--fib-plinth); }
+.fib-vs-heads .fib-avatar + .fib-avatar { margin-left: -8px; }
+.fib-vs-side[data-side="lose"] .fib-vs-heads { opacity: 0.8; }
+.fib-vs-rest { flex: none; }
+
+.fib-vs-score { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.fib-vs-figures {
+  display: flex; align-items: baseline; gap: 8px;
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.fib-vs-figures b { font-size: var(--fib-text-xl); font-weight: 600; letter-spacing: -0.02em; }
+.fib-vs-figures b[data-side="win"] { color: var(--fib-gold); }
+.fib-vs-figures b[data-side="lose"] { color: var(--fib-ink-3); font-weight: 500; }
+.fib-vs-figures i { font-style: normal; color: var(--fib-netherite); }
+
+.fib-vs-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+/* Five or more lead changes is a contested match: diamond, the module's colour
+   for the exceptional, and the reason to open this row over its neighbours. */
+.fib-vs-meta [data-hot] { color: var(--fib-diamond); }
 
 /*
- * The featured match: the whole week compressed into one card — the race
- * itself as a band of lanes, with the lead changes ticked underneath.
- * Clicking anywhere on it opens the match; there is no separate CTA button
- * competing with the content.
+ * Narrow: the scoreboard keeps its shape - winners, score, beaten on one line -
+ * and the time moves above it. What goes is the names' room, never the score.
  */
-.fib-feature-card {
-  display: flex; flex-direction: column; gap: var(--fib-space-5);
+@container fib-page (max-width: 760px) {
+  .fib-vs, .fib-vs[data-compact], .fib-vs[data-ranked] {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    row-gap: 6px; column-gap: var(--fib-space-3);
+  }
+  .fib-vs-when { grid-column: 1 / -1; flex-direction: row; gap: var(--fib-space-3); align-items: baseline; }
+  .fib-vs-meta { display: none; }
+  /* Each side stacks its heads over its names, so a name gets the side's whole
+     width instead of what is left beside the heads - on a phone that was about
+     fifty pixels, and every name truncated to "elto…". */
+  .fib-vs-side { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .fib-vs-side[data-side="win"] { flex-direction: column-reverse; align-items: flex-end; }
+  .fib-vs-names { white-space: normal; overflow-wrap: anywhere; font-size: var(--fib-text-sm); line-height: 1.25; }
+}
+/* The overview's feed sits in half the page; it goes narrow sooner. */
+@container fib-split (max-width: 560px) {
+  .fib-vs[data-compact] {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    row-gap: 6px; column-gap: var(--fib-space-3);
+  }
+  .fib-vs[data-compact] .fib-vs-when { grid-column: 1 / -1; }
+  .fib-vs[data-compact] .fib-vs-side { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .fib-vs[data-compact] .fib-vs-side[data-side="win"] { flex-direction: column-reverse; align-items: flex-end; }
+  .fib-vs[data-compact] .fib-vs-names { white-space: normal; overflow-wrap: anywhere; font-size: var(--fib-text-sm); line-height: 1.25; }
+}
+
+/* ── The match page ──────────────────────────────────────────────────────
+ *
+ * Headline and scoreboard, the round as a ledger line, the race over its pool
+ * phases, the live board under it, the round's records, then every team's
+ * round in full. See MatchReport.jsx.
+ */
+
+.fib-match-head { padding-bottom: var(--fib-space-6); }
+.fib-match-head-grid {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: var(--fib-space-5) var(--fib-space-7); flex-wrap: wrap;
+  margin-bottom: var(--fib-space-6);
+}
+.fib-match-head-copy { flex: 1 1 460px; min-width: 0; }
+/* A match headline is a page title here, not the overview's lead: one step
+   down from the overview's 72px, because the race below is the subject. */
+.fib-match-title { font-size: var(--fib-display-lg); max-width: 24ch; }
+.fib-match-head .fib-lead-sub { margin-top: var(--fib-space-3); }
+.fib-match-ledger [data-hot] b { color: var(--fib-diamond); }
+
+.fib-match-race { padding-top: var(--fib-space-3); }
+.fib-race-phase-label {
+  font-family: var(--fib-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The live board. One column of rows, because the FLIP re-rank measures
+ * vertical position: a row that travels past another is the overtake. The
+ * leader's row carries a faint gold floor - a place, which is what gold means.
+ */
+.fib-board-title {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px;
+  margin: var(--fib-space-6) 0 var(--fib-space-3);
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
+}
+.fib-board { display: flex; flex-direction: column; gap: 6px; }
+.fib-board-row {
+  display: grid;
+  grid-template-columns: 34px 4px minmax(0, 1.2fr) minmax(0, 1fr) 92px;
+  align-items: center; gap: var(--fib-space-4);
+  padding: var(--fib-space-3) var(--fib-space-4);
+  border-radius: var(--fib-radius-md);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-board-row:not([data-flipping]) { transition: transform var(--fib-motion-slow) var(--fib-ease); }
+.fib-board-row[data-leading] {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--fib-gold) 10%, var(--fib-plinth)), var(--fib-plinth) 45%);
+}
+.fib-board-swatch { width: 4px; height: 28px; border-radius: 2px; }
+.fib-board-who { display: flex; align-items: center; gap: var(--fib-space-3); min-width: 0; }
+.fib-board-heads { display: flex; flex: none; }
+.fib-board-heads .fib-avatar { box-shadow: 0 0 0 2px var(--fib-plinth); }
+.fib-board-heads .fib-avatar + .fib-avatar { margin-left: -8px; }
+.fib-board-names {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--fib-font-display); font-size: var(--fib-text-xl); line-height: 1;
+}
+.fib-board-names button { font: inherit; transition: color var(--fib-motion-fast) var(--fib-ease); }
+.fib-board-names button:hover { color: var(--fib-blue-ink); }
+.fib-board-amp { color: var(--fib-netherite); }
+.fib-board-now {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: var(--fib-space-3);
+  min-width: 0;
+}
+.fib-board-score { display: flex; flex-direction: column; align-items: flex-end; }
+.fib-board-score b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-3xl); font-weight: 600; letter-spacing: -0.03em; line-height: 1;
+}
+.fib-board-row[data-leading] .fib-board-score b { color: var(--fib-gold); }
+
+/* The round's records: four objects, the items index's record language. */
+.fib-round-records {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--fib-space-4);
+}
+.fib-round-record {
+  display: flex; align-items: center; gap: var(--fib-space-4); margin: 0;
+  padding: var(--fib-space-4);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-round-record figcaption { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fib-round-record-name {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-text-xl); line-height: 1; text-wrap: balance;
+}
+.fib-round-record-figure em {
+  font-style: normal; font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-lg); font-weight: 600;
+}
+
+/*
+ * A team's report. Header (place, heads, names, score), then facts beside the
+ * back-to-backs and the phase split, then the run: every item as a slot. The
+ * winner's report carries the gold floor the board's leader does.
+ */
+.fib-reports { display: flex; flex-direction: column; gap: var(--fib-space-5); }
+.fib-report {
+  padding: var(--fib-space-5);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-report[data-won] {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--fib-gold) 8%, var(--fib-plinth)), var(--fib-plinth) 140px);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-gold) 30%, var(--fib-line-soft)), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-report-head {
+  display: flex; align-items: center; gap: var(--fib-space-4);
+  padding-bottom: var(--fib-space-4); margin-bottom: var(--fib-space-4);
+  border-bottom: 1px solid var(--fib-line-soft);
+}
+.fib-report-head .fib-board-heads .fib-avatar { box-shadow: 0 0 0 2px var(--fib-plinth); }
+.fib-report-names {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
+  overflow-wrap: anywhere;
+}
+.fib-report-names button { font: inherit; transition: color var(--fib-motion-fast) var(--fib-ease); }
+.fib-report-names button:hover { color: var(--fib-blue-ink); }
+.fib-report-score { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.fib-report-score b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-4xl); font-weight: 600; letter-spacing: -0.03em; line-height: 1;
+}
+.fib-report[data-won] .fib-report-score b { color: var(--fib-gold); }
+
+.fib-report-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--fib-space-6); margin-bottom: var(--fib-space-5);
+}
+.fib-report-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); align-content: start; gap: var(--fib-space-4) var(--fib-space-5); margin: 0; }
+.fib-report-facts dt { font-size: var(--fib-text-xs); color: var(--fib-ink-3); }
+.fib-report-facts dd { margin: 4px 0 0; display: flex; align-items: center; gap: 6px; }
+.fib-report-facts dd b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-xl); font-weight: 600;
+}
+/* Fastest find and longest hunt span two columns: a time, and the item it
+   belongs to, named. */
+.fib-report-fact-item { grid-column: span 2; }
+.fib-report-fact-item dd { gap: var(--fib-space-3); }
+.fib-report-fact-item dd > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fib-report-fact-item em {
+  font-style: normal; font-size: var(--fib-text-sm); color: var(--fib-ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fib-report-side { display: flex; flex-direction: column; gap: var(--fib-space-4); }
+.fib-report-b2b h4 { margin: 0 0 var(--fib-space-2); }
+.fib-report-tiers { display: flex; flex-wrap: wrap; gap: var(--fib-space-2) var(--fib-space-4); }
+.fib-report-tiers li { display: inline-flex; align-items: baseline; gap: 6px; }
+.fib-report-tiers em {
+  font-style: normal; font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-weight: 600; color: var(--fib-ink);
+}
+
+/* The run: every item as a 40px slot, wrapping. Skips greyed, not reddened. */
+.fib-report-run {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: var(--fib-space-3) var(--fib-space-2);
+  padding-top: var(--fib-space-4);
+  border-top: 1px solid var(--fib-line-soft);
+}
+.fib-report-run li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+/* The order, in the slot's corner - where Minecraft prints a stack size. */
+.fib-report-run-order {
+  position: absolute; top: 3px; left: calc(50% - 29px + 5px);
+  font-family: var(--fib-font-mono); font-size: 10px; font-weight: 600; line-height: 1;
+  color: var(--fib-ink-3); pointer-events: none;
+}
+.fib-report-run-took {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-xs); color: var(--fib-ink-2); white-space: nowrap;
+}
+.fib-report-run li[data-skipped] .fib-report-run-took { color: var(--fib-ink-3); text-decoration: line-through; }
+.fib-report-run li[data-skipped] .fib-well { filter: grayscale(1) brightness(0.7); opacity: 0.6; }
+
+/* The ribbon race and its pace strip (RibbonRace in Charts.jsx). */
+.fib-timeline-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--fib-space-3); margin-bottom: var(--fib-space-3); }
+.fib-ribbon-end { font-family: var(--fib-font-mono); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fib-ribbon-turn { fill: var(--fib-void); stroke: var(--fib-ink); stroke-width: 2; }
+.fib-ribbon-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--fib-space-2) var(--fib-space-5);
+  padding: var(--fib-space-2) 0 var(--fib-space-4) 44px;
+  font-size: var(--fib-text-sm); font-weight: 500;
+}
+.fib-ribbon-key li { display: inline-flex; align-items: center; gap: 8px; }
+.fib-ribbon-key i { width: 16px; height: 3px; border-radius: 2px; }
+/* The pace strip is also the zoom control: it takes a crosshair, and the
+   selection it holds is drawn as a lit window between two dimmed flanks. */
+.fib-pace[data-brush] { cursor: crosshair; touch-action: none; user-select: none; }
+.fib-pace-title { font-family: var(--fib-font-mono); font-size: 11px; fill: var(--fib-ink-3); }
+.fib-pace-dim { fill: var(--fib-void); fill-opacity: 0.65; }
+.fib-pace-sel { fill: none; stroke: var(--fib-blue); stroke-width: 1.5; rx: 4; }
+
+/* The team runs follow the scrub: the hunted item lit, the ones after it dim. */
+.fib-report-run li[data-ahead] { opacity: 0.3; }
+.fib-report-run li[data-current] .fib-well {
+  box-shadow: inset 0 0 0 2px var(--fib-blue), 0 0 0 3px var(--fib-blue-tint);
+}
+.fib-report-run li { transition: opacity var(--fib-motion-base) var(--fib-ease); }
+.fib-report-run .fib-well { transition: transform var(--fib-motion-fast) var(--fib-ease); }
+.fib-report-run li:hover .fib-well { transform: translateY(-2px); }
+.fib-report-foot { margin-top: var(--fib-space-4); }
+.fib-report-inv { margin-top: var(--fib-space-4); padding-top: var(--fib-space-4); border-top: 1px solid var(--fib-line-soft); }
+
+@container fib-page (max-width: 760px) {
+  .fib-board-row {
+    grid-template-columns: 30px 4px minmax(0, 1fr) auto;
+    grid-template-areas: "place swatch who score" "now now now now";
+    row-gap: var(--fib-space-3);
+  }
+  .fib-board-place { grid-area: place; }
+  .fib-board-swatch { grid-area: swatch; }
+  .fib-board-who { grid-area: who; }
+  .fib-board-score { grid-area: score; }
+  .fib-board-now { grid-area: now; }
+  .fib-report-body { grid-template-columns: minmax(0, 1fr); }
+  .fib-report-score b { font-size: var(--fib-text-3xl); }
+  .fib-report { padding: var(--fib-space-4); }
+}
+
+/* Overview. */
+
+/*
+ * The lead: the week's match as a headline, not a card.
+ *
+ * It sat in a boxed panel titled "Match of the week" below the totals, which
+ * made the one story on the page the fourth thing in it and dressed it the way
+ * every other panel was dressed. Now the headline is the page's h1, set in the
+ * jersey on the open field, and the only framed thing is the race - the part
+ * you click.
+ */
+.fib-lead { padding-bottom: var(--fib-space-7); }
+.fib-lead-top {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: var(--fib-space-5) var(--fib-space-7); flex-wrap: wrap;
+  margin-bottom: var(--fib-space-6);
+}
+.fib-lead-copy { min-width: 0; flex: 1 1 520px; }
+.fib-lead-copy .fib-display { max-width: 24ch; }
+.fib-lead-sub {
+  margin-top: var(--fib-space-4);
+  color: var(--fib-ink-2); font-size: var(--fib-text-md);
+  max-width: 62ch; text-wrap: pretty;
+}
+.fib-lead-sub .fib-meta { white-space: nowrap; }
+/* The lead's scoreboard: heads facing across the final score. */
+.fib-lead-board {
+  display: flex; align-items: center; gap: var(--fib-space-4);
+  flex: none;
+}
+.fib-lead-board-side { display: flex; }
+.fib-lead-board-side .fib-avatar { box-shadow: 0 0 0 3px var(--fib-void); }
+.fib-lead-board-side .fib-avatar + .fib-avatar { margin-left: -10px; }
+.fib-lead-board-side[data-side="lose"] { opacity: 0.75; }
+.fib-lead-board-score {
+  display: flex; align-items: baseline; gap: 10px;
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.fib-lead-board-score b { font-size: var(--fib-text-4xl); font-weight: 600; letter-spacing: -0.03em; color: var(--fib-ink-3); }
+.fib-lead-board-score b[data-side="win"] { color: var(--fib-gold); }
+.fib-lead-board-score i { font-style: normal; font-size: var(--fib-text-2xl); color: var(--fib-netherite); }
+
+/*
+ * The server record as a line. Numbers in mono at reading weight, words in the
+ * grotesk, separated by space rather than dividers - it is a sentence, not a
+ * row of cells.
+ */
+.fib-ledger {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--fib-space-2) var(--fib-space-5);
+  padding: var(--fib-space-4) 0;
+  border-top: 1px solid var(--fib-line-soft);
+  border-bottom: 1px solid var(--fib-line-soft);
+  color: var(--fib-ink-3); font-size: var(--fib-text-sm);
+}
+.fib-ledger b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-weight: 600; color: var(--fib-ink); font-size: var(--fib-text-md);
+}
+.fib-ledger-week { margin-left: auto; }
+
+/* The two paired sections measure themselves, so a row inside can reflow on
+   the column it got rather than on the window. */
+.fib-split > .fib-section { container: fib-split / inline-size; }
+
+/*
+ * The race and the haul are one control: the match opens from anywhere on
+ * it. The band sits in a recess a step darker than the field so the lanes and
+ * the sprites have a floor, and the whole thing lifts on hover the way the
+ * featured card used to - it is still the page's headline object.
+ */
+.fib-lead-race {
+  display: flex; flex-direction: column; gap: var(--fib-space-4);
   width: 100%; text-align: left; cursor: pointer;
-  transition: background var(--fib-motion-fast) var(--fib-ease),
-              border-color var(--fib-motion-fast) var(--fib-ease),
+  padding: var(--fib-space-5) var(--fib-space-5) var(--fib-space-4);
+  background: var(--fib-sunk);
+  border: 1px solid var(--fib-line-soft);
+  border-radius: var(--fib-radius-lg);
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
+  transition: border-color var(--fib-motion-fast) var(--fib-ease),
               box-shadow var(--fib-motion-base) var(--fib-ease),
               transform var(--fib-motion-base) var(--fib-ease);
 }
-/* The featured card lights up and lifts on hover — the one panel that behaves
-   like a CSFloat product card, because it is the page's headline object. */
-.fib-feature-card:hover {
-  background: var(--fib-plinth-2);
+.fib-lead-race:hover {
   border-color: color-mix(in oklch, var(--fib-blue) 40%, var(--fib-line));
-  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top), 0 16px 50px -20px var(--fib-blue);
+  box-shadow: inset 0 1px 0 0 var(--fib-gloss-top), 0 16px 50px -24px var(--fib-blue);
   transform: translateY(-2px);
 }
-.fib-feature-top {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: var(--fib-space-5) var(--fib-space-6); flex-wrap: wrap;
+.fib-race-finish { image-rendering: pixelated; }
+
+/*
+ * The haul. Right-aligned so the newest find sits under the finish line, and
+ * masked on the left so the older finds trail off rather than stop at an edge
+ * - a hard edge would read as "that is all of them". Never wraps: it is one
+ * line of the race, not a grid of its own.
+ */
+.fib-haul {
+  display: flex; justify-content: flex-end; gap: 4px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 38%);
+          mask-image: linear-gradient(to right, transparent, #000 38%);
 }
-.fib-feature-figures { display: flex; gap: var(--fib-space-6); flex: none; }
-.fib-feature-foot {
+.fib-haul .fib-well { flex: none; }
+.fib-lead-foot {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--fib-space-4); flex-wrap: wrap;
   border-top: 1px solid var(--fib-line-soft);
   padding-top: var(--fib-space-4);
 }
-/* The arrow steps out when the card is hovered or focused. The card is one
-   large click target with only a background change to confirm it; this is the
-   bit that says which way the click goes. */
+/* The arrow steps out when the race is hovered or focused: it says which way
+   the click goes. */
 .fib-feature-go { display: inline-flex; align-items: center; gap: 7px; color: var(--fib-blue-ink); }
 .fib-feature-go i {
   font-style: normal;
   transition: transform var(--fib-motion-base) var(--fib-ease);
 }
-.fib-feature-card:hover .fib-feature-go i,
-.fib-feature-card:focus-visible .fib-feature-go i { transform: translateX(4px); }
+.fib-lead-race:hover .fib-feature-go i,
+.fib-lead-race:focus-visible .fib-feature-go i { transform: translateX(4px); }
+
+
+.fib-podium-scope { margin-bottom: var(--fib-space-6); }
+
+/*
+ * The form guide. A grid of matches (columns) by players (rows), so a column
+ * is one match and a row is one run. Squares, not dots: the page's objects are
+ * pixel art, and a round pip is the one shape Minecraft never draws.
+ *
+ * Gold is a win - the meaning the module already spends gold on. A loss is a
+ * filled step of the surface ladder, and a match the player sat out is an
+ * outline, so "lost" and "wasn't there" never look alike.
+ */
+.fib-form { display: flex; flex-direction: column; }
+.fib-form > li + li { border-top: 1px solid var(--fib-line-soft); }
+.fib-form-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto 44px;
+  align-items: center; gap: var(--fib-space-3);
+  width: 100%; padding: 9px var(--fib-space-2);
+  border-radius: var(--fib-radius-md);
+  text-align: left;
+  transition: background var(--fib-motion-fast) var(--fib-ease);
+}
+.fib-form-row:hover { background: var(--fib-plinth); }
+.fib-form-name {
+  font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fib-form-row:hover .fib-form-name { color: var(--fib-blue-ink); }
+.fib-form-pips {
+  display: grid; grid-template-columns: repeat(var(--cols, 10), 14px); gap: 4px;
+}
+.fib-form-pips i {
+  width: 14px; height: 14px; border-radius: 2px;
+  background: var(--fib-plinth-2);
+  box-shadow: inset 0 1px 0 0 var(--fib-edge);
+}
+.fib-form-pips i[data-result="win"] {
+  background: var(--fib-gold);
+  box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 0.35), inset 0 -2px 0 0 oklch(0 0 0 / 0.22);
+}
+.fib-form-pips i[data-result="out"] {
+  background: none; box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+}
+.fib-form-record {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-sm); color: var(--fib-ink-3); text-align: right;
+}
+.fib-form-record b { color: var(--fib-ink); font-weight: 600; }
+
+@container fib-page (max-width: 520px) {
+  .fib-form-row { grid-template-columns: 28px minmax(0, 1fr) 40px; }
+  .fib-form-pips { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(var(--cols, 10), 1fr); }
+  .fib-form-pips i { width: auto; aspect-ratio: 1; }
+}
+
+/* Rarest moments: a shelf of objects, each one a way into its match. */
+.fib-moments { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); }
+.fib-moment { text-align: left; cursor: pointer; }
+.fib-moment-caption { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fib-moment-caption b {
+  font-size: var(--fib-text-sm); font-weight: 600; letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+}
+/* Wraps rather than truncating: the time and the names are the caption's whole
+   content, and an ellipsis ate the names on every moment at shelf width. */
+.fib-moment-caption .fib-meta { overflow-wrap: anywhere; }
+.fib-moment:hover b { color: var(--fib-blue-ink); }
 
 /*
  * Two lists side by side. The pair takes the section spacing once, as a
@@ -2270,8 +3062,9 @@ ${cssVariables()}
   .fib-inv-grid[data-play="pending"] .fib-inv-tile[data-skipped] { opacity: 0.66; }
   .fib-inv-progress { display: none; }
   .fib-inv-toggle[aria-expanded="true"] { transform: rotate(180deg); }
-  /* Keep the directory tile's colour feedback, drop its lift. */
-  .fib-dir-tile:hover { transform: none; }
+  /* Keep the player card's colour feedback, drop its lift. */
+  .fib-player-card:hover { transform: none; }
+  .fib-player-card:hover .fib-player-stand .fib-podium-head { transform: none; }
 }
 
 /* ── 14. Responsive ───────────────────────────────────────────────────── */
@@ -2381,30 +3174,32 @@ ${cssVariables()}
      sprite size — so the name keeps the width it needs. */
   .fib-hero-id { gap: var(--fib-space-4); }
   .fib-hero-avatar, .fib-hero-avatar img { width: 64px; height: 64px; }
+  .fib-hero-stand { --block: 64px; }
 
   /* ".fib-pulse" is a grid and owns its own two-up rule via "@container
      fib-page"; only the flex strip needs a basis here. */
   .fib-stat-strip > * { flex-basis: 45%; border-left: none; padding-left: 0; }
 
-  /* A three-across podium at 360px gives every name 100px. Stack it. */
-  .fib-podium { grid-template-columns: minmax(0, 1fr); }
-  .fib-podium-slot,
-  .fib-podium-slot[data-place="1"],
-  .fib-podium-slot[data-place="2"],
-  .fib-podium-slot[data-place="3"] {
-    order: 0; padding: var(--fib-space-4) var(--fib-space-3);
-    flex-direction: row; text-align: left; gap: var(--fib-space-3);
-    background: none; border-radius: 0;
-  }
-  .fib-podium-slot .fib-podium-name { flex: 1 1 auto; }
-  .fib-podium-slot .fib-figure-label { display: none; }
-  /* The arrow survives, its spelled-out unit doesn't — the row is tight here
-     and the accessible name still carries "up 2 places this week". */
-  .fib-podium-move .fib-delta-unit { display: none; }
-  .fib-podium-slot[data-place="1"] .fib-podium-value,
-  .fib-podium-value { font-size: var(--fib-text-2xl); }
+  /*
+   * The podium stays three across. It used to stack into rows here, because
+   * three filled cards at 360px gave each name 100px of card. The block stacks
+   * are 44px wide at this size (see the fib-page container query beside the
+   * podium rules), so each place keeps its column and the heights still read as
+   * the ranking - which a stacked list could only say with medals.
+   */
+  .fib-lead-board-score b { font-size: var(--fib-text-3xl); }
+}
 
-  .fib-feature-figures { gap: var(--fib-space-5); }
+/*
+ * The headline steps down with the page, not the window: the rail takes 232px
+ * on desktop, so the room a 72px jersey line actually gets is the page's.
+ */
+@container fib-page (max-width: 820px) {
+  .fib-display { font-size: var(--fib-display-lg); }
+}
+@container fib-page (max-width: 480px) {
+  .fib-display { font-size: var(--fib-display-md); }
+  .fib-hero-name { font-size: var(--fib-display-md); }
 }
 `;
 

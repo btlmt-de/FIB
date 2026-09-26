@@ -14,45 +14,56 @@
  *
  * ── How it's displayed ──
  *
- * Two modes, because finding a known name and browsing the field are different
- * acts:
+ * One card per player (PlayerCard, below): their head standing on a grass
+ * block, the name in the jersey, their record and last ten results, items
+ * found and who they usually play with - all read from payloads this view
+ * already fetched. Browsing groups the cards by whether a player is still
+ * around; searching drops the groups.
  *
- *   browsing   grouped A–Z with a jump index, the shape of a contacts list —
- *              you scan initials, not numbers
- *   searching  one flat list of matches; letter headers over three hits are
- *              noise, and if you're typing you already know the name
+ * *This view was a grid of identical tiles, an avatar, a name and "2,983 items
+ * · 15h ago",* on the argument that anything more would turn it back into the
+ * leaderboard. That argument is kept - nothing here is ordered by a placing -
+ * but a record is not a placing, and a directory of nine people where every
+ * tile looks the same said nothing about any of them.
  *
- * Everything is a route into a profile. No dead ends, no stats to compare.
+ * Everything is a route into a profile. No dead ends.
  */
 
 import React, { useMemo, useState } from 'react';
 import { loadPlayerIndex } from './api.js';
 import { useAsync } from './useAsync.js';
-import { prefersReducedMotion } from './env.js';
-import { Section, Search, Avatar, Empty, AsyncView } from './Primitives.jsx';
+import { Section, Search, Avatar, Empty, AsyncView, ItemImage, PodiumHead } from './Primitives.jsx';
 import * as f from './format.js';
-
-/**
- * The bucket a name sorts into: its uppercased initial, or '#' for a name that
- * doesn't start with a letter — a leading underscore or digit is a legal
- * Minecraft username, and those should still land somewhere findable.
- */
-function initialOf(name) {
-  const c = (name || '').trim().charAt(0).toUpperCase();
-  return c >= 'A' && c <= 'Z' ? c : '#';
-}
 
 export function Players({ onOpenPlayer }) {
   const state = useAsync(loadPlayerIndex, []);
   return (
     <AsyncView state={state} loadingLabel="Loading players…">
-      {(data) => <PlayersBody players={data?.players ?? []} onOpenPlayer={onOpenPlayer} />}
+      {(data) => (
+        <PlayersBody
+          players={data?.players ?? []}
+          feedWindow={data?.feedWindow ?? 0}
+          feedTotal={data?.feedTotal ?? 0}
+          onOpenPlayer={onOpenPlayer}
+        />
+      )}
     </AsyncView>
   );
 }
 
-function PlayersBody({ players, onOpenPlayer }) {
+/*
+ * Who counts as "around". Two weeks: long enough that a player who plays
+ * weekends is still on the server's roster of regulars, short enough that
+ * someone who played once in July is not.
+ */
+const RECENT_DAYS = 14;
+const FORM_LENGTH = 10;
+
+function PlayersBody({ players, feedWindow, feedTotal, onOpenPlayer }) {
   const [query, setQuery] = useState('');
+  /* "Lately" is measured from when the directory opened, captured once, so a
+     re-render never moves a player between groups mid-read. */
+  const [now] = useState(() => Date.now());
   const q = query.trim().toLowerCase();
 
   const filtered = useMemo(
@@ -61,79 +72,38 @@ function PlayersBody({ players, onOpenPlayer }) {
   );
 
   /*
-   * Grouped A–Z, but only while browsing AND only once there is enough roster to
-   * group. `null` signals the flat grid — used for a search, and for a small
-   * server.
+   * Grouped by whether a player is still around, not by initial.
    *
-   * The threshold matters. At six players the A–Z index was five headers over
-   * five groups of one, plus a jump bar to five destinations already on screen:
-   * the whole apparatus of a contacts list, applied to something that fits in one
-   * row. That is scaffolding for a scale the data does not have, and it reads as
-   * a page that is mostly headings. Under GROUP_MIN the tiles are simply a grid,
-   * still alphabetical, and the letters appear when they start doing work.
+   * The A–Z index this replaced only ever switched on past 24 names, so on a
+   * server of nine it never did, and the page was one alphabetical grid of
+   * identical tiles. "Who is playing at the moment" is the question a
+   * directory of nine can answer that a contacts list cannot: the regulars
+   * first, most matches first, and everyone the server has not seen lately
+   * after them, most recent first. A search collapses the groups - if you are
+   * typing a name you already know who you want.
    */
-  const GROUP_MIN = 24;
   const groups = useMemo(() => {
-    if (q || filtered.length < GROUP_MIN) return null;
-    const map = new Map();
-    for (const p of filtered) {
-      const k = initialOf(p.name);
-      (map.get(k) ?? map.set(k, []).get(k)).push(p);
-    }
-    return [...map.entries()].sort(([a], [b]) =>
-      (a === '#') - (b === '#') || a.localeCompare(b));
-  }, [filtered, q]);
+    if (q) return [{ id: 'hits', title: null, list: filtered }];
+    const cutoff = now - RECENT_DAYS * 86400000;
+    const active = filtered
+      .filter((p) => p.lastSeen != null && p.lastSeen >= cutoff)
+      .sort((a, b) => (b.played ?? 0) - (a.played ?? 0) || a.name.localeCompare(b.name));
+    const away = filtered
+      .filter((p) => !(p.lastSeen != null && p.lastSeen >= cutoff))
+      .sort((a, b) => (b.lastSeen ?? 0) - (a.lastSeen ?? 0) || a.name.localeCompare(b.name));
+    return [
+      { id: 'active', title: 'Playing lately', note: `Played in the last ${RECENT_DAYS} days`, list: active },
+      { id: 'away', title: 'Not seen lately', note: 'Records kept; they just haven\u2019t played in a while', list: away },
+    ].filter((g) => g.list.length > 0);
+  }, [filtered, q, now]);
 
-  const jump = (letter) => {
-    const el = document.getElementById(`fib-dir-${letter}`);
-    if (!el) return;
-    el.scrollIntoView({
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-      block: 'start',
-    });
-  };
-
-  /*
-   * A name, and two facts about it.
-   *
-   * The directory shipped as an avatar and a name and nothing else, on the
-   * reasoning that ranking lives at /ranking and this answers only "who exists".
-   * That reasoning holds for RANKS — repeating the leaderboard here would make
-   * this the leaderboard again, which is what it was carved out of. It does not
-   * hold for facts: an object with no numbers beside it is a dead end, and six
-   * bare names in a row left most of the page empty saying nothing.
-   *
-   * So: items found (the career size, the one count that exists for team-only
-   * players too) and last seen (whether they are still around). Neither is a
-   * placing, so neither competes with /ranking, and both are already in the
-   * payload the index fetches.
-   *
-   * Each is rendered only when present. A player outside the recent match window
-   * has no last-seen, and printing "never" for them would be false.
-   */
-  const tile = (p) => (
-    <button
-      key={p.uuid}
-      type="button"
-      className="fib-dir-tile"
-      onClick={() => onOpenPlayer(p.uuid)}
-    >
-      <Avatar uuid={p.uuid} size={40} />
-      <span className="fib-dir-body">
-        <span className="fib-dir-name">{p.name}</span>
-        <span className="fib-dir-facts fib-meta">
-          {Number.isFinite(p.itemsFound) ? <span>{f.num(p.itemsFound)} items</span> : null}
-          {p.lastSeen != null ? <span>{f.timeAgo(p.lastSeen)}</span> : null}
-        </span>
-      </span>
-    </button>
-  );
+  const partial = feedWindow > 0 && feedWindow < feedTotal;
 
   return (
     <div className="fib-page fib-page--wide">
       <Section
         title="Players"
-        sub={`${players.length} ${players.length === 1 ? 'player has' : 'players have'} a record — solo or team. Items found is every mode combined; ranking lives on its own page.`}
+        sub={`${players.length} ${players.length === 1 ? 'player has' : 'players have'} a record, solo or team. ${partial ? `Records read from the last ${f.num(feedWindow)} matches.` : 'Every record is their whole history.'}`}
         aside={<Search value={query} onChange={setQuery} placeholder="Find a player" label="Find a player" hotkey />}
       >
         {players.length === 0 ? (
@@ -146,35 +116,92 @@ function PlayersBody({ players, onOpenPlayer }) {
             Names are exact Minecraft usernames. Check the spelling, or clear the search
             to browse everyone.
           </Empty>
-        ) : groups === null ? (
-          /* Searching, or a roster too small to be worth grouping. */
-          <div className="fib-dir-grid">{filtered.map(tile)}</div>
         ) : (
-          <>
-            {groups.length > 1 ? (
-              <nav className="fib-dir-index" aria-label="Jump to initial">
-                {groups.map(([letter]) => (
-                  <button
-                    key={letter}
-                    type="button"
-                    className="fib-dir-jump"
-                    onClick={() => jump(letter)}
-                  >
-                    {letter}
-                  </button>
+          groups.map((g) => (
+            <section key={g.id} className="fib-dir-group">
+              {g.title ? (
+                <h3 className="fib-dir-head">
+                  {g.title}
+                  <span className="fib-meta">{g.note}</span>
+                </h3>
+              ) : null}
+              <div className="fib-player-grid" data-away={g.id === 'away' || undefined}>
+                {g.list.map((p) => (
+                  <PlayerCard key={p.uuid} p={p} onOpen={onOpenPlayer} />
                 ))}
-              </nav>
-            ) : null}
-
-            {groups.map(([letter, list]) => (
-              <section key={letter} className="fib-dir-group" id={`fib-dir-${letter}`}>
-                <h3 className="fib-dir-letter">{letter}</h3>
-                <div className="fib-dir-grid">{list.map(tile)}</div>
-              </section>
-            ))}
-          </>
+              </div>
+            </section>
+          ))
         )}
       </Section>
     </div>
+  );
+}
+
+/*
+ * A player, as a card you would recognise them by.
+ *
+ * Their head stands on a grass block - the podium's language (heads on the
+ * blocks they earned) at rest: nobody here is ranked, so everyone stands on
+ * the same ground. Then the name in the jersey, their record, their own last
+ * ten results as the form squares the overview uses, and the two facts that
+ * say who they are on this server: how much they have found, and who they
+ * usually play with.
+ *
+ * Every fact renders only when the data has it. A player outside the feed has
+ * no record to show, and "0-0" would be false.
+ */
+function PlayerCard({ p, onOpen }) {
+  const played = p.played ?? 0;
+  const wins = p.wins ?? 0;
+  const form = (p.results ?? []).slice(-FORM_LENGTH);
+  const rate = played > 0 ? Math.round((wins / played) * 100) : null;
+
+  const spoken = [
+    p.name,
+    played > 0 ? `won ${wins} of ${played} matches` : null,
+    p.partner ? `usually plays with ${p.partner.name}` : null,
+    p.lastSeen != null ? `last played ${f.timeAgo(p.lastSeen)}` : null,
+  ].filter(Boolean).join(', ');
+
+  return (
+    <button type="button" className="fib-player-card" onClick={() => onOpen(p.uuid)} aria-label={`${spoken}. Open their profile.`}>
+      <span className="fib-player-stand" aria-hidden="true">
+        <ItemImage name="grass_block" size={64} className="fib-player-block" loading="eager" />
+        <PodiumHead uuid={p.uuid} size={54} />
+      </span>
+
+      <span className="fib-player-body" aria-hidden="true">
+        <span className="fib-player-name">{p.name}</span>
+        <span className="fib-meta">
+          {p.lastSeen != null ? `last played ${f.timeAgo(p.lastSeen)}` : 'no recent matches'}
+        </span>
+
+        {played > 0 ? (
+          <span className="fib-player-record">
+            <span className="fib-player-wl"><b>{wins}</b>–{played - wins}</span>
+            <span className="fib-meta">{rate}% won</span>
+            <span className="fib-form-pips" style={{ '--cols': FORM_LENGTH }}>
+              {Array.from({ length: FORM_LENGTH }, (_, i) => {
+                const r = form[i - (FORM_LENGTH - form.length)];
+                return <i key={i} data-result={r ? (r.won ? 'win' : 'loss') : 'out'} />;
+              })}
+            </span>
+          </span>
+        ) : null}
+
+        <span className="fib-player-facts">
+          {Number.isFinite(p.itemsFound) ? (
+            <span><b>{f.num(p.itemsFound)}</b> items found</span>
+          ) : null}
+          {p.partner ? (
+            <span className="fib-player-partner">
+              usually with <Avatar uuid={p.partner.uuid} size={16} /> <b>{p.partner.name}</b>
+              <span className="fib-meta">×{p.partner.count}</span>
+            </span>
+          ) : null}
+        </span>
+      </span>
+    </button>
   );
 }

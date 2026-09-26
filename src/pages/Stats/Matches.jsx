@@ -5,18 +5,19 @@
  * needs chronology landmarks, because "the match last Tuesday" is how people
  * actually look for a game.
  *
- * The row is the summary: who won, who they beat, and by how much. "By how
- * much" is the field a normal match list leaves out and the one that decides
- * whether a match is worth opening, so it gets a real visual — the margin bar
- * — and the runner-up's name, because a margin without a victim is only half
- * the story.
+ * The row is a scoreboard line (MatchVersus, shared with the overview): the
+ * winners and the beaten facing each other across the score, the margin under
+ * it, and how many times the lead changed at the end - the one number that
+ * says whether a match is worth opening. It used to be a list of winners with
+ * the losing side reduced to a clause and a grey margin bar, so every row
+ * looked the same and the match itself was never on the line.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { matchStandings, matchDuration, idLabel, idUuid } from './adapter.js';
+import { matchStandings } from './adapter.js';
 import { loadMatches } from './api.js';
 import { useAsync } from './useAsync.js';
-import { Section, Avatar, Medal, Segmented, Empty, AsyncView } from './Primitives.jsx';
+import { Section, Segmented, Empty, AsyncView, MatchVersus, TableSkeleton } from './Primitives.jsx';
 import * as f from './format.js';
 
 const MODES = [
@@ -41,6 +42,47 @@ const MODES = [
  * asking for the next one.
  */
 const PAGE_SIZE = 50;
+
+/*
+ * Two orders: the feed as it happened, and the highest winning scores.
+ *
+ * "Highest score" ranks the WHOLE history, never just what has been paged in:
+ * a ranking of the newest fifty would crown whatever high score happened to be
+ * recent and call it the best ever. /matches has no sort parameter (FIBService,
+ * the public API and the stats backend would all have to grow one), so the
+ * view fetches every page itself the first time the sort is chosen - at
+ * HISTORY_PAGE a request, the ceiling every layer agrees on, which today is a
+ * single call for the entire server - and ranks in memory.
+ *
+ * TODO(backend): a `sort=score` on /fib/matches makes this one page of the
+ * top N and removes the whole-history fetch. That is the fix once the history
+ * runs to thousands; until then the fetch is small and happens once per visit.
+ */
+const SORTS = [
+    { id: 'recent', label: 'Newest' },
+    { id: 'score', label: 'Highest score' },
+];
+const HISTORY_PAGE = 100;
+const RANK_STEP = 25;
+
+/** Every match on record, page by page until the reported total is reached. */
+async function loadWholeHistory() {
+    const all = [];
+    const seen = new Set();
+    let total = Infinity;
+    for (let page = 0; all.length < total; page += 1) {
+        const { data } = await loadMatches(page, HISTORY_PAGE);
+        const rows = data?.matches ?? [];
+        total = data?.totalCount ?? 0;
+        for (const m of rows) {
+            if (!seen.has(m.matchId)) { seen.add(m.matchId); all.push(m); }
+        }
+        // A short page means the feed ran out before the total said it would -
+        // a match deleted mid-walk, or a total that moved. Stop rather than loop.
+        if (rows.length < HISTORY_PAGE) break;
+    }
+    return all;
+}
 
 /** Calendar-day key, so grouping is stable regardless of locale formatting. */
 const dayKey = (v) => new Date(v).toDateString();
@@ -77,6 +119,11 @@ export function Matches({ onOpenMatch }) {
  * rather than from a `data` bundle, and appending later pages onto the first. */
 function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
     const [mode, setMode] = useState('all');
+    const [sort, setSort] = useState('recent');
+    const [history, setHistory] = useState(null);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState(null);
+    const [shownRanked, setShownRanked] = useState(RANK_STEP);
     const [later, setLater] = useState([]);
     const [nextPage, setNextPage] = useState(1);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -100,6 +147,53 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
     }, [firstPage, later]);
 
     const hasMore = matches.length < totalCount;
+
+    const fetchHistory = useCallback(async () => {
+        setHistoryLoading(true);
+        setHistoryError(null);
+        try {
+            setHistory(await loadWholeHistory());
+        } catch (error) {
+            setHistoryError(error);
+        } finally {
+            setHistoryLoading(false);
+        }
+    }, []);
+
+    /* Fetched from the control's handler, not an effect: choosing the sort is
+       the event that needs the data, and a feed already holding everything
+       needs no fetch at all. */
+    const chooseSort = (next) => {
+        setSort(next);
+        setShownRanked(RANK_STEP);
+        if (next === 'score' && hasMore && !history && !historyLoading) fetchHistory();
+    };
+
+    /*
+     * The ranking. Ordered by the winners' score, then by margin (a bigger win at
+     * the same score ranks first), then newest. Places are DENSE on the score -
+     * two matches won with 83 both place 1st - the convention the standings use,
+     * because the medal is for the number and the number is the same.
+     */
+    const ranked = useMemo(() => {
+        if (sort !== 'score') return null;
+        const source = hasMore ? history : matches;
+        if (!source) return null;
+        const rows = source
+            .filter((m) => mode === 'all' || m.mode === mode)
+            .map((match) => {
+                const [win, lose] = matchStandings(match);
+                return win ? { match, score: win.score ?? 0, margin: lose ? (win.score ?? 0) - (lose.score ?? 0) : 0 } : null;
+            })
+            .filter(Boolean)
+            .sort((a, b) => b.score - a.score || b.margin - a.margin || b.match.endedAt - a.match.endedAt);
+        let place = 0;
+        let prev = null;
+        return rows.map((r) => {
+            if (r.score !== prev) { place += 1; prev = r.score; }
+            return { ...r, place };
+        });
+    }, [sort, hasMore, history, matches, mode]);
 
     const loadMore = useCallback(async () => {
         setLoadingMore(true);
@@ -133,18 +227,63 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
         return [...byDay.values()];
     }, [matches, mode]);
 
-    const widestMargin = Math.max(1, ...groups.flatMap((g) => g.rows.map((r) => r.margin)));
 
     return (
         <div className="fib-page fib-page--wide">
             <Section
                 title="Matches"
-                sub={`${totalCount} completed matches, newest first.`}
+                sub={sort === 'score'
+                    ? `The highest winning scores across all ${f.num(totalCount)} matches.`
+                    : `${totalCount} completed matches, newest first.`}
                 aside={
-                    <Segmented options={MODES} value={mode} onChange={setMode} label="Match mode" />
+                    <div className="fib-matches-controls">
+                        <Segmented options={SORTS} value={sort} onChange={chooseSort} label="Order matches by" />
+                        <Segmented options={MODES} value={mode} onChange={setMode} label="Match mode" />
+                    </div>
                 }
             >
-                {groups.length === 0 ? (
+                {sort === 'score' ? (
+                    historyError ? (
+                        <Empty
+                            title="Couldn’t load the full history"
+                            action={<button type="button" className="fib-btn" onClick={fetchHistory}>Try again</button>}
+                        >
+                            {`Ranking by score needs every match, and the stats service didn’t send them all: ${historyError.message}`}
+                        </Empty>
+                    ) : !ranked ? (
+                        <div className="fib-panel fib-panel--flush" role="status" aria-label="Loading every match to rank them">
+                            <TableSkeleton rows={8} cols={4} />
+                        </div>
+                    ) : ranked.length === 0 && mode === 'all' ? (
+                        <Empty title="No matches yet">
+                            No completed matches are on record yet.
+                        </Empty>
+                    ) : ranked.length === 0 ? (
+                        <Empty title={`No ${mode === 'SOLO' ? 'solo' : 'team'} matches yet`}>
+                            {`None of the ${f.num(totalCount)} matches on record were played ${mode === 'SOLO' ? 'solo' : 'in teams'}.`}
+                        </Empty>
+                    ) : (
+                        <>
+                            <div className="fib-panel fib-panel--flush">
+                                {ranked.slice(0, shownRanked).map((r) => (
+                                    <MatchVersus key={r.match.matchId} match={r.match} onOpen={onOpenMatch} rank={r.place} />
+                                ))}
+                            </div>
+                            <div className="fib-more" role="status">
+                                {shownRanked < ranked.length ? (
+                                    <button type="button" className="fib-btn" onClick={() => setShownRanked((n) => n + RANK_STEP)}>
+                                        Show more
+                                    </button>
+                                ) : null}
+                                <span className="fib-meta">
+                                    {shownRanked < ranked.length
+                                        ? `Top ${f.num(shownRanked)} of ${f.num(ranked.length)}`
+                                        : `All ${f.num(ranked.length)} ranked`}
+                                </span>
+                            </div>
+                        </>
+                    )
+                ) : groups.length === 0 ? (
                     /*
                       The copy has to survive the All filter. It read "No team matches
                       yet" whenever the feed was empty — naming a filter the reader
@@ -208,52 +347,8 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
                         <section className="fib-day" key={group.label}>
                             <h3>{group.label}</h3>
                             <div className="fib-panel fib-panel--flush">
-                                {group.rows.map(({ match, standings, winner, runnerUp, margin }) => (
-                                    winner ? (
-                                    <button
-                                        key={match.matchId}
-                                        type="button"
-                                        className="fib-row-link fib-match-row"
-                                        onClick={() => onOpenMatch(match.matchId)}
-                                    >
-                                        <div className="fib-match-when">
-                                            <b>{f.timeAgo(match.endedAt)}</b>
-                                            <span className="fib-meta">{f.stamp(match.endedAt)}</span>
-                                        </div>
-
-                                        <div className="fib-match-winner">
-                                            <Medal place={1} />
-                                            <div style={{ display: 'flex', minWidth: 0 }}>
-                                                {winner.members.map((m) => (
-                                                    <Avatar key={idUuid(m)} uuid={idUuid(m)} size={26} />
-                                                ))}
-                                            </div>
-                                            <span className="fib-match-names">
-                        {winner.members.map(idLabel).join(' & ')}
-                      </span>
-                                        </div>
-
-                                        <div className="fib-match-margin">
-                                            <div className="fib-ramp-track" style={{ height: 5, color: margin <= 2 ? 'var(--fib-negative)' : 'var(--fib-ink-3)' }}>
-                                                <i style={{ '--fill': margin / widestMargin }} />
-                                            </div>
-                                            <span className="fib-meta">
-                        {!runnerUp
-                            ? 'uncontested'
-                            : margin === 0
-                                ? 'tied at the line'
-                                : `beat ${runnerUp.members.map(idLabel).join(' & ')} by ${margin}`}
-                      </span>
-                                        </div>
-
-                                        <div className="fib-match-score">
-                                            <b>{winner.score}</b>
-                                            <span className="fib-meta">
-                        {match.mode === 'SOLO' ? 'solo' : 'team'} · {standings.length} · {f.duration(matchDuration(match))}
-                      </span>
-                                        </div>
-                                    </button>
-                                    ) : null
+                                {group.rows.map(({ match }) => (
+                                    <MatchVersus key={match.matchId} match={match} onOpen={onOpenMatch} />
                                 ))}
                             </div>
                         </section>
@@ -265,7 +360,7 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
                   reads as the whole history when it is silent about it — which is exactly how a
                   paging stop came to be reported as a one-month cutoff.
                 */}
-                {groups.length > 0 && (
+                {sort === 'recent' && groups.length > 0 && (
                     <div className="fib-more" role="status">
                         {hasMore ? (
                             <>

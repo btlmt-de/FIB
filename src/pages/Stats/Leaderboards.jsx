@@ -2,7 +2,8 @@
  * FIB Stats — ranking.
  *
  * Deliberately not "a table with decorations". The top three are a podium of
- * real objects — avatar, medal, the number at display scale — because those
+ * real objects — heads standing on gold, iron and copper blocks, the number
+ * beneath (see Podium in Primitives) — because those
  * three positions are the only ones anyone screenshots. Everything from fourth
  * down is a table, because by then the question has changed from "who won" to
  * "where am I", and a table answers that faster than anything prettier.
@@ -27,7 +28,7 @@ import {
 import { loadLeaderboard } from './api.js';
 import { useAsync } from './useAsync.js';
 import {
-    Section, Segmented, Avatar, Medal, Empty, PlayerLink, Counter, AsyncView,
+    Section, Segmented, Medal, Empty, PlayerLink, AsyncView, Podium,
 } from './Primitives.jsx';
 import * as f from './format.js';
 
@@ -160,35 +161,17 @@ function LeaderboardsBody({ rows, scope, onScopeChange, category, onCategory, on
                 ) : (
                     <>
                         {showPodium ? (
-                        <ol className="fib-podium">
-                            {podium.map((row) => {
-                                const entrants = entrantsOf(row);
-                                return (
-                                    <li key={keyOf(row)} className="fib-podium-slot" data-place={row.rank}>
-                                        <div className="fib-podium-faces">
-                                            {entrants.map((e) => (
-                                                <Avatar key={idUuid(e)} uuid={idUuid(e)} size={entrants.length > 1 ? 44 : 64} />
-                                            ))}
-                                        </div>
-                                        <Medal place={row.rank} />
-                                        <div className="fib-podium-name">
-                                            {entrants.map((e, i) => (
-                                                <React.Fragment key={idUuid(e)}>
-                                                    {i > 0 ? <span className="fib-podium-amp"> &amp; </span> : null}
-                                                    <button type="button" onClick={() => onOpenPlayer(idUuid(e))}>
-                                                        {idLabel(e)}
-                                                    </button>
-                                                </React.Fragment>
-                                            ))}
-                                        </div>
-                                        <div className="fib-podium-value">
-                                            <Counter value={row.value} format={format} />
-                                        </div>
-                                        <div className="fib-figure-label">{meta.label}</div>
-                                    </li>
-                                );
-                            })}
-                        </ol>
+                            <Podium
+                                rows={podium.map((row) => ({
+                                    key: keyOf(row),
+                                    place: row.rank,
+                                    value: row.value,
+                                    entrants: entrantsOf(row).map((e) => ({ uuid: idUuid(e), name: idLabel(e) })),
+                                }))}
+                                format={format}
+                                label={meta.label}
+                                onOpenPlayer={onOpenPlayer}
+                            />
                         ) : null}
 
                         {rest.length > 0 ? (

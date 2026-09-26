@@ -75,8 +75,33 @@ const ATLAS_INDEX_PATTERN = /\/fib-atlas\.json$/;
 const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/(fib|item)\/.+\.png$/;
 
 // Player heads. mc-heads.net is what getMinecraftHeadUrl() actually returns;
-// the minotar.net pattern this replaced had stopped matching anything.
-const HEAD_PATTERN = /mc-heads\.net\/avatar\//;
+// the minotar.net pattern this replaced had stopped matching anything. `head/`
+// is the isometric render the stats podium and player cards stand on blocks.
+const HEAD_PATTERN = /mc-heads\.net\/(avatar|head)\//;
+
+// Heads live in their own cache with a 24-hour life, not in CACHE_NAME's
+// keep-forever one.
+//
+// A skin changes rarely but it does change, so a head cannot be kept the way a
+// sprite is. A day is long enough that a session, and the next day's first
+// visit, never waits on mc-heads for a player it has already shown - mc-heads
+// is a third party, a render it has not made before misses its Cloudflare cache
+// and can be refused under a burst, and every refusal used to be a Steve - and
+// short enough that a new skin shows up by tomorrow. Past 24 hours the stored
+// head is refetched; if that fetch fails the stale one is served rather than a
+// Steve, because yesterday's skin is still the right player.
+//
+// *Heads were never actually cached before this.* The fetch handler has always
+// matched mc-heads, but an image element without `crossorigin` is a no-cors request, its
+// response is opaque (status 0, `ok` false), and cacheFirst only stores `ok`
+// responses - so every head was intercepted and then refetched, every time. Only
+// CORS requests are stored here (the stats module asks with
+// crossOrigin="anonymous", and mc-heads allows `*`). Opaque ones pass straight
+// through: Chrome pads each opaque entry to megabytes of quota, which is how a
+// cache of small images fills a disk budget.
+const HEAD_CACHE = 'fib-heads-v1';
+const HEAD_TTL_MS = 24 * 60 * 60 * 1000;
+const STORED_AT = 'x-fib-stored-at';
 
 /**
  * Drop older copies of the atlas once a new version has been stored.
@@ -176,6 +201,60 @@ async function networkFirst(request) {
     }
 }
 
+/** Age of a stored head in ms, or Infinity when it carries no stamp. */
+function storedAge(response) {
+    const at = Number(response.headers.get(STORED_AT));
+    return Number.isFinite(at) && at > 0 ? Date.now() - at : Infinity;
+}
+
+/**
+ * Heads: fresh copy if we have one under a day old, otherwise the network,
+ * otherwise the stale copy. See HEAD_CACHE for why each branch exists.
+ *
+ * The stored copy is re-wrapped with a timestamp header, because the Cache API
+ * keeps no record of when an entry was written. The body is read into a blob
+ * first so the wrapped response owns its bytes rather than a consumed stream.
+ */
+async function headCache(request) {
+    const cache = await caches.open(HEAD_CACHE);
+    const cached = await cache.match(request);
+    if (cached && storedAge(cached) < HEAD_TTL_MS) return cached;
+
+    try {
+        const response = await fetch(request);
+        if (response.ok && response.type !== 'opaque') {
+            response.clone().blob()
+                .then((body) => {
+                    const headers = new Headers(response.headers);
+                    headers.set(STORED_AT, String(Date.now()));
+                    return cache.put(request, new Response(body, {
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers,
+                    }));
+                })
+                .catch((error) => console.warn('[SW] Head cache write skipped:', error));
+            return response;
+        }
+        // A refused refetch (429, 5xx) still has yesterday's head to fall back on.
+        return cached ?? response;
+    } catch (error) {
+        if (cached) return cached;
+        throw error;
+    }
+}
+
+/** Drop heads past their day, so the cache holds the current roster, not every
+    head ever shown. Run on activate; entries are small, so this is cheap. */
+async function pruneExpiredHeads() {
+    const cache = await caches.open(HEAD_CACHE);
+    const keys = await cache.keys();
+    await Promise.all(keys.map(async (key) => {
+        const hit = await cache.match(key);
+        if (!hit || storedAge(hit) >= HEAD_TTL_MS) await cache.delete(key);
+    }));
+}
+
 /**
  * Store the response and prune superseded atlases, swallowing any failure.
  *
@@ -215,12 +294,19 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Cache item sprites (local and remote), the atlas image, and player heads
+    // Heads get their own day-long cache - CORS requests only. A no-cors head
+    // (the wheel's, which does not ask with crossorigin) is left to the browser
+    // entirely: intercepting it bought nothing, since it could never be stored.
+    if (HEAD_PATTERN.test(url)) {
+        if (event.request.mode === 'cors') event.respondWith(headCache(event.request));
+        return;
+    }
+
+    // Cache item sprites (local and remote) and the atlas image
     if (
         TEXTURE_URL_PATTERN.test(url) ||
         ATLAS_URL_PATTERN.test(pathname) ||
-        REMOTE_TEXTURE_PATTERN.test(url) ||
-        HEAD_PATTERN.test(url)
+        REMOTE_TEXTURE_PATTERN.test(url)
     ) {
         event.respondWith(cacheFirst(event.request));
     }
@@ -236,10 +322,14 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
+                // HEAD_CACHE is kept by name: it is a `fib-` cache too, and this
+                // sweep would otherwise delete every head on every activate.
                 cacheNames
-                    .filter(name => name.startsWith('fib-') && name !== CACHE_NAME)
+                    .filter(name => name.startsWith('fib-') && name !== CACHE_NAME && name !== HEAD_CACHE)
                     .map(name => caches.delete(name))
             );
-        }).then(() => self.clients.claim())
+        })
+            .then(() => pruneExpiredHeads().catch((error) => console.warn('[SW] Head prune skipped:', error)))
+            .then(() => self.clients.claim())
     );
 });
