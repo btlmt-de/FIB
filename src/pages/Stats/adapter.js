@@ -55,24 +55,24 @@ const AVATAR_STEPS = [32, 64, 128];
 
 export const avatarAt = (uuid, size = 32) => {
   const step = AVATAR_STEPS.find((s) => s >= size) ?? 128;
-  return String(playerAvatar(uuid)).replace(/\/(\d+)$/, `/${step}`);
+  return playerAvatar(uuid, step);
 };
 
 /**
- * The head as an OBJECT rather than a face: mc-heads' isometric render, the same
+ * The head as an OBJECT rather than a face: an isometric render, the same
  * three-quarter view Minecraft uses for a block in an inventory slot. The podium
  * stands these on stacked block sprites, and a flat face on an isometric block
  * reads as a sticker, not a player standing there.
  *
- * `facing` is the renderer's own vocabulary: the default render looks right,
- * `left` looks left. The podium turns the outer two toward the winner.
+ * mineatar's head is 16 px tall per unit of scale, so the 128 step is scale 8
+ * (a 110x128 image). This used to be mc-heads' `head/` render, whose `left`
+ * variant the podium had already stopped using (see PodiumHead), so the
+ * `facing` parameter went with the switch. See playerAvatar for why it switched.
  */
-export const headAt = (uuid, size = 128, facing = 'right') => {
+export const headAt = (uuid, size = 128) => {
+  if (!uuid) return HEAD_FALLBACK;
   const step = AVATAR_STEPS.find((s) => s >= size) ?? 128;
-  const id = uuid ?? 'MHF_Steve';
-  return facing === 'left'
-    ? `https://mc-heads.net/head/${id}/left/${step}`
-    : `https://mc-heads.net/head/${id}/${step}`;
+  return `https://api.mineatar.io/head/${uuid}?scale=${step / 16}`;
 };
 
 /**
@@ -114,5 +114,9 @@ export const matchHeadline = (match, lastChange = null) => {
 /**
  * Shown when the head renderer is unreachable or rate-limits us. It is a third party we do not
  * control, and a row of blank squares reads as a broken page rather than a slow one.
+ *
+ * The fallbacks stay on mc-heads while the heads come from mineatar: a fallback on the same host
+ * as the render that just failed would usually fail with it.
  */
 export const AVATAR_FALLBACK = 'https://mc-heads.net/avatar/MHF_Steve/64';
+export const HEAD_FALLBACK = 'https://mc-heads.net/head/MHF_Steve/128';

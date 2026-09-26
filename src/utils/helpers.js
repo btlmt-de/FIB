@@ -222,9 +222,18 @@ export function parseActivityDate(createdAt) {
     return Number.isFinite(time) ? time : 0;
 }
 
-// Get Minecraft head URL from username
+// Get Minecraft head URL from username.
+//
+// minotar, not mc-heads. mc-heads caches a render per URL, and for some accounts
+// it cached the DEFAULT skin under some of those URLs and served it as a 200, so
+// rzem and threeseconds turned up as Steve with nothing failing that a fallback
+// could catch. The stats module moved to mineatar for the same reason, but
+// mineatar keys on uuid only and answers a name with a 400, while every head here
+// is known by name. minotar's `helm/` is the same renderer (a name and its uuid
+// come back byte-identical to mineatar's face), takes names, allows any origin
+// for the canvases, and 404s an unknown name so onError fallbacks still fire.
 export function getMinecraftHeadUrl(username) {
-    return `https://mc-heads.net/avatar/${username}/64`;
+    return `https://minotar.net/helm/${username}/64`;
 }
 
 // Get Discord avatar URL
