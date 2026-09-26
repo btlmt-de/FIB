@@ -270,9 +270,26 @@ const stepsUpTo = (span, step) =>
  *            the lane at the moment and height they happened, in a tier-rimmed
  *            well. They were only ever a shelf below the chart, a section away
  *            from the race they happened in.
- *   detailFor  extra content per legend entry; the match page puts what each
- *            lane is hunting at the cursor there.
+ *   detailFor  extra content per legend entry.
+ *   phases   [{ id, label, from, to }] - the item pools' schedule. Each is a
+ *            faint band in its phase colour (the green / yellow / red the item
+ *            index uses) with a line and a label where it opens, so a lane that
+ *            steepens at 15:00 can be read against the late pool opening there.
+ *   showSkips  marks each skip on its lane with a small cross: a skip scores,
+ *            so the step is drawn either way, and without the mark a skip and
+ *            a find were the same step.
+ *   hideLegend  for a page that draws its own lane panel.
  */
+const PHASE_TONE = {
+  EARLY: 'var(--fib-phase-early)',
+  MID: 'var(--fib-phase-mid)',
+  LATE: 'var(--fib-phase-late)',
+};
+const PHASE_INK = {
+  EARLY: 'var(--fib-phase-early)',
+  MID: 'var(--fib-phase-mid)',
+  LATE: 'var(--fib-phase-late-ink)',
+};
 const TURN_PX = 16;
 const TURN_ROW = 22;
 const TURN_ROWS_MAX = 3;
@@ -280,12 +297,14 @@ const PULL_PX = 16;
 
 export function RaceTrace({
   entries, duration, height: baseHeight = 260, cursor, labelFor, iconFor, detailFor,
-  markers = [], turns = [], pulls = [], onScrub,
+  markers = [], turns = [], pulls = [], phases = [], showSkips = false, hideLegend = false, onScrub,
 }) {
   const wrapRef = useRef(null);
   const width = useWidth(wrapRef);
 
-  const pad = { top: 14, right: 16, bottom: 26, left: 40 };
+  /* The phase labels sit above the plot, so the plot starts lower when there
+     are phases to name. */
+  const pad = { top: phases.length ? 30 : 14, right: 16, bottom: 26, left: 40 };
   const innerW = Math.max(10, width - pad.left - pad.right);
   const innerH = Math.max(10, baseHeight - pad.top - pad.bottom);
 
@@ -358,6 +377,42 @@ export function RaceTrace({
         onPointerMove={handleMove}
         onPointerLeave={onScrub ? () => onScrub(null) : undefined}
       >
+        {/* The pools, behind everything. The band is faint - it is context for the
+            lanes, never competition - and the label names the moment it opened. */}
+        {phases.map((p, i) => {
+          const x0 = x(p.from);
+          const x1 = x(p.to);
+          /* The label takes the longest form that fits before the next phase's
+             line - "Mid pool opens · 5:00", then "Mid · 5:00", then nothing. On
+             an hour-long round the three lines sit in the first quarter of the
+             chart, and on a phone full labels overprinted each other. ~6.6px a
+             character at the label's 11px mono, plus the 6px offset. */
+          const room = (i + 1 < phases.length ? x(phases[i + 1].from) : width - pad.right) - x0 - 10;
+          const short = p.id.charAt(0) + p.id.slice(1).toLowerCase();
+          const forms = p.from > 0
+            ? [`${p.label} · ${f.clock(p.from)}`, `${short} · ${f.clock(p.from)}`, short]
+            : [p.label, short];
+          const text = forms.find((s) => s.length * 6.6 <= room) ?? null;
+          return (
+            <g key={p.id} className="fib-race-phase">
+              <rect
+                x={x0} y={pad.top} width={Math.max(0, x1 - x0)} height={innerH}
+                fill={PHASE_TONE[p.id]} opacity="0.05"
+              />
+              {p.from > 0 ? (
+                <line x1={x0} x2={x0} y1={pad.top - 14} y2={pad.top + innerH} stroke={PHASE_TONE[p.id]} strokeOpacity="0.55" strokeDasharray="3 3" />
+              ) : null}
+              {text ? <text
+                x={x0 + (p.from > 0 ? 6 : 2)} y={pad.top - 8}
+                textAnchor="start"
+                fill={PHASE_INK[p.id]} className="fib-race-phase-label"
+              >
+                {text}
+              </text> : null}
+            </g>
+          );
+        })}
+
         {stepsUpTo(yMax, yStep).map((s) => (
           <g key={s}>
             <line className="grid" x1={pad.left} x2={width - pad.right} y1={y(s)} y2={y(s)} />
@@ -398,6 +453,17 @@ export function RaceTrace({
             opacity={cursor == null ? 1 : 0.9}
           />
         ))}
+
+        {/* Skips, on their lane: a small cross where the step was a give-up. */}
+        {showSkips ? entries.map((entry) => entry.events.map((ev, k) => (ev.skipped ? (
+          <g key={`skip-${entry.key}-${k}`} className="fib-race-skip" opacity={cursor != null && ev.t > cursor ? 0.25 : 1}>
+            <path
+              d={`M${x(ev.t) - 3} ${y(k + 1) - 3} l6 6 M${x(ev.t) + 3} ${y(k + 1) - 3} l-6 6`}
+              stroke="var(--fib-ink-3)" strokeWidth="1.5" strokeLinecap="round"
+            />
+            <title>{`${f.clock(ev.t)} - skipped ${itemLabel(ev.itemName)}`}</title>
+          </g>
+        ) : null))) : null}
 
         {/* Rare pulls, on the lane where they happened. A pull at or after the
             cursor dims, so a replay reveals them as the race reaches them. */}
@@ -450,6 +516,7 @@ export function RaceTrace({
         })}
       </svg>
 
+      {hideLegend ? null : (
       <ul className={`fib-chart-legend${detailFor ? ' fib-lanes' : ''}`}>
         {entries.map((entry, i) => (
           <li key={entry.key}>
@@ -460,6 +527,7 @@ export function RaceTrace({
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 }

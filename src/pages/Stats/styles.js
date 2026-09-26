@@ -2246,6 +2246,188 @@ ${cssVariables()}
   .fib-vs[data-compact] .fib-vs-names { white-space: normal; overflow-wrap: anywhere; font-size: var(--fib-text-sm); line-height: 1.25; }
 }
 
+/* ── The match page ──────────────────────────────────────────────────────
+ *
+ * Headline and scoreboard, the round as a ledger line, the race over its pool
+ * phases, the live board under it, the round's records, then every team's
+ * round in full. See MatchReport.jsx.
+ */
+
+.fib-match-head { padding-bottom: var(--fib-space-6); }
+.fib-match-head-grid {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: var(--fib-space-5) var(--fib-space-7); flex-wrap: wrap;
+  margin-bottom: var(--fib-space-6);
+}
+.fib-match-head-copy { flex: 1 1 460px; min-width: 0; }
+/* A match headline is a page title here, not the overview's lead: one step
+   down from the overview's 72px, because the race below is the subject. */
+.fib-match-title { font-size: var(--fib-display-lg); max-width: 24ch; }
+.fib-match-head .fib-lead-sub { margin-top: var(--fib-space-3); }
+.fib-match-ledger [data-hot] b { color: var(--fib-diamond); }
+
+.fib-match-race { padding-top: var(--fib-space-3); }
+.fib-race-phase-label {
+  font-family: var(--fib-font-mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The live board. One column of rows, because the FLIP re-rank measures
+ * vertical position: a row that travels past another is the overtake. The
+ * leader's row carries a faint gold floor - a place, which is what gold means.
+ */
+.fib-board-title {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px;
+  margin: var(--fib-space-6) 0 var(--fib-space-3);
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
+}
+.fib-board { display: flex; flex-direction: column; gap: 6px; }
+.fib-board-row {
+  display: grid;
+  grid-template-columns: 34px 4px minmax(0, 1.2fr) minmax(0, 1fr) 92px;
+  align-items: center; gap: var(--fib-space-4);
+  padding: var(--fib-space-3) var(--fib-space-4);
+  border-radius: var(--fib-radius-md);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-board-row:not([data-flipping]) { transition: transform var(--fib-motion-slow) var(--fib-ease); }
+.fib-board-row[data-leading] {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--fib-gold) 10%, var(--fib-plinth)), var(--fib-plinth) 45%);
+}
+.fib-board-swatch { width: 4px; height: 28px; border-radius: 2px; }
+.fib-board-who { display: flex; align-items: center; gap: var(--fib-space-3); min-width: 0; }
+.fib-board-heads { display: flex; flex: none; }
+.fib-board-heads .fib-avatar { box-shadow: 0 0 0 2px var(--fib-plinth); }
+.fib-board-heads .fib-avatar + .fib-avatar { margin-left: -8px; }
+.fib-board-names {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--fib-font-display); font-size: var(--fib-text-xl); line-height: 1;
+}
+.fib-board-names button { font: inherit; transition: color var(--fib-motion-fast) var(--fib-ease); }
+.fib-board-names button:hover { color: var(--fib-blue-ink); }
+.fib-board-amp { color: var(--fib-netherite); }
+.fib-board-now {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: var(--fib-space-3);
+  min-width: 0;
+}
+.fib-board-score { display: flex; flex-direction: column; align-items: flex-end; }
+.fib-board-score b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-3xl); font-weight: 600; letter-spacing: -0.03em; line-height: 1;
+}
+.fib-board-row[data-leading] .fib-board-score b { color: var(--fib-gold); }
+
+/* The round's records: four objects, the items index's record language. */
+.fib-round-records {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--fib-space-4);
+}
+.fib-round-record {
+  display: flex; align-items: center; gap: var(--fib-space-4); margin: 0;
+  padding: var(--fib-space-4);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-round-record figcaption { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fib-round-record-name {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-text-xl); line-height: 1; text-wrap: balance;
+}
+.fib-round-record-figure em {
+  font-style: normal; font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-lg); font-weight: 600;
+}
+
+/*
+ * A team's report. Header (place, heads, names, score), then facts beside the
+ * back-to-backs and the phase split, then the run: every item as a slot. The
+ * winner's report carries the gold floor the board's leader does.
+ */
+.fib-reports { display: flex; flex-direction: column; gap: var(--fib-space-5); }
+.fib-report {
+  padding: var(--fib-space-5);
+  border-radius: var(--fib-radius-lg);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-report[data-won] {
+  background: linear-gradient(180deg, color-mix(in oklch, var(--fib-gold) 8%, var(--fib-plinth)), var(--fib-plinth) 140px);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--fib-gold) 30%, var(--fib-line-soft)), inset 0 1px 0 0 var(--fib-gloss-top);
+}
+.fib-report-head {
+  display: flex; align-items: center; gap: var(--fib-space-4);
+  padding-bottom: var(--fib-space-4); margin-bottom: var(--fib-space-4);
+  border-bottom: 1px solid var(--fib-line-soft);
+}
+.fib-report-head .fib-board-heads .fib-avatar { box-shadow: 0 0 0 2px var(--fib-plinth); }
+.fib-report-names {
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1;
+  overflow-wrap: anywhere;
+}
+.fib-report-names button { font: inherit; transition: color var(--fib-motion-fast) var(--fib-ease); }
+.fib-report-names button:hover { color: var(--fib-blue-ink); }
+.fib-report-score { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.fib-report-score b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-4xl); font-weight: 600; letter-spacing: -0.03em; line-height: 1;
+}
+.fib-report[data-won] .fib-report-score b { color: var(--fib-gold); }
+
+.fib-report-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--fib-space-6); margin-bottom: var(--fib-space-5);
+}
+.fib-report-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); align-content: start; gap: var(--fib-space-4) var(--fib-space-5); margin: 0; }
+.fib-report-facts dt { font-size: var(--fib-text-xs); color: var(--fib-ink-3); }
+.fib-report-facts dd { margin: 4px 0 0; display: flex; align-items: center; gap: 6px; }
+.fib-report-facts dd b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-xl); font-weight: 600;
+}
+.fib-report-side { display: flex; flex-direction: column; gap: var(--fib-space-4); }
+.fib-report-b2b h4 { margin: 0 0 var(--fib-space-2); }
+.fib-report-tiers { display: flex; flex-wrap: wrap; gap: var(--fib-space-2) var(--fib-space-4); }
+.fib-report-tiers li { display: inline-flex; align-items: baseline; gap: 6px; }
+.fib-report-tiers em {
+  font-style: normal; font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-weight: 600; color: var(--fib-ink);
+}
+
+/* The run: every item as a 40px slot, wrapping. Skips greyed, not reddened. */
+.fib-report-run {
+  display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 4px;
+  padding-top: var(--fib-space-4);
+  border-top: 1px solid var(--fib-line-soft);
+}
+.fib-report-run li { position: relative; }
+.fib-report-run li[data-skipped] .fib-well { filter: grayscale(1) brightness(0.7); opacity: 0.6; }
+.fib-report-run .fib-well { transition: transform var(--fib-motion-fast) var(--fib-ease); }
+.fib-report-run li:hover .fib-well { transform: translateY(-2px); }
+.fib-report-foot { margin-top: var(--fib-space-4); }
+.fib-report-inv { margin-top: var(--fib-space-4); padding-top: var(--fib-space-4); border-top: 1px solid var(--fib-line-soft); }
+
+@container fib-page (max-width: 760px) {
+  .fib-board-row {
+    grid-template-columns: 30px 4px minmax(0, 1fr) auto;
+    grid-template-areas: "place swatch who score" "now now now now";
+    row-gap: var(--fib-space-3);
+  }
+  .fib-board-place { grid-area: place; }
+  .fib-board-swatch { grid-area: swatch; }
+  .fib-board-who { grid-area: who; }
+  .fib-board-score { grid-area: score; }
+  .fib-board-now { grid-area: now; }
+  .fib-report-body { grid-template-columns: minmax(0, 1fr); }
+  .fib-report-score b { font-size: var(--fib-text-3xl); }
+  .fib-report { padding: var(--fib-space-4); }
+}
+
 /* Overview. */
 
 /*

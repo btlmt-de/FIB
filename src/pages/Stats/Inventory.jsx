@@ -119,7 +119,7 @@ const canAnimate = () =>
  * How much of this run came out of the early, mid and late pools — one bar,
  * read at a glance, with the counts spelled out beneath it.
  */
-function PhaseSplit({ counts }) {
+export function PhaseSplit({ counts }) {
   const parts = PHASE_PARTS
     .map((p) => ({ ...p, n: counts[p.id] ?? 0 }))
     /* Early / Mid / Late always hold their row: "Late 0" is an answer, and a row
