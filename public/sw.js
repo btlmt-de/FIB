@@ -78,9 +78,11 @@ const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/
 // the minotar.net pattern this replaced had stopped matching anything. `head/`
 // is the isometric render the stats podium and player cards stand on blocks.
 // The stats module now asks api.mineatar.io instead (see playerAvatar in
-// src/pages/Stats/data.js) and keeps mc-heads only for its Steve fallbacks, so
-// both hosts are matched.
-const HEAD_PATTERN = /mc-heads\.net\/(avatar|head)\/|api\.mineatar\.io\/(face|head)\//;
+// src/pages/Stats/data.js) and keeps mc-heads only for its Steve fallbacks, and
+// getMinecraftHeadUrl now returns minotar.net/helm/ (mineatar's renderer under
+// a host that takes names), so all three hosts are matched. The wheel still asks
+// without crossorigin, so its minotar heads pass through uncached, as before.
+const HEAD_PATTERN = /mc-heads\.net\/(avatar|head)\/|api\.mineatar\.io\/(face|head)\/|minotar\.net\/helm\//;
 
 // Heads live in their own cache with a 24-hour life, not in CACHE_NAME's
 // keep-forever one.

@@ -11,7 +11,8 @@ import Users from 'lucide-react/dist/esm/icons/users';
 import Mountain from 'lucide-react/dist/esm/icons/mountain';
 import ScanLine from 'lucide-react/dist/esm/icons/scan-line';
 
-const MC_HEAD  = (u) => `https://mc-heads.net/avatar/${u}/100`;
+// Same renderer as the wheel's heads - see getMinecraftHeadUrl for why not mc-heads.
+const MC_HEAD  = (u) => `https://minotar.net/helm/${u}/100`;
 const GH_AVT   = (u) => `https://github.com/${u}.png?size=100`;
 const alpha    = (color, a) => color.replace(')', ` / ${a})`);
 

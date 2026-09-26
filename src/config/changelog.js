@@ -282,14 +282,14 @@ export const CHANGELOG = [
                 // actually changed, and here exactly one thing did.
                 //
                 // The head URL is written out for the same reason every rate in
-                // this file is. mc-heads serves whatever skin the account wears
+                // this file is. The renderer serves whatever skin the account wears
                 // today, which is the right behaviour for the wheel and the wrong
                 // one for a record of a date - but a literal URL is at least the
                 // same shape as the one helpers.getMinecraftHeadUrl builds, so a
                 // reader can see it is the ordinary head render and not a special
                 // asset.
                 roster: [
-                    { texture: 'rare_rzem', name: 'rzem', imageUrl: 'https://mc-heads.net/avatar/rzem/64' },
+                    { texture: 'rare_rzem', name: 'rzem', imageUrl: 'https://minotar.net/helm/rzem/64' },
                 ],
                 body:
                     'rzem joins Rare, the eleventh head in the tier. Rare is the ' +
