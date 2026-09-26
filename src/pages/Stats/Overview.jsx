@@ -214,7 +214,7 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatc
 
     return (
         <div className="fib-page fib-page--wide">
-            {race ? (
+            {race?.entries?.length > 0 ? (
                 <Reveal as="header" className="fib-lead">
                     <div className="fib-lead-top">
                         <div className="fib-lead-copy">

@@ -254,6 +254,10 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
                         <div className="fib-panel fib-panel--flush" role="status" aria-label="Loading every match to rank them">
                             <TableSkeleton rows={8} cols={4} />
                         </div>
+                    ) : ranked.length === 0 && mode === 'all' ? (
+                        <Empty title="No matches yet">
+                            No completed matches are on record yet.
+                        </Empty>
                     ) : ranked.length === 0 ? (
                         <Empty title={`No ${mode === 'SOLO' ? 'solo' : 'team'} matches yet`}>
                             {`None of the ${f.num(totalCount)} matches on record were played ${mode === 'SOLO' ? 'solo' : 'in teams'}.`}

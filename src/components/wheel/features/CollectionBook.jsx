@@ -233,7 +233,7 @@ function ItemPlaque({ item, details, onClose, lucky = false, luckyOdds = null })
                         />
                     </div>
                     <BoardLabel tone={isSpecial ? ink : DECK.inkDim}>
-                        {label}{!collected && ' — not collected'}
+                        {label}{!collected && (lucky ? ' - not landed on a lucky spin' : ' — not collected')}
                     </BoardLabel>
 
                     <div style={{
@@ -1314,7 +1314,9 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                                     aria-pressed={active}
                                     aria-label={[
                                         row.label,
-                                        `${fmt(row.held)} of ${fmt(row.total)} held`,
+                                        luckyView
+                                            ? `${fmt(row.held)} of ${fmt(row.total)} landed on a lucky spin`
+                                            : `${fmt(row.held)} of ${fmt(row.total)} held`,
                                         row.missing > 0 ? `${fmt(row.missing)} missing` : null,
                                         waitSentence,
                                         statusWord,
@@ -1466,7 +1468,7 @@ export function CollectionBook({ collection, collectionDetails, stats, dryStreak
                             <Segmented
                                 value={have}
                                 onChange={setHave}
-                                options={[['all', 'All'], ['held', 'Held'], ['missing', 'Missing']]}
+                                options={[['all', 'All'], ['held', luckyView ? 'Landed' : 'Held'], ['missing', 'Missing']]}
                                 label="Show"
                             />
                         </span>
