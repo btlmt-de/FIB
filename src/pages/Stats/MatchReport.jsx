@@ -160,8 +160,13 @@ export function RoundRecords({ entries, runs }) {
  * still one press away for anyone who wants each item's name and time spelled
  * out.
  */
-export function TeamReport({ entry, run, place, lead, won, duration, mode, onOpenPlayer }) {
+export function TeamReport({ entry, run, place, lead, won, duration, mode, at = null, onOpenPlayer }) {
   const [open, setOpen] = useState(false);
+  /* While the race is being scrubbed or replayed, the run follows the clock:
+     the item this side was hunting at `at` is lit, everything after it dims.
+     This is where the chart's "what were they doing then" is answered - the
+     chart itself carries no sprites. */
+  const hunting = at == null ? null : run.segments.find((s) => s.t > at)?.order ?? null;
   const panelId = `fib-report-inv-${entry.key}`;
   const pulls = run.pulls.length;
 
@@ -225,18 +230,25 @@ export function TeamReport({ entry, run, place, lead, won, duration, mode, onOpe
       </div>
 
       {/*
-        The run. Every item, in the order it came, the phase on its floor and a
-        back-to-back on its rim; skips desaturated, because a skip still scores
-        and is "gave up on this one", never an error.
+        The run. Every item, in the order it came, at 64px with how long it took
+        printed under it - the first version drew these as 32px slots with the
+        time only on hover, and the time is half of what a run IS. Phase on the
+        floor, back-to-back on the rim, skips desaturated, because a skip still
+        scores and is "gave up on this one", never an error. The order number
+        sits in the corner, where Minecraft puts a stack size.
       */}
       <ol className="fib-report-run" aria-label={`${labelFor(entry)}'s ${run.segments.length} items in collection order`}>
         {run.segments.map((s) => (
           <li
             key={s.order}
             data-skipped={s.skipped || undefined}
+            data-current={s.order === hunting || undefined}
+            data-ahead={(at != null && s.t > at && s.order !== hunting) || undefined}
             title={`#${s.order} ${f.itemLabel(s.itemName)} · ${f.duration(s.took)}${s.b2b ? ` · ${RARITY_LABEL[s.b2b]} back-to-back` : ''}${s.skipped ? ' · skipped' : ''}`}
           >
-            <Sprite name={s.itemName} size={32} pad={4} tier={s.b2b || undefined} phase={itemPhase(s.itemName) || undefined} />
+            <Sprite name={s.itemName} size={64} pad={6} tier={s.b2b || undefined} phase={itemPhase(s.itemName) || undefined} />
+            <span className="fib-report-run-order" aria-hidden="true">{s.order}</span>
+            <span className="fib-report-run-took" aria-hidden="true">{s.b2b && s.took < 1 ? 'b2b' : f.duration(s.took)}</span>
             <span className="fib-sr">
               {`${s.order}. ${f.itemLabel(s.itemName)}, ${f.durationWords(s.took)}${s.b2b ? `, ${RARITY_LABEL[s.b2b]} back-to-back` : ''}${s.skipped ? ', skipped' : ''}`}
             </span>
@@ -252,7 +264,7 @@ export function TeamReport({ entry, run, place, lead, won, duration, mode, onOpe
           aria-controls={panelId}
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? 'Hide the item list' : 'Every item, with its time'}
+          {open ? 'Hide the item list' : 'Item names and details'}
         </button>
       </div>
       {open ? (

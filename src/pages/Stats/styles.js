@@ -2401,12 +2401,48 @@ ${cssVariables()}
 
 /* The run: every item as a 40px slot, wrapping. Skips greyed, not reddened. */
 .fib-report-run {
-  display: grid; grid-template-columns: repeat(auto-fill, 40px); gap: 4px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--fib-space-3) var(--fib-space-2);
   padding-top: var(--fib-space-4);
   border-top: 1px solid var(--fib-line-soft);
 }
-.fib-report-run li { position: relative; }
+.fib-report-run li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+/* The order, in the slot's corner - where Minecraft prints a stack size. */
+.fib-report-run-order {
+  position: absolute; top: 3px; left: calc(50% - 38px + 6px);
+  font-family: var(--fib-font-mono); font-size: 10px; font-weight: 600; line-height: 1;
+  color: var(--fib-ink-3); pointer-events: none;
+}
+.fib-report-run-took {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-xs); color: var(--fib-ink-2); white-space: nowrap;
+}
+.fib-report-run li[data-skipped] .fib-report-run-took { color: var(--fib-ink-3); text-decoration: line-through; }
 .fib-report-run li[data-skipped] .fib-well { filter: grayscale(1) brightness(0.7); opacity: 0.6; }
+
+/* The ribbon race and its pace strip (RibbonRace in Charts.jsx). */
+.fib-timeline-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--fib-space-3); margin-bottom: var(--fib-space-3); }
+.fib-ribbon-end { font-family: var(--fib-font-mono); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fib-ribbon-turn { fill: var(--fib-void); stroke: var(--fib-ink); stroke-width: 2; }
+.fib-ribbon-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--fib-space-2) var(--fib-space-5);
+  padding: var(--fib-space-2) 0 var(--fib-space-4) 44px;
+  font-size: var(--fib-text-sm); font-weight: 500;
+}
+.fib-ribbon-key li { display: inline-flex; align-items: center; gap: 8px; }
+.fib-ribbon-key i { width: 16px; height: 3px; border-radius: 2px; }
+/* The pace strip is also the zoom control: it takes a crosshair, and the
+   selection it holds is drawn as a lit window between two dimmed flanks. */
+.fib-pace[data-brush] { cursor: crosshair; touch-action: none; user-select: none; }
+.fib-pace-title { font-family: var(--fib-font-mono); font-size: 11px; fill: var(--fib-ink-3); }
+.fib-pace-dim { fill: var(--fib-void); fill-opacity: 0.65; }
+.fib-pace-sel { fill: none; stroke: var(--fib-blue); stroke-width: 1.5; rx: 4; }
+
+/* The team runs follow the scrub: the hunted item lit, the ones after it dim. */
+.fib-report-run li[data-ahead] { opacity: 0.3; }
+.fib-report-run li[data-current] .fib-well {
+  box-shadow: inset 0 0 0 2px var(--fib-blue), 0 0 0 3px var(--fib-blue-tint);
+}
+.fib-report-run li { transition: opacity var(--fib-motion-base) var(--fib-ease); }
 .fib-report-run .fib-well { transition: transform var(--fib-motion-fast) var(--fib-ease); }
 .fib-report-run li:hover .fib-well { transform: translateY(-2px); }
 .fib-report-foot { margin-top: var(--fib-space-4); }

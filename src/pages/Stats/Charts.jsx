@@ -14,7 +14,7 @@
  */
 
 import React, { useEffect, useId, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { tokens, rarityColor, RARITY_LABEL } from './tokens.js';
+import { tokens, RARITY_LABEL } from './tokens.js';
 import { itemTexture, itemLabel } from './adapter.js';
 import { prefersReducedMotion } from './env.js';
 import { usePendingReveal } from './useSeen.js';
@@ -209,28 +209,17 @@ export function Sparkline({ values, width = 88, height = 24, tone = 'var(--fib-i
   );
 }
 
-/* ── Race trace ───────────────────────────────────────────────────────── */
+/* ── Shared race geometry ─────────────────────────────────────────────── */
 
-/**
- * Cumulative score against match time, one lane per competitor.
+/*
+ * Dash patterns per lane, so colour is never the only thing telling two
+ * competitors apart. Used by the ribbon race; the overview's miniature draws
+ * solid lanes on purpose, at its size a dash reads as noise.
  *
- * Score is a step function — you gain a point at the instant an item is
- * collected — so this draws steps rather than interpolating between events.
- * Interpolation would imply a player was on 3.5 items at some moment, which is
- * not a thing that can happen.
- *
- * Lanes carry both a colour and a dash pattern, so colour is never the only
- * differentiator.
- *
- * Three optional layers, all cheap and all meaningful:
- *
- *   markers   lead-change timestamps, ticked on the time axis — "when it
- *             turned" is the most useful landmark on the chart.
- *   onScrub   pointer movement over the chart becomes a live time preview.
- *             Pointer-only by design: the range input next to the chart stays
- *             the precise, keyboard-operable control.
- *   iconFor   a node per legend entry (avatar chips), so a name in the legend
- *             is visibly the same competitor as a lane on the track.
+ * *RaceTrace, the match page's first chart, lived here.* It drew the running
+ * counts on a fixed 0-to-total scale, then grew turn sprites, pull wells and a
+ * lane panel; it and the tug-of-war timeline that briefly replaced it are both
+ * gone. The ribbon race below records why each was replaced.
  */
 const DASHES = ['', '6 3', '2 3', '10 3 2 3', '4 2', '8 4', '1 3', '12 3'];
 
@@ -253,32 +242,9 @@ const COUNT_STEPS = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000];
 const niceStep = (span, steps, most) =>
   steps.find((s) => span / s <= most) ?? steps[steps.length - 1];
 
-/** Multiples of `step` from 0 up to and including `span`. */
-const stepsUpTo = (span, step) =>
-  Array.from({ length: Math.floor(span / step) + 1 }, (_, i) => i * step);
-
 /*
- * The race is drawn with the items in it, not just the counts.
- *
- *   turns    [{ t, itemName, lane }] - each lead change, with the item that took
- *            the lead. Drawn as a strip of sprites under the time axis, each
- *            underlined in the colour of the lane that took it, stacked into up
- *            to three rows so a flurry of turns in the final minutes stays
- *            legible instead of overprinting. The tick on the axis marks WHEN;
- *            the strip says WHAT.
- *   pulls    [{ t, score, itemName, tier, lane }] - rare back-to-backs, drawn ON
- *            the lane at the moment and height they happened, in a tier-rimmed
- *            well. They were only ever a shelf below the chart, a section away
- *            from the race they happened in.
- *   detailFor  extra content per legend entry.
- *   phases   [{ id, label, from, to }] - the item pools' schedule. Each is a
- *            faint band in its phase colour (the green / yellow / red the item
- *            index uses) with a line and a label where it opens, so a lane that
- *            steepens at 15:00 can be read against the late pool opening there.
- *   showSkips  marks each skip on its lane with a small cross: a skip scores,
- *            so the step is drawn either way, and without the mark a skip and
- *            a find were the same step.
- *   hideLegend  for a page that draws its own lane panel.
+ * The pool phases' colours: the fill for bands and lines, and the text-safe
+ * step for labels (only LATE needs a lighter one, see tokens.js).
  */
 const PHASE_TONE = {
   EARLY: 'var(--fib-phase-early)',
@@ -290,158 +256,247 @@ const PHASE_INK = {
   MID: 'var(--fib-phase-mid)',
   LATE: 'var(--fib-phase-late-ink)',
 };
-const TURN_PX = 16;
-const TURN_ROW = 22;
-const TURN_ROWS_MAX = 3;
-const PULL_PX = 16;
 
-export function RaceTrace({
-  entries, duration, height: baseHeight = 260, cursor, labelFor, iconFor, detailFor,
-  markers = [], turns = [], pulls = [], phases = [], showSkips = false, hideLegend = false, onScrub,
+/* ── The ribbon race ──────────────────────────────────────────────────── */
+
+/*
+ * The match, as the race it was: each side's running item count over the match
+ * clock, the gap between them filled in the colour of whoever led it, and a
+ * pace strip underneath that doubles as the zoom control.
+ *
+ * ── How it got here ──
+ *
+ * The first match chart (RaceTrace) drew the two running counts and nothing
+ * else. It showed the two things people read a match for - WHEN a side started
+ * gathering (the slope) and WHEN it took over (the crossing) - but a close
+ * finish was two lines a pixel apart at the top of a fixed 0-to-total scale.
+ * It was replaced by a tug of war (the signed gap) over hunt lanes (a block per
+ * item). That fixed the close finish and threw away both of the things above:
+ * a margin has no slope to read a burst from, and the lanes were slivers.
+ * Rejected, rightly. This keeps the lines and fixes what was wrong with them:
+ *
+ *   The ribbon.   The space between the two lines is filled in the leader's
+ *                 colour, so a takeover is a colour flip rather than two lines
+ *                 touching - visible even where they run a pixel apart.
+ *   The scale.    The y axis fits the WINDOW, not the match: zoomed onto the
+ *                 finish it runs from where the counts stood at the window's
+ *                 start to where they ended, so the last ten items fill the
+ *                 panel instead of its top fifth.
+ *   The pace.     Items per bucket for each side, as bars under the chart - the
+ *                 direct answer to "when did we start gathering". It always
+ *                 shows the whole round, and dragging across it sets the
+ *                 window above; the drawn selection is the zoom.
+ *
+ * No sprites on the chart. The items live in the team reports below, and the
+ * page highlights the one each side was hunting at the cursor there.
+ *
+ * Three or more competitors have no single pair to fill between, so the
+ * ribbon runs between the leader and the runner-up at each moment - the fight
+ * that decides the top - and every line is still drawn.
+ */
+const MAIN_H = 380;
+const MAIN_TOP = 28;
+const MAIN_BOTTOM = 26;
+const PACE_H = 104;
+const LEFT = 44;
+const RIGHT = 56;
+const BUCKETS = [60, 120, 180, 300, 600, 900];
+
+const countAt = (entry, t) => {
+  let n = 0;
+  for (const e of entry.events) { if (e.t <= t) n += 1; else break; }
+  return n;
+};
+
+export function RibbonRace({
+  entries, duration, from = 0, to = duration, onWindow, cursor, onScrub, phases = [], changeTimes = [], labelFor,
 }) {
   const wrapRef = useRef(null);
   const width = useWidth(wrapRef);
+  const innerW = Math.max(10, width - LEFT - RIGHT);
+  const span = Math.max(1, to - from);
+  const x = (t) => LEFT + ((Math.min(Math.max(t, from), to) - from) / span) * innerW;
+  const xn = (t) => LEFT + (Math.min(Math.max(t, 0), duration) / Math.max(1, duration)) * innerW;
+  const tOfN = (px) => Math.max(0, Math.min(duration, ((px - LEFT) / innerW) * duration));
 
-  /* The phase labels sit above the plot, so the plot starts lower when there
-     are phases to name. */
-  const pad = { top: phases.length ? 30 : 14, right: 16, bottom: 26, left: 40 };
-  const innerW = Math.max(10, width - pad.left - pad.right);
-  const innerH = Math.max(10, baseHeight - pad.top - pad.bottom);
+  /* The moments any count changes inside the window, plus the window's edges. */
+  const times = useMemo(() => {
+    const set = new Set([from, to]);
+    for (const e of entries) for (const ev of e.events) if (ev.t > from && ev.t < to) set.add(ev.t);
+    return [...set].sort((a, b) => a - b);
+  }, [entries, from, to]);
 
-  /* Greedy row packing for the turn strip: each sprite takes the first row
-     whose last sprite ends far enough to its left. */
-  const turnX = (t) => pad.left + (Math.min(t, duration) / Math.max(1, duration)) * innerW;
-  const packedTurns = [];
-  const rowEnds = [];
-  for (const turn of [...turns].sort((a, b) => a.t - b.t)) {
-    const cx = turnX(turn.t);
-    let row = rowEnds.findIndex((end) => cx - TURN_PX / 2 > end + 3);
-    if (row === -1) row = rowEnds.length < TURN_ROWS_MAX ? rowEnds.length : TURN_ROWS_MAX - 1;
-    rowEnds[row] = cx + TURN_PX / 2;
-    packedTurns.push({ ...turn, cx, row });
-  }
-  const turnRows = rowEnds.length;
-  const height = baseHeight + (turnRows ? turnRows * TURN_ROW + 10 : 0);
-  const stripTop = baseHeight + 6;
-
-  const maxScore = Math.max(1, ...entries.map((e) => e.events.length));
-
-  /* The scale tops out at the next whole step above the leader, so the highest
-     gridline is a number worth printing and the winning lane still lands below
-     it rather than on the frame. */
-  const yStep = niceStep(maxScore, COUNT_STEPS, 5);
-  const yMax = Math.max(yStep, Math.ceil(maxScore / yStep) * yStep);
-
-  /* How many time labels the track can actually hold.
-     Measured off the widest label this match will print rather than a constant:
-     an hour-long match labels "1:00:00" and a quickie labels "12:00", and
-     budgeting for the long one on every chart costs the short one half its
-     ticks. ~7px per mono character at the chart's size, plus 22px of gutter so
-     neighbours never touch. On a phone this lands on three labels; asking for
-     six there would overprint them rather than shrink them. */
-  const xLabelPx = f.clock(duration).length * 7 + 22;
-  const xBudget = Math.max(2, Math.min(6, Math.floor(innerW / xLabelPx)));
-  const xStep = niceStep(duration, TIME_STEPS, xBudget);
-
-  const x = (t) => pad.left + (Math.min(t, duration) / Math.max(1, duration)) * innerW;
-  const y = (s) => pad.top + innerH - (s / yMax) * innerH;
+  /* The y range fits the window: from the lowest count at its start to the
+     highest at its end, with a little air, and never under four items tall. */
+  const lo0 = Math.min(...entries.map((e) => countAt(e, from)));
+  const hi0 = Math.max(...entries.map((e) => countAt(e, to)));
+  const range = Math.max(4, hi0 - lo0);
+  const lo = Math.max(0, Math.floor(lo0 - range * 0.04));
+  const hi = Math.ceil(hi0 + range * 0.06);
+  const plotH = MAIN_H - MAIN_TOP - MAIN_BOTTOM;
+  const y = (v) => MAIN_TOP + plotH - ((v - lo) / Math.max(1, hi - lo)) * plotH;
+  const yStep = niceStep(hi - lo, COUNT_STEPS, 6);
+  const yTicks = [];
+  for (let v = Math.ceil(lo / yStep) * yStep; v <= hi; v += yStep) yTicks.push(v);
 
   const stepPath = (entry) => {
-    let d = `M${pad.left.toFixed(1)} ${y(0).toFixed(1)}`;
-    entry.events.forEach((ev, i) => {
-      d += ` L${x(ev.t).toFixed(1)} ${y(i).toFixed(1)} L${x(ev.t).toFixed(1)} ${y(i + 1).toFixed(1)}`;
-    });
-    const last = entry.events.length;
-    d += ` L${x(duration).toFixed(1)} ${y(last).toFixed(1)}`;
-    return d;
+    let prev = countAt(entry, from);
+    let d = `M${x(from).toFixed(1)} ${y(prev).toFixed(1)}`;
+    for (const ev of entry.events) {
+      if (ev.t <= from) continue;
+      if (ev.t > to) break;
+      d += ` L${x(ev.t).toFixed(1)} ${y(prev).toFixed(1)}`;
+      prev += 1;
+      d += ` L${x(ev.t).toFixed(1)} ${y(prev).toFixed(1)}`;
+    }
+    return `${d} L${x(to).toFixed(1)} ${y(prev).toFixed(1)}`;
   };
+
+  /* The ribbon: one rect per interval between count changes, spanning the gap
+     between the top two at that moment, in the leader's colour. Level
+     intervals draw nothing - a tie has no colour. */
+  const ribbon = useMemo(() => {
+    const out = [];
+    for (let i = 0; i < times.length - 1; i += 1) {
+      const t = times[i];
+      const ranked = entries
+        .map((e, lane) => ({ lane, n: countAt(e, t) }))
+        .sort((a, b) => b.n - a.n);
+      if (ranked.length < 2 || ranked[0].n === ranked[1].n) continue;
+      out.push({ t0: t, t1: times[i + 1], lane: ranked[0].lane, top: ranked[0].n, bottom: ranked[1].n });
+    }
+    return out;
+  }, [entries, times]);
+
+  /* Consecutive intervals with the same leader, joined into one run each. */
+  const ribbonRuns = useMemo(() => {
+    const runs = [];
+    for (const r of ribbon) {
+      const last = runs[runs.length - 1];
+      if (last && last[last.length - 1].lane === r.lane && last[last.length - 1].t1 === r.t0) last.push(r);
+      else runs.push([r]);
+    }
+    return runs;
+  }, [ribbon]);
+
+  const xStep = niceStep(span, TIME_STEPS, Math.max(2, Math.min(7, Math.floor(innerW / 90))));
+  const ticks = [];
+  for (let t = Math.ceil(from / xStep) * xStep; t <= to; t += xStep) ticks.push(t);
+
+  /* End labels, nudged apart when two finals land within a line of each other. */
+  const ends = entries
+    .map((e, lane) => ({ lane, n: countAt(e, to), yy: y(countAt(e, to)) }))
+    .sort((a, b) => a.yy - b.yy);
+  for (let i = 1; i < ends.length; i += 1) {
+    if (ends[i].yy - ends[i - 1].yy < 15) ends[i].yy = ends[i - 1].yy + 15;
+  }
+
+  /* ── The pace strip ── */
+  const bucket = BUCKETS.find((s) => duration / s <= 16) ?? BUCKETS[BUCKETS.length - 1];
+  const nBuckets = Math.max(1, Math.ceil(duration / bucket));
+  const pace = entries.map((e) => {
+    const counts = Array(nBuckets).fill(0);
+    for (const ev of e.events) counts[Math.min(nBuckets - 1, Math.floor(ev.t / bucket))] += 1;
+    return counts;
+  });
+  const paceMax = Math.max(1, ...pace.flat());
+  const paceTop = 22;
+  const paceBase = PACE_H - 22;
+  const bw = innerW / nBuckets;
+  const barW = Math.max(2, (bw * 0.78) / entries.length);
+
+  /* Brush: drag across the pace strip to set the window. A drag shorter than a
+     minute is a click, and does nothing - a stray click must not throw away
+     the view the reader had. */
+  const [drag, setDrag] = useState(null);
+  const onDown = (e) => {
+    if (!onWindow) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const t = tOfN(e.clientX - rect.left);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setDrag({ a: t, b: t });
+  };
+  const onMove = (e) => {
+    if (!drag) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDrag((d) => ({ ...d, b: tOfN(e.clientX - rect.left) }));
+  };
+  const onUp = () => {
+    if (!drag) return;
+    const a = Math.min(drag.a, drag.b);
+    const b = Math.max(drag.a, drag.b);
+    setDrag(null);
+    if (b - a >= 60) onWindow(Math.floor(a), Math.ceil(b));
+  };
+  const selA = drag ? Math.min(drag.a, drag.b) : from;
+  const selB = drag ? Math.max(drag.a, drag.b) : to;
+  const zoomed = from > 0 || to < duration;
 
   const handleMove = onScrub
     ? (e) => {
         const rect = e.currentTarget.getBoundingClientRect();
-        const t = ((e.clientX - rect.left - pad.left) / innerW) * duration;
-        onScrub(Math.round(Math.max(0, Math.min(duration, t))));
+        const t = from + ((e.clientX - rect.left - LEFT) / innerW) * span;
+        onScrub(Math.round(Math.max(from, Math.min(to, t))));
       }
     : undefined;
 
+  const two = entries.length === 2;
+
   return (
-    <div ref={wrapRef}>
+    <div ref={wrapRef} className="fib-ribbon">
       <svg
         className="fib-chart"
         width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
+        height={MAIN_H}
+        viewBox={`0 0 ${width} ${MAIN_H}`}
         role="img"
-        aria-label={`Score over time for ${entries.length} competitors across ${f.duration(duration)}.`}
+        aria-label={`Items found over time for ${entries.length} competitors, ${f.clock(from)} to ${f.clock(to)}, the gap shaded in the leader's colour.`}
         data-scrubbable={onScrub ? 'true' : undefined}
         onPointerMove={handleMove}
         onPointerLeave={onScrub ? () => onScrub(null) : undefined}
       >
-        {/* The pools, behind everything. The band is faint - it is context for the
-            lanes, never competition - and the label names the moment it opened. */}
         {phases.map((p, i) => {
+          if (p.to <= from || p.from >= to) return null;
           const x0 = x(p.from);
           const x1 = x(p.to);
-          /* The label takes the longest form that fits before the next phase's
-             line - "Mid pool opens · 5:00", then "Mid · 5:00", then nothing. On
-             an hour-long round the three lines sit in the first quarter of the
-             chart, and on a phone full labels overprinted each other. ~6.6px a
-             character at the label's 11px mono, plus the 6px offset. */
-          const room = (i + 1 < phases.length ? x(phases[i + 1].from) : width - pad.right) - x0 - 10;
+          const room = (i + 1 < phases.length ? x(phases[i + 1].from) : LEFT + innerW) - x0 - 10;
           const short = p.id.charAt(0) + p.id.slice(1).toLowerCase();
-          const forms = p.from > 0
+          const forms = p.from > from
             ? [`${p.label} · ${f.clock(p.from)}`, `${short} · ${f.clock(p.from)}`, short]
-            : [p.label, short];
+            : [p.from > 0 ? `${short} pool` : p.label, short];
           const text = forms.find((s) => s.length * 6.6 <= room) ?? null;
           return (
-            <g key={p.id} className="fib-race-phase">
-              <rect
-                x={x0} y={pad.top} width={Math.max(0, x1 - x0)} height={innerH}
-                fill={PHASE_TONE[p.id]} opacity="0.05"
-              />
-              {p.from > 0 ? (
-                <line x1={x0} x2={x0} y1={pad.top - 14} y2={pad.top + innerH} stroke={PHASE_TONE[p.id]} strokeOpacity="0.55" strokeDasharray="3 3" />
+            <g key={p.id}>
+              <rect x={x0} y={MAIN_TOP} width={Math.max(0, x1 - x0)} height={plotH} fill={PHASE_TONE[p.id]} opacity="0.04" />
+              {p.from > from ? (
+                <line x1={x0} x2={x0} y1={MAIN_TOP - 12} y2={MAIN_TOP + plotH} stroke={PHASE_TONE[p.id]} strokeOpacity="0.45" strokeDasharray="3 3" />
               ) : null}
-              {text ? <text
-                x={x0 + (p.from > 0 ? 6 : 2)} y={pad.top - 8}
-                textAnchor="start"
-                fill={PHASE_INK[p.id]} className="fib-race-phase-label"
-              >
-                {text}
-              </text> : null}
+              {text ? <text x={x0 + (p.from > from ? 6 : 2)} y={MAIN_TOP - 10} fill={PHASE_INK[p.id]} className="fib-race-phase-label">{text}</text> : null}
             </g>
           );
         })}
 
-        {stepsUpTo(yMax, yStep).map((s) => (
-          <g key={s}>
-            <line className="grid" x1={pad.left} x2={width - pad.right} y1={y(s)} y2={y(s)} />
-            <text x={pad.left - 8} y={y(s) + 3} textAnchor="end">{s}</text>
+        {yTicks.map((v) => (
+          <g key={v}>
+            <line className="grid" x1={LEFT} x2={LEFT + innerW} y1={y(v)} y2={y(v)} />
+            <text x={LEFT - 8} y={y(v) + 3} textAnchor="end">{v}</text>
           </g>
         ))}
 
-        {stepsUpTo(duration, xStep).map((t) => {
-          /* Anchored so no label crosses the frame: the first hangs off its tick
-             to the right, anything landing near the right edge hangs to the
-             left, and everything between is centred on its own tick. */
-          const px = x(t);
-          const anchor = t === 0 ? 'start' : px > width - pad.right - 24 ? 'end' : 'middle';
+        {/* The ribbon, under the lines: one shape per unbroken stretch of the
+            same leader. It was a rect per interval, and the anti-aliased seams
+            between neighbouring rects drew a comb of hairlines through it. */}
+        {ribbonRuns.map((run, i) => {
+          const topEdge = run.map((r) => `L${x(r.t0).toFixed(1)} ${y(r.top).toFixed(1)} L${x(r.t1).toFixed(1)} ${y(r.top).toFixed(1)}`).join(' ');
+          const bottomEdge = [...run].reverse().map((r) => `L${x(r.t1).toFixed(1)} ${y(r.bottom).toFixed(1)} L${x(r.t0).toFixed(1)} ${y(r.bottom).toFixed(1)}`).join(' ');
           return (
-            <text key={t} x={px} y={baseHeight - 8} textAnchor={anchor}>
-              {f.clock(t)}
-            </text>
+            <path
+              key={i}
+              d={`M${x(run[0].t0).toFixed(1)} ${y(run[0].bottom).toFixed(1)} ${topEdge} ${bottomEdge} Z`}
+              fill={`var(--fib-race-${run[0].lane % 8})`} fillOpacity="0.2"
+            />
           );
         })}
-
-        <line className="axis" x1={pad.left} x2={pad.left} y1={pad.top} y2={pad.top + innerH} />
-
-        {/* Lead changes, ticked along the base of the track. Brighter and taller
-            than the miniature's, because the scrubber's caption points at them
-            in words — "every tick is a lead change" — and at the miniature's
-            weight they were a promise the chart did not keep. */}
-        {markers.map((t) => (
-          <line key={t} className="tick tick--lead" x1={x(t)} x2={x(t)} y1={pad.top + innerH - 7} y2={pad.top + innerH + 7} />
-        ))}
 
         {entries.map((entry, i) => (
           <path
@@ -449,85 +504,91 @@ export function RaceTrace({
             className="trace"
             d={stepPath(entry)}
             stroke={`var(--fib-race-${i % 8})`}
+            strokeWidth="2.25"
             strokeDasharray={DASHES[i % DASHES.length] || undefined}
-            opacity={cursor == null ? 1 : 0.9}
           />
         ))}
 
-        {/* Skips, on their lane: a small cross where the step was a give-up. */}
-        {showSkips ? entries.map((entry) => entry.events.map((ev, k) => (ev.skipped ? (
-          <g key={`skip-${entry.key}-${k}`} className="fib-race-skip" opacity={cursor != null && ev.t > cursor ? 0.25 : 1}>
-            <path
-              d={`M${x(ev.t) - 3} ${y(k + 1) - 3} l6 6 M${x(ev.t) + 3} ${y(k + 1) - 3} l-6 6`}
-              stroke="var(--fib-ink-3)" strokeWidth="1.5" strokeLinecap="round"
-            />
-            <title>{`${f.clock(ev.t)} - skipped ${itemLabel(ev.itemName)}`}</title>
+        {/* Takeovers: a ring where the new leader's line was when it went ahead. */}
+        {changeTimes.filter((t) => t >= from && t <= to).map((t) => {
+          const leader = entries.reduce((a, b) => (countAt(b, t) > countAt(a, t) ? b : a));
+          return (
+            <circle key={t} cx={x(t)} cy={y(countAt(leader, t))} r="4.5" className="fib-ribbon-turn">
+              <title>{`${labelFor(leader)} took the lead at ${f.clock(t)}`}</title>
+            </circle>
+          );
+        })}
+
+        {ends.map((e) => (
+          <text key={e.lane} x={LEFT + innerW + 8} y={e.yy + 4} className="fib-ribbon-end" fill={`var(--fib-race-${e.lane % 8})`}>
+            {e.n}
+          </text>
+        ))}
+
+        {ticks.map((t) => {
+          const px = x(t);
+          const anchor = px < LEFT + 20 ? 'start' : px > LEFT + innerW - 24 ? 'end' : 'middle';
+          return <text key={t} x={px} y={MAIN_H - 8} textAnchor={anchor}>{f.clock(t)}</text>;
+        })}
+
+        {cursor != null && cursor >= from && cursor <= to ? (
+          <g>
+            <line className="axis" x1={x(cursor)} x2={x(cursor)} y1={MAIN_TOP} y2={MAIN_TOP + plotH} stroke="var(--fib-ink-2)" strokeWidth="1" strokeDasharray="2 3" />
+            {entries.map((e, i) => (
+              <circle key={e.key} cx={x(cursor)} cy={y(countAt(e, cursor))} r="3.5" fill={`var(--fib-race-${i % 8})`} />
+            ))}
           </g>
-        ) : null))) : null}
-
-        {/* Rare pulls, on the lane where they happened. A pull at or after the
-            cursor dims, so a replay reveals them as the race reaches them. */}
-        {pulls.map((p, k) => {
-          const px = x(p.t);
-          const py = y(p.score);
-          const ahead = cursor != null && p.t > cursor;
-          return (
-            <g key={`pull-${k}`} className="fib-race-pull" opacity={ahead ? 0.25 : 1}>
-              <rect
-                x={px - PULL_PX / 2 - 3} y={py - PULL_PX - 9} width={PULL_PX + 6} height={PULL_PX + 6} rx="3"
-                fill="var(--fib-sunk)" stroke={rarityColor(p.tier)} strokeWidth="1.5"
-              />
-              <image
-                href={itemTexture(p.itemName)} x={px - PULL_PX / 2} y={py - PULL_PX - 6}
-                width={PULL_PX} height={PULL_PX}
-              />
-              <line x1={px} x2={px} y1={py - 3} y2={py} stroke={rarityColor(p.tier)} strokeWidth="1.5" />
-              <title>{`${f.clock(p.t)} - ${RARITY_LABEL[p.tier] ?? p.tier} back-to-back: ${itemLabel(p.itemName)}`}</title>
-            </g>
-          );
-        })}
-
-        {/* Scrub cursor. Only drawn when the view is actually scrubbing. */}
-        {cursor != null ? (
-          <line
-            className="axis"
-            x1={x(cursor)} x2={x(cursor)} y1={pad.top} y2={pad.top + innerH}
-            stroke="var(--fib-ink-2)" strokeWidth="1" strokeDasharray="2 3"
-          />
         ) : null}
-
-        {/* The turn strip: what took the lead, under when it did. */}
-        {packedTurns.map((turn, k) => {
-          const top = stripTop + turn.row * TURN_ROW;
-          const ahead = cursor != null && turn.t > cursor;
-          return (
-            <g key={`turn-${k}`} className="fib-race-turn" opacity={ahead ? 0.25 : 1}>
-              <image
-                href={itemTexture(turn.itemName)}
-                x={turn.cx - TURN_PX / 2} y={top} width={TURN_PX} height={TURN_PX}
-              />
-              <rect
-                x={turn.cx - TURN_PX / 2} y={top + TURN_PX + 1} width={TURN_PX} height="2"
-                fill={`var(--fib-race-${turn.lane % 8})`}
-              />
-              <title>{`${f.clock(turn.t)} - ${turn.who ?? 'the lead'} took the lead with ${itemLabel(turn.itemName)}`}</title>
-            </g>
-          );
-        })}
       </svg>
 
-      {hideLegend ? null : (
-      <ul className={`fib-chart-legend${detailFor ? ' fib-lanes' : ''}`}>
-        {entries.map((entry, i) => (
-          <li key={entry.key}>
-            <i style={{ height: 2, background: `var(--fib-race-${i % 8})` }} />
-            {iconFor ? iconFor(entry) : null}
-            <span>{labelFor ? labelFor(entry) : entry.key}</span>
-            {detailFor ? detailFor(entry, i) : null}
+      <ul className="fib-ribbon-key">
+        {entries.map((e, i) => (
+          <li key={e.key}>
+            <i style={{ background: `var(--fib-race-${i % 8})` }} aria-hidden="true" />
+            {labelFor(e)}
           </li>
         ))}
+        {two ? <li className="fib-meta">the shaded gap is the leader's colour</li> : <li className="fib-meta">shaded: leader over runner-up</li>}
       </ul>
-      )}
+
+      <svg
+        className="fib-chart fib-pace"
+        width={width}
+        height={PACE_H}
+        viewBox={`0 0 ${width} ${PACE_H}`}
+        role="img"
+        aria-label={`Items found per ${bucket / 60} minutes by each competitor.${onWindow ? ' Drag across it to zoom the chart above.' : ''}`}
+        data-brush={onWindow ? 'true' : undefined}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={() => setDrag(null)}
+      >
+        <text x={LEFT} y={12} className="fib-pace-title">Items per {bucket / 60} min</text>
+        {zoomed || drag ? (
+          <>
+            <rect x={LEFT} y={paceTop - 4} width={Math.max(0, xn(selA) - LEFT)} height={paceBase - paceTop + 8} className="fib-pace-dim" />
+            <rect x={xn(selB)} y={paceTop - 4} width={Math.max(0, LEFT + innerW - xn(selB))} height={paceBase - paceTop + 8} className="fib-pace-dim" />
+            <rect x={xn(selA)} y={paceTop - 4} width={Math.max(1, xn(selB) - xn(selA))} height={paceBase - paceTop + 8} className="fib-pace-sel" />
+          </>
+        ) : null}
+        {pace.map((counts, lane) => counts.map((n, b) => {
+          const h = (n / paceMax) * (paceBase - paceTop);
+          const bx = LEFT + b * bw + bw * 0.11 + lane * barW;
+          return (
+            <rect key={`${lane}-${b}`} x={bx} y={paceBase - h} width={Math.max(1, barW - 1)} height={h} rx="1.5" fill={`var(--fib-race-${lane % 8})`} fillOpacity="0.85">
+              <title>{`${labelFor(entries[lane])}: ${n} ${n === 1 ? 'item' : 'items'}, ${f.clock(b * bucket)}–${f.clock(Math.min(duration, (b + 1) * bucket))}`}</title>
+            </rect>
+          );
+        }))}
+        <line className="grid" x1={LEFT} x2={LEFT + innerW} y1={paceBase} y2={paceBase} />
+        {cursor != null ? (
+          <line x1={xn(cursor)} x2={xn(cursor)} y1={paceTop - 4} y2={paceBase} stroke="var(--fib-ink-2)" strokeDasharray="2 3" />
+        ) : null}
+        {[0, duration / 2, duration].map((t) => (
+          <text key={t} x={xn(t)} y={PACE_H - 6} textAnchor={t === 0 ? 'start' : t === duration ? 'end' : 'middle'}>{f.clock(t)}</text>
+        ))}
+      </svg>
     </div>
   );
 }

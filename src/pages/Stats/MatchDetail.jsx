@@ -21,15 +21,12 @@ import {
 } from './adapter.js';
 import { loadMatch } from './api.js';
 import { useAsync } from './useAsync.js';
-import { Section, Avatar, Empty, AsyncView } from './Primitives.jsx';
+import { Section, Avatar, Empty, AsyncView, Segmented } from './Primitives.jsx';
 import { LiveBoard, RoundRecords, TeamReport } from './MatchReport.jsx';
 import { labelFor, phaseSchedule, runOf } from './matchModel.js';
-import { RaceTrace } from './Charts.jsx';
+import { RibbonRace } from './Charts.jsx';
 import * as f from './format.js';
 
-
-/** The tiers the chart and the shelf treat as rare: Legendary and above. */
-const RARE_TIERS = ['LEGENDARY', 'RNGESUS', 'EXTRAORDINARY'];
 
 /**
  * Server setting keys, in the wiki's own words.
@@ -227,6 +224,9 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
   const [cursor, setCursor] = useState(null);
   const [hover, setHover] = useState(null);
   const [playing, setPlaying] = useState(false);
+  /* The chart's window, in match seconds. `to` of Infinity means "the end",
+     resolved against the duration below, so the state needs no match to exist. */
+  const [winState, setWin] = useState({ from: 0, to: Infinity });
 
   const model = useMemo(() => {
     if (!match) return null;
@@ -236,19 +236,6 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
       entries,
       changes: leadChanges(entries),
       changeTimes,
-      /* Each lead change, with the item that took it: the new leader's event at
-         that instant. A turn with no matching event (two lanes scoring on the
-         same second) is dropped rather than labelled with a guess. */
-      turns: changeTimes.map((at) => {
-        const leader = standingsAt(entries, at)[0]?.entry;
-        const ev = leader?.events.find((e) => e.t === at);
-        return ev ? { t: at, itemName: ev.itemName, lane: leader.index, who: labelFor(leader) } : null;
-      }).filter(Boolean),
-      /* Rare back-to-backs placed on the lane: the score AFTER the pull is its
-         height, which is where the step lands. */
-      pulls: entries.flatMap((entry) => entry.events
-          .map((ev, k) => ({ t: ev.t, score: k + 1, itemName: ev.itemName, tier: ev.b2b, lane: entry.index }))
-          .filter((p) => RARE_TIERS.includes(p.tier))),
       finalStandings: matchStandings(match),
       runs: entries.map(runOf),
       phases: phaseSchedule(matchDuration(match), match.settings ?? {}),
@@ -293,23 +280,38 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
      the view — trace cursor, standings, FLIP — moves together. The replay
      pauses when the tab hides (rAF throttles to nothing there and the clock
      would silently jump) and stops on unmount. */
-  /* Wall-clock length of one replay of THIS match; stable while the match is. */
-  const replayLength = match ? replayMs(matchDuration(match)) : 10000;
+  /*
+   * The replay plays the chart's WINDOW, not always the whole match. Choosing
+   * "The finish" and pressing play used to start at 0:00 and spend most of the
+   * replay on forty minutes the reader had just zoomed away from. It now runs
+   * from the window's start - or from the cursor, when the reader has already
+   * scrubbed to a point inside it - to the window's end, paced on the window's
+   * own length so a sixteen-minute finish plays at a speed it can be read at.
+   *
+   * At the end of a window that reaches the final whistle the cursor clears and
+   * the page shows the result, as before. A window that ends mid-match leaves
+   * the cursor parked on its last moment, so the board still describes the
+   * stretch that was just watched rather than jumping to the final score.
+   */
+  const matchEnd = match ? matchDuration(match) : 0;
+  const replayFrom = Math.max(0, Math.min(winState.from, matchEnd));
+  const replayTo = Math.min(matchEnd, winState.to);
+  const replayLength = replayMs(Math.max(1, replayTo - replayFrom));
 
   useEffect(() => {
     if (!playing || !match) return undefined;
 
     let raf = 0;
     let start = 0;
-    const from = cursor ?? 0;
+    const from = cursor != null && cursor >= replayFrom && cursor < replayTo ? cursor : replayFrom;
 
     const tick = (now) => {
       if (!start) start = now;
-      const elapsed = ((now - start) / replayLength) * matchDuration(match);
+      const elapsed = ((now - start) / replayLength) * (replayTo - replayFrom);
       const next = from + elapsed;
-      if (next >= matchDuration(match)) {
+      if (next >= replayTo) {
         setPlaying(false);
-        setCursor(null);
+        setCursor(replayTo >= matchEnd ? null : replayTo);
         return;
       }
       setCursor(next);
@@ -325,17 +327,19 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
       document.removeEventListener('visibilitychange', onHidden);
     };
     // `cursor` is deliberately NOT a dependency: the loop captures its start
-    // point once. Depending on it would restart the clock on every frame.
+    // point once. Depending on it would restart the clock on every frame. The
+    // window IS one: changing it mid-replay restarts inside the new window.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, match]);
+  }, [playing, match, replayFrom, replayTo]);
 
   const replay = () => {
     if (playing) {
       setPlaying(false);
     } else {
-      // A cursor parked at the finish would end the replay on its first
-      // frame; rewind instead of no-oping.
-      if (cursor != null && match && cursor >= matchDuration(match)) setCursor(null);
+      // A cursor parked at the window's end, or outside the window, would end
+      // the replay on its first frame or play a stretch nobody is looking at;
+      // rewind to the window's start instead.
+      if (cursor != null && (cursor >= replayTo || cursor < replayFrom)) setCursor(null);
       setPlaying(true);
     }
   };
@@ -369,6 +373,18 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
   const separated = new Set(board.map((r) => r.place)).size > 1;
 
   const totalPulls = runs.reduce((n, r) => n + r.pulls.length, 0);
+
+  /*
+   * Where "the finish" starts: five minutes before the last lead change, or the
+   * final quarter of the match, whichever is earlier - so the window always
+   * holds the decisive turn with some run-up, and a match whose lead never
+   * changed still zooms onto its last quarter. Rounded down to a whole minute.
+   */
+  const lastTurn = changeTimes.length ? changeTimes[changeTimes.length - 1] : duration;
+  const finishFrom = Math.max(0, Math.floor(Math.min(duration * 0.75, lastTurn - 300) / 60) * 60);
+  const win = { from: Math.max(0, winState.from), to: Math.min(duration, winState.to) };
+  const windowId = win.from === 0 && win.to === duration ? 'all'
+    : win.from === finishFrom && win.to === duration ? 'finish' : 'custom';
   const [winner, runnerUp] = finalStandings;
 
   return (
@@ -421,18 +437,38 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
         </header>
 
         <section className="fib-section fib-match-race" aria-label="The race">
-          <RaceTrace
+          {/* The window the chart shows. Two presets, and whatever range the
+              reader drags across the pace strip, which shows up here as a third
+              option so the control always says what is on screen. The window is
+              a lens on the chart only; the scrubber and the board run on the
+              whole match clock. */}
+          <div className="fib-timeline-bar">
+            <Segmented
+                options={[
+                  { id: 'all', label: 'Whole round' },
+                  { id: 'finish', label: `The finish · ${f.clock(finishFrom)}–${f.clock(duration)}` },
+                  ...(windowId === 'custom' ? [{ id: 'custom', label: `${f.clock(win.from)}–${f.clock(win.to)}` }] : []),
+                ]}
+                value={windowId}
+                onChange={(id) => {
+                  if (id === 'all') setWin({ from: 0, to: duration });
+                  if (id === 'finish') setWin({ from: finishFrom, to: duration });
+                }}
+                label="Chart range"
+            />
+            <span className="fib-meta">Drag across the pace bars to zoom into any stretch</span>
+          </div>
+
+          <RibbonRace
               entries={entries}
               duration={duration}
-              height={320}
+              from={win.from}
+              to={win.to}
+              onWindow={(from, to) => setWin({ from, to })}
               cursor={hover ?? cursor}
-              labelFor={labelFor}
-              markers={changeTimes}
-              turns={model.turns}
-              pulls={model.pulls}
               phases={phases}
-              showSkips
-              hideLegend
+              changeTimes={changeTimes}
+              labelFor={labelFor}
               onScrub={playing ? undefined : setHover}
           />
 
@@ -448,8 +484,10 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                   className="fib-replay"
                   onClick={replay}
                   aria-pressed={playing}
-                  aria-label={playing ? 'Pause the replay' : `Replay the match in ${Math.round(replayLength / 1000)} seconds`}
-                  title={playing ? 'Pause' : 'Replay the match'}
+                  aria-label={playing
+                    ? 'Pause the replay'
+                    : `Replay ${windowId === 'all' ? 'the match' : `${f.clock(win.from)} to ${f.clock(win.to)}`} in ${Math.round(replayLength / 1000)} seconds`}
+                  title={playing ? 'Pause' : windowId === 'all' ? 'Replay the match' : `Replay ${f.clock(win.from)}–${f.clock(win.to)}`}
               >
                 {playing ? (
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -519,6 +557,7 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
                       won={row.won}
                       duration={duration}
                       mode={match.mode}
+                      at={scrubbing ? t : null}
                       onOpenPlayer={onOpenPlayer}
                   />
               );
