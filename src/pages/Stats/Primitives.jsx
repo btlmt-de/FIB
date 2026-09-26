@@ -519,8 +519,11 @@ export function Podium({ rows, format = f.num, label, onOpenPlayer, podiumRef })
  * row is the headline, and the match page carries every standing.
  *
  * `compact` drops the metadata column for the overview's half-width feed.
+ * `rank` is for a list ordered by score rather than by time: the first column
+ * carries the place (a medal for the top three) and the date the match was
+ * played, since "how long ago" stops being the organising fact.
  */
-export function MatchVersus({ match, onOpen, compact = false }) {
+export function MatchVersus({ match, onOpen, compact = false, rank }) {
   const standings = matchStandings(match);
   const [win, lose] = standings;
   if (!win) return null;
@@ -536,15 +539,23 @@ export function MatchVersus({ match, onOpen, compact = false }) {
       className="fib-vs"
       data-compact={compact || undefined}
       onClick={() => onOpen?.(match.matchId)}
+      data-ranked={rank != null || undefined}
       aria-label={
-        `${names(win)} ${lose ? `beat ${names(lose)} ${win.score} to ${lose.score}` : `won with ${win.score}`}`
+        `${rank != null ? `Place ${rank}: ` : ''}${names(win)} ${lose ? `beat ${names(lose)} ${win.score} to ${lose.score}` : `won with ${win.score}`}`
         + `${rest ? ` in a field of ${standings.length}` : ''}, ${timeAgo(match.endedAt)}. Open the match.`
       }
     >
-      <span className="fib-vs-when">
-        <b>{timeAgo(match.endedAt)}</b>
-        {compact ? null : <span className="fib-meta">{f.stamp(match.endedAt)}</span>}
-      </span>
+      {rank != null ? (
+        <span className="fib-vs-when fib-vs-rank">
+          <Medal place={rank} />
+          <span className="fib-meta">{f.stamp(match.endedAt)}</span>
+        </span>
+      ) : (
+        <span className="fib-vs-when">
+          <b>{timeAgo(match.endedAt)}</b>
+          {compact ? null : <span className="fib-meta">{f.stamp(match.endedAt)}</span>}
+        </span>
+      )}
 
       <span className="fib-vs-side" data-side="win">
         <span className="fib-vs-names">{names(win)}</span>

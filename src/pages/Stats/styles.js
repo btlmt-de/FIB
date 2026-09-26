@@ -2054,6 +2054,12 @@ ${cssVariables()}
 .fib-vs[data-compact] { grid-template-columns: 64px minmax(0, 1fr) 104px minmax(0, 1fr); gap: var(--fib-space-3); }
 
 .fib-vs-when { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Ranked by score: the place leads the row, the date sits under it. */
+.fib-vs-rank { flex-direction: row; align-items: center; gap: var(--fib-space-3); }
+.fib-vs[data-ranked] { grid-template-columns: 150px minmax(0, 1fr) 128px minmax(0, 1fr) 150px; }
+
+/* The feed's two lenses side by side: order, then mode. */
+.fib-matches-controls { display: flex; flex-wrap: wrap; gap: var(--fib-space-3); }
 .fib-vs-when b { font-size: var(--fib-text-sm); font-weight: 500; white-space: nowrap; }
 
 .fib-vs-side { display: flex; align-items: center; gap: var(--fib-space-3); min-width: 0; }
@@ -2092,7 +2098,7 @@ ${cssVariables()}
  * and the time moves above it. What goes is the names' room, never the score.
  */
 @container fib-page (max-width: 760px) {
-  .fib-vs, .fib-vs[data-compact] {
+  .fib-vs, .fib-vs[data-compact], .fib-vs[data-ranked] {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     row-gap: 6px; column-gap: var(--fib-space-3);
   }
