@@ -60,8 +60,19 @@ export const idLabel = (identity) => {
     return uuid ? String(uuid).slice(0, 8) : 'Unknown';
 };
 
-/** A head-renderer URL for a uuid. The renderer keys on uuid, so this needs no name. */
-export const playerAvatar = (uuid) => `https://mc-heads.net/avatar/${uuid ?? 'MHF_Question'}/48`;
+/**
+ * A head-renderer URL for a uuid. The renderer keys on uuid, so this needs no name.
+ *
+ * mineatar, not mc-heads. mc-heads caches a render per URL, and for some accounts it had cached
+ * the DEFAULT skin under some of those URLs: rzem and threeseconds were Steve on the stats page
+ * while other sizes of the same head were right, and a cache-busting query string changed
+ * nothing. It serves that Steve as a 200, so neither the retry in useHeadSrc nor the worker's
+ * head cache could tell it from a real head, and the cache then kept it for a day. mineatar (the
+ * same renderer behind minotar's `helm/`) resolved both. Its face is 8 px per unit of scale.
+ */
+export const playerAvatar = (uuid, size = 48) => (uuid
+    ? `https://api.mineatar.io/face/${uuid}?scale=${Math.max(1, Math.round(size / 8))}`
+    : 'https://mc-heads.net/avatar/MHF_Question/48');
 
 // ── Items ───────────────────────────────────────────────────────────────────
 // Stored namespaced ("minecraft:oak_log") so the data outlives MC version churn;

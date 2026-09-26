@@ -14,7 +14,7 @@ import {
   tokens, RARITY_LABEL, ITEM_TEXTURE_FALLBACK, spriteSize, rarityColor,
 } from './tokens.js';
 import {
-  itemKey, itemLabel, itemTexture, playerName, avatarAt, headAt, AVATAR_FALLBACK,
+  itemKey, itemLabel, itemTexture, playerName, avatarAt, headAt, AVATAR_FALLBACK, HEAD_FALLBACK,
   matchStandings, matchDuration, idLabel, idUuid, timeAgo,
 } from './adapter.js';
 import { prefersReducedMotion, canObserve } from './env.js';
@@ -355,12 +355,12 @@ function useHeadSrc(url, fallback) {
 
 /*
  * `crossOrigin="anonymous"` is what lets the service worker keep a head at all.
- * Without it the browser fetches mc-heads in no-cors mode, the worker sees an
+ * Without it the browser fetches the head in no-cors mode, the worker sees an
  * opaque response (status 0, `ok` false), and its "only cache successful
  * responses" rule silently skipped every head it ever intercepted - so heads
- * were refetched on every page. mc-heads answers with
- * `Access-Control-Allow-Origin: *`, so the CORS request costs nothing. See the
- * head cache in public/sw.js.
+ * were refetched on every page. Both mineatar and mc-heads (the fallback)
+ * allow any origin, so the CORS request costs nothing. See the head cache in
+ * public/sw.js.
  */
 export function Avatar({ uuid, size = 28, className = '' }) {
   const { src, onError } = useHeadSrc(avatarAt(uuid, size * 2), AVATAR_FALLBACK);
@@ -433,7 +433,7 @@ const PODIUM_BLOCK = { 1: 'gold_block', 2: 'iron_block', 3: 'copper_block' };
  * has loaded before React attaches the handler) is caught by the ref check.
  */
 export function PodiumHead({ uuid, size }) {
-  const { src, onError } = useHeadSrc(headAt(uuid, 128), headAt(null, 128));
+  const { src, onError } = useHeadSrc(headAt(uuid, 128), HEAD_FALLBACK);
   const [loaded, setLoaded] = useState(false);
   const ref = useCallback((el) => { if (el?.complete && el.naturalWidth > 0) setLoaded(true); }, []);
   return (

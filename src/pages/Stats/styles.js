@@ -690,8 +690,8 @@ ${cssVariables()}
 }
 
 /*
- * The background is a head waiting to arrive. Heads come from mc-heads, a third
- * party that routinely takes a second or two, and until then every avatar was a
+ * The background is a head waiting to arrive. Heads come from a third-party
+ * renderer (mineatar, mc-heads before it) that routinely takes a second or two, and until then every avatar was a
  * flat grey square - five of nine on the player directory at first paint, which
  * read as missing players rather than slow ones. Two dark pixels on the 8x8 grid
  * where a face's eyes sit make the placeholder say "a head goes here"; the real

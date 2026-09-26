@@ -77,7 +77,10 @@ const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/
 // Player heads. mc-heads.net is what getMinecraftHeadUrl() actually returns;
 // the minotar.net pattern this replaced had stopped matching anything. `head/`
 // is the isometric render the stats podium and player cards stand on blocks.
-const HEAD_PATTERN = /mc-heads\.net\/(avatar|head)\//;
+// The stats module now asks api.mineatar.io instead (see playerAvatar in
+// src/pages/Stats/data.js) and keeps mc-heads only for its Steve fallbacks, so
+// both hosts are matched.
+const HEAD_PATTERN = /mc-heads\.net\/(avatar|head)\/|api\.mineatar\.io\/(face|head)\//;
 
 // Heads live in their own cache with a 24-hour life, not in CACHE_NAME's
 // keep-forever one.
@@ -99,7 +102,13 @@ const HEAD_PATTERN = /mc-heads\.net\/(avatar|head)\//;
 // crossOrigin="anonymous", and mc-heads allows `*`). Opaque ones pass straight
 // through: Chrome pads each opaque entry to megabytes of quota, which is how a
 // cache of small images fills a disk budget.
-const HEAD_CACHE = 'fib-heads-v1';
+//
+// The cache has a blind spot: it keeps anything served as a 200, and mc-heads
+// served a DEFAULT skin as a 200 for accounts it had failed to resolve. v1 held
+// those Steves for a day at a time. v2 is a clean start after the move to
+// mineatar; the activate sweep deletes v1 because it is a `fib-` cache under
+// another name.
+const HEAD_CACHE = 'fib-heads-v2';
 const HEAD_TTL_MS = 24 * 60 * 60 * 1000;
 const STORED_AT = 'x-fib-stored-at';
 
