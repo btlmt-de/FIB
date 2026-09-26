@@ -313,18 +313,68 @@ export function ItemImage({ name, size = 32, className = '', loading = 'lazy' })
   );
 }
 
+/*
+ * One retry before Steve.
+ *
+ * Every head used to fall back to Steve on its FIRST error, and stay Steve for
+ * the rest of the visit. mc-heads fails transiently rather than permanently: a
+ * render it has not made before misses Cloudflare and goes to its origin, and a
+ * page that asks for a dozen new renders at once can have some refused. A
+ * player's real head one second later is worth far more than an instant Steve,
+ * so the first error waits and asks again, and only the second gives up.
+ *
+ * The retry carries `?retry=1` so it is a different URL: re-setting the same
+ * src would not refire the request, and a cached failure would be served back.
+ */
+const HEAD_RETRY_MS = 1200;
+
+function useHeadSrc(url, fallback) {
+  const [attempt, setAttempt] = useState(0);
+  /* A reused element (a row that now shows another player) starts over: the
+     last player's failure says nothing about this one. Reset during render,
+     React's "adjust state when a prop changes" pattern, so there is no frame
+     showing the old fallback. */
+  const [forUrl, setForUrl] = useState(url);
+  if (forUrl !== url) {
+    setForUrl(url);
+    setAttempt(0);
+  }
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const onError = () => {
+    if (attempt === 0) {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setAttempt(1), HEAD_RETRY_MS);
+    } else if (attempt === 1) {
+      setAttempt(2);
+    }
+  };
+  const src = attempt === 0 ? url : attempt === 1 ? `${url}${url.includes('?') ? '&' : '?'}retry=1` : fallback;
+  return { src, onError };
+}
+
+/*
+ * `crossOrigin="anonymous"` is what lets the service worker keep a head at all.
+ * Without it the browser fetches mc-heads in no-cors mode, the worker sees an
+ * opaque response (status 0, `ok` false), and its "only cache successful
+ * responses" rule silently skipped every head it ever intercepted - so heads
+ * were refetched on every page. mc-heads answers with
+ * `Access-Control-Allow-Origin: *`, so the CORS request costs nothing. See the
+ * head cache in public/sw.js.
+ */
 export function Avatar({ uuid, size = 28, className = '' }) {
-  const [failed, setFailed] = useState(false);
+  const { src, onError } = useHeadSrc(avatarAt(uuid, size * 2), AVATAR_FALLBACK);
   return (
     <img
       className={`fib-avatar ${className}`.trim()}
-      src={failed ? AVATAR_FALLBACK : avatarAt(uuid, size * 2)}
+      src={src}
       width={size}
       height={size}
       alt=""
       loading="lazy"
       decoding="async"
-      onError={() => { if (!failed) setFailed(true); }}
+      crossOrigin="anonymous"
+      onError={onError}
     />
   );
 }
@@ -383,7 +433,7 @@ const PODIUM_BLOCK = { 1: 'gold_block', 2: 'iron_block', 3: 'copper_block' };
  * has loaded before React attaches the handler) is caught by the ref check.
  */
 export function PodiumHead({ uuid, size }) {
-  const [failed, setFailed] = useState(false);
+  const { src, onError } = useHeadSrc(headAt(uuid, 128), headAt(null, 128));
   const [loaded, setLoaded] = useState(false);
   const ref = useCallback((el) => { if (el?.complete && el.naturalWidth > 0) setLoaded(true); }, []);
   return (
@@ -391,13 +441,14 @@ export function PodiumHead({ uuid, size }) {
       ref={ref}
       className="fib-podium-head"
       data-loaded={loaded || undefined}
-      src={failed ? headAt(null, 128) : headAt(uuid, 128)}
+      src={src}
       width={size}
       alt=""
       decoding="async"
+      crossOrigin="anonymous"
       draggable={false}
       onLoad={() => setLoaded(true)}
-      onError={() => { if (!failed) setFailed(true); }}
+      onError={onError}
     />
   );
 }
