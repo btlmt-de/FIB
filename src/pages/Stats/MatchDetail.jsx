@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   matchStandings, matchDuration, raceEntries, standingsAt, leadChanges, leadChangeTimes,
-  idLabel, idUuid,
+  idLabel, idUuid, matchHeadline,
 } from './adapter.js';
 import { useFlipRows } from './useFlip.js';
 import { loadMatch } from './api.js';
@@ -397,12 +397,15 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
   return (
       <div className="fib-page">
         <Section
-            title={`${match.mode === 'SOLO' ? 'Solo' : 'Team'} match`}
+            /* The same headline the overview's featured match carries, so the story
+               a reader clicked on is the story this page opens with. It used to open
+               on "Team match" - the one fact every match in the feed shares. */
+            title={matchHeadline(match, changeTimes.length ? changeTimes[changeTimes.length - 1] : null).text}
             /* `hours`, not `duration`: a match that runs past the hour reads
                "60m 3s" through the latter, which is a number the reader has to
                convert, and this page already prints "1:00:03" on the scrubber
                eighty pixels below it. */
-            sub={`${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.hours(matchDuration(match))}`}
+            sub={`${match.mode === 'SOLO' ? 'Solo' : 'Team'} match · ${f.date(match.endedAt)} at ${f.timeOfDay(match.endedAt)} · ${f.hours(matchDuration(match))}`}
             aside={
               <button type="button" className="fib-btn fib-btn--quiet" onClick={onBack}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

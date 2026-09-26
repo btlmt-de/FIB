@@ -12,6 +12,10 @@
  * other two ride along in the footer as context, so one card answers all three
  * questions and never prints the active metric twice.
  *
+ * Above the grid sit the index's three records (see itemRecords): the most
+ * common item, the slowest, the most skipped, each at full sprite size and each
+ * a button into its sort.
+ *
  * The grid is windowed, not paged: the whole index arrives in one call and a
  * sentinel grows how many cards are mounted as it nears the viewport, so the DOM
  * stays light as the pool grows. Where IntersectionObserver is absent the whole
@@ -58,6 +62,7 @@ function toItemRow(r) {
   return {
     itemName: r.itemName,
     seen,
+    skips: r.totalSkips ?? 0,
     avgSeconds: r.avgSeconds ?? 0,
     skipRate: seen > 0 ? ((r.totalSkips ?? 0) / seen) * 100 : 0,
   };
@@ -121,6 +126,50 @@ const bound = (s) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/*
+ * The fewest appearances an item needs before it can hold a record. The time
+ * and skip records are averages and shares, and an item seen once is always
+ * either 100% skipped or 0% - one unlucky round is not "the most skipped item
+ * on the server". Five is small enough that a young server still has holders.
+ * The appearance count is printed beside every record so the sample is on show
+ * (the Measured Rarity Rule: counted, never asserted).
+ */
+const RECORD_MIN_SEEN = 5;
+
+/*
+ * The index's three records: the item that comes up most, the one that eats
+ * the most time, the one players give up on most. They open the page as
+ * objects - the sprite at full size on its phase floor, the name in the
+ * jersey - because the item index was a wall of identical cards whose top row
+ * was simply whatever sorted first, and the three extremes are the facts about
+ * the pool people actually repeat to each other. Each is also the way into
+ * its sort: pressing one orders the grid by the question it answers.
+ */
+function itemRecords(items) {
+  const pool = items.filter((r) => r.seen >= RECORD_MIN_SEEN);
+  const top = (list, key) => list.reduce((best, r) => (best == null || key(r) > key(best) ? r : best), null);
+  const common = top(items, (r) => r.seen);
+  const slow = top(pool, (r) => r.avgSeconds);
+  const skipped = top(pool, (r) => r.skipRate);
+  return [
+    common && {
+      sort: 'seen', title: 'Comes up most', item: common,
+      figure: f.num(common.seen), unit: 'times',
+      note: `found ${f.num(common.seen - common.skips)}, skipped ${f.num(common.skips)}`,
+    },
+    slow && {
+      sort: 'slow', title: 'Biggest time sink', item: slow,
+      figure: f.duration(slow.avgSeconds), unit: 'on average',
+      note: `across ${f.num(slow.seen)} appearances`,
+    },
+    skipped && skipped.skips > 0 && {
+      sort: 'skipped', title: 'Most given up on', item: skipped,
+      figure: f.pct(skipped.skipRate, 0), unit: 'skipped',
+      note: `${f.num(skipped.skips)} of ${f.num(skipped.seen)} appearances`,
+    },
+  ].filter(Boolean);
+}
+
 const EMPTY_FACETS = {
   phases: [], seenMin: '', seenMax: '', skipMin: '', skipMax: '',
 };
@@ -177,6 +226,7 @@ function ItemsBody({ items }) {
   }, [items, active, query, facets]);
 
   const totalSeen = items.reduce((a, r) => a + r.seen, 0);
+  const records = useMemo(() => itemRecords(items), [items]);
 
   /* Field maxima for the share bars — one pass over the index, reused by
      whichever sort is active so the bar always reads against its own field. */
@@ -234,6 +284,37 @@ function ItemsBody({ items }) {
             sub={`${items.length} distinct items across ${f.num(totalSeen)} appearances in the sampled matches.`}
             aside={<Search value={query} onChange={setQuery} placeholder="Find an item" label="Find an item" hotkey />}
         >
+          {records.length > 0 ? (
+            <div className="fib-item-records">
+              {records.map((rec) => {
+                const ph = phaseOf(rec.item.itemName);
+                const phase = ph ? PHASE[ph] : null;
+                return (
+                  <button
+                    key={rec.sort}
+                    type="button"
+                    className="fib-item-record"
+                    aria-pressed={sort === rec.sort}
+                    onClick={() => setSort(rec.sort)}
+                    style={{ '--phase': phase ? phase.tone : 'var(--fib-netherite)' }}
+                  >
+                    <span className="fib-item-record-media" aria-hidden="true">
+                      <ItemImage name={rec.item.itemName} size={128} />
+                    </span>
+                    <span className="fib-item-record-body">
+                      <span className="fib-label">{rec.title}</span>
+                      <span className="fib-item-record-name">{f.itemLabel(rec.item.itemName)}</span>
+                      <span className="fib-item-record-figure">
+                        <b>{rec.figure}</b> {rec.unit}
+                      </span>
+                      <span className="fib-meta">{rec.note}{phase ? <> · <span style={{ color: phase.ink }}>{phase.label}</span></> : null}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
           <div className="fib-faceted">
             <FacetRail activeCount={activeFacets} onClear={() => setFacets(EMPTY_FACETS)}>
               <FacetGroup title="Match phase" hint="When in a match the item can start coming up.">

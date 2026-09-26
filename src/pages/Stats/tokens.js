@@ -14,10 +14,18 @@
  *     pixel. Gold, diamond and emerald each mean exactly one thing and are
  *     never used decoratively — a gold pixel that isn't about rank is a bug.
  *
- *  2. THE NUMBER IS THE DISPLAY TYPE. There is no display face. Words are set
- *     in a tight grotesk at UI sizes; digits are set in tabular mono at up to
- *     4.25rem and carry the entire hierarchy. `12,438` at 68px against
- *     near-black IS the headline.
+ *  2. THE NUMBER IS THE DATA TYPE; THE JERSEY IS THE VOICE. Words are set in
+ *     a tight grotesk at UI sizes and every digit in tabular mono. Headlines,
+ *     page titles and player names are set in Jersey 10, a pixel face cut like
+ *     the lettering on a team shirt.
+ *
+ *     *This rule used to read "there is no display face".* It kept the module
+ *     disciplined and left it with no voice: every heading was Inter Bold, the
+ *     most interchangeable type there is, and a critique in September 2026 could
+ *     not find one thing on the page that said ForceItemBattle. The pixel face
+ *     is drawn on the same grid as the sprites it sits beside, which is why it
+ *     belongs here and a generic display face would not. Digits stay mono: a
+ *     number is still read, compared and aligned, and the jersey is for words.
  *
  *  3. DEPTH IS LIGHTNESS, AND LIGHT FALLS DOWNWARD. Surfaces step up the L
  *     axis (0.148 -> 0.178 -> 0.228 -> 0.272). No blur, no translucent glass.
@@ -231,6 +239,11 @@ export const tokens = {
     /* Every digit in the module. Loaded, not merely stacked, because the
        fallback chain's metrics differ enough to change layout. */
     mono: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    /* The voice: headlines, page titles, player names. A pixel face with a
+       single weight, so it never takes font-weight - bolding it smears the
+       pixel grid. Its x-height is small; it is set larger than the grotesk it
+       replaces (see the display sizes below) to read at the same weight. */
+    display: '"Jersey 10", "JetBrains Mono", ui-monospace, monospace',
   },
 
   /** Fixed rem scale, ratio ~1.2. Product UI: no fluid type on chrome. */
@@ -246,6 +259,17 @@ export const tokens = {
     '3xl': '2.25rem',    // 36px — figures
     '4xl': '3rem',       // 48px — large figures
     '5xl': '4.25rem',    // 68px — the hero figure. The ceiling.
+  },
+
+  /** The jersey's own steps. Its x-height is low, so each step sits well above
+      the grotesk size it replaced: a 36px section heading reads at the weight a
+      22px Inter one did. */
+  display: {
+    sm: '1.625rem',     // 26px — card and podium names
+    md: '2.25rem',      // 36px — section headings
+    mark: '2.75rem',    // 44px — the rail's "FIB" wordmark, and nothing else
+    lg: '3.25rem',      // 52px — page titles
+    xl: '4.5rem',       // 72px — the overview's headline
   },
 
   space: { 1: '4px', 2: '8px', 3: '12px', 4: '16px', 5: '24px', 6: '32px', 7: '48px', 8: '72px' },
@@ -331,7 +355,9 @@ export function cssVariables() {
     ...tokens.race.map((v, i) => `  --fib-race-${i}: ${v};`),
     `  --fib-font-sans: ${tokens.font.sans};`,
     `  --fib-font-mono: ${tokens.font.mono};`,
+    `  --fib-font-display: ${tokens.font.display};`,
     ...Object.entries(tokens.size).map(([k, v]) => `  --fib-text-${k}: ${v};`),
+    ...Object.entries(tokens.display).map(([k, v]) => `  --fib-display-${k}: ${v};`),
     ...Object.entries(tokens.space).map(([k, v]) => `  --fib-space-${k}: ${v};`),
     ...Object.entries(tokens.radius).map(([k, v]) => `  --fib-radius-${k}: ${v};`),
     ...Object.entries(tokens.z).map(([k, v]) => `  --fib-z-${k}: ${v};`),

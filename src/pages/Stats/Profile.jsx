@@ -52,6 +52,7 @@ import { canObserve } from './env.js';
 import {
   Section, Figure, Avatar, Sprite, Medal, Segmented, Search, Empty,
   RarityRamp, PlayerLink, Reveal, Counter, AsyncView, PCard, CardMeter,
+  ItemImage, PodiumHead,
 } from './Primitives.jsx';
 import { ScoreTrend } from './Charts.jsx';
 import * as f from './format.js';
@@ -254,8 +255,21 @@ function PlayerProfileBody({
 
             <div className="fib-hero-grid">
               <div className="fib-hero-id">
-                <div className="fib-well fib-hero-avatar">
-                  <Avatar uuid={uuid} size={128} />
+                {/*
+                  The player stands on what they earned: the podium's block for a
+                  top-three solo rank (gold, iron, copper), grass for everyone
+                  else - the same ground the directory card stands them on. The
+                  flat face in a well this replaced was the one object on the page
+                  that could have been from any game.
+                */}
+                <div className="fib-hero-stand" aria-hidden="true">
+                  <ItemImage
+                    name={({ 1: 'gold_block', 2: 'iron_block', 3: 'copper_block' })[rank?.rank] ?? 'grass_block'}
+                    size={128}
+                    className="fib-hero-block"
+                    loading="eager"
+                  />
+                  <PodiumHead uuid={uuid} size={112} />
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <h1 className="fib-hero-name">{name}</h1>

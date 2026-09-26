@@ -5,18 +5,19 @@
  * needs chronology landmarks, because "the match last Tuesday" is how people
  * actually look for a game.
  *
- * The row is the summary: who won, who they beat, and by how much. "By how
- * much" is the field a normal match list leaves out and the one that decides
- * whether a match is worth opening, so it gets a real visual — the margin bar
- * — and the runner-up's name, because a margin without a victim is only half
- * the story.
+ * The row is a scoreboard line (MatchVersus, shared with the overview): the
+ * winners and the beaten facing each other across the score, the margin under
+ * it, and how many times the lead changed at the end - the one number that
+ * says whether a match is worth opening. It used to be a list of winners with
+ * the losing side reduced to a clause and a grey margin bar, so every row
+ * looked the same and the match itself was never on the line.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { matchStandings, matchDuration, idLabel, idUuid } from './adapter.js';
+import { matchStandings } from './adapter.js';
 import { loadMatches } from './api.js';
 import { useAsync } from './useAsync.js';
-import { Section, Avatar, Medal, Segmented, Empty, AsyncView } from './Primitives.jsx';
+import { Section, Segmented, Empty, AsyncView, MatchVersus } from './Primitives.jsx';
 import * as f from './format.js';
 
 const MODES = [
@@ -133,7 +134,6 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
         return [...byDay.values()];
     }, [matches, mode]);
 
-    const widestMargin = Math.max(1, ...groups.flatMap((g) => g.rows.map((r) => r.margin)));
 
     return (
         <div className="fib-page fib-page--wide">
@@ -208,52 +208,8 @@ function MatchesBody({ firstPage, totalCount, onOpenMatch }) {
                         <section className="fib-day" key={group.label}>
                             <h3>{group.label}</h3>
                             <div className="fib-panel fib-panel--flush">
-                                {group.rows.map(({ match, standings, winner, runnerUp, margin }) => (
-                                    winner ? (
-                                    <button
-                                        key={match.matchId}
-                                        type="button"
-                                        className="fib-row-link fib-match-row"
-                                        onClick={() => onOpenMatch(match.matchId)}
-                                    >
-                                        <div className="fib-match-when">
-                                            <b>{f.timeAgo(match.endedAt)}</b>
-                                            <span className="fib-meta">{f.stamp(match.endedAt)}</span>
-                                        </div>
-
-                                        <div className="fib-match-winner">
-                                            <Medal place={1} />
-                                            <div style={{ display: 'flex', minWidth: 0 }}>
-                                                {winner.members.map((m) => (
-                                                    <Avatar key={idUuid(m)} uuid={idUuid(m)} size={26} />
-                                                ))}
-                                            </div>
-                                            <span className="fib-match-names">
-                        {winner.members.map(idLabel).join(' & ')}
-                      </span>
-                                        </div>
-
-                                        <div className="fib-match-margin">
-                                            <div className="fib-ramp-track" style={{ height: 5, color: margin <= 2 ? 'var(--fib-negative)' : 'var(--fib-ink-3)' }}>
-                                                <i style={{ '--fill': margin / widestMargin }} />
-                                            </div>
-                                            <span className="fib-meta">
-                        {!runnerUp
-                            ? 'uncontested'
-                            : margin === 0
-                                ? 'tied at the line'
-                                : `beat ${runnerUp.members.map(idLabel).join(' & ')} by ${margin}`}
-                      </span>
-                                        </div>
-
-                                        <div className="fib-match-score">
-                                            <b>{winner.score}</b>
-                                            <span className="fib-meta">
-                        {match.mode === 'SOLO' ? 'solo' : 'team'} · {standings.length} · {f.duration(matchDuration(match))}
-                      </span>
-                                        </div>
-                                    </button>
-                                    ) : null
+                                {group.rows.map(({ match }) => (
+                                    <MatchVersus key={match.matchId} match={match} onOpen={onOpenMatch} />
                                 ))}
                             </div>
                         </section>

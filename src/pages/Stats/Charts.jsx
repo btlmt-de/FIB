@@ -15,6 +15,7 @@
 
 import React, { useEffect, useId, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { tokens } from './tokens.js';
+import { itemTexture, itemLabel } from './adapter.js';
 import { prefersReducedMotion } from './env.js';
 import { usePendingReveal } from './useSeen.js';
 import * as f from './format.js';
@@ -77,7 +78,12 @@ export function ScoreTrend({ points, height = 190, label = 'Score per match' }) 
   const pathRef = useRef(null);
   const width = useWidth(wrapRef);
 
-  const pad = { top: 16, right: 14, bottom: 24, left: 40 };
+  /* The right gutter holds the average's label. It used to sit inside the
+     plot, right-aligned above the mean line - exactly where the newest match's
+     dot lands whenever the latest score is near the average, and on a real
+     profile it printed "avg 62" through the last point. In the gutter it
+     labels the line's end and can never meet the data. */
+  const pad = { top: 16, right: 52, bottom: 24, left: 40 };
   const innerW = Math.max(10, width - pad.left - pad.right);
   const innerH = Math.max(10, height - pad.top - pad.bottom);
 
@@ -145,7 +151,7 @@ export function ScoreTrend({ points, height = 190, label = 'Score per match' }) 
           x1={pad.left} x2={width - pad.right} y1={meanY} y2={meanY}
           strokeDasharray="3 4"
         />
-        <text x={width - pad.right} y={meanY - 6} textAnchor="end">
+        <text x={width - pad.right + 8} y={meanY + 3} textAnchor="start">
           avg {f.num(Math.round(mean))}
         </text>
 
@@ -403,7 +409,16 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
  * The baseline is deliberately outside the clip: the track exists before the
  * race runs along it.
  */
-export function RaceMini({ entries, duration, height = 132, markers = [], label = 'Score over time' }) {
+/*
+ * `finish` is an item name: the winner's last find, drawn as its sprite just
+ * past the finish line beside the winning lane's end dot. It sits inside the
+ * wipe, so it is the last thing the race reveals - the item that closed the
+ * match arrives when the match closes. The right pad widens to make room for
+ * it rather than letting it overhang the chart.
+ */
+const FINISH_PX = 32;
+
+export function RaceMini({ entries, duration, height = 132, markers = [], label = 'Score over time', finish }) {
   const wrapRef = useRef(null);
   const svgRef = useRef(null);
   const width = useWidth(wrapRef);
@@ -413,7 +428,7 @@ export function RaceMini({ entries, duration, height = 132, markers = [], label 
      and React's generated ids contain them. */
   const clipId = `fib-wipe-${useId().replace(/:/g, '')}`;
 
-  const pad = { top: 10, right: 12, bottom: 12, left: 6 };
+  const pad = { top: 10, right: finish ? FINISH_PX + 18 : 12, bottom: 12, left: 6 };
   const innerW = Math.max(10, width - pad.left - pad.right);
   const innerH = Math.max(10, height - pad.top - pad.bottom);
 
@@ -486,6 +501,19 @@ export function RaceMini({ entries, duration, height = 132, markers = [], label 
               fill={`var(--fib-race-${i % 8})`}
             />
           ))}
+
+          {finish && entries[0] ? (
+            <image
+              className="fib-race-finish"
+              href={itemTexture(finish)}
+              x={x(duration) + 8}
+              y={Math.max(0, Math.min(height - FINISH_PX, y(entries[0].events.length) - FINISH_PX / 2))}
+              width={FINISH_PX}
+              height={FINISH_PX}
+            >
+              <title>{`Last find: ${itemLabel(finish)}`}</title>
+            </image>
+          ) : null}
         </g>
       </svg>
     </div>

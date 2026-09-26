@@ -219,20 +219,72 @@ export async function loadPlayerIndex() {
     (Array.isArray(combined) ? combined : []).forEach((row) => addItems(add(row.player), row.value));
     (Array.isArray(duo) ? duo : []).forEach((row) => { add(row.player1); add(row.player2); });
 
+    /*
+     * The feed also carries each player's record inside it, so the directory
+     * reads it rather than showing two bare facts per name.
+     *
+     *   played / wins   every match of theirs the feed holds. On this server the
+     *                   feed's 100 rows are the whole history; where it is not,
+     *                   `feedWindow` < `feedTotal` and the view says "in the last
+     *                   N matches" rather than implying a career.
+     *   results         their own results, oldest first - the form the card
+     *                   draws. A player's run, not the server's: their tenth-last
+     *                   match may be weeks before someone else's.
+     *   partner         the teammate they have shared the most team matches
+     *                   with, and how many. A fact about who plays with whom,
+     *                   which on a nine-player server is most of what there is
+     *                   to know about a player.
+     *
+     * Still not a placing: a record is a fact about one player, and the
+     * directory never orders the field by it. /ranking does that.
+     */
     for (const match of feed?.matches ?? []) {
         const at = new Date(match.endedAt).getTime();
         if (!Number.isFinite(at)) continue;
-        for (const p of match.participants ?? []) {
+        const participants = match.participants ?? [];
+        for (const p of participants) {
             const entry = add(p.player);
-            if (entry && (entry.lastSeen == null || at > entry.lastSeen)) entry.lastSeen = at;
+            if (!entry) continue;
+            if (entry.lastSeen == null || at > entry.lastSeen) entry.lastSeen = at;
+            entry.played = (entry.played ?? 0) + 1;
+            entry.wins = (entry.wins ?? 0) + (p.won ? 1 : 0);
+            (entry.results ??= []).push({ at, won: !!p.won, matchId: match.matchId });
+
+            if (match.mode !== 'SOLO' && p.teamIndex != null) {
+                for (const mate of participants) {
+                    const mateUuid = idUuid(mate.player);
+                    if (mate === p || mate.teamIndex !== p.teamIndex || !mateUuid) continue;
+                    entry.mates ??= new Map();
+                    const prev = entry.mates.get(mateUuid);
+                    entry.mates.set(mateUuid, {
+                        uuid: mateUuid,
+                        name: idName(mate.player) ?? mateUuid,
+                        count: (prev?.count ?? 0) + 1,
+                    });
+                }
+            }
         }
     }
 
-    const players = [...byUuid.values()].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    const players = [...byUuid.values()]
+        .map(({ mates, results, ...p }) => ({
+            ...p,
+            results: (results ?? []).sort((a, b) => a.at - b.at),
+            partner: mates
+                ? [...mates.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))[0]
+                : null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
     const stale = settled.some((s) => s.status === 'fulfilled' && s.value.stale);
-    return { data: { players }, stale };
+    return {
+        data: {
+            players,
+            feedWindow: feed?.matches?.length ?? 0,
+            feedTotal: feed?.totalCount ?? 0,
+        },
+        stale,
+    };
 }
 
 /**

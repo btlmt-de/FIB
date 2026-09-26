@@ -1,68 +1,75 @@
 /**
  * FIB Stats — the overview.
  *
- * Scale first, then the news — DESIGN.md's "Scale Sets the Scale". The
- * server-wide totals open the page because they are the yardstick every number
- * below is read against: "842,190 items found" is what makes one player's
- * 2,400 mean something, and a reader who meets the personal number first has
- * nothing to judge it against.
+ * ── The page opens on a story, then sets the scale ──
  *
- * Below them: the all-time win podium — switchable between solo and teams —
- * then the featured match (the actual race, compressed to a band of lanes),
- * then the two recent-event feeds side by side: latest wins and rarest
- * moments. They read as one story but were always two queries — the match feed
- * and the rare-moments endpoint — so they are shown as two columns rather than
- * merged into a stream that then has to be pulled apart again.
+ * The headline is the week's most contested match, told in one line the match
+ * record can prove ("apppaa & CH0RD came through late against eltobito &
+ * rzem" - see `matchHeadline`), set in the jersey at the top of the page, with
+ * the race drawn underneath and the winner's haul of items trailing into its
+ * finish line. Then the server totals, then the podium beside the form guide,
+ * then the two recent-event feeds.
  *
- * ── The two feeds carry the same anatomy ──
+ * *This order is a reversal, and the losing argument is a real one.* The page
+ * used to open on the four server totals under a "Statistics" heading, on the
+ * rule "Scale Sets the Scale": a reader who meets a personal number before the
+ * field's number has nothing to judge it against. That still holds, and it is
+ * why the totals come second and not last - they sit above every personal
+ * number on the page. What it got wrong was the very top. Four numerals under
+ * a page title is the hero-metric template every dashboard opens with, and a
+ * September 2026 critique found the page had no identity for exactly that
+ * reason: nothing above the fold was about this game, these players, or an
+ * item. A match headline is none of those things' yardstick, so it can lead.
  *
- * Object · what happened · the figure. In the moments feed the object is the
- * item's sprite and the figure is its rarity; in the wins feed the object is
- * the winner's head and the figure is the score. They sit side by side, so a
- * row shape that only half-works in one column is visible in the other.
+ * ── The two feeds carry different furniture ──
+ *
+ * Latest matches are scoreboard lines (MatchVersus, the same row the match
+ * history uses): both sides facing across the score, because a match is two
+ * sides and a result, and a list of winners alone made every row look alike.
+ *
+ * Rarest moments became a shelf of lit wells, the same artifacts the match
+ * page shows its rare pulls on. A legendary back-to-back is an object before
+ * it is an event, and at 32px in a row it was a thumbnail beside a sentence.
  *
  * The wins feed used to open every row with a gold "1" medal and bury the
- * score inside the sentence ("eltobito won with 40"). Both were wrong, and for
- * the same reason: the section is titled "Latest wins", so first place is a
- * constant, and eleven identical gold pills spent the module's rank colour on
- * the one part of the row that could not vary — while the number the row is
- * actually about sat in a proportional face with no field beside it. The head
- * answers "who", which does vary, and a duo's two heads say "team" without a
- * word; the score moved to the right edge in tabular mono with its margin
- * underneath, which is the field that says whether 40 was a rout or a squeak.
+ * score inside the sentence. Both were wrong for the same reason: the section
+ * is titled "Latest wins", so first place is a constant, and eleven identical
+ * gold pills spent the module's rank colour on the one part of the row that
+ * could not vary.
  *
  * ── The podium is all-time, not weekly ──
  *
- * It shows the top three by total wins, with a Solo / Teams toggle. All-time
- * rather than this-week for two reasons: it is a stable thing a returning
- * visitor can check against rather than a board that reshuffles every day, and
- * — the honest one — there is no windowed leaderboard endpoint, so a weekly
- * board cannot be produced from real data without a service change. Both scopes
- * here are one upstream call apiece and already exist.
+ * The top three by total wins, Solo / Teams. All-time because it is a stable
+ * thing a returning visitor can check against, and because there is no
+ * windowed leaderboard endpoint. Both boards arrive with the dashboard and the
+ * toggle switches between them in memory.
  *
- * Both boards are fetched at load and the toggle switches between them in
- * memory, so the swap is instant and carries no spinner. A podium is a
- * decorative anchor at the top of the page; a loading state on a toggle click
- * would read as broken.
+ * ── The form guide is the people layer ──
+ *
+ * The community is nine players and ninety-odd matches, mostly the same five
+ * people in rotating duos. At that size the people are the story, and the
+ * podium's all-time totals cannot say who is playing well NOW. The form guide
+ * does, from the ten matches the dashboard already carries: one column per
+ * match, one row per player, gold where they won. Nothing is fetched for it.
  *
  * ── Motion ──
  *
- * Three moments, each shaped to what it reveals:
- *
- *   the podium    medals land bronze, silver, gold — ceremony order
- *   the race      one wipe left to right, so the band runs in match time
+ *   the race      one wipe left to right, so the lanes run in match time
  *   the totals    count up, because a total is a quantity accumulating
+ *   the podium    heads land on their blocks bronze, silver, gold
  *
  * Everything on this page is a route into somewhere else. No dead ends.
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { matchStandings, matchDuration, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo } from './adapter.js';
+import {
+    matchDuration, idLabel, idUuid, raceEntries, leadChangeTimes, timeAgo, matchHeadline,
+} from './adapter.js';
 import { loadOverview } from './api.js';
 import { useAsync } from './useAsync.js';
 import { usePendingReveal } from './useSeen.js';
 import {
-    Section, Figure, Avatar, Medal, Sprite, RarityTag, Reveal, Delta, Movement, Counter, Segmented,
+    Section, Avatar, Sprite, RarityTag, Reveal, Delta, Segmented, Podium, MatchVersus,
     AsyncView,
 } from './Primitives.jsx';
 import { RaceMini } from './Charts.jsx';
@@ -83,72 +90,60 @@ const momentActor = (m) =>
     (m.player ? idLabel(m.player) : (m.members ?? []).map(idLabel).join(' & ')) || 'Unknown';
 
 /*
- * How many rows each of the paired feeds shows.
+ * How many rows the wins feed and how many objects the moments shelf show.
  *
- * The two columns sit side by side, so their lengths are a visual fact, not
- * just a data one: the match feed hands back a full page (20) while the rare
- * moments endpoint hands back a handful, which left the wins column running
- * a screenful past its neighbour and the page ending on a long ragged edge.
- * One shared cap on both keeps the pair roughly level whichever way the two
- * endpoints happen to be sized on any given day.
- *
- * Eight, not six: it is the point where the feed still scans as one glance.
- * Wins carry an "All matches" link into the full feed, so nothing capped here
- * is unreachable. Rare moments have no such view yet — but that list is a
- * highlights reel by definition, and today the endpoint returns fewer than
- * this anyway, so the cap is a guard rather than a truncation.
+ * Eight: the point where the feed still scans as one glance, and two full rows
+ * of the shelf at its widest. Wins carry an "All matches" link into the full
+ * feed, so nothing capped here is unreachable. Rare moments have no such view
+ * yet — but that list is a highlights reel by definition, and today the
+ * endpoint returns fewer than this anyway, so the cap is a guard rather than a
+ * truncation.
  */
 const FEED_LIMIT = 8;
 
 /*
- * The winning side of a finished match, plus the field that says how it was won.
- *
- * Deliberately derived from `participants` and the `won` flag rather than from
- * `matchStandings`: that helper reads `match.teams` for a team match, and the
- * dashboard's activity feed is not the endpoint it was written against. The
- * `won` flag and `placement` are on every participant in both modes, so this
- * path needs nothing the payload might not carry. A team's members all carry
- * `won: true` and share a placement, which is what makes the grouping below
- * work without a team array to group by.
+ * How many of the winner's finds trail the race. Enough to overfill the widest
+ * measure (1560px at 44px a well is 35), so the ribbon always runs off its left
+ * edge into the fade rather than stopping short of it - an edge the reader can
+ * see reads as "that is all of them", and it is not.
  */
-function winFromMatch(match) {
-    const participants = match.participants ?? [];
-    const winners = participants.filter((p) => p.won);
-    if (winners.length === 0) return null;
-
-    /* The runner-up is everyone sharing the best placement among the losers —
-       one player in a solo match, both members of a team in a duo. Without them
-       there is no margin to state, which is itself worth saying ("uncontested"). */
-    const beaten = participants.filter((p) => !p.won).sort((a, b) => a.placement - b.placement);
-    const runnersUp = beaten.length > 0 ? beaten.filter((p) => p.placement === beaten[0].placement) : [];
-
-    const score = winners[0]?.finalScore ?? 0;
-    const runnerScore = runnersUp[0]?.finalScore;
-
-    return {
-        matchId: match.matchId,
-        at: match.endedAt,
-        winners: winners.map((p) => ({ uuid: idUuid(p.player), name: idLabel(p.player) })),
-        score,
-        beat: runnersUp.length > 0 ? runnersUp.map((p) => idLabel(p.player)).join(' & ') : null,
-        margin: Number.isFinite(runnerScore) ? score - runnerScore : null,
-    };
-}
+const HAUL_LIMIT = 40;
 
 /*
- * The margin, as the score's field — printed under the figure, and spoken in
- * full in the row's accessible name.
+ * The form guide, from the dashboard's recent-match feed.
  *
- * Counted, never asserted. A dead-level match says the scores were level and
- * stops there: the server hands down `placement` and `won`, not how it decided
- * between two equal scores, and naming a tie-break the plugin may not run would
- * be the layout inventing a rule. The uncontested case is the same discipline —
- * a lone finisher has no margin, and "0" would read as a photo finish.
+ * Columns are matches, oldest first, so a column reads down as "who played that
+ * one and who won it" and a row reads across as one player's run. A player who
+ * sat a match out gets an empty slot rather than being compacted leftward:
+ * compacting would put two players' fourth pips under different matches, and
+ * the grid's whole claim is that a column is one match.
+ *
+ * Ordered by wins in the window, then by matches played, then by name - "who is
+ * in form" first. Only players who appear in the window are listed; the
+ * directory is where everyone else lives.
  */
-function margin(win) {
-    if (win.margin == null) return { short: 'uncontested', spoken: 'uncontested' };
-    if (win.margin === 0) return { short: 'level on score', spoken: `level on score with ${win.beat}` };
-    return { short: `by ${win.margin}`, spoken: `${win.margin} ahead of ${win.beat}` };
+function formGuide(matches) {
+    const chrono = matches.slice().sort((a, b) => a.endedAt - b.endedAt);
+    const rows = new Map();
+    chrono.forEach((m, col) => {
+        (m.participants ?? []).forEach((p) => {
+            const uuid = idUuid(p.player);
+            if (!uuid) return;
+            if (!rows.has(uuid)) {
+                rows.set(uuid, { uuid, name: idLabel(p.player), slots: Array(chrono.length).fill(null) });
+            }
+            rows.get(uuid).slots[col] = { won: !!p.won, matchId: m.matchId };
+        });
+    });
+    return {
+        columns: chrono.length,
+        rows: [...rows.values()]
+            .map((r) => {
+                const played = r.slots.filter(Boolean);
+                return { ...r, wins: played.filter((s) => s.won).length, played: played.length };
+            })
+            .sort((a, b) => b.wins - a.wins || b.played - a.played || a.name.localeCompare(b.name)),
+    };
 }
 
 export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatches, onOpenLeaderboards }) {
@@ -170,17 +165,9 @@ export function Overview({ onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatches
     );
 }
 
-/*
- * The overview's render, unchanged from when this was a synchronous view. It reads its bundle from
- * props now that the fetch happens one level up, so the destructure below is the only line that
- * differs from the pre-fetch version -- everything from the podium down is exactly as it was.
- */
 function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatches, onOpenLeaderboards }) {
     /* `??`, not a destructuring default. An unavailable section arrives from the dashboard
-       composition as JSON null, and a destructuring default only fires on `undefined` — so
-       `moments = []` never ran and `moments.length` threw the moment the rare-moments call
-       failed. The sections below already use this idiom (`podiums?.[scope] ?? []`,
-       `activity?.matches ?? []`); these two were the pair that did not. */
+       composition as JSON null, and a destructuring default only fires on `undefined`. */
     const { podiums, featured, activity } = data;
     const globals = data.globals ?? {};
     const moments = data.moments ?? [];
@@ -188,210 +175,228 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatc
     const [scope, setScope] = useState('solo');
 
     /* The visible board follows the toggle. Both are already in memory, so this
-       is an index, not a fetch. Guarded because a scope with no board yet (an
-       upstream section that failed to load) should render empty rather than throw. */
-    const board = podiums?.[scope] ?? [];
-    const topThree = useMemo(() => board.slice(0, 3), [board]);
+       is an index, not a fetch. */
+    const podiumRows = useMemo(
+        () => (podiums?.[scope] ?? []).slice(0, 3).map((row) => ({
+            key: idUuid(row.player),
+            place: row.rank,
+            value: row.value,
+            entrants: [{ uuid: idUuid(row.player), name: idLabel(row.player) }],
+        })),
+        [podiums, scope],
+    );
 
-    /* The medal cascade re-lands on toggle via the `key={scope}` on the <ol>
-       below: a new key remounts the element, which re-fires this mount-only
-       effect. The hook itself takes no deps — it decides the starting frame once
-       per mount, which is exactly why the remount is what re-triggers it. */
+    /* The heads re-land on toggle via `key={scope}` on the Podium: a new key
+       remounts the list, which re-fires this mount-only effect. */
     const podiumRef = useRef(null);
     usePendingReveal(podiumRef, 'ceremony');
 
-    /* The featured race, derived once: lanes, and the moments the lead turned. */
+    /* The featured race, derived once: lanes, the moments the lead turned, the
+       headline, and the winner's haul in the order it was found. */
     const race = useMemo(() => {
-        // `featured` IS the match (a FibMatchDetail), not a { changes, match } wrapper — the dashboard
-        // puts the raw match detail here. leadChanges is a field on it; the race trace and standings
-        // derive from its item log the same way any match view does.
         if (!featured) return null;
         const entries = raceEntries(featured);
+        const changeTimes = leadChangeTimes(entries);
+        const winner = entries[0];
+        const finds = (winner?.events ?? []).filter((e) => !e.skipped);
         return {
             entries,
-            changeTimes: leadChangeTimes(entries),
-            winner: matchStandings(featured)[0],
+            changeTimes,
+            headline: matchHeadline(featured, changeTimes.length ? changeTimes[changeTimes.length - 1] : null),
+            finds,
+            haul: finds.slice(-HAUL_LIMIT),
         };
     }, [featured]);
 
-    /* The two feeds, kept apart because they were always two queries. `activity` is the raw match
-       feed — a FibMatchPage { totalCount, page, size, matches } — so the win rows are derived from it
-       here by `winFromMatch`. The mock handed a pre-shaped {playerUuids, score} row; the real feed
-       hands the match, and this is where it becomes a win row. `moments` stays as-is (rare pulls, its
-       own endpoint).
-
-       A match with no winning participant is dropped rather than rendered blank: it is a match that
-       ended without a result, and a row that names nobody is not a "latest win". */
-    const wins = useMemo(
-        () => (activity?.matches ?? []).map(winFromMatch).filter(Boolean).slice(0, FEED_LIMIT),
-        [activity],
-    );
-
-    /* Not memoised: slicing at most eight rows off an array is cheaper than the
-       comparison that would guard it, and `moments` is a fresh array on any
-       render where the section arrived null anyway. */
+    const recent = (activity?.matches ?? []).slice(0, FEED_LIMIT);
+    const form = useMemo(() => formGuide(activity?.matches ?? []), [activity]);
     const topMoments = moments.slice(0, FEED_LIMIT);
 
     return (
-        <div className="fib-page">
-            <Reveal as="header" className="fib-overview-head">
-                <h1 className="fib-h1" style={{ fontSize: 'var(--fib-text-2xl)' }}>Statistics</h1>
-                <p className="fib-lede">
-                    Every ranked ForceItemBattle match, the players who played them, and the items
-                    that decided them.
-                </p>
-
-                {/*
-          Scale first, news after: these totals are what a personal number is
-          read against. The totals carry no tint; what DOES change — the weekly
-          movement — is coloured, using the same emerald/red every delta uses.
-        */}
-                <div className="fib-pulse">
-                    <Figure
-                        size="lg" value={globals.matchesPlayed} format={f.full} label="Matches played"
-                        note={<><Delta value={globals.matchesPlayedInWindow} /> this week</>}
-                    />
-                    <Figure
-                        size="lg" value={globals.itemsFound} format={f.full} label="Items found"
-                        note={<><Delta value={globals.itemsFoundInWindow} /> this week</>}
-                    />
-                    <Figure
-                        size="lg" value={globals.playersRanked} format={f.full} label="Ranked players"
-                        note={<><Delta value={globals.playersRankedInWindow} /> this week</>}
-                    />
-                    <Figure
-                        size="lg" value={globals.achievementsGranted} format={f.full}
-                        label="Achievements granted"
-                        note={<><Delta value={globals.achievementsGrantedInWindow} /> this week</>}
-                    />
-                </div>
-            </Reveal>
-
-
-            <Section
-                title="Most wins"
-                sub={scope === 'solo'
-                    ? 'The all-time top three in solo matches.'
-                    : 'The all-time top three across all teams.'}
-                aside={
-                    <button type="button" className="fib-btn fib-btn--quiet" onClick={onOpenLeaderboards}>
-                        Full ranking
-                    </button>
-                }
-            >
-                {/*
-          A radiogroup, not a tablist: there is no tab panel here, scope is a lens
-          on one podium. `Segmented` owns that contract — one tab stop, arrows
-          move the selection — and it is the same control the leaderboards and
-          the profile use for the same job.
-        */}
-                <div style={{ marginBottom: 'var(--fib-space-6)' }}>
-                    <Segmented
-                        options={PODIUM_SCOPES.map((s) => ({ id: s.key, label: s.label }))}
-                        value={scope}
-                        onChange={setScope}
-                        label="Podium scope"
-                    />
-                </div>
-
-                {topThree.length === 0 ? (
-                    <div className="fib-panel fib-panel--flush">
-                        <div className="fib-meta" style={{ padding: 'var(--fib-space-4)' }}>
-                            No ranked players yet.
+        <div className="fib-page fib-page--wide">
+            {race ? (
+                <Reveal as="header" className="fib-lead">
+                    <div className="fib-lead-top">
+                        <div className="fib-lead-copy">
+                            <h1 className="fib-display">{race.headline.text}</h1>
+                            <p className="fib-lead-sub">
+                                Match of the week: the most contested recent match, where the lead
+                                changed hands {featured.leadChanges} {featured.leadChanges === 1 ? 'time' : 'times'}.
+                                {' '}{featured.mode === 'SOLO' ? 'Solo' : 'Team'} match over {f.duration(matchDuration(featured))},{' '}
+                                <span className="fib-meta">{f.stamp(featured.endedAt)}</span>
+                            </p>
+                        </div>
+                        {/*
+                          The result, as a scoreboard: both sides' heads facing across the
+                          final score. This slot held two bare figures ("9 lead changes",
+                          "46 found") that restated the sentence beside them; the one
+                          number the headline does not carry is the score.
+                        */}
+                        <div className="fib-lead-board">
+                            <span className="fib-lead-board-side">
+                                {race.entries[0].members.map((m) => (
+                                    <Avatar key={idUuid(m) ?? idLabel(m)} uuid={idUuid(m)} size={44} />
+                                ))}
+                            </span>
+                            <span className="fib-lead-board-score" aria-label={race.entries[1]
+                                ? `Final score ${race.entries[0].score} to ${race.entries[1].score}`
+                                : `Final score ${race.entries[0].score}`}
+                            >
+                                <b data-side="win">{race.entries[0].score}</b>
+                                {race.entries[1] ? <><i aria-hidden="true">–</i><b>{race.entries[1].score}</b></> : null}
+                            </span>
+                            {race.entries[1] ? (
+                                <span className="fib-lead-board-side" data-side="lose">
+                                    {race.entries[1].members.map((m) => (
+                                        <Avatar key={idUuid(m) ?? idLabel(m)} uuid={idUuid(m)} size={44} />
+                                    ))}
+                                </span>
+                            ) : null}
                         </div>
                     </div>
-                ) : (
-                    /*
-                      The medals land in ceremony order — bronze, silver, gold — rather
-                      than DOM order, the one stagger on this page that is about something.
-                      `--ceremony` is the delay index, so third place is 0.
 
-                      Keyed on scope so React replaces the list on toggle rather than
-                      diffing it — a diff would keep the mounted nodes and skip the
-                      entrance, which is the animation we want to re-run.
-                    */
-                    <ol className="fib-podium" ref={podiumRef} key={scope}>
-                        {topThree.map((row) => (
-                            <li
-                                key={idUuid(row.player)}
-                                className="fib-podium-slot"
-                                data-place={row.rank}
-                                style={{ '--ceremony': 3 - row.rank }}
-                            >
-                                <div className="fib-podium-faces">
-                                    <Avatar uuid={idUuid(row.player)} size={64} />
-                                </div>
-                                <Medal place={row.rank} />
-                                <div className="fib-podium-name">
-                                    <button type="button" onClick={() => onOpenPlayer(idUuid(row.player))}>
-                                        {idLabel(row.player)}
-                                    </button>
-                                </div>
-                                <div className="fib-podium-value">
-                                    <Counter value={row.value} />
-                                </div>
-                                <div className="fib-figure-label">
-                                    {scope === 'solo' ? 'matches won' : 'team wins'}
-                                </div>
-                            </li>
-                        ))}
-                    </ol>
-                )}
-            </Section>
-
-
-            {featured && race?.winner ? (
-                <Section
-                    title="Match of the week"
-                    sub={`The most contested of any recent match — the lead changed hands ${featured.leadChanges} ${featured.leadChanges === 1 ? 'time' : 'times'}.`}
-                >
                     <button
                         type="button"
-                        className="fib-panel fib-feature-card"
+                        className="fib-lead-race"
                         onClick={() => onOpenMatch(featured.matchId)}
+                        aria-label={`${race.headline.text}. Open the match and watch the replay.`}
                     >
-                        <div className="fib-feature-top">
-                            <div style={{ minWidth: 0 }}>
-                                <b className="fib-h2">
-                                    {race.winner.members.map(idLabel).join(' & ')} held on
-                                </b>
-                                <span className="fib-lede">
-                  A {featured.mode === 'SOLO' ? 'solo' : 'team'} match over{' '}
-                                    {f.duration(matchDuration(featured))}, decided in the final stretch.
-                  Watch it unfold — or open it and scrub the clock yourself.
-                </span>
-                                <span className="fib-meta">{f.stamp(featured.endedAt)}</span>
-                            </div>
-                            <div className="fib-feature-figures">
-                                {/* Diamond, not gold: a contested match is exceptional, but gold
-                    means rank, and nobody placed here by changing lead. */}
-                                <Figure size="lg" value={featured.leadChanges} label="Lead changes" tone="diamond" />
-                                <Figure size="lg" value={(featured.items ?? []).filter((i) => !i.skipped).length} label="Items collected" />
-                            </div>
-                        </div>
-
                         <RaceMini
                             entries={race.entries}
                             duration={matchDuration(featured)}
                             markers={race.changeTimes}
+                            finish={race.finds[race.finds.length - 1]?.itemName}
+                            height={150}
                             label="Score over time in the featured match"
                         />
 
-                        <div className="fib-feature-foot">
-              <span className="fib-meta">
-                {race.entries.length} competitors · every tick on the axis is a lead change
-              </span>
+                        {/*
+                          The haul: the winner's finds in the order they came, the most
+                          recent against the finish line and the rest trailing off to the
+                          left. This is the page's imagery - the items are what the game
+                          is, and until now the overview showed none above the fold.
+                        */}
+                        <span className="fib-haul" aria-hidden="true">
+                            {race.haul.map((e, i) => (
+                                <Sprite key={`${e.itemName}-${i}`} name={e.itemName} size={32} pad={6} tier={e.b2b || undefined} />
+                            ))}
+                        </span>
+
+                        <span className="fib-lead-foot">
+                            <span className="fib-meta">
+                                {race.finds.length > race.haul.length
+                                    ? `The last ${race.haul.length} of ${f.num(race.finds.length)} finds, in order`
+                                    : `All ${race.finds.length} finds, in order`}
+                                {' '}· every tick on the track is a lead change
+                            </span>
                             <span className="fib-meta fib-feature-go">
-                Open the match<i aria-hidden="true">→</i>
-              </span>
-                        </div>
+                                Watch the replay<i aria-hidden="true">→</i>
+                            </span>
+                        </span>
                     </button>
+                </Reveal>
+            ) : (
+                <Reveal as="header" className="fib-lead">
+                    <h1 className="fib-display">Every ranked match, on the record</h1>
+                    <p className="fib-lead-sub">
+                        The players who played them, and the items that decided them.
+                    </p>
+                </Reveal>
+            )}
+
+            {/*
+              The server record, as one line.
+
+              It was four 48px numerals in a divided strip - "98 / 9,639 / 9 / 323" -
+              which is the dashboard stat row every product opens with, and on a page
+              whose subject is a race and its players they read as numbers that were
+              simply there. They are still the yardstick (DESIGN.md, "Story First,
+              Then Scale"), so they stay above every personal number; they are just
+              said as the sentence they are, with the week's movement at the end.
+            */}
+            <p className="fib-ledger">
+                <span><b>{f.full(globals.matchesPlayed)}</b> matches</span>
+                <span><b>{f.full(globals.itemsFound)}</b> items found</span>
+                <span>by <b>{f.full(globals.playersRanked)}</b> players</span>
+                <span><b>{f.full(globals.achievementsGranted)}</b> achievements</span>
+                <span className="fib-ledger-week">
+                    this week <Delta value={globals.matchesPlayedInWindow} /> matches,{' '}
+                    <Delta value={globals.itemsFoundInWindow} /> items
+                </span>
+            </p>
+
+            <div className="fib-split fib-split--people">
+                <Section
+                    title="Most wins"
+                    sub={scope === 'solo'
+                        ? 'All time, solo matches.'
+                        : 'All time, every team a player has won with.'}
+                    aside={
+                        <button type="button" className="fib-btn fib-btn--quiet" onClick={onOpenLeaderboards}>
+                            Full ranking
+                        </button>
+                    }
+                >
+                    {/* A radiogroup, not a tablist: scope is a lens on one podium. */}
+                    <div className="fib-podium-scope">
+                        <Segmented
+                            options={PODIUM_SCOPES.map((s) => ({ id: s.key, label: s.label }))}
+                            value={scope}
+                            onChange={setScope}
+                            label="Podium scope"
+                        />
+                    </div>
+
+                    {podiumRows.length === 0 ? (
+                        <p className="fib-meta">No ranked players yet.</p>
+                    ) : (
+                        <Podium
+                            key={scope}
+                            podiumRef={podiumRef}
+                            rows={podiumRows}
+                            label={scope === 'solo' ? 'matches won' : 'team wins'}
+                            onOpenPlayer={onOpenPlayer}
+                        />
+                    )}
                 </Section>
-            ) : null}
+
+                <Section
+                    title="Form"
+                    sub={`The last ${form.columns} ranked matches, oldest on the left. Gold is a win.`}
+                >
+                    {form.rows.length === 0 ? (
+                        <p className="fib-meta">No recent matches.</p>
+                    ) : (
+                        <ol className="fib-form" style={{ '--cols': form.columns }}>
+                            {form.rows.map((r) => (
+                                <li key={r.uuid}>
+                                    <button
+                                        type="button"
+                                        className="fib-form-row"
+                                        onClick={() => onOpenPlayer(r.uuid)}
+                                        aria-label={`${r.name}: won ${r.wins} of the ${r.played} recent matches they played. Open their profile.`}
+                                    >
+                                        <Avatar uuid={r.uuid} size={28} />
+                                        <span className="fib-form-name">{r.name}</span>
+                                        <span className="fib-form-pips" aria-hidden="true">
+                                            {r.slots.map((s, i) => (
+                                                <i key={i} data-result={s ? (s.won ? 'win' : 'loss') : 'out'} />
+                                            ))}
+                                        </span>
+                                        <span className="fib-form-record" aria-hidden="true">
+                                            <b>{r.wins}</b>–{r.played - r.wins}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ol>
+                    )}
+                </Section>
+            </div>
 
             <div className="fib-split">
                 <Section
-                    title="Latest wins"
+                    title="Latest matches"
                     sub="The most recent ranked matches, newest first."
                     aside={
                         <button type="button" className="fib-btn fib-btn--quiet" onClick={onOpenMatches}>
@@ -400,93 +405,46 @@ function OverviewBody({ data, onOpenMatch, onOpenPlayer, onOpenItems, onOpenMatc
                     }
                 >
                     <div className="fib-panel fib-panel--flush">
-                        {wins.length === 0 ? (
+                        {recent.length === 0 ? (
                             <div className="fib-meta" style={{ padding: 'var(--fib-space-4)' }}>
                                 No matches yet.
                             </div>
-                        ) : wins.map((a, i) => {
-                            const names = a.winners.map((w) => w.name).join(' & ');
-                            /*
-                              The row reads as three fragments — a face, a name, a numeral — which
-                              scans well and dictates nothing to a screen reader. One authored
-                              sentence carries the same facts in the order they would be spoken. The
-                              moments row beside it needs none: its text is already a sentence.
-                            */
-                            const field = margin(a);
-                            return (
-                                <button
-                                    key={a.matchId ?? i}
-                                    type="button"
-                                    className="fib-row-link"
-                                    onClick={() => onOpenMatch(a.matchId)}
-                                    aria-label={`${names} won with ${a.score}, ${field.spoken}, ${timeAgo(a.at)}. Open the match.`}
-                                >
-                                    <span className="fib-stream-icon fib-win-faces">
-                                        {a.winners.map((w) => (
-                                            <Avatar key={w.uuid ?? w.name} uuid={w.uuid} size={30} />
-                                        ))}
-                                    </span>
-                                    <div className="fib-stream-body">
-                                        <div className="fib-stream-title">{names}</div>
-                                        <div className="fib-meta">
-                                            {timeAgo(a.at)}{a.beat ? ` · over ${a.beat}` : ''}
-                                        </div>
-                                    </div>
-                                    {/* Gold, and the only gold in this column now: a win is exactly
-                                        what the module spends gold on, and here it lands on the one
-                                        part of the row that differs between rows. `.fib-match-score`
-                                        is the match feed's own score cell — one score, one look,
-                                        wherever the module prints one. */}
-                                    <div className="fib-match-score">
-                                        <b>{a.score}</b>
-                                        <span className="fib-meta">{field.short}</span>
-                                    </div>
-                                </button>
-                            );
-                        })}
+                        ) : recent.map((m) => (
+                            <MatchVersus key={m.matchId} match={m} onOpen={onOpenMatch} compact />
+                        ))}
                     </div>
                 </Section>
 
                 <Section title="Rarest moments" sub="Legendary and rarer back-to-backs, newest first.">
-                    <div className="fib-panel fib-panel--flush">
-                        {topMoments.length === 0 ? (
-                            <div className="fib-meta" style={{ padding: 'var(--fib-space-4)' }}>
-                                No rare pulls yet.
-                            </div>
-                        ) : topMoments.map((m, i) => (
-                            /* Links to the match now — a rare moment carries its matchId, which
-                               the old merged feed dropped and this one keeps. */
-                            <button
-                                key={`${m.matchId}-${m.itemName}-${i}`}
-                                type="button"
-                                className="fib-row-link"
-                                onClick={() => onOpenMatch(m.matchId)}
-                            >
-                <span className="fib-stream-icon">
-                  <Sprite name={m.itemName} size={32} pad={6} tier={m.b2bRarity} />
-                </span>
-                                <div className="fib-stream-body">
-                                    <div className="fib-stream-title">
-                                        {momentActor(m)} pulled {f.itemLabel(m.itemName)}
-                                    </div>
-                                    <div className="fib-meta">{timeAgo(m.collectedAt)}</div>
-                                </div>
-                                <RarityTag tier={m.b2bRarity} />
-                            </button>
-                        ))}
-                    </div>
+                    {topMoments.length === 0 ? (
+                        <p className="fib-meta">No rare pulls yet.</p>
+                    ) : (
+                        <div className="fib-shelf fib-moments">
+                            {topMoments.map((m, i) => (
+                                /* Each opens its match: a rare moment carries its matchId. */
+                                <button
+                                    key={`${m.matchId}-${m.itemName}-${i}`}
+                                    type="button"
+                                    className="fib-artifact fib-sprite-lift fib-moment"
+                                    onClick={() => onOpenMatch(m.matchId)}
+                                >
+                                    <Sprite name={m.itemName} size={64} pad={14} tier={m.b2bRarity} />
+                                    <span className="fib-moment-caption">
+                                        <b>{f.itemLabel(m.itemName)}</b>
+                                        <RarityTag tier={m.b2bRarity} />
+                                        <span className="fib-meta">{timeAgo(m.collectedAt)} · {momentActor(m)}</span>
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </Section>
             </div>
 
-            {/* The page's last route out. It sat at space-4, close enough to the
-                feed panel above to read as part of it rather than as the next
-                thing; the section rhythm is what separates a block from a block. */}
-            <div style={{ marginTop: 'var(--fib-space-6)' }}>
-                <button
-                    type="button"
-                    className="fib-btn fib-btn--quiet"
-                    onClick={onOpenItems}
-                >
+            {/* The page's last route out, given the section rhythm so it reads as
+                the next thing rather than as part of the feeds above it. */}
+            <div style={{ marginTop: 'var(--fib-space-7)' }}>
+                <button type="button" className="fib-btn fib-btn--quiet" onClick={onOpenItems}>
                     Browse the item index
                 </button>
             </div>

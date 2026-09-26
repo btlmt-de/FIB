@@ -14,7 +14,8 @@ import {
   tokens, RARITY_LABEL, ITEM_TEXTURE_FALLBACK, spriteSize, rarityColor,
 } from './tokens.js';
 import {
-  itemKey, itemLabel, itemTexture, playerName, avatarAt, AVATAR_FALLBACK,
+  itemKey, itemLabel, itemTexture, playerName, avatarAt, headAt, AVATAR_FALLBACK,
+  matchStandings, matchDuration, idLabel, idUuid, timeAgo,
 } from './adapter.js';
 import { prefersReducedMotion, canObserve } from './env.js';
 import { useSeen, usePendingReveal } from './useSeen.js';
@@ -341,6 +342,198 @@ export function Medal({ place }) {
   const podium = place >= 1 && place <= 3;
   return (
     <span className="fib-medal" data-place={podium ? place : 0}>{place ?? '—'}</span>
+  );
+}
+
+/* ── Podium ───────────────────────────────────────────────────────────── */
+
+/*
+ * The podium is built out of the game.
+ *
+ * It was three filled cards with a coloured top line, uneven only in their
+ * padding - the podium every stats page has, and one that said nothing about
+ * Minecraft. Now each place is a stack of the block its metal is made of,
+ * gold for first, iron for second and copper for third, three, two and one
+ * high, with the player's head standing on top. The heights are the ranking,
+ * the materials are the medals, and both are sprites the player has held.
+ *
+ * The heads are mc-heads' isometric render, all of them the SAME render. The
+ * first version turned the two flanking heads toward the winner, and that is
+ * a detail that only works in a mock-up: mc-heads serves the left-facing head
+ * at 180px and the right-facing one at 128px, so third place stood on its
+ * block visibly larger and at a different angle, which read as a mistake
+ * rather than as choreography. One render, one angle, one scale.
+ *
+ * A duo is two towers, not two heads on one. Two 44px heads on a 64px block
+ * overhung it on both sides and the pair looked balanced on a pin. Each
+ * member of a team gets their own stack of the same metal, side by side, so a
+ * duo podium reads as a team standing together.
+ *
+ * Geometry is measured, not eyeballed, and lives in CSS as fractions of the
+ * block size (see ".fib-podium-tower"): the block sprite's vertical edge is
+ * 54% of its height, so each block sits 54% higher than the one below, and a
+ * head's lowest vertex lands on the centre of the top face.
+ */
+const PODIUM_BLOCK = { 1: 'gold_block', 2: 'iron_block', 3: 'copper_block' };
+
+/*
+ * mc-heads takes a second or more to render a head, and a head that pops onto
+ * its block after the page has settled looks like a glitch. It fades in once it
+ * has loaded instead; `data-loaded` is only ever added, so a cached head (which
+ * has loaded before React attaches the handler) is caught by the ref check.
+ */
+export function PodiumHead({ uuid, size }) {
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const ref = useCallback((el) => { if (el?.complete && el.naturalWidth > 0) setLoaded(true); }, []);
+  return (
+    <img
+      ref={ref}
+      className="fib-podium-head"
+      data-loaded={loaded || undefined}
+      src={failed ? headAt(null, 128) : headAt(uuid, 128)}
+      width={size}
+      alt=""
+      decoding="async"
+      draggable={false}
+      onLoad={() => setLoaded(true)}
+      onError={() => { if (!failed) setFailed(true); }}
+    />
+  );
+}
+
+/**
+ * `rows`: [{ key, place, entrants: [{ uuid, name }], value }]. `place` outside
+ * 1-3 is not rendered; a podium has three steps.
+ */
+export function Podium({ rows, format = f.num, label, onOpenPlayer, podiumRef }) {
+  const duo = rows.some((r) => r.entrants.length > 1);
+  return (
+    <ol className="fib-podium" ref={podiumRef} data-duo={duo || undefined}>
+      {rows.filter((r) => r.place >= 1 && r.place <= 3).map((row) => {
+        return (
+          <li
+            key={row.key}
+            className="fib-podium-slot"
+            data-place={row.place}
+            style={{ '--ceremony': 3 - row.place }}
+          >
+            <div className="fib-podium-stand" aria-hidden="true">
+              {row.entrants.map((e) => (
+                <div className="fib-podium-tower" key={e.uuid ?? e.name}>
+                  {Array.from({ length: 4 - row.place }, (_, i) => (
+                    <ItemImage key={i} name={PODIUM_BLOCK[row.place]} size={64} className="fib-podium-block" loading="eager" />
+                  ))}
+                  <div className="fib-podium-heads">
+                    <PodiumHead uuid={e.uuid} size={60} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="fib-podium-name">
+              <span className="fib-sr">{row.place === 1 ? 'First' : row.place === 2 ? 'Second' : 'Third'}: </span>
+              {row.entrants.map((e, i) => (
+                <React.Fragment key={e.uuid ?? e.name}>
+                  {i > 0 ? <span className="fib-podium-amp"> &amp; </span> : null}
+                  <button type="button" onClick={() => onOpenPlayer?.(e.uuid)}>{e.name}</button>
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="fib-podium-value">
+              <Counter value={row.value} format={format} />
+            </div>
+            <div className="fib-figure-label">{label}</div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/* ── Versus row ───────────────────────────────────────────────────────── */
+
+/*
+ * One finished match as a scoreboard line: the winners, the score, the beaten.
+ *
+ * The match feed used to read as a list of winners - a gold "1" medal, the
+ * winning names, a grey margin bar and the score tucked at the far right - so
+ * the side that lost was a clause in 11px mono ("beat apppaa & rzem by 17")
+ * and every row looked like every other. A match is two sides and a result.
+ * This puts both sides on the line facing each other across the score, the way
+ * every sports ticker has always done it, winners' score in gold (a win, which
+ * is what gold means here) and the beaten score in plain ink.
+ *
+ * A solo match can have more than two players. The line shows the winner
+ * against the runner-up, and the rest of the field as "+N" beside them: the
+ * row is the headline, and the match page carries every standing.
+ *
+ * `compact` drops the metadata column for the overview's half-width feed.
+ */
+export function MatchVersus({ match, onOpen, compact = false }) {
+  const standings = matchStandings(match);
+  const [win, lose] = standings;
+  if (!win) return null;
+  const rest = Math.max(0, standings.length - 2);
+  const names = (s) => s.members.map(idLabel).join(' & ');
+  const margin = lose ? (win.score ?? 0) - (lose.score ?? 0) : null;
+  const marginText = margin == null ? 'uncontested' : margin === 0 ? 'level' : `by ${margin}`;
+  const leads = match.leadChanges ?? null;
+
+  return (
+    <button
+      type="button"
+      className="fib-vs"
+      data-compact={compact || undefined}
+      onClick={() => onOpen?.(match.matchId)}
+      aria-label={
+        `${names(win)} ${lose ? `beat ${names(lose)} ${win.score} to ${lose.score}` : `won with ${win.score}`}`
+        + `${rest ? ` in a field of ${standings.length}` : ''}, ${timeAgo(match.endedAt)}. Open the match.`
+      }
+    >
+      <span className="fib-vs-when">
+        <b>{timeAgo(match.endedAt)}</b>
+        {compact ? null : <span className="fib-meta">{f.stamp(match.endedAt)}</span>}
+      </span>
+
+      <span className="fib-vs-side" data-side="win">
+        <span className="fib-vs-names">{names(win)}</span>
+        <span className="fib-vs-heads">
+          {win.members.map((m) => <Avatar key={idUuid(m) ?? idLabel(m)} uuid={idUuid(m)} size={28} />)}
+        </span>
+      </span>
+
+      <span className="fib-vs-score">
+        <span className="fib-vs-figures">
+          <b data-side="win">{win.score}</b>
+          <i aria-hidden="true">–</i>
+          <b data-side="lose">{lose ? lose.score : '–'}</b>
+        </span>
+        <span className="fib-meta">{marginText}</span>
+      </span>
+
+      <span className="fib-vs-side" data-side="lose">
+        {lose ? (
+          <>
+            <span className="fib-vs-heads">
+              {lose.members.map((m) => <Avatar key={idUuid(m) ?? idLabel(m)} uuid={idUuid(m)} size={28} />)}
+            </span>
+            <span className="fib-vs-names">{names(lose)}</span>
+            {rest ? <span className="fib-vs-rest fib-meta">+{rest}</span> : null}
+          </>
+        ) : null}
+      </span>
+
+      {compact ? null : (
+        <span className="fib-vs-meta fib-meta">
+          <span>{match.mode === 'SOLO' ? 'Solo' : 'Team'} · {f.duration(matchDuration(match))}</span>
+          {Number.isFinite(leads) ? (
+            <span data-hot={leads >= 5 || undefined}>
+              {leads} lead {leads === 1 ? 'change' : 'changes'}
+            </span>
+          ) : null}
+        </span>
+      )}
+    </button>
   );
 }
 
