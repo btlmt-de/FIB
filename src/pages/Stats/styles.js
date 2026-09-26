@@ -2390,6 +2390,15 @@ ${cssVariables()}
   font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
   font-size: var(--fib-text-xl); font-weight: 600;
 }
+/* Fastest find and longest hunt span two columns: a time, and the item it
+   belongs to, named. */
+.fib-report-fact-item { grid-column: span 2; }
+.fib-report-fact-item dd { gap: var(--fib-space-3); }
+.fib-report-fact-item dd > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fib-report-fact-item em {
+  font-style: normal; font-size: var(--fib-text-sm); color: var(--fib-ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .fib-report-side { display: flex; flex-direction: column; gap: var(--fib-space-4); }
 .fib-report-b2b h4 { margin: 0 0 var(--fib-space-2); }
 .fib-report-tiers { display: flex; flex-wrap: wrap; gap: var(--fib-space-2) var(--fib-space-4); }
@@ -2401,14 +2410,14 @@ ${cssVariables()}
 
 /* The run: every item as a 40px slot, wrapping. Skips greyed, not reddened. */
 .fib-report-run {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--fib-space-3) var(--fib-space-2);
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: var(--fib-space-3) var(--fib-space-2);
   padding-top: var(--fib-space-4);
   border-top: 1px solid var(--fib-line-soft);
 }
 .fib-report-run li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 /* The order, in the slot's corner - where Minecraft prints a stack size. */
 .fib-report-run-order {
-  position: absolute; top: 3px; left: calc(50% - 38px + 6px);
+  position: absolute; top: 3px; left: calc(50% - 29px + 5px);
   font-family: var(--fib-font-mono); font-size: 10px; font-weight: 600; line-height: 1;
   color: var(--fib-ink-3); pointer-events: none;
 }

@@ -342,7 +342,14 @@ export const ITEM_TEXTURE_FALLBACK =
  * fractional ratio drops source pixels unevenly and makes pixel art look
  * chewed. Anything that renders a sprite picks from this set.
  */
-export const SPRITE_SIZES = [16, 32, 64, 128];
+/*
+ * 48 is allowed too. The rule is really "a whole multiple of the 16px
+ * original", not "a power of two": the 128px files are 8x upscales, so at 48
+ * every original pixel lands on exactly 3 CSS pixels and nothing is dropped.
+ * It was left out until the match page's runs needed a size between 32 (too
+ * small to read) and 64 (too big for sixty items).
+ */
+export const SPRITE_SIZES = [16, 32, 48, 64, 128];
 
 export const spriteSize = (px) =>
   SPRITE_SIZES.reduce((best, s) => (Math.abs(s - px) < Math.abs(best - px) ? s : best), 128);

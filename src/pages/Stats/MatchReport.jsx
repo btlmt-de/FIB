@@ -196,18 +196,26 @@ export function TeamReport({ entry, run, place, lead, won, duration, mode, at = 
           <div><dt>Found</dt><dd><b>{run.found}</b></dd></div>
           <div><dt>Skipped</dt><dd><b>{run.skipped}</b></dd></div>
           <div><dt>Per item</dt><dd><b>{run.perItem != null ? f.duration(run.perItem) : '—'}</b></dd></div>
-          <div>
+          {/* A time with no subject sends the reader hunting through the run for
+              which item it was, so the item is named under it. */}
+          <div className="fib-report-fact-item">
             <dt>Fastest find</dt>
             <dd>
-              {run.fastest ? <Sprite name={run.fastest.itemName} size={16} pad={2} /> : null}
-              <b>{run.fastest ? f.duration(run.fastest.took) : '—'}</b>
+              {run.fastest ? <Sprite name={run.fastest.itemName} size={32} pad={3} /> : null}
+              <span>
+                <b>{run.fastest ? f.duration(run.fastest.took) : '—'}</b>
+                {run.fastest ? <em>{f.itemLabel(run.fastest.itemName)}</em> : null}
+              </span>
             </dd>
           </div>
-          <div>
+          <div className="fib-report-fact-item">
             <dt>Longest hunt</dt>
             <dd>
-              {run.longest ? <Sprite name={run.longest.itemName} size={16} pad={2} /> : null}
-              <b>{run.longest ? f.duration(run.longest.took) : '—'}</b>
+              {run.longest ? <Sprite name={run.longest.itemName} size={32} pad={3} /> : null}
+              <span>
+                <b>{run.longest ? f.duration(run.longest.took) : '—'}</b>
+                {run.longest ? <em>{f.itemLabel(run.longest.itemName)}{run.longest.skipped ? ', skipped' : ''}</em> : null}
+              </span>
             </dd>
           </div>
         </dl>
@@ -230,9 +238,11 @@ export function TeamReport({ entry, run, place, lead, won, duration, mode, at = 
       </div>
 
       {/*
-        The run. Every item, in the order it came, at 64px with how long it took
-        printed under it - the first version drew these as 32px slots with the
-        time only on hover, and the time is half of what a run IS. Phase on the
+        The run. Every item, in the order it came, at 48px with how long it took
+        printed under it. It shipped at 32px with the time only on hover (too
+        small, and the time is half of what a run IS), then went to 64px, which
+        turned sixty items into a wall; 48 is three screen pixels per original
+        pixel, as crisp as either. Phase on the
         floor, back-to-back on the rim, skips desaturated, because a skip still
         scores and is "gave up on this one", never an error. The order number
         sits in the corner, where Minecraft puts a stack size.
@@ -246,7 +256,7 @@ export function TeamReport({ entry, run, place, lead, won, duration, mode, at = 
             data-ahead={(at != null && s.t > at && s.order !== hunting) || undefined}
             title={`#${s.order} ${f.itemLabel(s.itemName)} · ${f.duration(s.took)}${s.b2b ? ` · ${RARITY_LABEL[s.b2b]} back-to-back` : ''}${s.skipped ? ' · skipped' : ''}`}
           >
-            <Sprite name={s.itemName} size={64} pad={6} tier={s.b2b || undefined} phase={itemPhase(s.itemName) || undefined} />
+            <Sprite name={s.itemName} size={48} pad={5} tier={s.b2b || undefined} phase={itemPhase(s.itemName) || undefined} />
             <span className="fib-report-run-order" aria-hidden="true">{s.order}</span>
             <span className="fib-report-run-took" aria-hidden="true">{s.b2b && s.took < 1 ? 'b2b' : f.duration(s.took)}</span>
             <span className="fib-sr">
