@@ -14,7 +14,7 @@
  */
 
 import React, { useEffect, useId, useLayoutEffect, useRef, useState, useMemo } from 'react';
-import { tokens } from './tokens.js';
+import { tokens, rarityColor, RARITY_LABEL } from './tokens.js';
 import { itemTexture, itemLabel } from './adapter.js';
 import { prefersReducedMotion } from './env.js';
 import { usePendingReveal } from './useSeen.js';
@@ -257,13 +257,53 @@ const niceStep = (span, steps, most) =>
 const stepsUpTo = (span, step) =>
   Array.from({ length: Math.floor(span / step) + 1 }, (_, i) => i * step);
 
-export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, iconFor, markers = [], onScrub }) {
+/*
+ * The race is drawn with the items in it, not just the counts.
+ *
+ *   turns    [{ t, itemName, lane }] - each lead change, with the item that took
+ *            the lead. Drawn as a strip of sprites under the time axis, each
+ *            underlined in the colour of the lane that took it, stacked into up
+ *            to three rows so a flurry of turns in the final minutes stays
+ *            legible instead of overprinting. The tick on the axis marks WHEN;
+ *            the strip says WHAT.
+ *   pulls    [{ t, score, itemName, tier, lane }] - rare back-to-backs, drawn ON
+ *            the lane at the moment and height they happened, in a tier-rimmed
+ *            well. They were only ever a shelf below the chart, a section away
+ *            from the race they happened in.
+ *   detailFor  extra content per legend entry; the match page puts what each
+ *            lane is hunting at the cursor there.
+ */
+const TURN_PX = 16;
+const TURN_ROW = 22;
+const TURN_ROWS_MAX = 3;
+const PULL_PX = 16;
+
+export function RaceTrace({
+  entries, duration, height: baseHeight = 260, cursor, labelFor, iconFor, detailFor,
+  markers = [], turns = [], pulls = [], onScrub,
+}) {
   const wrapRef = useRef(null);
   const width = useWidth(wrapRef);
 
   const pad = { top: 14, right: 16, bottom: 26, left: 40 };
   const innerW = Math.max(10, width - pad.left - pad.right);
-  const innerH = Math.max(10, height - pad.top - pad.bottom);
+  const innerH = Math.max(10, baseHeight - pad.top - pad.bottom);
+
+  /* Greedy row packing for the turn strip: each sprite takes the first row
+     whose last sprite ends far enough to its left. */
+  const turnX = (t) => pad.left + (Math.min(t, duration) / Math.max(1, duration)) * innerW;
+  const packedTurns = [];
+  const rowEnds = [];
+  for (const turn of [...turns].sort((a, b) => a.t - b.t)) {
+    const cx = turnX(turn.t);
+    let row = rowEnds.findIndex((end) => cx - TURN_PX / 2 > end + 3);
+    if (row === -1) row = rowEnds.length < TURN_ROWS_MAX ? rowEnds.length : TURN_ROWS_MAX - 1;
+    rowEnds[row] = cx + TURN_PX / 2;
+    packedTurns.push({ ...turn, cx, row });
+  }
+  const turnRows = rowEnds.length;
+  const height = baseHeight + (turnRows ? turnRows * TURN_ROW + 10 : 0);
+  const stripTop = baseHeight + 6;
 
   const maxScore = Math.max(1, ...entries.map((e) => e.events.length));
 
@@ -332,7 +372,7 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
           const px = x(t);
           const anchor = t === 0 ? 'start' : px > width - pad.right - 24 ? 'end' : 'middle';
           return (
-            <text key={t} x={px} y={height - 8} textAnchor={anchor}>
+            <text key={t} x={px} y={baseHeight - 8} textAnchor={anchor}>
               {f.clock(t)}
             </text>
           );
@@ -359,6 +399,28 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
           />
         ))}
 
+        {/* Rare pulls, on the lane where they happened. A pull at or after the
+            cursor dims, so a replay reveals them as the race reaches them. */}
+        {pulls.map((p, k) => {
+          const px = x(p.t);
+          const py = y(p.score);
+          const ahead = cursor != null && p.t > cursor;
+          return (
+            <g key={`pull-${k}`} className="fib-race-pull" opacity={ahead ? 0.25 : 1}>
+              <rect
+                x={px - PULL_PX / 2 - 3} y={py - PULL_PX - 9} width={PULL_PX + 6} height={PULL_PX + 6} rx="3"
+                fill="var(--fib-sunk)" stroke={rarityColor(p.tier)} strokeWidth="1.5"
+              />
+              <image
+                href={itemTexture(p.itemName)} x={px - PULL_PX / 2} y={py - PULL_PX - 6}
+                width={PULL_PX} height={PULL_PX}
+              />
+              <line x1={px} x2={px} y1={py - 3} y2={py} stroke={rarityColor(p.tier)} strokeWidth="1.5" />
+              <title>{`${f.clock(p.t)} - ${RARITY_LABEL[p.tier] ?? p.tier} back-to-back: ${itemLabel(p.itemName)}`}</title>
+            </g>
+          );
+        })}
+
         {/* Scrub cursor. Only drawn when the view is actually scrubbing. */}
         {cursor != null ? (
           <line
@@ -367,14 +429,34 @@ export function RaceTrace({ entries, duration, height = 260, cursor, labelFor, i
             stroke="var(--fib-ink-2)" strokeWidth="1" strokeDasharray="2 3"
           />
         ) : null}
+
+        {/* The turn strip: what took the lead, under when it did. */}
+        {packedTurns.map((turn, k) => {
+          const top = stripTop + turn.row * TURN_ROW;
+          const ahead = cursor != null && turn.t > cursor;
+          return (
+            <g key={`turn-${k}`} className="fib-race-turn" opacity={ahead ? 0.25 : 1}>
+              <image
+                href={itemTexture(turn.itemName)}
+                x={turn.cx - TURN_PX / 2} y={top} width={TURN_PX} height={TURN_PX}
+              />
+              <rect
+                x={turn.cx - TURN_PX / 2} y={top + TURN_PX + 1} width={TURN_PX} height="2"
+                fill={`var(--fib-race-${turn.lane % 8})`}
+              />
+              <title>{`${f.clock(turn.t)} - ${turn.who ?? 'the lead'} took the lead with ${itemLabel(turn.itemName)}`}</title>
+            </g>
+          );
+        })}
       </svg>
 
-      <ul className="fib-chart-legend">
+      <ul className={`fib-chart-legend${detailFor ? ' fib-lanes' : ''}`}>
         {entries.map((entry, i) => (
           <li key={entry.key}>
             <i style={{ height: 2, background: `var(--fib-race-${i % 8})` }} />
             {iconFor ? iconFor(entry) : null}
             <span>{labelFor ? labelFor(entry) : entry.key}</span>
+            {detailFor ? detailFor(entry, i) : null}
           </li>
         ))}
       </ul>

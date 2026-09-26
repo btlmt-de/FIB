@@ -29,6 +29,29 @@ import * as f from './format.js';
 
 const labelFor = (row) => row.members.map(idLabel).join(' & ');
 
+/** The tiers the chart and the shelf treat as rare: Legendary and above. */
+const RARE_TIERS = ['LEGENDARY', 'RNGESUS', 'EXTRAORDINARY'];
+
+/*
+ * What a lane is doing at match time `at`.
+ *
+ * Mid-race (`live`), the item it is HUNTING is its next event after `at` -
+ * found or skipped, it was the target until that moment - with the one it just
+ * got for context. At rest there is nothing left to hunt, so it is the last
+ * item it found. This is the half of a replay the lines cannot show: a flat
+ * stretch reads as "nothing happened" until you can see it was twelve minutes
+ * on one Trident.
+ */
+function laneAt(entry, at, live) {
+  const done = entry.events.filter((e) => e.t <= at);
+  const next = entry.events.find((e) => e.t > at);
+  const lastFound = [...done].reverse().find((e) => !e.skipped);
+  if (live && next) {
+    return { verb: 'hunting', item: next.itemName, since: done.length ? done[done.length - 1].t : 0, score: done.length };
+  }
+  return { verb: 'last find', item: lastFound?.itemName ?? null, score: done.length };
+}
+
 /* Who pulled an item. A solo match logs the puller on the item itself, but a TEAM match logs only
    the teamIndex — `item.player` is null there, so reading it directly printed "Unknown" against
    every team pull. The standings already hold each competitor's members under the same key the item
@@ -256,13 +279,27 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
   const model = useMemo(() => {
     if (!match) return null;
     const entries = raceEntries(match);
+    const changeTimes = leadChangeTimes(entries);
     return {
       entries,
       changes: leadChanges(entries),
-      changeTimes: leadChangeTimes(entries),
+      changeTimes,
+      /* Each lead change, with the item that took it: the new leader's event at
+         that instant. A turn with no matching event (two lanes scoring on the
+         same second) is dropped rather than labelled with a guess. */
+      turns: changeTimes.map((at) => {
+        const leader = standingsAt(entries, at)[0]?.entry;
+        const ev = leader?.events.find((e) => e.t === at);
+        return ev ? { t: at, itemName: ev.itemName, lane: leader.index, who: labelFor(leader) } : null;
+      }).filter(Boolean),
+      /* Rare back-to-backs placed on the lane: the score AFTER the pull is its
+         height, which is where the step lands. */
+      pulls: entries.flatMap((entry) => entry.events
+          .map((ev, k) => ({ t: ev.t, score: k + 1, itemName: ev.itemName, tier: ev.b2b, lane: entry.index }))
+          .filter((p) => RARE_TIERS.includes(p.tier))),
       finalStandings: matchStandings(match),
       rare: match.items
-          .filter((i) => ['LEGENDARY', 'RNGESUS', 'EXTRAORDINARY'].includes(i.b2bRarity))
+          .filter((i) => RARE_TIERS.includes(i.b2bRarity))
           .slice(0, 8),
     };
   }, [match]);
@@ -434,6 +471,24 @@ function MatchDetailBody({ match, onBack, onOpenPlayer }) {
               cursor={hover ?? cursor}
               labelFor={labelFor}
               markers={changeTimes}
+              turns={model.turns}
+              pulls={model.pulls}
+              detailFor={(entry) => {
+                const lane = laneAt(entry, t, scrubbing);
+                return (
+                    <span className="fib-lane-now">
+                      {lane.item ? <Sprite name={lane.item} size={32} pad={4} /> : <span className="fib-lane-now-empty" />}
+                      <span className="fib-lane-now-text">
+                        <span className="fib-label">
+                          {lane.verb}
+                          {lane.verb === 'hunting' ? ` for ${f.clock(Math.max(0, t - lane.since))}` : ''}
+                        </span>
+                        <b>{lane.item ? f.itemLabel(lane.item) : 'nothing yet'}</b>
+                      </span>
+                      <span className="fib-lane-now-score">{lane.score}</span>
+                    </span>
+                );
+              }}
               onScrub={playing ? undefined : setHover}
               iconFor={(entry) => (
                   <span className="fib-lane-faces" aria-hidden="true">

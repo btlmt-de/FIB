@@ -170,8 +170,23 @@ ${cssVariables()}
   background: var(--fib-blue-tint); color: var(--fib-blue-ink); font-weight: 600;
   box-shadow: inset 0 1px 0 0 var(--fib-gloss-top);
 }
-.fib-nav-item svg { flex: none; opacity: 0.7; }
-.fib-nav-item[aria-current="page"] svg { opacity: 1; color: var(--fib-blue-ink); }
+/* The destination's item. Softened at rest - part-desaturated, slightly dim -
+   not greyed out: fully grey, 16px sprites stopped reading as items at all.
+   Softened so a column of
+   five full-colour sprites does not outshout the labels; full colour on hover
+   and on the current page, where it is the "you are here" cue beside the blue. */
+.fib-nav-item .fib-nav-sprite {
+  flex: none; width: 16px; height: 16px;
+  image-rendering: pixelated;
+  filter: saturate(0.55); opacity: 0.8;
+  transition: filter var(--fib-motion-fast) var(--fib-ease), opacity var(--fib-motion-fast) var(--fib-ease),
+              transform var(--fib-motion-base) var(--fib-ease);
+}
+.fib-nav-item:hover .fib-nav-sprite,
+.fib-nav-item[aria-current="page"] .fib-nav-sprite {
+  filter: drop-shadow(0 1px 1px var(--fib-shadow-deep)); opacity: 1;
+}
+.fib-nav-item:hover .fib-nav-sprite { transform: translateY(-1px); }
 
 .fib-rail-foot { margin-top: auto; padding-top: var(--fib-space-5); }
 
@@ -1175,6 +1190,54 @@ ${cssVariables()}
 }
 .fib-lane-faces .fib-avatar:first-child { margin-left: 0; }
 
+/*
+ * The match page's legend is a lane panel: each competitor's swatch, heads and
+ * name, then what they are doing at the cursor - the item they are hunting and
+ * for how long, or their last find at rest - and their score at that moment.
+ * One card per lane, so the panel reads as a scoreboard beside the race.
+ */
+.fib-chart-legend.fib-lanes {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--fib-space-3);
+  padding-top: var(--fib-space-4);
+}
+.fib-lanes li {
+  display: grid;
+  grid-template-columns: 14px auto minmax(0, 1fr);
+  grid-template-areas: "swatch faces name" "now now now";
+  align-items: center; column-gap: 8px; row-gap: var(--fib-space-3);
+  padding: var(--fib-space-3) var(--fib-space-4);
+  border-radius: var(--fib-radius-md);
+  background: var(--fib-plinth);
+  box-shadow: inset 0 0 0 1px var(--fib-line-soft);
+  font-size: var(--fib-text-sm); color: var(--fib-ink);
+}
+.fib-lanes li > i { grid-area: swatch; }
+.fib-lanes li > .fib-lane-faces { grid-area: faces; }
+.fib-lanes li > span:not(.fib-lane-faces):not(.fib-lane-now) { grid-area: name; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fib-lane-now {
+  grid-area: now;
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center; gap: var(--fib-space-3);
+}
+.fib-lane-now-empty { width: 40px; height: 40px; border-radius: var(--fib-radius-md); box-shadow: inset 0 0 0 1px var(--fib-line-soft); }
+.fib-lane-now-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fib-lane-now-text .fib-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fib-text-2xs); }
+.fib-lane-now-text b {
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-text-xl); line-height: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fib-lane-now-score {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-2xl); font-weight: 600; letter-spacing: -0.02em;
+}
+
+/* The race's item layers. Sprites in an SVG take no CSS class of their own,
+   so the pixel rendering is set on the group. */
+.fib-race-turn image, .fib-race-pull image { image-rendering: pixelated; }
+.fib-race-turn, .fib-race-pull { transition: opacity var(--fib-motion-base) var(--fib-ease); }
+
 /* ── 9. Achievements, rarity, the trophy case ─────────────────────────── */
 
 .fib-rarity {
@@ -1657,6 +1720,66 @@ ${cssVariables()}
   border-top: 1px solid var(--fib-line-soft);
   padding-top: var(--fib-space-5);
 }
+
+/*
+ * The record as three stories (Winning, Hunting, Luck) and a footnote (Out in
+ * the world). Each story: an item emblem and a jersey title, one headline
+ * figure, then its supporting numbers as a quiet definition list - label left,
+ * figure and standing right - so the headline is the only large number in the
+ * column. Columns are divided by a rule, never boxed.
+ */
+.fib-stories {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.fib-story {
+  display: flex; flex-direction: column; gap: var(--fib-space-4);
+  padding: 0 var(--fib-space-6);
+  border-left: 1px solid var(--fib-line-soft);
+  container: fib-figure / inline-size;
+  min-width: 0;
+}
+.fib-story:first-child { border-left: none; padding-left: 0; }
+.fib-story:last-child { padding-right: 0; }
+.fib-story-head {
+  display: flex; align-items: center; gap: var(--fib-space-3);
+  font-family: var(--fib-font-display); font-weight: 400;
+  font-size: var(--fib-display-sm); line-height: 1; color: var(--fib-ink-2);
+}
+.fib-story-head .fib-story-emblem { width: 32px; height: 32px; }
+.fib-story-rest { display: flex; flex-direction: column; margin: 0; }
+.fib-story-rest > div {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--fib-space-3);
+  padding: 9px 0;
+  border-top: 1px solid var(--fib-line-soft);
+}
+.fib-story-rest dt { font-size: var(--fib-text-sm); color: var(--fib-ink-3); }
+.fib-story-rest dd { margin: 0; display: flex; align-items: baseline; gap: var(--fib-space-3); text-align: right; }
+.fib-story-rest dd b, .fib-story-world-figs dd b {
+  font-family: var(--fib-font-mono); font-variant-numeric: tabular-nums;
+  font-size: var(--fib-text-lg); font-weight: 600; color: var(--fib-ink);
+}
+
+/* The footnote: one line, three figures, set small. */
+.fib-story-world {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--fib-space-4) var(--fib-space-7);
+  margin-top: var(--fib-space-6); padding-top: var(--fib-space-5);
+  border-top: 1px solid var(--fib-line-soft);
+}
+.fib-story-world .fib-story-head { font-size: var(--fib-text-xl); }
+.fib-story-world-figs { display: flex; flex-wrap: wrap; gap: var(--fib-space-3) var(--fib-space-7); margin: 0; }
+.fib-story-world-figs > div { display: flex; flex-direction: column; gap: 2px; }
+.fib-story-world-figs dt { font-size: var(--fib-text-xs); color: var(--fib-ink-3); order: 2; }
+.fib-story-world-figs dd { margin: 0; display: flex; align-items: baseline; gap: 6px; }
+.fib-story-world-figs dd em { font-style: normal; font-size: var(--fib-text-xs); color: var(--fib-ink-3); }
+
+@container fib-page (max-width: 760px) {
+  .fib-stories { grid-template-columns: minmax(0, 1fr); row-gap: var(--fib-space-6); }
+  .fib-story { border-left: none; padding: 0; }
+  .fib-story + .fib-story { border-top: 1px solid var(--fib-line-soft); padding-top: var(--fib-space-5); }
+}
+
+/* Achievement kinds as items, in the case's emerald-rimmed well. */
+.fib-case-well .fib-case-sprite { width: 32px; height: 32px; }
 
 .fib-record {
   display: grid;
