@@ -1,0 +1,100 @@
+/*
+ * The route map (RouteMap.jsx). Drawn like the game's advancement tree: square
+ * junctions and stepped connectors, never curves, never cards. Plain words in
+ * comments: no backticks.
+ */
+
+.rt {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  align-items: center;
+  gap: 0;
+}
+
+/* The root: the item you were handed. */
+.rt-root {
+  position: relative;
+  display: grid; justify-items: start; gap: 12px;
+  padding-right: 34px;
+}
+.rt-root .wk-slot {
+  background:
+    radial-gradient(circle at 50% 62%, color-mix(in oklch, var(--region, var(--wk-ink-3)) 30%, transparent), transparent 70%),
+    var(--wk-slot);
+}
+/* The trunk: from the root to the branches' spine. */
+.rt-root::after {
+  content: ""; position: absolute; right: 0; top: 48px; width: 34px; height: 2px;
+  background: var(--wk-line-hi);
+}
+.rt-root-text { display: grid; gap: 2px; }
+.rt-root-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.05; color: var(--wk-ink); }
+.rt-root-stage { font-size: 14px; color: var(--wk-ink-3); }
+
+/* The branches, each hung off one vertical spine. */
+.rt-branches {
+  position: relative;
+  list-style: none; margin: 0; padding: 0 0 0 30px;
+  display: grid; gap: 4px;
+}
+.rt-branches::before {
+  content: ""; position: absolute; left: 0; top: 26px; bottom: 26px; width: 2px;
+  background: var(--wk-line-hi);
+}
+.rt-branch {
+  position: relative;
+  display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 14px;
+  min-height: 52px; padding: 6px 12px 6px 0;
+  animation: rt-in 260ms var(--wk-ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.rt-branch::before {
+  content: ""; position: absolute; left: -30px; top: 50%; width: 22px; height: 2px;
+  background: var(--wk-line-hi);
+}
+/* The junction node. */
+.rt-branch::after {
+  content: ""; position: absolute; left: -9px; top: calc(50% - 3px); width: 8px; height: 8px;
+  background: var(--wk-ink-3);
+  box-shadow: 0 0 0 2px var(--wk-ground);
+}
+.rt-branches[data-calm] .rt-branch { animation: none; }
+@keyframes rt-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+.rt-verb {
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 22px; line-height: 1;
+  color: var(--wk-ink);
+}
+
+/* A recipe: the ingredients, then the station, then the words. */
+.rt-chain { display: grid; gap: 6px; min-width: 0; }
+.rt-chain-items { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rt-ing { position: relative; line-height: 0; }
+.rt-op { font-weight: 700; font-size: 16px; color: var(--wk-ink-3); }
+.rt-arrow { color: var(--wk-ink-3); margin: 0 2px; }
+.rt-chain-text { font-size: 14px; line-height: 1.4; color: var(--wk-ink-2); }
+.rt-yield { color: var(--wk-ink-3); }
+
+/* A source: the mob, the chest, the block, the villager. */
+.rt-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; min-width: 0; }
+.rt-src { display: inline-flex; align-items: center; gap: 10px; font-size: 16px; line-height: 1.35; color: var(--wk-ink-2); }
+.rt-odds { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink); }
+.rt-more { font-size: 14px; color: var(--wk-ink-3); }
+
+/* The two rules that hold for every item: dashed, because they are not Minecraft,
+   they are ForceItemBattle. */
+.rt-rule::before { background: repeating-linear-gradient(90deg, var(--wk-ink-3) 0 4px, transparent 4px 7px); }
+.rt-rule::after { background: var(--wk-ground); box-shadow: inset 0 0 0 2px var(--wk-ink-3), 0 0 0 2px var(--wk-ground); }
+.rt-rule .rt-verb { color: var(--wk-ink-2); }
+.rt-rule .rt-src { max-width: 62ch; }
+
+@media (max-width: 760px) {
+  .rt { grid-template-columns: 1fr; gap: 18px; }
+  .rt-root { grid-template-columns: auto 1fr; align-items: center; padding-right: 0; }
+  .rt-root::after { display: none; }
+  .rt-branches { padding-left: 22px; }
+  .rt-branches::before { top: 20px; bottom: 20px; }
+  .rt-branch { grid-template-columns: 1fr; gap: 6px; padding: 8px 0; }
+  .rt-branch::before { left: -22px; top: 18px; width: 14px; }
+  .rt-branch::after { top: 15px; }
+}

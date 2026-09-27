@@ -1,440 +1,201 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Home         from 'lucide-react/dist/esm/icons/home';
-import BookOpen     from 'lucide-react/dist/esm/icons/book-open';
-import Layers       from 'lucide-react/dist/esm/icons/layers';
-import BarChart3    from 'lucide-react/dist/esm/icons/bar-chart-3';
-import Puzzle       from 'lucide-react/dist/esm/icons/puzzle';
-import Terminal     from 'lucide-react/dist/esm/icons/terminal';
-import Settings     from 'lucide-react/dist/esm/icons/settings';
-import FileText     from 'lucide-react/dist/esm/icons/file-text';
-import Sparkles     from 'lucide-react/dist/esm/icons/sparkles';
-import Gamepad2     from 'lucide-react/dist/esm/icons/gamepad-2';
-import X            from 'lucide-react/dist/esm/icons/x';
-import Menu         from 'lucide-react/dist/esm/icons/menu';
-import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right';
-import Battery      from 'lucide-react/dist/esm/icons/battery';
-import BatteryLow   from 'lucide-react/dist/esm/icons/battery-low';
-import unicodeItems from '../../../unicodeItems.json';
-import { COLORS as C, IMAGE_BASE_URL } from '../../config/constants';
+import X from 'lucide-react/dist/esm/icons/x';
+import Menu from 'lucide-react/dist/esm/icons/menu';
+import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
+import Battery from 'lucide-react/dist/esm/icons/battery';
+import BatteryLow from 'lucide-react/dist/esm/icons/battery-low';
 import { useSaverMode, setSaverMode } from '../../config/power.js';
 
-const mainItems = unicodeItems
-    .filter(i => !i.material.endsWith('_tabChat'))
-    .map(i => i.material.toLowerCase());
-const randomLogoItem = mainItems[Math.floor(Math.random() * mainItems.length)];
+/*
+ * The wiki's navigation bar (THE EXPLORER'S ATLAS; styles in src/wiki/wiki.css).
+ *
+ * It lives in the entry chunk, which the wheel and the stats module also load, so it
+ * deliberately imports nothing from the wiki's item atlas: that is 50 kB of pool
+ * data no /wheel visitor should pay for. The faces here are plain sprites.
+ *
+ * The brand slot shows a random item on every load, which it always has: the
+ * site's mark is "some item", because that is the game. It used to draw from the
+ * plugin's whole icon font, and some of those sprites are a few pixels of redstone
+ * that read as a smudge at 36px and vanish in the drawer, so it now draws from a
+ * short list of items that hold their shape at any size, one per region of the atlas.
+ *
+ * Stats and the Wheel are separate worlds with their own chrome and no nav bar, so
+ * they are exits rather than tabs: set apart on the right, each wearing its item.
+ */
 
-// Grouped nav — Play | dot | Reference | dot | Wheel
-const NAV_GROUPS = [
-    [
-        { id: 'home',        label: 'Home',           icon: Home      },
-        { id: 'how-to-play', label: 'How to Play',    icon: BookOpen  },
-        { id: 'gameplay',    label: 'Gameplay',       icon: Gamepad2  },
-        { id: 'pools',       label: 'Item Pools',     icon: Layers    },
-        { id: 'stats',       label: 'Stats',          icon: BarChart3 },
-    ],
-    [
-        { id: 'structures',  label: 'Custom Content', icon: Puzzle    },
-        { id: 'commands',    label: 'Commands',       icon: Terminal  },
-        { id: 'settings',    label: 'Settings',       icon: Settings  },
-        { id: 'changelog',   label: 'Changelog',      icon: FileText  },
-    ],
+const BRAND_ITEMS = ['diamond', 'heart_of_the_sea', 'amethyst_shard', 'trial_key', 'echo_shard', 'blaze_rod', 'ender_pearl'];
+const brandItem = BRAND_ITEMS[Math.floor(Math.random() * BRAND_ITEMS.length)];
+
+const face = (m) => `/fib-items/${m}.png`;
+
+const GROUPS = [
+    {
+        label: 'Play',
+        items: [
+            { id: 'how-to-play', label: 'How to Play',    face: face('crafting_table') },
+            { id: 'gameplay',    label: 'Gameplay',       face: face('compass') },
+            { id: 'pools',       label: 'Item Pools',     face: face('chest') },
+            { id: 'structures',  label: 'Custom Content', face: face('structure_block') },
+        ],
+    },
+    {
+        label: 'Reference',
+        items: [
+            { id: 'commands',  label: 'Commands',  face: face('command_block') },
+            { id: 'settings',  label: 'Settings',  face: face('comparator') },
+            { id: 'rules',     label: 'Rules',     face: face('writable_book') },
+            { id: 'changelog', label: 'Changelog', face: face('book') },
+        ],
+    },
 ];
 
-const SPECIAL_ITEMS = [
-    { id: 'wheel', label: 'Wheel', icon: Sparkles, special: true },
+const EXITS = [
+    { id: 'stats', label: 'Stats', face: face('spyglass'), note: 'Records and rankings' },
+    { id: 'wheel', label: 'Wheel', face: '/fib-custom/wheel.png', note: 'Wheel of Fortune' },
 ];
 
-const ALL_ITEMS = [...NAV_GROUPS.flat(), ...SPECIAL_ITEMS];
-
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
-
-  /* ── Nav shell ── */
-  .nav {
-    position: sticky; top: 0; z-index: 100;
-    background: oklch(21% 0.023 255);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid oklch(27% 0.020 255);
-    font-family: 'Barlow', system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  .nav-inner {
-    max-width: 1280px; margin: 0 auto;
-    display: flex; align-items: center;
-    height: 56px; padding: 0 20px; gap: 2px;
-  }
-
-  /* ── Logo ── */
-  .nav-logo {
-    display: flex; align-items: center; gap: 10px;
-    background: none; border: none; cursor: pointer;
-    padding: 6px 10px 6px 4px;
-    border-radius: 8px; margin-right: 8px; flex-shrink: 0;
-    transition: background 0.12s ease-out;
-  }
-  .nav-logo:hover { background: oklch(26% 0.022 255); }
-
-  .nav-logo-frame {
-    width: 32px; height: 32px; flex-shrink: 0;
-    background: oklch(17% 0.025 255);
-    border: 1px solid oklch(32% 0.018 255);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    overflow: hidden;
-  }
-  .nav-logo-frame img { width: 24px; height: 24px; image-rendering: pixelated; }
-
-  .nav-logo-text {
-    display: flex; flex-direction: column; line-height: 1;
-  }
-  .nav-logo-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 18px; font-weight: 800;
-    text-transform: uppercase; letter-spacing: 1.5px;
-    color: oklch(94% 0.007 255);
-  }
-
-  /* ── Group dot separator ── */
-  .nav-group-sep {
-    width: 3px; height: 3px; border-radius: 50%;
-    background: oklch(32% 0.018 255);
-    flex-shrink: 0; margin: 0 8px;
-  }
-
-  /* ── Desktop nav items ── */
-  .nav-items { display: flex; align-items: center; gap: 1px; }
-
-  .nav-item {
-    display: flex; align-items: center; gap: 5px;
-    padding: 6px 11px; cursor: pointer;
-    background: none; border: none;
-    border-radius: 6px;
-    font-family: 'Barlow', system-ui, sans-serif;
-    font-size: 12.5px; font-weight: 500;
-    color: oklch(54% 0.012 255);
-    transition: background 0.1s ease-out, color 0.1s ease-out;
-    white-space: nowrap; flex-shrink: 0;
-  }
-  .nav-item:hover {
-    background: oklch(27% 0.021 255);
-    color: oklch(88% 0.009 255);
-  }
-  /* Active: solid amber pill — unmistakable */
-  .nav-item.active {
-    background: oklch(76% 0.16 68);
-    color: oklch(14% 0.01 50);
-    font-weight: 700;
-  }
-  .nav-item.active:hover {
-    background: oklch(80% 0.16 68);
-    color: oklch(10% 0.01 50);
-  }
-
-  /* Wheel: amber border + text, separate from regular items */
-  .nav-item.special {
-    color: oklch(76% 0.16 68);
-    border: 1px solid oklch(76% 0.16 68 / 0.28);
-    background: oklch(76% 0.16 68 / 0.06);
-    margin-left: 6px;
-  }
-  .nav-item.special:hover {
-    background: oklch(76% 0.16 68 / 0.14);
-    border-color: oklch(76% 0.16 68 / 0.55);
-    color: oklch(82% 0.16 68);
-  }
-  .nav-item.special.active {
-    background: oklch(76% 0.16 68);
-    border-color: oklch(76% 0.16 68);
-    color: oklch(14% 0.01 50);
-  }
-
-  /* Icons hidden below 1060px, labels compress at 920px */
-  @media (max-width: 1060px) { .nav-icon { display: none; } }
-  @media (max-width: 920px)  { .nav-item { font-size: 11.5px; padding: 6px 8px; } }
-
-  /* ── Hamburger ── */
-  .nav-hamburger {
-    display: flex; align-items: center; justify-content: center;
-    width: 38px; height: 38px;
-    background: none; border: none; cursor: pointer;
-    border-radius: 7px; color: oklch(56% 0.012 255);
-    transition: background 0.12s ease-out, color 0.12s ease-out;
-  }
-  .nav-hamburger:hover,
-  .nav-hamburger.open { background: oklch(27% 0.021 255); color: oklch(94% 0.007 255); }
-
-  /* ── Mobile backdrop ── */
-  .nav-backdrop {
-    position: fixed; inset: 0; top: 56px;
-    background: oklch(6% 0.022 255 / 0.72);
-    z-index: 99;
-  }
-
-  /* ── Mobile drawer ── */
-  .nav-drawer {
-    position: fixed; top: 56px; right: 0;
-    width: 280px; max-width: 88vw;
-    height: calc(100vh - 56px);
-    background: oklch(20% 0.024 255);
-    border-left: 1px solid oklch(28% 0.020 255);
-    z-index: 100; overflow-y: auto;
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .nav-drawer.closed { transform: translateX(100%); pointer-events: none; }
-  .nav-drawer.open   { transform: translateX(0); }
-
-  .nav-drawer-section { padding: 8px 10px 4px; }
-  .nav-drawer-section-label {
-    font-size: 10px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 2px;
-    color: oklch(36% 0.013 255);
-    padding: 4px 10px 8px;
-  }
-
-  .nav-mobile-item {
-    display: flex; align-items: center; gap: 13px;
-    width: 100%; padding: 10px 12px;
-    background: none; border: none; cursor: pointer;
-    border-radius: 7px; margin-bottom: 1px;
-    font-family: 'Barlow', system-ui, sans-serif;
-    font-size: 13.5px; font-weight: 500;
-    color: oklch(56% 0.012 255); text-align: left;
-    transition: background 0.1s ease-out, color 0.1s ease-out;
-  }
-  .nav-mobile-item:hover { background: oklch(26% 0.022 255); color: oklch(88% 0.009 255); }
-  .nav-mobile-item.active {
-    background: oklch(76% 0.16 68 / 0.12);
-    color: oklch(76% 0.16 68);
-    font-weight: 600;
-  }
-  .nav-mobile-item.special {
-    color: oklch(76% 0.16 68);
-    background: oklch(76% 0.16 68 / 0.06);
-    border: 1px solid oklch(76% 0.16 68 / 0.18);
-  }
-  .nav-mobile-item.special:hover {
-    background: oklch(76% 0.16 68 / 0.13);
-    border-color: oklch(76% 0.16 68 / 0.38);
-  }
-  .nav-mobile-icon { flex-shrink: 0; }
-  .nav-mobile-label { flex: 1; }
-  .nav-mobile-arr { color: oklch(30% 0.017 255); flex-shrink: 0; transition: color 0.1s; }
-  .nav-mobile-item:hover .nav-mobile-arr  { color: oklch(50% 0.013 255); }
-  .nav-mobile-item.active .nav-mobile-arr { color: oklch(60% 0.12 68); }
-
-  .nav-drawer-sep { height: 1px; background: oklch(26% 0.020 255); margin: 6px 10px; }
-
-  /* The saver toggle's state word: the 10px/2px label treatment the drawer's
-     section headings use, since it is the same kind of caption.
-
-     It is lighter than the row's own label, which inverts the usual hierarchy
-     on purpose — this is the only row in the drawer that answers a question
-     rather than opening a page, and the answer is what the player came to read.
-     It is also what forces the lightness: the drawer's section headings sit at
-     36% and its item labels at 56%, both of which fail AA against this ground,
-     and while that is not this change's problem to solve, adding a ninth piece
-     of unreadable 10px text to it would be. 72% clears 4.5:1; amber (the
-     drawer's own active colour, so "on" looks like everything else in here that
-     is currently true) clears 6:1. */
-  .nav-mobile-state {
-    flex-shrink: 0;
-    font-size: 10px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 2px;
-    color: oklch(72% 0.012 255);
-  }
-  .nav-mobile-item[aria-pressed="true"] .nav-mobile-state { color: oklch(76% 0.16 68); }
-`;
-
-function NavItem({ item, isActive, onClick }) {
-    const Icon = item.icon;
-    let cls = 'nav-item';
-    if (isActive)     cls += ' active';
-    if (item.special) cls += ' special';
+function Face({ src, size }) {
     return (
-        <button className={cls} onClick={onClick} aria-current={isActive ? 'page' : undefined}>
-            <Icon size={13} className="nav-icon" />
-            {item.label}
-        </button>
+        <span className="wk-slot" style={{ '--slot': `${size}px` }} aria-hidden="true">
+            <img className="wk-sprite" src={src} alt="" width="128" height="128" loading="lazy" draggable="false" />
+        </span>
     );
 }
-
-function MobileMenuItem({ item, isActive, onClick }) {
-    const Icon = item.icon;
-    let cls = 'nav-mobile-item';
-    if (isActive)     cls += ' active';
-    if (item.special) cls += ' special';
-    const iconColor = item.special ? C.accent : isActive ? C.accent : C.muted;
-    return (
-        <button className={cls} onClick={onClick} aria-current={isActive ? 'page' : undefined}>
-            <Icon size={17} className="nav-mobile-icon" style={{ color: iconColor }} />
-            <span className="nav-mobile-label">{item.label}</span>
-            <ChevronRight size={13} className="nav-mobile-arr" />
-        </button>
-    );
-}
-
-const DRAWER_SECTIONS = [
-    { label: 'Play',      items: NAV_GROUPS[0] },
-    { label: 'Reference', items: NAV_GROUPS[1] },
-];
 
 export default function Navigation({ currentPage, onNavigate }) {
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
+    const [open, setOpen] = useState(false);
     const saverMode = useSaverMode();
     const drawerRef = useRef(null);
+    const burgerRef = useRef(null);
+
+    const go = (id) => (e) => {
+        // Real hrefs, so middle-click and copy-link work; a plain click stays in-app.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+        e.preventDefault();
+        setOpen(false);
+        onNavigate(id);
+    };
 
     useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 1024);
-        check();
-        window.addEventListener('resize', check);
-        return () => window.removeEventListener('resize', check);
-    }, []);
-
-    useEffect(() => {
-        const handler = (e) => {
-            if (drawerRef.current && !drawerRef.current.contains(e.target)) setMenuOpen(false);
+        if (!open) return undefined;
+        const onKey = (e) => {
+            if (e.key === 'Escape') { setOpen(false); burgerRef.current?.focus(); }
         };
-        if (menuOpen) document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, [menuOpen]);
+        document.addEventListener('keydown', onKey);
+        drawerRef.current?.querySelector('a, button')?.focus();
+        return () => document.removeEventListener('keydown', onKey);
+    }, [open]);
 
-    const navigate = (id) => { onNavigate(id); setMenuOpen(false); };
+    const href = (id) => (id === 'home' ? '/' : `/${id}`);
 
     return (
         <>
-            <style>{CSS}</style>
-            <nav className="nav">
-                <div className="nav-inner">
+            <nav className="wk-nav" aria-label="Main">
+                <div className="wk-wrap wk-nav-in">
+                    <a className="wk-brand" href="/" onClick={go('home')} aria-label="ForceItemBattle, home">
+                        <Face src={face(brandItem)} size={36} />
+                        <span className="wk-brand-word">ForceItemBattle</span>
+                    </a>
 
-                    {/* Logo */}
-                    <button className="nav-logo" onClick={() => navigate('home')}>
-                        <div className="nav-logo-frame">
-                            <img
-                                src={`${IMAGE_BASE_URL}/${randomLogoItem}.png`}
-                                alt=""
-                                onError={e => { e.target.style.display = 'none'; }}
-                            />
-                        </div>
-                        <div className="nav-logo-text">
-                            <span className="nav-logo-name">FIB</span>
-                        </div>
-                    </button>
-
-                    {/* Desktop nav — all items + dot + Wheel */}
-                    {!isMobile && (
-                        <div className="nav-items">
-                            {NAV_GROUPS.flat().map(item => (
-                                <NavItem
-                                    key={item.id}
-                                    item={item}
-                                    isActive={currentPage === item.id}
-                                    onClick={() => navigate(item.id)}
-                                />
-                            ))}
-                            <div className="nav-group-sep" style={{ margin: '0 6px' }} />
-                            {SPECIAL_ITEMS.map(item => (
-                                <NavItem
-                                    key={item.id}
-                                    item={item}
-                                    isActive={currentPage === item.id}
-                                    onClick={() => navigate(item.id)}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Mobile hamburger */}
-                    {isMobile && (
-                        <>
-                            <div style={{ flex: 1 }} />
-                            <button
-                                className={`nav-hamburger${menuOpen ? ' open' : ''}`}
-                                onClick={() => setMenuOpen(o => !o)}
-                                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-                                aria-expanded={menuOpen}
-                            >
-                                {menuOpen ? <X size={20} /> : <Menu size={20} />}
-                            </button>
-                        </>
-                    )}
-                </div>
-            </nav>
-
-            {/* Mobile backdrop */}
-            {isMobile && menuOpen && (
-                <div className="nav-backdrop" onClick={() => setMenuOpen(false)} />
-            )}
-
-            {/* Mobile drawer */}
-            {isMobile && (
-                <div
-                    ref={drawerRef}
-                    className={`nav-drawer${menuOpen ? ' open' : ' closed'}`}
-                    aria-hidden={!menuOpen}
-                >
-                    {DRAWER_SECTIONS.map((section, si) => (
-                        <div key={si} className="nav-drawer-section">
-                            <div className="nav-drawer-section-label">{section.label}</div>
-                            {section.items.map(item => (
-                                <MobileMenuItem
-                                    key={item.id}
-                                    item={item}
-                                    isActive={currentPage === item.id}
-                                    onClick={() => navigate(item.id)}
-                                />
-                            ))}
-                            {si < DRAWER_SECTIONS.length - 1 && <div className="nav-drawer-sep" />}
-                        </div>
+                    {GROUPS.map((g, gi) => (
+                        <React.Fragment key={g.label}>
+                            {gi > 0 && <span className="wk-nav-sep" aria-hidden="true" />}
+                            <ul className="wk-nav-links" aria-label={g.label}>
+                                {g.items.map(item => (
+                                    <li key={item.id} style={{ display: 'flex' }}>
+                                        <a
+                                            className="wk-nav-link"
+                                            href={href(item.id)}
+                                            onClick={go(item.id)}
+                                            aria-current={currentPage === item.id ? 'page' : undefined}
+                                        >
+                                            {item.label}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </React.Fragment>
                     ))}
-                    <div className="nav-drawer-sep" />
-                    <div className="nav-drawer-section">
-                        {SPECIAL_ITEMS.map(item => (
-                            <MobileMenuItem
-                                key={item.id}
-                                item={item}
-                                isActive={currentPage === item.id}
-                                onClick={() => navigate(item.id)}
-                            />
+
+                    <div className="wk-nav-exits">
+                        {EXITS.map(x => (
+                            <a key={x.id} className="wk-exit" href={href(x.id)} onClick={go(x.id)}>
+                                <Face src={x.face} size={28} />
+                                {x.label}
+                                <ArrowUpRight size={14} className="wk-exit-arrow" aria-hidden="true" />
+                            </a>
                         ))}
                     </div>
 
-                    {/*
-                     * Saver mode's second entrance.
-                     *
-                     * The setting is device-wide, so a player who turned it on
-                     * inside the wheel must be able to turn it off from a
-                     * reference page without going back to the wheel to find the
-                     * switch. It is under its own label rather than in the
-                     * navigation list because it is not a place you go — the
-                     * drawer's two sections are both destinations, and a toggle
-                     * dropped among them reads as a page you failed to open.
-                     *
-                     * The drawer stays open on tap. Unlike the wheel's sheet,
-                     * nothing visible changes on a reference page when this
-                     * flips — the nav bar's backdrop blur goes, and that is
-                     * about it — so closing the drawer would leave the player
-                     * with no confirmation that anything happened. The state
-                     * word under their thumb is the confirmation.
-                     */}
-                    <div className="nav-drawer-sep" />
-                    <div className="nav-drawer-section">
-                        <div className="nav-drawer-section-label">Display</div>
-                        <button
-                            type="button"
-                            className="nav-mobile-item"
-                            aria-pressed={saverMode}
-                            onClick={() => setSaverMode(!saverMode)}
-                        >
-                            {saverMode
-                                ? <BatteryLow size={16} className="nav-mobile-icon" />
-                                : <Battery size={16} className="nav-mobile-icon" />}
-                            <span className="nav-mobile-label">Battery saver</span>
-                            <span className="nav-mobile-state">{saverMode ? 'On' : 'Off'}</span>
-                        </button>
-                    </div>
+                    <button
+                        ref={burgerRef}
+                        type="button"
+                        className="wk-burger"
+                        onClick={() => setOpen(o => !o)}
+                        aria-label={open ? 'Close menu' : 'Open menu'}
+                        aria-expanded={open}
+                        aria-controls="wk-drawer"
+                    >
+                        {open ? <X size={20} /> : <Menu size={20} />}
+                    </button>
                 </div>
-            )}
+            </nav>
+
+            {open && <div className="wk-drawer-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
+
+            <div id="wk-drawer" ref={drawerRef} className="wk-drawer" data-open={open} aria-hidden={!open}>
+                <a className="wk-drawer-row" href="/" onClick={go('home')} aria-current={currentPage === 'home' ? 'page' : undefined}>
+                    <Face src={face(brandItem)} size={40} />
+                    Home
+                </a>
+                {GROUPS.map(g => (
+                    <div key={g.label}>
+                        <span className="wk-label">{g.label}</span>
+                        {g.items.map(item => (
+                            <a
+                                key={item.id}
+                                className="wk-drawer-row"
+                                href={href(item.id)}
+                                onClick={go(item.id)}
+                                aria-current={currentPage === item.id ? 'page' : undefined}
+                            >
+                                <Face src={item.face} size={40} />
+                                {item.label}
+                            </a>
+                        ))}
+                    </div>
+                ))}
+                <span className="wk-label">Elsewhere</span>
+                {EXITS.map(x => (
+                    <a key={x.id} className="wk-drawer-row" href={href(x.id)} onClick={go(x.id)}>
+                        <Face src={x.face} size={40} />
+                        {x.label}
+                        <span className="wk-drawer-note">{x.note}</span>
+                    </a>
+                ))}
+
+                {/*
+                 * Saver mode's second entrance. The setting is device-wide, so a
+                 * player who turned it on inside the wheel must be able to turn it off
+                 * from a reference page without going back to the wheel. It sits under
+                 * its own label because it is not a place you go, and the drawer stays
+                 * open on tap: nothing else visible changes on a reference page when
+                 * it flips, so the state word under the thumb is the confirmation.
+                 */}
+                <span className="wk-label">Display</span>
+                <button
+                    type="button"
+                    className="wk-drawer-row"
+                    aria-pressed={saverMode}
+                    onClick={() => setSaverMode(!saverMode)}
+                >
+                    <span className="wk-slot" style={{ '--slot': '40px' }} aria-hidden="true">
+                        {saverMode ? <BatteryLow size={18} /> : <Battery size={18} />}
+                    </span>
+                    Battery saver
+                    <span className="wk-drawer-note">{saverMode ? 'On' : 'Off'}</span>
+                </button>
+            </div>
         </>
     );
 }

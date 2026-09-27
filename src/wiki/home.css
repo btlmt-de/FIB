@@ -1,0 +1,534 @@
+/*
+ * The home page (THE EXPLORER'S ATLAS). Loaded with the page's own chunk.
+ * Shared primitives live in wiki.css and routemap.css; this file is composition.
+ *
+ * The sections follow the game: the item you are handed, the ways to get it, the
+ * loop, the clock, the escapes, the world, the modes. Each is drawn as the mechanic
+ * it explains rather than as a box of text about it.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.hm { display: block; overflow-x: clip; }
+.hm .wk-h2 { margin-bottom: 12px; }
+.hm-source { margin: 14px 0 0; font-size: 12.5px; color: var(--wk-ink-3); }
+.hm-mech {
+  margin: 0;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 30px; line-height: 1.05;
+  color: var(--wk-ink);
+}
+
+/* ── 1. Opening: the item you were handed ─────────────────────────────────── */
+
+.hm-open { position: relative; padding-top: 8px; }
+.hm-open-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 32px;
+  min-height: clamp(460px, 58vh, 560px);
+}
+.hm-open-grid > * { min-width: 0; }
+.hm-open-copy {
+  position: relative; z-index: 2;
+  align-self: center;
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 28px 0 8px;
+}
+.hm-open-note { max-width: 52ch; }
+.hm-open-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+
+.hm-target {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+  padding-left: 4%;
+  isolation: isolate;
+}
+.hm-target-env {
+  position: absolute; z-index: -1;
+  top: -12px; bottom: -48px; left: -12%;
+  right: calc((100vw - 100%) / -2);
+  animation: hm-fade 600ms var(--wk-ease) both;
+}
+.hm-target-env .wk-env {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12%), linear-gradient(to bottom, transparent 0, #000 12%, #000 76%, transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 12%), linear-gradient(to bottom, transparent 0, #000 12%, #000 76%, transparent 100%);
+  -webkit-mask-composite: source-in;
+          mask-composite: intersect;
+}
+@keyframes hm-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* The item itself: no card and no slot. It stands in the light of where it comes
+   from, and casts a shadow on the ground under it. */
+.hm-hero-item {
+  position: relative;
+  width: clamp(180px, 19vw, 256px); aspect-ratio: 1;
+  display: grid; place-items: center;
+}
+.hm-hero-item::before {
+  content: ""; position: absolute; inset: -22%; z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--region) 36%, transparent), transparent);
+  filter: blur(8px);
+}
+.hm-hero-sprite {
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 6px oklch(0% 0 0 / 0.5));
+  animation: hm-float 4.8s ease-in-out infinite;
+}
+.hm-hero-shadow {
+  position: absolute; left: 22%; right: 22%; bottom: -6%; height: 9%;
+  background: radial-gradient(closest-side, oklch(0% 0 0 / 0.55), transparent);
+  animation: hm-shadow 4.8s ease-in-out infinite;
+}
+.hm-hero-item[data-landed="0"] .hm-hero-sprite { animation: hm-land-a 280ms var(--wk-ease), hm-float 4.8s ease-in-out 280ms infinite; }
+.hm-hero-item[data-landed="1"] .hm-hero-sprite { animation: hm-land-b 280ms var(--wk-ease), hm-float 4.8s ease-in-out 280ms infinite; }
+@keyframes hm-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes hm-shadow { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(0.86); opacity: 0.75; } }
+@keyframes hm-land-a { from { transform: translateY(-14px); } to { transform: none; } }
+@keyframes hm-land-b { from { transform: translateY(-14px); } to { transform: none; } }
+
+.hm-hero-facts { min-width: 0; display: grid; gap: 8px; text-shadow: 0 1px 10px oklch(0% 0 0 / 0.9); }
+.hm-hero-name {
+  margin: 0;
+  font-family: var(--wk-font-display); font-weight: 600;
+  font-size: clamp(36px, 3.9vw, 52px); line-height: 1; color: var(--wk-ink);
+  text-wrap: balance;
+}
+.hm-hero-line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 16px; color: var(--wk-ink-2); }
+.hm-hero-tag { display: inline-flex; align-items: center; gap: 5px; }
+.hm-hero-dim { color: var(--wk-ink-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+.hm-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 8px; }
+.hm-draw { min-height: 40px; font-size: 14px; }
+.hm-hero-how { font-size: 16px; }
+
+/* ── 2. One item, many ways ───────────────────────────────────────────────── */
+
+/* The question on the left, the map on the right, so the map gets the width. */
+.hm-routes {
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 40px 48px;
+  align-items: start;
+  padding: 64px 0 72px;
+}
+.hm-routes > * { min-width: 0; }
+#hm-routes-title { scroll-margin-top: 80px; }
+.hm-routes-head { display: grid; gap: 0; position: sticky; top: 88px; }
+.hm-routes .hm-source { grid-column: 2; margin-top: -24px; }
+.hm-routes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 18px; }
+.hm-try { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hm-try-label { font-size: 14px; color: var(--wk-ink-3); margin-right: 6px; }
+.hm-try-item { padding: 0; border: 0; background: none; cursor: pointer; line-height: 0; border-radius: 2px; }
+.hm-try-item:hover .wk-slot::after { background: oklch(100% 0 0 / 0.1); }
+.hm-try-item[aria-pressed="true"] .wk-slot { box-shadow: inset 0 0 0 2px var(--wk-ink); }
+
+/* ── 3. The loop ──────────────────────────────────────────────────────────── */
+
+.hm-loop {
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 48px;
+  align-items: center;
+  padding: 56px 0 64px;
+  box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.hm-loop-strip {
+  margin: 0;
+  display: grid; grid-template-columns: 96px 112px minmax(0, 1fr); align-items: center; gap: 20px;
+}
+.hm-loop-score { display: grid; justify-items: start; gap: 2px; }
+.hm-loop-score-n { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 52px; line-height: 1; color: var(--wk-ink); }
+.hm-loop-score-k { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
+
+.hm-loop-now { position: relative; display: grid; place-items: center; height: 112px; }
+.hm-loop-now .wk-slot { animation: hm-land-a 220ms var(--wk-ease); }
+.hm-loop-now[data-beat="think"] .wk-slot,
+.hm-loop-now[data-beat="route"] .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), inset -2px -2px 0 oklch(30% 0.010 255 / 0.55), 0 0 0 2px var(--wk-ink-4); }
+.hm-loop-now[data-beat="obtain"] .wk-slot,
+.hm-loop-now[data-beat="score"] .wk-slot { box-shadow: 0 0 0 2px var(--wk-s-early); }
+.hm-loop-found {
+  position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border-radius: 2px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: oklch(14% 0.02 138); background: var(--wk-s-early);
+  opacity: 0; transition: opacity 120ms var(--wk-ease);
+}
+.hm-loop-now[data-beat="obtain"] .hm-loop-found,
+.hm-loop-now[data-beat="score"] .hm-loop-found { opacity: 1; }
+.hm-loop-plus {
+  position: absolute; right: -10px; top: 8px;
+  font-weight: 700; font-size: 22px; color: var(--wk-ink);
+  opacity: 0;
+}
+.hm-loop-now[data-beat="score"] .hm-loop-plus { animation: hm-plus 600ms var(--wk-ease) both; }
+@keyframes hm-plus { 0% { opacity: 0; transform: translateY(8px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
+
+.hm-loop-trail { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; overflow: hidden; min-width: 0; }
+.hm-loop-trail li { position: relative; line-height: 0; opacity: calc(1 - var(--i) * 0.12); flex-shrink: 0; }
+.hm-loop-trail li:first-child { animation: hm-slide 260ms var(--wk-ease); }
+@keyframes hm-slide { from { transform: translateX(-24px); opacity: 0; } }
+.hm-loop-check {
+  position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center;
+  width: 16px; height: 16px; border-radius: 2px;
+  background: var(--wk-s-early); color: oklch(14% 0.02 138);
+}
+
+.hm-beats {
+  grid-column: 1 / -1;
+  list-style: none; margin: 4px 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 4px 0;
+}
+.hm-beats li {
+  position: relative;
+  padding: 6px 12px 8px;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 22px; line-height: 1;
+  color: var(--wk-ink-3);
+  transition: color 120ms var(--wk-ease);
+}
+.hm-beats li + li::before {
+  content: ""; position: absolute; left: -3px; top: 50%; width: 6px; height: 2px; background: var(--wk-line-hi);
+}
+.hm-beats li[aria-current="step"] { color: var(--wk-ink); }
+.hm-beats li[aria-current="step"]::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; background: var(--wk-ink);
+}
+.hm-loop-strip .hm-source { grid-column: 1 / -1; margin-top: 0; }
+
+/* ── 4. The round clock, as the pool it grows ─────────────────────────────── */
+
+.hm-pressure { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-pressure-head { margin-bottom: 28px; }
+.hm-growth { margin: 0; }
+.hm-growth-plot { position: relative; height: 176px; }
+/* Each stage is a layer of blocks that starts where it unlocks and never ends. */
+.hm-growth-layer {
+  position: absolute; right: 0;
+  left: calc(var(--at) * 1%);
+  bottom: calc(var(--b) * 100%);
+  height: calc(var(--h) * 100% - 2px);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 12px, var(--wk-ground) 12px 14px),
+    repeating-linear-gradient(180deg, transparent 0 12px, var(--wk-ground) 12px 14px),
+    var(--c);
+  opacity: 0.82;
+}
+.hm-growth-n {
+  position: absolute;
+  left: calc(var(--at) * 1%);
+  bottom: calc(var(--y) * 100% + 8px);
+  font-weight: 700; font-variant-numeric: tabular-nums; font-size: 22px; line-height: 1;
+  color: var(--wk-ink);
+  padding-left: 2px;
+}
+/* Each stage's real items, inside its layer, starting where it enters the pool. */
+.hm-growth-items {
+  position: absolute; z-index: 1;
+  left: calc(var(--at) * 1% + 10px);
+  bottom: calc(var(--b) * 100%);
+  height: calc(var(--h) * 100% - 2px);
+  display: flex; align-items: center; gap: 4px;
+}
+.hm-growth-items .wk-slot { background: oklch(9% 0.006 255 / 0.9); }
+.hm-growth-axis { position: relative; height: 72px; margin-top: 8px; box-shadow: inset 0 1px 0 var(--wk-line-hi); }
+.hm-growth-tick {
+  position: absolute; top: 6px; left: calc(var(--at) * 1%);
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3);
+}
+.hm-growth-tick:nth-child(4) { left: auto; right: 0; }
+/* The item you were handed, marked where its stage unlocks. */
+.hm-growth-you {
+  position: absolute; top: 30px; left: calc(var(--at) * 1%);
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--wk-ink);
+}
+.hm-stages {
+  list-style: none; margin: 12px 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 8px 40px;
+}
+.hm-stage { display: flex; align-items: baseline; gap: 10px; }
+.hm-stage-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; }
+.hm-stage-meta { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
+
+/* ── 5. The escapes ───────────────────────────────────────────────────────── */
+
+.hm-escapes { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-escapes-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; margin-top: 12px; }
+.hm-escapes-grid > * { min-width: 0; display: grid; align-content: start; gap: 12px; }
+/* The joker's trade: the costly item, the card, the cheap next one, each with its route. */
+/* Two equal columns centred on their slots, so the joker sits exactly between the
+   two items whatever their names and routes say. */
+.hm-trade { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 8px; max-width: 520px; }
+.hm-trade-item { display: grid; justify-items: center; gap: 6px; min-width: 0; text-align: center; }
+.hm-trade-item .wk-slot {
+  background:
+    radial-gradient(circle at 50% 60%, color-mix(in oklch, var(--glow) 34%, transparent), transparent 70%),
+    var(--wk-slot);
+}
+.hm-trade-name { font-weight: 700; font-size: 16px; color: var(--wk-ink); }
+.hm-trade-route { font-size: 14px; line-height: 1.4; color: var(--wk-ink-2); }
+/* Centred on the 64px slots' row, not on the columns' full height. */
+.hm-trade-joker { display: flex; align-items: center; gap: 6px; height: 64px; }
+.hm-joker-arrow { color: var(--wk-ink-3); flex-shrink: 0; }
+.hm-joker-card { display: inline-block; line-height: 0; transform: rotate(-4deg); filter: drop-shadow(0 8px 10px oklch(0% 0 0 / 0.6)); }
+.hm-joker-card img { height: 72px; width: auto; image-rendering: pixelated; }
+.hm-joker-hand { display: flex; padding-left: 6px; }
+.hm-joker-card--small { margin-left: -10px; transform: rotate(calc((var(--i) - 1) * 7deg)); }
+.hm-joker-card--small img { height: 54px; }
+.hm-b2b .hm-ladder { margin-top: 10px; }
+
+.hm-ladder {
+  list-style: none; margin: 22px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.hm-rung { display: grid; align-content: start; gap: 6px; padding: 18px 14px 0 0; }
+.hm-rung + .hm-rung { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
+.hm-rung-bar {
+  height: 8px; margin-bottom: 6px;
+  background: repeating-linear-gradient(90deg, transparent 0 9px, oklch(14.5% 0.007 255) 9px 11px), linear-gradient(90deg, var(--f-from), var(--f-to));
+}
+.hm-rung:nth-child(1) .hm-rung-bar { width: 22%; }
+.hm-rung:nth-child(2) .hm-rung-bar { width: 42%; }
+.hm-rung:nth-child(3) .hm-rung-bar { width: 62%; }
+.hm-rung:nth-child(4) .hm-rung-bar { width: 82%; }
+.hm-rung:nth-child(5) .hm-rung-bar { width: 100%; }
+.hm-rung-name { font-family: var(--wk-font-display); font-size: 25px; font-weight: 600; line-height: 1.05; color: var(--f); overflow-wrap: anywhere; }
+.hm-rung-when { font-size: 14px; color: var(--wk-ink-2); }
+.hm-rung-note { font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; color: var(--wk-ink-3); }
+
+/* ── 6. The world, as the toolbox ─────────────────────────────────────────── */
+
+.hm-world { padding: 56px 0 8px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-world-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; }
+.hm-world-n { margin: 0; display: grid; justify-items: end; gap: 4px; text-align: right; }
+.hm-world-figure { font-weight: 700; font-variant-numeric: tabular-nums; font-size: clamp(56px, 6vw, 84px); line-height: 0.9; letter-spacing: -0.02em; color: var(--wk-ink); }
+.hm-world-k { font-size: 14px; color: var(--wk-ink-3); }
+.hm-regions { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 22px; }
+.hm-region-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 0 12px;
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.hm-region-chip:hover { background: var(--wk-panel-hi); color: var(--r-ink); }
+.hm-region-pip { width: 10px; height: 10px; background: var(--r); }
+.hm-region-y { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
+
+.hm-band { position: relative; isolation: isolate; padding: 34px 0; }
+.hm-band > .wk-env { z-index: -2; }
+/* A scrim on the reading side, so the words sit on the ground, not on the picture. */
+.hm-band::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, oklch(14.5% 0.007 255 / 0.92) 0, oklch(14.5% 0.007 255 / 0.55) 30%, transparent 58%);
+  pointer-events: none;
+}
+.hm-band-in { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 36px; align-items: center; }
+.hm-band-meta { display: grid; gap: 6px; }
+.hm-band-name { color: var(--r-ink); font-size: 37px; }
+.hm-band-y { margin: 0; font-family: var(--wk-font-text); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px; color: var(--wk-ink-2); }
+.hm-band-blurb { color: var(--wk-ink-2); max-width: 40ch; }
+.hm-band-count { margin: 4px 0 0; font-size: 14px; color: var(--wk-ink-3); }
+.hm-band-count .wk-figure { font-size: 22px; margin-right: 4px; color: var(--wk-ink); }
+.hm-band-grid { min-width: 0; }
+
+/* The descent rail: the world's depth gauge, a mark at each region. It sits in the
+   margin outside the content column, so it only exists where there is margin. */
+.hm-descent { position: relative; margin-top: 12px; }
+.hm-descent::before {
+  content: ""; position: absolute; z-index: 2; top: 44px; bottom: 60px; width: 2px;
+  left: calc((100% - min(1280px, 100% - 40px)) / 2 - 27px);
+  background: repeating-linear-gradient(to bottom, var(--wk-line-hi) 0 5px, transparent 5px 9px);
+  pointer-events: none;
+}
+.hm-band-meta { position: relative; }
+.hm-band-meta::before {
+  content: ""; position: absolute; left: -32px; top: 12px; width: 12px; height: 12px;
+  background: var(--r);
+  box-shadow: 0 0 0 3px var(--wk-ground);
+}
+@media (max-width: 1380px) {
+  .hm-descent::before, .hm-band-meta::before { display: none; }
+}
+.hm-band .wk-slot { background: oklch(9% 0.006 255 / 0.86); }
+
+.hm-more {
+  display: grid; place-items: center;
+  width: var(--slot); height: var(--slot);
+  background: var(--wk-panel-hi);
+  box-shadow: inset 2px 2px 0 var(--wk-line-hi), inset -2px -2px 0 oklch(0% 0 0 / 0.4);
+  border-radius: 2px;
+  font-family: var(--wk-font-text); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px;
+  color: var(--wk-ink); text-decoration: none;
+  transition: background 140ms var(--wk-ease);
+}
+.hm-more:hover { background: oklch(28% 0.010 255); }
+
+/* ── 7. The modes, each drawn as its mechanic ─────────────────────────────── */
+
+.hm-modes { padding: 64px 0 56px; }
+.hm-mode-list {
+  list-style: none; margin: 16px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px;
+}
+.hm-mode { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.hm-mode-hook { margin: 0; font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+/* The mechanic itself, drawn on the ground: no panel around it. */
+.hm-diagram {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  height: 132px; margin-bottom: 6px;
+}
+.hm-head { width: 28px; height: 28px; image-rendering: pixelated; flex-shrink: 0; }
+.hm-live .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--wk-ink); }
+.hm-diagram--fib { flex-direction: column; align-items: stretch; gap: 10px; }
+.hm-lane { display: flex; align-items: center; gap: 4px; }
+.hm-lane .hm-head { margin-right: 6px; }
+.hm-done { position: relative; line-height: 0; opacity: 0.55; }
+.hm-lane .hm-live { margin-left: 6px; line-height: 0; }
+.hm-diagram--run { justify-content: space-between; max-width: 400px; }
+.hm-racers { display: grid; gap: 10px; flex: 1; margin-right: 12px; }
+.hm-racer { position: relative; display: flex; align-items: center; gap: 8px; }
+.hm-track { flex: 1; height: 2px; background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 5px, transparent 5px 9px); }
+.hm-racer[data-first] .hm-track { background: var(--wk-ink); }
+.hm-racer-plus { position: absolute; right: -2px; top: -12px; font-weight: 700; font-size: 16px; color: var(--wk-ink); }
+.hm-diagram--run .hm-live { line-height: 0; }
+.hm-diagram--chain .hm-live, .hm-diagram--chain .hm-next { line-height: 0; }
+.hm-next { opacity: 0.8; }
+.hm-chain-arrow { color: var(--wk-ink-3); flex-shrink: 0; }
+.hm-hidden { font-family: var(--wk-font-display); font-weight: 600; font-size: 22px; color: var(--wk-ink-4); }
+
+.hm-rules {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
+  margin-top: 36px; padding-top: 16px;
+  box-shadow: inset 0 1px 0 var(--wk-line);
+  font-size: 14px; color: var(--wk-ink-3);
+}
+.hm-rules-k { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
+.hm-rule { display: inline-flex; align-items: center; gap: 6px; }
+.hm-rule-name { font-weight: 700; color: var(--wk-ink); }
+.hm-rule .wk-figure { font-size: 16px; color: var(--wk-ink); }
+.hm-rule-state { font-weight: 700; color: var(--wk-ink-3); }
+.hm-rule[data-on="true"] .hm-rule-state { color: var(--wk-ink); }
+/* A redstone lamp: lit when the setting is on. Not a control; the page cannot change the server. */
+.hm-lamp { width: 12px; height: 12px; background: var(--wk-slot); box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.6); }
+.hm-rule[data-on="true"] .hm-lamp {
+  background: oklch(86% 0.13 85);
+  box-shadow: inset -2px -2px 0 oklch(62% 0.13 60), 0 0 10px oklch(86% 0.13 85 / 0.55);
+}
+.hm-rules-links { display: inline-flex; gap: 18px; margin-left: auto; white-space: nowrap; font-size: 14px; }
+
+/* ── 8. Where next: the hotbar ────────────────────────────────────────────── */
+
+/* The hotbar: one tight bar of slots, the selected one framed and named above the
+   bar, where the game puts the held item's name. Touch screens get names under the
+   slots instead, since nothing there hovers. */
+.hm-index { padding: 24px 0 56px; }
+.hm-hotbar { display: grid; justify-items: start; gap: 12px; margin-top: 8px; }
+.hm-hot-label { margin: 0; min-height: 52px; display: grid; gap: 2px; }
+.hm-hot-label-name {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; color: var(--wk-ink);
+}
+.hm-hot-label-text { font-size: 14px; color: var(--wk-ink-2); }
+.hm-page-exit { color: var(--wk-ink-3); }
+.hm-nowrap { white-space: nowrap; display: inline-flex; align-items: center; gap: 2px; }
+.hm-hotbar-row {
+  list-style: none; margin: 0; padding: 4px;
+  display: flex; gap: 2px;
+  background: oklch(9% 0.006 255 / 0.85);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 var(--wk-line), 0 16px 32px -20px oklch(0% 0 0 / 0.9);
+}
+.hm-hot-cell[data-exit]:nth-last-child(2) { margin-left: 14px; }
+.hm-hot {
+  display: grid; justify-items: center; gap: 6px;
+  text-decoration: none; color: inherit; text-align: center;
+  border-radius: 2px;
+}
+.hm-hot .wk-slot { transition: box-shadow 120ms var(--wk-ease); }
+.hm-hot-cell[data-selected] .wk-slot {
+  box-shadow: inset 0 0 0 3px var(--wk-ink), inset 0 0 0 5px oklch(4% 0 0 / 0.8);
+}
+.hm-hot:hover .wk-sprite, .hm-hot:focus-visible .wk-sprite { transform: translateY(-3px) scale(1.08); }
+.hm-hot-name { display: none; font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--wk-ink-2); max-width: 76px; }
+@media (hover: none), (max-width: 720px) {
+  .hm-hot-label { display: none; }
+  .hm-hot-name { display: block; }
+  .hm-hotbar-row { flex-wrap: wrap; gap: 8px 2px; }
+  .hm-hot { width: 78px; padding-bottom: 6px; }
+  .hm-hot-cell[data-exit]:nth-last-child(2) { margin-left: 0; }
+}
+
+/* ── 9. Made by ───────────────────────────────────────────────────────────── */
+
+.hm-team { padding: 8px 0 44px; }
+.hm-crew {
+  list-style: none; margin: 16px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 16px;
+}
+.hm-member { display: flex; align-items: center; gap: 12px; }
+.hm-member > span:last-child { display: grid; gap: 1px; }
+.hm-head-img { width: 40px; height: 40px; image-rendering: pixelated; }
+.hm-member-name { font-weight: 700; font-size: 16px; color: var(--wk-ink); }
+.hm-member-role { font-size: 14px; color: var(--wk-ink-3); }
+.hm-thanks { margin-top: 20px; max-width: none; }
+.hm-gh { width: 18px; height: 18px; border-radius: 2px; vertical-align: -4px; margin-right: 5px; }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .hm-open-grid { grid-template-columns: 1fr; gap: 0; min-height: 0; }
+  .hm-open-copy { padding-bottom: 8px; }
+  .hm-target { min-height: 320px; padding: 24px 0 8px; }
+  .hm-target-env { left: -40px; right: -40px; top: 0; bottom: -20px; }
+  .hm-target-env .wk-env {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 78%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 78%, transparent 100%);
+  }
+  .hm-loop { grid-template-columns: 1fr; gap: 24px; }
+  .hm-routes { grid-template-columns: 1fr; gap: 28px; }
+  .hm-routes-head { position: static; }
+  .hm-routes .hm-source { grid-column: 1; margin-top: -12px; }
+  .hm-escapes-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hm-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
+  .hm-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
+  .hm-mode-list { grid-template-columns: 1fr; gap: 36px; }
+  .hm-mode { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
+}
+
+@media (max-width: 720px) {
+  .hm-target { grid-template-columns: 1fr; gap: 16px; }
+  .hm-hero-item { width: 168px; }
+  .hm-loop-strip { grid-template-columns: 72px 96px minmax(0, 1fr); gap: 12px; }
+  .hm-loop-score-n { font-size: 40px; }
+  .hm-beats li { font-size: 19px; padding: 6px 8px 8px; }
+  .hm-growth-plot { height: 128px; }
+  .hm-growth-n { font-size: 16px; }
+  .hm-stages { grid-template-columns: 1fr; gap: 20px; }
+  .hm-world-head { grid-template-columns: 1fr; gap: 16px; }
+  .hm-world-n { justify-items: start; text-align: left; }
+  .hm-band { padding: 28px 0; }
+  .hm-band::before { background: linear-gradient(180deg, oklch(14.5% 0.007 255 / 0.85) 0, oklch(14.5% 0.007 255 / 0.4) 45%, oklch(14.5% 0.007 255 / 0.2) 100%); }
+  .hm-band-in { grid-template-columns: 1fr; gap: 16px; }
+  .hm-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hm-rung:nth-child(odd) { padding-left: 0; box-shadow: none; }
+  .hm-rung:nth-child(even) { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
+  .hm-rules-links { margin-left: 0; }
+  .hm-trade { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; }
+  .hm-trade-joker .hm-joker-arrow { display: none; }
+  .hm-growth-items { gap: 2px; left: calc(var(--at) * 1% + 4px); }
+  .hm-growth-items .wk-slot { width: 22px; height: 22px; }
+  .hm-growth-items .wk-slot:nth-child(n+4) { display: none; }
+  .hm-growth-you { top: 30px; left: 0; }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-hero-sprite, .hm-hero-shadow, .hm-target-env, .hm-loop-now .wk-slot, .hm-loop-trail li { animation: none !important; }
+}
+html[data-saver="on"] .hm-hero-sprite,
+html[data-saver="on"] .hm-hero-shadow,
+html[data-saver="on"] .hm-target-env,
+html[data-saver="on"] .hm-loop-now .wk-slot,
+html[data-saver="on"] .hm-loop-trail li { animation: none; }

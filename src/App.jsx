@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 
 // Components
 import Navigation from './components/common/Navigation';
+import WikiRoot from './wiki/WikiRoot.jsx';
 
 // Config
 import { COLORS } from './config/constants';
@@ -61,7 +62,7 @@ function RouteFallback() {
  * the page scroll to nothing for the length of one chunk request.
  */
 function PageFallback() {
-    return <div style={{ minHeight: '70vh', background: COLORS.bg }} />;
+    return <div style={{ minHeight: '70vh', background: 'var(--wk-ground)' }} />;
 }
 
 // Route lookup map
@@ -154,11 +155,10 @@ export default function App() {
         );
     }
 
+    // The wiki. WikiRoot carries its tokens and faces; the two routes above never
+    // render it, so they never load either.
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: COLORS.bg
-        }}>
+        <WikiRoot>
             <Navigation currentPage={currentPage} onNavigate={navigate} />
 
             {/* The nav bar is outside the boundary deliberately: it is already
@@ -205,6 +205,6 @@ export default function App() {
                 <GameSettings />
             )}
             </Suspense>
-        </div>
+        </WikiRoot>
     );
 }

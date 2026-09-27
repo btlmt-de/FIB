@@ -28,6 +28,10 @@
  * if you want the dev server to see it:
  *
  *   npm run vendor:pool
+ *
+ * The same run writes the wiki's atlas (`src/wiki/atlas.data.js`): the pool again,
+ * with its tags, and where config.yml's /info lines say each item is found. See the
+ * atlas block below main()'s helpers.
  */
 
 import { readFile, writeFile, readdir } from 'node:fs/promises';
@@ -56,6 +60,13 @@ const OUT = join(root, 'src/pages/Stats/itemPool.js');
  */
 const OUT_CUSTOM = join(root, 'src/config/customItems.js');
 const TEXTURES = join(root, 'public/fib-items');
+/*
+ * The wiki's atlas: where each pool item lives. Its own module for the same reason
+ * customItems.js is one — the wiki must not pull the Stats chunk's 1,300-entry arrays
+ * into its first paint — and because it answers a question itemPool.js does not: not
+ * WHEN an item can come up, but WHERE the world keeps it.
+ */
+const OUT_ATLAS = join(root, 'src/wiki/atlas.data.js');
 
 const REGISTER = /register\(Material\.(\w+),\s*State\.(\w+)((?:,\s*ItemTag\.\w+)*)\)/g;
 
@@ -99,6 +110,138 @@ function poolFilter(settings) {
   };
 }
 
+/* ── The atlas ──────────────────────────────────────────────────────────────
+ *
+ * config.yml's `descriptions:` block is what /info prints in game, written by the
+ * team per item. About 150 of those name the structure an item comes from
+ * ("Structure: Ancient City") or list the loot tables that drop it with their odds
+ * ("Woodland Mansion - 28.3%"), and about 150 name biomes. With the plugin's own
+ * NETHER / END tags that is enough to say where most interesting items live without
+ * a second, hand-kept list — which is the only way the wiki is allowed to say it.
+ */
+
+/** Material -> the /info lines, colour codes stripped. */
+function readDescriptions(yaml) {
+  const out = new Map();
+  const start = yaml.search(/^descriptions:\s*$/m);
+  if (start < 0) return out;
+  let current = null;
+  for (const line of yaml.slice(start).split(/\r?\n/).slice(1)) {
+    const key = line.match(/^ {2}([A-Z0-9_]+):\s*$/);
+    if (key) { current = []; out.set(key[1], current); continue; }
+    const entry = line.match(/^ {4}- "(.*)"\s*$/);
+    if (entry && current) { current.push(entry[1].replace(/&[0-9a-fk-or]/gi, '').trim()); continue; }
+    if (/^\S/.test(line)) break; // the next top-level key ends the block
+  }
+  return out;
+}
+
+/** The structure, its loot odds and the biomes one item's /info lines name. */
+function parseWhere(lines) {
+  let structure = null;
+  let chance = null;
+  let biomes = null;
+  const loot = [];
+  let inLoot = false;
+  for (const l of lines) {
+    const s = l.match(/^Structures?:\s*(.+)$/);
+    if (s && !structure) {
+      structure = s[1].split(',')[0].replace(/\(.*?\)/g, '').trim();
+      inLoot = false;
+      continue;
+    }
+    if (/^Structure - (Chest )?Loot Table:/.test(l)) { inLoot = true; continue; }
+    const b = l.match(/^Biomes?:\s*(.+)$/);
+    if (b && !biomes) { biomes = b[1].trim(); inLoot = false; continue; }
+    const row = inLoot && l.match(/^(.+?) - ([\d.]+%)/);
+    if (row) { loot.push({ name: row[1].trim(), chance: row[2] }); continue; }
+    inLoot = false;
+  }
+  if (!structure && loot.length) {
+    // The likeliest source is the one a player would go to.
+    const best = loot.reduce((a, b) => (parseFloat(b.chance) > parseFloat(a.chance) ? b : a));
+    structure = best.name;
+    chance = best.chance;
+  }
+  return { structure, chance, biomes };
+}
+
+/*
+ * Region by first match. Tags outrank structures because they are the plugin's own
+ * word: an END-tagged item is an End item wherever /info says it was found. A
+ * structure is read by its FIRST name, so "Snowy Plains Village, Ancient City" pins to
+ * the village — the easier of the two, and the one the team listed first.
+ */
+const STRUCTURE_REGIONS = [
+  ['end', /End City|End Ship/i],
+  ['deepdark', /Ancient City/i],
+  ['trial', /Trial Chamber/i],
+  ['ocean', /Ocean|Shipwreck|Monument|Buried Treasure/i],
+  ['nether', /Bastion|Fortress|Nether/i],
+  ['caves', /Geode|Mineshaft|Stronghold/i],
+];
+
+function regionOf(tags, where) {
+  if (tags.includes('END')) return 'end';
+  if (tags.includes('NETHER')) return 'nether';
+  if (where.structure) {
+    const hit = STRUCTURE_REGIONS.find(([, re]) => re.test(where.structure));
+    return hit ? hit[0] : 'surface';
+  }
+  if (where.biomes) return /ocean/i.test(where.biomes) ? 'ocean' : 'surface';
+  return null;
+}
+
+function buildAtlas(pool, tagsOf, descriptions) {
+  const where = {};
+  for (const material of pool) {
+    const tags = tagsOf.get(material) ?? [];
+    const w = parseWhere(descriptions.get(material) ?? []);
+    const region = regionOf(tags, w);
+    if (region) where[material] = [region, w.structure, w.chance, w.biomes];
+  }
+  const tags = Object.fromEntries(pool.filter((m) => tagsOf.has(m)).map((m) => [m, tagsOf.get(m)]));
+  return { where, tags, described: pool.filter((m) => descriptions.has(m)).length };
+}
+
+function atlasModule({ where, tags, described }, pool, stateOf, settings, yaml) {
+  const keys = Object.keys(where).sort();
+  const stage = (s) => pool.filter((m) => stateOf.get(m) === s);
+  const number = (key) => Number(yaml.match(new RegExp(`^  ${key}:\\s*(\\d+)\\s*$`, 'm'))?.[1] ?? NaN);
+  const live = { ...settings, jokers: number('jokers'), backpackSize: number('backpackSize') };
+  return `/**
+ * GENERATED by scripts/vendor-pool.mjs — do not edit by hand.
+ *
+ * Where the pool's items live, for the wiki's atlas. ${keys.length} of the ${pool.length} pool items are
+ * pinned to a region; ${described} carry an /info description in config.yml.
+ *
+ * ITEM_WHERE: MATERIAL -> [region, structure, loot chance, biomes], each null when
+ *   /info does not say. Regions: surface, ocean, caves, trial, deepdark, nether, end.
+ *   Tags decide first (END, NETHER, from the plugin), then the first structure /info
+ *   names, then its biomes. An item /info says nothing about is simply absent.
+ * ITEM_TAGS: MATERIAL -> the plugin's ItemTag names, pool items that have any.
+ * POOL_BY_STAGE: the whole pool, grouped by the round stage each item unlocks in.
+ * POOL_SETTINGS: the deployed config.yml values the pool and the round are built from.
+ */
+
+export const ATLAS_POOL_SIZE = ${pool.length};
+
+export const POOL_SETTINGS = ${JSON.stringify(live)};
+
+export const POOL_BY_STAGE = {
+${['EARLY', 'MID', 'LATE'].map((s) => `  ${s}: ${JSON.stringify(stage(s))},`).join('\n')}
+};
+
+export const ITEM_WHERE = {
+${keys.map((k) => `  ${k}: ${JSON.stringify(where[k])},`).join('\n')}
+};
+
+export const ITEM_TAGS = {
+${Object.keys(tags).sort().map((k) => `  ${k}: ${JSON.stringify(tags[k])},`).join('\n')}
+};
+`;
+}
+
 async function main() {
   const [javaRes, customRes, yaml] = await Promise.all([
     fetch(JAVA_URL),
@@ -118,12 +261,16 @@ async function main() {
 
   const registered = [];
   const kept = new Map(); // material -> State (EARLY/MID/LATE, the match phase it unlocks in)
+  const tagsOf = new Map(); // material -> ItemTag names, kept items only
   for (const m of java.matchAll(REGISTER)) {
     const material = m[1];
     const state = m[2];
     const tags = (m[3].match(/ItemTag\.(\w+)/g) ?? []).map((t) => t.slice(8));
     registered.push(material);
-    if (keep(tags)) kept.set(material, state);
+    if (keep(tags)) {
+      kept.set(material, state);
+      if (tags.length) tagsOf.set(material, tags);
+    }
   }
   if (registered.length === 0) {
     console.error('Parsed zero register() calls — the manager source format has changed.');
@@ -202,6 +349,9 @@ ${customKeys.map((n) => `  ${n}: ${JSON.stringify(customNames.get(n))},`).join('
 };
 `;
   await writeFile(OUT_CUSTOM, customFile);
+
+  const atlas = buildAtlas(pool, tagsOf, readDescriptions(yaml));
+  await writeFile(OUT_ATLAS, atlasModule(atlas, pool, kept, settings, yaml));
 
   /* Texture coverage, so a pool addition that outruns vendor-textures is loud
      here rather than a slow remote fallback in the browser. */
