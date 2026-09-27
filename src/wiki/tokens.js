@@ -172,6 +172,17 @@ export const FIND_RARITY = [
     { key: 'EXTRAORDINARY', label: 'Extraordinary', when: 'The same item twice running', ink: 'oklch(86% 0.20 140)', from: 'oklch(88% 0.23 135)', to: 'oklch(76% 0.14 225)' },
 ];
 
+/**
+ * The two traders, in the plugin's own colours (model/TraderKind): the chat colour
+ * their name is written in, which is also the colour they glow with in the world
+ * (the entity is set glowing, outlined in its team colour). Minecraft's green and
+ * light purple, as the game draws them.
+ */
+export const TRADER = {
+    WANDERING: { name: 'Wandering Trader', ink: '#55FF55' },
+    SPECIAL:   { name: 'Special Trader',   ink: '#FF55FF' },
+};
+
 /** The Minecraft tooltip frame: a violet gradient edge on a near-black plum. */
 export const TOOLTIP = {
     bg: 'oklch(10% 0.03 320 / 0.96)',

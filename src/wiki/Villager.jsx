@@ -2,38 +2,54 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useCalm } from '../config/power.js';
 import { useOnScreen } from './hooks.js';
 import { TRADER } from './tokens.js';
-import './trader.css';
+import './villager.css';
 
 /*
- * A trader, standing: Minecraft's own wandering trader, built from its model's boxes
- * and wearing its own texture, with its name over its head in the plugin's colour and
- * the glowing outline the plugin gives it in the world.
+ * Villagers, standing: Minecraft's own villager model built from its boxes and wearing
+ * the game's own textures. Two kinds are drawn: the traders at spawn (Trader, with the
+ * name over its head in the plugin's colour and the glowing outline the plugin gives
+ * it) and a plain villager for someone you trade with (Villager, the Cleric who sells
+ * the Eye of Antimatter).
  *
  * Why boxes and not a 3D viewer. The model is a dozen boxes, so plain CSS 3D draws it
  * crisp at any size with no library; an embedded viewer (one was the inspiration)
  * would bring its own frame and none of the behaviour below, and a 3D engine would be
  * ~150 KB for a dozen boxes.
  *
- * The geometry is vanilla's VillagerModel, which the wandering trader renders with:
- * each box is its texture offset, its size and its corner relative to the part's
- * pivot, in model pixels, the way the game declares it. The hood is the model's hat
- * layer, a hair larger than the head; the jacket is the body's. The hat brim is left
- * out: the wandering trader's texture leaves it empty. The texture is vanilla's
- * (entity/wandering_trader/wandering_trader.png at 26.3), in public/fib-entities.
+ * The geometry is vanilla's VillagerModel, which the wandering trader renders with too:
+ * each box is its texture offset, its size and its corner relative to the part's pivot,
+ * in model pixels, the way the game declares it. The hood is the model's hat layer, a
+ * hair larger than the head; the robe is the body's jacket. The hat brim is left out:
+ * every texture drawn here leaves it empty.
+ *
+ * A villager is several textures stacked, as the game layers them: the base villager,
+ * its biome type, its profession's outfit, and the badge on its belt for its level. A
+ * face takes all of them as stacked backgrounds, the top layer first. The textures are
+ * vanilla 26.3, in public/fib-entities.
  *
  * It looks at you. Villagers turn their heads to watch a player nearby, so the head
- * follows the pointer, within the neck's reach, while the trader is on screen. With no
+ * follows the pointer, within the neck's reach, while the model is on screen. With no
  * pointer to follow (a phone) it glances around now and then instead. Under reduced
  * motion or saver mode it stands still, facing you.
  */
 
-const TEXTURE = '/fib-entities/wandering_trader.png';
 const TEX = 64;
+
+const SKINS = {
+    WANDERING_TRADER: ['/fib-entities/wandering_trader.png'],
+    // An apprentice (level 2) cleric from the plains, top layer first.
+    CLERIC: [
+        '/fib-entities/villager/profession_level_iron.png',
+        '/fib-entities/villager/profession_cleric.png',
+        '/fib-entities/villager/type_plains.png',
+        '/fib-entities/villager/villager.png',
+    ],
+};
 
 const HEAD = [
     { uv: [0, 0], size: [8, 10, 8], at: [-4, -10, -4] },
     { uv: [24, 0], size: [2, 4, 2], at: [-1, -3, -6] }, // the nose: its part sits 2 up the head
-    { uv: [32, 0], size: [8, 10, 8], at: [-4, -10, -4], inflate: 0.51 }, // the hood
+    { uv: [32, 0], size: [8, 10, 8], at: [-4, -10, -4], inflate: 0.51 }, // the hood, or a hat
 ];
 const BODY = [
     { uv: [16, 20], size: [8, 12, 6], at: [-4, 0, -3] },
@@ -51,6 +67,9 @@ const YAW_REACH = 55;
 const PITCH_REACH = 30;
 const BODY_YAW = -22;
 
+/** Facing the reader: the head turned back against the body's three-quarter stance. */
+const NEUTRAL = { yaw: -BODY_YAW, pitch: 0 };
+
 /*
  * One box, as six faces. Each face shows its piece of the texture laid out the way
  * Minecraft unwraps a box: the top and bottom in the first row, then the right side,
@@ -58,7 +77,7 @@ const BODY_YAW = -22;
  * faces the reader, so z flips. A mirrored box (the left arm and leg) swaps its sides
  * and flips every face, as the game's mirror does.
  */
-function Box({ px, uv: [u, v], size: [w, h, d], at: [x, y, z], inflate = 0, mirror = false }) {
+function Box({ px, skin, uv: [u, v], size: [w, h, d], at: [x, y, z], inflate = 0, mirror = false }) {
     const W = (w + 2 * inflate) * px;
     const H = (h + 2 * inflate) * px;
     const D = (d + 2 * inflate) * px;
@@ -75,17 +94,18 @@ function Box({ px, uv: [u, v], size: [w, h, d], at: [x, y, z], inflate = 0, mirr
     const cx = (x + w / 2) * px;
     const cy = (y + h / 2) * px;
     const cz = -(z + d / 2) * px;
+    const layers = (value) => skin.map(() => value).join(', ');
     return (
-        <span className="tr-box" style={{ transform: `translate3d(${cx}px, ${cy}px, ${cz}px)` }}>
+        <span className="vg-box" style={{ transform: `translate3d(${cx}px, ${cy}px, ${cz}px)` }}>
             {faces.map(([[ru, rv, rw, rh], fw, fh, t], i) => {
                 const sx = fw / rw;
                 const sy = fh / rh;
                 return (
-                    <span key={i} className="tr-face" style={{
+                    <span key={i} className="vg-face" style={{
                         width: fw, height: fh, left: -fw / 2, top: -fh / 2,
-                        backgroundImage: `url(${TEXTURE})`,
-                        backgroundSize: `${TEX * sx}px ${TEX * sy}px`,
-                        backgroundPosition: `${-ru * sx}px ${-rv * sy}px`,
+                        backgroundImage: skin.map((s) => `url(${s})`).join(', '),
+                        backgroundSize: layers(`${TEX * sx}px ${TEX * sy}px`),
+                        backgroundPosition: layers(`${-ru * sx}px ${-rv * sy}px`),
                         transform: mirror ? `${t} scaleX(-1)` : t,
                     }} />
                 );
@@ -94,16 +114,13 @@ function Box({ px, uv: [u, v], size: [w, h, d], at: [x, y, z], inflate = 0, mirr
     );
 }
 
-function Part({ px, pivot: [x, y, z], turn = '', boxes }) {
+function Part({ px, skin, pivot: [x, y, z], turn = '', boxes }) {
     return (
-        <span className="tr-part" style={{ transform: `translate3d(${x * px}px, ${y * px}px, ${-z * px}px) ${turn}` }}>
-            {boxes.map((b, i) => <Box key={i} px={px} {...b} />)}
+        <span className="vg-part" style={{ transform: `translate3d(${x * px}px, ${y * px}px, ${-z * px}px) ${turn}` }}>
+            {boxes.map((b, i) => <Box key={i} px={px} skin={skin} {...b} />)}
         </span>
     );
 }
-
-/** Facing the reader: the head turned back against the body's three-quarter stance. */
-const NEUTRAL = { yaw: -BODY_YAW, pitch: 0 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -139,30 +156,46 @@ function useGaze(headRef, active) {
     return active ? gaze : NEUTRAL;
 }
 
+/** The model alone, sized by px (screen pixels to a texture pixel), watching the pointer. */
+function Model({ skin, px, watchRef }) {
+    const headRef = useRef(null);
+    const calm = useCalm();
+    const on = useOnScreen(watchRef);
+    const { yaw, pitch } = useGaze(headRef, on && !calm);
+    return (
+        <span className="vg-scene" style={{ '--vg-px': `${px}px` }}>
+            <span className="vg-root" style={{ transform: `rotateX(-8deg) rotateY(${BODY_YAW}deg)` }}>
+                <span className="vg-part vg-head" ref={headRef} style={{ transform: `rotateY(${yaw}deg) rotateX(${pitch}deg)` }}>
+                    {HEAD.map((b, i) => <Box key={i} px={px} skin={skin} {...b} />)}
+                </span>
+                <Part px={px} skin={skin} pivot={[0, 0, 0]} boxes={BODY} />
+                <Part px={px} skin={skin} pivot={[0, 3, -1]} turn="rotateX(43deg)" boxes={ARMS} />
+                <Part px={px} skin={skin} pivot={[-2, 12, 0]} boxes={LEG} />
+                <Part px={px} skin={skin} pivot={[2, 12, 0]} boxes={LEG.map((b) => ({ ...b, mirror: true }))} />
+            </span>
+        </span>
+    );
+}
+
+/** A villager you trade with: the model, no name over it, as the game draws one. */
+export function Villager({ skin = SKINS.CLERIC, px = 3 }) {
+    const ref = useRef(null);
+    return (
+        <span className="vg" ref={ref} aria-hidden="true">
+            <Model skin={skin} px={px} watchRef={ref} />
+        </span>
+    );
+}
+
+/** A trader at spawn: its name over its head, and the outline it glows with, in the plugin's colour. */
 export default function Trader({ kind = 'WANDERING', px = 5, heading = 'h3', id }) {
     const t = TRADER[kind];
     const ref = useRef(null);
-    const headRef = useRef(null);
-    const calm = useCalm();
-    const on = useOnScreen(ref);
-    const { yaw, pitch } = useGaze(headRef, on && !calm);
-
     return (
-        <figure className="tr" ref={ref} style={{ '--tr-ink': t.ink, '--tr-px': `${px}px` }}>
-            {React.createElement(heading, { className: 'tr-name', id }, t.name)}
-            <span className="tr-glow" aria-hidden="true">
-                <span className="tr-scene">
-                    <span className="tr-root" style={{ transform: `rotateX(-8deg) rotateY(${BODY_YAW}deg)` }}>
-                        <span className="tr-part tr-head" ref={headRef}
-                              style={{ transform: `rotateY(${yaw}deg) rotateX(${pitch}deg)` }}>
-                            {HEAD.map((b, i) => <Box key={i} px={px} {...b} />)}
-                        </span>
-                        <Part px={px} pivot={[0, 0, 0]} boxes={BODY} />
-                        <Part px={px} pivot={[0, 3, -1]} turn="rotateX(43deg)" boxes={ARMS} />
-                        <Part px={px} pivot={[-2, 12, 0]} boxes={LEG} />
-                        <Part px={px} pivot={[2, 12, 0]} boxes={LEG.map((b) => ({ ...b, mirror: true }))} />
-                    </span>
-                </span>
+        <figure className="vg vg-trader" ref={ref} style={{ '--vg-ink': t.ink }}>
+            {React.createElement(heading, { className: 'vg-name', id }, t.name)}
+            <span className="vg-glow" aria-hidden="true">
+                <Model skin={SKINS.WANDERING_TRADER} px={px} watchRef={ref} />
             </span>
         </figure>
     );

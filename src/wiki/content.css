@@ -87,6 +87,37 @@ a.cc-inside-item:hover { background: var(--wk-panel); }
 /* ── The loot ──────────────────────────────────────────────────────────────── */
 
 .cc-loot { display: grid; gap: 14px; }
+/* The map beside the tabs: pick a room on either and both follow. */
+.cc-loot-top { display: grid; grid-template-columns: minmax(0, 512px) minmax(0, 1fr); gap: 20px 40px; align-items: center; }
+.cc-loot-pick { display: grid; gap: 14px; align-content: center; }
+.cc-map { margin: 0; display: grid; gap: 8px; }
+.cc-map-view { position: relative; width: 100%; aspect-ratio: 256 / var(--crop-h); overflow: hidden; }
+/* The square render and its outlines, shifted up so only the cropped rows show. */
+.cc-map-view img, .cc-map-view svg { position: absolute; left: 0; top: var(--crop-top); width: 100%; height: var(--full); }
+.cc-map-view img { image-rendering: pixelated; }
+/* A room lights the way the wiki lights anything chosen: white, a line and a lift. */
+.cc-map-room { fill: transparent; stroke: transparent; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill 140ms var(--wk-ease), stroke 140ms var(--wk-ease); }
+.cc-map-room[data-loot] { cursor: pointer; }
+.cc-map-room[data-loot][data-hover] { fill: oklch(100% 0 0 / 0.08); stroke: oklch(100% 0 0 / 0.55); }
+.cc-map-room[data-on] { fill: oklch(100% 0 0 / 0.12); stroke: var(--wk-ink); }
+.cc-map-name {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: 2px 6px 3px; border: 0; border-radius: 2px;
+  font: 600 12.5px/1.2 var(--wk-font-text); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  color: var(--wk-ink-2); background: oklch(0% 0 0 / 0.62);
+}
+.cc-map-name[data-align="start"] { transform: translate(-20%, -50%); }
+.cc-map-name[data-align="end"] { transform: translate(-80%, -50%); }
+button.cc-map-name { cursor: pointer; }
+button.cc-map-name:hover, button.cc-map-name:focus-visible { color: var(--wk-ink); }
+button.cc-map-name[aria-pressed="true"] { color: var(--wk-ground); background: var(--wk-ink); }
+.cc-map-name--quiet { color: var(--wk-ink-3); pointer-events: none; }
+
+/* A structure that stands on its card, the way the traders do: its render beside the words. */
+.cc-card--render { grid-template-columns: 200px minmax(0, 1fr); column-gap: 28px; row-gap: 14px; }
+.cc-card--render > .cc-card-render { grid-column: 1; grid-row: 1 / span 2; width: 200px; height: auto; align-self: start; } /* shrunk from 256, so smoothed: pixel-sharp scaling is only even at whole multiples */
+.cc-card--render > .wk-name, .cc-card--render > .wk-p { grid-column: 2; }
+.cc-card--render > :not(.cc-card-render):not(.wk-name):not(.wk-p) { grid-column: 1 / -1; }
 .cc-rooms { display: flex; flex-wrap: wrap; gap: 2px; }
 .cc-rooms > button, .cc-seg > button {
   min-height: 40px; padding: 0 14px 2px;
@@ -126,6 +157,27 @@ a.cc-inside-item:hover { background: var(--wk-panel); }
 .cc-chest--shut .wk-slot { opacity: 0.6; }
 .cc-drop { animation: cc-land 280ms var(--wk-ease) both; }
 .cc-shuffle { display: inline-grid; line-height: 0; }
+
+/* The portal ruin: the render at a whole multiple where it fits, the portal placed on
+   it in percentages, so its corners stay on the frame at any width. */
+.cc-ruin { margin: 20px 0 0; display: grid; gap: 12px; justify-items: start; }
+.cc-ruin-view { position: relative; width: min(100%, 512px); aspect-ratio: 1; }
+.cc-ruin-view img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.cc-portal {
+  position: absolute; transform-origin: 0 0; pointer-events: none;
+  /* One frame fills the plane; the strip is 32 frames tall. The image is set inline. */
+  background-position: 0 0; background-size: 100% 3200%; background-repeat: no-repeat;
+  image-rendering: pixelated; opacity: 0.92;
+  animation: cc-portal-in 520ms steps(1, end) both;
+}
+.cc-portal[data-live] { animation: cc-portal-in 520ms steps(1, end) both, cc-portal-run 1.6s steps(32) infinite; }
+/* Lightning, then the portal: a white flash over the frame before the surface settles. */
+.cc-portal::after { content: ""; position: absolute; inset: 0; background: oklch(98% 0.02 300); animation: cc-strike 520ms ease-out both; }
+/* 32 steps of a 32-frame strip: a percentage position reaches the last frame at 100%,
+   so the run goes to 32/31 of it and each step lands exactly on a frame. */
+@keyframes cc-portal-run { to { background-position: 0 103.2258%; } }
+@keyframes cc-portal-in { from { opacity: 0; } 20% { opacity: 0.92; } to { opacity: 0.92; } }
+@keyframes cc-strike { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes cc-land { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .cc-open .wk-small { max-width: 44ch; }
 
@@ -144,9 +196,9 @@ a.cc-inside-item:hover { background: var(--wk-panel); }
 /* A trader's card: the trader standing beside what it is about, its nametag the
    card's heading; the offers run the full width underneath. */
 .cc-card--trader { grid-template-columns: auto minmax(0, 1fr); column-gap: 28px; row-gap: 18px; }
-.cc-card--trader > .tr { grid-column: 1; grid-row: 1; align-self: start; }
+.cc-card--trader > .vg { grid-column: 1; grid-row: 1; align-self: start; }
 .cc-card--trader > .wk-p { grid-column: 2; grid-row: 1; align-self: center; }
-.cc-card--trader > :not(.tr):not(.wk-p) { grid-column: 1 / -1; }
+.cc-card--trader > :not(.vg):not(.wk-p) { grid-column: 1 / -1; }
 .cc-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; justify-self: start; }
 .cc-notes, .cc-offers { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cc-note { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 4px 0; }
@@ -192,6 +244,24 @@ html[data-saver="on"] .cc-drop { animation: none; }
 
 @media (max-width: 560px) {
   .cc-card--trader { grid-template-columns: 1fr; }
-  .cc-card--trader > .tr { justify-self: start; }
+  .cc-card--trader > .vg { justify-self: start; }
   .cc-card--trader > .wk-p { grid-column: 1; grid-row: auto; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-portal, .cc-portal[data-live], .cc-portal::after { animation: none; }
+  .cc-portal::after { opacity: 0; }
+}
+html[data-saver="on"] :is(.cc-portal, .cc-portal[data-live], .cc-portal::after) { animation: none; }
+html[data-saver="on"] .cc-portal::after { opacity: 0; }
+
+@media (max-width: 900px) {
+  .cc-loot-top { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .cc-card--render { grid-template-columns: 1fr; }
+  .cc-card--render > .cc-card-render { grid-row: auto; width: 160px; }
+  .cc-card--render > .wk-name, .cc-card--render > .wk-p { grid-column: 1; }
+  .cc-map-name--quiet { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cc-map-room { transition: none; } }

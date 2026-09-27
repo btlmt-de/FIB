@@ -4,12 +4,15 @@ import Footer from '../components/common/Footer.jsx';
 import { useCalm } from '../config/power.js';
 import { useOnScreen, useTicker } from '../wiki/hooks.js';
 import PageLinks from '../wiki/PageLinks.jsx';
-import Trader from '../wiki/Trader.jsx';
+import Trader, { Villager } from '../wiki/Villager.jsx';
 import { useGo } from '../wiki/pages.js';
 import { spriteFallback, spriteOf } from '../wiki/sprite.js';
 import { TABLES, pct, rangeText, roll } from '../wiki/loot.js';
+import { DEPTHS_MAP } from '../wiki/depthsMap.data.js';
 import '../wiki/page.css';
 import '../wiki/content.css';
+// The pack's own portal surface, bundled from the resource pack this repo ships.
+import portalTexture from '../../ForceItemBattle/assets/minecraft/textures/block/antimatter_portal.png';
 
 /*
  * Custom Content (THE EXPLORER'S ATLAS): what FIB adds to Minecraft, organised by
@@ -126,6 +129,12 @@ function Exchange({ give, via, get, caption }) {
                         <To />
                     </>
                 )}
+                {via?.figure && (
+                    <>
+                        {via.figure}
+                        <To />
+                    </>
+                )}
                 <span className="cc-result"><Face item={get.item} size={64} count={get.count} /><span className="cc-result-name">{get.item.name}</span></span>
             </div>
             <figcaption className="wk-small">
@@ -159,6 +168,64 @@ const INSIDE = [
     { item: { ...v('vault'), name: 'Vault' }, what: "The vault room's reward", room: 'antimatter_depths_vault' },
     { item: { ...v('end_portal_frame'), name: 'End Portal' }, what: 'The quick way to the End', room: null },
 ];
+
+/*
+ * The ruin as it stands (the wheel's render of the datapack's antimatter_depths_portal
+ * structure), with the portal as each player sees it: filled for the player who opened
+ * it, an empty frame for anyone else. That is the rule people get wrong, so it is
+ * shown rather than told.
+ *
+ * Where the portal goes is not eyeballed. The plugin puts it 2 blocks behind the vault
+ * that opens it and 3.5 up, 3 wide and 4 tall (AntimatterPortalManager.frameOf); the
+ * structure's vaults stand at (6, 1, 4) and (6, 1, 8), so the opening is x 5 to 8, y 3
+ * to 7, across z 6.5. That plane was placed on the render by fitting every block of the
+ * structure to the render's silhouette (2:1 isometric, 10.75px a block, 87% overlap),
+ * which also puts the front vault where the render shows it. Below, the plane is its
+ * top-left corner, its bottom edge and its height, in the render's own 256px. Its sides
+ * are vertical, so it is a rectangle skewed along one axis: placed in percentages of the
+ * render, it scales with the image at any width with nothing measured.
+ *
+ * The surface is the pack's own antimatter_portal texture, one 16px frame stretched
+ * across the opening as the plugin's scaled item display stretches it, running through
+ * its 32 frames at the game's 20 a second. Opening it strikes lightning on the frame,
+ * so the portal arrives behind a flash.
+ */
+const RUIN = { src: '/fib-relics/antimatter_portal.png', size: 256 };
+const PORTAL_PLANE = { x: 111.6, y: 81.2, along: [32.3, -16.1], down: 49.6 };
+
+function PortalRuin() {
+    const [you, setYou] = useState(true);
+    const ref = useRef(null);
+    const calm = useCalm();
+    const on = useOnScreen(ref);
+    const { x, y, along, down } = PORTAL_PLANE;
+    const pc = (n) => `${(n / RUIN.size) * 100}%`;
+    const plane = {
+        left: pc(x), top: pc(y), width: pc(along[0]), height: pc(down),
+        transform: `skewY(${(Math.atan2(along[1], along[0]) * 180) / Math.PI}deg)`,
+        backgroundImage: `url(${portalTexture})`,
+    };
+    return (
+        <figure className="cc-ruin">
+            <div className="cc-ruin-view" ref={ref}>
+                <img src={RUIN.src} alt={you
+                    ? 'The Antimatter Depths Portal ruin, its frame filled with a purple portal.'
+                    : 'The Antimatter Depths Portal ruin, its frame empty.'}
+                     width={RUIN.size} height={RUIN.size} loading="lazy" draggable="false" />
+                {you && <span key="portal" className="cc-portal" aria-hidden="true" data-live={(on && !calm) || undefined} style={plane} />}
+            </div>
+            <div className="cc-seg" role="radiogroup" aria-label="Who is looking">
+                <button type="button" role="radio" aria-checked={you} onClick={() => setYou(true)}>You</button>
+                <button type="button" role="radio" aria-checked={!you} onClick={() => setYou(false)}>Another player</button>
+            </div>
+            <figcaption className="wk-small">
+                {you
+                    ? 'The portal you opened. Only you see it, and only you can go through it.'
+                    : 'The same ruin for anyone else: an empty frame they walk straight through.'}
+            </figcaption>
+        </figure>
+    );
+}
 
 /* ── The Antimatter Depths ──────────────────────────────────────────────────── */
 
@@ -195,7 +262,7 @@ function Depths() {
                     </p>
                     <p className="wk-small">In game: <Typed>/info antimatter_locator</Typed></p>
                 </Step>
-                <Step n="2" title="Buy an Eye of Antimatter" drawing={<Exchange give={[{ item: v('emerald'), count: 6 }]} via={{ label: 'Cleric, level 2' }} get={{ item: ITEM.eye }} caption="Every apprentice cleric sells one. Trade with a level 1 cleric to level it up." />}>
+                <Step n="2" title="Buy an Eye of Antimatter" drawing={<Exchange give={[{ item: v('emerald'), count: 6 }]} via={{ label: 'Cleric, level 2', figure: <Villager /> }} get={{ item: ITEM.eye }} caption="Every apprentice cleric sells one. Trade with a level 1 cleric to level it up." />}>
                     <p className="wk-p">
                         The eye cannot be crafted. Every Cleric villager sells one once it reaches level 2 (Apprentice),
                         for six emeralds, with no roll for it.
@@ -207,7 +274,10 @@ function Depths() {
                         open a portal.
                     </p>
                 </Step>
-                <Step n="4" title="Open your portal" drawing={<Sequence parts={[{ item: ITEM.totem }, { to: 'Right-click' }, { item: { ...v('vault'), name: 'Vault', label: 'Either vault of the ruin' } }]} caption="The totem is consumed; the portal opens for you alone." />}>
+                <Step n="4" title="Open your portal" drawing={<>
+                    <Sequence parts={[{ item: ITEM.totem }, { to: 'Right-click' }, { item: { ...v('vault'), name: 'Vault', label: 'Either vault of the ruin' } }]} caption="The totem is consumed." />
+                    <PortalRuin />
+                </>}>
                     <p className="wk-p">
                         Right-click either vault with the totem in hand. The totem is consumed, lightning strikes the
                         frame, and the portal fills in <strong>for you only</strong>. Another player in the same ruin sees an
@@ -278,6 +348,63 @@ function Chest({ drops, cells }) {
     );
 }
 
+/*
+ * The Depths from above, as a map of the loot: the wheel's render of the structure with
+ * each room outlined where it shows (src/wiki/depthsMap.data.js says how that was
+ * measured). A room with loot is a way into its tables, and the tables' own tabs light
+ * the room they belong to, so the map and the tabs are one control. The End Portal room
+ * and the start are named too, because they are where the trip goes, but hold no loot.
+ */
+const PLACES = [
+    { piece: 'storage', name: 'Storage', rooms: ['antimatter_depths_storage', 'antimatter_depths_storage_pots', 'antimatter_depths_treasure'] },
+    { piece: 'mines', name: 'Mines', rooms: ['antimatter_depths_mines'] },
+    { piece: 'nature', name: 'Nature Room', rooms: ['antimatter_depths_nature'] },
+    { piece: 'vault', name: 'Vault Room', rooms: ['antimatter_depths_vault'], align: 'end' },
+    { piece: 'portal_room', name: 'End Portal', rooms: [], align: 'start' },
+    { piece: 'start', name: 'You arrive', rooms: [] },
+];
+
+/* The render's empty sky and ground cut away: the rows of the 256px render the Depths fills, with a little air. */
+const MAP_ROWS = [30, 226];
+
+function DepthsMap({ room, onRoom }) {
+    const [hover, setHover] = useState(null);
+    const current = PLACES.find((p) => p.rooms.includes(room))?.piece;
+    const go = (p) => { if (p.rooms.length && !p.rooms.includes(room)) onRoom(p.rooms[0]); };
+    return (
+        <figure className="cc-map">
+            <div className="cc-map-view" style={{
+                '--crop-h': `${MAP_ROWS[1] - MAP_ROWS[0]}`, '--crop-top': `${(-MAP_ROWS[0] / (MAP_ROWS[1] - MAP_ROWS[0])) * 100}%`,
+                '--full': `${(256 / (MAP_ROWS[1] - MAP_ROWS[0])) * 100}%`,
+            }}>
+                <img src="/fib-relics/antimatter_depths.png" alt="The Antimatter Depths from above." width="256" height="256" loading="lazy" draggable="false" />
+                <svg viewBox="0 0 256 256" aria-hidden="true">
+                    {PLACES.map((p) => (
+                        <path key={p.piece} d={DEPTHS_MAP[p.piece].d} className="cc-map-room"
+                              data-loot={p.rooms.length > 0 || undefined}
+                              data-on={current === p.piece || undefined}
+                              data-hover={hover === p.piece || undefined}
+                              onPointerEnter={() => setHover(p.piece)} onPointerLeave={() => setHover(null)}
+                              onClick={() => go(p)} />
+                    ))}
+                </svg>
+                {PLACES.map((p) => {
+                    const [x, y] = DEPTHS_MAP[p.piece].at;
+                    const style = { left: `${(x / 256) * 100}%`, top: `${((y - MAP_ROWS[0]) / (MAP_ROWS[1] - MAP_ROWS[0])) * 100}%` };
+                    return p.rooms.length
+                        ? <button key={p.piece} type="button" className="cc-map-name" style={style} data-align={p.align}
+                                  aria-pressed={current === p.piece}
+                                  onPointerEnter={() => setHover(p.piece)} onPointerLeave={() => setHover(null)}
+                                  onFocus={() => setHover(p.piece)} onBlur={() => setHover(null)}
+                                  onClick={() => go(p)}>{p.name}</button>
+                        : <span key={p.piece} className="cc-map-name cc-map-name--quiet" style={style} data-align={p.align}>{p.name}</span>;
+                })}
+            </div>
+            <figcaption className="wk-small">Choose a room to see what it holds.</figcaption>
+        </figure>
+    );
+}
+
 function Loot() {
     const [room, setRoom] = useState(ROOMS[0].key);
     const [opened, setOpened] = useState(null);
@@ -304,14 +431,19 @@ function Loot() {
             </div>
 
             <div className="cc-loot">
-                <div className="cc-rooms" role="tablist" aria-label="Rooms">
-                    {ROOMS.map((r) => (
-                        <button key={r.key} type="button" role="tab" aria-selected={room === r.key} onClick={() => { setRoom(r.key); setOpened(null); }}>
-                            {r.name}
-                        </button>
-                    ))}
+                <div className="cc-loot-top">
+                    <DepthsMap room={room} onRoom={(r) => { setRoom(r); setOpened(null); }} />
+                    <div className="cc-loot-pick">
+                        <div className="cc-rooms" role="tablist" aria-label="Rooms">
+                            {ROOMS.map((r) => (
+                                <button key={r.key} type="button" role="tab" aria-selected={room === r.key} onClick={() => { setRoom(r.key); setOpened(null); }}>
+                                    {r.name}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="wk-p cc-room-text">{info.text}</p>
+                    </div>
                 </div>
-                <p className="wk-p cc-room-text">{info.text}</p>
 
                 <div className="cc-loot-body" role="tabpanel">
                     <div className="cc-pools">
@@ -556,7 +688,8 @@ function World() {
                         often, so end-game loot is closer.
                     </p>
                 </article>
-                <article id="teleporter" className="cc-card">
+                <article id="teleporter" className="cc-card cc-card--render">
+                    <img className="cc-card-render" src="/fib-relics/antimatter_teleporter.png" alt="The Antimatter Teleporter: a tall dark spire over a purple portal." width="256" height="256" loading="lazy" draggable="false" />
                     <h3 className="wk-name">Antimatter Teleporter</h3>
                     <p className="wk-p">
                         A structure that appears at random in the Overworld and <strong>cannot be located</strong>: you have to
