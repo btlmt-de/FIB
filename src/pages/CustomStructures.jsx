@@ -1,1270 +1,606 @@
-import React, { useState, useEffect } from 'react';
-import Footer from "../components/common/Footer.jsx";
-import { COLORS, IMAGE_BASE_URL, CUSTOM_IMAGE_BASE_URL } from '../config/constants';
+import React, { useEffect, useState } from 'react';
+import Dices from 'lucide-react/dist/esm/icons/dices';
+import Footer from '../components/common/Footer.jsx';
+import PageLinks from '../wiki/PageLinks.jsx';
+import { useGo } from '../wiki/pages.js';
+import { spriteFallback, spriteOf } from '../wiki/sprite.js';
+import { TABLES, pct, rangeText, roll } from '../wiki/loot.js';
+import '../wiki/page.css';
+import '../wiki/content.css';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+/*
+ * Custom Content (THE EXPLORER'S ATLAS): what FIB adds to Minecraft, organised by
+ * what it is for a player. The Antimatter Depths as the trip it is (find the ruin,
+ * buy the eye, craft the totem, open your own portal, go in), the locators side by
+ * side, the traders, and the two changes to the world itself.
+ *
+ * What is derived and what is not. The loot is read from the datapack at build time
+ * (wiki/loot.js), so the chances, counts and names are the datapack's. Recipes,
+ * trades and timings live in the plugin's Java, which the site cannot read at build
+ * time, so they are written here; each was checked against the plugin's source on
+ * main when this page was rebuilt (Sept 2026), and that check found three the old page
+ * had wrong: the Eye of Antimatter costs 6 emeralds, not 5; the journal turns up in
+ * 20% of shipwreck map chests, not 30%; and the second Trial Locator recipe belongs to
+ * the Harder trackers setting, not to Hard.
+ *
+ *   recipes      manager/RecipeManager (the kiln brush: the datapack's fib:kiln_fired_brush)
+ *   trades       listener/VillagerTradeListener, manager/WanderingTraderManager (its vanilla
+ *                offers keep their vanilla use limits: only the price is cut to one of each
+ *                ingredient, whatever a comment there says about unlimited uses)
+ *   journal      listener/JournalListener, model/BiomeNote
+ *
+ * The random events used to be described here too. They are Gameplay's (the same
+ * text, kept in two places, had already drifted), and this page points there.
+ */
 
-const IMG = IMAGE_BASE_URL;
+/* ── Items ───────────────────────────────────────────────────────────────────── */
 
-// Custom item textures live in the resource pack's item folder, not the fib folder,
-// so they are vendored to their own path rather than sharing the pool's.
-const ITEM_IMG = CUSTOM_IMAGE_BASE_URL;
-
-// Map COLORS to the local names used throughout this file
-const COL = {
-    amber:  COLORS.accent,
-    green:  COLORS.green,
-    cyan:   COLORS.cyan,
-    purple: COLORS.purple,
-    red:    COLORS.red,
-    orange: COLORS.orange,
-    rare:   COLORS.accent,
-    // Trail ruins have no token in the shared palette; terracotta matches both the structure and
-    // the Kiln-Fired Brush that finds it.
-    trail:  '#C77B3E',
+/*
+ * The plugin's custom items. Three of them animate in the pack (knowledge_book,
+ * sulfur_locator, trial_locator are vertical sprite strips), so they are drawn from
+ * the static single-frame renders in /fib-items, keyed by the material they sit on.
+ */
+const ITEM = {
+    antimatterLocator: { name: 'Antimatter Locator', src: '/fib-items/knowledge_book.png' },
+    eye: { name: 'Eye of Antimatter', src: '/fib-custom/eye_of_antimatter.png' },
+    totem: { name: 'Totem of Antimatter', src: '/fib-custom/totem_of_antimatter.png' },
+    trialLocator: { name: 'Trial Locator', src: '/fib-items/wither_rose.png' },
+    sulfurLocator: { name: 'Sulfur Locator', src: '/fib-items/music_disc_chirp.png' },
+    brush: { name: 'Kiln-Fired Brush', src: '/fib-custom/kiln_fired_brush.png' },
+    journal: { name: "Weathered Captain's Journal", src: '/fib-custom/old_book.png' },
+    note: { name: 'Faded Note', src: '/fib-custom/old_paper.png' },
+    wheel: { name: 'Wheel of Fortune', src: '/fib-custom/wheel.png' },
 };
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+const CONTENTS = [
+    { item: ITEM.antimatterLocator, to: 'antimatter-depths' },
+    { item: ITEM.eye, to: 'antimatter-depths' },
+    { item: ITEM.totem, to: 'antimatter-depths' },
+    { item: ITEM.trialLocator, to: 'trial-locator' },
+    { item: ITEM.sulfurLocator, to: 'sulfur-locator' },
+    { item: ITEM.brush, to: 'kiln-fired-brush' },
+    { item: ITEM.journal, to: 'journal' },
+    { item: ITEM.wheel, to: 'traders' },
+];
 
-// Custom items have no sprite in the fib folder, so a recipe cell, a recipe result or a loot row
-// may be given as { src, name } instead of a texture name. See CraftingGrid, LootItem.
-const EYE_OF_ANTIMATTER = { src: `${ITEM_IMG}/eye_of_antimatter.png`, name: 'Eye of Antimatter' };
-const TOTEM_OF_ANTIMATTER = { src: `${ITEM_IMG}/totem_of_antimatter.png`, name: 'Totem of Antimatter' };
+const SECTIONS = [
+    ['antimatter-depths', 'Antimatter Depths'], ['depths-loot', 'Its loot'], ['locators', 'Locators'],
+    ['traders', 'Traders'], ['world', 'The world'],
+];
 
-const LOOT_TABLES = {
-    honey: {
-        name: 'Nature Room',
-        color: COL.amber,
-        description: 'A sanctuary filled with floral treasures',
-        pools: [
-            {
-                rolls: '3–7 rolls',
-                items: [
-                    { name: 'Pitcher Plant',  texture: 'pitcher_plant',  chance: '3.23%' },
-                    { name: 'Lilac',          texture: 'lilac',          chance: '16.13%' },
-                    { name: 'Peony',          texture: 'peony',          chance: '16.13%' },
-                    { name: 'Sunflower',      texture: 'sunflower',      chance: '16.13%' },
-                    { name: 'Feather',        texture: 'feather',        chance: '16.13%' },
-                    { name: 'Oxeye Daisy',   texture: 'oxeye_daisy',    chance: '16.13%' },
-                    { name: 'Apple',          texture: 'apple',          chance: '16.13%' },
-                ],
-            },
-            {
-                rolls: '1 roll (bonus)',
-                items: [
-                    { name: 'Honey Bottle',    texture: 'honey_bottle',    chance: '2.33%' },
-                    { name: 'Honeycomb Block', texture: 'honeycomb_block', chance: '2.33%' },
-                    { name: 'Grass Block',     texture: 'grass_block',     chance: '2.33%' },
-                ],
-            },
-        ],
-    },
-    legendary: {
-        name: 'Storage',
-        color: COL.purple,
-        description: 'The ultimate treasure trove with rare templates',
-        pools: [
-            {
-                rolls: '5–10 rolls',
-                items: [
-                    { name: 'Wheat',            texture: 'wheat',            chance: '10.50%' },
-                    { name: 'Bone Meal',         texture: 'bone_meal',        chance: '10.50%' },
-                    { name: 'Brick',             texture: 'brick',            chance: '10.50%' },
-                    { name: 'Glow Berries',      texture: 'glow_berries',     chance: '10.50%' },
-                    { name: 'Clay Ball',         texture: 'clay_ball',        chance: '10.50%' },
-                    { name: 'Copper Ingot',      texture: 'copper_ingot',     chance: '10.50%' },
-                    { name: 'Leather Boots',     texture: 'leather_boots',    chance: '10.50%', note: 'Lv30 Enchanted' },
-                    { name: 'Egg',               texture: 'egg',              chance: '10.00%' },
-                    { name: 'Rabbit Hide',       texture: 'rabbit_hide',      chance: '4.50%' },
-                    { name: 'Slime Ball',        texture: 'slime_ball',       chance: '4.50%' },
-                    { name: 'Gold Ingot',        texture: 'gold_ingot',       chance: '3.00%' },
-                    { name: 'Totem of Undying',  texture: 'totem_of_undying', chance: '1.00%' },
-                    { name: 'Rabbit Foot',       texture: 'rabbit_foot',      chance: '1.00%' },
-                    { name: 'Wild Armor Trim',   texture: 'wild_armor_trim_smithing_template',    chance: '0.50%', legendary: true },
-                    { name: 'Dune Armor Trim',   texture: 'dune_armor_trim_smithing_template',    chance: '0.50%', legendary: true },
-                    { name: 'Sentry Armor Trim', texture: 'sentry_armor_trim_smithing_template',  chance: '0.50%', legendary: true },
-                    { name: 'Netherite Upgrade', texture: 'netherite_upgrade_smithing_template',  chance: '0.50%', legendary: true },
-                    { name: 'Snout Armor Trim',  texture: 'snout_armor_trim_smithing_template',   chance: '0.50%', legendary: true },
-                ],
-            },
-        ],
-    },
-    pots: {
-        name: 'Storage Pots',
-        color: COL.cyan,
-        description: '27 decorated pots line the storage room — most of them hold nothing',
-        pools: [
-            {
-                rolls: '27 pots × 1 roll each',
-                note: 'A pot holds a single item, and 57% are empty',
-                items: [
-                    { name: 'Nothing',             texture: 'air',                 chance: '57.00%' },
-                    { name: 'Copper Ingot',        texture: 'copper_ingot',        chance: '25.00%', note: '1–3' },
-                    { name: 'Emerald',             texture: 'emerald',             chance: '10.00%', note: '1–2' },
-                    { name: 'Amethyst Shard',      texture: 'amethyst_shard',      chance: '7.00%',  note: '1–2' },
-                    { name: 'Iron Horse Armor',    texture: 'iron_horse_armor',    chance: '0.50%',  legendary: true },
-                    { name: 'Golden Horse Armor',  texture: 'golden_horse_armor',  chance: '0.25%',  legendary: true },
-                    { name: 'Diamond Horse Armor', texture: 'diamond_horse_armor', chance: '0.15%',  legendary: true },
-                    { name: 'Eye of Antimatter',   src: EYE_OF_ANTIMATTER.src,     chance: '0.10%',  legendary: true },
-                ],
-            },
-        ],
-    },
-    mines: {
-        name: 'Mines',
-        color: COL.cyan,
-        description: 'Two chest minecarts, and the best odds on diamonds in the Depths',
-        pools: [
-            {
-                rolls: '5–15 rolls',
-                note: 'Per minecart — the room holds two of them',
-                items: [
-                    { name: 'Cobbled Deepslate', texture: 'cobbled_deepslate', chance: '50.00%', note: '1–5' },
-                    { name: 'Gunpowder',         texture: 'gunpowder',         chance: '25.00%', note: '1–3' },
-                    { name: 'Iron Ingot',        texture: 'iron_ingot',        chance: '10.00%', note: '1–5' },
-                    { name: 'Gold Ingot',        texture: 'gold_ingot',        chance: '10.00%', note: '1–3' },
-                    { name: 'Diamond',           texture: 'diamond',           chance: '5.00%',  note: '1–2 · 63% chance of at least one across both carts' },
-                ],
-            },
-        ],
-    },
-    treasure: {
-        name: 'Treasure Room',
-        color: COL.green,
-        description: 'A bounty of resources and rare saplings',
-        pools: [
-            {
-                rolls: '5–10 rolls',
-                items: [
-                    { name: 'Iron Ingot',          texture: 'iron_ingot',          chance: '9.48%',  note: '2–3' },
-                    { name: 'Cocoa Beans',         texture: 'cocoa_beans',         chance: '9.48%',  note: '1–3' },
-                    { name: 'Leather',             texture: 'leather',             chance: '9.48%',  note: '1–2' },
-                    { name: 'String',              texture: 'string',              chance: '9.48%' },
-                    { name: 'Dirt',                texture: 'dirt',                chance: '9.48%',  note: '8–16' },
-                    { name: 'Cobbled Deepslate',   texture: 'cobbled_deepslate',   chance: '9.48%',  note: '4–8' },
-                    { name: 'Coal',                texture: 'coal',                chance: '9.48%',  note: '3–7' },
-                    { name: 'Leather Helmet',      texture: 'leather_helmet',      chance: '8.02%',  note: 'Lv30 Ench' },
-                    { name: 'Ender Pearl',         texture: 'ender_pearl',         chance: '6.46%' },
-                    { name: 'Diamond',             texture: 'diamond',             chance: '4.79%' },
-                    { name: 'Golden Apple',        texture: 'golden_apple',        chance: '4.69%',  note: '"Gros Michel"' },
-                    { name: 'Enchanted Book',      texture: 'enchanted_book',      chance: '3.23%' },
-                    { name: 'Pale Oak Sapling',    texture: 'pale_oak_sapling',    chance: '1.25%' },
-                    { name: 'Acacia Sapling',      texture: 'acacia_sapling',      chance: '1.25%' },
-                    { name: 'Jungle Sapling',      texture: 'jungle_sapling',      chance: '1.25%' },
-                    { name: 'Cherry Sapling',      texture: 'cherry_sapling',      chance: '1.25%' },
-                    { name: 'Mangrove Propagule',  texture: 'mangrove_propagule',  chance: '1.25%' },
-                    { name: 'Anvil',               texture: 'anvil',               chance: '0.10%',  legendary: true, note: '"SILK TOUCH BABY"' },
-                    { name: 'Ench. Golden Apple',  texture: 'enchanted_golden_apple', chance: '0.10%', legendary: true, note: '"Cavendish"' },
-                ],
-            },
-        ],
-    },
-};
+const v = (m) => ({ material: m.toUpperCase(), name: m.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) });
 
 const RECIPES = {
-    // One recipe, unaffected by Harder Trackers. It briefly took an Eye of Antimatter at its centre,
-    // back when the eye was the only thing gating a trip to the Depths. The Totem of Antimatter is
-    // that gate now and costs an eye itself, so the locator went back to being cheap.
-    antimatter: {
-        recipe: [
-            [null, 'nether_brick', null],
-            ['glowstone_dust', 'quartz', 'glowstone_dust'],
-            [null, 'nether_brick', null],
-        ],
-        result: 'knowledge_book', name: 'Antimatter Locator',
-    },
-    // The actual price of a trip. One totem opens one portal, and it is consumed doing so.
-    totem: {
-        recipe: [
-            [null, EYE_OF_ANTIMATTER, null],
-            ['quartz', 'glowstone', 'quartz'],
-            [null, 'quartz', null],
-        ],
-        result: TOTEM_OF_ANTIMATTER, name: 'Totem of Antimatter',
-    },
-    trial: {
-        normal: {
-            recipe: [['cut_copper','glass','cut_copper'],['glass','compass','glass'],['gold_ingot','gold_ingot','gold_ingot']],
-            result: 'wither_rose', name: 'Trial Locator',
-        },
-        hard: {
-            recipe: [['obsidian','copper_ingot','obsidian'],['gold_ingot','compass','iron_ingot'],['obsidian','diamond','obsidian']],
-            result: 'wither_rose', name: 'Trial Locator',
-        },
-    },
+    antimatter: [[null, v('nether_brick'), null], [v('glowstone_dust'), v('quartz'), v('glowstone_dust')], [null, v('nether_brick'), null]],
+    totem: [[null, ITEM.eye, null], [v('quartz'), v('glowstone'), v('quartz')], [null, v('quartz'), null]],
+    trial: [[v('cut_copper'), v('glass'), v('cut_copper')], [v('glass'), v('compass'), v('glass')], [v('gold_ingot'), v('gold_ingot'), v('gold_ingot')]],
+    trialHarder: [[v('obsidian'), v('copper_ingot'), v('obsidian')], [v('gold_ingot'), v('compass'), v('iron_ingot')], [v('obsidian'), v('diamond'), v('obsidian')]],
 };
 
-// Villager / trader offers. Ingredients are drawn as tiles, same as a crafting grid.
-const EYE_TRADE = {
-    cost: [{ texture: 'emerald', name: 'Emerald', amount: 5 }],
-    result: { src: EYE_OF_ANTIMATTER.src, name: EYE_OF_ANTIMATTER.name },
-};
+/* ── Drawing pieces ─────────────────────────────────────────────────────────── */
 
-const SULFUR_TRADE = {
-    cost: [
-        { texture: 'emerald', name: 'Emerald', amount: 6 },
-        { texture: 'compass', name: 'Compass', amount: 1 },
-    ],
-    result: { texture: 'music_disc_chirp', name: 'Sulfur Locator' },
-};
-
-// Not a trade but the same shape: what goes in, what comes out.
-const KILN_BRUSH_SMELT = {
-    cost: [
-        { texture: 'brush', name: 'Brush' },
-        { texture: 'furnace', name: 'Furnace' },
-    ],
-    result: { src: `${ITEM_IMG}/kiln_fired_brush.png`, name: 'Kiln-Fired Brush' },
-};
-
-const SPECIAL_TRADER_OFFERS = [
-    {
-        cost: 1,
-        src: `${ITEM_IMG}/wheel.png`,
-        name: 'Wheel of Fortune',
-        amount: 3,
-        note: 'Three for a single emerald — the reason to run.',
-        highlight: true,
-    },
-    {
-        cost: 5,
-        src: `${ITEM_IMG}/old_book.png`,
-        name: "Weathered Captain's Journal",
-        note: 'Otherwise only found out in the world.',
-    },
-    {
-        cost: 5,
-        texture: 'knowledge_book',
-        name: 'Random Tracker',
-        note: 'Antimatter, Trial or Sulfur — rolled when the trader spawns.',
-    },
-    {
-        cost: 5,
-        texture: 'iron_pickaxe',
-        name: 'Iron Pickaxe',
-        note: 'Randomly enchanted, level 30. No treasure enchants.',
-    },
-    {
-        cost: 5,
-        texture: 'iron_chestplate',
-        name: 'Iron Armor Piece',
-        note: 'Random piece, randomly enchanted, level 30.',
-    },
-];
-
-const BIOME_NOTES = [
-    { name: 'Desert',       color: COL.amber,  flavor: '"a sea of dunes where no water runs"' },
-    { name: 'Badlands',     color: COL.red,    flavor: '"broken hills streaked with rust and clay"' },
-    { name: 'Warm Ocean',   color: COL.cyan,   flavor: '"bright reefs beneath a warm tide"' },
-    { name: 'Pale Garden',  color: 'oklch(65% 0.012 255)', flavor: '"ghostly woods where the leaves hang grey"' },
-    { name: 'Cherry Grove', color: COL.purple, flavor: '"hills awash in falling pink petals"' },
-];
-
-const QUICK_LINKS = [
-    { id: 'antimatter-depths', label: 'Antimatter Depths',   color: COL.purple },
-    { id: 'trial-locator',     label: 'Trial Locator',        color: COL.amber  },
-    { id: 'sulfur-locator',    label: 'Sulfur Locator',       color: COL.orange },
-    { id: 'trail-ruins',       label: 'Trail Ruins',          color: COL.trail  },
-    { id: 'loot-tables',       label: 'Loot Tables',          color: COL.green  },
-    { id: 'end-generation',    label: 'End Generation',       color: COL.purple },
-    { id: 'teleporter',        label: 'Teleporter',           color: COL.red    },
-    { id: 'journal',           label: 'Journal',              color: COL.amber  },
-    { id: 'wandering-trader',  label: 'Wandering Trader',     color: COL.cyan   },
-    { id: 'random-events',     label: 'Random Events',        color: COL.purple },
-];
-
-// ── Loot simulation logic ─────────────────────────────────────────────────────
-
-function simulateLoot(table) {
-    const results = [];
-    for (const pool of table.pools) {
-        const m = pool.rolls.match(/(\d+)(?:–(\d+))?/);
-        if (!m) continue;
-        const min = parseInt(m[1]), max = m[2] ? parseInt(m[2]) : min;
-        const rolls = Math.floor(Math.random() * (max - min + 1)) + min;
-        const items = pool.items.map(i => ({ ...i, weight: parseFloat(i.chance) }));
-        const total = items.reduce((s, i) => s + i.weight, 0);
-        for (let r = 0; r < rolls; r++) {
-            let cum = 0, roll = Math.random() * total;
-            for (const item of items) {
-                cum += item.weight;
-                if (roll < cum) {
-                    if (item.name.toLowerCase() !== 'nothing') results.push(item);
-                    break;
-                }
-            }
-        }
-    }
-    return results;
-}
-
-// ── CSS ───────────────────────────────────────────────────────────────────────
-
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
-
-  .cs {
-    font-family: 'Barlow', system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    background: oklch(17% 0.025 255);
-    color: oklch(94% 0.007 255);
-    min-height: 100vh; display: flex; flex-direction: column;
-  }
-  .cs-shell { max-width: 860px; margin: 0 auto; padding: 0 28px; width: 100%; box-sizing: border-box; }
-  .cs-rule  { height: 1px; background: oklch(19% 0.019 255); }
-
-  /* ── Page header ── */
-  .cs-header { padding: 80px 0 64px; }
-  .cs-eyebrow {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px;
-    color: oklch(76% 0.16 68); margin: 0 0 14px;
-  }
-  .cs-h1 {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: clamp(44px, 6.5vw, 76px); font-weight: 800;
-    line-height: 0.95; letter-spacing: -0.5px; text-transform: uppercase;
-    color: oklch(94% 0.007 255); margin: 0 0 18px;
-  }
-  .cs-sub { font-size: 15.5px; color: oklch(52% 0.013 255); max-width: 520px; line-height: 1.72; margin: 0 0 32px; }
-
-  /* Quick links */
-  .cs-quicklinks { display: flex; flex-wrap: wrap; gap: 6px; }
-  .cs-ql {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 12px;
-    background: transparent;
-    border-radius: 5px; border: 1px solid oklch(30% 0.019 255);
-    font-family: 'Barlow', system-ui, sans-serif;
-    font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-    color: oklch(50% 0.013 255); cursor: pointer;
-    transition: color 0.12s ease-out, border-color 0.12s ease-out, background 0.12s ease-out;
-  }
-  .cs-ql:hover { color: oklch(88% 0.009 255); border-color: oklch(32% 0.016 255); background: oklch(21% 0.023 255); }
-  .cs-ql-dot { width: 6px; height: 6px; border-radius: 2px; flex-shrink: 0; }
-
-  /* ── Article body ── */
-  .cs-body { padding: 64px 0 80px; flex: 1; }
-
-  /* intro prose */
-  .cs-intro { margin-bottom: 48px; }
-  .cs-p { font-size: 15px; color: oklch(54% 0.013 255); line-height: 1.82; margin: 0 0 16px; }
-  .cs-p:last-child { margin-bottom: 0; }
-  .cs-hi { color: oklch(80% 0.01 255); font-weight: 500; }
-
-  /* ── Section ── */
-  .cs-section { margin-bottom: 72px; scroll-margin-top: 80px; }
-  .cs-section-head {
-    display: flex; align-items: center; gap: 12px;
-    padding-bottom: 16px; margin-bottom: 24px;
-    border-bottom: 1px solid oklch(19% 0.019 255);
-  }
-  .cs-section-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-  .cs-h2 {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: clamp(22px, 3vw, 30px); font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.2px;
-    color: oklch(94% 0.007 255); margin: 0;
-  }
-
-  /* Inline code */
-  .cs-code {
-    font-family: 'Courier New', monospace; font-size: 12.5px;
-    color: oklch(70% 0.14 200);
-    background: oklch(68% 0.12 200 / 0.09);
-    border: 1px solid oklch(68% 0.12 200 / 0.18);
-    border-radius: 4px; padding: 2px 7px;
-  }
-
-  /* ── Mode toggle ── */
-  .cs-toggle {
-    display: inline-flex; align-items: center; gap: 12px;
-    padding: 10px 16px; margin-bottom: 24px;
-    background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 7px;
-  }
-  .cs-toggle-label { font-size: 13px; font-weight: 500; transition: color 0.15s; }
-  .cs-toggle-track {
-    width: 40px; height: 22px; border-radius: 11px;
-    border: none; cursor: pointer; position: relative;
-    transition: background 0.15s ease-out; flex-shrink: 0;
-  }
-  .cs-toggle-knob {
-    width: 16px; height: 16px; border-radius: 50%;
-    background: oklch(94% 0.007 255);
-    position: absolute; top: 3px;
-    transition: left 0.15s ease-out;
-  }
-
-  /* ── Crafting grid ── */
-  .cs-recipe {
-    display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
-    padding: 20px; background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255); border-radius: 8px;
-    margin-bottom: 20px;
-  }
-  .cs-recipe-grid {
-    display: grid; grid-template-columns: repeat(3, 52px); gap: 5px;
-  }
-  .cs-recipe-cell {
-    width: 52px; height: 52px; border-radius: 6px;
-    background: oklch(17% 0.025 255);
-    border: 1px solid oklch(30% 0.019 255);
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color 0.12s ease-out, background 0.12s ease-out;
-  }
-  .cs-recipe-cell.has-item:hover { border-color: oklch(36% 0.016 255); background: oklch(23% 0.022 255); }
-  .cs-recipe-cell img { width: 36px; height: 36px; image-rendering: pixelated; }
-  .cs-recipe-arrow { font-size: 22px; color: oklch(42% 0.013 255); }
-  .cs-recipe-result {
-    width: 60px; height: 60px; border-radius: 7px;
-    background: oklch(17% 0.025 255);
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid oklch(35% 0.016 255);
-    transition: border-color 0.12s ease-out;
-  }
-  .cs-recipe-result:hover { border-color: oklch(50% 0.016 255); }
-  .cs-recipe-result img { width: 40px; height: 40px; image-rendering: pixelated; }
-  .cs-recipe-name { font-size: 14px; font-weight: 600; color: oklch(80% 0.01 255); }
-
-  /* ── Loot tabs ── */
-  .cs-loot-tabs { display: flex; border-bottom: 1px solid oklch(24% 0.022 255); margin-bottom: 24px; flex-wrap: wrap; }
-  .cs-loot-tab {
-    padding: 10px 18px;
-    background: none; border: none; border-bottom: 2px solid transparent;
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-    color: oklch(42% 0.013 255); cursor: pointer;
-    transition: color 0.12s ease-out;
-  }
-  .cs-loot-tab.active { border-bottom-color: currentColor; }
-  .cs-loot-tab:not(.active):hover { color: oklch(65% 0.011 255); }
-
-  /* ── Loot items ── */
-  .cs-pool-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .cs-pool-tag {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-    padding: 3px 9px; border-radius: 4px; border: 1px solid;
-  }
-  .cs-pool-note { font-size: 12px; color: oklch(42% 0.013 255); font-style: italic; }
-
-  .cs-loot-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
-  .cs-loot-item {
-    display: flex; flex-direction: column; align-items: center; gap: 5px;
-    width: 66px; cursor: default; position: relative;
-  }
-  .cs-loot-tile {
-    width: 52px; height: 52px; border-radius: 7px;
-    background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255);
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.1s ease-out, border-color 0.1s ease-out;
-  }
-  .cs-loot-item:hover .cs-loot-tile { background: oklch(25.5% 0.021 255); border-color: oklch(35% 0.016 255); }
-  .cs-loot-tile.rare      { border-color: oklch(76% 0.16 68 / 0.50); }
-  .cs-loot-tile.legendary { border-color: oklch(62% 0.18 300 / 0.60); }
-  .cs-loot-tile img { width: 36px; height: 36px; image-rendering: pixelated; }
-  .cs-loot-pct { font-size: 10.5px; font-family: 'Courier New', monospace; font-variant-numeric: tabular-nums; }
-  .cs-loot-tooltip {
-    position: absolute; bottom: calc(100% + 8px); left: 50%;
-    transform: translateX(-50%);
-    background: oklch(20% 0.022 255);
-    border: 1px solid oklch(34% 0.018 255);
-    border-radius: 6px; padding: 7px 10px;
-    white-space: nowrap; z-index: 100;
-    font-size: 12px; color: oklch(80% 0.01 255);
-    pointer-events: none;
-    opacity: 0; transition: opacity 0.1s ease-out;
-  }
-  .cs-loot-item:hover .cs-loot-tooltip { opacity: 1; }
-  .cs-loot-tooltip-note { font-size: 10.5px; color: oklch(50% 0.013 255); margin-top: 2px; }
-
-  /* ── Chest button ── */
-  .cs-chest-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-  .cs-chest-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 9px 16px; cursor: pointer;
-    background: oklch(76% 0.16 68 / 0.10);
-    border: 1px solid oklch(76% 0.16 68 / 0.35);
-    border-radius: 7px;
-    font-family: 'Barlow', system-ui, sans-serif;
-    font-size: 13px; font-weight: 600;
-    color: oklch(76% 0.16 68);
-    transition: background 0.12s ease-out, border-color 0.12s ease-out;
-  }
-  .cs-chest-btn:hover:not(:disabled) { background: oklch(76% 0.16 68 / 0.18); border-color: oklch(76% 0.16 68 / 0.55); }
-  .cs-chest-btn:disabled { opacity: 0.5; cursor: wait; }
-  .cs-chest-btn img { width: 20px; height: 20px; image-rendering: pixelated; }
-
-  /* ── Simulation result ── */
-  .cs-result {
-    padding: 20px; margin-top: 20px;
-    background: oklch(15% 0.022 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 8px;
-  }
-  .cs-result-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .cs-result-title { font-size: 13.5px; font-weight: 600; color: oklch(80% 0.01 255); }
-  .cs-reroll-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 11px; cursor: pointer;
-    background: none; border: 1px solid oklch(30% 0.019 255); border-radius: 5px;
-    font-family: 'Barlow', system-ui, sans-serif;
-    font-size: 11.5px; font-weight: 600; color: oklch(50% 0.013 255);
-    transition: color 0.12s, border-color 0.12s;
-  }
-  .cs-reroll-btn:hover { color: oklch(88% 0.009 255); border-color: oklch(38% 0.016 255); }
-  .cs-result-items { display: flex; flex-wrap: wrap; gap: 10px; }
-  .cs-result-item {
-    display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px;
-  }
-  .cs-result-tile {
-    width: 44px; height: 44px; border-radius: 6px; position: relative;
-    background: oklch(24% 0.022 255);
-    border: 1px solid oklch(32% 0.019 255);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .cs-result-tile.rare      { border-color: oklch(76% 0.16 68 / 0.50); }
-  .cs-result-tile.legendary { border-color: oklch(62% 0.18 300 / 0.60); }
-  .cs-result-tile img { width: 28px; height: 28px; image-rendering: pixelated; }
-  .cs-result-count {
-    position: absolute; bottom: -3px; right: -3px;
-    background: oklch(33% 0.018 255); color: oklch(88% 0.009 255);
-    font-size: 10px; font-weight: 700;
-    padding: 0 4px; border-radius: 3px;
-    border: 1px solid oklch(30% 0.018 255);
-  }
-  .cs-result-name {
-    font-size: 9.5px; color: oklch(45% 0.013 255);
-    text-align: center; max-width: 56px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .cs-result-empty { color: oklch(42% 0.013 255); font-size: 13px; padding: 12px 0; }
-
-  /* ── Trades ── */
-  .cs-trade {
-    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-    padding: 16px 20px; background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255); border-radius: 8px;
-    margin-bottom: 20px;
-  }
-  .cs-trade-cost { display: flex; gap: 6px; }
-  .cs-trade-tile {
-    width: 44px; height: 44px; border-radius: 6px; position: relative;
-    background: oklch(17% 0.025 255);
-    border: 1px solid oklch(30% 0.019 255);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .cs-trade-tile.highlight { border-color: oklch(76% 0.16 68 / 0.5); }
-  .cs-trade-tile img { width: 30px; height: 30px; image-rendering: pixelated; }
-  .cs-trade-count {
-    position: absolute; bottom: -3px; right: -3px;
-    background: oklch(33% 0.018 255); color: oklch(88% 0.009 255);
-    font-size: 10px; font-weight: 700;
-    padding: 0 4px; border-radius: 3px;
-    border: 1px solid oklch(30% 0.018 255);
-  }
-  .cs-trade-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .cs-trade-name { font-size: 14px; font-weight: 600; color: oklch(80% 0.01 255); }
-  .cs-trade-note { font-size: 12px; color: oklch(48% 0.013 255); }
-
-  /* ── Biome notes ── */
-  .cs-notes { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-  .cs-note {
-    display: flex; align-items: center; gap: 14px;
-    padding: 10px 14px;
-    background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-left: 3px solid;
-    border-radius: 7px;
-  }
-  .cs-note-tile {
-    width: 34px; height: 34px; border-radius: 5px; flex-shrink: 0;
-    background: oklch(17% 0.025 255);
-    border: 1px solid oklch(30% 0.019 255);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .cs-note-tile img { width: 24px; height: 24px; image-rendering: pixelated; }
-  .cs-note-name { font-size: 14px; font-weight: 600; min-width: 108px; }
-  .cs-note-flavor { font-size: 12.5px; color: oklch(48% 0.013 255); font-style: italic; }
-  .cs-note-pct {
-    margin-left: auto; font-family: 'Courier New', monospace;
-    font-size: 11.5px; color: oklch(45% 0.013 255); flex-shrink: 0;
-  }
-
-  /* ── Event cards ── */
-  .cs-event {
-    padding: 18px 20px; margin-bottom: 16px;
-    background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-left: 3px solid;
-    border-radius: 8px;
-  }
-  .cs-event-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-  .cs-event-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
-  }
-  .cs-event-tag {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-    padding: 2px 8px; border-radius: 4px; border: 1px solid;
-    color: oklch(50% 0.013 255); border-color: oklch(30% 0.019 255);
-  }
-  .cs-event p { margin: 0; font-size: 14px; color: oklch(54% 0.013 255); line-height: 1.7; }
-
-  @media (max-width: 600px) {
-    .cs-shell { padding: 0 20px; }
-    .cs-header { padding: 60px 0 52px; }
-    .cs-body   { padding: 48px 0 64px; }
-  }
-`;
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function ModeToggle({ value, onChange, offLabel, onLabel, onColor }) {
+function Face({ item, size = 48, count = null, className = '' }) {
     return (
-        <div className="cs-toggle">
-            <span className="cs-toggle-label" style={{ color: !value ? 'oklch(88% 0.009 255)' : 'oklch(42% 0.013 255)' }}>
-                {offLabel}
-            </span>
-            <button
-                className="cs-toggle-track"
-                onClick={() => onChange(!value)}
-                style={{ background: value ? onColor : 'oklch(30% 0.019 255)' }}
-            >
-                <div className="cs-toggle-knob" style={{ left: value ? '21px' : '3px' }} />
-            </button>
-            <span className="cs-toggle-label" style={{ color: value ? onColor : 'oklch(42% 0.013 255)' }}>
-                {onLabel}
-            </span>
-        </div>
+        <span className={`wk-slot ${className}`} style={{ '--slot': `${size}px` }} title={item.name}>
+            <img className="wk-sprite" src={item.src ?? spriteOf(item.material)} data-material={item.material}
+                 onError={spriteFallback} alt="" width="128" height="128" loading="lazy" draggable="false" />
+            {count != null && count > 1 && <span className="wk-count">{count}</span>}
+        </span>
     );
 }
 
-/**
- * A cell is a vanilla texture name, or { src, name } for a custom item — those sprites live in
- * the pack's item folder rather than the fib folder, so they cannot be named the same way.
- */
-function recipeCell(item) {
-    return typeof item === 'string'
-        ? { src: `${IMG}/${item}.png`, name: item.replace(/_/g, ' ') }
-        : item;
-}
+const To = ({ label }) => <span className="cc-to" aria-hidden="true">{label && <span className="cc-to-label">{label}</span>}</span>;
 
-function CraftingGrid({ recipe, result, resultName, glowColor }) {
+/** A crafting table: the 3x3 grid, a track, the result. The grid is drawn; the sentence is for a screen reader. */
+function Craft({ grid, result, caption }) {
+    const ingredients = [...new Set(grid.flat().filter(Boolean).map((c) => c.name))];
     return (
-        <div className="cs-recipe">
-            <div className="cs-recipe-grid">
-                {recipe.flat().map((item, i) => {
-                    const cell = item && recipeCell(item);
-                    return (
-                        <div key={i} className={`cs-recipe-cell${cell ? ' has-item' : ''}`}
-                             title={cell?.name}>
-                            {cell && (
-                                <img src={cell.src} alt={cell.name}
-                                     onError={e => { e.target.style.display = 'none'; }} />
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-            <span className="cs-recipe-arrow">→</span>
-            <div className="cs-recipe-result" title={resultName}
-                 style={{ borderColor: glowColor + '55' }}>
-                {/* Custom items have no sprite in the fib folder, so the result may be given as
-                    { src, name } instead of a texture name — the same escape hatch the cells have. */}
-                <img src={typeof result === 'string' ? `${IMG}/${result}.png` : result.src} alt={resultName}
-                     onError={e => { e.target.style.display = 'none'; }} />
-            </div>
-            <span className="cs-recipe-name">{resultName}</span>
-        </div>
-    );
-}
-
-function TradeTile({ texture, src, name, amount, highlight }) {
-    return (
-        <div className={`cs-trade-tile${highlight ? ' highlight' : ''}`} title={name}>
-            <img src={src || `${IMG}/${texture}.png`} alt={name}
-                 onError={e => { e.target.style.opacity = '0.3'; }} />
-            {amount > 1 && <span className="cs-trade-count">×{amount}</span>}
-        </div>
-    );
-}
-
-function TradeRow({ cost, result, note }) {
-    return (
-        <div className="cs-trade">
-            <div className="cs-trade-cost">
-                {cost.map((c, i) => <TradeTile key={i} {...c} />)}
-            </div>
-            <span className="cs-recipe-arrow">→</span>
-            <TradeTile {...result} highlight={result.highlight} />
-            <div className="cs-trade-meta">
-                <span className="cs-trade-name">{result.name}</span>
-                {note && <span className="cs-trade-note">{note}</span>}
-            </div>
-        </div>
-    );
-}
-
-function EventCard({ color, name, tag, children }) {
-    return (
-        <div className="cs-event" style={{ borderLeftColor: color }}>
-            <div className="cs-event-head">
-                <span className="cs-event-name" style={{ color }}>{name}</span>
-                <span className="cs-event-tag">{tag}</span>
-            </div>
-            {children}
-        </div>
-    );
-}
-
-function LootItem({ item }) {
-    const chance = parseFloat(item.chance);
-    const isLegendary = item.legendary || chance < 1;
-    const isRare = !isLegendary && chance < 5;
-    const pctColor = isLegendary ? COL.purple : isRare ? COL.rare : 'oklch(42% 0.013 255)';
-    return (
-        <div className="cs-loot-item">
-            <div className={`cs-loot-tile${isLegendary ? ' legendary' : isRare ? ' rare' : ''}`}>
-                {/* Custom items have no sprite in the fib folder, so a loot row may carry an
-                    explicit src instead of a texture name — same escape hatch as TradeTile. */}
-                <img src={item.src || `${IMG}/${item.texture}.png`} alt={item.name}
-                     onError={e => { e.target.style.opacity = '0.3'; }} />
-            </div>
-            <span className="cs-loot-pct" style={{ color: pctColor }}>{item.chance}</span>
-            <div className="cs-loot-tooltip">
-                <div style={{ fontWeight: 600, color: pctColor }}>{item.name}</div>
-                {item.note && <div className="cs-loot-tooltip-note">{item.note}</div>}
-            </div>
-        </div>
-    );
-}
-
-function LootTableDisplay({ tables }) {
-    const [activeRoom, setActiveRoom] = useState('honey');
-    const [simResult, setSimResult]   = useState(null);
-    const [simming, setSimming]       = useState(false);
-    const table = tables[activeRoom];
-
-    const openChest = () => {
-        setSimming(true); setSimResult(null);
-        setTimeout(() => { setSimResult(simulateLoot(table)); setSimming(false); }, 250);
-    };
-
-    return (
-        <div>
-            {/* Tabs + chest button row */}
-            <div className="cs-chest-row">
-                <div className="cs-loot-tabs" style={{ margin: 0, border: 'none' }}>
-                    {Object.entries(tables).map(([key, t]) => (
-                        <button
-                            key={key}
-                            className={`cs-loot-tab${activeRoom === key ? ' active' : ''}`}
-                            onClick={() => { setActiveRoom(key); setSimResult(null); }}
-                            style={{ color: activeRoom === key ? t.color : undefined }}
-                        >
-                            {t.name}
-                        </button>
-                    ))}
-                </div>
-                <button className="cs-chest-btn" onClick={openChest} disabled={simming}>
-                    <img src={`${IMG}/chest.png`} alt="chest"
-                         onError={e => { e.target.style.display = 'none'; }} />
-                    {simming ? 'Opening...' : 'Open Chest'}
-                </button>
-            </div>
-
-            {/* Room header */}
-            <div style={{ marginBottom: 20 }}>
-                <span style={{
-                    fontFamily: "'Barlow Condensed', system-ui, sans-serif",
-                    fontSize: 18, fontWeight: 800, textTransform: 'uppercase',
-                    color: table.color,
-                }}>
-                    {table.name}
+        <figure className="cc-craft">
+            <div className="cc-craft-row" aria-hidden="true">
+                <span className="cc-grid">
+                    {grid.flat().map((c, i) => (c ? <Face key={i} item={c} size={40} /> : <span key={i} className="wk-slot" style={{ '--slot': '40px' }} />))}
                 </span>
-                <span style={{ fontSize: 13, color: 'oklch(50% 0.013 255)', marginLeft: 12 }}>
-                    {table.description}
-                </span>
+                <To />
+                <span className="cc-result"><Face item={result} size={64} /><span className="cc-result-name">{result.name}</span></span>
             </div>
-
-            {/* Pools */}
-            {table.pools.map((pool, pi) => (
-                <div key={pi} style={{ marginBottom: pi < table.pools.length - 1 ? 28 : 0 }}>
-                    <div className="cs-pool-head">
-                        <span className="cs-pool-tag" style={{
-                            color: table.color,
-                            background: table.color + '12',
-                            borderColor: table.color + '40',
-                        }}>
-                            {pool.rolls}
-                        </span>
-                        {pool.note && <span className="cs-pool-note">{pool.note}</span>}
-                    </div>
-                    <div className="cs-loot-grid">
-                        {pool.items.map((item, idx) => <LootItem key={idx} item={item} />)}
-                    </div>
-                </div>
-            ))}
-
-            {/* Simulation result */}
-            {simResult !== null && (
-                <div className="cs-result">
-                    <div className="cs-result-head">
-                        <span className="cs-result-title">
-                            Loot Result — {simResult.length} item{simResult.length !== 1 ? 's' : ''}
-                        </span>
-                        <button className="cs-reroll-btn" onClick={openChest}>↻ Open again</button>
-                    </div>
-                    {simResult.length === 0 ? (
-                        <div className="cs-result-empty">The chest was empty. Try again!</div>
-                    ) : (() => {
-                        const grouped = Object.values(
-                            simResult.reduce((acc, item) => {
-                                if (!acc[item.name]) acc[item.name] = { ...item, count: 0 };
-                                acc[item.name].count++;
-                                return acc;
-                            }, {})
-                        ).sort((a, b) => b.count - a.count);
-                        return (
-                            <div className="cs-result-items">
-                                {grouped.map((item, i) => {
-                                    const c = parseFloat(item.chance);
-                                    const leg = item.legendary || c < 1;
-                                    const rare = !leg && c < 5;
-                                    return (
-                                        <div key={i} className="cs-result-item">
-                                            <div className={`cs-result-tile${leg ? ' legendary' : rare ? ' rare' : ''}`}>
-                                                <img src={`${IMG}/${item.texture}.png`} alt={item.name}
-                                                     onError={e => { e.target.style.opacity = '0.3'; }} />
-                                                {item.count > 1 && (
-                                                    <span className="cs-result-count">×{item.count}</span>
-                                                )}
-                                            </div>
-                                            <span className="cs-result-name">{item.name.split('(')[0].trim()}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        );
-                    })()}
-                </div>
-            )}
-        </div>
+            <figcaption className="wk-small">
+                <span className="wk-sr">Crafted from {ingredients.join(', ')}. </span>{caption}
+            </figcaption>
+        </figure>
     );
 }
 
-function Section({ id, color, title, children }) {
+/** A trade or a smelt: what goes in, where, what comes out. */
+function Exchange({ give, via, get, caption }) {
     return (
-        <section id={id} className="cs-section">
-            <div className="cs-section-head">
-                <div className="cs-section-dot" style={{ background: color }} />
-                <h2 className="cs-h2">{title}</h2>
+        <figure className="cc-exchange">
+            <div className="cc-exchange-row" aria-hidden="true">
+                <span className="cc-give">{give.map((g) => <Face key={g.item.name} item={g.item} size={48} count={g.count} />)}</span>
+                <To label={via?.label} />
+                {via?.item && (
+                    <>
+                        <Face item={via.item} size={48} className="cc-via" />
+                        <To />
+                    </>
+                )}
+                <span className="cc-result"><Face item={get.item} size={64} count={get.count} /><span className="cc-result-name">{get.item.name}</span></span>
             </div>
-            {children}
+            <figcaption className="wk-small">
+                <span className="wk-sr">{give.map((g) => `${g.count ?? 1} ${g.item.name}`).join(' and ')}{via?.label ? `, ${via.label}` : ''}, for {get.item.name}. </span>{caption}
+            </figcaption>
+        </figure>
+    );
+}
+
+const Typed = ({ children }) => <code className="wk-typed">{children}</code>;
+
+/** Objects on a track with no product at the end: an act, drawn. */
+function Sequence({ parts, caption }) {
+    return (
+        <figure className="cc-exchange">
+            <div className="cc-exchange-row" aria-hidden="true">
+                {parts.map((p, i) => (p.to !== undefined
+                    ? <To key={i} label={p.to} />
+                    : <span key={i} className="cc-result"><Face item={p.item} size={p.size ?? 56} />{p.item.label && <span className="cc-result-name">{p.item.label}</span>}</span>))}
+            </div>
+            {caption && <figcaption className="wk-small">{caption}</figcaption>}
+        </figure>
+    );
+}
+
+/* What the Depths hold, as the blocks you will meet, each a way into its loot. */
+const INSIDE = [
+    { item: { ...v('decorated_pot'), name: 'Decorated Pot' }, what: '27 in the storage room', room: 'antimatter_depths_storage_pots' },
+    { item: { ...v('chest_minecart'), name: 'Chest Minecart' }, what: '2 in the mines', room: 'antimatter_depths_mines' },
+    { item: { ...v('trial_spawner'), name: 'Trial Spawner' }, what: 'Guarding the vault room', room: null },
+    { item: { ...v('vault'), name: 'Vault' }, what: "The vault room's reward", room: 'antimatter_depths_vault' },
+    { item: { ...v('end_portal_frame'), name: 'End Portal' }, what: 'The quick way to the End', room: null },
+];
+
+/* ── The Antimatter Depths ──────────────────────────────────────────────────── */
+
+function Step({ n, title, children, drawing }) {
+    return (
+        <li className="cc-step">
+            <div className="cc-step-text">
+                <h3 className="cc-step-title"><span className="cc-step-n">{n}</span>{title}</h3>
+                {children}
+            </div>
+            {drawing && <div className="cc-step-draw">{drawing}</div>}
+        </li>
+    );
+}
+
+function Depths() {
+    return (
+        <section id="antimatter-depths" className="wk-wrap cc-sec" aria-labelledby="depths-title">
+            <div className="cc-sec-head">
+                <h2 id="depths-title" className="wk-h3">The Antimatter Depths</h2>
+                <p className="wk-p">
+                    A loot dungeon in a dimension of its own, and the fast way to the End. You do not dig down to it:
+                    you open a portal to it, and the portal you open is <strong>yours alone</strong>. Nobody can follow you
+                    in and empty the barrels first. Finding the doorway is cheap. Opening it is not.
+                </p>
+            </div>
+
+            <ol className="cc-steps">
+                <Step n="1" title="Find the ruin" drawing={<Craft grid={RECIPES.antimatter} result={ITEM.antimatterLocator} caption="The only recipe; Harder trackers does not change it." />}>
+                    <p className="wk-p">
+                        Craft an Antimatter Locator and right-click it. You get coordinates and a trail to an
+                        Antimatter Depths Portal: a ruin on the Overworld surface, a tall dark frame with a vault on
+                        either side. The locator finds the ruin; it does not get you through it.
+                    </p>
+                    <p className="wk-small">In game: <Typed>/info antimatter_locator</Typed></p>
+                </Step>
+                <Step n="2" title="Buy an Eye of Antimatter" drawing={<Exchange give={[{ item: v('emerald'), count: 6 }]} via={{ label: 'Cleric, level 2' }} get={{ item: ITEM.eye }} caption="Every apprentice cleric sells one. Trade with a level 1 cleric to level it up." />}>
+                    <p className="wk-p">
+                        The eye cannot be crafted. Every Cleric villager sells one once it reaches level 2 (Apprentice),
+                        for six emeralds, with no roll for it.
+                    </p>
+                </Step>
+                <Step n="3" title="Craft the Totem of Antimatter" drawing={<Craft grid={RECIPES.totem} result={ITEM.totem} caption="Spent every time a portal is opened." />}>
+                    <p className="wk-p">
+                        The real price of the trip: the eye goes in at the top, and the totem is used up each time you
+                        open a portal.
+                    </p>
+                </Step>
+                <Step n="4" title="Open your portal" drawing={<Sequence parts={[{ item: ITEM.totem }, { to: 'Right-click' }, { item: { ...v('vault'), name: 'Vault', label: 'Either vault of the ruin' } }]} caption="The totem is consumed; the portal opens for you alone." />}>
+                    <p className="wk-p">
+                        Right-click either vault with the totem in hand. The totem is consumed, lightning strikes the
+                        frame, and the portal fills in <strong>for you only</strong>. Another player in the same ruin sees an
+                        empty frame and walks through open air; they need a totem of their own, and it opens their own
+                        portal to their own Depths.
+                    </p>
+                </Step>
+                <Step n="5" title="Go in" drawing={<Inside />}>
+                    <p className="wk-p">
+                        Your Depths is chosen once and kept for the round, so going back returns you to the same dungeon,
+                        and the frame you arrive at takes you home. Inside are the loot rooms below, a vault room guarded
+                        by trial spawners, and a room with an <strong>End Portal</strong>, which is what makes this the quick
+                        way to the End. Where it drops you is random, but it is the same spot every time for you.
+                    </p>
+                </Step>
+            </ol>
         </section>
     );
 }
 
-function P({ children }) {
-    return <p className="cs-p">{children}</p>;
-}
-function Hi({ color, children }) {
-    return <span className="cs-hi" style={color ? { color } : {}}>{children}</span>;
-}
-function Cmd({ children }) {
-    return <code className="cs-code">{children}</code>;
+function Inside() {
+    return (
+        <ul className="cc-inside">
+            {INSIDE.map((x) => (
+                <li key={x.item.name}>
+                    {x.room
+                        ? <a className="cc-inside-item" href="#depths-loot" onClick={() => window.dispatchEvent(new CustomEvent('cc-room', { detail: x.room }))}><Face item={x.item} size={44} /><span><span className="cc-inside-name">{x.item.name}</span><span className="wk-small">{x.what}</span></span></a>
+                        : <span className="cc-inside-item"><Face item={x.item} size={44} /><span><span className="cc-inside-name">{x.item.name}</span><span className="wk-small">{x.what}</span></span></span>}
+                </li>
+            ))}
+        </ul>
+    );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+/* ── Its loot ───────────────────────────────────────────────────────────────── */
 
-export default function CustomStructures() {
-    const [trialHard, setTrialHard] = useState(false);
+const ROOMS = [
+    { key: 'antimatter_depths_nature', name: 'Nature Room', text: 'A sanctuary of flowers, with a small bonus roll on top.' },
+    { key: 'antimatter_depths_storage', name: 'Storage', text: 'The largest table: everyday materials, and five smithing templates the game names [LEGENDARY].' },
+    { key: 'antimatter_depths_storage_pots', name: 'Storage Pots', text: 'The storage room is lined with 27 decorated pots; each holds at most one draw, and most hold nothing.', containers: 27 },
+    { key: 'antimatter_depths_mines', name: 'Mines', text: 'Two chest minecarts, and the best odds on diamonds in the Depths.', containers: 2 },
+    { key: 'antimatter_depths_treasure', name: 'Treasure Room', text: 'Resources, rare saplings, and two named rarities.' },
+    { key: 'antimatter_depths_vault', name: 'Vault', text: 'The vault room\'s reward: one of four.' },
+];
 
+/* A drop as the page names it: the pack's custom items by their own name, anything
+   else by its vanilla name with the game's custom name beside it. */
+function dropName(e) {
+    if (e.src && e.custom) return { name: e.custom, also: null };
+    return { name: e.name, also: e.custom };
+}
+
+/* A chest is 27 slots, and loot lands in random ones, as the game spreads it. */
+function spread(drops) {
+    const slots = Array(27).fill(null);
+    const free = [...slots.keys()].sort(() => Math.random() - 0.5);
+    drops.slice(0, 27).forEach((d, i) => { slots[free[i]] = d; });
+    return { drops, cells: slots };
+}
+
+function Chest({ drops, cells }) {
+    return (
+        <div className="cc-chest" role="img" aria-label={drops.length ? `The chest held: ${drops.map((d) => `${d.amount} ${dropName(d).name}`).join(', ')}.` : 'The chest was empty.'}>
+            {cells.map((d, i) => (d
+                ? <Face key={i} item={{ material: d.material, src: d.src, name: dropName(d).name }} size={44} count={d.amount} className="cc-drop" />
+                : <span key={i} className="wk-slot" style={{ '--slot': '44px' }} />))}
+        </div>
+    );
+}
+
+function Loot() {
+    const [room, setRoom] = useState(ROOMS[0].key);
+    const [opened, setOpened] = useState(null);
+    // The trip's "Go in" step links straight to a room's table.
+    useEffect(() => {
+        const pick = (e) => { setRoom(e.detail); setOpened(null); };
+        window.addEventListener('cc-room', pick);
+        return () => window.removeEventListener('cc-room', pick);
+    }, []);
+    const pools = TABLES[room] ?? [];
+    const info = ROOMS.find((r) => r.key === room);
+    const open = () => {
+        const times = info.containers ?? 1;
+        setOpened(spread(Array.from({ length: times }, () => roll(pools)).flat()));
+    };
+
+    return (
+        <section id="depths-loot" className="wk-wrap cc-sec" aria-labelledby="loot-title">
+            <div className="cc-sec-head">
+                <h2 id="loot-title" className="wk-h3">What the Depths hold</h2>
+                <p className="wk-p">
+                    Every container in the Depths draws from one of these tables. The chances and counts are read from the
+                    datapack, so they are the ones the game uses.
+                </p>
+            </div>
+
+            <div className="cc-loot">
+                <div className="cc-rooms" role="tablist" aria-label="Rooms">
+                    {ROOMS.map((r) => (
+                        <button key={r.key} type="button" role="tab" aria-selected={room === r.key} onClick={() => { setRoom(r.key); setOpened(null); }}>
+                            {r.name}
+                        </button>
+                    ))}
+                </div>
+                <p className="wk-p cc-room-text">{info.text}</p>
+
+                <div className="cc-loot-body" role="tabpanel">
+                    <div className="cc-pools">
+                        {pools.map((p, pi) => (
+                            <div key={pi} className="cc-pool">
+                                <span className="wk-label">{pools.length > 1 && pi > 0 ? 'Then, once more: ' : ''}{p.rolls.min === p.rolls.max ? `${p.rolls.min} ${p.rolls.min === 1 ? 'draw' : 'draws'}` : `${rangeText(p.rolls)} draws`}{info.containers ? `, per ${info.containers === 27 ? 'pot' : 'minecart'}` : ''}</span>
+                                <ul className="cc-drops">
+                                    {p.entries.map((e, i) => {
+                                        const n = dropName(e);
+                                        return (
+                                            <li key={i} className="cc-drop-row" data-empty={e.empty || undefined}>
+                                                {e.empty ? <span className="wk-slot" style={{ '--slot': '36px' }} aria-hidden="true" /> : <Face item={{ material: e.material, src: e.src, name: n.name }} size={36} />}
+                                                <span className="cc-drop-name">
+                                                    <span>{n.name}{e.count && !(e.count.min === 1 && e.count.max === 1) ? <span className="cc-drop-count"> ×{rangeText(e.count)}</span> : null}</span>
+                                                    {(n.also || e.notes.length > 0) && <span className="cc-drop-note">{[n.also && `Named "${n.also}"`, ...e.notes].filter(Boolean).join('. ')}</span>}
+                                                </span>
+                                                <span className="wk-datum cc-drop-pct">{pct(e.chance)}</span>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="cc-open">
+                        <button type="button" className="wk-btn cc-btn" onClick={open}>
+                            <Dices size={16} aria-hidden="true" /> {opened ? 'Open another' : `Open ${info.containers === 27 ? 'all 27 pots' : info.containers === 2 ? 'both minecarts' : 'the chest'}`}
+                        </button>
+                        {opened
+                            ? <Chest {...opened} />
+                            : <div className="cc-chest cc-chest--shut" aria-hidden="true">{Array.from({ length: 27 }, (_, i) => <span key={i} className="wk-slot" style={{ '--slot': '44px' }} />)}</div>}
+                        <p className="wk-small">
+                            {opened
+                                ? `${opened.drops.length ? `${opened.drops.length} ${opened.drops.length === 1 ? 'stack' : 'stacks'}` : 'Nothing this time'}${opened.drops.length > 27 ? ', more than a chest holds; the first 27 are shown' : ''}. An illustration, rolled with the datapack's own weights and counts.`
+                                : 'Roll it the way the game does, to see what one opening is like.'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* ── Locators ───────────────────────────────────────────────────────────────── */
+
+const LOCATORS = [
+    { item: ITEM.antimatterLocator, to: 'antimatter-depths', how: 'Crafted', finds: 'An Antimatter Depths Portal ruin', spent: 'Unless someone already marked it' },
+    { item: ITEM.trialLocator, to: 'trial-locator', how: 'Crafted', finds: 'Trial Chambers', spent: 'Unless someone already marked it' },
+    { item: ITEM.sulfurLocator, to: 'sulfur-locator', how: 'Traded, 30% of cartographers', finds: 'A Sulfur Cave biome', spent: 'Unless someone already marked it' },
+    { item: ITEM.brush, to: 'kiln-fired-brush', how: 'Smelted from a brush', finds: 'Trail Ruins', spent: 'Never' },
+    { item: ITEM.journal, to: 'journal', how: 'Shipwreck map chests, Special Trader', finds: 'One of five biomes, by its note', spent: 'Yes, it falls apart' },
+];
+
+function Locators() {
+    const [harder, setHarder] = useState(false);
+    const journalChance = TABLES.shipwreck_map?.flatMap((p) => p.entries).find((e) => e.name === ITEM.journal.name)?.chance;
+    return (
+        <section id="locators" className="wk-wrap cc-sec" aria-labelledby="locators-title">
+            <div className="cc-sec-head">
+                <h2 id="locators-title" className="wk-h3">Locators</h2>
+                <p className="wk-p">
+                    Things that point you somewhere. Right-click one and you get coordinates and a trail. If another
+                    player already marked the same place, a locator is <strong>not used up</strong>: keep searching for
+                    one nobody has claimed. Claimed places can still be entered; this only helps you find an unlooted one.
+                </p>
+            </div>
+
+            <table className="cc-table">
+                <thead><tr><th scope="col">Item</th><th scope="col">How you get it</th><th scope="col">What it finds</th><th scope="col">Used up</th></tr></thead>
+                <tbody>
+                    {LOCATORS.map((l) => (
+                        <tr key={l.item.name}>
+                            <th scope="row"><a className="cc-table-item" href={`#${l.to}`}><Face item={l.item} size={36} />{l.item.name}</a></th>
+                            <td>{l.how}</td><td>{l.finds}</td><td>{l.spent}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+
+            <div className="cc-cards">
+                <article id="trial-locator" className="cc-card">
+                    <h3 className="wk-name">Trial Locator</h3>
+                    <p className="wk-p">Finds Trial Chambers, the vanilla structure. The recipe is the one locator a setting changes: <strong>Harder trackers</strong> asks for more.</p>
+                    <div className="cc-seg" role="radiogroup" aria-label="Which recipe">
+                        <button type="button" role="radio" aria-checked={!harder} onClick={() => setHarder(false)}>Standard</button>
+                        <button type="button" role="radio" aria-checked={harder} onClick={() => setHarder(true)}>Harder trackers</button>
+                    </div>
+                    <Craft grid={harder ? RECIPES.trialHarder : RECIPES.trial} result={ITEM.trialLocator} caption={harder ? 'With Harder trackers on in /settings.' : 'The recipe when Harder trackers is off.'} />
+                    <p className="wk-small">In game: <Typed>/info trial_locator</Typed></p>
+                </article>
+
+                <article id="sulfur-locator" className="cc-card">
+                    <h3 className="wk-name">Sulfur Locator</h3>
+                    <p className="wk-p">
+                        Tracks a <strong>biome</strong>, the Sulfur Cave, and cannot be crafted. Each Cartographer has a 30% chance
+                        to offer it. If yours did not, break and replace their job block to reset the profession and roll again.
+                    </p>
+                    <Exchange give={[{ item: v('emerald'), count: 6 }, { item: v('compass') }]} via={{ label: 'Cartographer' }} get={{ item: ITEM.sulfurLocator }} caption="30% per cartographer; reroll by resetting their job block." />
+                    <p className="wk-small">In game: <Typed>/info sulfur_locator</Typed></p>
+                </article>
+
+                <article id="kiln-fired-brush" className="cc-card">
+                    <h3 className="wk-name">Kiln-Fired Brush</h3>
+                    <p className="wk-p">
+                        Finds Trail Ruins, buried shallow enough to walk over all round without noticing. Smelt any brush in a
+                        furnace and it comes out fired. Right-click grass, sand, mud, podzol, coarse dirt or snow with it and
+                        footprints are dusted across the ground to the nearest ruins. It is a tool, never used up, and it still
+                        brushes suspicious sand and gravel as normal.
+                    </p>
+                    <Exchange give={[{ item: v('brush') }]} via={{ item: v('furnace'), label: null }} get={{ item: ITEM.brush }} caption="Any brush, any furnace, no chance involved." />
+                    <p className="wk-small">In game: <Typed>/info kiln_fired_brush</Typed></p>
+                </article>
+
+                <article id="journal" className="cc-card">
+                    <h3 className="wk-name">Weathered Captain's Journal</h3>
+                    <p className="wk-p">
+                        In {journalChance ? <span className="wk-datum">{pct(journalChance)}</span> : 'some'} of shipwreck map chests,
+                        and sold by the Special Trader. Right-click it and it falls apart, leaving a single <strong>Faded Note</strong>:
+                        right-click the note and it points you to the nearest biome it describes, the way a locator points at a
+                        structure. Which note you get is random, each of the five equally likely.
+                    </p>
+                    <ul className="cc-notes">
+                        {BIOME_NOTES.map((n) => (
+                            <li key={n.biome} className="cc-note">
+                                <Face item={{ ...ITEM.note, name: `Faded Note - ${n.biome}` }} size={40} />
+                                <span><span className="cc-note-name">{n.biome}</span><span className="cc-note-flavor">"{n.flavor}"</span></span>
+                                <span className="wk-datum cc-note-pct">20%</span>
+                            </li>
+                        ))}
+                    </ul>
+                </article>
+            </div>
+        </section>
+    );
+}
+
+/* model/BiomeNote: one of each note's three flavour lines. */
+const BIOME_NOTES = [
+    { biome: 'Desert', flavor: 'a sea of dunes where no water runs' },
+    { biome: 'Badlands', flavor: 'broken hills streaked with rust and clay' },
+    { biome: 'Warm Ocean', flavor: 'bright reefs beneath a warm tide' },
+    { biome: 'Pale Garden', flavor: 'ghostly woods where the leaves hang grey' },
+    { biome: 'Cherry Grove', flavor: 'hills awash in falling pink petals' },
+];
+
+/* ── Traders ────────────────────────────────────────────────────────────────── */
+
+const SPECIAL = [
+    { price: 1, get: { item: { ...ITEM.wheel, name: 'Wheels of Fortune' }, count: 3 }, note: 'Three for one emerald: the reason to run.' },
+    { price: 5, get: { item: ITEM.journal }, note: 'Otherwise only found in shipwrecks.' },
+    { price: 5, get: { item: { name: 'A random locator', src: '/fib-items/knowledge_book.png' } }, note: 'Antimatter, Trial or Sulfur, rolled when the trader arrives.' },
+    { price: 5, get: { item: { ...v('iron_pickaxe'), name: 'Iron Pickaxe' } }, note: 'Enchanted at level 30, no treasure enchantments.' },
+    { price: 5, get: { item: { ...v('iron_chestplate'), name: 'An iron armour piece' } }, note: 'A random piece, enchanted at level 30.' },
+];
+
+function Traders({ go }) {
+    return (
+        <section id="traders" className="wk-wrap cc-sec" aria-labelledby="traders-title">
+            <div className="cc-sec-head">
+                <h2 id="traders-title" className="wk-h3">Traders</h2>
+                <p className="wk-p">
+                    Two traders arrive near spawn during a round. When one appears its coordinates are announced in chat,
+                    drawn as a particle trail and pinned in the tab list with a countdown. Everyone gets their <strong>own</strong>{' '}
+                    copy of the offers, so nobody can buy the good trade out from under you.
+                </p>
+            </div>
+
+            <div className="cc-cards">
+                <article className="cc-card">
+                    <h3 className="wk-name">Wandering Trader</h3>
+                    <p className="wk-p">
+                        Every 7 to 10 minutes, and gone 5 minutes after it arrives. Its offers are vanilla, with every
+                        price cut to <strong>a single item</strong>, usually one emerald, and it also sells Wheels of Fortune
+                        at one emerald each.
+                    </p>
+                    <Exchange give={[{ item: v('emerald'), count: 1 }]} via={{ label: 'Wandering Trader' }} get={{ item: ITEM.wheel }} caption="Alongside its vanilla offers, each at one emerald." />
+                </article>
+
+                <article className="cc-card">
+                    <h3 className="wk-name">Special Trader</h3>
+                    <p className="wk-p">
+                        A random event, at most once a round, and gone after 5 minutes. Its five offers are rolled when it
+                        arrives, so everyone sees the same five, and each is <strong>one purchase per player</strong>.{' '}
+                        <a className="wk-link" href="/gameplay#events" onClick={go('gameplay')}>How random events work</a>
+                    </p>
+                    <ul className="cc-offers">
+                        {SPECIAL.map((o) => (
+                            <li key={o.get.item.name} className="cc-offer">
+                                <span className="cc-offer-draw" aria-hidden="true">
+                                    <Face item={v('emerald')} size={36} count={o.price} />
+                                    <To />
+                                    <Face item={o.get.item} size={44} count={o.get.count} />
+                                </span>
+                                <span className="cc-offer-text">
+                                    <span className="cc-offer-name">{o.get.count ? `${o.get.count} ` : ''}{o.get.item.name}<span className="wk-sr">, for {o.price} {o.price === 1 ? 'emerald' : 'emeralds'}</span></span>
+                                    <span className="wk-small">{o.note}</span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </article>
+            </div>
+        </section>
+    );
+}
+
+/* ── The world ──────────────────────────────────────────────────────────────── */
+
+function World() {
+    const chest = TABLES.teleporter?.[0]?.entries ?? [];
+    return (
+        <section id="world" className="wk-wrap cc-sec" aria-labelledby="world-title">
+            <div className="cc-sec-head">
+                <h2 id="world-title" className="wk-h3">The world, changed</h2>
+            </div>
+            <div className="cc-cards">
+                <article id="end-generation" className="cc-card">
+                    <h3 className="wk-name">The End</h3>
+                    <p className="wk-p">
+                        Redesigned for pace: the surface is solid, with <strong>no void gaps</strong>, and End Cities spawn more
+                        often, so end-game loot is closer.
+                    </p>
+                </article>
+                <article id="teleporter" className="cc-card">
+                    <h3 className="wk-name">Antimatter Teleporter</h3>
+                    <p className="wk-p">
+                        A structure that appears at random in the Overworld and <strong>cannot be located</strong>: you have to
+                        stumble on it. Step in and it throws you 5,000 to 10,000 blocks in a random direction, useful when the
+                        biome you need is nowhere near. A hidden room under the portal holds a chest:
+                    </p>
+                    <ul className="cc-drops cc-drops--inline">
+                        {chest.map((e, i) => {
+                            const n = dropName(e);
+                            return (
+                                <li key={i} className="cc-drop-row">
+                                    <Face item={{ material: e.material, src: e.src, name: n.name }} size={40} />
+                                    <span className="cc-drop-name"><span>{n.name}</span>{n.also && <span className="cc-drop-note">Named "{n.also}"</span>}</span>
+                                    <span className="wk-datum cc-drop-pct">{pct(e.chance)}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </article>
+            </div>
+        </section>
+    );
+}
+
+/* ── The page ───────────────────────────────────────────────────────────────── */
+
+export default function CustomStructures({ onNavigate }) {
+    const go = useGo(onNavigate);
     useEffect(() => {
         const id = new URLSearchParams(window.location.search).get('to');
         if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }, []);
 
     return (
-        <div className="cs">
-            <style>{CSS}</style>
-
-            <div className="cs-shell">
-                {/* ── Header ── */}
-                <div className="cs-header">
-                    <p className="cs-eyebrow">World</p>
-                    <h1 className="cs-h1">Custom Content</h1>
-                    <p className="cs-sub">
-                        Custom structures and items designed to make harder Minecraft content
-                        accessible within short-round FIB gameplay.
-                    </p>
-                    <div className="cs-quicklinks">
-                        {QUICK_LINKS.map(l => (
-                            <button
-                                key={l.id}
-                                className="cs-ql"
-                                onClick={() => document.getElementById(l.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                            >
-                                <span className="cs-ql-dot" style={{ background: l.color }} />
-                                {l.label}
-                            </button>
+        <main className="pg cc">
+            <header className="wk-wrap pg-head">
+                <h1 className="wk-h2">Custom Content</h1>
+                <p className="wk-lede">
+                    FIB was made for short rounds, which meant leaving out harder parts of Minecraft like the End. Instead of
+                    leaving them out, we built structures and items that bring them within reach.
+                </p>
+                <nav className="cc-contents" aria-label="The custom items">
+                    <span className="wk-label">The custom items</span>
+                    <ul>
+                        {CONTENTS.map((c) => (
+                            <li key={c.item.name}>
+                                <a className="cc-content" href={`#${c.to}`}>
+                                    <Face item={c.item} size={48} />
+                                    <span>{c.item.name}</span>
+                                </a>
+                            </li>
                         ))}
-                    </div>
-                </div>
-            </div>
-
-            <div className="cs-rule" />
-
-            <div className="cs-shell">
-                <div className="cs-body">
-
-                    {/* Intro */}
-                    <div className="cs-intro">
-                        <P>
-                            ForceItemBattle was originally designed for <Hi>short rounds</Hi> — not everyone
-                            has time for longer sessions. This meant excluding harder items like those
-                            from the End dimension.
-                        </P>
-                        <P>
-                            Rather than leave out a significant part of Minecraft, we added custom structures
-                            and items that make the world more accessible within shorter timeframes.
-                        </P>
-                    </div>
-
-                    {/* ── Antimatter Depths ── */}
-                    <Section id="antimatter-depths" color={COL.purple} title="Antimatter Depths">
-                        <P>
-                            A loot dungeon in its own dimension, and the fast route to the End. It is not a
-                            place you dig down to — you reach it through a portal, and the portal you open is
-                            <Hi> yours alone</Hi>. Nobody can follow you in and empty the barrels first.
-                        </P>
-                        <P>
-                            Getting there takes two things: finding the doorway, which is cheap, and opening
-                            it, which is not.
-                        </P>
-                        <P>
-                            <Hi color={COL.purple}>1.</Hi> Craft an <Hi color={COL.cyan}>Antimatter Locator</Hi>{' '}
-                            and right-click it. You get coordinates and a visual trail leading to an{' '}
-                            <Hi color={COL.purple}>Antimatter Depths Portal</Hi> — a ruin standing on the
-                            Overworld surface, holding a tall dark frame with a vault on either side.
-                        </P>
-                        <CraftingGrid
-                            recipe={RECIPES.antimatter.recipe}
-                            result={RECIPES.antimatter.result}
-                            resultName={RECIPES.antimatter.name}
-                            glowColor={COL.purple}
-                        />
-                        <P>
-                            This is the only recipe — <Hi color={COL.orange}>Hard Mode</Hi> does not change it.
-                            The locator only finds the ruin; it does not get you through it.
-                        </P>
-                        <P>
-                            <Hi color={COL.purple}>2.</Hi> Craft a{' '}
-                            <Hi color={COL.purple}>Totem of Antimatter</Hi>. This is the real cost of the trip,
-                            and it is spent every time you open a portal.
-                        </P>
-                        <CraftingGrid
-                            recipe={RECIPES.totem.recipe}
-                            result={RECIPES.totem.result}
-                            resultName={RECIPES.totem.name}
-                            glowColor={COL.purple}
-                        />
-                        <P>
-                            The <Hi color={COL.purple}>Eye of Antimatter</Hi> at the top cannot be crafted or
-                            found: every <Hi color={COL.cyan}>Cleric</Hi> villager sells one once it reaches{' '}
-                            <Hi>Level 2 (Apprentice)</Hi> — guaranteed, no rolling for it.
-                        </P>
-                        <TradeRow
-                            cost={EYE_TRADE.cost}
-                            result={EYE_TRADE.result}
-                            note="Every apprentice cleric has it. Trade with a level 1 cleric to level it up."
-                        />
-                        <P>
-                            <Hi color={COL.purple}>3.</Hi> Right-click either vault with the totem in hand. The
-                            totem is consumed, lightning strikes the frame, and a moment later the portal fills
-                            in — <Hi>only for you</Hi>. Another player standing in the same ruin sees an empty
-                            frame and walks through open air. They need a totem of their own, and when they
-                            spend it they get their own portal and their own Depths.
-                        </P>
-                        <P>
-                            <Hi color={COL.purple}>4.</Hi> Step through. Your Depths is picked once and kept for
-                            the round, so going back later returns you to the same dungeon rather than a fresh
-                            one, and the frame you arrive in front of takes you home again.
-                        </P>
-                        <P>
-                            Inside are the loot rooms below, a vault room guarded by trial spawners, and a
-                            portal room holding an <Hi color={COL.purple}>End Portal</Hi> — which is what makes
-                            this the quick way into the End. Where it drops you is random, but it is the same
-                            spot every time for you.
-                        </P>
-                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info antimatter_locator</Cmd></P>
-                    </Section>
-
-                    {/* ── Trial Locator ── */}
-                    <Section id="trial-locator" color={COL.amber} title="Trial Chambers Locator">
-                        <P>Trial Chambers (vanilla structure) also have a custom locator for easier discovery:</P>
-                        <ModeToggle
-                            value={trialHard}
-                            onChange={setTrialHard}
-                            offLabel="Standard"
-                            onLabel="Hard Mode"
-                            onColor={COL.orange}
-                        />
-                        <CraftingGrid
-                            recipe={trialHard ? RECIPES.trial.hard.recipe : RECIPES.trial.normal.recipe}
-                            result={RECIPES.trial.normal.result}
-                            resultName={RECIPES.trial.normal.name}
-                            glowColor={COL.amber}
-                        />
-                        <P>Works identically to the Antimatter Locator: right-click for coordinates and a trail.</P>
-                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info trial_locator</Cmd></P>
-                    </Section>
-
-                    {/* ── Sulfur Locator ── */}
-                    <Section id="sulfur-locator" color={COL.orange} title="Sulfur Locator">
-                        <P>
-                            Points to the nearest <Hi color={COL.orange}>Sulfur Cave</Hi>. Unlike the other two,
-                            this one tracks a <Hi>biome</Hi> rather than a structure — and it{' '}
-                            <Hi>cannot be crafted</Hi>.
-                        </P>
-                        <P>
-                            Instead, every <Hi color={COL.cyan}>Cartographer</Hi> villager has a{' '}
-                            <Hi color={COL.orange}>30% chance</Hi> to roll it as one of their offers. If yours
-                            didn't get it, <Hi>break and replace their job block</Hi> to reset their profession
-                            and roll again — repeat until it shows up.
-                        </P>
-                        <TradeRow
-                            cost={SULFUR_TRADE.cost}
-                            result={SULFUR_TRADE.result}
-                            note="30% per cartographer — reroll by resetting their job block."
-                        />
-                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info sulfur_locator</Cmd></P>
-                    </Section>
-
-                    {/* ── Trail Ruins Locator ── */}
-                    <Section id="trail-ruins" color={COL.trail} title="Trail Ruins Locator">
-                        <P>
-                            Points to the nearest <Hi color={COL.trail}>Trail Ruins</Hi> — the vanilla
-                            archaeology structure, buried shallow enough that you can walk over one all
-                            round without ever noticing it.
-                        </P>
-                        <P>
-                            This one isn't crafted or traded either. <Hi>Smelt a brush in a furnace</Hi> and
-                            it comes out the other side as a <Hi color={COL.trail}>Kiln-Fired Brush</Hi>.
-                            An unfired brush does nothing — it has to have been through the fire.
-                        </P>
-                        <TradeRow
-                            cost={KILN_BRUSH_SMELT.cost}
-                            result={KILN_BRUSH_SMELT.result}
-                            note="No chance involved — any brush can be fired, in any furnace."
-                        />
-                        <P>
-                            Then <Hi>brush the ground</Hi> with it: right-click{' '}
-                            <Hi>grass, sand, mud, podzol, coarse dirt or snow</Hi> and it sweeps for the
-                            nearest ruins. Anything harder gives the brush nothing to read.
-                            Instead of a line through the air you get{' '}
-                            <Hi color={COL.trail}>footprints dusted across the ground</Hi> — a steady trail
-                            that keeps leading from wherever you are standing to the find. Trail ruins sit at
-                            the surface, so there is no dig-spot beam to follow; just walk the prints.
-                            Swinging it at thin air won't do anything.
-                        </P>
-                        <P>
-                            The brush <Hi color={COL.green}>is never used up</Hi> — it is a tool, not a
-                            one-shot charm, so you can keep sweeping as you travel and pick up the next ruins
-                            along the way. It also still works as a brush: point it at{' '}
-                            <Hi>suspicious sand or gravel</Hi> and it digs the find out as normal.
-                        </P>
-                        <P><Hi color="oklch(50% 0.013 255)">View in-game:</Hi> <Cmd>/info kiln_fired_brush</Cmd></P>
-                    </Section>
-
-                    {/* ── Locator Mechanics ── */}
-                    <Section id="locator-mechanics" color={COL.cyan} title="Locator Mechanics">
-                        <P>All four locators share the same mechanics:</P>
-                        <P>
-                            If another player already marked the same structure,{' '}
-                            <Hi color={COL.green}>your locator won't be consumed</Hi> — you can keep searching
-                            until you find an unclaimed one. You can still enter claimed structures; this just
-                            helps you find unlooted ones. (The <Hi color={COL.trail}>Kiln-Fired Brush</Hi> is
-                            never consumed either way.)
-                        </P>
-                        <P>
-                            The <Hi color={COL.orange}>Hard Mode recipe</Hi> (toggle above the Trial Locator) is
-                            used in the 2 Hour Version, requiring more complex ingredients for a greater
-                            challenge. It is the only locator the setting still changes.
-                        </P>
-                    </Section>
-
-                    {/* ── Loot Tables ── */}
-                    <Section id="loot-tables" color={COL.green} title="Antimatter Depths Loot">
-                        <P>
-                            Every container in the Antimatter Depths draws from one of these tables.
-                            Hover items to see their drop chance, or open a chest to simulate a roll —
-                            for the pots that rolls all 27 of them at once.
-                        </P>
-                        <LootTableDisplay tables={LOOT_TABLES} />
-                    </Section>
-
-                    {/* ── End Generation ── */}
-                    <Section id="end-generation" color={COL.purple} title="Custom End Generation">
-                        <P>
-                            The End dimension is redesigned for better pacing. The surface is completely solid
-                            with <Hi>no void gaps</Hi>, and End City spawn rates have been increased for
-                            faster access to end-game loot.
-                        </P>
-                    </Section>
-
-                    {/* ── Teleporter ── */}
-                    <Section id="teleporter" color={COL.red} title="Antimatter Teleporter">
-                        <P>
-                            A custom structure that generates randomly in the Overworld.
-                            Unlike other custom structures, it <Hi>cannot be located</Hi> — you'll have to stumble upon it.
-                        </P>
-                        <P>
-                            Entering the teleporter transports you{' '}
-                            <Hi>5,000 – 10,000 blocks</Hi> away in a random direction. Useful if you're hunting
-                            for a specific biome and your current area isn't cooperating.
-                        </P>
-                        <P>
-                            Below the portal is a hidden room with a chest.
-                            There's a <Hi color={COL.amber}>50% chance</Hi> it contains a{' '}
-                            <a href="wheel" style={{ color: COL.amber, textDecoration: 'none', fontWeight: 500 }}>Wheel of Fortune</a> —
-                            a special item that grants one random item when used.
-                        </P>
-                    </Section>
-
-                    {/* ── Weathered Captain's Journal ── */}
-                    <Section id="journal" color={COL.amber} title="Weathered Captain's Journal">
-                        <P>
-                            Found in the <Hi color={COL.cyan}>Shipwreck map chest</Hi> — the one that normally
-                            holds the buried treasure map — with a <Hi color={COL.amber}>30% chance</Hi>. It can
-                            also be bought from the{' '}
-                            <a href="#random-events" style={{ color: COL.purple, textDecoration: 'none', fontWeight: 500 }}>Special Trader</a>.
-                        </P>
-                        <P>
-                            A battered book that falls apart the moment you open it. Right-click it and a single{' '}
-                            <Hi color={COL.amber}>Biome Note</Hi> slips out of the binding — the journal itself
-                            is <Hi>consumed</Hi>.
-                        </P>
-                        <P>
-                            Each note describes one biome in the captain's own words. Right-click the note and it
-                            points you at the nearest matching biome, the same way a locator points at a
-                            structure. Which note you get is <Hi>random</Hi> — the journal is a gamble, not a
-                            request. There are five, each equally likely:
-                        </P>
-
-                        <div className="cs-notes">
-                            {BIOME_NOTES.map(note => (
-                                <div className="cs-note" key={note.name} style={{ borderLeftColor: note.color }}>
-                                    <div className="cs-note-tile">
-                                        <img src={`${ITEM_IMG}/old_paper.png`} alt={note.name}
-                                             onError={e => { e.target.style.opacity = '0.3'; }} />
-                                    </div>
-                                    <span className="cs-note-name" style={{ color: note.color }}>{note.name}</span>
-                                    <span className="cs-note-flavor">{note.flavor}</span>
-                                    <span className="cs-note-pct">20%</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        <P>
-                            Useful when the item you're hunting only spawns somewhere you haven't been, and you
-                            don't fancy walking in a straight line for ten minutes hoping for cherry blossom.
-                        </P>
-                    </Section>
-
-                    {/* ── Wandering Trader ── */}
-                    <Section id="wandering-trader" color={COL.cyan} title="Custom Wandering Trader">
-                        <P>
-                            Spawns every <Hi>7–10 minutes</Hi> near the spawn area. When it appears, coordinates
-                            are announced in chat, drawn as a particle trail, and pinned in the tab list with a
-                            countdown. It <Hi color={COL.red}>despawns after 5 minutes</Hi>, so don't dawdle.
-                        </P>
-                        <P>
-                            All trades are vanilla items but cost only <Hi color={COL.green}>1 Emerald</Hi> each,
-                            with unlimited uses. The trader also sells a{' '}
-                            <a href="wheel" style={{ color: COL.amber, textDecoration: 'none', fontWeight: 500 }}>Wheel of Fortune</a>{' '}
-                            for 1 Emerald — limited to one per player, per trader.
-                        </P>
-                        <P>
-                            Everyone gets their <Hi>own</Hi> copy of the trader's offers, so there's no queueing
-                            and no stealing the good trade out from under someone.
-                        </P>
-                    </Section>
-
-                    {/* ── Random Events ── */}
-                    <Section id="random-events" color={COL.purple} title="Random Events">
-                        <P>
-                            Roughly <Hi>3–4 times an hour</Hi>, something happens. Events are announced in chat
-                            when they fire, pause when the game pauses, and never trigger in{' '}
-                            <Hi color={COL.orange}>Run Battle</Hi> — that mode is already a race. Only one event
-                            runs at a time, and the whole system can be switched off in the settings menu.
-                        </P>
-
-                        <EventCard color={COL.amber} name="Item Hunt" tag="Race">
-                            <p>
-                                A race for the item you're <strong style={{ color: 'oklch(80% 0.01 255)' }}>already holding</strong>.
-                                First player to collect theirs wins <strong style={{ color: COL.amber }}>1–3 Wheels of Fortune</strong>.
-                                Skipping never wins — but it doesn't knock you out either, so you can still take
-                                the hunt on your next real find. Back-to-backs don't count: the win has to be
-                                an item you actually went and got. In teams, only the finder is paid.
-                            </p>
-                        </EventCard>
-
-                        <EventCard color={COL.cyan} name="Point Hunt" tag="10 minutes · Once per game">
-                            <p>
-                                A <strong style={{ color: 'oklch(80% 0.01 255)' }}>ten-minute scoring race</strong>{' '}
-                                where every find counts, not just one — the second most likely event to
-                                fire. Items are worth their pool tier:{' '}
-                                <strong style={{ color: COL.green }}>Early 1</strong>,{' '}
-                                <strong style={{ color: COL.amber }}>Mid 2</strong>,{' '}
-                                <strong style={{ color: COL.red }}>Late 3</strong>. Back-to-backs score
-                                here, so a streak is worth chasing; skips never do. Whoever leads when
-                                the clock runs out takes <strong style={{ color: COL.cyan }}>3 Wheels of Fortune</strong>,
-                                or <strong style={{ color: COL.cyan }}>4 split across the team</strong> in a
-                                team game — but a tie pays nobody. Nothing is shown while it runs except
-                                the time left, so you never know how close it is. It only starts with
-                                eleven minutes still on the game clock, and a hunt cut short by the game
-                                ending pays nothing.
-                            </p>
-                        </EventCard>
-
-                        <EventCard color={COL.purple} name="Special Trader" tag="Rare · Once per game">
-                            <p>
-                                A one-off trader stocked with things you cannot buy anywhere else. Turns up in
-                                roughly <strong style={{ color: 'oklch(80% 0.01 255)' }}>half of games</strong> at
-                                most, never twice, and lives for the usual 5 minutes. Its offers are rolled when
-                                it spawns, so everyone sees the same five — and each is{' '}
-                                <strong style={{ color: 'oklch(80% 0.01 255)' }}>limited to one purchase per player</strong>.
-                            </p>
-                        </EventCard>
-
-                        <div style={{ marginTop: 20 }}>
-                            {SPECIAL_TRADER_OFFERS.map((offer, i) => (
-                                <TradeRow
-                                    key={i}
-                                    cost={[{ texture: 'emerald', name: 'Emerald', amount: offer.cost }]}
-                                    result={{
-                                        texture: offer.texture,
-                                        src: offer.src,
-                                        name: offer.name,
-                                        amount: offer.amount,
-                                        highlight: offer.highlight,
-                                    }}
-                                    note={offer.note}
-                                />
-                            ))}
-                        </div>
-                    </Section>
-
-                </div>
-            </div>
-
+                    </ul>
+                </nav>
+                <nav className="cc-toc" aria-label="On this page">
+                    <span className="wk-label">On this page</span>
+                    {SECTIONS.map(([id, label]) => <a key={id} className="wk-link" href={`#${id}`}>{label}</a>)}
+                </nav>
+            </header>
+            <Depths />
+            <Loot />
+            <Locators />
+            <Traders go={go} />
+            <World />
+            <PageLinks ids={['pools', 'gameplay', 'how-to-play', 'commands']} go={go} />
             <Footer />
-        </div>
+        </main>
     );
 }

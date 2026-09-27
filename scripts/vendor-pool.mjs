@@ -47,6 +47,16 @@ const PLUGIN_RAW =
 const JAVA_URL = `${PLUGIN_RAW}/manager/ItemDifficultiesManager.java`;
 /* Custom items — see CUSTOM below. */
 const CUSTOM_URL = `${PLUGIN_RAW}/model/CustomMaterials.java`;
+/*
+ * The Paper version the plugin pins (run-paper boots it, production runs it), for the
+ * How to Play page's "built for Paper X". That line was typed by hand and had already
+ * drifted a release behind when it moved here. vendor-routes.mjs reads the same file
+ * for its Minecraft data, but routes.data.js is 120 kB and a page that wants one
+ * string should not pay for it, so the version is written into the atlas too.
+ */
+/* Where the plugin registers its commands; see checkCommands. */
+const GRADLE_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/build.gradle.kts';
+const PAPER_VERSION_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/paper-version.json';
 
 const CONFIG = join(root, 'config.yml');
 const OUT = join(root, 'src/pages/Stats/itemPool.js');
@@ -67,6 +77,15 @@ const TEXTURES = join(root, 'public/fib-items');
  * WHEN an item can come up, but WHERE the world keeps it.
  */
 const OUT_ATLAS = join(root, 'src/wiki/atlas.data.js');
+/*
+ * The round settings, for the Game Settings page: the plugin's GameSetting enum (name,
+ * in-game description, config key, default, and the item its /settings menu shows)
+ * joined to this repo's config.yml, which is the deployed one. The page used to keep
+ * its own list, and had drifted into settings that do not exist (Nether, Player
+ * Trading) and defaults that were the wrong way round.
+ */
+const SETTINGS_URL = `${PLUGIN_RAW}/settings/GameSetting.java`;
+const OUT_SETTINGS = join(root, 'src/wiki/settings.data.js');
 
 const REGISTER = /register\(Material\.(\w+),\s*State\.(\w+)((?:,\s*ItemTag\.\w+)*)\)/g;
 
@@ -204,7 +223,7 @@ function buildAtlas(pool, tagsOf, descriptions) {
   return { where, tags, described: pool.filter((m) => descriptions.has(m)).length };
 }
 
-function atlasModule({ where, tags, described }, pool, stateOf, settings, yaml) {
+function atlasModule({ where, tags, described }, pool, stateOf, settings, yaml, paperVersion) {
   const keys = Object.keys(where).sort();
   const stage = (s) => pool.filter((m) => stateOf.get(m) === s);
   const number = (key) => Number(yaml.match(new RegExp(`^  ${key}:\\s*(\\d+)\\s*$`, 'm'))?.[1] ?? NaN);
@@ -222,11 +241,14 @@ function atlasModule({ where, tags, described }, pool, stateOf, settings, yaml) 
  * ITEM_TAGS: MATERIAL -> the plugin's ItemTag names, pool items that have any.
  * POOL_BY_STAGE: the whole pool, grouped by the round stage each item unlocks in.
  * POOL_SETTINGS: the deployed config.yml values the pool and the round are built from.
+ * PAPER_VERSION: the Paper version the plugin pins in paper-version.json.
  */
 
 export const ATLAS_POOL_SIZE = ${pool.length};
 
 export const POOL_SETTINGS = ${JSON.stringify(live)};
+
+export const PAPER_VERSION = ${JSON.stringify(paperVersion)};
 
 export const POOL_BY_STAGE = {
 ${['EARLY', 'MID', 'LATE'].map((s) => `  ${s}: ${JSON.stringify(stage(s))},`).join('\n')}
@@ -243,12 +265,13 @@ ${Object.keys(tags).sort().map((k) => `  ${k}: ${JSON.stringify(tags[k])},`).joi
 }
 
 async function main() {
-  const [javaRes, customRes, yaml] = await Promise.all([
+  const [javaRes, customRes, paperRes, yaml] = await Promise.all([
     fetch(JAVA_URL),
     fetch(CUSTOM_URL),
+    fetch(PAPER_VERSION_URL),
     readFile(CONFIG, 'utf8'),
   ]);
-  for (const [url, res] of [[JAVA_URL, javaRes], [CUSTOM_URL, customRes]]) {
+  for (const [url, res] of [[JAVA_URL, javaRes], [CUSTOM_URL, customRes], [PAPER_VERSION_URL, paperRes]]) {
     if (!res.ok) {
       console.error(`Could not fetch ${url} (HTTP ${res.status}).`);
       process.exit(1);
@@ -256,6 +279,11 @@ async function main() {
   }
   const java = await javaRes.text();
   const customJava = await customRes.text();
+  const paperVersion = (await paperRes.json()).version;
+  if (!paperVersion) {
+    console.error(`${PAPER_VERSION_URL} carries no "version".`);
+    process.exit(1);
+  }
   const settings = readSettings(yaml);
   const keep = poolFilter(settings);
 
@@ -351,7 +379,7 @@ ${customKeys.map((n) => `  ${n}: ${JSON.stringify(customNames.get(n))},`).join('
   await writeFile(OUT_CUSTOM, customFile);
 
   const atlas = buildAtlas(pool, tagsOf, readDescriptions(yaml));
-  await writeFile(OUT_ATLAS, atlasModule(atlas, pool, kept, settings, yaml));
+  await writeFile(OUT_ATLAS, atlasModule(atlas, pool, kept, settings, yaml, paperVersion));
 
   /* Texture coverage, so a pool addition that outruns vendor-textures is loud
      here rather than a slow remote fallback in the browser. */
@@ -378,6 +406,116 @@ ${customKeys.map((n) => `  ${n}: ${JSON.stringify(customNames.get(n))},`).join('
       `${untextured.length} pool item(s) have no vendored texture — re-run npm run vendor:textures: ` +
       untextured.join(', '),
     );
+  }
+
+  await checkCommands();
+  await checkChangelog();
+  await writeSettings(yaml);
+}
+
+/* MiniMessage to plain words: the lore is written for the game's chat. */
+const plain = (line) => line.replace(/<[^>]+>/g, '').trim();
+
+async function writeSettings(rawYaml) {
+  // config.yml is checked out with CRLF on Windows; the block patterns below are line-based.
+  const yaml = rawYaml.replace(/\r\n/g, '\n');
+  let java;
+  try {
+    const res = await fetch(SETTINGS_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    java = await res.text();
+  } catch (e) {
+    console.warn(`[WARNING] Could not read ${SETTINGS_URL} (${e.message}); src/wiki/settings.data.js was left as it was.`);
+    return;
+  }
+  // NAME("Display", List.of(...) | null, "configPath", default, Material.X)
+  const ENTRY = /\b([A-Z_]+)\(\s*"([^"]+)",\s*(null|List\.of\(([\s\S]*?)\)),\s*"([^"]+)",\s*([^,]+?),\s*Material\.([A-Z_]+)\s*\)/g;
+  const block = yaml.match(/^settings:\n((?: {2}.*\n?)*)/m)?.[1] ?? '';
+  const configured = Object.fromEntries([...block.matchAll(/^ {2}(\w+):\s*(\S+)\s*$/gm)].map((m) => [m[1], m[2]]));
+  const settings = [];
+  for (const m of java.matchAll(ENTRY)) {
+    const [, key, name, , loreBody, path, rawDefault, material] = m;
+    const lore = loreBody ? [...loreBody.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((x) => plain(x[1])).filter(Boolean) : [];
+    const def = rawDefault.trim() === 'true' ? true : rawDefault.trim() === 'false' ? false : Number(rawDefault.trim());
+    const raw = configured[path];
+    const server = raw === undefined ? def : raw === 'true' ? true : raw === 'false' ? false : Number(raw);
+    settings.push({ key, name, lore, path, default: def, server, configured: raw !== undefined, material });
+  }
+  if (settings.length < 10) {
+    console.warn(`[WARNING] Only ${settings.length} settings parsed from GameSetting.java; its entry shape may have changed. settings.data.js was left as it was.`);
+    return;
+  }
+  const known = new Set(settings.map((x) => x.path));
+  const dead = Object.keys(configured).filter((k) => !known.has(k));
+  const number = (key) => Number(yaml.match(new RegExp(`^  ${key}:\\s*(\\d+)\\s*$`, 'm'))?.[1] ?? NaN);
+  const standard = { countdown: number('countdown'), jokers: number('jokers'), backpackSize: number('backpackSize') };
+  await writeFile(OUT_SETTINGS, `/**
+ * GENERATED by scripts/vendor-pool.mjs from the plugin's settings/GameSetting.java and
+ * this repo's config.yml. Do not edit by hand.
+ *
+ * SETTINGS: every round setting in the order the plugin declares it. name and lore are
+ *   the plugin's (lore is its in-game description, MiniMessage removed); path is the
+ *   key under settings: in config.yml; default is the plugin's; server is what this
+ *   server's config.yml sets, or the default where it sets nothing (configured says
+ *   which); material is the item its /settings menu shows.
+ * STANDARD: config.yml's standard: block (countdown seconds, jokers, backpack slots).
+ * DEAD_KEYS: keys under settings: in config.yml that match no setting, so the server
+ *   ignores them.
+ */
+
+export const SETTINGS = [
+${settings.map((x) => `  ${JSON.stringify(x)},`).join('\n')}
+];
+
+export const STANDARD = ${JSON.stringify(standard)};
+
+export const DEAD_KEYS = ${JSON.stringify(dead)};
+`);
+  console.log(`Wrote ${settings.length} round settings -> src/wiki/settings.data.js`);
+  if (dead.length) console.warn(`[WARNING] config.yml sets ${dead.map((k) => `settings.${k}`).join(', ')}, which no setting reads; the server ignores ${dead.length === 1 ? 'it' : 'them'}.`);
+}
+
+/*
+ * The Commands page's list against the plugin's. The page's words are hand-written
+ * (src/wiki/commands.data.js) but the list is not the page's to decide: a command the
+ * plugin registers must be on it, and one the plugin dropped must not be. Registration
+ * lives in build.gradle.kts (commands.register, which generates plugin.yml). A warning,
+ * not a failure: the page can be a release behind for a day without breaking the build.
+ */
+async function checkCommands() {
+  try {
+    const res = await fetch(GRADLE_URL);
+    if (!res.ok) { console.warn(`Could not read ${GRADLE_URL} to check the Commands page (HTTP ${res.status}).`); return; }
+    const registered = new Set([...(await res.text()).matchAll(/commands\.register\("([a-z0-9_]+)"\)/g)].map((m) => m[1]));
+    const { COMMANDS, UNLISTED = [] } = await import('../src/wiki/commands.data.js');
+    const listed = new Set([...COMMANDS.map((c) => c.name), ...UNLISTED]);
+    const missing = [...registered].filter((n) => !listed.has(n));
+    const gone = [...listed].filter((n) => !registered.has(n));
+    if (missing.length) console.warn(`[WARNING] The plugin registers command(s) the Commands page does not list: /${missing.join(', /')}. Add them to src/wiki/commands.data.js.`);
+    if (gone.length) console.warn(`[WARNING] The Commands page lists command(s) the plugin no longer registers: /${gone.join(', /')}.`);
+    if (!missing.length && !gone.length) console.log(`Commands page matches the plugin's ${registered.size} registered commands.`);
+  } catch (e) {
+    console.warn(`Could not check the Commands page against the plugin: ${e.message}`);
+  }
+}
+
+// The Changelog is hand-written (src/wiki/changelog.data.js), so a release can ship
+// without an entry. The plugin's build.gradle.kts carries the version it builds as
+// (version = "26.9.3"); when that is not the newest entry, say so. A warning, not a
+// failure: the entry is words someone has to write, and a build is no place to wait.
+async function checkChangelog() {
+  try {
+    const res = await fetch(GRADLE_URL);
+    if (!res.ok) { console.warn(`Could not read ${GRADLE_URL} to check the Changelog (HTTP ${res.status}).`); return; }
+    const plugin = /^version\s*=\s*"([^"]+)"/m.exec(await res.text())?.[1];
+    if (!plugin) { console.warn("[WARNING] Could not find the plugin's version in build.gradle.kts to check the Changelog."); return; }
+    const { CHANGELOG } = await import('../src/wiki/changelog.data.js');
+    const newest = CHANGELOG[0]?.version;
+    if (newest === plugin) console.log(`Changelog is up to date with the plugin (v${plugin}).`);
+    else if (CHANGELOG.some((e) => e.version === plugin)) console.warn(`[WARNING] The plugin on main builds v${plugin}, but the Changelog's newest entry is v${newest}.`);
+    else console.warn(`[WARNING] The plugin on main builds v${plugin}, which has no entry in src/wiki/changelog.data.js (newest there: v${newest}).`);
+  } catch (e) {
+    console.warn(`Could not check the Changelog against the plugin: ${e.message}`);
   }
 }
 

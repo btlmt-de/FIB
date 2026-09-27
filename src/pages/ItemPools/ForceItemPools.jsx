@@ -1,1858 +1,698 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import Check from 'lucide-react/dist/esm/icons/check';
-import Info from 'lucide-react/dist/esm/icons/info';
-import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import LayoutGrid from 'lucide-react/dist/esm/icons/layout-grid';
+import LayoutList from 'lucide-react/dist/esm/icons/layout-list';
+import List from 'lucide-react/dist/esm/icons/list';
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import History from 'lucide-react/dist/esm/icons/history';
-import Heart from 'lucide-react/dist/esm/icons/heart';
-import Filter from 'lucide-react/dist/esm/icons/filter';
-import GitBranch from 'lucide-react/dist/esm/icons/git-branch';
-import Pencil from 'lucide-react/dist/esm/icons/pencil';
-import Circle from 'lucide-react/dist/esm/icons/circle';
-import Package from 'lucide-react/dist/esm/icons/package';
-import PackageX from 'lucide-react/dist/esm/icons/package-x';
-import Plus from 'lucide-react/dist/esm/icons/plus';
-import Eye from 'lucide-react/dist/esm/icons/eye';
-import X from 'lucide-react/dist/esm/icons/x';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
 import Search from 'lucide-react/dist/esm/icons/search';
-import SearchX from 'lucide-react/dist/esm/icons/search-x';
-import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
-import DescriptionEditor from './DescriptionEditor.jsx';
-import GitHistory from './GitHistory.jsx';
-import ItemPoolManager from './ItemPoolManager.jsx';
-import StatisticsDashboard from './StatisticsDashboard.jsx';
-import { IMAGE_BASE_URL } from '../../config/constants';
+import X from 'lucide-react/dist/esm/icons/x';
+import Footer from '../../components/common/Footer.jsx';
+import { TagGlyph } from '../../wiki/items.jsx';
+import { STAGES, TAGS } from '../../wiki/tokens.js';
+import { PAPER_VERSION } from '../../wiki/atlas.js';
+import ChangeTray from './ChangeTray.jsx';
+import Inspector from './Inspector.jsx';
+import { McLine } from './McText.jsx';
+import { Slot, Sprite, StageWord } from './parts.jsx';
+import { stripMc } from './mcFormat.js';
+import useChanges from './useChanges.js';
+import { CATEGORY_CONFIG, buildTagCategoryMap, categorizeItem, categoryName, loadItemTags } from './categories.js';
 import {
-    COLORS,
-    ToastProvider,
-    useToast,
-    SkeletonGrid,
-    GlobalStyles,
-    ViewModeToggle,
-    AnimatedNumber,
-    SearchInput,
-    StateBadge,
-    TagBadge,
-    NoResultsEmpty,
-    NoMissingItemsEmpty,
-    FilterChip,
-} from '../../components/common/UIComponents.jsx';
-import Footer from "../../components/common/Footer.jsx";
+    DEFAULT_BRANCH, POOL_PATH, STAGE_KEYS, TAG_KEYS, displayNameOf, getViewBranch, loadPool,
+    loadPublicBranches, loadRegistry, setViewBranch,
+} from './poolData.js';
+import '../../wiki/pools.css';
 
-const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
-const CONFIG_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB';
-const BRANCHES_URL = 'https://api.github.com/repos/btlmt-de/FIB/branches';
-const MISODE_ITEMS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/refs/heads/registries/item/data.json';
-const CACHE_KEY = 'forceitem_pools_cache_v4';
-const MISODE_CACHE_KEY = 'forceitem_misode_cache_v1';
-const MISODE_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour (reduced from 24 hours)
-const LAST_EDIT_KEY = 'forceitem_last_edit';
-const BRANCH_KEY = 'fib_github_branch';
-const VIEW_BRANCH_KEY = 'fib_view_branch';
-const DEFAULT_BRANCH = 'main';
+/*
+ * Item Pools (THE EXPLORER'S ATLAS): the workspace where the pool and its /info
+ * descriptions are maintained, and where anyone can look through them.
+ *
+ * Maintainers first (owner, Sept 2026). The page is one screen: the pool on the left,
+ * an inspector on the right, and a tray along the bottom that collects every staged
+ * change until it is committed. It replaced a browse page with four modals on top of
+ * it (a description editor, a pool manager, a statistics report and a commit
+ * history), each with its own idea of signing in and saving.
+ *
+ * Three ways to look at the pool, because they serve three jobs:
+ *
+ *   Catalogue   the default. A large texture, the name, the stage and tags as chips,
+ *               and /info when there is one: every entry says what it is and how FIB
+ *               classifies it without a hover. Five across on a 1920px screen.
+ *   Inventory   52px slots, the densest view, for people who read textures. Names
+ *               and classification are in the tooltip.
+ *   List        one row per item, for inspection: stage, tags, the first /info line.
+ *
+ * *The Catalogue is a correction, and the reason is worth keeping.* The first build
+ * of this page made the Inventory the default, and the owner found that it had gone
+ * too far towards density: to answer "where is Ancient Debris" or "is this a Nether
+ * item" a reader had to recognise a texture or decode a 2px bar and hover. This page
+ * is an item database first; the stage bar and tag glyph are reinforcement, never
+ * the only place a classification is written.
+ *
+ *   the browser     every item, filtered and grouped; click to inspect, Ctrl or Cmd
+ *                   to add to a selection, Shift for a range, arrows to move
+ *   the inspector   the overview when nothing is selected, an item, or a selection
+ *   the tray        see ChangeTray.jsx
+ *
+ * The data paths are poolData.js, the file rewrites edits.js, GitHub github.js.
+ */
 
-// Get the stored branch or default to main
-function getStoredBranch() {
+const fmt = (n) => n.toLocaleString('en-US');
+const VIEW_KEY = 'fib_pools_view';
+const VIEWS = [
+    { key: 'catalogue', label: 'Catalogue', Icon: LayoutList },
+    { key: 'inventory', label: 'Inventory', Icon: LayoutGrid },
+    { key: 'list', label: 'List', Icon: List },
+];
+
+const INFO_FILTERS = [
+    { key: 'any', label: 'Any' },
+    { key: 'with', label: 'Has /info' },
+    { key: 'without', label: 'No /info' },
+];
+
+function readParams() {
     try {
-        return localStorage.getItem(BRANCH_KEY) || DEFAULT_BRANCH;
-    } catch {
-        return DEFAULT_BRANCH;
-    }
-}
-
-// Get the stored view branch or default to main
-function getStoredViewBranch() {
-    try {
-        return localStorage.getItem(VIEW_BRANCH_KEY) || DEFAULT_BRANCH;
-    } catch {
-        return DEFAULT_BRANCH;
-    }
-}
-
-// Set the view branch
-function setStoredViewBranch(branch) {
-    try {
-        localStorage.setItem(VIEW_BRANCH_KEY, branch);
-    } catch {
-        // Ignore storage errors
-    }
-}
-
-// Get config URL for a specific branch
-function getConfigUrl(branch) {
-    return `${CONFIG_BASE_URL}/${branch}/config.yml`;
-}
-
-// Minecraft color codes mapping (for description text parsing)
-const MC_COLORS = {
-    '0': '#000000', '1': '#0000AA', '2': '#00AA00', '3': '#00AAAA',
-    '4': '#AA0000', '5': '#AA00AA', '6': '#FFAA00', '7': '#AAAAAA',
-    '8': '#555555', '9': '#5555FF', 'a': '#55FF55', 'b': '#55FFFF',
-    'c': '#FF5555', 'd': '#FF55FF', 'e': '#FFFF55', 'f': '#FFFFFF'
-};
-
-// Parse Minecraft formatting codes into styled spans
-function parseMinecraftFormatting(text) {
-    if (!text) return null;
-
-    const parts = [];
-    let currentColor = COLORS.text;
-    let isBold = false;
-    let isItalic = false;
-    let currentText = '';
-
-    let i = 0;
-    while (i < text.length) {
-        if (text[i] === '&' && i + 1 < text.length) {
-            // Push current text if any
-            if (currentText) {
-                parts.push({
-                    text: currentText,
-                    color: currentColor,
-                    bold: isBold,
-                    italic: isItalic
-                });
-                currentText = '';
-            }
-
-            const code = text[i + 1].toLowerCase();
-
-            if (MC_COLORS[code]) {
-                currentColor = MC_COLORS[code];
-            } else if (code === 'l') {
-                isBold = true;
-            } else if (code === 'o') {
-                isItalic = true;
-            } else if (code === 'r') {
-                currentColor = COLORS.text;
-                isBold = false;
-                isItalic = false;
-            }
-            // Skip &k (obfuscated), &m (strikethrough), &n (underline) for now
-
-            i += 2;
-        } else {
-            currentText += text[i];
-            i++;
-        }
-    }
-
-    // Push remaining text
-    if (currentText) {
-        parts.push({
-            text: currentText,
-            color: currentColor,
-            bold: isBold,
-            italic: isItalic
-        });
-    }
-
-    return parts;
-}
-
-// Render formatted text as React elements
-function FormattedText({ text }) {
-    const parts = parseMinecraftFormatting(text);
-    if (!parts) return null;
-
-    return (
-        <>
-            {parts.map((part, idx) => (
-                <span
-                    key={idx}
-                    style={{
-                        color: part.color,
-                        fontWeight: part.bold ? '700' : '400',
-                        fontStyle: part.italic ? 'italic' : 'normal'
-                    }}
-                >
-          {part.text}
-        </span>
-            ))}
-        </>
-    );
-}
-
-// Strip all formatting for plain text
-const STRIP_FORMATTING_REGEX = /&[0-9a-fklmnor]/gi;
-function stripFormatting(text) {
-    return text.replace(STRIP_FORMATTING_REGEX, '');
-}
-
-// Hoisted RegExp patterns for parseJavaFile
-const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
-const UNDERSCORE_REGEX = /_/g;
-const WORD_START_REGEX = /\b\w/g;
-
-function parseJavaFile(content) {
-    const items = [];
-
-    // Reset lastIndex for global regex reuse
-    REGISTER_REGEX.lastIndex = 0;
-
-    let match;
-    while ((match = REGISTER_REGEX.exec(content)) !== null) {
-        const [, material, state, tag1, tag2, tag3] = match;
-        const tags = [tag1, tag2, tag3].filter(Boolean);
-        items.push({
-            material,
-            state,
+        const p = new URLSearchParams(window.location.search || window.location.hash.split('?')[1] || '');
+        const stage = p.get('state')?.toUpperCase();
+        const tags = (p.get('tag') || '').toUpperCase().split(',').filter((t) => TAG_KEYS.includes(t));
+        return {
+            stage: STAGE_KEYS.includes(stage) ? stage : 'ALL',
             tags,
-            displayName: material.replace(UNDERSCORE_REGEX, ' ').toLowerCase().replace(WORD_START_REGEX, c => c.toUpperCase()),
-            description: null
-        });
-    }
-
-    return items;
-}
-
-function parseConfigYaml(content) {
-    const descriptions = {};
-
-    // Simple YAML parser for the descriptions section
-    const lines = content.split('\n');
-    let inDescriptions = false;
-    let currentItem = null;
-    let currentLines = [];
-
-    for (const line of lines) {
-        if (line.trim() === 'descriptions:') {
-            inDescriptions = true;
-            continue;
-        }
-
-        if (!inDescriptions) continue;
-
-        // Check if it's a new top-level key (not indented with spaces beyond descriptions level)
-        if (line.match(/^[a-zA-Z]/) && !line.startsWith(' ')) {
-            // Save previous item
-            if (currentItem && currentLines.length > 0) {
-                descriptions[currentItem] = currentLines;
-            }
-            inDescriptions = false;
-            continue;
-        }
-
-        // Check for item name (e.g., "  ANGLER_POTTERY_SHERD:" or "  MUSIC_DISC_13:")
-        const itemMatch = line.match(/^\s{2}([A-Z0-9_]+):\s*$/);
-        if (itemMatch) {
-            // Save previous item
-            if (currentItem && currentLines.length > 0) {
-                descriptions[currentItem] = currentLines;
-            }
-            currentItem = itemMatch[1];
-            currentLines = [];
-            continue;
-        }
-
-        // Check for description line (e.g., '    - "&b&lText"')
-        const lineMatch = line.match(/^\s{4}-\s*"(.*)"\s*$/);
-        if (lineMatch && currentItem) {
-            currentLines.push(lineMatch[1]);
-        }
-    }
-
-    // Save last item
-    if (currentItem && currentLines.length > 0) {
-        descriptions[currentItem] = currentLines;
-    }
-
-    return descriptions;
-}
-
-function getCache(branch) {
-    try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (cached) {
-            const { data, timestamp, cachedBranch } = JSON.parse(cached);
-
-            // Check if cache is for a different branch
-            if (cachedBranch && cachedBranch !== branch) {
-                console.log(`Cache invalidated: branch changed from ${cachedBranch} to ${branch}`);
-                localStorage.removeItem(CACHE_KEY);
-                return null;
-            }
-
-            // Check if there was a recent edit that should invalidate the cache
-            const lastEdit = localStorage.getItem(LAST_EDIT_KEY);
-            if (lastEdit) {
-                const lastEditTime = parseInt(lastEdit, 10);
-                // If the cache was created before the last edit, invalidate it
-                if (timestamp < lastEditTime) {
-                    console.log('Cache invalidated due to recent edit');
-                    localStorage.removeItem(CACHE_KEY);
-                    return null;
-                }
-            }
-
-            if (Date.now() - timestamp < CACHE_DURATION) {
-                return data;
-            }
-        }
-    } catch (e) {
-        console.error('Cache read error:', e);
-    }
-    return null;
-}
-
-function setCache(data, branch) {
-    try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({
-            data,
-            timestamp: Date.now(),
-            cachedBranch: branch
-        }));
-        // Clear the last edit marker since we now have fresh data
-        localStorage.removeItem(LAST_EDIT_KEY);
-    } catch (e) {
-        console.error('Cache write error:', e);
+            q: p.get('q') || '',
+            item: p.get('item')?.toUpperCase() || null,
+        };
+    } catch {
+        return { stage: 'ALL', tags: [], q: '', item: null };
     }
 }
 
-function invalidateCache() {
-    try {
-        localStorage.removeItem(CACHE_KEY);
-        localStorage.setItem(LAST_EDIT_KEY, Date.now().toString());
-    } catch (e) {
-        console.error('Cache invalidation error:', e);
-    }
+/** Catalogue, Inventory or List: a per-viewer convenience, remembered in this browser. */
+function useMode() {
+    const [mode, setMode] = useState(() => {
+        try {
+            const saved = localStorage.getItem(VIEW_KEY);
+            return VIEWS.some((v) => v.key === saved) ? saved : 'catalogue';
+        } catch { return 'catalogue'; }
+    });
+    const set = (m) => { setMode(m); try { localStorage.setItem(VIEW_KEY, m); } catch { /* per-viewer only */ } };
+    return [mode, set];
 }
 
-// Misode data caching functions
-function getMisodeCache() {
-    try {
-        const cached = localStorage.getItem(MISODE_CACHE_KEY);
-        if (cached) {
-            const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < MISODE_CACHE_DURATION) {
-                return data;
-            }
-        }
-    } catch (e) {
-        console.error('Misode cache read error:', e);
-    }
-    return null;
+function ago(ts) {
+    if (!ts) return '';
+    const m = Math.round((Date.now() - ts) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m} min ago`;
+    return `${Math.round(m / 60)} h ago`;
 }
 
-function setMisodeCache(data) {
-    try {
-        localStorage.setItem(MISODE_CACHE_KEY, JSON.stringify({
-            data,
-            timestamp: Date.now()
-        }));
-    } catch (e) {
-        console.error('Misode cache write error:', e);
-    }
-}
+/* ── The page ───────────────────────────────────────────────────────────────── */
 
-function clearMisodeCache() {
-    try {
-        localStorage.removeItem(MISODE_CACHE_KEY);
-        console.log('Misode cache cleared');
-    } catch (e) {
-        console.error('Misode cache clear error:', e);
-    }
-}
+export default function ForceItemPools() {
+    const initial = useMemo(readParams, []);
+    const [items, setItems] = useState([]);
+    const [loadedAt, setLoadedAt] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [branch, setBranch] = useState(getViewBranch);
+    const [branches, setBranches] = useState([DEFAULT_BRANCH]);
+    const [registry, setRegistry] = useState([]);
+    const [tagMap, setTagMap] = useState(null);
 
-// Fetch all Minecraft items from Misode's mcmeta registry
-async function fetchMisodeItems(forceRefresh = false) {
-    // Clear cache if force refresh requested
-    if (forceRefresh) {
-        clearMisodeCache();
-    }
+    const [view, setView] = useState('pool');
+    const [q, setQ] = useState(initial.q);
+    const [stage, setStage] = useState(initial.stage);
+    const [tags, setTags] = useState(initial.tags);
+    const [info, setInfo] = useState('any');
+    const [category, setCategory] = useState(null);
+    const [stagedOnly, setStagedOnly] = useState(false);
+    const [group, setGroup] = useState('none');
+    const [mode, setMode] = useMode();
+    const [selection, setSelection] = useState(initial.item ? [initial.item] : []);
+    const [overview, setOverview] = useState(false);
+    const [refineOpen, setRefineOpen] = useState(false);
+    const anchor = useRef(null);
+    const bar = useRef(null);
+    const main = useRef(null);
 
-    // Check cache first
-    const cached = getMisodeCache();
-    if (cached) {
-        console.log('Using cached Misode items data');
-        return cached;
-    }
+    // The inspector and the drawer sit under the sticky toolbar, whose height changes
+    // as the filters wrap; measured into --ip-top rather than guessed.
+    useLayoutEffect(() => {
+        const el = bar.current;
+        if (!el) return undefined;
+        const set = () => main.current?.style.setProperty('--ip-top', `${56 + el.offsetHeight}px`);
+        set();
+        const ro = new ResizeObserver(set);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
-    try {
-        const response = await fetch(MISODE_ITEMS_URL);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch Misode items: ${response.status}`);
-        }
+    const changes = useChanges(items);
+    const byMaterial = useMemo(() => new Map(items.map((i) => [i.material, i])), [items]);
 
-        const rawItems = await response.json();
-
-        // Convert lowercase item names to uppercase (to match pool format)
-        const items = rawItems
-            .map(item => item.toUpperCase());
-
-        // Cache the result
-        setMisodeCache(items);
-        console.log(`Fetched ${items.length} items from Misode registry`);
-
-        return items;
-    } catch (e) {
-        console.error('Error fetching Misode items:', e);
-        return [];
-    }
-}
-
-
-function ItemCard({ item, onClick, editMode, onEdit, onAddMissing, isSelected, onToggleSelect }) {
-    const isMissing = item.isMissing;
-    const hasDescription = item.description && item.description.length > 0;
-    const isInteractive = isMissing || editMode || hasDescription;
-
-    const stateColors  = { EARLY: 'oklch(62% 0.20 142)', MID: 'oklch(76% 0.16 68)', LATE: 'oklch(62% 0.22 25)' };
-    const stateBorders = { EARLY: 'oklch(62% 0.20 142 / 0.45)', MID: 'oklch(76% 0.16 68 / 0.45)', LATE: 'oklch(62% 0.22 25 / 0.45)' };
-    const stateBgs     = { EARLY: 'oklch(62% 0.20 142 / 0.12)', MID: 'oklch(76% 0.16 68 / 0.12)', LATE: 'oklch(62% 0.22 25 / 0.12)' };
-    const tagColors    = { NETHER: 'oklch(60% 0.20 15)', END: 'oklch(65% 0.15 290)', EXTREME: 'oklch(66% 0.20 45)' };
-    const tagBorders   = { NETHER: 'oklch(60% 0.20 15 / 0.45)', END: 'oklch(65% 0.15 290 / 0.45)', EXTREME: 'oklch(66% 0.20 45 / 0.45)' };
-    const tagBgs       = { NETHER: 'oklch(60% 0.20 15 / 0.12)', END: 'oklch(65% 0.15 290 / 0.12)', EXTREME: 'oklch(66% 0.20 45 / 0.12)' };
-
-    let cardClass = 'fip2-card';
-    if (isInteractive) cardClass += ' interactive';
-    if (isSelected)    cardClass += ' selected';
-    if (editMode && !isMissing) cardClass += ' edit-mode';
-
-    return (
-        <div
-            className={cardClass}
-            onClick={() => {
-                if (isMissing && onToggleSelect) { onToggleSelect(item.material); return; }
-                if (editMode) { onEdit(item); }
-                else if (hasDescription) { onClick(item); }
-            }}
-        >
-            {/* Corner indicator */}
-            {isMissing && (
-                <div className={`fip2-card-corner${isSelected ? ' selected-check' : ''}`}>
-                    {isSelected
-                        ? <Check size={10} style={{ color: 'oklch(17% 0.025 255)' }} />
-                        : <Plus size={9} style={{ color: 'oklch(42% 0.013 255)' }} />
-                    }
-                </div>
-            )}
-            {editMode && !isMissing && (
-                <div className="fip2-card-corner edit-pen">
-                    <Pencil size={9} style={{ color: 'oklch(76% 0.16 68)' }} />
-                </div>
-            )}
-
-            {/* Image + Name */}
-            <div className="fip2-card-row">
-                <img
-                    className="fip2-card-img"
-                    src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
-                    alt={item.displayName}
-                    onError={e => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                />
-                <span className="fip2-card-name">{item.displayName}</span>
-                {!isMissing && hasDescription && (
-                    <Info size={13} className="fip2-card-info-icon" />
-                )}
-            </div>
-
-            {/* Badges */}
-            {!isMissing && (item.state || (item.tags && item.tags.length > 0)) && (
-                <div className="fip2-badges">
-                    {item.state && (
-                        <span className="fip2-badge" style={{
-                            background: stateBgs[item.state] || 'oklch(56% 0.013 255 / 0.12)',
-                            color: stateColors[item.state] || 'oklch(58% 0.012 255)',
-                            borderColor: stateBorders[item.state] || 'oklch(56% 0.013 255 / 0.45)',
-                        }}>
-                            {item.state.charAt(0) + item.state.slice(1).toLowerCase()}
-                        </span>
-                    )}
-                    {item.tags && item.tags.map(tag => (
-                        <span key={tag} className="fip2-badge" style={{
-                            background: tagBgs[tag] || 'oklch(56% 0.013 255 / 0.12)',
-                            color: tagColors[tag] || 'oklch(58% 0.012 255)',
-                            borderColor: tagBorders[tag] || 'oklch(56% 0.013 255 / 0.45)',
-                        }}>
-                            {tag.charAt(0) + tag.slice(1).toLowerCase()}
-                        </span>
-                    ))}
-                </div>
-            )}
-            {isMissing && (
-                <div className="fip2-badges">
-                    <span className="fip2-badge" style={{
-                        background: isSelected ? 'oklch(76% 0.16 68 / 0.15)' : 'oklch(22% 0.019 255 / 0.6)',
-                        color: isSelected ? 'oklch(76% 0.16 68)' : 'oklch(50% 0.013 255)',
-                        borderColor: isSelected ? 'oklch(76% 0.16 68 / 0.4)' : 'oklch(35% 0.018 255)',
-                    }}>
-                        {isSelected ? 'Selected' : 'Not in pool'}
-                    </span>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function Modal({ item, onClose }) {
-    if (!item) return null;
-    const stateColors  = { EARLY: 'oklch(62% 0.20 142)', MID: 'oklch(76% 0.16 68)', LATE: 'oklch(62% 0.22 25)' };
-    const stateBorders = { EARLY: 'oklch(62% 0.20 142 / 0.45)', MID: 'oklch(76% 0.16 68 / 0.45)', LATE: 'oklch(62% 0.22 25 / 0.45)' };
-    const stateBgs     = { EARLY: 'oklch(62% 0.20 142 / 0.12)', MID: 'oklch(76% 0.16 68 / 0.12)', LATE: 'oklch(62% 0.22 25 / 0.12)' };
-    const tagColors    = { NETHER: 'oklch(60% 0.20 15)', END: 'oklch(65% 0.15 290)', EXTREME: 'oklch(66% 0.20 45)' };
-    const tagBorders   = { NETHER: 'oklch(60% 0.20 15 / 0.45)', END: 'oklch(65% 0.15 290 / 0.45)', EXTREME: 'oklch(66% 0.20 45 / 0.45)' };
-    const tagBgs       = { NETHER: 'oklch(60% 0.20 15 / 0.12)', END: 'oklch(65% 0.15 290 / 0.12)', EXTREME: 'oklch(66% 0.20 45 / 0.12)' };
-
-    return (
-        <div className="fip2-modal-overlay" onClick={onClose}>
-            <div className="fip2-modal" onClick={e => e.stopPropagation()}>
-                <div className="fip2-modal-header">
-                    <img
-                        className="fip2-modal-img"
-                        src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
-                        alt={item.displayName}
-                        onError={e => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                    />
-                    <div>
-                        <div className="fip2-modal-name">{item.displayName}</div>
-                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                            {item.state && (
-                                <span className="fip2-badge" style={{
-                                    background: stateBgs[item.state] || 'oklch(56% 0.013 255 / 0.12)',
-                                    color: stateColors[item.state] || 'oklch(58% 0.012 255)',
-                                    borderColor: stateBorders[item.state] || 'oklch(56% 0.013 255 / 0.45)',
-                                }}>
-                                    {item.state.charAt(0) + item.state.slice(1).toLowerCase()}
-                                </span>
-                            )}
-                            {item.tags && item.tags.map(tag => (
-                                <span key={tag} className="fip2-badge" style={{
-                                    background: tagBgs[tag] || 'oklch(56% 0.013 255 / 0.12)',
-                                    color: tagColors[tag] || 'oklch(58% 0.012 255)',
-                                    borderColor: tagBorders[tag] || 'oklch(56% 0.013 255 / 0.45)',
-                                }}>
-                                    {tag.charAt(0) + tag.slice(1).toLowerCase()}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="fip2-modal-desc-block">
-                    {item.description.map((line, idx) => (
-                        <div key={idx} style={{ minHeight: 20 }}>
-                            <FormattedText text={line} />
-                        </div>
-                    ))}
-                </div>
-
-                <button
-                    onClick={onClose}
-                    className="fip2-action"
-                    style={{ width: '100%', justifyContent: 'center', padding: '9px' }}
-                >
-                    Close
-                </button>
-            </div>
-        </div>
-    );
-}
-
-// Styled info tooltip with hover state
-function InfoTooltip({ children, content }) {
-    const [isVisible, setIsVisible] = useState(false);
-    const [position, setPosition] = useState({ top: 0, left: 0 });
-    const [isPositioned, setIsPositioned] = useState(false);
-    const triggerRef = useRef(null);
-    const tooltipRef = useRef(null);
-
-    const updatePosition = useCallback(() => {
-        if (triggerRef.current && tooltipRef.current) {
-            const triggerRect = triggerRef.current.getBoundingClientRect();
-            const tooltipRect = tooltipRef.current.getBoundingClientRect();
-
-            // Position below the trigger, centered
-            let left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
-            let top = triggerRect.bottom + 8;
-
-            // Keep within viewport
-            if (left < 10) left = 10;
-            if (left + tooltipRect.width > window.innerWidth - 10) {
-                left = window.innerWidth - tooltipRect.width - 10;
-            }
-
-            setPosition({ top, left });
-            setIsPositioned(true);
+    const load = useCallback(async (b, fresh = false) => {
+        setLoading(true); setError(null);
+        try {
+            const { items: next, timestamp } = await loadPool(b, { fresh });
+            setItems(next); setLoadedAt(timestamp);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        if (isVisible) {
-            // Use requestAnimationFrame to ensure tooltip is rendered before measuring
-            const raf = requestAnimationFrame(() => {
-                updatePosition();
+        let live = true;
+        loadPool(getViewBranch()).then(({ items: next, timestamp }) => {
+            if (!live) return;
+            setItems(next); setLoadedAt(timestamp); setLoading(false);
+        }).catch((e) => { if (live) { setError(e.message); setLoading(false); } });
+        loadPublicBranches().then((b) => { if (live) setBranches(b); });
+        loadRegistry().then((r) => { if (live) setRegistry(r); });
+        loadItemTags().then((t) => { if (live && t) setTagMap(buildTagCategoryMap(t)); }).catch(() => {});
+        return () => { live = false; };
+    }, []);
+
+    const switchBranch = (b) => { setBranch(b); setViewBranch(b); load(b, true); };
+    const categoryOf = useCallback((m) => categorizeItem(m, tagMap), [tagMap]);
+
+    /* What the browser can show. A staged addition is part of the pool view already. */
+    const missing = useMemo(() => registry.filter((m) => !byMaterial.has(m)), [registry, byMaterial]);
+    const universe = useMemo(() => {
+        if (view === 'missing') {
+            return missing.map((m) => {
+                const c = changes.pool[m];
+                return c?.type === 'add'
+                    ? { material: m, displayName: displayNameOf(m), state: c.state, tags: c.tags, description: changes.info[m]?.lines ?? null, added: true }
+                    : { material: m, displayName: displayNameOf(m), tags: [], missing: true };
             });
-            window.addEventListener('scroll', updatePosition);
-            window.addEventListener('resize', updatePosition);
-            return () => {
-                cancelAnimationFrame(raf);
-                window.removeEventListener('scroll', updatePosition);
-                window.removeEventListener('resize', updatePosition);
-                setIsPositioned(false);
-            };
         }
-    }, [isVisible, updatePosition]);
+        const adds = Object.entries(changes.pool).filter(([m, c]) => c.type === 'add' && !byMaterial.has(m))
+            .map(([m, c]) => ({ material: m, displayName: displayNameOf(m), state: c.state, tags: c.tags, description: changes.info[m]?.lines ?? null, added: true }));
+        return [...items.map(changes.effective), ...adds];
+    }, [view, missing, items, changes, byMaterial]);
+
+    const shown = useMemo(() => {
+        const query = q.trim().toLowerCase().replace(/\s+/g, '_');
+        const pending = (m) => Boolean(changes.pool[m] || changes.info[m]);
+        return universe.filter((i) => {
+            if (query && !i.material.toLowerCase().includes(query) && !i.displayName.toLowerCase().includes(q.trim().toLowerCase())) return false;
+            if (category && categoryOf(i.material) !== category) return false;
+            if (stagedOnly && !pending(i.material)) return false;
+            if (view === 'missing') return true;
+            if (stage !== 'ALL' && i.state !== stage) return false;
+            if (tags.length && !tags.some((t) => i.tags.includes(t))) return false;
+            if (info === 'with' && !i.description?.length) return false;
+            if (info === 'without' && i.description?.length) return false;
+            return true;
+        }).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    }, [universe, q, category, stagedOnly, view, stage, tags, info, changes, categoryOf]);
+
+    const groups = useMemo(() => {
+        if (group === 'stage' && view === 'pool') {
+            return STAGE_KEYS.map((s) => ({ key: s, title: STAGES[s].label, ink: STAGES[s].ink, items: shown.filter((i) => i.state === s) }))
+                .filter((g) => g.items.length);
+        }
+        if (group === 'category' && tagMap) {
+            const by = new Map();
+            for (const i of shown) {
+                const c = categoryOf(i.material);
+                if (!by.has(c)) by.set(c, []);
+                by.get(c).push(i);
+            }
+            const order = [...CATEGORY_CONFIG.map((c) => c.id), 'other'];
+            return order.filter((id) => by.has(id)).map((id) => ({ key: id, title: categoryName(id), items: by.get(id) }));
+        }
+        return [{ key: 'all', title: null, items: shown }];
+    }, [group, view, shown, tagMap, categoryOf]);
+
+    const order = useMemo(() => groups.flatMap((g) => g.items.map((i) => i.material)), [groups]);
+
+    /* The pool's own breakdown, for the filter labels and the narrow-screen summary. */
+    const counts = useMemo(() => {
+        const pool = view === 'pool' ? universe : [];
+        const c = { total: pool.length };
+        for (const s of STAGE_KEYS) c[s] = pool.filter((i) => i.state === s).length;
+        for (const t of TAG_KEYS) c[t] = pool.filter((i) => i.tags.includes(t)).length;
+        return c;
+    }, [view, universe]);
+
+    /* Selection: click, Ctrl or Cmd to add, Shift for a range, Escape to clear. */
+    const select = useCallback((material, e) => {
+        if (e?.shiftKey && anchor.current) {
+            const a = order.indexOf(anchor.current);
+            const b = order.indexOf(material);
+            if (a >= 0 && b >= 0) {
+                const range = order.slice(Math.min(a, b), Math.max(a, b) + 1);
+                setSelection((s) => [...new Set([...s, ...range])]);
+                return;
+            }
+        }
+        anchor.current = material;
+        if (e?.ctrlKey || e?.metaKey) {
+            setSelection((s) => (s.includes(material) ? s.filter((x) => x !== material) : [...s, material]));
+            return;
+        }
+        setSelection((s) => (s.length === 1 && s[0] === material ? [] : [material]));
+    }, [order]);
+
+    useEffect(() => {
+        const esc = (e) => {
+            if (e.key !== 'Escape' || document.querySelector('.ip-drawer')) return;
+            if (e.target.closest?.('input, textarea, select')) return;
+            setSelection([]); setOverview(false);
+        };
+        window.addEventListener('keydown', esc);
+        return () => window.removeEventListener('keydown', esc);
+    }, []);
+
+    const onFilter = (f) => {
+        setSelection([]); setOverview(false);
+        if (f.view) { setView(f.view); return; }
+        setView('pool');
+        if (f.stage) setStage(f.stage);
+        if (f.tag) setTags([f.tag]);
+        if (f.info) setInfo(f.info);
+        if (f.category) setCategory(f.category);
+    };
+
+    const clearFilters = () => { setQ(''); setStage('ALL'); setTags([]); setInfo('any'); setCategory(null); setStagedOnly(false); };
+    const filterCount = (q ? 1 : 0) + (stage !== 'ALL') + tags.length + (info !== 'any') + (category ? 1 : 0) + (stagedOnly ? 1 : 0);
+    const inspecting = selection.length > 0 || overview;
+
+    const onInfoCommitted = (b, snapshot) => {
+        if (b !== branch) return;
+        const next = new Map(snapshot.map((c) => [c.material, c.lines]));
+        setItems((xs) => xs.map((i) => (next.has(i.material) ? { ...i, description: next.get(i.material) } : i)));
+    };
 
     return (
-        <>
-            <div
-                ref={triggerRef}
-                onMouseEnter={() => setIsVisible(true)}
-                onMouseLeave={() => setIsVisible(false)}
-                style={{ display: 'inline-flex' }}
-            >
-                {children}
-            </div>
-            {isVisible && (
-                <div
-                    ref={tooltipRef}
-                    style={{
-                        position: 'fixed',
-                        top: position.top,
-                        left: position.left,
-                        zIndex: 10000,
-                        opacity: isPositioned ? 1 : 0,
-                        transform: isPositioned ? 'translateY(0)' : 'translateY(-4px)',
-                        transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
-                    }}
-                >
-                    {content}
+        <main className="ip" ref={main}>
+            <header className="ip-bar" ref={bar}>
+                <div className="ip-wrap ip-bar-top">
+                    <h1 className="ip-title">Item Pools</h1>
+                    <p className="ip-facts">
+                        <span>
+                            Every item the game can hand out, live from the plugin's{' '}
+                            <a className="wk-link" href={`https://github.com/McPlayHDnet/ForceItemBattle/blob/main/${POOL_PATH}`} target="_blank" rel="noopener noreferrer">item pool</a>
+                        </span>
+                        <label className="ip-branch">
+                            /info from
+                            <select value={branch} onChange={(e) => switchBranch(e.target.value)} disabled={loading} aria-label="Which branch's config.yml to show and edit">
+                                {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                        </label>
+                        <button type="button" className="ip-link ip-refresh" onClick={() => load(branch, true)} disabled={loading} title={loading ? 'Reading GitHub' : `Read ${ago(loadedAt)}`}>
+                            <RefreshCw size={13} aria-hidden="true" className={loading ? 'ip-spin' : ''} /> {loading ? 'Reading…' : `Read ${ago(loadedAt)}`}
+                        </button>
+                        <button type="button" className="ip-link ip-overview-btn" onClick={() => { setSelection([]); setOverview(true); }}>Overview</button>
+                    </p>
                 </div>
-            )}
-        </>
+
+                {/* The primary line: find something, choose the pool, choose a stage. */}
+                <div className="ip-wrap ip-filters">
+                    <label className="ip-search">
+                        <Search size={18} aria-hidden="true" />
+                        <span className="wk-sr">Search items</span>
+                        <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
+                               placeholder={view === 'missing' ? 'Search what is missing' : 'Search 1,500 items, e.g. ancient debris'} />
+                    </label>
+
+                    <div className="ip-seg ip-seg--primary" role="radiogroup" aria-label="Which items">
+                        <button type="button" role="radio" aria-checked={view === 'pool'} onClick={() => { setView('pool'); setSelection([]); }}>
+                            In the pool <span className="ip-seg-n">{fmt(items.length)}</span>
+                        </button>
+                        <button type="button" role="radio" aria-checked={view === 'missing'} onClick={() => { setView('missing'); setSelection([]); }}>
+                            Missing <span className="ip-seg-n">{registry.length ? fmt(missing.length) : '…'}</span>
+                        </button>
+                    </div>
+
+                    {view === 'pool' && (
+                        <div className="ip-seg ip-seg--primary" role="radiogroup" aria-label="Stage">
+                            <button type="button" role="radio" aria-checked={stage === 'ALL'} onClick={() => setStage('ALL')}>All<span className="ip-wide"> stages</span></button>
+                            {STAGE_KEYS.map((s) => (
+                                <button key={s} type="button" role="radio" aria-checked={stage === s} onClick={() => setStage(s)} className="ip-seg-stage" data-stage={s.toLowerCase()}>
+                                    <span style={{ color: STAGES[s].ink }}>{STAGES[s].label}</span> <span className="ip-seg-n">{fmt(counts[s])}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {/* On a phone the secondary line folds behind this, so the items start near the top. */}
+                    <button type="button" className="ip-link ip-refine-btn" aria-expanded={refineOpen} aria-controls="ip-refine"
+                            onClick={() => setRefineOpen((v) => !v)}>
+                        Filters and view{tags.length + (info !== 'any') + (group !== 'none') > 0 ? ` (${tags.length + (info !== 'any') + (group !== 'none')})` : ''}
+                    </button>
+                </div>
+
+                {/* The secondary line, quieter: words that light up, not more blocks. */}
+                <div className="ip-wrap ip-refine" id="ip-refine" data-open={refineOpen || undefined}>
+                    {view === 'pool' && (
+                        <>
+                            <span className="ip-refine-group" role="group" aria-label="Tags">
+                                <span className="ip-refine-label" aria-hidden="true">Tags</span>
+                                {TAG_KEYS.map((t) => {
+                                    const on = tags.includes(t);
+                                    return (
+                                        <button key={t} type="button" className="ip-toggle" aria-pressed={on} onClick={() => setTags(on ? tags.filter((x) => x !== t) : [...tags, t])}>
+                                            <TagGlyph tag={t} size={10} /> <span style={{ color: TAGS[t].ink }}>{TAGS[t].label}</span> <span className="ip-seg-n">{counts[t]}</span>
+                                        </button>
+                                    );
+                                })}
+                            </span>
+                            <span className="ip-refine-group" role="radiogroup" aria-label="/info">
+                                <span className="ip-refine-label" aria-hidden="true">/info</span>
+                                {INFO_FILTERS.map((f) => (
+                                    <button key={f.key} type="button" role="radio" className="ip-toggle" aria-checked={info === f.key} onClick={() => setInfo(f.key)}>{f.label}</button>
+                                ))}
+                            </span>
+                        </>
+                    )}
+                    <span className="ip-refine-end">
+                        <label className="ip-refine-group">
+                            <span className="ip-refine-label">Group</span>
+                            <select className="ip-quiet-select" value={group} onChange={(e) => setGroup(e.target.value)}>
+                                <option value="none">None</option>
+                                {view === 'pool' && <option value="stage">By stage</option>}
+                                <option value="category" disabled={!tagMap}>By category</option>
+                            </select>
+                        </label>
+                        <span className="ip-refine-group" role="radiogroup" aria-label="View">
+                            <span className="ip-refine-label" aria-hidden="true">View</span>
+                            {VIEWS.map((v) => (
+                                <button key={v.key} type="button" role="radio" className="ip-toggle" aria-checked={mode === v.key} onClick={() => setMode(v.key)}>
+                                    <v.Icon size={15} aria-hidden="true" /> {v.label}
+                                </button>
+                            ))}
+                        </span>
+                    </span>
+                </div>
+            </header>
+
+            <div className="ip-wrap ip-work" data-inspecting={inspecting || undefined}>
+                <section className="ip-browse" aria-label="Items">
+                    {/* Where the sidebar has folded away, the pool's breakdown stays in view. */}
+                    {view === 'pool' && counts.total > 0 && (
+                        <p className="ip-summary">
+                            {STAGE_KEYS.map((s) => <button key={s} type="button" className="ip-link" onClick={() => setStage(s)}><span style={{ color: STAGES[s].ink }}>{STAGES[s].label}</span> <span className="wk-datum">{fmt(counts[s])}</span></button>)}
+                            {TAG_KEYS.map((t) => <button key={t} type="button" className="ip-link" onClick={() => setTags([t])}><TagGlyph tag={t} size={9} /> <span style={{ color: TAGS[t].ink }}>{TAGS[t].label}</span> <span className="wk-datum">{fmt(counts[t])}</span></button>)}
+                        </p>
+                    )}
+                    <div className="ip-results" aria-live="polite">
+                        <span>Showing <span className="wk-datum">{fmt(shown.length)}</span> of <span className="wk-datum">{fmt(universe.length)}</span></span>
+                        {category && <Chip onClear={() => setCategory(null)}>{categoryName(category)}</Chip>}
+                        {stagedOnly && <Chip onClear={() => setStagedOnly(false)}>Staged only</Chip>}
+                        {(changes.poolCount + changes.infoCount > 0) && !stagedOnly && (
+                            <button type="button" className="ip-link" onClick={() => setStagedOnly(true)}>Only what is staged</button>
+                        )}
+                        {filterCount > 0 && <button type="button" className="ip-link" onClick={clearFilters}>Clear filters</button>}
+                        {view === 'missing' && <span className="ip-results-note">Items in Minecraft {PAPER_VERSION} that the pool does not register. Some are left out on purpose.</span>}
+                        {selection.length > 1 && <span className="ip-results-note">{selection.length} selected</span>}
+                    </div>
+
+                    {error && (
+                        <div className="ip-error-block" role="alert">
+                            <p><strong>The pool could not be read.</strong> {error}</p>
+                            <button type="button" className="wk-btn ip-btn" onClick={() => load(branch, true)}>Try again</button>
+                        </div>
+                    )}
+                    {loading && !items.length && !error && <Skeleton mode={mode} />}
+                    {!loading && !error && shown.length === 0 && (
+                        <div className="ip-empty">
+                            <p>{view === 'missing' && !registry.length ? 'Reading the Minecraft item list…' : 'Nothing matches.'}</p>
+                            {filterCount > 0 && <button type="button" className="wk-btn wk-btn--quiet ip-btn" onClick={clearFilters}>Clear filters</button>}
+                        </div>
+                    )}
+
+                    {!error && shown.length > 0 && (
+                        <Browser groups={groups} mode={mode} selection={selection} onSelect={select}
+                                 changes={changes} order={order} />
+                    )}
+                </section>
+
+                <aside className="ip-inspect" aria-label="Inspector">
+                    <Inspector
+                        selection={selection} onClear={() => { setSelection([]); setOverview(false); }}
+                        byMaterial={byMaterial} changes={changes} pool={items} missing={missing}
+                        onFilter={onFilter} categoryOf={categoryOf} categoriesReady={Boolean(tagMap)}
+                    />
+                </aside>
+            </div>
+
+            <ChangeTray changes={changes} byMaterial={byMaterial} viewBranch={branch} onInfoCommitted={onInfoCommitted} />
+            <Footer />
+        </main>
     );
 }
 
-// FilterButton kept for compatibility but layout now uses fip2-chip directly
-function FilterButton({ active, onClick, children, color, title }) {
+function Chip({ children, onClear }) {
     return (
-        <button
-            onClick={onClick}
-            title={title}
-            style={{
-                background: active ? `oklch(from ${color || 'oklch(76% 0.16 68)'} l c h / 0.09)` : 'oklch(13% 0.025 255)',
-                color: active ? (color || 'oklch(76% 0.16 68)') : 'oklch(50% 0.013 255)',
-                border: `1px solid ${active ? `oklch(from ${color || 'oklch(76% 0.16 68)'} l c h / 0.33)` : 'oklch(24% 0.022 255)'}`,
-                padding: '5px 10px', borderRadius: '5px', cursor: 'pointer',
-                fontSize: '11.5px', fontWeight: '600', textTransform: 'uppercase',
-                letterSpacing: '0.5px', whiteSpace: 'nowrap',
-                fontFamily: "'Barlow', system-ui, sans-serif",
-                transition: 'all 0.1s ease-out',
-            }}
-        >
+        <span className="ip-chip">
             {children}
+            <button type="button" onClick={onClear} aria-label={`Remove the ${children} filter`}><X size={12} /></button>
+        </span>
+    );
+}
+
+function Skeleton({ mode }) {
+    if (mode === 'inventory') {
+        return (
+            <div className="ip-grid" aria-label="Reading the pool from GitHub" role="status">
+                {Array.from({ length: 60 }, (_, i) => <span key={i} className="wk-slot ip-ghost" style={{ '--slot': '52px', '--i': i }} />)}
+            </div>
+        );
+    }
+    return (
+        <div className={mode === 'list' ? 'ip-list' : 'ip-catalogue'} aria-label="Reading the pool from GitHub" role="status">
+            {Array.from({ length: mode === 'list' ? 14 : 32 }, (_, i) => (
+                <span key={i} className={`${mode === 'list' ? 'ip-row-item' : 'ip-entry'} ip-ghost`} style={{ '--i': i }}>
+                    {mode === 'list' ? <span className="wk-slot" style={{ '--slot': '36px' }} /> : <span className="ip-entry-art ip-entry-art--ghost" />}
+                </span>
+            ))}
+        </div>
+    );
+}
+
+/* ── The browser ────────────────────────────────────────────────────────────── */
+
+/*
+ * One tab stop for the whole browser, as an inventory has: arrows move, Home and End
+ * jump, Enter or Space inspects (the entries are real buttons). Up and down move by
+ * one row of whatever the view is, measured, so it works at any window size.
+ *
+ * The tooltip is immediate in the Inventory, where it is the only place a name is
+ * written, and waits a moment in the Catalogue, where the entry already says what it
+ * is and the tooltip only adds the /info preview: a pointer crossing the catalogue
+ * should not strobe tooltips.
+ */
+const TIP_DELAY = { inventory: 0, catalogue: 450 };
+
+function Browser({ groups, mode, selection, onSelect, changes, order }) {
+    const ref = useRef(null);
+    const timer = useRef(null);
+    const [focus, setFocus] = useState(order[0]);
+    const [tip, setTip] = useState(null);
+    const current = order.includes(focus) ? focus : order[0];
+    useEffect(() => () => clearTimeout(timer.current), []);
+
+    const move = (e) => {
+        const keys = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity };
+        let delta = keys[e.key];
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            const grid = ref.current.querySelector('.ip-grid, .ip-catalogue');
+            const first = grid?.firstElementChild;
+            let cols = 1;
+            if (mode !== 'list' && first) {
+                const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+                cols = Math.max(1, Math.round((grid.clientWidth + gap) / (first.offsetWidth + gap)));
+            }
+            delta = e.key === 'ArrowDown' ? cols : -cols;
+        }
+        if (delta === undefined) return;
+        e.preventDefault();
+        const i = order.indexOf(current);
+        const next = order[Math.min(order.length - 1, Math.max(0, i + (Number.isFinite(delta) ? delta : delta > 0 ? order.length : -order.length)))];
+        setFocus(next);
+        ref.current.querySelector(`[data-m="${next}"]`)?.focus();
+    };
+
+    const hover = (i) => ({
+        onMouseEnter: (e) => {
+            if (!(mode in TIP_DELAY)) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            clearTimeout(timer.current);
+            timer.current = setTimeout(() => setTip({ item: i, rect }), TIP_DELAY[mode]);
+        },
+        onMouseLeave: () => { clearTimeout(timer.current); setTip(null); },
+    });
+
+    const props = (i) => {
+        const staged = changes.pool[i.material] || changes.info[i.material];
+        return {
+            'data-m': i.material,
+            tabIndex: i.material === current ? 0 : -1,
+            'aria-pressed': selection.includes(i.material),
+            'aria-label': label(i, changes),
+            'data-staged': staged ? (changes.pool[i.material]?.type ?? 'info') : undefined,
+            'data-removed': i.removed || undefined,
+            onClick: (e) => { setFocus(i.material); setTip(null); onSelect(i.material, e); },
+            onFocus: () => setFocus(i.material),
+        };
+    };
+
+    return (
+        <div ref={ref} className="ip-groups" onKeyDown={move} data-mode={mode}>
+            {mode === 'list' && (
+                <div className="ip-list-head" aria-hidden="true">
+                    <span /><span>Item</span><span>Stage</span><span>Tags</span><span>/info</span><span>Staged</span>
+                </div>
+            )}
+            {groups.map((g) => (
+                <section key={g.key} className="ip-group" aria-label={g.title ?? 'Items'}>
+                    {g.title && <h2 className="ip-group-title" style={g.ink ? { color: g.ink } : undefined}>{g.title} <span className="ip-group-n">{g.items.length}</span></h2>}
+                    {mode === 'catalogue' && (
+                        <div className="ip-catalogue">
+                            {g.items.map((i) => <Entry key={i.material} item={i} props={{ ...props(i), ...hover(i) }} />)}
+                        </div>
+                    )}
+                    {mode === 'inventory' && (
+                        <div className="ip-grid">
+                            {g.items.map((i) => (
+                                <button key={i.material} type="button" className="ip-cell" {...props(i)} {...hover(i)}>
+                                    <Slot item={i} size={52} />
+                                    {i.description?.length > 0 && <span className="ip-info-mark" aria-hidden="true" />}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {mode === 'list' && (
+                        <div className="ip-list">
+                            {g.items.map((i) => <Row key={i.material} item={i} props={props(i)} changes={changes} />)}
+                        </div>
+                    )}
+                </section>
+            ))}
+            {tip && <Tip {...tip} changes={changes} />}
+        </div>
+    );
+}
+
+/*
+ * A catalogue entry. One component, one fixed grid, so that across hundreds of them
+ * the only thing that varies is the item:
+ *
+ *   texture   a fixed 56px column, the 52px sprite on its own: no slot, no stage bar,
+ *             no glyph. The item art is the strongest thing this page has.
+ *   name      a fixed two-line area, 16px, whether the name needs one line or two.
+ *   tags      a fixed row under it: the stage and any tags as outlined chips in their
+ *             own ink, then "/info" as a quiet word at the end when there is one.
+ *
+ * Every name starts at the same x, every chip row at the same y, every entry is the
+ * same height. One piece of information gets one representation: LATE is written
+ * once, as a chip, and nothing else on the entry is red.
+ *
+ * *This replaced a first Catalogue* whose labels followed the name's wrapping, sat
+ * as free-floating coloured words with glyphs, and kept the slot's stage bar under a
+ * 38px texture, eight across. The owner found it noisy at scale and the art too
+ * small; fewer, calmer entries (five across at 1920px) read better than more.
+ */
+function Entry({ item: i, props }) {
+    return (
+        <button type="button" className="ip-entry" {...props}>
+            <span className="ip-entry-art" aria-hidden="true"><Sprite material={i.material} /></span>
+            <span className="ip-entry-text">
+                <span className="ip-entry-name">{i.displayName}</span>
+                <span className="ip-entry-meta" aria-hidden="true">
+                    {i.missing
+                        ? <span className="ip-chip-tag" style={{ '--c': 'var(--wk-ink-3)' }}>Not in pool</span>
+                        : (
+                            <>
+                                {i.state && <span className="ip-chip-tag" style={{ '--c': STAGES[i.state].ink }}>{STAGES[i.state].label}</span>}
+                                {i.tags.map((t) => <span key={t} className="ip-chip-tag" style={{ '--c': TAGS[t].ink }}>{TAGS[t].label}</span>)}
+                            </>
+                        )}
+                    {i.description?.length > 0 && <span className="ip-entry-infoword">/info</span>}
+                </span>
+            </span>
         </button>
     );
 }
 
-// Inner component with all the logic
-function ForceItemPoolsContent() {
-    const [items, setItems] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [search, setSearch] = useState('');
-    const [stateFilter, setStateFilter] = useState('ALL');
-    const [tagFilters, setTagFilters] = useState({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
-    const [sortBy, setSortBy] = useState('name'); // 'name' | 'state' | 'hasInfo'
-    const [lastUpdated, setLastUpdated] = useState(null);
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [editMode, setEditMode] = useState(false);
-    const [editItem, setEditItem] = useState(null);
-    const [currentBranch, setCurrentBranch] = useState(() => getStoredBranch());
-    const [viewBranch, setViewBranch] = useState(() => getStoredViewBranch());
-    const [availableBranches, setAvailableBranches] = useState([DEFAULT_BRANCH]);
-    const [showHistory, setShowHistory] = useState(false);
-    const [showPoolManager, setShowPoolManager] = useState(false);
-    const [showStatistics, setShowStatistics] = useState(false);
-    const [initialPoolItem, setInitialPoolItem] = useState(null); // Pre-selected item for Pool Manager
-    const [initialPoolItems, setInitialPoolItems] = useState([]); // Multiple pre-selected items for Pool Manager
+function stagedWords(i, changes) {
+    const c = changes.pool[i.material];
+    const words = [];
+    if (c?.type === 'add') words.push('staged to be added');
+    if (c?.type === 'modify') words.push('pool change staged');
+    if (c?.type === 'remove') words.push('staged for removal');
+    if (changes.info[i.material]) words.push('/info change staged');
+    return words;
+}
 
-    // Missing Items View state
-    const [viewMode, setViewMode] = useState('pools'); // 'pools' | 'missing' | 'all'
-    const [allMinecraftItems, setAllMinecraftItems] = useState([]);
-    const [loadingMisode, setLoadingMisode] = useState(false);
-    const [selectedMissingItems, setSelectedMissingItems] = useState(new Set()); // Multi-select for missing items
-
-    // Parse URL params on mount to set initial filters.
-    // Params may arrive via window.location.search (/pools?tag=NETHER)
-    // or window.location.hash (#pools?tag=NETHER) depending on navigation method.
-    useEffect(() => {
-        // Prefer search params (standard navigation), fall back to hash params
-        let queryString = window.location.search.slice(1);
-        if (!queryString) {
-            const hash = window.location.hash;
-            const queryIndex = hash.indexOf('?');
-            if (queryIndex !== -1) queryString = hash.slice(queryIndex + 1);
-        }
-        if (!queryString) return;
-
-        const params = new URLSearchParams(queryString);
-
-        // Handle state filter (EARLY, MID, LATE)
-        const stateParam = params.get('state');
-        if (stateParam && ['ALL', 'EARLY', 'MID', 'LATE'].includes(stateParam.toUpperCase())) {
-            setStateFilter(stateParam.toUpperCase());
-        }
-
-        // Handle tag filters (NETHER, END, EXTREME)
-        const tagParam = params.get('tag');
-        if (tagParam) {
-            const tags = tagParam.toUpperCase().split(',');
-            setTagFilters(prev => {
-                const next = { ...prev };
-                tags.forEach(tag => {
-                    if (tag in next) {
-                        next[tag] = true;
-                    }
-                });
-                return next;
-            });
-        }
-    }, []);
-
-    // Handle description save from editor
-    const handleDescriptionSave = (materialName, newDescription) => {
-        setItems(prevItems => prevItems.map(item =>
-            item.material === materialName
-                ? { ...item, description: newDescription }
-                : item
-        ));
-        // Update current branch to match what was used in editor
-        setCurrentBranch(getStoredBranch());
-        // Invalidate cache so next reload fetches fresh data
-        invalidateCache();
-    };
-
-    // Manual refresh function - refreshes both branches and data
-    const handleRefresh = async () => {
-        invalidateCache();
-        setLoading(true);
-        setError(null);
-
-        try {
-            // Refresh branches first
-            const branchesResponse = await fetch(BRANCHES_URL + '?t=' + Date.now());
-            let effectiveBranch = viewBranch;
-            if (branchesResponse.ok) {
-                const branchesData = await branchesResponse.json();
-                const branchNames = branchesData.map(b => b.name);
-                setAvailableBranches(branchNames.length > 0 ? branchNames : [DEFAULT_BRANCH]);
-                // Re-validate selected branch
-                if (!branchNames.includes(viewBranch)) {
-                    effectiveBranch = DEFAULT_BRANCH;
-                    setViewBranch(DEFAULT_BRANCH);
-                }
-            }
-
-            // Then refresh data
-            const [javaResponse, configResponse] = await Promise.all([
-                fetch(GITHUB_RAW_URL),
-                fetch(getConfigUrl(effectiveBranch) + '?t=' + Date.now()) // Cache bust
-            ]);
-
-            if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
-
-            const javaContent = await javaResponse.text();
-            const parsedItems = parseJavaFile(javaContent);
-
-            if (configResponse.ok) {
-                const configContent = await configResponse.text();
-                const descriptions = parseConfigYaml(configContent);
-
-                parsedItems.forEach(item => {
-                    if (descriptions[item.material]) {
-                        item.description = descriptions[item.material];
-                    }
-                });
-            }
-
-            const cacheData = { items: parsedItems, timestamp: Date.now() };
-            setCache(cacheData, effectiveBranch);
-            setItems(parsedItems);
-            setLastUpdated(new Date());
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Handle view branch change
-    const handleViewBranchChange = async (newBranch) => {
-        setViewBranch(newBranch);
-        setStoredViewBranch(newBranch);
-        invalidateCache();
-        setLoading(true);
-        setError(null);
-
-        try {
-            const configUrl = getConfigUrl(newBranch) + '?t=' + Date.now();
-
-            const [javaResponse, configResponse] = await Promise.all([
-                fetch(GITHUB_RAW_URL),
-                fetch(configUrl)
-            ]);
-
-            if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
-
-            const javaContent = await javaResponse.text();
-            const parsedItems = parseJavaFile(javaContent);
-
-            // Reset all descriptions first
-            parsedItems.forEach(item => {
-                item.description = null;
-            });
-
-            if (configResponse.ok) {
-                const configContent = await configResponse.text();
-                const descriptions = parseConfigYaml(configContent);
-
-                parsedItems.forEach(item => {
-                    if (descriptions[item.material]) {
-                        item.description = descriptions[item.material];
-                    }
-                });
-            }
-
-            // Don't cache when viewing non-main branches to always get fresh data
-            if (newBranch === DEFAULT_BRANCH) {
-                const cacheData = { items: parsedItems, timestamp: Date.now() };
-                setCache(cacheData, newBranch);
-            }
-
-            setItems(parsedItems);
-            setLastUpdated(new Date());
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        async function fetchData() {
-            const branch = viewBranch;
-
-            // Fetch available branches
-            try {
-                const branchesResponse = await fetch(BRANCHES_URL);
-                if (branchesResponse.ok) {
-                    const branchesData = await branchesResponse.json();
-                    const branchNames = branchesData.map(b => b.name);
-                    setAvailableBranches(branchNames.length > 0 ? branchNames : [DEFAULT_BRANCH]);
-                }
-            } catch (e) {
-                console.log('Could not fetch branches:', e);
-            }
-
-            // Check cache first
-            const cached = getCache(branch);
-            if (cached) {
-                setItems(cached.items);
-                setLastUpdated(new Date(cached.timestamp));
-                setLoading(false);
-                return;
-            }
-
-            try {
-                // Fetch both files in parallel
-                const [javaResponse, configResponse] = await Promise.all([
-                    fetch(GITHUB_RAW_URL),
-                    fetch(getConfigUrl(branch) + '?t=' + Date.now())
-                ]);
-
-                if (!javaResponse.ok) throw new Error('Failed to fetch items from GitHub');
-
-                const javaContent = await javaResponse.text();
-                const parsedItems = parseJavaFile(javaContent);
-
-                // Parse descriptions if available
-                if (configResponse.ok) {
-                    const configContent = await configResponse.text();
-                    const descriptions = parseConfigYaml(configContent);
-
-                    // Merge descriptions into items
-                    parsedItems.forEach(item => {
-                        if (descriptions[item.material]) {
-                            item.description = descriptions[item.material];
-                        }
-                    });
-                }
-
-                const cacheData = { items: parsedItems, timestamp: Date.now() };
-                setCache(cacheData, branch);
-                setItems(parsedItems);
-                setLastUpdated(new Date());
-            } catch (e) {
-                setError(e.message);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchData();
-    }, []);
-
-    // Fetch Misode data for missing items view
-    useEffect(() => {
-        async function loadMisodeData() {
-            setLoadingMisode(true);
-            try {
-                const misodeItems = await fetchMisodeItems();
-                setAllMinecraftItems(misodeItems);
-            } catch (e) {
-                console.error('Failed to load Misode data:', e);
-            } finally {
-                setLoadingMisode(false);
-            }
-        }
-        loadMisodeData();
-    }, []);
-
-    // Handler to refresh Misode data (clears cache and refetches)
-    const handleRefreshMisode = useCallback(async () => {
-        setLoadingMisode(true);
-        try {
-            const misodeItems = await fetchMisodeItems(true); // force refresh
-            setAllMinecraftItems(misodeItems);
-        } catch (e) {
-            console.error('Failed to refresh Misode data:', e);
-        } finally {
-            setLoadingMisode(false);
-        }
-    }, []);
-
-    // Handler to toggle selection of a missing item
-    const handleToggleMissingItem = useCallback((material) => {
-        setSelectedMissingItems(prev => {
-            const next = new Set(prev);
-            if (next.has(material)) {
-                next.delete(material);
-            } else {
-                next.add(material);
-            }
-            return next;
-        });
-    }, []);
-
-    // Handler to clear all selected missing items
-    const handleClearSelectedMissing = useCallback(() => {
-        setSelectedMissingItems(new Set());
-    }, []);
-
-    // Handler to open Pool Manager with a pre-selected item (single click)
-    const handleOpenPoolManagerWithItem = useCallback((material) => {
-        setInitialPoolItem(material);
-        setInitialPoolItems([]);
-        setShowPoolManager(true);
-    }, []);
-
-    // Handler to open Pool Manager with multiple pre-selected items
-    const handleOpenPoolManagerWithSelectedItems = useCallback(() => {
-        if (selectedMissingItems.size === 0) return;
-        setInitialPoolItems(Array.from(selectedMissingItems));
-        setInitialPoolItem(null);
-        setShowPoolManager(true);
-    }, [selectedMissingItems]);
-
-    // Handler to close Pool Manager and reset initial items
-    const handleClosePoolManager = useCallback(() => {
-        setShowPoolManager(false);
-        setInitialPoolItem(null);
-        setInitialPoolItems([]);
-        setSelectedMissingItems(new Set()); // Clear selections after closing
-    }, []);
-
-    // Compute missing items
-    const missingItems = useMemo(() => {
-        if (allMinecraftItems.length === 0 || items.length === 0) return [];
-
-        const poolMaterials = new Set(items.map(item => item.material));
-        return allMinecraftItems
-            .filter(material => !poolMaterials.has(material))
-            .map(material => ({
-                material,
-                displayName: material.replace(UNDERSCORE_REGEX, ' ').toLowerCase().replace(WORD_START_REGEX, c => c.toUpperCase()),
-                isMissing: true
-            }));
-    }, [allMinecraftItems, items]);
-
-    // Filter items based on view mode and filters
-    const filteredItems = useMemo(() => {
-        let itemsToFilter = viewMode === 'pools' ? items : missingItems;
-
-        let result = itemsToFilter.filter(item => {
-            // Search filter
-            if (search && !item.displayName.toLowerCase().includes(search.toLowerCase()) &&
-                !item.material.toLowerCase().includes(search.toLowerCase())) {
-                return false;
-            }
-
-            // For missing items, skip state/tag filters
-            if (item.isMissing) {
-                return true;
-            }
-
-            // State filter
-            if (stateFilter !== 'ALL' && item.state !== stateFilter) {
-                return false;
-            }
-
-            // Tag filters
-            const activeTags = Object.entries(tagFilters).filter(([, v]) => v).map(([k]) => k);
-            if (activeTags.length > 0) {
-                const hasRequiredTag = activeTags.some(tag => {
-                    if (tag === 'DESCRIPTION') {
-                        return item.description && item.description.length > 0;
-                    }
-                    return item.tags.includes(tag);
-                });
-                if (!hasRequiredTag) return false;
-            }
-
-            return true;
-        });
-
-        // Sort the results
-        result.sort((a, b) => {
-            switch (sortBy) {
-                case 'name':
-                    return a.displayName.localeCompare(b.displayName);
-                case 'state': {
-                    const stateOrder = { EARLY: 0, MID: 1, LATE: 2 };
-                    const aOrder = stateOrder[a.state] ?? 3;
-                    const bOrder = stateOrder[b.state] ?? 3;
-                    if (aOrder !== bOrder) return aOrder - bOrder;
-                    return a.displayName.localeCompare(b.displayName);
-                }
-                case 'hasInfo': {
-                    const aHas = a.description?.length > 0 ? 0 : 1;
-                    const bHas = b.description?.length > 0 ? 0 : 1;
-                    if (aHas !== bHas) return aHas - bHas;
-                    return a.displayName.localeCompare(b.displayName);
-                }
-                default:
-                    return 0;
-            }
-        });
-
-        return result;
-    }, [items, missingItems, viewMode, search, stateFilter, tagFilters, sortBy]);
-
-    // Count active filters for feedback (state/tag only relevant in pools view)
-    const activeFilterCount = useMemo(() => {
-        let count = 0;
-        // Only count state/tag filters when in pools view
-        if (viewMode === 'pools') {
-            if (stateFilter !== 'ALL') count++;
-            count += Object.values(tagFilters).filter(Boolean).length;
-        }
-        // Always count search
-        if (search.trim()) count++;
-        return count;
-    }, [stateFilter, tagFilters, search, viewMode]);
-
-    // Clear all filters helper
-    const clearAllFilters = useCallback(() => {
-        setStateFilter('ALL');
-        setTagFilters({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
-        setSearch('');
-    }, []);
-
-    const stats = useMemo(() => ({
-        total: items.length,
-        early: items.filter(i => i.state === 'EARLY').length,
-        mid: items.filter(i => i.state === 'MID').length,
-        late: items.filter(i => i.state === 'LATE').length,
-        nether: items.filter(i => i.tags.includes('NETHER')).length,
-        end: items.filter(i => i.tags.includes('END')).length,
-        extreme: items.filter(i => i.tags.includes('EXTREME')).length,
-        description: items.filter(i => i.description && i.description.length > 0).length,
-        missing: missingItems.length,
-        allMinecraft: allMinecraftItems.length,
-    }), [items, missingItems, allMinecraftItems]);
-
-    const toggleTag = (tag) => {
-        setTagFilters(prev => ({ ...prev, [tag]: !prev[tag] }));
-    };
-
-    if (error) {
-        return (
-            <div style={{
-                minHeight: '100vh',
-                background: 'oklch(17% 0.025 255)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexDirection: 'column', gap: '16px',
-                fontFamily: "'Barlow', system-ui, sans-serif",
-            }}>
-                <div style={{ color: 'oklch(62% 0.22 25)', fontSize: '16px', fontWeight: 600 }}>
-                    Failed to load: {error}
-                </div>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="fip2-action"
-                    style={{ padding: '9px 20px' }}
-                >
-                    Retry
-                </button>
-            </div>
-        );
+function label(i, changes) {
+    const parts = [i.displayName];
+    if (i.missing) parts.push('not in the pool');
+    else {
+        if (i.state) parts.push(`${STAGES[i.state].label} stage`);
+        if (i.tags.length) parts.push(i.tags.map((t) => TAGS[t].label).join(', '));
+        parts.push(i.description?.length ? 'has /info' : 'no /info');
     }
+    return [...parts, ...stagedWords(i, changes)].join(', ');
+}
 
-    // ── V2 token bridge ──────────────────────────────────────────────────────
-    const V = {
-        bg:        'oklch(17% 0.025 255)',
-        surface:   'oklch(21% 0.023 255)',
-        surfHov:   'oklch(25% 0.021 255)',
-        border:    'oklch(30% 0.019 255)',
-        borderF:   'oklch(24% 0.022 255)',
-        text:      'oklch(94% 0.007 255)',
-        textMid:   'oklch(74% 0.012 255)',
-        muted:     'oklch(58% 0.012 255)',
-        dim:       'oklch(42% 0.013 255)',
-        amber:     'oklch(76% 0.16 68)',
-        early:     'oklch(62% 0.20 142)',
-        mid:       'oklch(76% 0.16 68)',
-        late:      'oklch(62% 0.22 25)',
-        nether:    'oklch(60% 0.20 15)',
-        end:       'oklch(65% 0.15 290)',
-        extreme:   'oklch(66% 0.20 45)',
-        desc:      'oklch(68% 0.12 200)',
-    };
-    const stateColor = { EARLY: V.early, MID: V.mid, LATE: V.late };
-    const tagColor   = { NETHER: V.nether, END: V.end, EXTREME: V.extreme, DESCRIPTION: V.desc };
-
-    // ── V2 CSS ───────────────────────────────────────────────────────────────
-    const PAGE_CSS = `
-      @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
-
-      .fip2 { font-family: 'Barlow', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-
-
-      /* ── Unified top bar ── */
-      .fip2-topbar {
-        position: sticky; top: 0; z-index: 40;
-        background: oklch(20% 0.024 255);
-        backdrop-filter: blur(14px);
-        border-bottom: 1px solid oklch(27% 0.020 255);
-      }
-      /* Row 1: title + actions */
-      .fip2-topbar-row1 {
-        display: flex; align-items: center; gap: 10px;
-        padding: 12px 28px 12px;
-        border-bottom: 1px solid oklch(24% 0.022 255);
-      }
-      .fip2-topbar-title {
-        font-family: 'Barlow Condensed', system-ui, sans-serif;
-        font-size: 22px; font-weight: 800;
-        text-transform: uppercase; letter-spacing: 0.5px;
-        color: oklch(94% 0.007 255);
-        display: flex; align-items: center; gap: 10px;
-      }
-      .fip2-topbar-count {
-        display: inline-flex; align-items: center;
-        padding: 2px 10px; border-radius: 4px;
-        background: oklch(76% 0.16 68 / 0.10);
-        border: 1px solid oklch(76% 0.16 68 / 0.25);
-        font-size: 12px; font-weight: 700;
-        color: oklch(76% 0.16 68);
-        letter-spacing: 0.5px;
-        font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-topbar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-
-      /* Row 2: filters */
-      .fip2-topbar-row2 {
-        display: flex; align-items: center; gap: 8px;
-        padding: 9px 28px;
-        overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
-        background: oklch(18.5% 0.024 255);
-      }
-      .fip2-topbar-row2::-webkit-scrollbar { display: none; }
-
-      .fip2-filter-sep { width: 1px; height: 20px; background: oklch(28% 0.019 255); flex-shrink: 0; margin: 0 4px; }
-
-      /* Filter group — chips share one contained pill row */
-      .fip2-filter-group {
-        display: inline-flex; align-items: center; gap: 2px;
-        background: oklch(15% 0.025 255);
-        border: 1px solid oklch(26% 0.020 255);
-        border-radius: 6px; padding: 3px;
-        flex-shrink: 0;
-      }
-      .fip2-filter-label {
-        font-size: 10px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 1.5px; color: oklch(40% 0.013 255);
-        white-space: nowrap; flex-shrink: 0; padding: 0 6px;
-        display: flex; align-items: center; gap: 4px;
-        border-right: 1px solid oklch(26% 0.020 255); margin-right: 2px;
-      }
-
-      /* ── View toggle ── */
-      .fip2-view-toggle {
-        display: flex; align-items: center;
-        background: oklch(15% 0.025 255);
-        border: 1px solid oklch(26% 0.020 255);
-        border-radius: 6px; overflow: hidden; flex-shrink: 0;
-      }
-      .fip2-view-btn {
-        display: flex; align-items: center; gap: 5px; padding: 5px 13px;
-        background: none; border: none; cursor: pointer;
-        font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        color: oklch(44% 0.013 255);
-        transition: background 0.12s ease-out, color 0.12s ease-out;
-        white-space: nowrap; font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-view-btn.active { background: oklch(26% 0.021 255); color: oklch(94% 0.007 255); }
-      .fip2-view-btn:not(.active):hover { color: oklch(74% 0.012 255); }
-
-      /* ── Filter chip — inside a filter group ── */
-      .fip2-chip {
-        display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px;
-        background: transparent; border: none; border-radius: 4px; cursor: pointer;
-        font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        color: oklch(48% 0.013 255);
-        transition: background 0.1s, color 0.1s;
-        white-space: nowrap; flex-shrink: 0; font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-chip.active { color: oklch(94% 0.007 255); }
-      .fip2-chip:not(.active):hover { color: oklch(74% 0.012 255); background: oklch(22% 0.022 255); }
-
-      /* ── Sort select ── */
-      .fip2-sort-wrap { position: relative; flex-shrink: 0; }
-      .fip2-sort {
-        appearance: none;
-        background: oklch(15% 0.025 255);
-        border: 1px solid oklch(26% 0.020 255); border-radius: 5px;
-        padding: 5px 26px 5px 10px; color: oklch(60% 0.012 255);
-        font-size: 11.5px; font-weight: 600; cursor: pointer; outline: none;
-        font-family: 'Barlow', system-ui, sans-serif;
-        text-transform: uppercase; letter-spacing: 0.5px;
-        transition: border-color 0.12s, color 0.12s;
-      }
-      .fip2-sort:hover { border-color: oklch(36% 0.016 255); color: oklch(80% 0.009 255); }
-      .fip2-sort-arrow { position: absolute; right: 7px; top: 50%; transform: translateY(-50%); pointer-events: none; color: oklch(42% 0.013 255); }
-
-      /* ── Small ghost button (topbar) ── */
-      .fip2-action {
-        display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px;
-        background: none; border: 1px solid oklch(28% 0.019 255);
-        border-radius: 6px; cursor: pointer;
-        font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        color: oklch(52% 0.013 255);
-        transition: border-color 0.12s ease-out, color 0.12s ease-out, background 0.12s ease-out;
-        white-space: nowrap; font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-action:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); background: oklch(25% 0.021 255); }
-      .fip2-action.active { color: oklch(94% 0.007 255); border-color: oklch(76% 0.16 68 / 0.45); background: oklch(76% 0.16 68 / 0.10); }
-      .fip2-action:disabled { opacity: 0.4; cursor: not-allowed; }
-      /* Primary action — amber tint */
-      .fip2-action.primary {
-        color: oklch(76% 0.16 68);
-        border-color: oklch(76% 0.16 68 / 0.35);
-        background: oklch(76% 0.16 68 / 0.07);
-      }
-      .fip2-action.primary:hover {
-        color: oklch(82% 0.16 68);
-        border-color: oklch(76% 0.16 68 / 0.60);
-        background: oklch(76% 0.16 68 / 0.14);
-      }
-
-      /* ── Search + primary action row ── */
-      .fip2-search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
-      .fip2-search-wrap { position: relative; flex: 1; }
-      .fip2-search {
-        width: 100%; box-sizing: border-box;
-        background: oklch(21% 0.023 255); border: 1px solid oklch(30% 0.019 255);
-        border-radius: 8px; padding: 10px 14px 10px 40px;
-        color: oklch(94% 0.007 255); font-size: 14px; outline: none;
-        transition: border-color 0.12s ease-out, background 0.12s ease-out;
-        font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-search:focus { border-color: oklch(44% 0.014 255); background: oklch(22.5% 0.022 255); }
-      .fip2-search::placeholder { color: oklch(42% 0.013 255); }
-      .fip2-search-icon {
-        position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-        pointer-events: none; color: oklch(50% 0.013 255);
-      }
-      .fip2-search-btn {
-        display: inline-flex; align-items: center; gap: 7px;
-        padding: 10px 16px; flex-shrink: 0;
-        background: oklch(21% 0.023 255); border: 1px solid oklch(30% 0.019 255);
-        border-radius: 8px; cursor: pointer;
-        font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        color: oklch(60% 0.013 255);
-        transition: border-color 0.12s ease-out, color 0.12s ease-out, background 0.12s ease-out;
-        white-space: nowrap; font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-search-btn:hover { color: oklch(94% 0.007 255); border-color: oklch(44% 0.014 255); background: oklch(25% 0.021 255); }
-      .fip2-search-btn.active { color: oklch(94% 0.007 255); border-color: oklch(76% 0.16 68); background: oklch(76% 0.16 68 / 0.10); }
-      .fip2-search-btn.primary { border-color: oklch(76% 0.16 68 / 0.35); color: oklch(76% 0.16 68); }
-      .fip2-search-btn.primary:hover { background: oklch(76% 0.16 68 / 0.12); border-color: oklch(76% 0.16 68 / 0.6); }
-
-      /* ── Results meta ── */
-      .fip2-meta {
-        padding: 5px 28px;
-        font-size: 11.5px; color: oklch(42% 0.013 255);
-        display: flex; align-items: center; gap: 8px;
-        border-bottom: 1px solid oklch(24% 0.022 255);
-      }
-      .fip2-meta a, .fip2-meta button.fip2-inline-link {
-        color: oklch(60% 0.09 200); background: none; border: none; padding: 0;
-        font-size: 11.5px; cursor: pointer; text-decoration: underline;
-      }
-
-      /* ── Item grid ── */
-      .fip2-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 8px;
-      }
-
-      /* ── Item card ── */
-      .fip2-card {
-        background: oklch(21% 0.023 255);
-        border: 1px solid oklch(30% 0.019 255);
-        border-radius: 8px;
-        padding: 14px 14px 12px;
-        display: flex; flex-direction: column; gap: 9px;
-        position: relative;
-        transition: background 0.1s ease-out, border-color 0.1s ease-out;
-        cursor: default;
-      }
-      .fip2-card.interactive { cursor: pointer; }
-      .fip2-card.interactive:hover { background: oklch(25% 0.021 255); border-color: oklch(35% 0.016 255); }
-      .fip2-card.selected { background: oklch(76% 0.16 68 / 0.07); border-color: oklch(76% 0.16 68 / 0.35); }
-      .fip2-card.edit-mode { cursor: pointer; }
-      .fip2-card.edit-mode:hover { background: oklch(76% 0.16 68 / 0.06); border-color: oklch(76% 0.16 68 / 0.3); }
-
-      .fip2-card-row { display: flex; align-items: center; gap: 9px; }
-      .fip2-card-img { width: 40px; height: 40px; image-rendering: pixelated; flex-shrink: 0; }
-      .fip2-card-name {
-        font-size: 14px; font-weight: 500; line-height: 1.25;
-        color: oklch(88% 0.009 255); flex: 1; min-width: 0;
-      }
-      .fip2-card-info-icon { color: oklch(68% 0.12 200); flex-shrink: 0; opacity: 0.7; }
-
-      .fip2-badges { display: flex; gap: 5px; flex-wrap: wrap; }
-      .fip2-badge {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 2px 7px;
-        border-radius: 4px;
-        border: 1px solid transparent;
-        font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-        font-family: 'Barlow Condensed', system-ui, sans-serif;
-        line-height: 1.4;
-      }
-
-      /* ── Card corner indicators ── */
-      .fip2-card-corner {
-        position: absolute; top: 7px; right: 7px;
-        width: 16px; height: 16px; border-radius: 3px;
-        border: 1px solid oklch(30% 0.019 255);
-        background: oklch(13% 0.025 255);
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.1s ease-out;
-      }
-      .fip2-card-corner.selected-check {
-        background: oklch(76% 0.16 68);
-        border-color: oklch(76% 0.16 68);
-      }
-      .fip2-card-corner.edit-pen {
-        background: oklch(76% 0.16 68 / 0.15);
-        border-color: oklch(76% 0.16 68 / 0.4);
-      }
-
-      /* ── Floating selection bar ── */
-      @keyframes fip-slide-up { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-      .fip2-sel-bar {
-        position: fixed; bottom: 24px; left: 50%;
-        transform: translateX(-50%);
-        background: oklch(21% 0.023 255);
-        border: 1px solid oklch(30% 0.019 255);
-        border-radius: 8px;
-        padding: 10px 16px;
-        display: flex; align-items: center; gap: 12px;
-        box-shadow: 0 8px 32px oklch(4% 0.019 255 / 0.7);
-        z-index: 100;
-        animation: fip-slide-up 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
-        font-family: 'Barlow', system-ui, sans-serif;
-      }
-
-      /* ── Modal ── */
-      .fip2-modal-overlay {
-        position: fixed; inset: 0;
-        background: oklch(4% 0.019 255 / 0.85);
-        display: flex; align-items: center; justify-content: center;
-        z-index: 1000; padding: 20px;
-      }
-      .fip2-modal {
-        background: oklch(21% 0.023 255);
-        border: 1px solid oklch(30% 0.019 255);
-        border-radius: 10px;
-        padding: 24px;
-        max-width: 500px; width: 100%;
-        max-height: 80vh; overflow-y: auto;
-        font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-modal-header {
-        display: flex; align-items: center; gap: 14px;
-        margin-bottom: 18px; padding-bottom: 16px;
-        border-bottom: 1px solid oklch(24% 0.022 255);
-      }
-      .fip2-modal-img {
-        width: 56px; height: 56px;
-        image-rendering: pixelated;
-        border: 1px solid oklch(30% 0.019 255);
-        border-radius: 6px;
-        background: oklch(13% 0.025 255);
-        flex-shrink: 0;
-      }
-      .fip2-modal-name {
-        font-family: 'Barlow Condensed', system-ui, sans-serif;
-        font-size: 20px; font-weight: 800; text-transform: uppercase;
-        color: oklch(94% 0.007 255); margin: 0 0 8px;
-      }
-      .fip2-modal-desc-block {
-        background: oklch(13% 0.025 255);
-        border: 1px solid oklch(24% 0.022 255);
-        border-radius: 6px; padding: 14px 16px;
-        font-family: 'Courier New', monospace;
-        font-size: 13.5px; line-height: 1.7;
-        margin-bottom: 18px;
-      }
-
-      /* ── Tooltip ── */
-      .fip2-tooltip {
-        background: oklch(25% 0.021 255);
-        border: 1px solid oklch(30% 0.019 255);
-        border-radius: 8px; padding: 14px 16px;
-        max-width: 340px;
-        box-shadow: 0 8px 32px oklch(4% 0.019 255 / 0.5);
-        font-family: 'Barlow', system-ui, sans-serif;
-      }
-      .fip2-tooltip-title {
-        font-family: 'Barlow Condensed', system-ui, sans-serif;
-        font-size: 13px; font-weight: 700; text-transform: uppercase;
-        color: oklch(94% 0.007 255); margin: 0 0 10px; letter-spacing: 0.3px;
-      }
-
-      /* ── Timing widget (inside tooltip) ── */
-      .fip2-timing {
-        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-        background: oklch(13% 0.025 255);
-        border: 1px solid oklch(24% 0.022 255);
-        border-radius: 6px; padding: 6px 10px;
-        cursor: help;
-      }
-      .fip2-timing-label {
-        font-size: 10.5px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: 1.5px; color: oklch(42% 0.013 255);
-        display: flex; align-items: center; gap: 4px;
-        padding-right: 8px; border-right: 1px solid oklch(30% 0.019 255);
-        white-space: nowrap;
-      }
-      .fip2-timing-items { display: flex; gap: 10px; }
-      .fip2-timing-item { display: flex; align-items: center; gap: 5px; font-size: 12px; }
-      .fip2-timing-dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
-      .fip2-timing-name { color: oklch(74% 0.012 255); font-weight: 500; }
-      .fip2-timing-pct { color: oklch(42% 0.013 255); }
-      .fip2-timing-ex {
-        font-size: 11px; color: oklch(42% 0.013 255);
-        border-left: 1px solid oklch(30% 0.019 255);
-        padding-left: 10px; margin-left: 2px; white-space: nowrap;
-      }
-
-      /* ── Unlock bar ── */
-      .fip2-unlock-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-      .fip2-unlock-swatch { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
-      .fip2-unlock-text { font-size: 13px; color: oklch(74% 0.012 255); }
-      .fip2-unlock-note {
-        font-size: 11px; color: oklch(58% 0.012 255);
-        background: oklch(13% 0.025 255);
-        border: 1px solid oklch(24% 0.022 255);
-        border-radius: 5px; padding: 7px 10px; margin-top: 4px;
-      }
-
-      /* ── Content area ── */
-      .fip2-content { padding: 20px 28px 48px; max-width: 1400px; margin: 0 auto; }
-
-      @keyframes spin { to { transform: rotate(360deg); } }
-      @keyframes fib-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-
-      @media (max-width: 640px) {
-        .fip2-topbar { padding: 8px 16px; }
-        .fip2-topbar-count { display: none; }
-        .fip2-topbar-actions .fip2-action span { display: none; }
-        .fip2-filters { padding: 10px 16px; }
-        .fip2-meta { padding: 8px 16px; }
-        .fip2-content { padding: 16px 16px 48px; }
-        .fip2-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-      }
-    `;
-
+function Row({ item: i, props, changes }) {
+    const firstLine = i.description?.find((l, n) => n > 0 && stripMc(l).trim()) ?? null;
+    const staged = stagedWords(i, changes);
     return (
-        <div className="fip2" style={{ minHeight: '100vh', background: 'oklch(17% 0.025 255)', color: 'oklch(94% 0.007 255)' }}>
-            <style>{PAGE_CSS}</style>
-            {/* Modal */}
-            <Modal item={selectedItem} onClose={() => setSelectedItem(null)} />
+        <button type="button" className="ip-row-item" {...props}>
+            <Slot item={i} size={36} />
+            <span className="ip-row-name">
+                <span>{i.displayName}</span>
+                <code className="ip-mono">{i.material.toLowerCase()}</code>
+            </span>
+            <span className="ip-row-stage">{!i.missing && <StageWord state={i.state} />}</span>
+            <span className="ip-row-tags">{i.tags.map((t) => <span key={t} className="ip-tagword" style={{ color: TAGS[t].ink }}><TagGlyph tag={t} size={9} /> {TAGS[t].label}</span>)}</span>
+            <span className="ip-row-info">{i.missing ? <span className="ip-dim">Not in the pool</span> : firstLine ? <McLine text={firstLine} /> : <span className="ip-dim">No /info</span>}</span>
+            <span className="ip-row-staged">{staged.length > 0 && staged.join(', ')}</span>
+        </button>
+    );
+}
 
-            {/* ── Unified top bar ── */}
-            <div className="fip2-topbar">
-
-                {/* Row 1: title + actions */}
-                <div className="fip2-topbar-row1">
-                    <div className="fip2-topbar-title">
-                        Item Pools
-                        {stats.total > 0 && (
-                            <span className="fip2-topbar-count">{stats.total} items</span>
-                        )}
-                    </div>
-                    <div className="fip2-topbar-actions">
-                        <button className="fip2-action" onClick={handleRefresh} disabled={loading}>
-                            <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-                            Refresh
-                        </button>
-                        <button className="fip2-action" onClick={() => setShowHistory(true)}>
-                            <History size={12} />
-                            History
-                        </button>
-                        <button className="fip2-action" onClick={() => setShowStatistics(true)}>
-                            <BarChart3 size={12} />
-                            Stats
-                        </button>
-                        <a
-                            href="https://github.com/McPlayHDnet/ForceItemBattle"
-                            target="_blank" rel="noopener noreferrer"
-                            className="fip2-action"
-                            style={{ textDecoration: 'none' }}
-                        >
-                            <ExternalLink size={12} />
-                            GitHub
-                        </a>
-                    </div>
-                </div>
-
-                {/* Row 2: filters */}
-                <div className="fip2-topbar-row2">
-
-                    {/* View toggle */}
-                    <div className="fip2-view-toggle">
-                        {[
-                            { value: 'pools',   label: 'In Pools', icon: <Package size={11} />,   count: stats.total },
-                            { value: 'missing', label: 'Missing',  icon: <PackageX size={11} />, count: stats.missing },
-                        ].map(opt => (
-                            <button
-                                key={opt.value}
-                                className={`fip2-view-btn${viewMode === opt.value ? ' active' : ''}`}
-                                onClick={() => setViewMode(opt.value)}
-                            >
-                                {opt.icon} {opt.label}
-                                <span style={{ opacity: 0.45, fontWeight: 400 }}>({opt.count})</span>
-                            </button>
-                        ))}
-                    </div>
-
-                    {viewMode === 'pools' && (
-                        <>
-                            <div className="fip2-filter-sep" />
-
-                            {/* Stage filter group */}
-                            <div className="fip2-filter-group">
-                                <InfoTooltip content={
-                                    <div className="fip2-tooltip">
-                                        <div className="fip2-tooltip-title">Dynamic Item Pools</div>
-                                        <p style={{ fontSize: 13, color: 'oklch(58% 0.012 255)', margin: '0 0 12px', lineHeight: 1.6 }}>
-                                            Items unlock progressively as the game progresses, preventing late-game items from appearing too early.
-                                        </p>
-                                        {[
-                                            { state: 'EARLY', label: 'Early', pct: '0%',  col: V.early },
-                                            { state: 'MID',   label: 'Mid',   pct: '11%', col: V.mid },
-                                            { state: 'LATE',  label: 'Late',  pct: '29%', col: V.late },
-                                        ].map(r => (
-                                            <div className="fip2-unlock-row" key={r.state}>
-                                                <span className="fip2-unlock-swatch" style={{ background: r.col }} />
-                                                <span className="fip2-unlock-text">
-                                                    <strong style={{ color: r.col }}>{r.label}</strong> — unlocks at {r.pct} of game time
-                                                </span>
-                                            </div>
-                                        ))}
-                                        <div className="fip2-unlock-note">45-min game: Early immediately, Mid at ~5 min, Late at ~13 min.</div>
-                                    </div>
-                                }>
-                                    <span className="fip2-filter-label" style={{ cursor: 'help' }}>
-                                        Stage <Info size={9} style={{ opacity: 0.6 }} />
-                                    </span>
-                                </InfoTooltip>
-
-                                {['ALL', 'EARLY', 'MID', 'LATE'].map(s => {
-                                    const col = s === 'ALL' ? V.muted : stateColor[s];
-                                    const active = stateFilter === s;
-                                    return (
-                                        <button
-                                            key={s}
-                                            className={`fip2-chip${active ? ' active' : ''}`}
-                                            onClick={() => setStateFilter(s)}
-                                            style={active ? { background: col + '20', color: col } : {}}
-                                        >
-                                            {s === 'ALL' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
-                                            {s !== 'ALL' && <span style={{ opacity: 0.45, fontWeight: 400 }}>{stats[s.toLowerCase()]}</span>}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            <div className="fip2-filter-sep" />
-
-                            {/* Tag filter group */}
-                            <div className="fip2-filter-group">
-                                <span className="fip2-filter-label">Tags</span>
-                                {[
-                                    { key: 'NETHER',      label: 'Nether' },
-                                    { key: 'END',         label: 'End' },
-                                    { key: 'EXTREME',     label: 'Extreme' },
-                                    { key: 'DESCRIPTION', label: 'Has Info' },
-                                ].map(t => {
-                                    const col = tagColor[t.key];
-                                    const active = tagFilters[t.key];
-                                    return (
-                                        <button
-                                            key={t.key}
-                                            className={`fip2-chip${active ? ' active' : ''}`}
-                                            onClick={() => toggleTag(t.key)}
-                                            style={active ? { background: col + '20', color: col } : {}}
-                                        >
-                                            {t.label}
-                                            <span style={{ opacity: 0.45, fontWeight: 400 }}>{stats[t.key.toLowerCase()]}</span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </>
-                    )}
-
-                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                        <div className="fip2-sort-wrap">
-                            <select className="fip2-sort" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                                <option value="name">A–Z</option>
-                                <option value="state">Stage</option>
-                                <option value="hasInfo">Has Info</option>
-                            </select>
-                            <ChevronDown size={10} className="fip2-sort-arrow" />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <GitBranch size={10} style={{ color: 'oklch(42% 0.013 255)', flexShrink: 0 }} />
-                            <div className="fip2-sort-wrap">
-                                <select
-                                    className="fip2-sort"
-                                    value={viewBranch}
-                                    onChange={e => handleViewBranchChange(e.target.value)}
-                                    disabled={loading}
-                                    style={viewBranch !== DEFAULT_BRANCH ? { borderColor: 'oklch(76% 0.16 68 / 0.5)', color: 'oklch(76% 0.16 68)' } : {}}
-                                >
-                                    {availableBranches.map(b => (
-                                        <option key={b} value={b}>{b === DEFAULT_BRANCH ? 'main' : b}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={10} className="fip2-sort-arrow" />
-                            </div>
-                        </div>
-                        {activeFilterCount > 0 && (
-                            <button className="fip2-action" onClick={clearAllFilters} style={{ padding: '4px 9px' }}>
-                                <X size={10} /> Clear {activeFilterCount}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
-            <div className="fip2-meta">
-                {filteredItems.length === 0 && activeFilterCount > 0 ? (
+/* The game's tooltip, for a slot under the pointer: what the slot's marks say, in words. */
+function Tip({ item: i, rect, changes }) {
+    const ref = useRef(null);
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const box = el.getBoundingClientRect();
+        let x = rect.right + 10;
+        if (x + box.width > window.innerWidth - 8) x = rect.left - box.width - 10;
+        const y = Math.min(Math.max(8, rect.top - 4), window.innerHeight - box.height - 8);
+        el.style.left = `${Math.max(8, x)}px`;
+        el.style.top = `${y}px`;
+        el.style.visibility = 'visible';
+    }, [rect]);
+    const staged = stagedWords(i, changes);
+    // /info's own lines, as lore under the name: the header repeats the name, and the
+    // spacers are spacing, so the preview starts at the first line that says something.
+    const lines = (i.description ?? []).slice(1).filter((l) => stripMc(l).trim());
+    const preview = lines.slice(0, 4);
+    const more = lines.length - preview.length;
+    return (
+        <div ref={ref} className="wk-tip ip-tip" role="tooltip" style={{ left: -9999, top: -9999, visibility: 'hidden' }}>
+            <div className="wk-tip-name">{i.displayName}</div>
+            {i.missing
+                ? <div className="wk-tip-line">Not in the pool</div>
+                : (
                     <>
-                        <SearchX size={13} style={{ color: 'oklch(68% 0.20 45)' }} />
-                        <span style={{ color: 'oklch(68% 0.20 45)' }}>No items match your filters.</span>
-                        <button className="fip2-inline-link" onClick={clearAllFilters}>Clear filters</button>
-                    </>
-                ) : (
-                    <>
-                        <span>
-                            Showing {filteredItems.length} of {viewMode === 'pools' ? stats.total : stats.missing} items
-                        </span>
-                        {activeFilterCount > 0 && <span>({activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active)</span>}
+                        <div className="wk-tip-line"><StageWord state={i.state} /> stage{i.tags.length ? <>, {i.tags.map((t) => <span key={t} style={{ color: TAGS[t].ink }}>{TAGS[t].label} </span>)}</> : null}</div>
+                        {preview.length > 0
+                            ? <div className="ip-tip-lore">{preview.map((l, n) => <McLine key={n} text={l} />)}{more > 0 && <span className="ip-tip-more">+{more} more {more === 1 ? 'line' : 'lines'} in /info</span>}</div>
+                            : <div className="wk-tip-line">No /info</div>}
                     </>
                 )}
-                {viewMode === 'pools' && stats.description > 0 && !editMode && filteredItems.length > 0 && (
-                    <span className="fip2-meta-hint" style={{ color: V.desc }}>Click items with <Info size={11} style={{ verticalAlign: 'middle', margin: '0 2px' }} /> for details</span>
-                )}
-                {viewMode === 'pools' && editMode && filteredItems.length > 0 && (
-                    <span style={{ color: V.amber }}>Click any item to edit its description</span>
-                )}
-                {loadingMisode && viewMode === 'missing' && (
-                    <span>Loading Minecraft item registry...</span>
-                )}
-            </div>
-
-            {/* ── Main content ── */}
-            <div className="fip2-content">
-                {/* Search + primary actions row */}
-                <div className="fip2-search-row">
-                    <div className="fip2-search-wrap">
-                        <Search size={15} className="fip2-search-icon" />
-                        <input
-                            className="fip2-search"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder={viewMode === 'missing' ? 'Search missing items...' : 'Search items...'}
-                            autoComplete="off"
-                        />
-                    </div>
-                    {viewMode === 'pools' && (
-                        <button
-                            className={`fip2-search-btn${editMode ? ' active' : ''}`}
-                            onClick={() => setEditMode(!editMode)}
-                        >
-                            {editMode ? <Check size={14} /> : <Pencil size={14} />}
-                            {editMode ? 'Done editing' : 'Edit descriptions'}
-                        </button>
-                    )}
-                    <button
-                        className="fip2-search-btn primary"
-                        onClick={() => setShowPoolManager(true)}
-                    >
-                        <Package size={14} />
-                        Manage Pools
-                    </button>
-                </div>
-
-                {/* Floating Selection Bar */}
-                {selectedMissingItems.size > 0 && viewMode === 'missing' && (
-                    <div className="fip2-sel-bar">
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'oklch(94% 0.007 255)' }}>
-                            {selectedMissingItems.size} item{selectedMissingItems.size !== 1 ? 's' : ''} selected
-                        </span>
-                        <button className="fip2-action" onClick={handleClearSelectedMissing}>
-                            <X size={13} /> Clear
-                        </button>
-                        <button
-                            className="fip2-action"
-                            onClick={handleOpenPoolManagerWithSelectedItems}
-                            style={{ borderColor: 'oklch(76% 0.16 68 / 0.5)', color: 'oklch(76% 0.16 68)' }}
-                        >
-                            <Plus size={13} /> Add to Pool
-                        </button>
-                    </div>
-                )}
-
-                {/* Item Grid */}
-                {loading ? (
-                    <SkeletonGrid count={12} />
-                ) : (
-                    <div
-                        className="fip2-grid"
-                        style={{ paddingBottom: selectedMissingItems.size > 0 ? 80 : 0 }}
-                    >
-                        {filteredItems.map(item => (
-                            <ItemCard
-                                key={item.material}
-                                item={item}
-                                onClick={setSelectedItem}
-                                editMode={editMode}
-                                onEdit={setEditItem}
-                                onAddMissing={handleOpenPoolManagerWithItem}
-                                isSelected={selectedMissingItems.has(item.material)}
-                                onToggleSelect={handleToggleMissingItem}
-                            />
-                        ))}
-                    </div>
-                )}
-
-                {filteredItems.length === 0 && !loading && (
-                    // Show loading indicator while fetching Minecraft registry for missing view
-                    viewMode === 'missing' && loadingMisode ? (
-                        <div style={{
-                            textAlign: 'center',
-                            padding: '60px 20px',
-                            color: 'oklch(42% 0.013 255)',
-                        }}>
-                            <RefreshCw
-                                size={28}
-                                style={{
-                                    animation: 'spin 1s linear infinite',
-                                    marginBottom: '16px',
-                                    opacity: 0.4,
-                                }}
-                            />
-                            <div style={{ fontSize: '13px' }}>
-                                Loading Minecraft item registry...
-                            </div>
-                        </div>
-                    ) : search ? (
-                        <NoResultsEmpty
-                            searchTerm={search}
-                            onClear={() => setSearch('')}
-                        />
-                    ) : viewMode === 'missing' && missingItems.length === 0 && !loadingMisode ? (
-                        <NoMissingItemsEmpty />
-                    ) : (
-                        <NoResultsEmpty
-                            searchTerm=""
-                            onClear={() => {
-                                setStateFilter('ALL');
-                                setTagFilters({ NETHER: false, END: false, EXTREME: false, DESCRIPTION: false });
-                            }}
-                        />
-                    )
-                )}
-                <Footer />
-            </div>
-
-            {/* Description Editor Modal */}
-            {editItem && (
-                <DescriptionEditor
-                    item={editItem}
-                    allItems={items}
-                    onClose={() => setEditItem(null)}
-                    onSave={handleDescriptionSave}
-                />
-            )}
-
-            {/* Git History Modal */}
-            {showHistory && (
-                <GitHistory onClose={() => setShowHistory(false)} />
-            )}
-
-            {/* Item Pool Manager Modal */}
-            {showPoolManager && (
-                <ItemPoolManager
-                    onClose={handleClosePoolManager}
-                    items={items}
-                    missingItems={missingItems}
-                    onRefreshMisode={handleRefreshMisode}
-                    initialExpandedItem={initialPoolItem}
-                    initialExpandedItems={initialPoolItems}
-                />
-            )}
-
-            {/* Statistics Dashboard Modal */}
-            {showStatistics && (
-                <StatisticsDashboard
-                    items={items}
-                    missingItems={missingItems}
-                    onClose={() => setShowStatistics(false)}
-                />
-            )}
+            {staged.length > 0 && <div className="wk-tip-line wk-tip-hi">{staged.join(', ')}</div>}
+            <div className="wk-tip-id">minecraft:{i.material.toLowerCase()}</div>
         </div>
     );
 }
 
-// Main export with providers
-export default function ForceItemPools() {
-    return (
-        <ToastProvider>
-            <GlobalStyles />
-            <ForceItemPoolsContent />
-        </ToastProvider>
-    );
-}

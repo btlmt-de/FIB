@@ -1,0 +1,184 @@
+/*
+ * Custom Content (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the
+ * skeleton is page.css.
+ *
+ * The page's drawings use the wiki's grammar and nothing new: items in sunk slots,
+ * straight 2px tracks ending in the pixel arrowhead, stack counts only for counts.
+ * A crafting table is drawn as the game draws one (a 3x3 grid, a track, the result),
+ * a trade or a smelt as what goes in, where, and what comes out. No section is a card:
+ * parts are divided by the 1px rule, as everywhere on the wiki.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.cc .wk-h3 { margin-bottom: 2px; }
+.cc-sec { display: grid; gap: 28px; padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 56px; }
+.cc-sec [id] { scroll-margin-top: 72px; }
+.cc-sec-head { display: grid; gap: 12px; max-width: 72ch; }
+
+/* ── The head: the custom items, and the page's contents ─────────────────── */
+
+.cc-contents { display: grid; gap: 8px; width: 100%; margin-top: 10px; }
+.cc-contents ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 12px; }
+.cc-content {
+  display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px;
+  border-radius: 2px; text-decoration: none; color: var(--wk-ink);
+  font-size: 16px; font-weight: 600; line-height: 1.25;
+  transition: background 140ms var(--wk-ease);
+}
+.cc-content:hover { background: var(--wk-panel); }
+.cc-content:hover .wk-sprite { transform: translateY(-2px) scale(1.07); }
+.cc-toc { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-top: 6px; }
+.cc-toc .wk-label { margin-right: 4px; }
+
+/* ── Tracks ────────────────────────────────────────────────────────────────── */
+
+.cc-to { position: relative; flex: 0 0 40px; height: 2px; background: var(--wk-line-hi); }
+.cc-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
+}
+/* A station with no item of its own (a villager) rides above its track as a word. */
+.cc-to:has(.cc-to-label) { flex-basis: 128px; }
+.cc-to-label {
+  position: absolute; left: 0; right: 8px; bottom: 8px; text-align: center;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wk-ink-3);
+  white-space: nowrap;
+}
+
+/* ── Crafting, trading, smelting ───────────────────────────────────────────── */
+
+.cc-craft, .cc-exchange { margin: 0; display: grid; gap: 10px; justify-items: start; }
+.cc-craft-row, .cc-exchange-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cc-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 2px; }
+.cc-give { display: inline-flex; gap: 2px; }
+.cc-result { display: inline-flex; align-items: center; gap: 12px; }
+.cc-result .wk-slot { background: radial-gradient(circle at 50% 60%, oklch(100% 0 0 / 0.06), transparent 70%), var(--wk-slot); }
+.cc-result-name { font-size: 16px; font-weight: 700; line-height: 1.25; color: var(--wk-ink); max-width: 16ch; }
+.cc-craft figcaption, .cc-exchange figcaption { max-width: 52ch; }
+
+/* ── The trip into the Depths ──────────────────────────────────────────────── */
+
+/* Five steps on one rail, in the order they have to happen: the sequence is the
+   information, so they are numbered. Each step puts its words beside its drawing. */
+.cc-steps { position: relative; list-style: none; margin: 0; padding: 0; display: grid; }
+.cc-steps::before { content: ""; position: absolute; left: 15px; top: 34px; bottom: 34px; width: 2px; background: var(--wk-line-hi); }
+.cc-step {
+  position: relative; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 48px; align-items: start;
+  padding: 22px 0 22px 52px;
+}
+.cc-step + .cc-step { box-shadow: inset 52px 0 0 var(--wk-ground), inset 0 1px 0 var(--wk-line); }
+.cc-step-text { display: grid; gap: 10px; }
+.cc-step-title { margin: 0; display: flex; align-items: center; gap: 12px; font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.15; color: var(--wk-ink); }
+.cc-step-n {
+  position: absolute; left: 0; top: 22px;
+  display: grid; place-items: center; width: 32px; height: 32px;
+  font-family: var(--wk-font-text); font-size: 16px; font-weight: 700; color: var(--wk-ink);
+  background: var(--wk-slot); border-radius: 2px;
+  box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), inset -2px -2px 0 oklch(30% 0.010 255 / 0.55);
+}
+.cc-step-draw { padding-top: 4px; }
+.cc-inside { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; }
+.cc-inside-item { display: flex; align-items: center; gap: 12px; padding: 4px; border-radius: 2px; color: inherit; text-decoration: none; }
+.cc-inside-item > span:last-child { display: grid; gap: 1px; }
+a.cc-inside-item:hover { background: var(--wk-panel); }
+.cc-inside-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+
+/* ── The loot ──────────────────────────────────────────────────────────────── */
+
+.cc-loot { display: grid; gap: 14px; }
+.cc-rooms { display: flex; flex-wrap: wrap; gap: 2px; }
+.cc-rooms > button, .cc-seg > button {
+  min-height: 40px; padding: 0 14px 2px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.cc-rooms > button:hover, .cc-seg > button:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+.cc-rooms > button[aria-selected="true"], .cc-seg > button[aria-checked="true"] {
+  background: var(--wk-panel-hi); color: var(--wk-ink); box-shadow: inset 0 -3px 0 var(--wk-ink);
+}
+.cc-room-text { max-width: 72ch; }
+.cc-loot-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 48px; align-items: start; }
+.cc-pools { display: grid; gap: 22px; min-width: 0; }
+.cc-pool { display: grid; gap: 8px; }
+.cc-drops { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 28px; }
+.cc-drop-row {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  min-height: 46px; padding: 4px 0; box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.55);
+}
+.cc-drop-row[data-empty] .cc-drop-name, .cc-drop-row[data-empty] .cc-drop-pct { color: var(--wk-ink-3); }
+.cc-drop-name { display: grid; gap: 1px; min-width: 0; font-size: 16px; font-weight: 600; color: var(--wk-ink); line-height: 1.25; }
+.cc-drop-count { font-weight: 500; color: var(--wk-ink-3); }
+.cc-drop-note { font-size: 14px; font-weight: 500; color: var(--wk-ink-3); }
+.cc-drop-pct { font-size: 16px; color: var(--wk-ink); }
+.cc-drops--inline { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+
+/* The opened chest: nine slots across, three rows, as the game's chest has. */
+.cc-open { --cell: 44px; display: grid; gap: 12px; justify-items: start; position: sticky; top: 72px; }
+.cc-btn { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
+.cc-chest {
+  display: grid; grid-template-columns: repeat(9, var(--cell)); gap: 2px; padding: 8px;
+  background: var(--wk-deep); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
+}
+.cc-chest .wk-slot { --slot: var(--cell) !important; }
+.cc-chest--shut .wk-slot { opacity: 0.6; }
+.cc-drop { animation: cc-land 280ms var(--wk-ease) both; }
+@keyframes cc-land { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.cc-open .wk-small { max-width: 44ch; }
+
+/* ── Locators ──────────────────────────────────────────────────────────────── */
+
+.cc-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.cc-table th, .cc-table td { padding: 8px 16px 8px 0; text-align: left; vertical-align: middle; box-shadow: inset 0 -1px 0 var(--wk-line); }
+.cc-table thead th { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
+.cc-table td { color: var(--wk-ink-2); }
+.cc-table-item { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; color: var(--wk-ink); text-decoration: none; }
+.cc-table-item:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* The detail of each thing, two to a row, divided by the rule rather than boxed. */
+.cc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 56px; }
+.cc-card { display: grid; gap: 14px; align-content: start; padding: 24px 0 32px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.cc-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; justify-self: start; }
+.cc-notes, .cc-offers { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.cc-note { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 4px 0; }
+.cc-note > span:nth-child(2) { display: grid; gap: 1px; }
+.cc-note-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+.cc-note-flavor { font-size: 14px; font-style: italic; color: var(--wk-ink-3); }
+.cc-note-pct { font-size: 16px; color: var(--wk-ink-2); }
+.cc-offer { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 6px 0; }
+.cc-offer-draw { display: inline-flex; align-items: center; gap: 10px; }
+.cc-offer-draw .cc-to { flex-basis: 24px; }
+.cc-offer-text { display: grid; gap: 2px; }
+.cc-offer-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .cc-loot-body { grid-template-columns: 1fr; }
+  .cc-open { position: static; }
+  .cc-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .cc-step { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .cc-open { --cell: 34px; }
+  .cc-chest { padding: 6px; }
+  .cc-table thead { display: none; }
+  .cc-table, .cc-table tbody, .cc-table tr, .cc-table th, .cc-table td { display: block; }
+  .cc-table tr { padding: 10px 0; box-shadow: inset 0 -1px 0 var(--wk-line); }
+  .cc-table th, .cc-table td { box-shadow: none; padding: 2px 0; }
+  .cc-table td { font-size: 14px; }
+  .cc-to:has(.cc-to-label) { flex-basis: 96px; }
+  .cc-contents ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-drop { animation: none; }
+  .cc-content:hover .wk-sprite { transform: none; }
+}
+html[data-saver="on"] .cc-drop { animation: none; }

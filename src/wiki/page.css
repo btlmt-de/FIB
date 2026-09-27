@@ -1,0 +1,118 @@
+/*
+ * An inner page of the wiki (THE EXPLORER'S ATLAS). Loaded with each inner page's
+ * own chunk, so every class here is pg- and needs no .wk scope of its own.
+ *
+ * The home page is the showcase; an inner page is reference, read on a phone beside
+ * the game. So the skeleton is quieter than home's: a title at the section size
+ * (the display size is home's wordmark, once), a lede, then sections that put the
+ * question on the left and its drawing on the right, divided by one inset rule.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.pg { display: block; overflow-x: clip; }
+/* A page shorter than the screen (Imprint): the footer sits at the bottom of the
+   screen rather than halfway up it. 56px is the nav. */
+.pg--short { display: flex; flex-direction: column; min-height: calc(100dvh - 56px); }
+.pg--short > .wk-foot { margin-top: auto; }
+
+/* ── The head ─────────────────────────────────────────────────────────────── */
+
+.pg-head { display: grid; gap: 14px; justify-items: start; padding: 56px 0 48px; }
+.pg-head .wk-lede { max-width: 52ch; }
+.pg-head-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+
+/* ── A section: the question beside its drawing ───────────────────────────── */
+
+.pg-sec {
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 32px 56px;
+  align-items: start;
+  padding: 56px 0 64px;
+  box-shadow: inset 0 1px 0 var(--wk-line);
+  scroll-margin-top: 56px;
+}
+.pg-sec > * { min-width: 0; }
+.pg-sec-head { display: grid; gap: 12px; position: sticky; top: 88px; }
+.pg-sec-head .wk-h3 { margin-bottom: 2px; }
+
+/* ── Where next ───────────────────────────────────────────────────────────── */
+
+/* The home page's index row (hm-page in home.css), for inner pages. */
+.pg-next { padding: 48px 0 40px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.pg-next-list {
+  list-style: none; margin: 18px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2px 40px;
+}
+.pg-link {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 52px; padding: 6px;
+  border-radius: 2px;
+  text-decoration: none; color: inherit;
+  transition: background 140ms var(--wk-ease);
+}
+.pg-link:hover { background: var(--wk-panel); }
+.pg-link:hover .wk-sprite, .pg-link:focus-visible .wk-sprite { transform: translateY(-2px) scale(1.07); }
+.pg-link-text { display: grid; gap: 2px; min-width: 0; }
+.pg-link-name { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--wk-ink); }
+.pg-link-desc { font-size: 14px; line-height: 1.35; color: var(--wk-ink-3); }
+.pg-link-exit { color: var(--wk-ink-3); flex-shrink: 0; }
+
+/* ── The bossbar (Bossbar.jsx) ────────────────────────────────────────────── */
+
+.wk-bossbar { margin: 0; display: grid; justify-items: start; gap: 14px; }
+.wk-bossbar-draw { width: min(364px, 100%); display: grid; justify-items: center; gap: 7px; }
+.wk-bossbar-title { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; }
+.wk-bossbar-item { display: inline-flex; align-items: center; gap: 7px; min-width: 0; animation: wk-bossbar-in 280ms var(--wk-ease); }
+@keyframes wk-bossbar-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+/* Force Chain's arrow to the next item, as a track: the game prints a grey arrow glyph. */
+.wk-bossbar-to { position: relative; flex: 0 0 18px; height: 2px; background: var(--wk-ink-3); }
+.wk-bossbar-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
+}
+/* The plugin draws the name on a green gradient; here it takes that gradient's one
+   ink, the way a gradient grade's word does everywhere else on the wiki. Hard text
+   shadow, as the game's text has. */
+.wk-bossbar-name {
+  font-family: var(--wk-font-text); font-size: 18px; font-weight: 700; line-height: 1.2;
+  color: var(--wk-bossbar);
+  text-shadow: 2px 2px 0 oklch(0% 0 0 / 0.55);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wk-bossbar-icon {
+  width: 26px; height: 26px; flex-shrink: 0;
+  image-rendering: pixelated;
+  filter: drop-shadow(1px 1px 0 oklch(0% 0 0 / 0.4));
+}
+/* A full white bar in six notches. Each tile ends in a notch, and the tiles are a
+   sixth of the width plus a notch, so the sixth notch falls past the bar's end. */
+.wk-bossbar-bar {
+  width: 100%; height: 10px;
+  background-color: var(--wk-ink);
+  background-image: linear-gradient(90deg, transparent calc(100% - 2px), oklch(0% 0 0 / 0.32) calc(100% - 2px));
+  background-size: calc((100% + 2px) / 6) 100%;
+  background-repeat: repeat-x;
+  box-shadow: 0 0 0 2px var(--wk-deep), inset 0 -3px 0 oklch(0% 0 0 / 0.18);
+}
+.wk-bossbar figcaption { max-width: 56ch; }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .pg-sec { grid-template-columns: 1fr; gap: 24px; }
+  .pg-sec-head { position: static; max-width: 68ch; }
+}
+@media (max-width: 720px) {
+  .pg-head { padding: 36px 0 32px; }
+  .pg-sec { padding: 40px 0 48px; }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .wk-bossbar-item { animation: none; }
+  .pg-link:hover .wk-sprite, .pg-link:focus-visible .wk-sprite { transform: none; }
+}
+html[data-saver="on"] .wk-bossbar-item { animation: none; }
+html[data-saver="on"] .pg-link:hover .wk-sprite,
+html[data-saver="on"] .pg-link:focus-visible .wk-sprite { transform: none; }

@@ -49,6 +49,11 @@ html:has(.wk) {
 .wk :focus-visible { outline: 2px solid var(--wk-ink); outline-offset: 2px; }
 
 .wk-wrap { width: min(1280px, 100% - 40px); margin-inline: auto; }
+
+/* The pixel arrowhead every track on the wiki ends in: a stepped triangle, drawn as
+   a clip-path so it takes the colour of whatever it clips. One definition, because
+   three stylesheets draw tracks and they must stay the same shape. */
+.wk { --wk-arrowhead: polygon(0 0, 33% 0, 33% 20%, 67% 20%, 67% 40%, 100% 40%, 100% 60%, 67% 60%, 67% 80%, 33% 80%, 33% 100%, 0 100%); }
 @media (max-width: 600px) { .wk-wrap { width: calc(100% - 32px); } }
 
 /* ── Type ──────────────────────────────────────────────────────────────────── *
@@ -98,6 +103,11 @@ html:has(.wk) {
   padding: 1px 6px; border-radius: 2px;
 }
 .wk strong { color: var(--wk-ink); font-weight: 600; }
+/* Said to a screen reader where a drawing says it to everyone else. */
+.wk-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
 
 /* ── Links and buttons ─────────────────────────────────────────────────────── *
  * A button is a stone block you press: a flat face, a darker lip along its

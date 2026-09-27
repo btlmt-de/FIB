@@ -39,7 +39,7 @@ const WORKSTATION = {
     smith: ['SMITHING_TABLE', 'Smiths'],
     toolsmith: ['SMITHING_TABLE', 'Toolsmith'],
     weaponsmith: ['GRINDSTONE', 'Weaponsmith'],
-    wandering_trader: ['EMERALD', 'Wandering Trader'],
+    wandering_trader: ['WANDERING_TRADER_SPAWN_EGG', 'Wandering Trader'],
 };
 const LEVEL = ['', 'Novice', 'Apprentice', 'Journeyman', 'Expert', 'Master'];
 
@@ -122,12 +122,14 @@ export function routesFor(material) {
     // naming a structure (ancient debris: "Bastion") says where it can ALSO turn up,
     // which the loot route already carries, so only biomes are used here.
     if (r.self) {
-        out.push({ kind: 'self', verb: 'Find', sources: [{ m: material, label: info?.biomes ? `in ${info.biomes}, and break it` : 'where it generates, and break it' }] });
+        // `short` is what the route board prints under the face; the biome list is the
+        // item's own tooltip, and the full label stays the screen reader's sentence.
+        out.push({ kind: 'self', verb: 'Find', sources: [{ m: material, short: 'In the world', label: info?.biomes ? `in ${info.biomes}, and break it` : 'where it generates, and break it' }] });
     }
     if (r.mob) out.push({ kind: 'mob', verb: 'Hunt', sources: r.mob.map(mobSource) });
     if (r.chest) {
         out.push({
-            kind: 'loot', verb: 'Loot',
+            kind: 'loot', verb: 'Loot', via: ['CHEST', 'Chest'],
             sources: r.chest.map((s) => ({
                 m: faceOf(s, 'CHEST'),
                 label: s,
@@ -136,10 +138,10 @@ export function routesFor(material) {
             })),
         });
     }
-    if (r.brush) out.push({ kind: 'brush', verb: 'Brush', sources: r.brush.map((s) => ({ m: faceOf(s, 'BRUSH'), label: s })) });
+    if (r.brush) out.push({ kind: 'brush', verb: 'Brush', via: ['BRUSH', 'Brush'], sources: r.brush.map((s) => ({ m: faceOf(s, 'BRUSH'), label: s })) });
     if (r.trade) {
         out.push({
-            kind: 'trade', verb: 'Trade',
+            kind: 'trade', verb: 'Trade', via: ['EMERALD', 'Emeralds'],
             sources: r.trade.map(([p, lvl]) => {
                 const [m, label] = WORKSTATION[p] ?? ['EMERALD', titleMob(p)];
                 return { m, label: lvl ? `${label}, ${LEVEL[lvl] ?? `level ${lvl}`}` : label };

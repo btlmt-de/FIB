@@ -106,9 +106,11 @@
 
 /* ── 2. One item, many ways ───────────────────────────────────────────────── */
 
-/* The question on the left, the map on the right, so the map gets the width. */
+/* The question on the left, the board on the right, about 35/65 so the board has the
+   weight to balance the heading. Tighter, about 28/72, where 65% would be narrower
+   than the board (it needs about 790px), and stacked below the nav's drawer width. */
 .hm-routes {
-  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 40px 48px;
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 13fr); gap: 40px 56px;
   align-items: start;
   padding: 64px 0 72px;
 }
@@ -133,11 +135,35 @@
 }
 .hm-loop-strip {
   margin: 0;
-  display: grid; grid-template-columns: 96px 112px minmax(0, 1fr); align-items: center; gap: 20px;
+  display: grid; grid-template-columns: 216px 112px minmax(0, 1fr); align-items: center; gap: 20px;
 }
-.hm-loop-score { display: grid; justify-items: start; gap: 2px; }
-.hm-loop-score-n { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 52px; line-height: 1; color: var(--wk-ink); }
-.hm-loop-score-k { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
+
+/* The round's sidebar scoreboard, drawn the way the game draws one: a dim translucent
+   block at the edge of the screen, names left, scores right, highest first. Each
+   player carries the item they are on right now, because each has their own. Rows
+   slide to their rank rather than jump. */
+.hm-board {
+  position: relative; list-style: none; margin: 0; padding: 0;
+  background: oklch(0% 0 0 / 0.34);
+  border-radius: 2px;
+}
+.hm-board-row {
+  position: absolute; left: 0; right: 0; top: 4px; height: 30px;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px 0 8px;
+  font-size: 14px; color: var(--wk-ink-2);
+  transition: transform 280ms var(--wk-ease);
+}
+.hm-board-row[data-you] { background: oklch(100% 0 0 / 0.08); color: var(--wk-ink); font-weight: 700; }
+.hm-board-head { width: 18px; height: 18px; image-rendering: pixelated; flex-shrink: 0; }
+.hm-board-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-board-item { line-height: 0; }
+.hm-board-item .wk-slot { animation: hm-land-a 220ms var(--wk-ease); }
+.hm-board-score {
+  min-width: 2.2ch; text-align: right;
+  font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink);
+  animation: hm-bump 320ms var(--wk-ease);
+}
+@keyframes hm-bump { from { transform: translateY(-5px); opacity: 0.3; } }
 
 .hm-loop-now { position: relative; display: grid; place-items: center; height: 112px; }
 .hm-loop-now .wk-slot { animation: hm-land-a 220ms var(--wk-ease); }
@@ -181,7 +207,7 @@
 .hm-beats li {
   position: relative;
   padding: 6px 12px 8px;
-  font-family: var(--wk-font-display); font-weight: 600; font-size: 22px; line-height: 1;
+  font-size: 14px; font-weight: 600; line-height: 1;
   color: var(--wk-ink-3);
   transition: color 120ms var(--wk-ease);
 }
@@ -198,86 +224,129 @@
 
 .hm-pressure { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
 .hm-pressure-head { margin-bottom: 28px; }
-.hm-growth { margin: 0; }
-.hm-growth-plot { position: relative; height: 176px; }
-/* Each stage is a layer of blocks that starts where it unlocks and never ends. */
-.hm-growth-layer {
-  position: absolute; right: 0;
-  left: calc(var(--at) * 1%);
-  bottom: calc(var(--b) * 100%);
-  height: calc(var(--h) * 100% - 2px);
-  background:
-    repeating-linear-gradient(90deg, transparent 0 12px, var(--wk-ground) 12px 14px),
-    repeating-linear-gradient(180deg, transparent 0 12px, var(--wk-ground) 12px 14px),
-    var(--c);
-  opacity: 0.82;
+/* The board: flags on the round's timeline, a strip of draws under them, the axis,
+   and the drawn item hanging where it unlocks. Everything is placed by its share of
+   the round (at, span), so the geometry is the schedule. */
+.hm-clock { margin: 0; }
+.hm-clock-board { position: relative; --draw: 36px; }
+
+/* A flag: a pole in its stage's light from the flag down to the axis, and what joins
+   there beside it. Anchored to the pole's foot, so taller flags grow upward. */
+.hm-clock-flags { position: relative; list-style: none; margin: 0; padding: 0; height: 136px; }
+.hm-flag {
+  position: absolute; left: calc(var(--at) * 1%); bottom: 0;
+  max-width: calc(var(--span) * 1% - 14px);
+  display: grid; justify-items: start; align-content: end; gap: 4px;
+  padding: 0 0 14px 16px;
 }
-.hm-growth-n {
-  position: absolute;
-  left: calc(var(--at) * 1%);
-  bottom: calc(var(--y) * 100% + 8px);
-  font-weight: 700; font-variant-numeric: tabular-nums; font-size: 22px; line-height: 1;
-  color: var(--wk-ink);
-  padding-left: 2px;
+.hm-flag::before {
+  content: ""; position: absolute; left: 0; top: 6px; width: 2px;
+  bottom: calc(-1 * (var(--draw) + 17px));
+  background: var(--c);
 }
-/* Each stage's real items, inside its layer, starting where it enters the pool. */
-.hm-growth-items {
-  position: absolute; z-index: 1;
-  left: calc(var(--at) * 1% + 10px);
-  bottom: calc(var(--b) * 100%);
-  height: calc(var(--h) * 100% - 2px);
-  display: flex; align-items: center; gap: 4px;
+.hm-flag::after { content: ""; position: absolute; left: -4px; top: 2px; width: 10px; height: 10px; background: var(--c); }
+.hm-flag-when { display: none; }
+.hm-flag-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; }
+.hm-flag-count { font-size: 14px; line-height: 1.35; color: var(--wk-ink-2); }
+.hm-flag-count strong { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink); }
+.hm-flag-items { display: flex; gap: 4px; margin-top: 4px; }
+/* At the start the whole strip is Early, so the flag need not carry examples. */
+.hm-flag-items[data-start] { display: none; }
+.hm-flag-you { display: none; }
+
+/* The draws: one row of real items, stretch by stretch, each starting just past its pole. */
+.hm-clock-draws { position: relative; height: calc(var(--draw) + 4px); }
+.hm-clock-stretch {
+  position: absolute; top: 0; left: calc(var(--at) * 1% + 10px); width: calc(var(--span) * 1% - 12px);
+  display: flex; gap: 2px; overflow: hidden;
 }
-.hm-growth-items .wk-slot { background: oklch(9% 0.006 255 / 0.9); }
-.hm-growth-axis { position: relative; height: 72px; margin-top: 8px; box-shadow: inset 0 1px 0 var(--wk-line-hi); }
-.hm-growth-tick {
-  position: absolute; top: 6px; left: calc(var(--at) * 1%);
+.hm-clock-stretch .wk-slot { background: oklch(11% 0.006 255); }
+
+/* The axis: a line, a square in the stage's light where each pole lands, the ticks. */
+.hm-clock-axis { position: relative; height: 2px; margin-top: 12px; background: var(--wk-line-hi); }
+.hm-clock-mark { position: absolute; top: -4px; left: calc(var(--at) * 1% - 4px); width: 10px; height: 10px; background: var(--c); box-shadow: 0 0 0 3px var(--wk-ground); }
+.hm-clock-mark:first-child { left: 0; }
+.hm-clock-tick {
+  /* Just past its mark, so the drawn item's hanger can drop straight down the mark. */
+  position: absolute; top: 10px; left: calc(var(--at) * 1% + 10px);
   font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3);
 }
-.hm-growth-tick:nth-child(4) { left: auto; right: 0; }
-/* The item you were handed, marked where its stage unlocks. */
-.hm-growth-you {
-  position: absolute; top: 30px; left: calc(var(--at) * 1%);
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 14px; color: var(--wk-ink);
-}
-.hm-stages {
-  list-style: none; margin: 12px 0 0; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 8px 40px;
-}
-.hm-stage { display: flex; align-items: baseline; gap: 10px; }
-.hm-stage-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; }
-.hm-stage-meta { font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
+.hm-clock-tick:nth-child(4) { left: 14px; }
+.hm-clock-tick:last-child { left: auto; right: 0; }
 
+/* The drawn item, hung from the axis at the moment it can first come up. */
+.hm-clock-you {
+  position: relative; margin: 44px 0 0;
+  margin-left: max(0px, calc(var(--at) * 1% - 20px));
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px; color: var(--wk-ink-2);
+}
+.hm-clock-you strong { color: var(--wk-ink); }
+.hm-clock-you::before {
+  content: ""; position: absolute; left: 19px; top: -42px; height: 38px; width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--wk-ink-3) 0 3px, transparent 3px 6px);
+}
+/* At 0% the first mark sits flush left rather than centred on the line. */
+.hm-clock-you[data-start]::before { left: 4px; }
+.hm-clock-you .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--c); }
+.hm-clock + .hm-source, .hm-clock .hm-source { margin-top: 20px; }
 /* ── 5. The escapes ───────────────────────────────────────────────────────── */
 
 .hm-escapes { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
-.hm-escapes-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; margin-top: 12px; }
-.hm-escapes-grid > * { min-width: 0; display: grid; align-content: start; gap: 12px; }
-/* The joker's trade: the costly item, the card, the cheap next one, each with its route. */
-/* Two equal columns centred on their slots, so the joker sits exactly between the
-   two items whatever their names and routes say. */
-.hm-trade { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 8px; max-width: 520px; }
-.hm-trade-item { display: grid; justify-items: center; gap: 6px; min-width: 0; text-align: center; }
-.hm-trade-item .wk-slot {
+/* One grid for both halves, filled column by column: the sequences share a row, the
+   names share a row, the words share a row. The alignment is the relationship. */
+.hm-escapes-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  column-gap: 64px; row-gap: 12px;
+  margin-top: 28px;
+}
+.hm-escapes-grid > * { min-width: 0; }
+
+/* A sequence: what you were handed, what happens to it, what you get. Both halves
+   draw theirs at the same size on the same line. */
+.hm-seq { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; max-width: 540px; }
+.hm-seq-node { flex: 1 1 0; min-width: 0; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.hm-seq-joker, .hm-seq-node:has(.hm-bundle), .hm-seq-node:has(.hm-seq-plus) { flex: 0 0 auto; }
+.hm-seq-node > .wk-slot {
   background:
-    radial-gradient(circle at 50% 60%, color-mix(in oklch, var(--glow) 34%, transparent), transparent 70%),
+    radial-gradient(circle at 50% 60%, color-mix(in oklch, var(--glow, transparent) 34%, transparent), transparent 70%),
     var(--wk-slot);
 }
-.hm-trade-name { font-weight: 700; font-size: 16px; color: var(--wk-ink); }
-.hm-trade-route { font-size: 14px; line-height: 1.4; color: var(--wk-ink-2); }
-/* Centred on the 64px slots' row, not on the columns' full height. */
-.hm-trade-joker { display: flex; align-items: center; gap: 6px; height: 64px; }
-.hm-joker-arrow { color: var(--wk-ink-3); flex-shrink: 0; }
+.hm-seq-name { font-weight: 700; font-size: 16px; line-height: 1.3; color: var(--wk-ink); }
+.hm-seq-note { font-size: 14px; line-height: 1.4; color: var(--wk-ink-2); }
+.hm-seq-joker .hm-seq-note, .hm-seq-node:has(.hm-bundle) .hm-seq-note, .hm-seq-node:has(.hm-seq-plus) .hm-seq-note { max-width: 12ch; }
+.hm-seq-to {
+  position: relative; flex: 0 0 26px; height: 2px; margin-top: 31px;
+  background: var(--wk-line-hi);
+}
+.hm-seq-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3);
+  clip-path: var(--wk-arrowhead);
+}
 .hm-joker-card { display: inline-block; line-height: 0; transform: rotate(-4deg); filter: drop-shadow(0 8px 10px oklch(0% 0 0 / 0.6)); }
-.hm-joker-card img { height: 72px; width: auto; image-rendering: pixelated; }
-.hm-joker-hand { display: flex; padding-left: 6px; }
+.hm-joker-card img { height: 64px; width: auto; image-rendering: pixelated; }
+.hm-joker-hand { display: flex; padding: 6px 0 0 6px; }
 .hm-joker-card--small { margin-left: -10px; transform: rotate(calc((var(--i) - 1) * 7deg)); }
 .hm-joker-card--small img { height: 54px; }
-.hm-b2b .hm-ladder { margin-top: 10px; }
+
+/* The backpack: a few slots, one of them already holding the item you were handed. */
+.hm-bundle { display: flex; align-items: center; gap: 6px; min-height: 64px; line-height: 0; }
+/* The bundle's contents, as the game shows them when you point at one. */
+.hm-bag { display: grid; grid-template-columns: repeat(3, 20px); gap: 2px; line-height: 0; }
+.hm-bag-cell { line-height: 0; }
+.hm-bag-cell:not([data-hit]) .wk-slot { opacity: 0.5; }
+.hm-bag-cell[data-hit] .wk-slot { box-shadow: 0 0 0 2px var(--wk-s-early); position: relative; z-index: 1; }
+.hm-seq-plus {
+  height: 64px; display: grid; place-items: center;
+  font-weight: 700; font-variant-numeric: tabular-nums; font-size: 40px; line-height: 1; color: var(--wk-ink);
+}
 
 .hm-ladder {
-  list-style: none; margin: 22px 0 0; padding: 0;
+  list-style: none; margin: 10px 0 0; padding: 0;
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
   box-shadow: inset 0 1px 0 var(--wk-line);
 }
@@ -323,7 +392,7 @@
   background: linear-gradient(90deg, oklch(14.5% 0.007 255 / 0.92) 0, oklch(14.5% 0.007 255 / 0.55) 30%, transparent 58%);
   pointer-events: none;
 }
-.hm-band-in { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 36px; align-items: center; }
+.hm-band-in { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 36px; align-items: start; padding-left: 34px; }
 .hm-band-meta { display: grid; gap: 6px; }
 .hm-band-name { color: var(--r-ink); font-size: 37px; }
 .hm-band-y { margin: 0; font-family: var(--wk-font-text); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px; color: var(--wk-ink-2); }
@@ -332,23 +401,37 @@
 .hm-band-count .wk-figure { font-size: 22px; margin-right: 4px; color: var(--wk-ink); }
 .hm-band-grid { min-width: 0; }
 
-/* The descent rail: the world's depth gauge, a mark at each region. It sits in the
-   margin outside the content column, so it only exists where there is margin. */
+/* The descent rail: the world's depth, a mark at each region. Each band draws its own
+   stretch, so the rail reads as one line from the surface down through the Overworld
+   and stops at the Deep Dark. The Nether and the End are not further down, you go
+   through something to reach them: their stretch starts again after a gap, dashed.
+   It used to live in the page margin and vanished below 1380px, which is most
+   laptops; it now sits inside the column at every width. */
 .hm-descent { position: relative; margin-top: 12px; }
-.hm-descent::before {
-  content: ""; position: absolute; z-index: 2; top: 44px; bottom: 60px; width: 2px;
-  left: calc((100% - min(1280px, 100% - 40px)) / 2 - 27px);
-  background: repeating-linear-gradient(to bottom, var(--wk-line-hi) 0 5px, transparent 5px 9px);
+.hm-band {
+  --rail-x: calc((100% - min(1280px, 100% - 40px)) / 2 + 7px);
+  --rail-mark: 54px;
+}
+.hm-band::after {
+  content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; width: 2px;
+  left: var(--rail-x);
+  background: var(--wk-line-hi);
   pointer-events: none;
 }
+.hm-band[data-rail="top"]::after { top: var(--rail-mark); }
+.hm-band[data-rail="floor"]::after { background: linear-gradient(to bottom, var(--wk-line-hi) 55%, transparent); }
+.hm-band[data-rail="portal"]::after,
+.hm-band[data-rail="last"]::after { background: repeating-linear-gradient(to bottom, var(--wk-line-hi) 0 5px, transparent 5px 9px); }
+.hm-band[data-rail="portal"]::after { top: var(--rail-mark); }
+.hm-band[data-rail="last"]::after { bottom: calc(100% - var(--rail-mark)); }
 .hm-band-meta { position: relative; }
 .hm-band-meta::before {
-  content: ""; position: absolute; left: -32px; top: 12px; width: 12px; height: 12px;
+  content: ""; position: absolute; z-index: 2; left: -32px; top: 14px; width: 12px; height: 12px;
   background: var(--r);
   box-shadow: 0 0 0 3px var(--wk-ground);
 }
-@media (max-width: 1380px) {
-  .hm-descent::before, .hm-band-meta::before { display: none; }
+@media (max-width: 600px) {
+  .hm-band { --rail-x: 23px; }
 }
 .hm-band .wk-slot { background: oklch(9% 0.006 255 / 0.86); }
 
@@ -368,34 +451,54 @@
 
 .hm-modes { padding: 64px 0 56px; }
 .hm-mode-list {
-  list-style: none; margin: 16px 0 0; padding: 0;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px;
+  list-style: none; margin: 20px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px;
 }
 .hm-mode { display: grid; align-content: start; gap: 8px; min-width: 0; }
-.hm-mode-hook { margin: 0; font-size: 16px; font-weight: 600; color: var(--wk-ink); }
-/* The mechanic itself, drawn on the ground: no panel around it. */
+.hm-mode-hook { margin: 0; font-size: 16px; font-weight: 600; color: var(--wk-ink); max-width: 36ch; }
+/* The mechanic itself, drawn on the ground: no panel around it. Given the most room
+   in the section, because the drawing explains the mode better than the line under it. */
 .hm-diagram {
   display: flex; align-items: center; justify-content: flex-start; gap: 8px;
-  height: 132px; margin-bottom: 6px;
+  height: 164px; margin-bottom: 8px;
 }
-.hm-head { width: 28px; height: 28px; image-rendering: pixelated; flex-shrink: 0; }
+.hm-head { width: 32px; height: 32px; image-rendering: pixelated; flex-shrink: 0; }
 .hm-live .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--wk-ink); }
-.hm-diagram--fib { flex-direction: column; align-items: stretch; gap: 10px; }
+.hm-diagram--fib { flex-direction: column; align-items: stretch; justify-content: center; gap: 14px; }
 .hm-lane { display: flex; align-items: center; gap: 4px; }
-.hm-lane .hm-head { margin-right: 6px; }
-.hm-done { position: relative; line-height: 0; opacity: 0.55; }
-.hm-lane .hm-live { margin-left: 6px; line-height: 0; }
-.hm-diagram--run { justify-content: space-between; max-width: 400px; }
-.hm-racers { display: grid; gap: 10px; flex: 1; margin-right: 12px; }
+.hm-lane .hm-head { margin-right: 8px; }
+.hm-done { position: relative; line-height: 0; }
+.hm-done .wk-slot { opacity: 0.55; }
+.hm-tick {
+  position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center;
+  width: 14px; height: 14px; border-radius: 2px;
+  background: var(--wk-s-early); color: oklch(14% 0.02 138);
+}
+.hm-lane .hm-live { margin-left: 8px; line-height: 0; }
+.hm-diagram--run { justify-content: space-between; max-width: 440px; }
+.hm-racers { display: grid; gap: 14px; flex: 1; margin-right: 12px; }
 .hm-racer { position: relative; display: flex; align-items: center; gap: 8px; }
 .hm-track { flex: 1; height: 2px; background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 5px, transparent 5px 9px); }
 .hm-racer[data-first] .hm-track { background: var(--wk-ink); }
-.hm-racer-plus { position: absolute; right: -2px; top: -12px; font-weight: 700; font-size: 16px; color: var(--wk-ink); }
+.hm-racer-plus { position: absolute; right: -2px; top: -14px; font-weight: 700; font-size: 16px; color: var(--wk-ink); }
 .hm-diagram--run .hm-live { line-height: 0; }
-.hm-diagram--chain .hm-live, .hm-diagram--chain .hm-next { line-height: 0; }
+.hm-diagram--chain { gap: 10px; }
+.hm-chain-step { position: relative; display: grid; justify-items: center; line-height: 0; }
+.hm-chain-cap {
+  position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+  font-size: 12.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--wk-ink-3);
+}
+.hm-chain-hidden { display: flex; gap: 4px; }
+.hm-chain-to {
+  position: relative; flex: 0 0 22px; height: 2px; background: var(--wk-line-hi);
+}
+.hm-chain-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3);
+  clip-path: var(--wk-arrowhead);
+}
 .hm-next { opacity: 0.8; }
-.hm-chain-arrow { color: var(--wk-ink-3); flex-shrink: 0; }
-.hm-hidden { font-family: var(--wk-font-display); font-weight: 600; font-size: 22px; color: var(--wk-ink-4); }
+.hm-hidden { font-weight: 700; font-size: 22px; color: var(--wk-ink-4); }
 
 .hm-rules {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
@@ -417,47 +520,31 @@
 }
 .hm-rules-links { display: inline-flex; gap: 18px; margin-left: auto; white-space: nowrap; font-size: 14px; }
 
-/* ── 8. Where next: the hotbar ────────────────────────────────────────────── */
+/* ── 8. Where next ────────────────────────────────────────────────────────── */
 
-/* The hotbar: one tight bar of slots, the selected one framed and named above the
-   bar, where the game puts the held item's name. Touch screens get names under the
-   slots instead, since nothing there hovers. */
-.hm-index { padding: 24px 0 56px; }
-.hm-hotbar { display: grid; justify-items: start; gap: 12px; margin-top: 8px; }
-.hm-hot-label { margin: 0; min-height: 52px; display: grid; gap: 2px; }
-.hm-hot-label-name {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; color: var(--wk-ink);
+/* Plain links with visible names, grouped like the nav. Understated on purpose: at
+   the bottom of the page, getting somewhere matters more than being clever. */
+.hm-index { padding: 48px 0 40px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-index-groups {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 40px;
+  margin-top: 18px;
 }
-.hm-hot-label-text { font-size: 14px; color: var(--wk-ink-2); }
-.hm-page-exit { color: var(--wk-ink-3); }
-.hm-nowrap { white-space: nowrap; display: inline-flex; align-items: center; gap: 2px; }
-.hm-hotbar-row {
-  list-style: none; margin: 0; padding: 4px;
-  display: flex; gap: 2px;
-  background: oklch(9% 0.006 255 / 0.85);
+.hm-index-group { display: grid; align-content: start; gap: 6px; min-width: 0; }
+.hm-index-group .wk-label { padding: 0 6px 2px; }
+.hm-index-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.hm-page {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 52px; padding: 6px;
   border-radius: 2px;
-  box-shadow: inset 0 1px 0 var(--wk-line), 0 16px 32px -20px oklch(0% 0 0 / 0.9);
+  text-decoration: none; color: inherit;
+  transition: background 140ms var(--wk-ease);
 }
-.hm-hot-cell[data-exit]:nth-last-child(2) { margin-left: 14px; }
-.hm-hot {
-  display: grid; justify-items: center; gap: 6px;
-  text-decoration: none; color: inherit; text-align: center;
-  border-radius: 2px;
-}
-.hm-hot .wk-slot { transition: box-shadow 120ms var(--wk-ease); }
-.hm-hot-cell[data-selected] .wk-slot {
-  box-shadow: inset 0 0 0 3px var(--wk-ink), inset 0 0 0 5px oklch(4% 0 0 / 0.8);
-}
-.hm-hot:hover .wk-sprite, .hm-hot:focus-visible .wk-sprite { transform: translateY(-3px) scale(1.08); }
-.hm-hot-name { display: none; font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--wk-ink-2); max-width: 76px; }
-@media (hover: none), (max-width: 720px) {
-  .hm-hot-label { display: none; }
-  .hm-hot-name { display: block; }
-  .hm-hotbar-row { flex-wrap: wrap; gap: 8px 2px; }
-  .hm-hot { width: 78px; padding-bottom: 6px; }
-  .hm-hot-cell[data-exit]:nth-last-child(2) { margin-left: 0; }
-}
+.hm-page:hover { background: var(--wk-panel); }
+.hm-page:hover .wk-sprite, .hm-page:focus-visible .wk-sprite { transform: translateY(-2px) scale(1.07); }
+.hm-page-text { display: grid; gap: 2px; min-width: 0; }
+.hm-page-name { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--wk-ink); }
+.hm-page-desc { font-size: 14px; line-height: 1.35; color: var(--wk-ink-3); }
+.hm-page-exit { color: var(--wk-ink-3); flex-shrink: 0; }
 
 /* ── 9. Made by ───────────────────────────────────────────────────────────── */
 
@@ -476,6 +563,23 @@
 
 /* ── Narrower screens ─────────────────────────────────────────────────────── */
 
+@media (max-width: 1360px) {
+  .hm-routes { grid-template-columns: minmax(0, 7fr) minmax(0, 18fr); column-gap: 40px; }
+  /* The narrower intro column fits the seven examples in a row only without their label beside them. */
+  .hm-try-label { flex-basis: 100%; margin: 0 0 4px; }
+}
+@media (max-width: 1180px) and (min-width: 421px) {
+  .hm-try-label { flex-basis: auto; margin: 0 6px 0 0; }
+}
+@media (max-width: 420px) {
+  .hm-try-label { flex-basis: 100%; margin: 0 0 4px; }
+}
+@media (max-width: 1180px) {
+  .hm-routes { grid-template-columns: 1fr; gap: 28px; }
+  .hm-routes-head { position: static; }
+  .hm-routes .hm-source { grid-column: 1; margin-top: -12px; }
+}
+
 @media (max-width: 1100px) {
   .hm-open-grid { grid-template-columns: 1fr; gap: 0; min-height: 0; }
   .hm-open-copy { padding-bottom: 8px; }
@@ -486,25 +590,46 @@
             mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 78%, transparent 100%);
   }
   .hm-loop { grid-template-columns: 1fr; gap: 24px; }
-  .hm-routes { grid-template-columns: 1fr; gap: 28px; }
-  .hm-routes-head { position: static; }
-  .hm-routes .hm-source { grid-column: 1; margin-top: -12px; }
-  .hm-escapes-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hm-escapes-grid { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+  .hm-seq--luck { margin-top: 36px; }
   .hm-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
+  .hm-index-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hm-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
   .hm-mode-list { grid-template-columns: 1fr; gap: 36px; }
   .hm-mode { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
+  .hm-diagram { height: auto; padding: 8px 0 12px; }
+  .hm-diagram--chain { padding-bottom: 34px; }
+}
+
+/* The round clock turns on its side below 900px: the flags become a descending list on
+   a rail, each with its stage's items, and the drawn item sits under its own stage.
+   900, not the page's 720, because a flag carries three 40px items and the Mid flag's
+   18% of the round is narrower than that under about 880px; the flags collided. The
+   strip is not drawn in this form, so its caption goes with it. */
+@media (max-width: 900px) {
+  .hm-clock-flags { height: auto; }
+  .hm-flag { position: relative; left: auto; max-width: none; padding: 0 0 24px 28px; gap: 6px; }
+  .hm-flag::before { left: 4px; top: 6px; bottom: 0; }
+  .hm-flag:last-child::before { bottom: 18px; }
+  .hm-flag::after { left: 0; top: 2px; }
+  .hm-flag-when { display: block; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
+  .hm-flag-items[data-start] { display: flex; }
+  .hm-flag-you { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 14px; color: var(--wk-ink-2); }
+  .hm-flag-you strong { color: var(--wk-ink); }
+  .hm-clock-draws, .hm-clock-axis, .hm-clock-you, .hm-clock-caption { display: none; }
 }
 
 @media (max-width: 720px) {
   .hm-target { grid-template-columns: 1fr; gap: 16px; }
   .hm-hero-item { width: 168px; }
-  .hm-loop-strip { grid-template-columns: 72px 96px minmax(0, 1fr); gap: 12px; }
-  .hm-loop-score-n { font-size: 40px; }
-  .hm-beats li { font-size: 19px; padding: 6px 8px 8px; }
-  .hm-growth-plot { height: 128px; }
-  .hm-growth-n { font-size: 16px; }
-  .hm-stages { grid-template-columns: 1fr; gap: 20px; }
+  .hm-loop-strip { grid-template-columns: 96px minmax(0, 1fr); gap: 16px 12px; }
+  .hm-board { grid-column: 1 / -1; max-width: 320px; }
+  .hm-beats li { padding: 6px 8px 8px; }
+  .hm-band { --rail-mark: 48px; }
+  .hm-band-in { padding-left: 30px; }
+  .hm-index-groups { grid-template-columns: 1fr; gap: 20px; }
+  .hm-seq { gap: 6px; }
+  .hm-seq-to { flex-basis: 16px; }
   .hm-world-head { grid-template-columns: 1fr; gap: 16px; }
   .hm-world-n { justify-items: start; text-align: left; }
   .hm-band { padding: 28px 0; }
@@ -514,21 +639,23 @@
   .hm-rung:nth-child(odd) { padding-left: 0; box-shadow: none; }
   .hm-rung:nth-child(even) { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
   .hm-rules-links { margin-left: 0; }
-  .hm-trade { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; }
-  .hm-trade-joker .hm-joker-arrow { display: none; }
-  .hm-growth-items { gap: 2px; left: calc(var(--at) * 1% + 4px); }
-  .hm-growth-items .wk-slot { width: 22px; height: 22px; }
-  .hm-growth-items .wk-slot:nth-child(n+4) { display: none; }
-  .hm-growth-you { top: 30px; left: 0; }
 }
 
 /* ── Calm ─────────────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .hm-hero-sprite, .hm-hero-shadow, .hm-target-env, .hm-loop-now .wk-slot, .hm-loop-trail li { animation: none !important; }
+  .hm-hero-sprite, .hm-hero-shadow, .hm-target-env, .hm-loop-now .wk-slot, .hm-loop-trail li,
+  .hm-board-score, .hm-board-item .wk-slot { animation: none !important; }
+  .hm-board-row { transition: none !important; }
+  .hm-page:hover .wk-sprite, .hm-page:focus-visible .wk-sprite { transform: none; }
 }
 html[data-saver="on"] .hm-hero-sprite,
 html[data-saver="on"] .hm-hero-shadow,
 html[data-saver="on"] .hm-target-env,
 html[data-saver="on"] .hm-loop-now .wk-slot,
-html[data-saver="on"] .hm-loop-trail li { animation: none; }
+html[data-saver="on"] .hm-loop-trail li,
+html[data-saver="on"] .hm-board-score,
+html[data-saver="on"] .hm-board-item .wk-slot { animation: none; }
+html[data-saver="on"] .hm-board-row { transition: none; }
+html[data-saver="on"] .hm-page:hover .wk-sprite,
+html[data-saver="on"] .hm-page:focus-visible .wk-sprite { transform: none; }

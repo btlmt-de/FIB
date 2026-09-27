@@ -147,6 +147,16 @@ export const TOOLTIP = {
     edgeBottom: 'oklch(26% 0.16 285)',
 };
 
+/**
+ * The plugin's bossbar, where a player reads the item they are hunting
+ * (TimerManager.itemLabel: <gradient:#6eee87:#5fc52e><b>, then the item's icon out
+ * of the resource pack). The game draws that name on a gradient; the wiki gives it
+ * the gradient's middle as one ink, as it does for the RNGesus and Extraordinary
+ * words, so a word is never painted in a gradient here. Used by How to Play's
+ * drawing of the bossbar only.
+ */
+export const BOSSBAR = 'oklch(79.3% 0.194 143)';
+
 export const font = {
     // Headings, figures, item names at display size, rarity words. Never body text.
     // 'FIB Figures' covers the digits only (see wiki.css): Handjet's dotted zero
@@ -182,6 +192,7 @@ export function cssVars() {
     v['--wk-tip-bg'] = TOOLTIP.bg;
     v['--wk-tip-top'] = TOOLTIP.edgeTop;
     v['--wk-tip-bottom'] = TOOLTIP.edgeBottom;
+    v['--wk-bossbar'] = BOSSBAR;
     v['--wk-font-display'] = font.display;
     v['--wk-font-text'] = font.text;
     v['--wk-font-typed'] = font.typed;

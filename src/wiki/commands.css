@@ -1,0 +1,96 @@
+/*
+ * Commands (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
+ * page.css.
+ *
+ * A reference to look things up in, often from a phone mid-round, so the search is the
+ * first thing and every command is one regular block: its usages in the typed face
+ * down the left, what each does beside it, and a line of chips for who and when.
+ * The chips carry no colour: who and when are not data with a hue on this wiki, so
+ * they are words in outlines, the Operators one a step brighter because it is the one
+ * that stops people.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.cm-find { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; width: 100%; margin-top: 8px; }
+.cm-search { position: relative; display: inline-flex; align-items: center; flex: 1 1 320px; max-width: 520px; }
+.cm-search svg { position: absolute; left: 13px; color: var(--wk-ink-2); pointer-events: none; }
+.cm-search input {
+  width: 100%; min-height: 48px; padding: 0 44px 0 42px;
+  font: 500 16px/1.2 var(--wk-font-text); color: var(--wk-ink);
+  background: var(--wk-slot); border: 0; border-radius: 2px;
+  box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.55), inset -1px -1px 0 var(--wk-line);
+}
+.cm-search input::placeholder { color: var(--wk-ink-3); }
+.cm-clear {
+  position: absolute; right: 6px; display: grid; place-items: center; width: 36px; height: 36px;
+  background: none; border: 0; border-radius: 2px; color: var(--wk-ink-3); cursor: pointer;
+}
+.cm-clear:hover { color: var(--wk-ink); background: var(--wk-panel); }
+.cm-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.cm-seg > button {
+  min-height: 44px; padding: 0 14px 2px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.cm-seg > button:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+.cm-seg > button[aria-checked="true"] { background: var(--wk-panel-hi); color: var(--wk-ink); box-shadow: inset 0 -3px 0 var(--wk-ink); }
+.cm-key { margin-top: 2px; }
+.cm-toc { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; }
+
+.cm-body { padding-bottom: 24px; }
+.cm-count { margin: 0 0 8px; font-size: 14px; color: var(--wk-ink-3); }
+.cm-empty { display: grid; justify-items: start; gap: 12px; padding: 32px 0; font-size: 16px; color: var(--wk-ink-2); }
+.cm-empty p { margin: 0; }
+.cm-btn { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
+
+/* A group: its heading beside its commands, as the other inner pages set a question
+   beside its drawing. */
+.cm-group {
+  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 16px 48px; align-items: start;
+  padding: 40px 0 44px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 64px;
+}
+.cm-group-head { display: grid; gap: 10px; position: sticky; top: 88px; }
+.cm-group-note { max-width: 36ch; }
+.cm-list { list-style: none; margin: 0; padding: 0; display: grid; }
+
+.cm-cmd { display: grid; gap: 8px; padding: 14px 0 16px; box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.6); scroll-margin-top: 80px; }
+.cm-cmd:first-child { padding-top: 4px; }
+.cm-forms { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cm-form { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 6px 24px; align-items: baseline; }
+
+.cm-usage {
+  justify-self: start; padding: 3px 8px;
+  font-family: var(--wk-font-typed); font-size: 14px; line-height: 1.5;
+  background: var(--wk-slot); border-radius: 2px; overflow-wrap: anywhere;
+}
+.cm-usage-name { font-weight: 700; color: var(--wk-ink); }
+.cm-usage .cm-lit { color: var(--wk-ink); }
+.cm-req { color: var(--wk-ink-2); }
+.cm-opt { color: var(--wk-ink-3); }
+.cm-usage-name + span::before { content: " "; }
+.cm-form-text { font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); }
+.cm-example { display: block; margin-top: 2px; font-size: 14px; color: var(--wk-ink-3); }
+
+.cm-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 0; }
+.cm-chip {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 7px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wk-ink-3);
+  border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
+}
+.cm-chip--who { color: var(--wk-ink-2); box-shadow: inset 0 0 0 1px var(--wk-line-hi); }
+.cm-chip--who[data-who="op"], .cm-form-text > .cm-chip--who { color: var(--wk-ink); background: var(--wk-panel); }
+.cm-form-text > .cm-chip { margin-left: 8px; vertical-align: 1px; }
+
+@media (max-width: 1100px) {
+  .cm-group { grid-template-columns: 1fr; gap: 12px; padding: 32px 0 36px; }
+  .cm-group-head { position: static; }
+  .cm-group-note { max-width: 68ch; }
+}
+@media (max-width: 720px) {
+  .cm-form { grid-template-columns: 1fr; gap: 4px; }
+  .cm-seg { width: 100%; }
+  .cm-seg > button { flex: 1 1 0; padding: 0 8px 2px; }
+}

@@ -1,0 +1,410 @@
+/*
+ * Gameplay (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
+ * page.css, this file is the page's drawings.
+ *
+ * Motion here is information, never garnish: a simulation moves because the mode it
+ * explains is a thing that moves. So every one of them runs only while on screen,
+ * and under reduced motion or saver mode stands still on a frame that still says
+ * what it shows (the JS stops the clocks; this file stops the keyframes).
+ *
+ * Colour follows the Datum Rule: stage light for stages, the grade inks for grades,
+ * white light for anything the pointer or the sweep touches.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.gp-head { width: 32px; height: 32px; image-rendering: pixelated; flex-shrink: 0; }
+.gp-tick {
+  position: absolute; right: -3px; bottom: -3px;
+  display: grid; place-items: center; width: 14px; height: 14px;
+  background: var(--wk-s-early); color: var(--wk-ground); border-radius: 2px;
+}
+.gp-btn-sm { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
+.gp-btn-sm:disabled { opacity: 0.45; cursor: default; transform: none; }
+.gp-round-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; }
+.gp-round-row .wk-small { max-width: 60ch; }
+.gp-btns { display: inline-flex; gap: 6px; }
+.gp-seq-cap { font-size: 14px; line-height: 1.3; color: var(--wk-ink-3); text-align: center; }
+
+/* The track every drawing on the wiki uses, here for the jokers and the chain. */
+.gp-seq-to { position: relative; flex: 0 0 36px; height: 2px; margin-top: -24px; background: var(--wk-line-hi); transition: background 200ms var(--wk-ease); }
+.gp-seq-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
+  transition: background 200ms var(--wk-ease);
+}
+.gp-seq-to[data-lit] { background: var(--wk-ink-2); }
+.gp-seq-to[data-lit]::after { background: var(--wk-ink); }
+.gp-seq-to[data-dim] { background: var(--wk-line); }
+.gp-seq-to[data-dim]::after { background: var(--wk-ink-4); }
+
+.gp-toc { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-top: 10px; }
+.gp-toc .wk-label { margin-right: 4px; }
+.gp-toc .wk-link { font-size: 16px; }
+
+/* Things that arrive drop in from above, over the draw's 280ms. */
+@keyframes gp-drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
+@keyframes gp-rise { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-22px); } }
+@keyframes gp-in-right { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.gp-land { animation: gp-drop 280ms var(--wk-ease) both; }
+
+/* ── 1. One item at a time ─────────────────────────────────────────────────── */
+
+.gp-round { display: grid; gap: 20px; }
+.gp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px; }
+.gp-pair-one { display: grid; gap: 10px; justify-items: start; min-width: 0; }
+.gp-pair-one .wk-bossbar-draw { width: min(340px, 100%); }
+.gp-who { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--wk-ink-2); }
+.gp-who .gp-head { width: 20px; height: 20px; }
+
+.gp-ways { display: grid; gap: 10px; padding-top: 22px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.gp-ways-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px 28px; }
+.gp-way, .gp-tip { display: flex; align-items: center; gap: 14px; }
+.gp-way > span:last-child, .gp-tip > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.gp-way-name { font-size: 16px; font-weight: 700; line-height: 1.25; color: var(--wk-ink); }
+.gp-way-text { font-size: 14px; line-height: 1.4; color: var(--wk-ink-3); }
+
+/* ── 2. The pool opens up ──────────────────────────────────────────────────── */
+
+.gp-clock { display: grid; gap: 18px; }
+.gp-clock-controls { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px 24px; }
+.gp-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 14px; min-width: min(360px, 100%); }
+.gp-field .wk-label { grid-column: 1 / -1; }
+.gp-field-val { font-size: 18px; color: var(--wk-ink); min-width: 4ch; text-align: right; }
+.gp-clock-rule { margin: 0; font-size: 16px; color: var(--wk-ink-2); }
+
+/* Range inputs, drawn in the wiki's terms: a 2px rail and a square thumb. */
+.gp-field input[type="range"], .gp-scrub {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 28px; margin: 0; background: transparent; cursor: pointer;
+}
+.gp-field input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--wk-line-hi); }
+.gp-field input[type="range"]::-moz-range-track { height: 2px; background: var(--wk-line-hi); }
+.gp-field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; margin-top: -7px;
+  background: var(--wk-ink); border: 0; border-radius: 2px;
+  box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
+}
+.gp-field input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px; background: var(--wk-ink); border: 0; border-radius: 2px;
+  box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
+}
+
+/* The axis: flags rise from their unlock minute, a staircase so they never collide
+   even when a long round puts Mid and Late a few pixels apart. */
+.gp-axis { position: relative; padding-top: 4px; }
+.gp-flags { position: relative; height: 124px; }
+.gp-flag {
+  position: absolute; bottom: 0;
+  display: grid; gap: 1px; align-content: start;
+  padding: 0 0 0 12px; white-space: nowrap;
+  transition: left 240ms var(--wk-ease), opacity 200ms var(--wk-ease);
+  opacity: 0.55;
+}
+.gp-flag[data-open] { opacity: 1; }
+.gp-flag::before { content: ""; position: absolute; left: 0; bottom: 0; width: 2px; background: var(--stage); }
+.gp-flag::after { content: ""; position: absolute; left: 0; width: 8px; height: 8px; background: var(--stage); }
+.gp-flag[data-stage="early"] { --stage: var(--wk-s-early); height: 46px; }
+.gp-flag[data-stage="mid"] { --stage: var(--wk-s-mid); height: 84px; }
+.gp-flag[data-stage="late"] { --stage: var(--wk-s-late); height: 124px; }
+.gp-flag::before { top: 0; }
+.gp-flag::after { top: 0; }
+.gp-flag-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; margin-top: -3px; }
+.gp-flag-when { font-size: 14px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
+/* On a narrow axis a later flag's pole can cross an earlier flag's words; the words
+   sit on a patch of ground so the pole passes behind them. */
+.gp-flag-name, .gp-flag-when { position: relative; z-index: 1; justify-self: start; padding-right: 6px; background: var(--wk-ground); }
+.gp-now {
+  position: absolute; top: 0; bottom: -12px; left: var(--at); width: 2px; margin-left: -1px;
+  background: var(--wk-ink); opacity: 0.9; pointer-events: none;
+}
+
+.gp-rail { position: relative; height: 12px; margin-top: 12px; }
+.gp-rail::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: var(--wk-line-hi); }
+.gp-rail-fill { position: absolute; left: 0; top: 5px; height: 2px; width: var(--at); background: var(--wk-ink-2); }
+.gp-rail-mark { position: absolute; top: 1px; width: 10px; height: 10px; margin-left: -5px; background: var(--stage); transition: left 240ms var(--wk-ease); }
+.gp-rail-mark[data-stage="early"] { --stage: var(--wk-s-early); margin-left: 0; }
+.gp-rail-mark[data-stage="mid"] { --stage: var(--wk-s-mid); }
+.gp-rail-mark[data-stage="late"] { --stage: var(--wk-s-late); }
+/* The playhead is the real control, laid over the rail so the whole width is its track. */
+.gp-scrub { position: absolute; left: -8px; right: -8px; width: calc(100% + 16px); bottom: 22px; height: 40px; }
+.gp-scrub::-webkit-slider-runnable-track { height: 40px; background: transparent; }
+.gp-scrub::-moz-range-track { height: 40px; background: transparent; }
+.gp-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 24px; margin-top: 8px;
+  background: var(--wk-ink); border-radius: 2px; box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3), 0 4px 10px -4px oklch(0% 0 0 / 0.8);
+}
+.gp-scrub::-moz-range-thumb { width: 16px; height: 24px; border: 0; background: var(--wk-ink); border-radius: 2px; }
+.gp-scrub:focus-visible { outline: none; }
+.gp-scrub:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--wk-ink); outline-offset: 3px; }
+.gp-rail-ends { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
+
+.gp-clock-read { margin: 4px 0 0; font-size: 16px; color: var(--wk-ink-2); }
+.gp-clock-read .wk-datum { color: var(--wk-ink); }
+.gp-big { font-size: 22px; }
+
+/* The pool as three blocks to scale; a stage is lit once it has joined. */
+.gp-poolbar { display: flex; gap: 2px; }
+.gp-poolbar-seg {
+  position: relative; min-width: 0; height: 12px;
+  background: var(--wk-slot);
+  box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.5);
+  transition: background 260ms var(--wk-ease);
+}
+.gp-poolbar-seg[data-open] { background: var(--stage); box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.25); }
+.gp-poolbar-seg[data-stage="early"] { --stage: var(--wk-s-early); }
+.gp-poolbar-seg[data-stage="mid"] { --stage: var(--wk-s-mid); }
+.gp-poolbar-seg[data-stage="late"] { --stage: var(--wk-s-late); }
+.gp-poolbar-label { position: absolute; top: 18px; left: 0; font-size: 13px; color: var(--wk-ink-3); white-space: nowrap; }
+.gp-poolbar-seg[data-open] .gp-poolbar-label { color: var(--wk-ink-2); }
+
+.gp-draws { display: grid; gap: 12px; margin-top: 26px; }
+.gp-draws-row { display: flex; flex-wrap: wrap; gap: 2px; }
+.gp-draw { line-height: 0; animation: gp-drop 280ms var(--wk-ease) both; animation-delay: calc(var(--i) * 45ms); }
+
+/* ── 3. Jokers ─────────────────────────────────────────────────────────────── */
+
+.gp-jokers { display: grid; gap: 20px; }
+.gp-seq { display: flex; align-items: center; gap: 10px; }
+.gp-seq-node { display: grid; justify-items: center; gap: 8px; min-width: 64px; }
+.gp-joker-slot { transform: rotate(-4deg); }
+.gp-handed { line-height: 0; }
+.gp-handed[data-in] .wk-slot { box-shadow: inset 0 0 0 2px var(--wk-s-early), inset 2px 2px 0 oklch(4% 0 0 / 0.65); }
+.gp-score { position: relative; display: grid; place-items: center; width: 64px; height: 64px; }
+.gp-score .wk-figure { font-size: 40px; color: var(--wk-ink); }
+.gp-plus {
+  position: absolute; top: -6px; right: -14px;
+  font-weight: 700; font-size: 18px; color: var(--wk-s-early-ink);
+  animation: gp-rise 900ms var(--wk-ease) both;
+}
+
+.gp-rules { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; padding-top: 20px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.gp-rule dt { font-size: 16px; font-weight: 700; color: var(--wk-ink); }
+.gp-rule dd { margin: 2px 0 0; font-size: 14px; line-height: 1.5; color: var(--wk-ink-3); }
+
+/* ── 4. Back-to-backs ──────────────────────────────────────────────────────── */
+
+/* The one section where the drawing is wider than the question: it takes the full
+   column, with the words above it rather than beside. */
+.gp-sec-wide { grid-template-columns: 1fr; }
+.gp-sec-wide .pg-sec-head { position: static; max-width: 72ch; }
+.gp-b2b-wrap { display: grid; gap: 22px; }
+.gp-sub { margin-top: 20px; }
+
+.gp-b2b-stage { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px 48px; align-items: start; }
+.gp-inv { position: relative; display: grid; gap: 6px; justify-items: start; }
+.gp-inv .wk-label { margin-top: 6px; }
+.gp-inv-grid { display: grid; grid-template-columns: repeat(var(--cols), 40px); gap: 2px; }
+.gp-hotbar { margin-top: 6px; }
+
+/* The sweep: white light passing slot by slot, as the pointer lights a slot. */
+.gp-cell::after { transition: background 90ms linear; }
+.gp-cell.is-scan::after { background: oklch(100% 0 0 / 0.22); }
+.gp-cell.is-scan { outline: 2px solid var(--wk-ink); outline-offset: -1px; }
+/* A find rings in the item's stage light (the slot's own stage bar says which). */
+.gp-cell.is-hit {
+  box-shadow: inset 0 0 0 2px var(--stage-light, var(--wk-s-early)), 0 0 14px -2px var(--stage-light, var(--wk-s-early));
+  z-index: 1;
+}
+.gp-cell.is-hit .wk-sprite { animation: gp-pulse 620ms var(--wk-ease) both; }
+@keyframes gp-pulse { 0% { transform: scale(1); } 40% { transform: translateY(-3px) scale(1.18); } 100% { transform: scale(1.07); } }
+.gp-cell.is-found { box-shadow: inset 0 0 0 2px var(--wk-ink-4); }
+.gp-cell.is-found .wk-sprite { opacity: 0.5; }
+.gp-cell.is-plugin .wk-sprite { opacity: 0.35; }
+
+.gp-inside { display: flex; flex-wrap: wrap; gap: 14px 24px; margin-top: 10px; padding-top: 10px; box-shadow: inset 0 1px 0 var(--wk-line); }
+/* A container's contents stay dim until the sweep opens it. */
+.gp-inside-one { display: grid; gap: 6px; opacity: 0.4; transition: opacity 240ms var(--wk-ease); }
+.gp-inside-one[data-open] { opacity: 1; }
+.gp-inside-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--wk-ink-3); }
+.gp-inside-label .wk-slot { box-shadow: none; background: transparent; }
+
+.gp-b2b-read { display: grid; gap: 12px; align-content: start; min-height: 360px; }
+.gp-b2b-read .wk-bossbar-draw { width: min(340px, 100%); }
+.gp-b2b-line { margin: 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 44ch; }
+.gp-b2b-chain { margin: 0; font-size: 16px; color: var(--wk-ink-3); }
+.gp-b2b-chain .wk-datum { font-size: 22px; color: var(--wk-ink); }
+.gp-b2b-math { margin: 0; font-size: 14px; line-height: 1.6; color: var(--wk-ink-3); max-width: 46ch; }
+.gp-b2b-math .wk-datum { color: var(--wk-ink); }
+.gp-grade {
+  margin: 0;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 52px; line-height: 1;
+  color: var(--grade);
+  animation: gp-drop 280ms var(--wk-ease) both;
+}
+
+.gp-odds { display: grid; gap: 22px; }
+.gp-odds-controls { display: flex; flex-wrap: wrap; gap: 18px 36px; align-items: end; }
+.gp-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.gp-seg button {
+  min-height: 40px; padding: 0 12px 2px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.gp-seg button:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+.gp-seg button[aria-pressed="true"] { background: var(--wk-ink); color: var(--wk-ground); }
+.gp-seg-n { font-weight: 700; opacity: 0.75; margin-left: 4px; }
+.gp-odds-result { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.gp-odds-math { font-size: 16px; color: var(--wk-ink-3); }
+.gp-odds-math .wk-datum { color: var(--wk-ink); }
+.gp-odds-pct { font-size: clamp(40px, 5vw, 56px); color: var(--wk-ink); }
+.gp-odds-result .gp-grade { font-size: 36px; animation: none; }
+
+/* The ladder: five rungs, each a block-celled bar that grows with the tier. The lit
+   rung is the grade; the rest step back to 40%. */
+.gp-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.gp-rung { display: grid; align-content: start; gap: 6px; padding: 12px 14px 4px; box-shadow: inset 1px 0 0 var(--wk-line); opacity: 0.4; transition: opacity 200ms var(--wk-ease); }
+.gp-rung:first-child { padding-left: 0; box-shadow: none; }
+.gp-rung[data-on] { opacity: 1; }
+.gp-rung-bar {
+  height: 10px; width: var(--w);
+  background: linear-gradient(90deg, var(--from), var(--to));
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+          mask: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+}
+.gp-rung-word { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.1; color: var(--ink); }
+.gp-rung-when { font-size: 14px; line-height: 1.35; color: var(--wk-ink-2); }
+.gp-rung-note { font-size: 13px; color: var(--wk-ink-3); }
+
+/* ── 5. The modes ──────────────────────────────────────────────────────────── */
+
+.gp-modes { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 56px; }
+.gp-mode-list { list-style: none; margin: 24px 0 0; padding: 0; display: grid; }
+.gp-mode {
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 56px; align-items: center;
+  padding: 32px 0;
+  box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.gp-mode:first-child { box-shadow: none; padding-top: 8px; }
+.gp-mode-fig { margin: 0; display: grid; gap: 12px; min-width: 0; }
+.gp-mode-copy { display: grid; gap: 10px; align-content: center; }
+.gp-mech { margin: 0; font-family: var(--wk-font-display); font-weight: 600; font-size: 30px; line-height: 1.05; color: var(--wk-ink); }
+.gp-mode-hook { margin: 0; font-size: 18.5px; line-height: 1.45; color: var(--wk-ink); max-width: 40ch; }
+.gp-mode-rules { margin: 0; padding: 0 0 0 18px; display: grid; gap: 6px; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 52ch; }
+.gp-mode-rules li::marker { color: var(--wk-ink-4); }
+
+.gp-sim { min-height: 190px; display: grid; align-content: center; }
+.gp-live { line-height: 0; animation: gp-drop 280ms var(--wk-ease) both; }
+.gp-live .wk-slot { box-shadow: inset 0 0 0 2px var(--wk-ink), inset 2px 2px 0 oklch(4% 0 0 / 0.65); }
+.gp-done { position: relative; line-height: 0; }
+.gp-lane-score { font-size: 22px; color: var(--wk-ink); min-width: 2ch; text-align: right; }
+
+.gp-sim--fib { gap: 10px; }
+/* A fixed trail column, so every lane's current item sits at the same x. */
+.gp-lane { display: grid; grid-template-columns: 32px 162px 48px 3ch; justify-content: start; align-items: center; gap: 14px; }
+.gp-lane-trail { display: flex; justify-content: flex-end; gap: 6px; min-width: 0; overflow: hidden; }
+.gp-lane-trail .gp-done { opacity: calc(1 - var(--age) * 0.2); animation: gp-in-right 280ms var(--wk-ease) both; }
+
+.gp-sim--run { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 22px; }
+.gp-racers { display: grid; gap: 18px; }
+.gp-racer { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 3ch; align-items: center; gap: 16px; height: 28px; }
+.gp-racer-track {
+  position: relative; height: 2px;
+  background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 6px, transparent 6px 10px);
+}
+.gp-racer-fill { position: absolute; left: 0; top: 0; height: 2px; background: var(--wk-ink-3); }
+.gp-racer[data-won] .gp-racer-fill { background: var(--wk-ink); }
+.gp-racer-head { position: absolute; top: 2px; margin-left: -12px; line-height: 0; }
+.gp-racer-head .gp-head { width: 24px; height: 24px; }
+.gp-racer-plus {
+  position: absolute; right: calc(3ch + 20px); top: -18px;
+  font-weight: 700; font-size: 16px; color: var(--wk-s-early-ink);
+  animation: gp-rise 1200ms var(--wk-ease) both;
+}
+
+.gp-sim--chain { gap: 22px; justify-items: start; }
+.gp-sim--chain .wk-bossbar-draw { width: min(520px, 100%); }
+.gp-belt { display: flex; align-items: center; gap: 10px; }
+.gp-belt-step { display: grid; justify-items: center; gap: 8px; animation: gp-in-right 320ms var(--wk-ease) both; }
+.gp-belt-done { opacity: 0.55; }
+.gp-belt-next { opacity: 0.85; }
+.gp-belt-hidden { display: flex; gap: 2px; }
+.gp-hidden { font-weight: 700; font-size: 22px; color: var(--wk-ink-4); }
+
+/* ── 6. Random events ──────────────────────────────────────────────────────── */
+
+.gp-events { display: grid; gap: 28px; }
+.gp-evline { display: grid; gap: 10px; }
+.gp-evline-track { position: relative; height: 72px; margin-top: 18px; }
+.gp-evline-track::before { content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 2px; background: var(--wk-line-hi); }
+/* The last five minutes, where nothing starts: the rail goes dashed. */
+.gp-evline-end {
+  position: absolute; right: 0; bottom: 5px; height: 2px;
+  background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, var(--wk-ground) 4px 8px);
+}
+.gp-evmark {
+  position: absolute; bottom: 0; transform: translateX(-18px);
+  display: grid; justify-items: center; gap: 4px;
+  animation: gp-drop 280ms var(--wk-ease) both; animation-delay: calc(var(--i) * 70ms);
+}
+.gp-evmark::after { content: ""; width: 2px; height: 8px; background: var(--wk-ink-3); }
+.gp-evmark-when { position: absolute; top: -18px; font-size: 13px; font-weight: 700; color: var(--wk-ink-3); white-space: nowrap; }
+
+.gp-event-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+/* One event per row: its face, its name and how often, then the rule beside them. */
+.gp-event { display: grid; grid-template-columns: 48px 13rem minmax(0, 1fr); gap: 6px 16px; align-items: start; }
+.gp-event > div { display: contents; }
+.gp-event > .wk-slot { grid-row: 1 / span 2; }
+.gp-event .wk-name { grid-column: 2; margin-top: 4px; }
+.gp-event-often { grid-column: 2; }
+.gp-event-text { grid-column: 3; grid-row: 1 / span 2; padding-top: 6px; }
+.gp-event-often { margin: 2px 0 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--wk-ink-3); }
+.gp-event-text { margin: 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); }
+
+.gp-offers { list-style: none; margin: -8px 0 0; padding: 18px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px 20px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.gp-offer { display: grid; justify-items: start; gap: 6px; }
+.gp-offer-name { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--wk-ink); }
+.gp-offer-price { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--wk-ink-2); }
+.gp-offer-price img { image-rendering: pixelated; }
+.gp-cycle { position: relative; display: inline-grid; line-height: 0; }
+
+/* ── 7. Strategy ───────────────────────────────────────────────────────────── */
+
+.gp-tips { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 36px; align-content: start; }
+.gp-tip { align-items: flex-start; }
+.gp-tip-text { font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .gp-mode { grid-template-columns: 1fr; }
+  .gp-offers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .gp-b2b-stage { grid-template-columns: 1fr; }
+  .gp-b2b-read { min-height: 300px; }
+  .gp-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
+  .gp-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
+}
+@media (max-width: 720px) {
+  .gp-pair, .gp-rules, .gp-tips { grid-template-columns: 1fr; }
+  .gp-event { grid-template-columns: 48px minmax(0, 1fr); }
+  .gp-event-text { grid-column: 2; grid-row: auto; padding-top: 2px; }
+  .gp-inv-grid { grid-template-columns: repeat(var(--cols), 34px); }
+  .gp-inv-grid .wk-slot { --slot: 34px !important; }
+  .gp-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gp-rung:nth-child(odd) { padding-left: 0; box-shadow: none; }
+  .gp-rung:nth-child(even) { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
+  .gp-offers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gp-lane { grid-template-columns: 28px 78px 48px 2.5ch; gap: 10px; }
+  .gp-lane-trail .gp-done:nth-child(-n+2) { display: none; }
+  .gp-seq-to { flex-basis: 20px; }
+  .gp-belt { gap: 6px; }
+  .gp-belt .gp-seq-to { flex-basis: 14px; }
+  .gp-belt-hidden .wk-slot:last-child { display: none; }
+  .gp-grade { font-size: 40px; }
+  .gp-flag-name { font-size: 22px; }
+  .gp-flag-when { font-size: 13px; }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-land, .gp-draw, .gp-plus, .gp-live, .gp-lane-trail .gp-done, .gp-belt-step, .gp-evmark,
+  .gp-grade, .gp-racer-plus, .gp-cell.is-hit .wk-sprite { animation: none; }
+  .gp-flag, .gp-rail-mark { transition: none; }
+}
+html[data-saver="on"] :is(.gp-land, .gp-draw, .gp-plus, .gp-live, .gp-lane-trail .gp-done, .gp-belt-step, .gp-evmark,
+  .gp-grade, .gp-racer-plus, .gp-cell.is-hit .wk-sprite) { animation: none; }

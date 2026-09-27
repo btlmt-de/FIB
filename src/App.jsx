@@ -170,23 +170,23 @@ export default function App() {
             )}
 
             {currentPage === 'how-to-play' && (
-                <HowToPlay />
+                <HowToPlay onNavigate={navigate} />
             )}
 
             {currentPage === 'gameplay' && (
-                <Gameplay />
+                <Gameplay onNavigate={navigate} />
             )}
 
             {currentPage === 'changelog' && (
-                <Changelog />
+                <Changelog onNavigate={navigate} />
             )}
 
             {currentPage === 'imprint' && (
-                <Imprint />
+                <Imprint onNavigate={navigate} />
             )}
 
             {currentPage === 'rules' && (
-                <Rules />
+                <Rules onNavigate={navigate} />
             )}
 
             {currentPage === 'pools' && (
@@ -194,15 +194,15 @@ export default function App() {
             )}
 
             {currentPage === 'structures' && (
-                <CustomStructures />
+                <CustomStructures onNavigate={navigate} />
             )}
 
             {currentPage === 'commands' && (
-                <Commands />
+                <Commands onNavigate={navigate} />
             )}
 
             {currentPage === 'settings' && (
-                <GameSettings />
+                <GameSettings onNavigate={navigate} />
             )}
             </Suspense>
         </WikiRoot>

@@ -1,1133 +1,1105 @@
-import React from 'react';
-import { Swords, Zap, Trophy, SkipForward, ScanSearch, Split, Brain, Link } from 'lucide-react';
-import Footer from "../components/common/Footer.jsx";
-/* Generated from the plugin's CustomMaterials enum by scripts/vendor-pool.mjs. Its own
-   module, not part of itemPool.js, so this page does not drag the 1,300-entry pool
-   arrays out of the lazy Stats chunk and into the main bundle. */
-import { CUSTOM_ITEM_NAMES } from '../config/customItems.js';
-import { IMAGE_BASE_URL } from '../config/constants';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Dices from 'lucide-react/dist/esm/icons/dices';
+import Pause from 'lucide-react/dist/esm/icons/pause';
+import Play from 'lucide-react/dist/esm/icons/play';
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw';
+import Footer from '../components/common/Footer.jsx';
+import { useCalm } from '../config/power.js';
+import Bossbar from '../wiki/Bossbar.jsx';
+import PageLinks from '../wiki/PageLinks.jsx';
+import { ItemSlot, TooltipLayer } from '../wiki/items.jsx';
+import { POOL_BY_STAGE, POOL_SETTINGS, itemName, pick } from '../wiki/atlas.js';
+import { picks, useOnScreen, useTicker } from '../wiki/hooks.js';
+import { useGo } from '../wiki/pages.js';
+import { FIND_RARITY, STAGES } from '../wiki/tokens.js';
+import '../wiki/page.css';
+import '../wiki/gameplay.css';
 
-/* ─────────────────────────────────────
-   Textures — same source as ItemPoolManager / ForceItemPools
-───────────────────────────────────── */
-const fib       = (m) => `${IMAGE_BASE_URL}/${String(m).toLowerCase()}.png`;
-const BARRIER   = `${IMAGE_BASE_URL}/barrier.png`;
-const onImgErr  = (e) => { e.currentTarget.onerror = null; e.currentTarget.src = BARRIER; };
-/* A custom item answers with its own name, not the material it rides on — NETHER_STAR is
-   the Wheel of Fortune. Mirrors CustomMaterials.nameOf() via the vendored map, and takes
-   both casings because the pool list arrives as MATERIAL and the demo rows as material.
-   The two on-screen uses are text-transform: uppercase anyway; the title-casing is for
-   the sprite alt text. */
-const itemLabel = (m) => CUSTOM_ITEM_NAMES[String(m).toUpperCase()]
-    ?? String(m).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+/*
+ * Gameplay (THE EXPLORER'S ATLAS). The rulebook, where home is the summary.
+ *
+ * Every rule on this page is the plugin's, read out of its source on main, and every
+ * drawing runs the plugin's own arithmetic rather than an approximation of it:
+ *
+ *   the pool's unlock marks     manager/UnlockSchedule: 11.11% and 28.88% of the round
+ *                               below 50 minutes, minute 5 and minute 15 from 50 up
+ *   what counts as getting it   listener/ItemsListener's handlers, asking FindDetection
+ *   jokers                      model/JokerSpend and listener/ClickableItemsListener:
+ *                               the item is handed over and the find is marked skipped;
+ *                               model/FindOutcome: a skip scores except in Run Battle
+ *   back-to-backs               manager/BackToBackManager (what is searched) and
+ *                               model/BackToBackProbability + Rarity (the odds, the grade)
+ *   the modes                   manager/ForceItemAssignment (private draws, or one seeded
+ *                               sequence for the whole server in Run Battle)
+ *   random events               randomevents/*: the schedule, weights and rewards
+ *
+ * An earlier version of this page said every player gets "the same items, in the same
+ * order". That is Run Battle only; in a normal round each player draws privately. It
+ * also stated that games "typically run 45 to 120 minutes", which nothing on the
+ * server records, so it is gone (DESIGN.md, the Honest Claim Rule).
+ *
+ * Every simulation is labelled an illustration, runs only while it is on screen, and
+ * stands still under reduced motion or saver mode on a frame that still says what it
+ * shows.
+ */
 
-const Sprite = ({ item, size = 20, dim = false }) => (
-    <img
-        src={fib(item)} alt={itemLabel(item)} onError={onImgErr}
-        style={{ width: size, height: size, imageRendering: 'pixelated', flexShrink: 0, display: 'block', opacity: dim ? 0.4 : 1 }}
-    />
+const MC_HEAD = (u) => `https://minotar.net/helm/${u}/100`;
+const HEADS = ['MHF_Steve', 'MHF_Alex', 'MHF_Villager'];
+const fmt = (n) => n.toLocaleString('en-US');
+const ORDER = ['EARLY', 'MID', 'LATE'];
+const COUNT = Object.fromEntries(ORDER.map((s) => [s, POOL_BY_STAGE[s].length]));
+const RARITY = Object.fromEntries(FIND_RARITY.map((r) => [r.key, r]));
+const EARLY_MID = [...POOL_BY_STAGE.EARLY, ...POOL_BY_STAGE.MID];
+
+function Head({ name, size = 32 }) {
+    return <img className="gp-head" src={MC_HEAD(name)} alt="" width={size} height={size} loading="lazy" />;
+}
+
+const Tick = () => (
+    <span className="gp-tick" aria-hidden="true">
+        <svg viewBox="0 0 7 7" width="8" height="8" shapeRendering="crispEdges"><path d="M6 1h1v2h-1v1h-1v1h-1v1h-2v-1h-1v-1h-1v-1h2v1h1v-1h1v-1h1z" fill="currentColor" /></svg>
+    </span>
 );
 
-const CSS = `
-  .gp {
-    font-family: 'Barlow', system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    background: oklch(17% 0.025 255);
-    color: oklch(94% 0.007 255);
-    min-height: 100vh; display: flex; flex-direction: column;
-  }
-  .gp-rule  { height: 1px; background: oklch(22% 0.022 255); }
-  .gp-shell { max-width: 1080px; margin: 0 auto; padding: 0 28px; width: 100%; box-sizing: border-box; }
+/* ── The plugin's arithmetic ─────────────────────────────────────────────────── */
 
-  /* ── Header ── */
-  .gp-header { padding: 80px 0 64px; }
-  .gp-eyebrow {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px;
-    color: oklch(76% 0.16 68); margin: 0 0 14px;
-  }
-  .gp-h1 {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: clamp(44px, 6.5vw, 76px); font-weight: 800;
-    line-height: 0.95; letter-spacing: -0.5px; text-transform: uppercase;
-    color: oklch(94% 0.007 255); margin: 0 0 18px;
-  }
-  .gp-sub { font-size: 16px; color: oklch(52% 0.012 255); max-width: 480px; line-height: 1.75; margin: 0 0 28px; }
+/** UnlockSchedule.forRound, then unlockMinute: whole minutes, rounded half up. */
+const FIXED_FROM = 50;
+function unlockMinutes(len) {
+    const pct = len < FIXED_FROM ? { MID: 11.11, LATE: 28.88 } : { MID: (5 / len) * 100, LATE: (15 / len) * 100 };
+    const at = (p) => Math.round((len * 60 * (p / 100)) / 60);
+    return { EARLY: 0, MID: at(pct.MID), LATE: at(pct.LATE) };
+}
 
-  /* ── Section shared ── */
-  .gp-section { padding: 72px 0; }
-  .gp-section-layout {
-    display: grid; grid-template-columns: 260px 1fr;
-    gap: 0 64px; align-items: start;
-  }
-  @media (max-width: 760px) { .gp-section-layout { grid-template-columns: 1fr; gap: 28px 0; } }
+/** BackToBackProbability.probabilityOf. */
+function oddsOf(held, pool, streak) {
+    if (pool <= 0) return 0;
+    return Math.pow(Math.min(held / pool, 1), streak);
+}
 
-  .gp-label { position: sticky; top: 32px; }
-  .gp-tag {
-    display: inline-flex; align-items: center;
-    padding: 4px 10px; border-radius: 4px; margin-bottom: 18px;
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-  }
-  .gp-tag.amber  { background: oklch(76% 0.16 68 / 0.12); border: 1px solid oklch(76% 0.16 68 / 0.30); color: oklch(76% 0.16 68); }
-  .gp-tag.green  { background: oklch(64% 0.20 142 / 0.12); border: 1px solid oklch(64% 0.20 142 / 0.30); color: oklch(64% 0.20 142); }
-  .gp-tag.purple { background: oklch(65% 0.18 300 / 0.12); border: 1px solid oklch(65% 0.18 300 / 0.28); color: oklch(65% 0.18 300); }
-  .gp-tag.blue   { background: oklch(65% 0.16 255 / 0.12); border: 1px solid oklch(65% 0.16 255 / 0.28); color: oklch(65% 0.16 255); }
+/** Rarity.classify. */
+function gradeOf(p, repeatOfPrevious = false) {
+    if (repeatOfPrevious) return 'EXTRAORDINARY';
+    if (p <= 0.001) return 'RNGESUS';
+    if (p <= 0.01) return 'LEGENDARY';
+    if (p <= 0.05) return 'EPIC';
+    return 'RARE';
+}
 
-  .gp-h2 {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: clamp(26px, 3.5vw, 36px); font-weight: 800;
-    text-transform: uppercase; letter-spacing: -0.2px;
-    color: oklch(94% 0.007 255); margin: 0 0 14px; line-height: 1.0;
-  }
-  .gp-label-body { font-size: 13.5px; color: oklch(52% 0.013 255); line-height: 1.72; margin: 0; }
+/** BackToBackProbability.formatPercent: two places, or two significant digits past the zeros. */
+function formatPercent(percent) {
+    if (percent >= 1) return `${Number(percent.toFixed(2))}%`;
+    let zeros = 0;
+    let t = percent;
+    while (t < 1 && zeros < 15) { t *= 10; zeros += 1; }
+    const s = percent.toFixed(Math.min(20, zeros + 2)).replace(/\.?0+$/, '');
+    return `${s}%`;
+}
 
-  /* ── Basics 2x2 grid ── */
-  .gp-basics {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 1px; background: oklch(24% 0.022 255);
-    border-radius: 9px; overflow: hidden; margin-bottom: 16px;
-  }
-  @media (max-width: 480px) { .gp-basics { grid-template-columns: 1fr; } }
-  .gp-basic-tile { background: oklch(20% 0.023 255); padding: 18px 20px; display: flex; align-items: flex-start; gap: 13px; }
-  .gp-basic-icon { width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-  .gp-basic-title {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
-    color: oklch(90% 0.009 255); margin: 0 0 4px; line-height: 1.1;
-  }
-  .gp-basic-desc { font-size: 12.5px; color: oklch(52% 0.013 255); line-height: 1.55; }
+/* ── 1. One item at a time ───────────────────────────────────────────────────── */
 
-  .gp-flow {
-    padding: 14px 18px;
-    background: oklch(76% 0.16 68 / 0.07); border: 1px solid oklch(76% 0.16 68 / 0.22);
-    border-radius: 8px; font-size: 14px; line-height: 1.72; color: oklch(70% 0.12 68);
-  }
-  .gp-flow strong { color: oklch(82% 0.14 68); }
-
-  /* ════════════════════════════════════════
-     Mode selector + panel — connected unit
-  ════════════════════════════════════════ */
-
-  /* Outer container — selector and panel flush-connected */
-  .gp-mode-group { display: flex; flex-direction: column; }
-
-  /* ── Selector: 3 cards across the top ── */
-  .gp-msel {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 1px; background: oklch(25% 0.022 255);
-    border-radius: 10px 10px 0 0; overflow: hidden;
-  }
-  .gp-msel-item {
-    background: oklch(19.5% 0.023 255);
-    padding: 16px 16px 15px;
-    cursor: pointer; border: none; text-align: left;
-    display: flex; flex-direction: column; gap: 8px;
-    position: relative; overflow: hidden;
-    transition: background 0.12s ease-out;
-  }
-  .gp-msel-item:hover:not(.active) { background: oklch(21.5% 0.022 255); }
-  .gp-msel-item.active { background: oklch(21% 0.023 255); }
-
-  /* Top accent strip — fades in on active */
-  .gp-msel-item::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: var(--mc); opacity: 0;
-    transition: opacity 0.15s ease-out;
-  }
-  .gp-msel-item.active::before { opacity: 1; }
-
-  /* Number — large watermark, dims on inactive */
-  .gp-msel-hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
-  .gp-msel-num {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 30px; font-weight: 900; letter-spacing: -1.5px; line-height: 1;
-    color: oklch(27% 0.019 255);
-    transition: color 0.15s ease-out;
-  }
-  .gp-msel-item.active .gp-msel-num { color: var(--mc); }
-
-  /* Badge */
-  .gp-msel-badge {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-    padding: 3px 7px; border-radius: 3px;
-    background: oklch(23% 0.022 255);
-    border: 1px solid oklch(27% 0.019 255);
-    color: oklch(38% 0.012 255);
-    white-space: nowrap;
-    transition: background 0.15s ease-out, color 0.15s ease-out, border-color 0.15s ease-out;
-  }
-  .gp-msel-item.active .gp-msel-badge {
-    background: var(--mc-bg); border-color: var(--mc-bd); color: var(--mc);
-  }
-
-  /* Identity row: icon + name */
-  .gp-msel-identity { display: flex; align-items: center; gap: 7px; }
-  .gp-msel-icon { color: oklch(34% 0.012 255); transition: color 0.15s ease-out; flex-shrink: 0; }
-  .gp-msel-item.active .gp-msel-icon { color: var(--mc); }
-  .gp-msel-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 13.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
-    color: oklch(40% 0.012 255);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    transition: color 0.15s ease-out;
-  }
-  .gp-msel-item.active .gp-msel-name { color: oklch(88% 0.008 255); }
-
-  /* One-liner hook */
-  .gp-msel-hook {
-    font-size: 11px; color: oklch(30% 0.011 255); line-height: 1.5; margin: 0;
-    transition: color 0.15s ease-out;
-  }
-  .gp-msel-item.active .gp-msel-hook { color: oklch(46% 0.011 255); }
-
-  @media (max-width: 580px) {
-    .gp-msel { grid-template-columns: 1fr; border-radius: 10px 10px 0 0; }
-    .gp-msel-hook { display: none; }
-    .gp-msel-item { padding: 12px 14px; gap: 6px; }
-  }
-
-  /* ── Panel: three stacked zones ── */
-  .gp-mpanel {
-    background: oklch(20% 0.023 255);
-    border: 1px solid oklch(25% 0.022 255);
-    border-top: none;
-    border-radius: 0 0 10px 10px; overflow: hidden;
-  }
-  /* Head: mode name + badge — no prose, no alignment tension */
-  .gp-mpanel-head {
-    padding: 16px 24px;
-    border-bottom: 1px solid oklch(24% 0.022 255);
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  }
-  .gp-mpanel-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.2px;
-    color: oklch(94% 0.007 255); margin: 0; line-height: 1;
-  }
-  .gp-mpanel-badge {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-    padding: 4px 10px; border-radius: 4px;
-    background: var(--mc-bg); border: 1px solid var(--mc-bd); color: var(--mc);
-    flex-shrink: 0;
-  }
-  /* Body: dark, full-width viz */
-  .gp-mpanel-body { padding: 26px 24px 24px; background: oklch(17% 0.025 255); }
-  /* Foot: key rule accent bar */
-  .gp-mpanel-foot {
-    padding: 11px 24px;
-    background: var(--mc-bg); border-top: 1px solid var(--mc-bd);
-    display: flex; align-items: center; gap: 12px;
-  }
-  .gp-mpanel-foot-lbl {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
-    color: var(--mc); opacity: 0.75; flex-shrink: 0;
-  }
-  .gp-mpanel-foot-sep { width: 1px; height: 12px; background: var(--mc); opacity: 0.22; flex-shrink: 0; }
-  .gp-mpanel-foot-val {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2px;
-    color: oklch(82% 0.009 255);
-  }
-
-  /* ════════════════════════════════════════
-     Shared viz
-  ════════════════════════════════════════ */
-  .vz-lbl {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
-    color: oklch(34% 0.012 255);
-  }
-
-  /* ── FIBViz — full-width scoreboard ── */
-  .fib-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .fib-clock {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 14px; font-weight: 700; letter-spacing: 0.5px;
-    color: oklch(76% 0.16 68); font-variant-numeric: tabular-nums;
-  }
-  .fib-tbar-wrap { height: 3px; background: oklch(22% 0.022 255); border-radius: 1.5px; overflow: hidden; margin-bottom: 12px; }
-  .fib-tbar-fill { height: 100%; background: oklch(76% 0.16 68 / 0.5); border-radius: 1.5px; }
-  .fib-stages { display: flex; gap: 5px; margin-bottom: 20px; }
-  .fib-stage {
-    padding: 3px 10px; border-radius: 4px;
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
-    background: oklch(22% 0.022 255); color: oklch(36% 0.012 255);
-  }
-  .fib-stage.s-mid { background: oklch(76% 0.16 68 / 0.14); color: oklch(76% 0.16 68); }
-  /* Single-line player rows — full panel width gives room for everything on one row */
-  .fib-players { display: flex; flex-direction: column; gap: 10px; }
-  .fib-player  { display: flex; align-items: center; gap: 10px; }
-  .fib-rank {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.5px; font-variant-numeric: tabular-nums;
-    color: oklch(32% 0.012 255); width: 14px; text-align: right; flex-shrink: 0;
-  }
-  .fib-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .fib-pname {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
-    color: oklch(56% 0.011 255);
-    width: 68px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .fib-item-cell { display: flex; align-items: center; gap: 6px; width: 132px; flex-shrink: 0; }
-  .fib-iname {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2px;
-    color: oklch(42% 0.012 255); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .fib-ptrack { flex: 1; height: 6px; background: oklch(22% 0.022 255); border-radius: 3px; overflow: hidden; }
-  .fib-pbar   { height: 100%; border-radius: 3px; }
-  .fib-pscore {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
-    min-width: 28px; text-align: right; flex-shrink: 0;
-  }
-
-  /* ── RunBattleViz — full width ── */
-  .run-target {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    padding: 20px 24px 18px; margin-bottom: 20px;
-    background: oklch(19% 0.024 255); border: 1px solid oklch(27% 0.020 255);
-    border-radius: 9px; position: relative;
-  }
-  .run-item-box {
-    width: 60px; height: 60px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    background: oklch(23% 0.022 255); border: 1px solid oklch(30% 0.019 255);
-  }
-  .run-target-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
-    color: oklch(88% 0.008 255); line-height: 1.1;
-  }
-  .run-claimed-badge {
-    position: absolute; top: 12px; right: 14px;
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px;
-    color: oklch(64% 0.20 142);
-    padding: 3px 8px; border-radius: 4px;
-    background: oklch(64% 0.20 142 / 0.10); border: 1px solid oklch(64% 0.20 142 / 0.25);
-  }
-  .run-players { display: flex; flex-direction: column; gap: 6px; }
-  .run-player  { display: flex; align-items: center; gap: 10px; border-radius: 6px; padding: 6px 8px; }
-  .run-player.winner { background: oklch(64% 0.20 142 / 0.06); }
-  .run-pdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .run-pname {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
-    color: oklch(56% 0.011 255);
-    width: 68px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .run-track { flex: 1; height: 8px; background: oklch(22% 0.022 255); border-radius: 4px; overflow: hidden; }
-  .run-bar   { height: 100%; border-radius: 4px; }
-  .run-check {
-    font-size: 10px; color: oklch(64% 0.20 142); flex-shrink: 0; width: 14px; text-align: center;
-    font-family: 'Barlow Condensed', system-ui, sans-serif; font-weight: 800;
-  }
-  .run-pscore {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
-    min-width: 26px; text-align: right; flex-shrink: 0;
-  }
-
-  /* ── ForceChainViz — vertical queue ── */
-  .chain-hdr { margin-bottom: 14px; }
-  .chain-list {
-    display: flex; flex-direction: column;
-    border-radius: 9px; overflow: hidden;
-    border: 1px solid oklch(25% 0.021 255);
-    margin-bottom: 14px;
-  }
-  .chain-row {
-    display: flex; align-items: center; gap: 14px;
-    padding: 13px 16px; position: relative;
-  }
-  .chain-row + .chain-row { border-top: 1px solid oklch(25% 0.021 255); }
-
-  /* Current: blue tint + left accent bar */
-  .chain-row-curr { background: oklch(75% 0.12 200 / 0.09); padding-left: 20px; }
-  .chain-row-curr::before {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: oklch(75% 0.12 200 / 0.75); border-radius: 0 2px 2px 0;
-  }
-  /* Next: subtle neutral */
-  .chain-row-next { background: oklch(21% 0.023 255); }
-  /* Future: dimmest */
-  .chain-row-future { background: oklch(19% 0.024 255); }
-
-  /* Sprite box — identical size on every row */
-  .chain-spr-box {
-    width: 38px; height: 38px; border-radius: 8px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: oklch(17% 0.025 255); border: 1px solid oklch(24% 0.021 255);
-  }
-  .chain-row-curr .chain-spr-box { border-color: oklch(75% 0.12 200 / 0.24); }
-
-  /* Info: label + name stacked */
-  .chain-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .chain-row-lbl {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-    color: oklch(34% 0.012 255);
-  }
-  .chain-row-curr .chain-row-lbl { color: oklch(62% 0.10 200); }
-  .chain-row-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.2px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1;
-  }
-  .chain-row-curr   .chain-row-name { color: oklch(90% 0.008 255); }
-  .chain-row-next   .chain-row-name { color: oklch(50% 0.009 255); }
-  .chain-row-future .chain-row-name { color: oklch(30% 0.010 255); }
-
-  /* Status badge — current row only */
-  .chain-row-status {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-    padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
-    background: oklch(75% 0.12 200 / 0.12); border: 1px solid oklch(75% 0.12 200 / 0.28);
-    color: oklch(75% 0.12 200);
-  }
-
-  /* ? in the sprite box for the future slot */
-  .chain-future-q {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 20px; font-weight: 900; line-height: 1; color: oklch(28% 0.012 255);
-  }
-  .chain-hint {
-    padding: 10px 14px;
-    background: oklch(75% 0.12 200 / 0.06); border: 1px solid oklch(75% 0.12 200 / 0.15);
-    border-radius: 7px;
-    font-size: 12.5px; color: oklch(48% 0.012 255); line-height: 1.55;
-  }
-  .chain-hint strong { color: oklch(75% 0.12 200); font-weight: 600; }
-
-  /* ════════════════════════════════════════
-     Item Pools section
-  ════════════════════════════════════════ */
-
-  /* Timeline bar: three tiers connected by a progress line */
-  .pools-timeline {
-    display: flex; align-items: center; gap: 0; margin-bottom: 28px;
-  }
-  .pools-timeline-tier {
-    display: flex; align-items: center; gap: 9px;
-    flex: 1;
-    padding: 11px 14px;
-    border-radius: 8px;
-    border: 1px solid oklch(25% 0.021 255);
-    background: oklch(20% 0.023 255);
-  }
-  .pools-timeline-connector {
-    width: 28px; flex-shrink: 0; height: 1px;
-    background: oklch(26% 0.020 255); position: relative;
-  }
-  .pools-timeline-connector::after {
-    content: '›'; position: absolute;
-    right: -5px; top: -10px;
-    font-size: 13px; color: oklch(28% 0.016 255);
-  }
-  .pools-tier-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  }
-  .pools-tier-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-  .pools-tier-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  .pools-tier-when {
-    font-size: 11px; color: oklch(38% 0.011 255); white-space: nowrap;
-  }
-
-  /* Three pool tier cards */
-  .pools-tiers {
-    display: grid; grid-template-columns: 1fr 1fr 1fr;
-    gap: 1px; background: oklch(24% 0.022 255);
-    border-radius: 10px; overflow: hidden; margin-bottom: 24px;
-  }
-  @media (max-width: 680px) { .pools-tiers { grid-template-columns: 1fr; } }
-
-  .pools-tier-card {
-    background: oklch(20% 0.023 255);
-    padding: 18px 18px 16px;
-    display: flex; flex-direction: column; gap: 12px;
-    border-top: 2px solid var(--tier-color);
-  }
-  .pools-tier-head { display: flex; align-items: center; justify-content: space-between; }
-  .pools-tier-badge {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
-    padding: 3px 9px; border-radius: 4px;
-    background: var(--tier-bg); border: 1px solid var(--tier-bd); color: var(--tier-color);
-  }
-  .pools-tier-desc {
-    font-size: 12px; color: oklch(46% 0.011 255); line-height: 1.65; margin: 0;
-  }
-
-  /* Item grid inside each tier card */
-  .pools-item-grid {
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
-  .pools-item {
-    display: flex; align-items: center; gap: 5px;
-    padding: 4px 7px 4px 5px;
-    background: oklch(17% 0.025 255); border: 1px solid oklch(25% 0.021 255);
-    border-radius: 5px;
-  }
-  /* Tag badge on item — dot only */
-  .pools-item-tag {
-    width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
-    margin-left: 2px;
-  }
-  .pools-item-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2px;
-    color: oklch(48% 0.010 255); white-space: nowrap;
-  }
-
-  /* Tag legend */
-  .pools-tags {
-    display: flex; gap: 6px; flex-wrap: wrap;
-  }
-  .pools-tag-pill {
-    display: flex; align-items: center; gap: 7px;
-    padding: 7px 12px; border-radius: 7px;
-    background: oklch(20% 0.023 255); border: 1px solid oklch(24% 0.021 255);
-    flex: 1; min-width: 140px;
-  }
-  .pools-tag-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .pools-tag-info { display: flex; flex-direction: column; gap: 1px; }
-  .pools-tag-name {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
-    color: oklch(70% 0.009 255);
-  }
-  .pools-tier-more {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px;
-    color: oklch(36% 0.011 255); margin-top: 4px; display: block;
-  }
-
-  /* Loading skeleton */
-  .pools-skeleton { display: flex; flex-wrap: wrap; gap: 6px; }
-  .pools-skel-item {
-    height: 26px; width: 72px; border-radius: 5px;
-    background: oklch(23% 0.021 255);
-    animation: pools-pulse 1.4s ease-in-out infinite;
-  }
-  .pools-skel-item:nth-child(2) { animation-delay: 0.15s; }
-  .pools-skel-item:nth-child(3) { animation-delay: 0.3s; width: 58px; }
-  .pools-skel-item:nth-child(4) { animation-delay: 0.1s; width: 80px; }
-  .pools-skel-item:nth-child(5) { animation-delay: 0.25s; width: 64px; }
-  .pools-skel-item:nth-child(6) { animation-delay: 0.4s; width: 54px; }
-  @keyframes pools-pulse {
-    0%, 100% { opacity: 0.5; }
-    50%       { opacity: 1; }
-  }
-
-  /* Footer: tags + link side by side */
-  .pools-footer {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; flex-wrap: wrap;
-  }
-  .pools-tags { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
-  .pools-link {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;
-    color: oklch(76% 0.16 68); text-decoration: none;
-    padding: 7px 13px; border-radius: 6px;
-    background: oklch(76% 0.16 68 / 0.08); border: 1px solid oklch(76% 0.16 68 / 0.24);
-    white-space: nowrap; flex-shrink: 0; align-self: center;
-    transition: background 0.12s ease-out, border-color 0.12s ease-out;
-  }
-  .pools-link:hover { background: oklch(76% 0.16 68 / 0.14); border-color: oklch(76% 0.16 68 / 0.38); }
-
-
-  .gp-tips { display: flex; flex-direction: column; }
-  .gp-tip {
-    display: flex; gap: 20px; align-items: flex-start;
-    padding: 22px 0; border-top: 1px solid oklch(22% 0.022 255);
-  }
-  .gp-tip:last-child { border-bottom: 1px solid oklch(22% 0.022 255); }
-  .gp-tip-num {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 13px; font-weight: 700; color: oklch(36% 0.015 255); letter-spacing: 1px;
-    font-variant-numeric: tabular-nums; flex-shrink: 0; margin-top: 3px; width: 24px; text-align: right;
-  }
-  .gp-tip-icon { width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-  .gp-tip-content { flex: 1; min-width: 0; }
-  .gp-tip-title {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
-    color: oklch(90% 0.009 255); margin: 0 0 8px; line-height: 1.1;
-  }
-  .gp-tip-desc { font-size: 13.5px; color: oklch(54% 0.012 255); line-height: 1.75; margin: 0 0 10px; }
-  .gp-tip-bullets { display: flex; flex-direction: column; gap: 7px; list-style: none; margin: 0; padding: 0; }
-  .gp-tip-bullet { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: oklch(58% 0.012 255); line-height: 1.65; }
-  .gp-tip-bullet::before { content: '—'; color: oklch(36% 0.015 255); font-size: 11px; flex-shrink: 0; }
-
-  @media (max-width: 600px) {
-    .gp-shell { padding: 0 20px; }
-    .gp-header { padding: 60px 0 52px; }
-    .gp-section { padding: 52px 0; }
-  }
-`;
-
-/* ─────────────────────────────────────
-   Data
-───────────────────────────────────── */
-const BASICS = [
-    { icon: Swords,      color: 'oklch(62% 0.22 25)',  title: 'You get an item',      desc: 'At the start and after each score, the game assigns you a random item. It appears in your HUD.' },
-    { icon: ScanSearch,  color: 'oklch(68% 0.12 200)', title: 'Find it in the world', desc: 'Craft, mine, farm, trade, or loot. The game auto-detects it across your inventory, backpack, and bundles.' },
-    { icon: Trophy,      color: 'oklch(76% 0.16 68)',  title: 'Score the point',      desc: 'Once detected, you score immediately and receive the next item. The round is continuous.' },
-    { icon: SkipForward, color: 'oklch(64% 0.20 142)', title: 'Or use a joker',       desc: 'Stuck on something costly? Spend a joker to skip. You get a limited supply — use them wisely.' },
+const WAYS = [
+    { face: 'HOPPER', name: 'Pick it up', text: 'A drop, a block you broke, whatever a mob left behind.' },
+    { face: 'CHEST', name: 'Take it out', text: 'Click it in any container: a chest, a barrel, a furnace.' },
+    { face: 'CRAFTING_TABLE', name: 'Craft or smith it', text: 'The moment you take the result.' },
+    { face: 'BUCKET', name: 'Use a bucket', text: 'Fill one, empty one, or catch a fish in one.' },
+    { face: 'COOKED_BEEF', name: 'Eat or drink it', text: 'Consuming it still counts.' },
 ];
 
-/** Returns an oklch color string with the given alpha channel inserted. */
-function getOklchVariant(color, alpha) {
-    // color is e.g. 'oklch(62% 0.22 25)' — insert '/ alpha' before the closing paren
-    return color.replace(')', ` / ${alpha})`);
+function Round() {
+    const [deal, setDeal] = useState(() => picks(POOL_BY_STAGE.EARLY, 2));
+    return (
+        <section id="round" className="wk-wrap pg-sec" aria-labelledby="round-title">
+            <div className="pg-sec-head">
+                <h2 id="round-title" className="wk-h3">One item at a time</h2>
+                <p className="wk-p">
+                    You are handed one item, in your bossbar. Get it any way Minecraft allows and it counts
+                    the moment it is in your hands; the next one is drawn straight away.
+                </p>
+                <p className="wk-p">
+                    Everyone draws from the same pool, but <strong>not the same items</strong>: each player's
+                    draws are their own, and every item the pool holds is equally likely.
+                </p>
+            </div>
+
+            <div className="gp-round">
+                <div className="gp-pair">
+                    {deal.map((m, i) => (
+                        <div key={i} className="gp-pair-one">
+                            <span className="gp-who"><Head name={HEADS[i]} size={20} />{i === 0 ? 'You' : 'Another player'}</span>
+                            <Bossbar item={m} />
+                        </div>
+                    ))}
+                </div>
+                <div className="gp-round-row">
+                    <p className="wk-small">Same round, same moment, two draws. An illustration from the real pool.</p>
+                    <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setDeal(picks(POOL_BY_STAGE.EARLY, 2))}>
+                        <Dices size={16} aria-hidden="true" /> Deal again
+                    </button>
+                </div>
+
+                <div className="gp-ways">
+                    <span className="wk-label">It counts when you</span>
+                    <ul className="gp-ways-list">
+                        {WAYS.map((w) => (
+                            <li key={w.face} className="gp-way">
+                                <ItemSlot material={w.face} size={48} tip={false} marks={false} />
+                                <span>
+                                    <span className="gp-way-name">{w.name}</span>
+                                    <span className="gp-way-text">{w.text}</span>
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="wk-small">Or simply hold it and right-click.</p>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* ── 2. The pool opens up ────────────────────────────────────────────────────── */
+
+const DRAWS = 8;
+
+function Clock() {
+    const [len, setLen] = useState(30);
+    const [at, setAt] = useState(0);
+    const [playing, setPlaying] = useState(false);
+    const [seed, setSeed] = useState(0);
+    const unlock = unlockMinutes(len);
+    const open = ORDER.filter((s) => at >= unlock[s]);
+    const size = open.reduce((n, s) => n + COUNT[s], 0);
+    const openKey = open.join();
+
+    // A fresh draw only when the pool itself changes (or on request), so dragging the
+    // playhead inside a stage does not reshuffle the row under the reader's eyes.
+    const draws = useMemo(() => {
+        const union = open.flatMap((s) => POOL_BY_STAGE[s]);
+        return Array.from({ length: DRAWS }, () => pick(union));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [openKey, seed]);
+
+    const step = useCallback(() => setAt((a) => Math.min(len, a + 1)), [len]);
+    useEffect(() => { if (playing && at >= len) setPlaying(false); }, [playing, at, len]);
+    // About six seconds for any round, so a long one is not a longer wait.
+    useTicker(step, Math.max(40, Math.round(6000 / len)), playing);
+
+    const changeLen = (v) => { setLen(v); setAt((a) => Math.min(a, v)); };
+    const play = () => { if (at >= len) setAt(0); setPlaying((p) => !p); };
+    const pos = (m) => `${(m / len) * 100}%`;
+
+    return (
+        <section id="pool" className="wk-wrap pg-sec" aria-labelledby="pool-title">
+            <div className="pg-sec-head">
+                <h2 id="pool-title" className="wk-h3">The pool opens up</h2>
+                <p className="wk-p">
+                    A round starts with the Early pool. Mid and Late join it later, and <strong>nothing
+                    ever leaves</strong>: an Early item can still come up in the last minute.
+                </p>
+                <p className="wk-p">
+                    When they join depends on how long the round is. Below 50 minutes it is a share of the
+                    round; from 50 minutes up it is fixed, so a long game does not hold Late back for half an hour.
+                </p>
+                <p className="wk-small">
+                    A Quickie round stops at Early, or at Early and Mid. The length is set when the round
+                    is started, with <code className="wk-typed">/start</code>.
+                </p>
+            </div>
+
+            <div className="gp-clock">
+                <div className="gp-clock-controls">
+                    <label className="gp-field">
+                        <span className="wk-label">Round length</span>
+                        <input
+                            type="range" min="10" max="120" step="5" value={len}
+                            onChange={(e) => changeLen(Number(e.target.value))}
+                            aria-valuetext={`${len} minutes`}
+                        />
+                        <span className="wk-datum gp-field-val">{len} min</span>
+                    </label>
+                    <button type="button" className="wk-btn gp-btn-sm" onClick={play} aria-pressed={playing}>
+                        {playing ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
+                        {playing ? 'Pause' : at >= len ? 'Play again' : 'Play the round'}
+                    </button>
+                </div>
+                <p className="gp-clock-rule" aria-live="polite">
+                    {len < FIXED_FROM
+                        ? <>Under 50 minutes: Mid joins at <strong>11%</strong> of the round, Late at <strong>29%</strong>.</>
+                        : <>50 minutes or more: Mid joins at <strong>minute 5</strong>, Late at <strong>minute 15</strong>.</>}
+                </p>
+
+                <div className="gp-axis" style={{ '--at': pos(at) }}>
+                    <div className="gp-flags" aria-hidden="true">
+                        {ORDER.map((s) => (
+                            <span key={s} className="gp-flag" data-stage={s.toLowerCase()} data-open={at >= unlock[s] || undefined}
+                                  style={{ left: pos(unlock[s]) }}>
+                                <span className="gp-flag-name" style={{ color: STAGES[s].ink }}>{STAGES[s].label}</span>
+                                <span className="gp-flag-when">{unlock[s] === 0 ? 'from the start' : `min ${unlock[s]}`}, {s === 'EARLY' ? fmt(COUNT[s]) : `+${fmt(COUNT[s])}`}</span>
+                            </span>
+                        ))}
+                        <span className="gp-now" />
+                    </div>
+                    <div className="gp-rail">
+                        <span className="gp-rail-fill" />
+                        {ORDER.map((s) => <span key={s} className="gp-rail-mark" data-stage={s.toLowerCase()} style={{ left: pos(unlock[s]) }} />)}
+                    </div>
+                    <input
+                        className="gp-scrub" type="range" min="0" max={len} step="1" value={at}
+                        onChange={(e) => { setPlaying(false); setAt(Number(e.target.value)); }}
+                        aria-label="Minute of the round"
+                        aria-valuetext={`Minute ${at} of ${len}: ${fmt(size)} items can come up`}
+                    />
+                    <div className="gp-rail-ends" aria-hidden="true"><span>0</span><span>{len} min</span></div>
+                </div>
+
+                <p className="gp-clock-read">
+                    Minute <span className="wk-datum">{at}</span>: <span className="wk-datum gp-big">{fmt(size)}</span> items can come up
+                </p>
+                <div className="gp-poolbar" aria-hidden="true">
+                    {ORDER.map((s) => (
+                        <span key={s} className="gp-poolbar-seg" data-stage={s.toLowerCase()} data-open={open.includes(s) || undefined}
+                              style={{ flexGrow: COUNT[s] }}>
+                            <span className="gp-poolbar-label">{STAGES[s].label} <span className="wk-datum">{fmt(COUNT[s])}</span></span>
+                        </span>
+                    ))}
+                </div>
+
+                <div className="gp-draws">
+                    <div className="gp-draws-row" role="group" aria-label={`${DRAWS} example draws at minute ${at}`}>
+                        {draws.map((m, i) => (
+                            <span key={`${m}-${i}-${openKey}-${seed}`} className="gp-draw" style={{ '--i': i }}>
+                                <ItemSlot material={m} size={48} tabIndex={0} />
+                            </span>
+                        ))}
+                    </div>
+                    <div className="gp-round-row">
+                        <p className="wk-small">
+                            Eight draws at this minute, each from everything open. The bar on each slot is the item's stage.
+                            An illustration from the real pool.
+                        </p>
+                        <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setSeed((n) => n + 1)}>
+                            <Dices size={16} aria-hidden="true" /> Draw again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* ── 3. Jokers ───────────────────────────────────────────────────────────────── */
+
+const JOKER_RULES = [
+    { name: 'It still breaks your streak', text: 'Every item you get extends your item streak. A skip is the one thing that ends it.' },
+    { name: 'Not in an Item Hunt', text: 'The hunt goes to the first find made without skipping.' },
+    { name: 'Shared on a team', text: 'A team spends from one set of jokers.' },
+    { name: 'Run Battle is different', text: <>A joker there earns no point. Instead <code className="wk-typed">/voteskip</code> puts the item to a vote of everyone playing; if it carries, the player who called it pays a joker, and a tie is a coin flip.</> },
+];
+
+function Jokers() {
+    const total = POOL_SETTINGS.jokers;
+    const [left, setLeft] = useState(total);
+    const [hunted, setHunted] = useState(() => pick(POOL_BY_STAGE.LATE));
+    const [handed, setHanded] = useState(null);
+    const [score, setScore] = useState(0);
+    const [empty, setEmpty] = useState(false);
+    const timer = useRef(null);
+    useEffect(() => () => clearTimeout(timer.current), []);
+
+    const spend = () => {
+        if (handed) return;
+        if (left <= 0) { setEmpty(true); return; }
+        setLeft((n) => n - 1);
+        setHanded(hunted);
+        setScore((n) => n + 1);
+        timer.current = setTimeout(() => {
+            setHanded(null);
+            setHunted(pick(POOL_BY_STAGE.LATE));
+        }, 1100);
+    };
+    const reset = () => {
+        clearTimeout(timer.current);
+        setLeft(total); setHanded(null); setScore(0); setEmpty(false);
+        setHunted(pick(POOL_BY_STAGE.LATE));
+    };
+
+    return (
+        <section id="jokers" className="wk-wrap pg-sec" aria-labelledby="jokers-title">
+            <div className="pg-sec-head">
+                <h2 id="jokers-title" className="wk-h3">Jokers buy the point</h2>
+                <p className="wk-p">
+                    Some draws are not worth the trip. Right-click a joker and you are <strong>handed the
+                    item itself</strong>: it lands in your inventory, it counts, and the next one is drawn.
+                </p>
+                <p className="wk-p">
+                    You get <span className="wk-datum">{total}</span> a round on this server, so the skill is
+                    in choosing which draws deserve one.
+                </p>
+            </div>
+
+            <div className="gp-jokers">
+                <Bossbar item={hunted} />
+                <div className="gp-seq" aria-hidden="true">
+                    <span className="gp-seq-node">
+                        <span className="wk-slot gp-joker-slot" style={{ '--slot': '64px' }}>
+                            <img className="wk-sprite" src="/fib-custom/barrier.png" alt="" />
+                            {left > 0 && <span className="wk-count">{left}</span>}
+                        </span>
+                        <span className="gp-seq-cap">Joker</span>
+                    </span>
+                    <span className="gp-seq-to" data-lit={Boolean(handed) || undefined} />
+                    <span className="gp-seq-node">
+                        <span className="gp-handed" data-in={Boolean(handed) || undefined}>
+                            {handed
+                                ? <ItemSlot key={handed} material={handed} size={64} tip={false} className="gp-land" />
+                                : <span className="wk-slot" style={{ '--slot': '64px' }} />}
+                        </span>
+                        <span className="gp-seq-cap">Into your inventory</span>
+                    </span>
+                    <span className="gp-seq-to" data-lit={Boolean(handed) || undefined} />
+                    <span className="gp-seq-node">
+                        <span className="gp-score">
+                            <span className="wk-figure">{score}</span>
+                            {handed && <span className="gp-plus" key={score}>+1</span>}
+                        </span>
+                        <span className="gp-seq-cap">Your score</span>
+                    </span>
+                </div>
+                <div className="gp-round-row">
+                    <p className="wk-small" aria-live="polite">
+                        {empty
+                            ? <>The game's own answer: <strong>No more skips left.</strong></>
+                            : handed
+                                ? <><strong>{itemName(handed)}</strong> handed over and counted.</>
+                                : 'Try it: a Late item, the kind worth skipping.'}
+                    </p>
+                    <span className="gp-btns">
+                        <button type="button" className="wk-btn gp-btn-sm" onClick={spend} disabled={Boolean(handed)}>Spend a joker</button>
+                        <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={reset} aria-label="Start over">
+                            <RotateCcw size={16} aria-hidden="true" />
+                        </button>
+                    </span>
+                </div>
+
+                <dl className="gp-rules">
+                    {JOKER_RULES.map((r) => (
+                        <div key={r.name} className="gp-rule">
+                            <dt>{r.name}</dt>
+                            <dd>{r.text}</dd>
+                        </div>
+                    ))}
+                </dl>
+            </div>
+        </section>
+    );
+}
+
+/* ── 4. Back-to-backs ────────────────────────────────────────────────────────── */
+
+const COLS = 9;
+const POOL_ALL = COUNT.EARLY + COUNT.MID + COUNT.LATE;
+
+/*
+ * One made-up inventory, dealt so that the chain runs twice and then stops: the
+ * first item is inside a bundle in the inventory, the second inside a shulker box in
+ * the backpack, the third is held nowhere. Both finds are in containers on purpose:
+ * a loose item is the case nobody needs explaining, and InventorySearch opens
+ * bundles and shulker boxes wherever they sit, which is the case players miss. The
+ * odds are the plugin's formula over what this inventory really holds, against the
+ * whole pool.
+ */
+function dealScene() {
+    const n = { main: 17, hotbar: 6, backpack: 11, shulker: 5, bundle: 3 };
+    const want = n.main + n.hotbar + n.backpack + n.shulker + n.bundle + 1;
+    const held = picks(EARLY_MID.filter((m) => m !== 'SHULKER_BOX' && m !== 'BUNDLE'), want);
+    let k = 0;
+    const take = (c) => held.slice(k, (k += c));
+    const scatter = (items, slots) => {
+        const cells = Array(slots).fill(null);
+        const free = [...cells.keys()].sort(() => Math.random() - 0.5);
+        items.forEach((m, i) => { cells[free[i]] = m; });
+        return cells;
+    };
+    const main = scatter([...take(n.main), 'BUNDLE'], 27);
+    const hotbarItems = take(n.hotbar);
+    const hotbar = [null, ...scatter(hotbarItems, 8)];
+    hotbar[0] = 'JOKER';
+    const backpack = scatter([...take(n.backpack), 'SHULKER_BOX'], POOL_SETTINGS.backpackSize);
+    const shulker = scatter(take(n.shulker), COLS);
+    const bundle = take(n.bundle);
+    const miss = pick(POOL_BY_STAGE.LATE.filter((m) => !held.includes(m)));
+    const chain = [pick(bundle), pick(shulker.filter(Boolean)), miss];
+    // Plugin items (the joker) are skipped, as InventorySearch skips them; the shulker
+    // and the bundle count as themselves AND for what is inside them.
+    const distinct = new Set([...main, ...hotbar, ...backpack, ...shulker, ...bundle].filter((m) => m && m !== 'JOKER'));
+    return { main, hotbar, backpack, shulker, bundle, chain, held: distinct.size };
+}
+
+/**
+ * The order the drawing sweeps in: inventory, hotbar, backpack, and a container's
+ * contents the moment the sweep reaches the container, so the drawing says "inside
+ * this one" rather than "somewhere else".
+ */
+function scanOrder(scene) {
+    const out = [];
+    const inside = { BUNDLE: 'bundle', SHULKER_BOX: 'shulker' };
+    const walk = (cells, where) => cells.forEach((m, i) => {
+        out.push({ where, i, m });
+        const box = inside[m];
+        if (box) scene[box].forEach((c, j) => out.push({ where: box, i: j, m: c }));
+    });
+    walk(scene.main, 'main');
+    walk(scene.hotbar, 'hotbar');
+    walk(scene.backpack, 'backpack');
+    return out;
+}
+
+const WHERE = {
+    main: 'Loose in your inventory',
+    hotbar: 'In your hotbar',
+    backpack: 'In your backpack',
+    shulker: 'In your backpack, inside a shulker box',
+    bundle: 'In your inventory, inside a bundle',
+};
+
+const SWEEP_MS = 14;
+
+const Cells = memo(function Cells({ cells, where, hit, found, scanAt = -1, cols = COLS }) {
+    return (
+        <div className="gp-inv-grid" style={{ '--cols': cols }}>
+            {cells.map((m, i) => {
+                const isHit = hit && hit.where === where && hit.i === i;
+                const wasFound = found.some((f) => f.where === where && f.i === i);
+                const cls = `gp-cell${isHit ? ' is-hit' : ''}${wasFound && !isHit ? ' is-found' : ''}${i === scanAt ? ' is-scan' : ''}`;
+                if (!m) return <span key={i} className={`wk-slot ${cls}`} style={{ '--slot': '40px' }} />;
+                if (m === 'JOKER') {
+                    return (
+                        <span key={i} className={`wk-slot ${cls} is-plugin`} style={{ '--slot': '40px' }}>
+                            <img className="wk-sprite" src="/fib-custom/barrier.png" alt="" />
+                        </span>
+                    );
+                }
+                return <ItemSlot key={i} material={m} size={40} tip={false} className={cls} />;
+            })}
+        </div>
+    );
+});
+
+/** Before the sweep: the first item handed over, nothing searched yet. */
+const fresh = (scene) => ({ scene, step: 0, cursor: -1, hit: null, found: [], phase: 'idle', open: {} });
+
+/** Calm has no sweep: it lands on the end of the chain, both finds marked. */
+function settled(scene) {
+    const o = scanOrder(scene);
+    return {
+        scene, step: 1, cursor: -1, phase: 'hit', open: { bundle: true, shulker: true },
+        found: [o.find((c) => c.m === scene.chain[0])],
+        hit: o.find((c) => c.m === scene.chain[1]),
+    };
+}
+
+function BackToBack({ calm }) {
+    // One object, so a step of the sequence is one update rather than five that must agree.
+    const [st, setSt] = useState(() => (calm ? settled(dealScene()) : fresh(dealScene())));
+    const { scene, step, cursor, hit, found, phase, open } = st;
+    const order = useMemo(() => scanOrder(scene), [scene]);
+    const ref = useRef(null);
+    const onScreen = useOnScreen(ref, '-15% 0px');
+
+    const target = scene.chain[step];
+    const streak = found.length + (phase === 'hit' ? 1 : 0);
+
+    // Starts the first time it is on screen, after a beat so the reader sees the
+    // inventory before it is searched.
+    useEffect(() => {
+        if (calm || phase !== 'idle' || !onScreen) return undefined;
+        const id = setTimeout(() => setSt((x) => ({ ...x, cursor: 0, phase: 'scan' })), 350);
+        return () => clearTimeout(id);
+    }, [calm, phase, onScreen]);
+
+    // Saver mode switched on mid-sequence: stop where the chain ends.
+    useEffect(() => {
+        if (!calm || phase === 'hit' || phase === 'miss') return undefined;
+        const id = setTimeout(() => setSt((x) => settled(x.scene)), 0);
+        return () => clearTimeout(id);
+    }, [calm, phase]);
+
+    // The sweep: one cell per tick until the handed item turns up, or the last cell.
+    useEffect(() => {
+        if (phase !== 'scan') return undefined;
+        const id = setTimeout(() => {
+            setSt((x) => {
+                const cell = order[x.cursor];
+                if (!cell) return { ...x, phase: 'miss', cursor: -1 };
+                const opened = cell.where === 'shulker' || cell.where === 'bundle'
+                    ? { ...x.open, [cell.where]: true } : x.open;
+                if (cell.m === x.scene.chain[x.step]) return { ...x, open: opened, hit: cell, phase: 'hit' };
+                return { ...x, open: opened, cursor: x.cursor + 1 };
+            });
+        }, cursor === 0 ? 420 : SWEEP_MS);
+        return () => clearTimeout(id);
+    }, [phase, cursor, order]);
+
+    // After a find: hold the grade on screen, then hand over the next item and sweep again.
+    useEffect(() => {
+        if (phase !== 'hit' || calm) return undefined;
+        const id = setTimeout(() => {
+            setSt((x) => ({ ...x, found: [...x.found, x.hit], hit: null, step: x.step + 1, cursor: 0, phase: 'scan' }));
+        }, 2600);
+        return () => clearTimeout(id);
+    }, [phase, calm]);
+
+    const again = () => {
+        const next = dealScene();
+        setSt(calm ? settled(next) : { ...fresh(next), cursor: 0, phase: 'scan' });
+    };
+
+    // The sweep lights one cell; each grid is told only whether that cell is one of its own,
+    // so the memoised grids it is not passing through do not re-render.
+    const sweep = phase === 'scan' ? order[cursor] : null;
+    const scanAt = (where) => (sweep && sweep.where === where ? sweep.i : -1);
+    const grid = (where, cells, extra = {}) => (
+        <Cells cells={cells} where={where} hit={hit} found={found} scanAt={scanAt(where)} {...extra} />
+    );
+
+    const p = oddsOf(scene.held, POOL_ALL, Math.max(1, streak));
+    const grade = RARITY[gradeOf(p)];
+
+    return (
+        <div className="gp-b2b" ref={ref}>
+            <div className="gp-b2b-stage">
+                <div className="gp-inv" aria-hidden="true">
+                    <span className="wk-label">Inventory</span>
+                    {grid('main', scene.main)}
+                    <div className="gp-hotbar">{grid('hotbar', scene.hotbar)}</div>
+                    <span className="wk-label">Backpack</span>
+                    {grid('backpack', scene.backpack)}
+                    <div className="gp-inside">
+                        <div className="gp-inside-one" data-open={open.bundle || undefined}>
+                            <span className="gp-inside-label"><ItemSlot material="BUNDLE" size={24} tip={false} marks={false} /> Inside the bundle, in your inventory</span>
+                            {grid('bundle', scene.bundle, { cols: scene.bundle.length })}
+                        </div>
+                        <div className="gp-inside-one" data-open={open.shulker || undefined}>
+                            <span className="gp-inside-label"><ItemSlot material="SHULKER_BOX" size={24} tip={false} marks={false} /> Inside the shulker box, in your backpack</span>
+                            {grid('shulker', scene.shulker)}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="gp-b2b-read" aria-live="polite">
+                    <span className="wk-label">Handed to you next</span>
+                    {target && <Bossbar item={target} />}
+                    {phase === 'idle' && <p className="gp-b2b-line">Is it already somewhere in your pack?</p>}
+                    {phase === 'scan' && <p className="gp-b2b-line">Checking everything you hold…</p>}
+                    {phase === 'hit' && hit && (
+                        <>
+                            <p className="gp-b2b-line"><strong>Already held.</strong> {WHERE[hit.where]}. It counts on the spot.</p>
+                            <p className="gp-b2b-chain">Chain <span className="wk-datum">{streak}</span></p>
+                            <p className="gp-b2b-math">
+                                You hold <span className="wk-datum">{scene.held}</span> different items; <span className="wk-datum">{fmt(POOL_ALL)}</span> can
+                                come up. (<span className="wk-datum">{scene.held}</span> ÷ <span className="wk-datum">{fmt(POOL_ALL)}</span>){streak > 1 && <sup>{streak}</sup>} ={' '}
+                                <span className="wk-datum">{formatPercent(p * 100)}</span>
+                            </p>
+                            <p className="gp-grade" style={{ '--grade': grade.ink }}>{grade.label}</p>
+                        </>
+                    )}
+                    {phase === 'miss' && (
+                        <>
+                            <p className="gp-b2b-line"><strong>Not held anywhere.</strong> The chain ends here: go and get it.</p>
+                            <p className="gp-b2b-chain">Chain of <span className="wk-datum">{found.length}</span></p>
+                        </>
+                    )}
+                    <div className="gp-round-row">
+                        <p className="wk-small">An illustration: an inventory dealt from the real pool so that the chain runs twice. The odds are the plugin's, over what it holds.</p>
+                        <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={again}>
+                            <RotateCcw size={16} aria-hidden="true" /> Deal again
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <p className="wk-sr">
+                Illustration: after each find the game checks your inventory, your backpack, and the shulker boxes
+                and bundles in either for the next item. Here the first item is found inside a bundle in the
+                inventory, the second inside a shulker box in the backpack, and the third is held nowhere, which
+                ends the chain.
+            </p>
+        </div>
+    );
+}
+
+const STREAKS = [1, 2, 3, 4, 5];
+const POOLS = [
+    { key: 'EARLY', label: 'Early open', size: COUNT.EARLY },
+    { key: 'MID', label: 'Early + Mid', size: COUNT.EARLY + COUNT.MID },
+    { key: 'LATE', label: 'All three', size: POOL_ALL },
+];
+
+function Odds() {
+    const [held, setHeld] = useState(150);
+    const [streak, setStreak] = useState(1);
+    const [poolKey, setPoolKey] = useState('LATE');
+    const pool = POOLS.find((x) => x.key === poolKey).size;
+    const p = oddsOf(held, pool, streak);
+    const grade = gradeOf(p);
+
+    return (
+        <div className="gp-odds">
+            <div className="gp-odds-controls">
+                <label className="gp-field">
+                    <span className="wk-label">Different items you hold</span>
+                    <input type="range" min="1" max="600" value={held} onChange={(e) => setHeld(Number(e.target.value))} aria-valuetext={`${held} items`} />
+                    <span className="wk-datum gp-field-val">{held}</span>
+                </label>
+                <div className="gp-field">
+                    <span className="wk-label" id="odds-chain">Chain</span>
+                    <div className="gp-seg" role="group" aria-labelledby="odds-chain">
+                        {STREAKS.map((n) => (
+                            <button key={n} type="button" aria-pressed={streak === n} onClick={() => setStreak(n)}>{n}</button>
+                        ))}
+                    </div>
+                </div>
+                <div className="gp-field">
+                    <span className="wk-label" id="odds-pool">Pool</span>
+                    <div className="gp-seg" role="group" aria-labelledby="odds-pool">
+                        {POOLS.map((x) => (
+                            <button key={x.key} type="button" aria-pressed={poolKey === x.key} onClick={() => setPoolKey(x.key)}>
+                                {x.label} <span className="gp-seg-n">{fmt(x.size)}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <p className="gp-odds-result" aria-live="polite">
+                <span className="gp-odds-math">
+                    (<span className="wk-datum">{held}</span> ÷ <span className="wk-datum">{fmt(pool)}</span>){streak > 1 && <sup>{streak}</sup>} =
+                </span>
+                <span className="wk-figure gp-odds-pct">{formatPercent(p * 100)}</span>
+                <span className="gp-grade" style={{ '--grade': RARITY[grade].ink }}>{RARITY[grade].label}</span>
+            </p>
+
+            <ol className="gp-ladder" aria-label="The five grades">
+                {FIND_RARITY.map((r, i) => (
+                    <li key={r.key} className="gp-rung" data-on={r.key === grade || undefined}
+                        style={{ '--ink': r.ink, '--from': r.from ?? r.ink, '--to': r.to ?? r.ink, '--w': `${22 + i * 19.5}%` }}>
+                        <span className="gp-rung-bar" aria-hidden="true" />
+                        <span className="gp-rung-word">{r.label}</span>
+                        <span className="gp-rung-when">{r.when}</span>
+                        {(r.key === 'LEGENDARY' || r.key === 'RNGESUS') && <span className="gp-rung-note">The whole server hears it</span>}
+                    </li>
+                ))}
+            </ol>
+        </div>
+    );
+}
+
+function BackToBacks({ calm }) {
+    return (
+        <section id="back-to-backs" className="wk-wrap pg-sec gp-sec-wide" aria-labelledby="b2b-title">
+            <div className="pg-sec-head">
+                <h2 id="b2b-title" className="wk-h3">Already holding it</h2>
+                <p className="wk-p">
+                    After every find, the game checks whether you <strong>already hold the next item</strong>: your
+                    inventory, your backpack, and every shulker box and bundle in either (a bundle inside a shulker
+                    box too), and on a team your teammate's inventory as well. If it is there, it counts on the spot, and the item after it is
+                    checked the same way. That is a back-to-back, and they chain.
+                </p>
+                <p className="wk-p">
+                    The game grades each one by how unlikely it was: the share of the pool you hold, raised to
+                    the length of the chain. Handed the very item you just found is Extraordinary, whatever the odds.
+                </p>
+                <p className="wk-small">No back-to-backs in Run Battle.</p>
+            </div>
+
+            <div className="gp-b2b-wrap">
+                <BackToBack calm={calm} />
+                <h3 className="wk-name gp-sub">Work out the odds</h3>
+                <Odds />
+            </div>
+        </section>
+    );
+}
+
+/* ── 5. The modes ────────────────────────────────────────────────────────────── */
+
+function laneStart() {
+    return HEADS.map(() => {
+        const [current, ...trail] = picks(EARLY_MID, 4);
+        return { current, trail, score: trail.length };
+    });
+}
+
+function SimFIB({ live }) {
+    const [lanes, setLanes] = useState(laneStart);
+    const step = useCallback(() => {
+        setLanes((ls) => ls.map((l, i) => {
+            if (Math.random() > [0.2, 0.14, 0.1][i]) return l;
+            return { current: pick(EARLY_MID), trail: [l.current, ...l.trail].slice(0, 4), score: l.score + 1 };
+        }));
+    }, []);
+    useTicker(step, 420, live);
+    return (
+        <div className="gp-sim gp-sim--fib" aria-hidden="true">
+            {lanes.map((l, i) => (
+                <div key={HEADS[i]} className="gp-lane">
+                    <Head name={HEADS[i]} />
+                    <span className="gp-lane-trail">
+                        {l.trail.slice().reverse().map((m, j, arr) => (
+                            <span key={`${m}-${l.score - (arr.length - j)}`} className="gp-done" style={{ '--age': arr.length - 1 - j }}>
+                                <ItemSlot material={m} size={36} tip={false} marks={false} /><Tick />
+                            </span>
+                        ))}
+                    </span>
+                    <span className="gp-live" key={l.current}><ItemSlot material={l.current} size={48} tip={false} /></span>
+                    <span className="wk-figure gp-lane-score">{l.score}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function SimRun({ live }) {
+    const fresh = (scores) => ({
+        target: pick(POOL_BY_STAGE.MID), pos: [0, 0, 0], winner: null, hold: 0, scores,
+        speed: HEADS.map(() => 0.012 + Math.random() * 0.016),
+    });
+    // The still frame (calm, or before it scrolls in) is a finished race: the +1 is the point.
+    const [race, setRace] = useState(() => ({ ...fresh([2, 3, 1]), pos: [0.62, 1, 0.48], winner: 1 }));
+    const step = useCallback(() => {
+        setRace((r) => {
+            if (r.winner !== null) return r.hold < 24 ? { ...r, hold: r.hold + 1 } : fresh(r.scores);
+            const pos = r.pos.map((x, i) => Math.min(1, x + r.speed[i] * (0.6 + Math.random() * 0.8)));
+            const w = pos.findIndex((x) => x >= 1);
+            if (w < 0) return { ...r, pos };
+            return { ...r, pos, winner: w, scores: r.scores.map((n, i) => (i === w ? n + 1 : n)) };
+        });
+    }, []);
+    useTicker(step, 60, live);
+    return (
+        <div className="gp-sim gp-sim--run" aria-hidden="true">
+            <div className="gp-racers">
+                {HEADS.map((h, i) => (
+                    <div key={h} className="gp-racer" data-won={race.winner === i || undefined}>
+                        <span className="gp-racer-track"><span className="gp-racer-fill" style={{ width: `${race.pos[i] * 100}%` }} /></span>
+                        <span className="gp-racer-head" style={{ left: `${race.pos[i] * 100}%` }}><Head name={h} size={24} /></span>
+                        {race.winner === i && <span className="gp-racer-plus">+1</span>}
+                        <span className="wk-figure gp-lane-score">{race.scores[i]}</span>
+                    </div>
+                ))}
+            </div>
+            <span className="gp-live gp-run-target" key={race.target}><ItemSlot material={race.target} size={72} tip={false} /></span>
+        </div>
+    );
+}
+
+function SimChain({ live }) {
+    // done, now, next, and one drawn but not shown yet.
+    const [seq, setSeq] = useState(() => picks(EARLY_MID, 4));
+    const step = useCallback(() => setSeq((s) => [s[1], s[2], s[3], pick(EARLY_MID)]), []);
+    useTicker(step, 2400, live);
+    const [done, now, next] = seq;
+    return (
+        <div className="gp-sim gp-sim--chain" aria-hidden="true">
+            <Bossbar item={now} next={next} />
+            <div className="gp-belt">
+                <span className="gp-belt-step gp-belt-done" key={`d-${done}`}>
+                    <span className="gp-done"><ItemSlot material={done} size={40} tip={false} marks={false} /><Tick /></span>
+                    <span className="gp-seq-cap">Found</span>
+                </span>
+                <span className="gp-seq-to" />
+                <span className="gp-belt-step" key={`n-${now}`}>
+                    <span className="gp-live"><ItemSlot material={now} size={60} tip={false} /></span>
+                    <span className="gp-seq-cap">Now</span>
+                </span>
+                <span className="gp-seq-to" />
+                <span className="gp-belt-step gp-belt-next" key={`x-${next}`}>
+                    <ItemSlot material={next} size={52} tip={false} />
+                    <span className="gp-seq-cap">Next</span>
+                </span>
+                <span className="gp-seq-to" data-dim="true" />
+                <span className="gp-belt-step">
+                    <span className="gp-belt-hidden">
+                        <span className="wk-slot gp-hidden" style={{ '--slot': '44px' }}>?</span>
+                        <span className="wk-slot gp-hidden" style={{ '--slot': '44px' }}>?</span>
+                    </span>
+                    <span className="gp-seq-cap">Not shown</span>
+                </span>
+            </div>
+        </div>
+    );
 }
 
 const MODES = [
     {
-        icon: Swords, color: 'oklch(62% 0.22 25)', badge: 'Classic',
-        name: 'ForceItemBattle',
+        key: 'fib', name: 'ForceItemBattle', Sim: SimFIB, setting: 'The default.',
         hook: 'Collect more items than everyone else before time runs out.',
-        desc: 'Every player draws from the same item pool, which progresses through Early, Mid, and Late tiers as the round goes on.',
-        mechanic: 'Most items collected when the timer hits zero wins.',
-        plays: [
-            'All players share the same pool — same items, same order',
-            'Pool tier advances on a timer: Early → Mid → Late',
-            'Items get harder and rarer as the round progresses',
+        rules: [
+            'Everyone draws their own items from the same pool, at their own pace.',
+            'Most items when the timer hits zero wins.',
         ],
+        caption: 'Three players, each on their own draws. Simulated.',
     },
     {
-        icon: Zap, color: 'oklch(76% 0.16 68)', badge: 'Speed',
-        name: 'RunBattle',
+        key: 'run', name: 'RunBattle', Sim: SimRun, setting: <>Switched on in <code className="wk-typed">/settings</code>: Run Battle.</>,
         hook: 'First to claim the target item takes the point.',
-        desc: 'A single item is active for all players at once. The first to collect it scores — everyone else resets to chase the next one.',
-        mechanic: 'Claim it first or walk away with nothing.',
-        plays: [
-            'One shared target item active at a time for all players',
-            'First to collect scores — the item is gone for everyone else',
-            'Rewards speed and efficient routing over volume',
+        rules: [
+            'One item for the whole server. The first to get it scores, and everyone moves on to the next one together.',
+            'No back-to-backs, no random events, and the round does not count toward stats.',
         ],
+        caption: 'One target, three players racing it. Simulated.',
     },
     {
-        icon: Link, color: 'oklch(75% 0.12 200)', badge: 'Strategy',
-        name: 'ForceChain',
-        hook: 'Your next item is always visible — plan two moves ahead.',
-        desc: 'You can always see both your current item and the one after it. The best players route for both at once.',
-        mechanic: 'Route planning starts before you finish your current item.',
-        plays: [
-            'Current and next item are both visible at all times',
-            'Skilled players plan routes two items ahead',
-            'Future items beyond "next" remain hidden',
+        key: 'chain', name: 'ForceChain', Sim: SimChain, setting: <>Switched on in <code className="wk-typed">/settings</code>: Force Chain.</>,
+        hook: 'Your next item is always visible. Plan two moves ahead.',
+        rules: [
+            'The bossbar shows your current item and the one after it.',
+            'Beyond the next one, nothing is shown. The best players route for both at once.',
         ],
+        caption: 'The chain moving on after each find. Simulated.',
     },
 ];
 
-const TIPS = [
-    {
-        icon: Split, iconBg: 'oklch(65% 0.16 255 / 0.14)', iconColor: 'oklch(65% 0.16 255)',
-        title: 'Split Up Strategically',
-        desc: 'In a team, split up in entirely different directions. Covering more biomes means a higher chance of quickly finding whatever item gets assigned.',
-    },
-    {
-        icon: ScanSearch, iconBg: 'oklch(68% 0.12 200 / 0.14)', iconColor: 'oklch(68% 0.12 200)',
-        title: 'Use the Back-to-Back Detection System',
-        desc: 'ForceItemBattle automatically scans your entire inventory — including backpack, bundles, and shulker boxes — for assigned items.',
-        bullets: [
-            'If an item in your backpack matches your current objective, it is instantly detected and counted.',
-            'The system also scans inside shulker boxes and bundles stored in the backpack or inventory.',
-            'Properly using this allows for high-efficiency rounds and potential record scores.',
-        ],
-    },
-    {
-        icon: Brain, iconBg: 'oklch(76% 0.16 68 / 0.12)', iconColor: 'oklch(76% 0.16 68)',
-        title: 'Master Time Management & Preparation',
-        desc: 'There is no single meta strategy, but the strongest players focus on a few fundamentals:',
-        bullets: [
-            { title: 'Time management',    body: "decide quickly whether it's worth pursuing an item or skipping it." },
-            { title: 'Smart base placement', body: 'build a compact, well-organised base near diverse biomes or cave systems.' },
-            { title: 'Sorting systems',    body: 'keep your inventory and backpack neatly arranged to reduce confusion mid-round.' },
-        ],
-        note: 'A good setup often matters more than luck. Players who stay organised and adapt fast consistently outperform those wandering around aimlessly.',
-    },
+function Mode({ mode, calm }) {
+    const ref = useRef(null);
+    const on = useOnScreen(ref);
+    const { Sim } = mode;
+    return (
+        <li ref={ref} className="gp-mode">
+            <figure className="gp-mode-fig">
+                <Sim live={on && !calm} />
+                <figcaption className="wk-small">{mode.caption}</figcaption>
+            </figure>
+            <div className="gp-mode-copy">
+                <h3 className="gp-mech">{mode.name}</h3>
+                <p className="gp-mode-hook">{mode.hook}</p>
+                <ul className="gp-mode-rules">
+                    {mode.rules.map((r) => <li key={r}>{r}</li>)}
+                </ul>
+                <p className="wk-small">{mode.setting}</p>
+            </div>
+        </li>
+    );
+}
+
+function Modes({ calm }) {
+    return (
+        <section id="modes" className="wk-wrap gp-modes" aria-labelledby="modes-title">
+            <h2 id="modes-title" className="wk-h3">Three ways to play</h2>
+            <ul className="gp-mode-list">
+                {MODES.map((m) => <Mode key={m.key} mode={m} calm={calm} />)}
+            </ul>
+        </section>
+    );
+}
+
+/* ── 6. Random events ────────────────────────────────────────────────────────── */
+
+const EVENTS = [
+    { key: 'ITEM_HUNT', name: 'Item Hunt', face: 'SPYGLASS', weight: 10, once: false, minLeft: 0 },
+    { key: 'POINT_HUNT', name: 'Point Hunt', face: 'TARGET', weight: 6, once: true, minLeft: 11 * 60 },
+    { key: 'SPECIAL_TRADER', name: 'Special Trader', face: 'EMERALD', weight: 2, once: true, minLeft: 0 },
 ];
+const EVENT = Object.fromEntries(EVENTS.map((e) => [e.key, e]));
+const EVENT_ROUND = 90;
+const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
-/* ─────────────────────────────────────
-   Viz components — static snapshots
-───────────────────────────────────── */
-function FIBViz() {
-    const players = [
-        { name: 'Player 1', color: 'oklch(62% 0.22 25)',  item: 'diamond',    score: 9, pct: 1.00 },
-        { name: 'Player 2', color: 'oklch(76% 0.16 68)',  item: 'iron_ingot', score: 7, pct: 0.78 },
-        { name: 'Player 3', color: 'oklch(65% 0.16 255)', item: 'coal',       score: 4, pct: 0.44 },
-    ];
-    return (
-        <div>
-            <div className="fib-hdr">
-                <span className="vz-lbl">Match in Progress</span>
-                <span className="fib-clock">32:14</span>
-            </div>
-            <div className="fib-tbar-wrap">
-                <div className="fib-tbar-fill" style={{ width: '36%' }} />
-            </div>
-            <div className="fib-stages">
-                <span className="fib-stage">Early</span>
-                <span className="fib-stage s-mid">Mid</span>
-                <span className="fib-stage">Late</span>
-            </div>
-            <div className="fib-players">
-                {players.map((p, i) => (
-                    <div key={p.name} className="fib-player">
-                        <span className="fib-rank">{i + 1}</span>
-                        <span className="fib-dot" style={{ background: p.color }} />
-                        <span className="fib-pname">{p.name}</span>
-                        <div className="fib-item-cell">
-                            <Sprite item={p.item} size={18} />
-                            <span className="fib-iname">{itemLabel(p.item)}</span>
-                        </div>
-                        <div className="fib-ptrack">
-                            <div className="fib-pbar" style={{ width: `${p.pct * 100}%`, background: p.color }} />
-                        </div>
-                        <span className="fib-pscore" style={{ color: p.color }}>{p.score}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function RunBattleViz() {
-    const players = [
-        { name: 'Player 1', color: 'oklch(62% 0.22 25)',  pct: 1.00, score: 3, claimed: true  },
-        { name: 'Player 2', color: 'oklch(76% 0.16 68)',  pct: 0.73, score: 2, claimed: false },
-        { name: 'Player 3', color: 'oklch(65% 0.16 255)', pct: 0.49, score: 1, claimed: false },
-    ];
-    return (
-        <div>
-            <div className="run-target">
-                <span className="vz-lbl">Current Target</span>
-                <div className="run-item-box">
-                    <Sprite item="diamond_sword" size={42} />
-                </div>
-                <div className="run-target-name">Diamond Sword</div>
-                <span className="run-claimed-badge">&#10003; Claimed</span>
-            </div>
-            <span className="vz-lbl" style={{ display: 'block', marginBottom: 10 }}>Race to collect</span>
-            <div className="run-players">
-                {players.map(p => (
-                    <div key={p.name} className={`run-player${p.claimed ? ' winner' : ''}`}>
-                        <span className="run-pdot" style={{ background: p.color }} />
-                        <span className="run-pname">{p.name}</span>
-                        <div className="run-track">
-                            <div className="run-bar" style={{ width: `${p.pct * 100}%`, background: p.claimed ? 'oklch(64% 0.20 142)' : p.color }} />
-                        </div>
-                        <span className="run-check">{p.claimed ? '✓' : ''}</span>
-                        <span className="run-pscore" style={{ color: p.color }}>{p.score}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function ForceChainViz() {
-    return (
-        <div>
-            <div className="chain-hdr">
-                <span className="vz-lbl">Your Item Chain</span>
-            </div>
-            <div className="chain-list">
-                {/* Current — active row with left bar + collecting badge */}
-                <div className="chain-row chain-row-curr">
-                    <div className="chain-spr-box">
-                        <Sprite item="iron_ore" size={26} />
-                    </div>
-                    <div className="chain-row-info">
-                        <span className="chain-row-lbl">Current</span>
-                        <span className="chain-row-name">Iron Ore</span>
-                    </div>
-                    <span className="chain-row-status">Collecting</span>
-                </div>
-                {/* Next — revealed, dimmer */}
-                <div className="chain-row chain-row-next">
-                    <div className="chain-spr-box">
-                        <Sprite item="bread" size={26} />
-                    </div>
-                    <div className="chain-row-info">
-                        <span className="chain-row-lbl">Next</span>
-                        <span className="chain-row-name">Bread</span>
-                    </div>
-                </div>
-                {/* Future — not yet revealed */}
-                <div className="chain-row chain-row-future">
-                    <div className="chain-spr-box">
-                        <span className="chain-future-q">?</span>
-                    </div>
-                    <div className="chain-row-info">
-                        <span className="chain-row-lbl">Future</span>
-                        <span className="chain-row-name">Not revealed</span>
-                    </div>
-                </div>
-            </div>
-            <div className="chain-hint">
-                <strong>The edge:</strong> while still collecting Iron Ore, you already know Bread is next — plan your route now.
-            </div>
-        </div>
-    );
-}
-
-/* ─────────────────────────────────────
-   Pool tiers & tags — mirrors ForceItemPools state/tag system exactly
-   Colors match ForceItemPools.jsx ItemCard stateColors/tagColors
-───────────────────────────────────── */
-const TIER = {
-    EARLY: { color: 'oklch(62% 0.20 142)', bg: 'oklch(62% 0.20 142 / 0.10)', bd: 'oklch(62% 0.20 142 / 0.35)', label: 'Early', when: 'From the start (0%)',     desc: 'Common overworld items. Obtainable through basic gathering, farming, or crafting.' },
-    MID:   { color: 'oklch(76% 0.16 68)',  bg: 'oklch(76% 0.16 68 / 0.10)',  bd: 'oklch(76% 0.16 68 / 0.35)',  label: 'Mid',   when: 'Unlocks at 11% of time', desc: 'Intermediate items. Require smelting, crafting chains, or moderate exploration.' },
-    LATE:  { color: 'oklch(62% 0.22 25)',  bg: 'oklch(62% 0.22 25 / 0.10)',  bd: 'oklch(62% 0.22 25 / 0.35)',  label: 'Late',  when: 'Unlocks at 29% of time', desc: 'Rare or dangerous items. May demand Nether/End access or extensive preparation.' },
-};
-const TAG_COLOR = {
-    NETHER:  'oklch(60% 0.20 15)',
-    END:     'oklch(65% 0.15 290)',
-    EXTREME: 'oklch(66% 0.20 45)',
-};
-const POOL_TAGS = [
-    { key: 'NETHER',  desc: 'Requires Nether access' },
-    { key: 'END',     desc: 'Requires the End dimension' },
-    { key: 'EXTREME', desc: 'Rare or exceptionally hard' },
-];
-
-// Identical URL and regex to ForceItemPools.jsx
-const FIB_JAVA_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
-const REGISTER_REGEX = /register\(Material\.(\w+),\s*State\.(\w+)(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?(?:,\s*ItemTag\.(\w+))?\)/g;
-
-function parseJavaPool(content) {
-    const items = [];
-    REGISTER_REGEX.lastIndex = 0;
-    let match;
-    while ((match = REGISTER_REGEX.exec(content)) !== null) {
-        const [, material, state, t1, t2, t3] = match;
-        items.push({ material, state, tags: [t1, t2, t3].filter(Boolean) });
+/** RandomEventManager.planSchedule, then pickWeighted at each slot. */
+function planRound(minutes) {
+    const total = minutes * 60;
+    const out = [];
+    const fired = new Set();
+    let elapsed = randInt(30, 20 * 60);
+    while (total - elapsed >= 5 * 60) {
+        const left = total - elapsed;
+        const eligible = EVENTS.filter((e) => !(e.once && fired.has(e.key)) && e.minLeft <= left);
+        let roll = Math.floor(Math.random() * eligible.reduce((n, e) => n + e.weight, 0));
+        const type = eligible.find((e) => (roll -= e.weight) < 0) ?? eligible[eligible.length - 1];
+        if (type) { out.push({ at: elapsed, key: type.key }); fired.add(type.key); }
+        elapsed += randInt(12 * 60, 20 * 60);
     }
-    return items;
+    return out;
 }
 
-// Seeded shuffle so the preview is stable per session but not alphabetical
-function stableShuffleN(arr, n, seed = 42) {
-    const out = [...arr];
-    let s = seed;
-    for (let i = out.length - 1; i > 0; i--) {
-        s = (s * 1664525 + 1013904223) & 0xffffffff;
-        const j = Math.abs(s) % (i + 1);
-        [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out.slice(0, n);
+const LOCATORS = ['WITHER_ROSE', 'MUSIC_DISC_CHIRP', 'KNOWLEDGE_BOOK'];
+const ARMOUR = ['IRON_HELMET', 'IRON_CHESTPLATE', 'IRON_LEGGINGS', 'IRON_BOOTS'];
+
+function Cycling({ list, live, label }) {
+    const [i, setI] = useState(0);
+    const step = useCallback(() => setI((n) => (n + 1) % list.length), [list.length]);
+    useTicker(step, 1600, live);
+    return <span className="gp-cycle" title={label}><ItemSlot key={list[i]} material={list[i]} size={48} tip={false} marks={false} className="gp-land" /></span>;
 }
 
-function PoolsSection() {
-    const [tiers, setTiers]   = React.useState(null); // null = loading
-    const [counts, setCounts] = React.useState({});
-    const [error, setError]   = React.useState(false);
-
-    React.useEffect(() => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
-
-        fetch(FIB_JAVA_URL, { signal: controller.signal })
-            .then(r => {
-                if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
-                return r.text();
-            })
-            .then(text => {
-                clearTimeout(timer);
-                const all = parseJavaPool(text);
-                const grouped = { EARLY: [], MID: [], LATE: [] };
-                all.forEach(item => { if (grouped[item.state]) grouped[item.state].push(item); });
-                const cnt = {};
-                const preview = {};
-                ['EARLY', 'MID', 'LATE'].forEach(k => {
-                    cnt[k] = grouped[k].length;
-                    preview[k] = stableShuffleN(grouped[k], 10);
-                });
-                setCounts(cnt);
-                setTiers(preview);
-            })
-            .catch(err => {
-                clearTimeout(timer);
-                if (err.name !== 'AbortError') setError(true);
-            });
-
-        return () => { clearTimeout(timer); controller.abort(); };
-    }, []);
+function Events({ calm }) {
+    const [plan, setPlan] = useState(() => planRound(EVENT_ROUND));
+    const ref = useRef(null);
+    const on = useOnScreen(ref);
+    const live = on && !calm;
+    const offers = [
+        { el: <span className="gp-cycle"><ItemSlot material="NETHER_STAR" size={48} tip={false} marks={false} /><span className="wk-count">3</span></span>, name: '3 Wheels of Fortune', price: 1 },
+        { el: <ItemSlot material="TORCHFLOWER" size={48} tip={false} marks={false} />, name: 'Weathered Captain\'s Journal', price: 5 },
+        { el: <Cycling list={LOCATORS} live={live} label="A locator, rolled when the trader arrives" />, name: 'A locator', price: 5 },
+        { el: <ItemSlot material="IRON_PICKAXE" size={48} tip={false} marks={false} />, name: 'Enchanted iron pickaxe', price: 5 },
+        { el: <Cycling list={ARMOUR} live={live} label="One piece of iron armour, rolled when the trader arrives" />, name: 'Enchanted iron armour piece', price: 5 },
+    ];
 
     return (
-        <div className="gp-section-layout">
-            <div className="gp-label">
-                <div className="gp-tag green">Item Pools</div>
-                <h2 className="gp-h2">Dynamic Pools</h2>
-                <p className="gp-label-body">
-                    Items aren't drawn from a flat list. They're split into three tiers that unlock at fixed points in the game clock — Early immediately, Mid at 11%, Late at 29% of total game time.
+        <section id="events" className="wk-wrap pg-sec" aria-labelledby="events-title" ref={ref}>
+            <div className="pg-sec-head">
+                <h2 id="events-title" className="wk-h3">Random events</h2>
+                <p className="wk-p">
+                    Every 12 to 20 minutes the server may call an event: roughly three or four an hour, the first
+                    within 20 minutes, none in the last five. Each one pays in <strong>Wheels of Fortune</strong>.
+                </p>
+                <p className="wk-small">
+                    On by default. They need at least two players, and never run in Run Battle.
                 </p>
             </div>
-            <div>
-                {/* Tier cards */}
-                <div className="pools-tiers">
-                    {['EARLY', 'MID', 'LATE'].map(key => {
-                        const t = TIER[key];
-                        const items = tiers ? tiers[key] : [];
-                        const total = counts[key] ?? 0;
-                        return (
-                            <div key={key} className="pools-tier-card" style={{ '--tier-color': t.color, '--tier-bg': t.bg, '--tier-bd': t.bd }}>
-                                <div className="pools-tier-head">
-                                    <span className="pools-tier-badge">{t.label}</span>
-                                    <span className="pools-tier-when">{t.when}</span>
-                                </div>
-                                <p className="pools-tier-desc">{t.desc}</p>
 
-                                {/* Item preview grid */}
-                                {error ? (
-                                    <p className="pools-tier-desc" style={{ color: 'oklch(42% 0.012 255)', fontStyle: 'italic' }}>Could not load pool data.</p>
-                                ) : !tiers ? (
-                                    <div className="pools-skeleton">
-                                        {Array.from({ length: 6 }).map((_, i) => <div key={i} className="pools-skel-item" />)}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="pools-item-grid">
-                                            {items.map(({ material, tags }) => (
-                                                <div key={material} className="pools-item">
-                                                    <Sprite item={material} size={14} />
-                                                    <span className="pools-item-name">{itemLabel(material)}</span>
-                                                    {tags.map(tag => (
-                                                        <span key={tag} className="pools-item-tag" style={{ background: TAG_COLOR[tag] }} title={tag} />
-                                                    ))}
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {total > 10 && (
-                                            <span className="pools-tier-more">+{total - 10} more</span>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Tag legend + link row */}
-                <div className="pools-footer">
-                    <div className="pools-tags">
-                        {POOL_TAGS.map(tag => (
-                            <div key={tag.key} className="pools-tag-pill">
-                                <span className="pools-tag-dot" style={{ background: TAG_COLOR[tag.key] }} />
-                                <div className="pools-tag-info">
-                                    <span className="pools-tag-name">{tag.key}</span>
-                                    <span className="pools-tag-desc">{tag.desc}</span>
-                                </div>
-                            </div>
+            <div className="gp-events">
+                <div className="gp-evline" style={{ '--len': EVENT_ROUND }}>
+                    <div className="gp-evline-track" aria-hidden="true">
+                        <span className="gp-evline-end" style={{ left: `${((EVENT_ROUND - 5) / EVENT_ROUND) * 100}%` }} />
+                        {plan.map((e, i) => (
+                            <span key={`${e.at}-${i}`} className="gp-evmark" style={{ left: `${(e.at / (EVENT_ROUND * 60)) * 100}%`, '--i': i }}>
+                                <ItemSlot material={EVENT[e.key].face} size={36} tip={false} marks={false} />
+                                <span className="gp-evmark-when">min {Math.round(e.at / 60)}</span>
+                            </span>
                         ))}
                     </div>
-                    <a href="/pools" className="pools-link">
-                        View full item pools &#8594;
-                    </a>
+                    <div className="gp-rail-ends" aria-hidden="true"><span>0</span><span>{EVENT_ROUND} min</span></div>
+                    <p className="wk-sr">
+                        One possible {EVENT_ROUND}-minute round: {plan.map((e) => `${EVENT[e.key].name} at minute ${Math.round(e.at / 60)}`).join(', ')}.
+                    </p>
+                    <div className="gp-round-row">
+                        <p className="wk-small">One possible {EVENT_ROUND}-minute round, scheduled and picked the way the server does it. The last five minutes stay clear.</p>
+                        <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setPlan(planRound(EVENT_ROUND))}>
+                            <Dices size={16} aria-hidden="true" /> Another round
+                        </button>
+                    </div>
                 </div>
+
+                <ul className="gp-event-list">
+                    <li className="gp-event">
+                        <ItemSlot material="SPYGLASS" size={48} tip={false} marks={false} />
+                        <div>
+                            <h3 className="wk-name">Item Hunt</h3>
+                            <p className="gp-event-often">The one picked most often.</p>
+                            <p className="gp-event-text">The first player to go and get their current item wins 1 to 3 Wheels of Fortune. A joker or a back-to-back does not count, and on a team only the finder is paid.</p>
+                        </div>
+                    </li>
+                    <li className="gp-event">
+                        <ItemSlot material="TARGET" size={48} tip={false} marks={false} />
+                        <div>
+                            <h3 className="wk-name">Point Hunt</h3>
+                            <p className="gp-event-often">Once a round, with at least 11 minutes left.</p>
+                            <p className="gp-event-text">
+                                Ten minutes in which every find scores by its stage:{' '}
+                                <span style={{ color: STAGES.EARLY.ink }}>Early</span> <span className="wk-datum">1</span>,{' '}
+                                <span style={{ color: STAGES.MID.ink }}>Mid</span> <span className="wk-datum">2</span>,{' '}
+                                <span style={{ color: STAGES.LATE.ink }}>Late</span> <span className="wk-datum">3</span>. Back-to-backs count, skips do not.
+                                The top player takes 3 Wheels, a top team 4 split between them. A tie pays nobody.
+                            </p>
+                        </div>
+                    </li>
+                    <li className="gp-event">
+                        <ItemSlot material="EMERALD" size={48} tip={false} marks={false} />
+                        <div>
+                            <h3 className="wk-name">Special Trader</h3>
+                            <p className="gp-event-often">Once a round, and the rarest pick.</p>
+                            <p className="gp-event-text">A trader appears near spawn with five offers, one use each for every player:</p>
+                        </div>
+                    </li>
+                </ul>
+                <ul className="gp-offers" aria-label="The Special Trader's offers">
+                    {offers.map((o) => (
+                        <li key={o.name} className="gp-offer">
+                            {o.el}
+                            <span className="gp-offer-name">{o.name}</span>
+                            <span className="gp-offer-price">
+                                <img src="/fib-items/emerald.png" alt="" width="16" height="16" />
+                                <span className="wk-datum">{o.price}</span>
+                                <span className="wk-sr">{o.price === 1 ? 'emerald' : 'emeralds'}</span>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
             </div>
-        </div>
+        </section>
     );
 }
 
-/* ─────────────────────────────────────
-   Page
-───────────────────────────────────── */
-export default function Gameplay() {
-    const [activeMode, setActiveMode] = React.useState(0);
-    const mode = MODES[activeMode];
-    const mc   = mode.color;
-    const mcBg = getOklchVariant(mc, 0.10);
-    const mcBd = getOklchVariant(mc, 0.25);
+/* ── 7. Strategy ─────────────────────────────────────────────────────────────── */
 
+const TIPS = [
+    { face: 'SHULKER_BOX', name: 'Keep one of everything',
+      text: 'The more different items you carry, the more often the next draw is already in your pack. A shulker box or bundle of odds and ends counts in full.' },
+    { face: 'CLOCK', name: 'Decide fast',
+      text: 'Whether an item is worth pursuing or worth a joker is the call that wins rounds. Waiting to decide costs the same as the wrong decision.' },
+    { face: 'FILLED_MAP', name: 'Split up',
+      text: 'In a team, head in entirely different directions. Covering more biomes means a better chance of being near whatever comes up.' },
+    { face: 'BARREL', name: 'Build a base you can read',
+      text: 'Compact, near varied biomes or caves, and sorted, so nothing gets lost mid-round. A good setup matters more than luck.' },
+];
+
+function Strategy() {
     return (
-        <div className="gp">
-            <style>{CSS}</style>
-
-            <div className="gp-shell">
-                <div className="gp-header">
-                    <p className="gp-eyebrow">Game Guide</p>
-                    <h1 className="gp-h1">Gameplay</h1>
-                    <p className="gp-sub">
-                        Everything you need to understand ForceItemBattle — how the loop works,
-                        which modes exist, and how the best players stay ahead.
-                    </p>
-                </div>
+        <section id="strategy" className="wk-wrap pg-sec" aria-labelledby="strategy-title">
+            <div className="pg-sec-head">
+                <h2 id="strategy-title" className="wk-h3">Playing it well</h2>
+                <p className="wk-p">
+                    There is no single meta. The players who win consistently stay organised, decide quickly and adapt.
+                </p>
             </div>
+            <ul className="gp-tips">
+                {TIPS.map((t) => (
+                    <li key={t.name} className="gp-tip">
+                        <ItemSlot material={t.face} size={48} tip={false} marks={false} />
+                        <span>
+                            <span className="gp-way-name">{t.name}</span>
+                            <span className="gp-tip-text">{t.text}</span>
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
 
-            <div className="gp-rule" />
+/* ── The page ───────────────────────────────────────────────────────────────── */
 
-            {/* ══ How It Works ══ */}
-            <div className="gp-shell" id="how-it-works" style={{ scrollMarginTop: 80 }}>
-                <div className="gp-section">
-                    <div className="gp-section-layout">
-                        <div className="gp-label">
-                            <div className="gp-tag amber">The Basics</div>
-                            <h2 className="gp-h2">How It Works</h2>
-                            <p className="gp-label-body">
-                                ForceItemBattle is built around one simple loop: get the item, score the point, repeat.
-                            </p>
-                        </div>
-                        <div>
-                            <div className="gp-basics">
-                                {BASICS.map((b, i) => (
-                                    <div key={i} className="gp-basic-tile">
-                                        <div className="gp-basic-icon" style={{ background: b.color + '18' }}>
-                                            <b.icon size={16} style={{ color: b.color }} />
-                                        </div>
-                                        <div>
-                                            <div className="gp-basic-title">{b.title}</div>
-                                            <div className="gp-basic-desc">{b.desc}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="gp-flow">
-                                <strong>The goal:</strong> collect more items than everyone else before the timer runs out. Games typically run 45–120 minutes. Most items collected wins.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+const CONTENTS = [
+    ['round', 'The round'], ['pool', 'The pool'], ['jokers', 'Jokers'], ['back-to-backs', 'Back-to-backs'],
+    ['modes', 'Modes'], ['events', 'Random events'], ['strategy', 'Strategy'],
+];
 
-            <div className="gp-rule" />
-
-            {/* ══ Item Pools ══ */}
-            <div className="gp-shell" id="item-pools" style={{ scrollMarginTop: 80 }}>
-                <div className="gp-section">
-                    <PoolsSection />
-                </div>
-            </div>
-
-            <div className="gp-rule" />
-
-            {/* ══ Game Modes ══ */}
-            <div className="gp-shell" id="game-modes" style={{ scrollMarginTop: 80 }}>
-                <div className="gp-section">
-                    <div className="gp-section-layout">
-                        <div className="gp-label">
-                            <div className="gp-tag blue">Modes</div>
-                            <h2 className="gp-h2">Game Modes</h2>
-                            <p className="gp-label-body">
-                                Three distinct rulesets. Each one changes the core incentive — what it means to play well.
-                            </p>
-                        </div>
-
-                        {/* Mode selector + panel as one connected unit */}
-                        <div className="gp-mode-group">
-
-                            {/* Selector cards */}
-                            <div className="gp-msel">
-                                {MODES.map((m, i) => {
-                                    const isActive = activeMode === i;
-                                    const mmc    = m.color;
-                                    const mmcBg  = getOklchVariant(mmc, 0.10);
-                                    const mmcBd  = getOklchVariant(mmc, 0.25);
-                                    return (
-                                        <button
-                                            key={i}
-                                            className={`gp-msel-item${isActive ? ' active' : ''}`}
-                                            onClick={() => setActiveMode(i)}
-                                            style={{ '--mc': mmc, '--mc-bg': mmcBg, '--mc-bd': mmcBd }}
-                                        >
-                                            <div className="gp-msel-hdr">
-                                                <span className="gp-msel-num">{String(i + 1).padStart(2, '0')}</span>
-                                                <span className="gp-msel-badge">{m.badge}</span>
-                                            </div>
-                                            <div className="gp-msel-identity">
-                                                <m.icon size={13} className="gp-msel-icon" />
-                                                <span className="gp-msel-name">{m.name}</span>
-                                            </div>
-                                            <p className="gp-msel-hook">{m.hook}</p>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Detail panel */}
-                            <div className="gp-mpanel" style={{ '--mc': mc, '--mc-bg': mcBg, '--mc-bd': mcBd }}>
-                                <div className="gp-mpanel-head">
-                                    <h3 className="gp-mpanel-name">{mode.name}</h3>
-                                    <span className="gp-mpanel-badge">{mode.badge}</span>
-                                </div>
-                                <div className="gp-mpanel-body">
-                                    {activeMode === 0 && <FIBViz />}
-                                    {activeMode === 1 && <RunBattleViz />}
-                                    {activeMode === 2 && <ForceChainViz />}
-                                </div>
-                                <div className="gp-mpanel-foot">
-                                    <span className="gp-mpanel-foot-lbl">Key rule</span>
-                                    <span className="gp-mpanel-foot-sep" />
-                                    <span className="gp-mpanel-foot-val">{mode.mechanic}</span>
-                                </div>
-                            </div>
-
-                        </div>{/* /gp-mode-group */}
-                    </div>{/* /gp-section-layout */}
-                </div>{/* /gp-section */}
-            </div>{/* /gp-shell */}
-
-            <div className="gp-rule" />
-
-            {/* ══ Tips & Strategy ══ */}
-            <div className="gp-shell" id="tips" style={{ scrollMarginTop: 80 }}>
-                <div className="gp-section">
-                    <div className="gp-section-layout">
-                        <div className="gp-label">
-                            <div className="gp-tag purple">Advanced</div>
-                            <h2 className="gp-h2">Tips & Strategy</h2>
-                            <p className="gp-label-body">
-                                FIB rewards both speed and strategy. The most consistent players master efficiency, coordination, and preparation.
-                            </p>
-                        </div>
-                        <div className="gp-tips">
-                            {TIPS.map((t, i) => (
-                                <div key={i} className="gp-tip">
-                                    <span className="gp-tip-num">{String(i + 1).padStart(2, '0')}</span>
-                                    <div className="gp-tip-icon" style={{ background: t.iconBg }}>
-                                        <t.icon size={16} style={{ color: t.iconColor }} />
-                                    </div>
-                                    <div className="gp-tip-content">
-                                        <div className="gp-tip-title">{t.title}</div>
-                                        <p className="gp-tip-desc">{t.desc}</p>
-                                        {t.bullets && (
-                                            <ul className="gp-tip-bullets">
-                                                {t.bullets.map((b, bi) => (
-                                                    <li key={bi} className="gp-tip-bullet">
-                                                        {typeof b === 'string' ? b : (
-                                                            <><strong style={{ color: 'oklch(80% 0.009 255)', fontWeight: 600 }}>{b.title}:</strong> {b.body}</>
-                                                        )}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                        {t.note && (
-                                            <p className="gp-tip-desc" style={{ marginTop: 10, marginBottom: 0 }}>{t.note}</p>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+export default function Gameplay({ onNavigate }) {
+    const calm = useCalm();
+    const go = useGo(onNavigate);
+    return (
+        <main className="pg">
+            <header className="wk-wrap pg-head">
+                <h1 className="wk-h2">Gameplay</h1>
+                <p className="wk-lede">
+                    Everything you need to understand ForceItemBattle: how the loop works, which modes exist,
+                    and how the best players stay ahead.
+                </p>
+                <nav className="gp-toc" aria-label="On this page">
+                    <span className="wk-label">On this page</span>
+                    {CONTENTS.map(([id, label]) => <a key={id} className="wk-link" href={`#${id}`}>{label}</a>)}
+                </nav>
+            </header>
+            <Round />
+            <Clock />
+            <Jokers />
+            <BackToBacks calm={calm} />
+            <Modes calm={calm} />
+            <Events calm={calm} />
+            <Strategy />
+            <PageLinks ids={['pools', 'settings', 'commands', 'how-to-play']} go={go} />
             <Footer />
-        </div>
+            <TooltipLayer />
+        </main>
     );
 }

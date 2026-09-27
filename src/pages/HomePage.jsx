@@ -15,6 +15,7 @@ import {
 import { ITEM_TAGS } from '../wiki/atlas.data.js';
 import { DEALABLE, ROUTES_VERSION, countLabel, dealableFrom, routesFor, showsOdds } from '../wiki/routes.js';
 import { FIND_RARITY, GAUGE, REGION, REGIONS, STAGES, TAGS } from '../wiki/tokens.js';
+import { PAGES, useGo } from '../wiki/pages.js';
 import '../wiki/home.css';
 
 /*
@@ -61,19 +62,6 @@ const MODES = [
       text: 'You can always see both your current item and the one after it. The best players route for both at once.' },
 ];
 
-const PAGES = [
-    { id: 'how-to-play', name: 'How to Play', face: 'CRAFTING_TABLE', text: 'Join our server, or host a round yourself with the plugin, pack and datapack.' },
-    { id: 'gameplay', name: 'Gameplay', face: 'COMPASS', text: 'The loop, the three modes, the pool stages and strategy.' },
-    { id: 'pools', name: 'Item Pools', face: 'CHEST', text: 'Every item the game can hand you, by stage and tag.' },
-    { id: 'structures', name: 'Custom Content', face: 'STRUCTURE_BLOCK', text: 'The structures and items built for this edition.' },
-    { id: 'commands', name: 'Commands', face: 'COMMAND_BLOCK', text: 'Every command, what it does and who can use it.' },
-    { id: 'settings', name: 'Game Settings', face: 'COMPARATOR', text: 'What each round setting changes.' },
-    { id: 'rules', name: 'Rules', face: 'WRITABLE_BOOK', text: 'How to play fair here, and which mods are not allowed.' },
-    { id: 'changelog', name: 'Changelog', face: 'BOOK', text: 'Every release, newest first.' },
-    { id: 'stats', name: 'Stats', face: 'SPYGLASS', text: 'Players, matches, achievements and rankings, live from the server.', exit: true },
-    { id: 'wheel', name: 'Wheel of Fortune', src: '/fib-custom/wheel.png', text: 'Spin for items and fill your collection book.', exit: true },
-];
-
 const TEAM = [
     { name: 'threeseconds', role: 'Core Development' },
     { name: 'eltobito', role: 'Content, Datapacks & Resource Packs' },
@@ -89,15 +77,6 @@ const THANKS = [
 ];
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
-
-/** An in-app link that is still a real link: middle-click and copy work. */
-function useGo(onNavigate) {
-    return (id) => (e) => {
-        if (!onNavigate || e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
-        e.preventDefault();
-        onNavigate(id);
-    };
-}
 
 /** How many slot columns fit a container, kept current as it resizes. */
 function useColumns(ref, slot, gap = 2) {
@@ -137,6 +116,18 @@ function usePicks(list, n) {
 }
 
 const regionOf = (m) => REGION[whereOf(m)?.region] ?? REGION.surface;
+
+/*
+ * The dealable items of each stage, once per page. usePicks memoises on the list it is
+ * given, and dealableFrom builds a new array every call, so passing its result straight
+ * in re-dealt the round clock, the backpack and the modes on every render (a resize, a
+ * Draw another) and ran routesFor over the pool each time.
+ */
+const DEALABLE_BY_STAGE = {
+    EARLY: dealableFrom(POOL_BY_STAGE.EARLY),
+    MID: dealableFrom(POOL_BY_STAGE.MID),
+    LATE: dealableFrom(POOL_BY_STAGE.LATE),
+};
 
 /* ── The draw ────────────────────────────────────────────────────────────────
  * The game's verb, and the page's one fast motion: a riffle through wrong items at
@@ -304,14 +295,29 @@ function Routes({ deal, calm }) {
 const BEATS = ['Draw', 'Think', 'Route', 'Obtain', 'Score', 'Next'];
 const BEAT_MS = 340;
 
+/*
+ * The others in the round, each on a random item of their own. Illustration: their
+ * odds of scoring on a beat are set so the race stays close (you score once every six
+ * beats), not measured from anything. The names are the crew's, below.
+ */
+const RIVALS = [
+    { name: 'apppaa', score: 8, p: 1 / 6.5 },
+    { name: 'stupxd', score: 6, p: 1 / 7.5 },
+    { name: 'CH0RD', score: 5, p: 1 / 9 },
+];
+const BOARD_ROW = 30;
+
 function Loop({ calm }) {
     const ref = useRef(null);
     const onScreen = useOnScreen(ref);
-    const early = useMemo(() => dealableFrom(POOL_BY_STAGE.EARLY), []);
+    const early = DEALABLE_BY_STAGE.EARLY;
     // The count always equals the checked items behind it, including standing still.
     const [state, setState] = useState(() => {
         const trail = Array.from({ length: 7 }, () => pick(early));
-        return { beat: 0, score: trail.length, current: pick(early), trail };
+        return {
+            beat: 0, score: trail.length, current: pick(early), trail,
+            rivals: RIVALS.map((r) => ({ ...r, item: pick(early) })),
+        };
     });
 
     useEffect(() => {
@@ -319,29 +325,50 @@ function Loop({ calm }) {
         const t = window.setInterval(() => {
             setState((s) => {
                 const beat = (s.beat + 1) % BEATS.length;
-                if (BEATS[beat] === 'Score') return { ...s, beat, score: s.score + 1, trail: [s.current, ...s.trail].slice(0, 7) };
-                if (BEATS[beat] === 'Next') return { ...s, beat, current: pick(early) };
-                return { ...s, beat };
+                // Meanwhile, everyone else: found theirs, +1, a new item.
+                const rivals = s.rivals.map((r) => (Math.random() < r.p ? { ...r, score: r.score + 1, item: pick(early) } : r));
+                if (BEATS[beat] === 'Score') return { ...s, beat, rivals, score: s.score + 1, trail: [s.current, ...s.trail].slice(0, 7) };
+                if (BEATS[beat] === 'Next') return { ...s, beat, rivals, current: pick(early) };
+                return { ...s, beat, rivals };
             });
         }, BEAT_MS);
         return () => window.clearInterval(t);
     }, [calm, onScreen, early]);
 
     const beat = calm ? 4 : state.beat;
+    // The sidebar scoreboard, as the game draws it: highest first. You win a tie on
+    // your own screen.
+    const board = [{ name: 'You', you: true, score: state.score, item: state.current }, ...state.rivals]
+        .map((p, order) => ({ ...p, order }))
+        .sort((a, b) => b.score - a.score || a.order - b.order);
     return (
         <section ref={ref} className="wk-wrap hm-loop" aria-labelledby="hm-loop-title">
             <div className="hm-loop-head">
                 <h2 id="hm-loop-title" className="wk-h2">Found it. +1. Next.</h2>
                 <p className="wk-p">
                     There is no downtime. The moment an item counts, the next one replaces it, and the clock never
-                    stops. A round is this, over and over, as fast as you can route.
+                    stops. Everyone else in the round is doing the same with items of their own, so the player who
+                    routes fastest pulls ahead.
                 </p>
             </div>
             <figure className="hm-loop-strip">
-                <div className="hm-loop-score" aria-hidden="true">
-                    <span className="hm-loop-score-n">{state.score}</span>
-                    <span className="hm-loop-score-k">found</span>
-                </div>
+                <ol className="hm-board" aria-label="Scores in the illustrated round" style={{ height: board.length * BOARD_ROW + 8 }}>
+                    {[...board].sort((a, b) => a.order - b.order).map((p) => {
+                        const rank = board.indexOf(p);
+                        return (
+                            <li key={p.name} className="hm-board-row" data-you={p.you || undefined}
+                                style={{ transform: `translateY(${rank * BOARD_ROW}px)` }}
+                                aria-label={`${p.name}: ${p.score}`}>
+                                <img className="hm-board-head" src={MC_HEAD(p.you ? 'MHF_Steve' : p.name)} alt="" width="18" height="18" loading="lazy" />
+                                <span className="hm-board-name">{p.name}</span>
+                                <span className="hm-board-item" aria-hidden="true">
+                                    <ItemSlot key={p.item} material={p.item} size={24} tip={false} marks={false} />
+                                </span>
+                                <span className="hm-board-score" key={p.score} aria-hidden="true">{p.score}</span>
+                            </li>
+                        );
+                    })}
+                </ol>
                 <div className="hm-loop-now" data-beat={BEATS[beat].toLowerCase()} aria-hidden="true">
                     <ItemSlot material={state.current} size={80} tip={false} key={state.current} />
                     <span className="hm-loop-found"><Check size={14} strokeWidth={3} /> Found</span>
@@ -360,30 +387,92 @@ function Loop({ calm }) {
                         <li key={b} aria-current={i === beat ? 'step' : undefined}>{b}</li>
                     ))}
                 </ol>
-                <figcaption className="hm-source">Illustration: a round, sped up, dealing real Early items.</figcaption>
+                <figcaption className="hm-source">Illustration: a round, sped up, dealing real Early items. The other players are simulated.</figcaption>
             </figure>
         </section>
     );
 }
 
 /* ── 4. The pressure ─────────────────────────────────────────────────────────
- * The round clock, drawn as what it does: the pool steps up at 11% and 29% and
- * never steps down. Layer heights are to scale with each stage's item count.
+ * The round clock, drawn as one pool that items join. The round's timeline is the
+ * backbone; each unlock is a flag on it, in its stage's light, carrying real items
+ * of the stage that joins there and the count it adds. Under the flags runs a strip
+ * of real draws, one per step of the round, taken the way the plugin takes them:
+ * uniformly from every item unlocked so far (ItemDifficultiesManager.drawFrom). So
+ * the strip starts all Early, and after each flag the new stage mixes in while the
+ * earlier ones keep turning up, which is "nothing ever leaves" shown rather than
+ * said. The drawn item hangs off the axis where it unlocks. Below 900px the timeline
+ * turns on its side and the strip is not drawn, so the caption about it goes too.
+ *
+ * *This replaced a stacked chart.* Each stage was a layer of block cells starting
+ * where it unlocked, heights to scale, stacked on the stages before it. It was
+ * correct and read badly: hundreds of coloured cells, a staircase, and three bands
+ * that looked like three separate phases of the round. The items now carry it, and
+ * the stage colours are accents (a flag, a stage bar, a word), not fills.
  */
 
 const BOUNDS = [['EARLY', 0], ['MID', 11], ['LATE', 29]];
+const SPAN = { EARLY: 11, MID: 18, LATE: 71 };
+const COUNTS = Object.fromEntries(BOUNDS.map(([k]) => [k, POOL_BY_STAGE[k].length]));
+const IN_POOL = { EARLY: COUNTS.EARLY, MID: COUNTS.EARLY + COUNTS.MID, LATE: COUNTS.EARLY + COUNTS.MID + COUNTS.LATE };
+const DRAW_SLOT = 36;
+const DRAW_STEP = DRAW_SLOT + 2;
+const DRAWS_MAX = 48;
+
+/** An element's content width, kept current as it resizes. */
+function useWidth(ref) {
+    const [w, setW] = useState(0);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return undefined;
+        const ro = new ResizeObserver(([entry]) => setW(entry.contentRect.width));
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [ref]);
+    return w;
+}
+
+/*
+ * The strip's draws, made once per page and sliced to fit, so a resize reveals more
+ * of the same round rather than dealing a new one. Each stretch draws exactly the way
+ * the plugin does, uniformly from everything unlocked by then: a stage by its share of
+ * the pool, then an item in it, which is the same as one uniform pick from the union.
+ *
+ * It used to force the first draw after an unlock to be the new stage, spending the
+ * flag's own items, and to avoid repeats within a stretch. That made the flags visibly
+ * land in the pool, and it made the strip overstate the new stage on the short Mid
+ * stretch, under a caption saying every item is equally likely. The caption is the
+ * claim, so the strip now keeps it and a flag's items turn up only by chance.
+ */
+function drawRound() {
+    return BOUNDS.map((_, s) => {
+        const open = BOUNDS.slice(0, s + 1).map(([t]) => t);
+        const weight = open.reduce((n, t) => n + COUNTS[t], 0);
+        return Array.from({ length: DRAWS_MAX }, () => {
+            let r = Math.random() * weight;
+            const tier = open.find((t) => (r -= COUNTS[t]) < 0) ?? open[0];
+            return pick(POOL_BY_STAGE[tier]);
+        });
+    });
+}
 
 function Pressure({ target }) {
-    const counts = { EARLY: POOL_BY_STAGE.EARLY.length, MID: POOL_BY_STAGE.MID.length, LATE: POOL_BY_STAGE.LATE.length };
-    const total = counts.EARLY + counts.MID + counts.LATE;
-    const cumulative = { EARLY: counts.EARLY, MID: counts.EARLY + counts.MID, LATE: total };
-    const examples = {
-        EARLY: usePicks(dealableFrom(POOL_BY_STAGE.EARLY), 5),
-        MID: usePicks(dealableFrom(POOL_BY_STAGE.MID), 5),
-        LATE: usePicks(dealableFrom(POOL_BY_STAGE.LATE), 5),
-    };
+    const boardRef = useRef(null);
+    const width = useWidth(boardRef);
+    const early = usePicks(DEALABLE_BY_STAGE.EARLY, 3);
+    const mid = usePicks(DEALABLE_BY_STAGE.MID, 3);
+    const late = usePicks(DEALABLE_BY_STAGE.LATE, 3);
+    const flags = useMemo(() => ({ EARLY: early, MID: mid, LATE: late }), [early, mid, late]);
+    const draws = useMemo(() => drawRound(), []);
+    const fits = (k) => (width ? Math.max(1, Math.floor((width * SPAN[k] / 100 - 10 + 2) / DRAW_STEP)) : 0);
     const youStage = stageOf(target);
     const youAt = youStage ? STAGES[youStage].at : null;
+    const you = youStage && (
+        <>
+            <ItemSlot material={target} size={40} tip={false} marks={false} />
+            <span>Your <strong>{itemName(target)}</strong> can come up from {youAt}%</span>
+        </>
+    );
     return (
         <section className="wk-wrap hm-pressure" aria-labelledby="hm-pressure-title">
             <div className="hm-pressure-head">
@@ -394,50 +483,51 @@ function Pressure({ target }) {
                     handed is hard.
                 </p>
             </div>
-            <figure className="hm-growth">
-                <div className="hm-growth-plot" role="img"
-                     aria-label={`Items that can be handed out: ${fmt(cumulative.EARLY)} from the start, ${fmt(cumulative.MID)} from 11% of the round, ${fmt(cumulative.LATE)} from 29%.`}>
-                    {/* Stacked: each stage sits on the ones already in the pool. */}
-                    {BOUNDS.map(([k, at]) => (
-                        <span key={k} className="hm-growth-layer"
-                              style={{ '--at': at, '--b': (cumulative[k] - counts[k]) / total, '--h': counts[k] / total, '--c': STAGES[k].light }} />
-                    ))}
-                    {/* Real items of each stage, sitting in their layer right where
-                        that stage enters the pool. */}
-                    {BOUNDS.map(([k, at]) => (
-                        <span key={`i-${k}`} className="hm-growth-items"
-                              style={{ '--at': at, '--b': (cumulative[k] - counts[k]) / total, '--h': counts[k] / total }}>
-                            {examples[k].map((m) => <ItemSlot key={m} material={m} size={32} marks={false} />)}
-                        </span>
-                    ))}
-                    {BOUNDS.map(([k, at]) => (
-                        <span key={`n-${k}`} className="hm-growth-n" style={{ '--at': at, '--y': cumulative[k] / total }}>
-                            {fmt(cumulative[k])}
-                        </span>
-                    ))}
-                </div>
-                <div className="hm-growth-axis">
-                    {[0, 11, 29, 100].map((p) => <span key={p} className="hm-growth-tick" style={{ '--at': p }} aria-hidden="true">{p}%</span>)}
+            <figure className="hm-clock">
+                <div className="hm-clock-board" ref={boardRef}>
+                    {/* The unlocks, as flags on the timeline: who joins, how many, and
+                        how big the pool is once they have. */}
+                    <ol className="hm-clock-flags">
+                        {BOUNDS.map(([k, at], i) => (
+                            <li key={k} className="hm-flag" style={{ '--at': at, '--span': SPAN[k], '--c': STAGES[k].light }}>
+                                <span className="hm-flag-when">{at}%</span>
+                                <span className="hm-flag-name" style={{ color: STAGES[k].ink }}>{i > 0 && '+ '}{STAGES[k].label}</span>
+                                <span className="hm-flag-count">
+                                    {i > 0
+                                        ? <><strong>+{fmt(COUNTS[k])}</strong> join, <strong>{fmt(IN_POOL[k])}</strong> in the pool</>
+                                        : <><strong>{fmt(COUNTS[k])}</strong> items to start</>}
+                                </span>
+                                <span className="hm-flag-items" data-start={i === 0 || undefined}>
+                                    {flags[k].map((m) => <ItemSlot key={m} material={m} size={40} />)}
+                                </span>
+                                {youStage === k && <span className="hm-flag-you">{you}</span>}
+                            </li>
+                        ))}
+                    </ol>
+                    {/* One draw per step of the round, from the pool as it stood then. */}
+                    <div className="hm-clock-draws" aria-hidden="true">
+                        {BOUNDS.map(([k, at], s) => (
+                            <span key={k} className="hm-clock-stretch" style={{ '--at': at, '--span': SPAN[k] }}>
+                                {draws[s].slice(0, fits(k)).map((m, j) => <ItemSlot key={`${m}-${j}`} material={m} size={DRAW_SLOT} />)}
+                            </span>
+                        ))}
+                    </div>
+                    <div className="hm-clock-axis" aria-hidden="true">
+                        {BOUNDS.map(([k, at]) => <span key={k} className="hm-clock-mark" style={{ '--at': at, '--c': STAGES[k].light }} />)}
+                        {[0, 11, 29, 100].map((p) => <span key={p} className="hm-clock-tick" style={{ '--at': p }}>{p}%</span>)}
+                    </div>
                     {youStage && (
-                        <span className="hm-growth-you" style={{ '--at': youAt }}>
-                            <ItemSlot material={target} size={32} tip={false} marks={false} />
-                            <span>Your {itemName(target)} can come up from {youAt}%</span>
-                        </span>
+                        <p className="hm-clock-you" data-start={youAt === 0 || undefined} style={{ '--at': youAt, '--c': STAGES[youStage].light }}>{you}</p>
                     )}
                 </div>
+                <figcaption className="hm-source hm-clock-caption">
+                    Illustration: the strip is one random draw at each step of the round, from the pool as it stood
+                    then. Every item in the pool is equally likely.
+                </figcaption>
             </figure>
-            <ol className="hm-stages">
-                {BOUNDS.map(([k, at]) => (
-                    <li key={k} className="hm-stage">
-                        <span className="hm-stage-name" style={{ color: STAGES[k].ink }}>{STAGES[k].label}</span>
-                        <span className="hm-stage-meta">from {at}% · {fmt(counts[k])} items</span>
-                    </li>
-                ))}
-            </ol>
         </section>
     );
 }
-
 /* ── 5. The escapes ──────────────────────────────────────────────────────── */
 
 /** A route in a few words: its verb and its first ingredients or sources. */
@@ -456,79 +546,126 @@ function routeLine(r) {
  * "is it worth it" is visible, not asserted.
  */
 function Escapes() {
-    const costly = useMemo(() => dealableFrom(POOL_BY_STAGE.LATE).filter((m) => {
+    const costly = useMemo(() => DEALABLE_BY_STAGE.LATE.filter((m) => {
         const t = tagsOf(m);
         return (t.includes('END') || t.includes('NETHER')) && !routesFor(m).some((r) => r.kind === 'craft');
     }), []);
-    const cheap = useMemo(() => dealableFrom(POOL_BY_STAGE.EARLY).filter((m) => routesFor(m)[0]?.kind === 'craft'), []);
-    const [skipped] = usePicks(costly.length ? costly : dealableFrom(POOL_BY_STAGE.LATE), 1);
-    const [next] = usePicks(cheap.length ? cheap : dealableFrom(POOL_BY_STAGE.EARLY), 1);
+    const cheap = useMemo(() => DEALABLE_BY_STAGE.EARLY.filter((m) => routesFor(m)[0]?.kind === 'craft'), []);
+    const [skipped] = usePicks(costly.length ? costly : DEALABLE_BY_STAGE.LATE, 1);
+    const [next] = usePicks(cheap.length ? cheap : DEALABLE_BY_STAGE.EARLY, 1);
     const skipTag = tagsOf(skipped).find((t) => t === 'END' || t === 'NETHER');
+    // The lucky one: an item handed to you that is already sitting in a bundle you carry.
+    // A bundle rather than a plain backpack grid, because the bundle is the case
+    // players miss: InventorySearch opens bundles (and shulker boxes) wherever they
+    // are, in the inventory, the backpack, or a bundle inside a shulker box.
+    const bagFrom = useMemo(() => DEALABLE_BY_STAGE.EARLY.filter((m) => m !== next), [next]);
+    const bag = usePicks(bagFrom, 6);
+    const lucky = bag[3];
     const { jokers } = POOL_SETTINGS;
+    /*
+     * The two halves are one grid, not two columns side by side: each half's sequence,
+     * name, words and extra sit on the same rows as the other's, so the costly draw and
+     * the lucky one read as the same machine running two ways. Both sequences have the
+     * same grammar (what you were handed, what happens to it, what you get), drawn at
+     * the same size on the same line.
+     */
     return (
         <section className="wk-wrap hm-escapes" aria-labelledby="hm-escapes-title">
-            <h2 id="hm-escapes-title" className="wk-h2">When it isn&rsquo;t worth it</h2>
+            <h2 id="hm-escapes-title" className="wk-h2">Sometimes it costs you. Sometimes it pays.</h2>
             <div className="hm-escapes-grid">
-                <div className="hm-joker">
-                    <div className="hm-trade">
-                        <div className="hm-trade-item" style={{ '--glow': skipTag ? TAGS[skipTag].ink : STAGES.LATE.light }}>
-                            <ItemSlot material={skipped} size={64} tip={false} />
-                            <span className="hm-trade-name">{itemName(skipped)}</span>
-                            <span className="hm-trade-route">
-                                {skipTag && <span style={{ color: TAGS[skipTag].ink }}>{TAGS[skipTag].label} only. </span>}
-                                {routeLine(routesFor(skipped)[0])}
-                            </span>
-                        </div>
-                        <div className="hm-trade-joker" aria-hidden="true">
-                            <ArrowRight size={18} className="hm-joker-arrow" />
-                            <span className="hm-joker-card"><img src="/fib-custom/barrier.png" alt="" /></span>
-                            <ArrowRight size={18} className="hm-joker-arrow" />
-                        </div>
-                        <div className="hm-trade-item" style={{ '--glow': STAGES.EARLY.light }}>
-                            <ItemSlot material={next} size={64} tip={false} />
-                            <span className="hm-trade-name">{itemName(next)}</span>
-                            <span className="hm-trade-route">{routeLine(routesFor(next)[0])}</span>
-                        </div>
+                <div className="hm-seq" role="img"
+                     aria-label={`${itemName(skipped)} would cost too long, so a joker trades it for ${itemName(next)}.`}>
+                    <div className="hm-seq-node" style={{ '--glow': skipTag ? TAGS[skipTag].ink : STAGES.LATE.light }}>
+                        <ItemSlot material={skipped} size={64} tip={false} />
+                        <span className="hm-seq-name">{itemName(skipped)}</span>
+                        <span className="hm-seq-note">
+                            {skipTag && <span style={{ color: TAGS[skipTag].ink }}>{TAGS[skipTag].label} only. </span>}
+                            {routeLine(routesFor(skipped)[0])}
+                        </span>
                     </div>
-                    <h3 className="hm-mech">Jokers</h3>
-                    <p className="wk-p">
-                        Some items cost more time than they are worth: another dimension, a structure you have not
-                        found. Spend a joker, skip it, and the next item arrives straight away. You get{' '}
-                        <strong>{jokers}</strong> a round on this server, so choose which items to give up.
-                    </p>
-                    <div className="hm-joker-hand" aria-label={`${jokers} jokers`}>
-                        {Array.from({ length: jokers }, (_, i) => (
-                            <span key={i} className="hm-joker-card hm-joker-card--small" style={{ '--i': i }}>
-                                <img src="/fib-custom/barrier.png" alt="" />
-                            </span>
-                        ))}
+                    <span className="hm-seq-to" aria-hidden="true" />
+                    <div className="hm-seq-node hm-seq-joker">
+                        <span className="hm-joker-card"><img src="/fib-custom/barrier.png" alt="" /></span>
+                        <span className="hm-seq-note">Joker</span>
                     </div>
+                    <span className="hm-seq-to" aria-hidden="true" />
+                    <div className="hm-seq-node" style={{ '--glow': STAGES.EARLY.light }}>
+                        <ItemSlot material={next} size={64} tip={false} />
+                        <span className="hm-seq-name">{itemName(next)}</span>
+                        <span className="hm-seq-note">{routeLine(routesFor(next)[0])}</span>
+                    </div>
+                </div>
+                <h3 className="hm-mech">Jokers</h3>
+                <p className="wk-p">
+                    A bad draw: another dimension, a structure you have not found. Spend a joker and the next item
+                    arrives straight away. You get <strong>{jokers}</strong> a round on this server, so choose which
+                    items to give up.
+                </p>
+                <div className="hm-joker-hand" aria-label={`${jokers} jokers`}>
+                    {Array.from({ length: jokers }, (_, i) => (
+                        <span key={i} className="hm-joker-card hm-joker-card--small" style={{ '--i': i }}>
+                            <img src="/fib-custom/barrier.png" alt="" />
+                        </span>
+                    ))}
                 </div>
 
-                <div className="hm-b2b">
-                    <h3 className="hm-mech">Back-to-backs</h3>
-                    <p className="wk-p">
-                        Or you get lucky. When the item you are handed is already in your inventory, backpack or a
-                        bundle, it counts on the spot. The game grades how unlikely that was from what you were
-                        holding and the size of the pool, and the rarest grades are heard by the whole server.
-                    </p>
-                    <ol className="hm-ladder">
-                        {FIND_RARITY.map((f) => (
-                            <li key={f.key} className="hm-rung" style={{ '--f': f.ink, '--f-from': f.from ?? f.ink, '--f-to': f.to ?? f.ink }}>
-                                <span className="hm-rung-bar" aria-hidden="true" />
-                                <span className="hm-rung-name">{f.label}</span>
-                                <span className="hm-rung-when">{f.when}</span>
-                                {(f.key === 'LEGENDARY' || f.key === 'RNGESUS') && <span className="hm-rung-note">Server-wide</span>}
-                            </li>
-                        ))}
-                    </ol>
+                <div className="hm-seq hm-seq--luck" role="img"
+                     aria-label={`You are handed ${itemName(lucky)}, it is already in a bundle you carry, and it counts at once.`}>
+                    <div className="hm-seq-node" style={{ '--glow': STAGES.EARLY.light }}>
+                        <ItemSlot material={lucky} size={64} tip={false} />
+                        <span className="hm-seq-name">{itemName(lucky)}</span>
+                        <span className="hm-seq-note">Handed to you</span>
+                    </div>
+                    <span className="hm-seq-to" aria-hidden="true" />
+                    <div className="hm-seq-node">
+                        <span className="hm-bundle" aria-hidden="true">
+                            <ItemSlot material="BUNDLE" size={40} tip={false} marks={false} />
+                            <span className="hm-bag">
+                                {bag.map((m) => (
+                                    <span key={m} className="hm-bag-cell" data-hit={m === lucky || undefined}>
+                                        <ItemSlot material={m} size={20} tip={false} marks={false} />
+                                    </span>
+                                ))}
+                            </span>
+                        </span>
+                        <span className="hm-seq-note">Already in a bundle you carry</span>
+                    </div>
+                    <span className="hm-seq-to" aria-hidden="true" />
+                    <div className="hm-seq-node">
+                        <span className="hm-seq-plus">+1</span>
+                        <span className="hm-seq-note">On the spot, and graded</span>
+                    </div>
                 </div>
+                <h3 className="hm-mech">Back-to-backs</h3>
+                <p className="wk-p">
+                    A lucky one: the item you are handed is already in your inventory or backpack, or in a shulker
+                    box or bundle inside them. It counts on the spot, and the game grades how unlikely that was from what you were holding and the
+                    size of the pool. The rarest grades are heard by the whole server.
+                </p>
+                <ol className="hm-ladder">
+                    {FIND_RARITY.map((f) => (
+                        <li key={f.key} className="hm-rung" style={{ '--f': f.ink, '--f-from': f.from ?? f.ink, '--f-to': f.to ?? f.ink }}>
+                            <span className="hm-rung-bar" aria-hidden="true" />
+                            <span className="hm-rung-name">{f.label}</span>
+                            <span className="hm-rung-when">{f.when}</span>
+                            {(f.key === 'LEGENDARY' || f.key === 'RNGESUS') && <span className="hm-rung-note">Server-wide</span>}
+                        </li>
+                    ))}
+                </ol>
             </div>
         </section>
     );
 }
 
 /* ── 6. The world, as the toolbox ────────────────────────────────────────── */
+
+/*
+ * The descent rail, by band. The five Overworld places are one physical column, top
+ * to bottom, so their rail is one solid line from the surface down to the Deep Dark,
+ * where it stops. The Nether and the End are not further down: you go through
+ * something to reach them. Their rail starts again after a gap, dashed.
+ */
+const RAIL = { surface: 'top', ocean: 'world', caves: 'world', trial: 'world', deepdark: 'floor', nether: 'portal', end: 'last' };
 
 function RegionBand({ region, index, go }) {
     const items = regionItems(region.key);
@@ -552,6 +689,7 @@ function RegionBand({ region, index, go }) {
             ref={bandRef}
             id={`region-${region.key}`}
             className="hm-band"
+            data-rail={RAIL[region.key]}
             style={{ '--r': region.light, '--r-ink': region.ink }}
             aria-labelledby={`region-${region.key}-name`}
         >
@@ -622,21 +760,27 @@ function World({ go, calm }) {
 
 const HEADS = ['MHF_Steve', 'MHF_Alex', 'MHF_Villager'];
 
-function Head({ name, size = 28 }) {
+function Head({ name, size = 32 }) {
     return <img className="hm-head" src={MC_HEAD(name)} alt="" width={size} height={size} loading="lazy" />;
 }
 
+const Tick = () => (
+    <span className="hm-tick">
+        <svg viewBox="0 0 7 7" width="8" height="8" shapeRendering="crispEdges"><path d="M6 1h1v2h-1v1h-1v1h-1v1h-2v-1h-1v-1h-1v-1h2v1h1v-1h1v-1h1z" fill="currentColor" /></svg>
+    </span>
+);
+
 function ModeFIB({ items }) {
-    // Two players, each on their own sequence: found items behind, the current one lit.
+    // Two players, each on a sequence of their own: found items behind, the current one lit.
     return (
         <div className="hm-diagram hm-diagram--fib" aria-hidden="true">
             {[0, 1].map((p) => (
                 <div key={p} className="hm-lane">
                     <Head name={HEADS[p]} />
                     {items.slice(p * 4, p * 4 + 3).map((m) => (
-                        <span key={m} className="hm-done"><ItemSlot material={m} size={40} tip={false} marks={false} /></span>
+                        <span key={m} className="hm-done"><ItemSlot material={m} size={44} tip={false} marks={false} /><Tick /></span>
                     ))}
-                    <span className="hm-live"><ItemSlot material={items[p * 4 + 3]} size={48} tip={false} /></span>
+                    <span className="hm-live"><ItemSlot material={items[p * 4 + 3]} size={56} tip={false} /></span>
                 </div>
             ))}
         </div>
@@ -656,7 +800,7 @@ function ModeRun({ items }) {
                     </span>
                 ))}
             </div>
-            <span className="hm-live"><ItemSlot material={items[0]} size={64} tip={false} /></span>
+            <span className="hm-live"><ItemSlot material={items[0]} size={72} tip={false} /></span>
         </div>
     );
 }
@@ -665,19 +809,30 @@ function ModeChain({ items }) {
     // The current item and the next one are both visible; the rest are not.
     return (
         <div className="hm-diagram hm-diagram--chain" aria-hidden="true">
-            <span className="hm-live"><ItemSlot material={items[0]} size={56} tip={false} /></span>
-            <ArrowRight size={16} className="hm-chain-arrow" />
-            <span className="hm-next"><ItemSlot material={items[1]} size={48} tip={false} marks={false} /></span>
-            <ArrowRight size={16} className="hm-chain-arrow" />
-            <span className="wk-slot hm-hidden" style={{ '--slot': '40px' }}>?</span>
-            <span className="wk-slot hm-hidden" style={{ '--slot': '40px' }}>?</span>
+            <span className="hm-chain-step">
+                <span className="hm-live"><ItemSlot material={items[0]} size={64} tip={false} /></span>
+                <span className="hm-chain-cap">Now</span>
+            </span>
+            <span className="hm-chain-to" />
+            <span className="hm-chain-step">
+                <span className="hm-next"><ItemSlot material={items[1]} size={56} tip={false} marks={false} /></span>
+                <span className="hm-chain-cap">Next</span>
+            </span>
+            <span className="hm-chain-to" />
+            <span className="hm-chain-step">
+                <span className="hm-chain-hidden">
+                    <span className="wk-slot hm-hidden" style={{ '--slot': '48px' }}>?</span>
+                    <span className="wk-slot hm-hidden" style={{ '--slot': '48px' }}>?</span>
+                </span>
+                <span className="hm-chain-cap">Unknown</span>
+            </span>
         </div>
     );
 }
 
 function Modes({ go }) {
-    const items = usePicks(dealableFrom(POOL_BY_STAGE.EARLY), 8);
-    const run = usePicks(dealableFrom(POOL_BY_STAGE.MID), 1);
+    const items = usePicks(DEALABLE_BY_STAGE.EARLY, 8);
+    const run = usePicks(DEALABLE_BY_STAGE.MID, 1);
     const chain = usePicks(DEALABLE, 2);
     const { hard, extreme, end, jokers, backpackSize } = POOL_SETTINGS;
     const tagged = (t) => Object.values(ITEM_TAGS).filter((tags) => tags.includes(t)).length;
@@ -721,58 +876,53 @@ function Modes({ go }) {
     );
 }
 
-/* ── 8. Where next: the hotbar ───────────────────────────────────────────────
- * The game names the selected hotbar item above the bar; so does this. Hover or
- * focus a slot to select it (keyboard focus selects too, and every link carries its
- * full name for assistive tech). On touch screens, where nothing hovers, the names
- * sit under the slots instead.
+/* ── 8. Where next ───────────────────────────────────────────────────────────
+ * Every page, named in plain words, grouped the way the nav groups them.
  *
- * A review round put every name under its slot at all widths, on the grounds that
- * navigation must not depend on hover. The owner found the bar read worse for it:
- * ten ragged, two-line labels turned the hotbar back into an icon grid. The label
- * above the bar is the version that ships; hover-less devices keep their names.
+ * *This was a hotbar, and the reason it is not is worth keeping.* Every page stood
+ * as a 60px slot in one bar, named above the bar on hover the way the game names
+ * the held item. It was clever, and at the bottom of a long page it did not read as
+ * links: a row of blocks with one name at a time is a puzzle when all a reader wants
+ * is somewhere to go. The owner asked for the labels to be visible at once. The
+ * items stay, small, beside names that say it.
  */
 
+const GROUPS = [
+    { label: 'Play', ids: ['how-to-play', 'gameplay', 'pools', 'structures'] },
+    { label: 'Reference', ids: ['commands', 'settings', 'rules', 'changelog'] },
+    { label: 'Elsewhere', ids: ['stats', 'wheel'] },
+];
+
 function Index({ go }) {
-    const [sel, setSel] = useState(0);
-    const cur = PAGES[sel];
     return (
-        <section className="wk-wrap hm-index" aria-labelledby="hm-index-title">
-            <h2 id="hm-index-title" className="wk-h2">Where next</h2>
-            <div className="hm-hotbar">
-                <p className="hm-hot-label" aria-hidden="true">
-                    <span className="hm-hot-label-name">
-                        {cur.name}{cur.exit && <ArrowUpRight size={14} className="hm-page-exit" />}
-                    </span>
-                    <span className="hm-hot-label-text">{cur.text}</span>
-                </p>
-                <ul className="hm-hotbar-row" aria-label="Pages">
-                    {PAGES.map((p, i) => (
-                        <li key={p.id} className="hm-hot-cell" data-selected={i === sel || undefined} data-exit={p.exit || undefined}>
-                            <a className="hm-hot" href={`/${p.id}`} onClick={go(p.id)}
-                               onMouseEnter={() => setSel(i)} onFocus={() => setSel(i)}
-                               aria-label={`${p.name}${p.exit ? ' (separate section)' : ''}: ${p.text}`}>
-                                {p.src
-                                    ? <span className="wk-slot" style={{ '--slot': '60px' }} aria-hidden="true"><img className="wk-sprite" src={p.src} alt="" /></span>
-                                    : <ItemSlot material={p.face} size={60} tip={false} marks={false} />}
-                                <span className="hm-hot-name" aria-hidden="true">
-                                    {p.exit ? (
-                                        <>
-                                            {p.name.split(' ').slice(0, -1).join(' ')}{' '}
-                                            {/* The arrow travels with the last word, so a wrap cannot strand it. */}
-                                            <span className="hm-nowrap">
-                                                {p.name.split(' ').slice(-1)}
-                                                <ArrowUpRight size={12} className="hm-page-exit" />
+        <nav className="wk-wrap hm-index" aria-labelledby="hm-index-title">
+            <h2 id="hm-index-title" className="wk-h3">Where next</h2>
+            <div className="hm-index-groups">
+                {GROUPS.map((g) => (
+                    <div key={g.label} className="hm-index-group">
+                        <span className="wk-label">{g.label}</span>
+                        <ul className="hm-index-list">
+                            {g.ids.map((id) => PAGES.find((p) => p.id === id)).map((p) => (
+                                <li key={p.id}>
+                                    <a className="hm-page" href={`/${p.id}`} onClick={go(p.id)}>
+                                        {p.src
+                                            ? <span className="wk-slot" style={{ '--slot': '40px' }} aria-hidden="true"><img className="wk-sprite" src={p.src} alt="" /></span>
+                                            : <ItemSlot material={p.face} size={40} tip={false} marks={false} />}
+                                        <span className="hm-page-text">
+                                            <span className="hm-page-name">
+                                                {p.name}
+                                                {p.exit && <><ArrowUpRight size={14} className="hm-page-exit" aria-hidden="true" /><span className="wk-sr"> (separate section)</span></>}
                                             </span>
-                                        </>
-                                    ) : p.name}
-                                </span>
-                            </a>
-                        </li>
-                    ))}
-                </ul>
+                                            <span className="hm-page-desc">{p.text}</span>
+                                        </span>
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
             </div>
-        </section>
+        </nav>
     );
 }
 

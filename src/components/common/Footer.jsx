@@ -5,8 +5,9 @@ import Heart from 'lucide-react/dist/esm/icons/heart';
  * The wiki's footer (styles in src/wiki/wiki.css). One line: who runs it, where the
  * code lives, the legal page, and the one disclaimer every Minecraft site owes.
  *
- * The `style` prop survives because pages that have not moved to the new system
- * yet still pass one to sit the footer on their own ground.
+ * It used to take a style prop so pages still on the old system could sit it on
+ * their own ground. Every wiki page has moved (Sept 2026), so the prop went with the
+ * last of them.
  */
 
 const LINKS = [
@@ -15,9 +16,9 @@ const LINKS = [
     { label: 'Imprint',      href: '/imprint',                                        external: false },
 ];
 
-export default function Footer({ style = {} }) {
+export default function Footer() {
     return (
-        <footer className="wk-foot" style={style}>
+        <footer className="wk-foot">
             <hr className="wk-seam" style={{ marginBottom: 24 }} />
             <div className="wk-wrap wk-foot-in">
                 <span>
