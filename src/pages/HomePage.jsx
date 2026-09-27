@@ -13,8 +13,8 @@ import {
     itemName, pick, regionItems, regionSlots, stageOf, tagsOf, whereOf,
 } from '../wiki/atlas.js';
 import { ITEM_TAGS } from '../wiki/atlas.data.js';
-import { DEALABLE, ROUTES_VERSION, countLabel, dealableFrom, routesFor, showsOdds } from '../wiki/routes.js';
-import { FIND_RARITY, GAUGE, REGION, REGIONS, STAGES, TAGS } from '../wiki/tokens.js';
+import { DEALABLE, countLabel, dealableFrom, routesFor } from '../wiki/routes.js';
+import { FIND_RARITY, GAUGE, REGION, REGIONS, ROUND, STAGES, TAGS } from '../wiki/tokens.js';
 import { PAGES, useGo } from '../wiki/pages.js';
 import '../wiki/home.css';
 
@@ -278,11 +278,7 @@ function Routes({ deal, calm }) {
                     </span>
                 </div>
             </div>
-            <RouteMap material={target} jokers={POOL_SETTINGS.jokers} calm={calm} />
-            <p className="hm-source">
-                Routes from Minecraft {ROUTES_VERSION}&rsquo;s own recipes, loot tables and trades.
-                {showsOdds(target) && <> Odds from the item&rsquo;s /info.</>}
-            </p>
+            <RouteMap material={target} jokers={ROUND.jokers} calm={calm} />
         </section>
     );
 }
@@ -387,7 +383,7 @@ function Loop({ calm }) {
                         <li key={b} aria-current={i === beat ? 'step' : undefined}>{b}</li>
                     ))}
                 </ol>
-                <figcaption className="hm-source">Illustration: a round, sped up, dealing real Early items. The other players are simulated.</figcaption>
+                <figcaption className="hm-source">A round, sped up.</figcaption>
             </figure>
         </section>
     );
@@ -411,8 +407,12 @@ function Loop({ calm }) {
  * the stage colours are accents (a flag, a stage bar, a word), not fills.
  */
 
-const BOUNDS = [['EARLY', 0], ['MID', 11], ['LATE', 29]];
-const SPAN = { EARLY: 11, MID: 18, LATE: 71 };
+/* Placed by minute of the standard round (ROUND in tokens.js), as a share of it. */
+const pctOf = (minute) => (minute / ROUND.minutes) * 100;
+const BOUNDS = ['EARLY', 'MID', 'LATE'].map((k) => [k, pctOf(STAGES[k].minute)]);
+const SPAN = Object.fromEntries(BOUNDS.map(([k, at], i) => [k, (BOUNDS[i + 1]?.[1] ?? 100) - at]));
+const TICKS = [0, STAGES.MID.minute, STAGES.LATE.minute, ROUND.minutes];
+const whenOf = (minute) => (minute ? `minute ${minute}` : 'the start');
 const COUNTS = Object.fromEntries(BOUNDS.map(([k]) => [k, POOL_BY_STAGE[k].length]));
 const IN_POOL = { EARLY: COUNTS.EARLY, MID: COUNTS.EARLY + COUNTS.MID, LATE: COUNTS.EARLY + COUNTS.MID + COUNTS.LATE };
 const DRAW_SLOT = 36;
@@ -466,11 +466,12 @@ function Pressure({ target }) {
     const draws = useMemo(() => drawRound(), []);
     const fits = (k) => (width ? Math.max(1, Math.floor((width * SPAN[k] / 100 - 10 + 2) / DRAW_STEP)) : 0);
     const youStage = stageOf(target);
-    const youAt = youStage ? STAGES[youStage].at : null;
+    const youMinute = youStage ? STAGES[youStage].minute : null;
+    const youAt = youStage ? pctOf(youMinute) : null;
     const you = youStage && (
         <>
             <ItemSlot material={target} size={40} tip={false} marks={false} />
-            <span>Your <strong>{itemName(target)}</strong> can come up from {youAt}%</span>
+            <span>Your <strong>{itemName(target)}</strong> can come up from {whenOf(youMinute)}</span>
         </>
     );
     return (
@@ -478,9 +479,9 @@ function Pressure({ target }) {
             <div className="hm-pressure-head">
                 <h2 id="hm-pressure-title" className="wk-h2">The round clock</h2>
                 <p className="wk-p">
-                    Early items can come up from the first second. Mid items join at 11% of the round&rsquo;s time and
-                    Late items at 29%, and nothing ever leaves. The longer the round runs, the more of what you can be
-                    handed is hard.
+                    Early items can come up from the first second. In a {ROUND.minutes}-minute round Mid items join at
+                    minute {STAGES.MID.minute} and Late items at minute {STAGES.LATE.minute}, and nothing ever leaves.
+                    The longer the round runs, the more of what you can be handed is hard.
                 </p>
             </div>
             <figure className="hm-clock">
@@ -490,7 +491,7 @@ function Pressure({ target }) {
                     <ol className="hm-clock-flags">
                         {BOUNDS.map(([k, at], i) => (
                             <li key={k} className="hm-flag" style={{ '--at': at, '--span': SPAN[k], '--c': STAGES[k].light }}>
-                                <span className="hm-flag-when">{at}%</span>
+                                <span className="hm-flag-when">{STAGES[k].minute ? `Minute ${STAGES[k].minute}` : 'From the start'}</span>
                                 <span className="hm-flag-name" style={{ color: STAGES[k].ink }}>{i > 0 && '+ '}{STAGES[k].label}</span>
                                 <span className="hm-flag-count">
                                     {i > 0
@@ -514,15 +515,14 @@ function Pressure({ target }) {
                     </div>
                     <div className="hm-clock-axis" aria-hidden="true">
                         {BOUNDS.map(([k, at]) => <span key={k} className="hm-clock-mark" style={{ '--at': at, '--c': STAGES[k].light }} />)}
-                        {[0, 11, 29, 100].map((p) => <span key={p} className="hm-clock-tick" style={{ '--at': p }}>{p}%</span>)}
+                        {TICKS.map((m) => <span key={m} className="hm-clock-tick" style={{ '--at': pctOf(m) }}>{m} min</span>)}
                     </div>
                     {youStage && (
                         <p className="hm-clock-you" data-start={youAt === 0 || undefined} style={{ '--at': youAt, '--c': STAGES[youStage].light }}>{you}</p>
                     )}
                 </div>
                 <figcaption className="hm-source hm-clock-caption">
-                    Illustration: the strip is one random draw at each step of the round, from the pool as it stood
-                    then. Every item in the pool is equally likely.
+                    Every item in the pool is equally likely to come up.
                 </figcaption>
             </figure>
         </section>
@@ -561,7 +561,7 @@ function Escapes() {
     const bagFrom = useMemo(() => DEALABLE_BY_STAGE.EARLY.filter((m) => m !== next), [next]);
     const bag = usePicks(bagFrom, 6);
     const lucky = bag[3];
-    const { jokers } = POOL_SETTINGS;
+    const { jokers } = ROUND;
     /*
      * The two halves are one grid, not two columns side by side: each half's sequence,
      * name, words and extra sit on the same rows as the other's, so the costly draw and
@@ -598,11 +598,13 @@ function Escapes() {
                 <h3 className="hm-mech">Jokers</h3>
                 <p className="wk-p">
                     A bad draw: another dimension, a structure you have not found. Spend a joker and the next item
-                    arrives straight away. You get <strong>{jokers}</strong> a round on this server, so choose which
-                    items to give up.
+                    arrives straight away. You get <strong>{jokers}</strong> in a round, so choose which items to give
+                    up.
                 </p>
-                <div className="hm-joker-hand" aria-label={`${jokers} jokers`}>
-                    {Array.from({ length: jokers }, (_, i) => (
+                {/* Three cards stand for the hand: enough to read as jokers, and the count is
+                    in the sentence above. Seven fanned out read as clutter. */}
+                <div className="hm-joker-hand" aria-hidden="true">
+                    {Array.from({ length: 3 }, (_, i) => (
                         <span key={i} className="hm-joker-card hm-joker-card--small" style={{ '--i': i }}>
                             <img src="/fib-custom/barrier.png" alt="" />
                         </span>
@@ -834,7 +836,8 @@ function Modes({ go }) {
     const items = usePicks(DEALABLE_BY_STAGE.EARLY, 8);
     const run = usePicks(DEALABLE_BY_STAGE.MID, 1);
     const chain = usePicks(DEALABLE, 2);
-    const { hard, extreme, end, jokers, backpackSize } = POOL_SETTINGS;
+    const { hard, extreme, end, backpackSize } = POOL_SETTINGS;
+    const { minutes, jokers } = ROUND;
     const tagged = (t) => Object.values(ITEM_TAGS).filter((tags) => tags.includes(t)).length;
     const rules = [
         { name: 'Hard', does: `Nether-tagged items${hard ? `, ${fmt(tagged('NETHER'))}` : ''}`, on: hard, glyph: 'NETHER' },
@@ -854,8 +857,9 @@ function Modes({ go }) {
                     </li>
                 ))}
             </ul>
-            <div className="hm-rules" aria-label="This server's round rules">
-                <span className="hm-rules-k">This server</span>
+            <div className="hm-rules" aria-label="The standard round">
+                <span className="hm-rules-k">Standard round</span>
+                <span className="hm-rule"><span className="wk-figure">{minutes}</span> <span className="hm-rule-does">minutes</span></span>
                 {rules.map((r) => (
                     <span key={r.name} className="hm-rule" data-on={r.on}>
                         <span className="hm-lamp" aria-hidden="true" />

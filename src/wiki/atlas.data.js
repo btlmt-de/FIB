@@ -10,13 +10,13 @@
  *   names, then its biomes. An item /info says nothing about is simply absent.
  * ITEM_TAGS: MATERIAL -> the plugin's ItemTag names, pool items that have any.
  * POOL_BY_STAGE: the whole pool, grouped by the round stage each item unlocks in.
- * POOL_SETTINGS: the deployed config.yml values the pool and the round are built from.
+ * POOL_SETTINGS: config.yml's pool switches (hard, extreme, end) and backpack slots.
  * PAPER_VERSION: the Paper version the plugin pins in paper-version.json.
  */
 
 export const ATLAS_POOL_SIZE = 1437;
 
-export const POOL_SETTINGS = {"hard":true,"extreme":false,"end":true,"jokers":3,"backpackSize":27};
+export const POOL_SETTINGS = {"hard":true,"extreme":false,"end":true,"backpackSize":27};
 
 export const PAPER_VERSION = "26.3";
 

@@ -71,7 +71,6 @@
 .gp-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 14px; min-width: min(360px, 100%); }
 .gp-field .wk-label { grid-column: 1 / -1; }
 .gp-field-val { font-size: 18px; color: var(--wk-ink); min-width: 4ch; text-align: right; }
-.gp-clock-rule { margin: 0; font-size: 16px; color: var(--wk-ink-2); }
 
 /* Range inputs, drawn in the wiki's terms: a 2px rail and a square thumb. */
 .gp-field input[type="range"], .gp-scrub {
@@ -90,54 +89,61 @@
   box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
 }
 
-/* The axis: flags rise from their unlock minute, a staircase so they never collide
-   even when a long round puts Mid and Late a few pixels apart. */
-.gp-axis { position: relative; padding-top: 4px; }
-.gp-flags { position: relative; height: 124px; }
-.gp-flag {
-  position: absolute; bottom: 0;
-  display: grid; gap: 1px; align-content: start;
-  padding: 0 0 0 12px; white-space: nowrap;
-  transition: left 240ms var(--wk-ease), opacity 200ms var(--wk-ease);
-  opacity: 0.55;
+/* The schedule: a lane per stage on one minute axis. The name column is fixed, so
+   the track column is the same width in every lane and the playhead, the scrubber
+   and the ticks can span all three. A lane's bar runs from its unlock to the end of
+   the round: outlined in the stage's light ahead of the playhead, filled behind it.
+   Before its unlock a lane is only the round's 2px line. */
+.gp-sched {
+  --name: 150px;
+  position: relative;
+  display: grid; grid-template-columns: var(--name) minmax(0, 1fr); row-gap: 14px;
+  padding-top: 4px;
 }
-.gp-flag[data-open] { opacity: 1; }
-.gp-flag::before { content: ""; position: absolute; left: 0; bottom: 0; width: 2px; background: var(--stage); }
-.gp-flag::after { content: ""; position: absolute; left: 0; width: 8px; height: 8px; background: var(--stage); }
-.gp-flag[data-stage="early"] { --stage: var(--wk-s-early); height: 46px; }
-.gp-flag[data-stage="mid"] { --stage: var(--wk-s-mid); height: 84px; }
-.gp-flag[data-stage="late"] { --stage: var(--wk-s-late); height: 124px; }
-.gp-flag::before { top: 0; }
-.gp-flag::after { top: 0; }
-.gp-flag-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; margin-top: -3px; }
-.gp-flag-when { font-size: 14px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
-/* On a narrow axis a later flag's pole can cross an earlier flag's words; the words
-   sit on a patch of ground so the pole passes behind them. */
-.gp-flag-name, .gp-flag-when { position: relative; z-index: 1; justify-self: start; padding-right: 6px; background: var(--wk-ground); }
-.gp-now {
-  position: absolute; top: 0; bottom: -12px; left: var(--at); width: 2px; margin-left: -1px;
-  background: var(--wk-ink); opacity: 0.9; pointer-events: none;
+.gp-sched-lane { display: contents; }
+.gp-sched-lane[data-stage="early"] { --stage: var(--wk-s-early); }
+.gp-sched-lane[data-stage="mid"] { --stage: var(--wk-s-mid); }
+.gp-sched-lane[data-stage="late"] { --stage: var(--wk-s-late); }
+.gp-sched-name { grid-column: 1; grid-row: inherit; display: grid; gap: 2px; align-content: center; opacity: 0.5; transition: opacity 200ms var(--wk-ease); }
+.gp-sched-lane[data-open] .gp-sched-name { opacity: 1; }
+.gp-sched-stage { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; }
+.gp-sched-when { font-size: 14px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
+.gp-sched-track { grid-column: 2; grid-row: inherit; position: relative; align-self: center; height: 14px; }
+.gp-sched-track::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px; background: var(--wk-line); }
+.gp-sched-bar {
+  position: absolute; top: 0; bottom: 0; left: var(--from); right: 0;
+  box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--stage) 55%, transparent);
+  background: var(--wk-ground);
+  transition: left 240ms var(--wk-ease);
 }
-
-.gp-rail { position: relative; height: 12px; margin-top: 12px; }
-.gp-rail::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: var(--wk-line-hi); }
-.gp-rail-fill { position: absolute; left: 0; top: 5px; height: 2px; width: var(--at); background: var(--wk-ink-2); }
-.gp-rail-mark { position: absolute; top: 1px; width: 10px; height: 10px; margin-left: -5px; background: var(--stage); transition: left 240ms var(--wk-ease); }
-.gp-rail-mark[data-stage="early"] { --stage: var(--wk-s-early); margin-left: 0; }
-.gp-rail-mark[data-stage="mid"] { --stage: var(--wk-s-mid); }
-.gp-rail-mark[data-stage="late"] { --stage: var(--wk-s-late); }
-/* The playhead is the real control, laid over the rail so the whole width is its track. */
-.gp-scrub { position: absolute; left: -8px; right: -8px; width: calc(100% + 16px); bottom: 22px; height: 40px; }
-.gp-scrub::-webkit-slider-runnable-track { height: 40px; background: transparent; }
-.gp-scrub::-moz-range-track { height: 40px; background: transparent; }
-.gp-scrub::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 16px; height: 24px; margin-top: 8px;
-  background: var(--wk-ink); border-radius: 2px; box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3), 0 4px 10px -4px oklch(0% 0 0 / 0.8);
+.gp-sched-bar::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--fill); background: var(--stage); }
+.gp-sched-head {
+  grid-column: 2; grid-row: 1 / 4; position: relative; pointer-events: none;
 }
-.gp-scrub::-moz-range-thumb { width: 16px; height: 24px; border: 0; background: var(--wk-ink); border-radius: 2px; }
-.gp-scrub:focus-visible { outline: none; }
-.gp-scrub:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--wk-ink); outline-offset: 3px; }
+/* The playhead is the handle: a white line through every lane with a square grip on
+   top. The range input over it is invisible and takes the drag anywhere on the lanes. */
+.gp-sched-head::before {
+  content: ""; position: absolute; top: -6px; bottom: -6px; left: var(--at); width: 2px; margin-left: -1px;
+  background: var(--wk-ink);
+}
+.gp-sched-head::after {
+  content: ""; position: absolute; top: -12px; left: var(--at); width: 12px; height: 12px; margin-left: -6px;
+  background: var(--wk-ink); border-radius: 2px; box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
+}
+.gp-scrub:focus-visible + .gp-sched-head::after { outline: 2px solid var(--wk-ink); outline-offset: 3px; }
+.gp-sched .gp-scrub {
+  grid-column: 2; grid-row: 1 / 4; position: relative; z-index: 1;
+  width: 100%; height: 100%; opacity: 0; cursor: ew-resize;
+}
+.gp-sched .gp-scrub:focus-visible { outline: none; }
 .gp-rail-ends { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
+.gp-sched-ticks { grid-column: 2; grid-row: 4; position: relative; height: 18px; margin-top: -4px; }
+.gp-sched-tick {
+  position: absolute; top: 0; transform: translateX(-50%);
+  font-size: 13px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.gp-sched-tick[data-edge="start"] { transform: none; }
+.gp-sched-tick[data-edge="end"] { transform: translateX(-100%); }
 
 .gp-clock-read { margin: 4px 0 0; font-size: 16px; color: var(--wk-ink-2); }
 .gp-clock-read .wk-datum { color: var(--wk-ink); }
@@ -395,8 +401,9 @@
   .gp-belt .gp-seq-to { flex-basis: 14px; }
   .gp-belt-hidden .wk-slot:last-child { display: none; }
   .gp-grade { font-size: 40px; }
-  .gp-flag-name { font-size: 22px; }
-  .gp-flag-when { font-size: 13px; }
+  .gp-sched { --name: 104px; }
+  .gp-sched-stage { font-size: 22px; }
+  .gp-sched-when { font-size: 13px; }
 }
 
 /* ── Calm ─────────────────────────────────────────────────────────────────── */
@@ -404,7 +411,7 @@
 @media (prefers-reduced-motion: reduce) {
   .gp-land, .gp-draw, .gp-plus, .gp-live, .gp-lane-trail .gp-done, .gp-belt-step, .gp-evmark,
   .gp-grade, .gp-racer-plus, .gp-cell.is-hit .wk-sprite { animation: none; }
-  .gp-flag, .gp-rail-mark { transition: none; }
+  .gp-sched-name, .gp-sched-bar { transition: none; }
 }
 html[data-saver="on"] :is(.gp-land, .gp-draw, .gp-plus, .gp-live, .gp-lane-trail .gp-done, .gp-belt-step, .gp-evmark,
   .gp-grade, .gp-racer-plus, .gp-cell.is-hit .wk-sprite) { animation: none; }

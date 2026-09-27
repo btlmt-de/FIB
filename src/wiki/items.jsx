@@ -225,7 +225,7 @@ export function TooltipLayer() {
             {stage && (
                 <div className="wk-tip-line">
                     <span style={{ color: STAGES[stage].ink }}>{STAGES[stage].label}</span>
-                    {' '}from {STAGES[stage].at}% of the round
+                    {' '}{STAGES[stage].minute ? `from minute ${STAGES[stage].minute}` : 'from the start'}
                 </div>
             )}
             {tags.length > 0 && (

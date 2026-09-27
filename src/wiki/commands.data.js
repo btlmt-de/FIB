@@ -109,7 +109,7 @@ export const COMMANDS = [
 
     // ── Running a round
     { name: 'start', group: 'round', who: 'op', when: ['Before a round'], forms: [
-        { args: '<minutes> <jokers>', text: 'Starts a round of that length, with that many jokers each.', example: '/start 60 3' },
+        { args: '<minutes> <jokers>', text: 'Starts a round of that length, with that many jokers each.', example: '/start 60 7' },
         { args: '<preset>', text: 'Starts a round from a saved preset of settings.' },
     ] },
     { name: 'settings', group: 'round', who: 'op', forms: [

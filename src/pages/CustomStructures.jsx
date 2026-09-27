@@ -296,8 +296,7 @@ function Loot() {
             <div className="cc-sec-head">
                 <h2 id="loot-title" className="wk-h3">What the Depths hold</h2>
                 <p className="wk-p">
-                    Every container in the Depths draws from one of these tables. The chances and counts are read from the
-                    datapack, so they are the ones the game uses.
+                    Every container in the Depths draws from one of these tables.
                 </p>
             </div>
 
@@ -344,8 +343,8 @@ function Loot() {
                             : <div className="cc-chest cc-chest--shut" aria-hidden="true">{Array.from({ length: 27 }, (_, i) => <span key={i} className="wk-slot" style={{ '--slot': '44px' }} />)}</div>}
                         <p className="wk-small">
                             {opened
-                                ? `${opened.drops.length ? `${opened.drops.length} ${opened.drops.length === 1 ? 'stack' : 'stacks'}` : 'Nothing this time'}${opened.drops.length > 27 ? ', more than a chest holds; the first 27 are shown' : ''}. An illustration, rolled with the datapack's own weights and counts.`
-                                : 'Roll it the way the game does, to see what one opening is like.'}
+                                ? `${opened.drops.length ? `${opened.drops.length} ${opened.drops.length === 1 ? 'stack' : 'stacks'}` : 'Nothing this time'}${opened.drops.length > 27 ? ', more than a chest holds; the first 27 are shown' : ''}.`
+                                : 'Open one to see what a single opening can hold.'}
                         </p>
                     </div>
                 </div>

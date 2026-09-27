@@ -10,9 +10,6 @@ settings:
   hard: true
   extreme: false
   fasterRandomTick: false
-  position: true
-  trading: true
-  tradingCooldown: true
   stats: true
 standard:
   countdown: 30

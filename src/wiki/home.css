@@ -117,7 +117,6 @@
 .hm-routes > * { min-width: 0; }
 #hm-routes-title { scroll-margin-top: 80px; }
 .hm-routes-head { display: grid; gap: 0; position: sticky; top: 88px; }
-.hm-routes .hm-source { grid-column: 2; margin-top: -24px; }
 .hm-routes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 18px; }
 .hm-try { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hm-try-label { font-size: 14px; color: var(--wk-ink-3); margin-right: 6px; }
@@ -577,7 +576,6 @@
 @media (max-width: 1180px) {
   .hm-routes { grid-template-columns: 1fr; gap: 28px; }
   .hm-routes-head { position: static; }
-  .hm-routes .hm-source { grid-column: 1; margin-top: -12px; }
 }
 
 @media (max-width: 1100px) {

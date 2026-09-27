@@ -11,7 +11,7 @@ import { ItemSlot, TooltipLayer } from '../wiki/items.jsx';
 import { POOL_BY_STAGE, POOL_SETTINGS, itemName, pick } from '../wiki/atlas.js';
 import { picks, useOnScreen, useTicker } from '../wiki/hooks.js';
 import { useGo } from '../wiki/pages.js';
-import { FIND_RARITY, STAGES } from '../wiki/tokens.js';
+import { FIND_RARITY, FIXED_UNLOCKS_FROM, ROUND, STAGES, unlockMinutes } from '../wiki/tokens.js';
 import '../wiki/page.css';
 import '../wiki/gameplay.css';
 
@@ -32,6 +32,10 @@ import '../wiki/gameplay.css';
  *   the modes                   manager/ForceItemAssignment (private draws, or one seeded
  *                               sequence for the whole server in Run Battle)
  *   random events               randomevents/*: the schedule, weights and rewards
+ *
+ * Where a drawing needs a round, it is the standard one (ROUND in tokens.js: 60
+ * minutes, 7 jokers), the round the game was balanced around. The page used to quote
+ * config.yml's 3 jokers as "this server", a number the plugin never reads.
  *
  * An earlier version of this page said every player gets "the same items, in the same
  * order". That is Run Battle only; in a normal round each player draws privately. It
@@ -62,14 +66,6 @@ const Tick = () => (
 );
 
 /* ── The plugin's arithmetic ─────────────────────────────────────────────────── */
-
-/** UnlockSchedule.forRound, then unlockMinute: whole minutes, rounded half up. */
-const FIXED_FROM = 50;
-function unlockMinutes(len) {
-    const pct = len < FIXED_FROM ? { MID: 11.11, LATE: 28.88 } : { MID: (5 / len) * 100, LATE: (15 / len) * 100 };
-    const at = (p) => Math.round((len * 60 * (p / 100)) / 60);
-    return { EARLY: 0, MID: at(pct.MID), LATE: at(pct.LATE) };
-}
 
 /** BackToBackProbability.probabilityOf. */
 function oddsOf(held, pool, streak) {
@@ -132,7 +128,7 @@ function Round() {
                     ))}
                 </div>
                 <div className="gp-round-row">
-                    <p className="wk-small">Same round, same moment, two draws. An illustration from the real pool.</p>
+                    <p className="wk-small">Same round, same moment, two draws.</p>
                     <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setDeal(picks(POOL_BY_STAGE.EARLY, 2))}>
                         <Dices size={16} aria-hidden="true" /> Deal again
                     </button>
@@ -163,7 +159,7 @@ function Round() {
 const DRAWS = 8;
 
 function Clock() {
-    const [len, setLen] = useState(30);
+    const [len, setLen] = useState(ROUND.minutes);
     const [at, setAt] = useState(0);
     const [playing, setPlaying] = useState(false);
     const [seed, setSeed] = useState(0);
@@ -223,34 +219,40 @@ function Clock() {
                         {playing ? 'Pause' : at >= len ? 'Play again' : 'Play the round'}
                     </button>
                 </div>
-                <p className="gp-clock-rule" aria-live="polite">
-                    {len < FIXED_FROM
-                        ? <>Under 50 minutes: Mid joins at <strong>11%</strong> of the round, Late at <strong>29%</strong>.</>
-                        : <>50 minutes or more: Mid joins at <strong>minute 5</strong>, Late at <strong>minute 15</strong>.</>}
-                </p>
-
-                <div className="gp-axis" style={{ '--at': pos(at) }}>
-                    <div className="gp-flags" aria-hidden="true">
-                        {ORDER.map((s) => (
-                            <span key={s} className="gp-flag" data-stage={s.toLowerCase()} data-open={at >= unlock[s] || undefined}
-                                  style={{ left: pos(unlock[s]) }}>
-                                <span className="gp-flag-name" style={{ color: STAGES[s].ink }}>{STAGES[s].label}</span>
-                                <span className="gp-flag-when">{unlock[s] === 0 ? 'from the start' : `min ${unlock[s]}`}, {s === 'EARLY' ? fmt(COUNT[s]) : `+${fmt(COUNT[s])}`}</span>
+                {/*
+                  * One lane per stage on a shared minute axis. It used to be three flags on
+                  * one rail, and at a standard 60 minutes all three landed in the first
+                  * quarter with their labels stacked on each other; lanes keep each stage's
+                  * name and minute in a column of its own, however short the gaps are. A
+                  * lane's bar is the stretch its items are in the pool, lit up to the
+                  * playhead, so the long flat run after the last unlock reads as what it is:
+                  * from there on, everything can come up.
+                  */}
+                <div className="gp-sched" style={{ '--at': pos(at) }}>
+                    {ORDER.map((s, i) => (
+                        <div key={s} className="gp-sched-lane" data-stage={s.toLowerCase()} data-open={at >= unlock[s] || undefined}
+                             style={{ gridRow: i + 1, '--from': pos(unlock[s]), '--fill': `${Math.max(0, Math.min(1, (at - unlock[s]) / Math.max(1, len - unlock[s]))) * 100}%` }}>
+                            <span className="gp-sched-name">
+                                <span className="gp-sched-stage" style={{ color: STAGES[s].ink }}>{STAGES[s].label}</span>
+                                <span className="gp-sched-when">{unlock[s] === 0 ? 'From the start' : `From minute ${unlock[s]}`}</span>
                             </span>
-                        ))}
-                        <span className="gp-now" />
-                    </div>
-                    <div className="gp-rail">
-                        <span className="gp-rail-fill" />
-                        {ORDER.map((s) => <span key={s} className="gp-rail-mark" data-stage={s.toLowerCase()} style={{ left: pos(unlock[s]) }} />)}
-                    </div>
+                            <span className="gp-sched-track" aria-hidden="true"><span className="gp-sched-bar" /></span>
+                        </div>
+                    ))}
                     <input
                         className="gp-scrub" type="range" min="0" max={len} step="1" value={at}
                         onChange={(e) => { setPlaying(false); setAt(Number(e.target.value)); }}
                         aria-label="Minute of the round"
                         aria-valuetext={`Minute ${at} of ${len}: ${fmt(size)} items can come up`}
                     />
-                    <div className="gp-rail-ends" aria-hidden="true"><span>0</span><span>{len} min</span></div>
+                    <span className="gp-sched-head" aria-hidden="true" />
+                    <div className="gp-sched-ticks" aria-hidden="true">
+                        {[...new Set([0, unlock.MID, unlock.LATE, len])].map((m) => (
+                            <span key={m} className="gp-sched-tick" style={{ left: pos(m) }} data-edge={m === 0 ? 'start' : m === len ? 'end' : undefined}>
+                                {m === len ? `${m} min` : m}
+                            </span>
+                        ))}
+                    </div>
                 </div>
 
                 <p className="gp-clock-read">
@@ -276,7 +278,6 @@ function Clock() {
                     <div className="gp-round-row">
                         <p className="wk-small">
                             Eight draws at this minute, each from everything open. The bar on each slot is the item's stage.
-                            An illustration from the real pool.
                         </p>
                         <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setSeed((n) => n + 1)}>
                             <Dices size={16} aria-hidden="true" /> Draw again
@@ -298,7 +299,7 @@ const JOKER_RULES = [
 ];
 
 function Jokers() {
-    const total = POOL_SETTINGS.jokers;
+    const total = ROUND.jokers;
     const [left, setLeft] = useState(total);
     const [hunted, setHunted] = useState(() => pick(POOL_BY_STAGE.LATE));
     const [handed, setHanded] = useState(null);
@@ -333,7 +334,7 @@ function Jokers() {
                     item itself</strong>: it lands in your inventory, it counts, and the next one is drawn.
                 </p>
                 <p className="wk-p">
-                    You get <span className="wk-datum">{total}</span> a round on this server, so the skill is
+                    The standard {ROUND.minutes}-minute round deals <span className="wk-datum">{total}</span> each, so the skill is
                     in choosing which draws deserve one.
                 </p>
             </div>
@@ -611,7 +612,6 @@ function BackToBack({ calm }) {
                         </>
                     )}
                     <div className="gp-round-row">
-                        <p className="wk-small">An illustration: an inventory dealt from the real pool so that the chain runs twice. The odds are the plugin's, over what it holds.</p>
                         <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={again}>
                             <RotateCcw size={16} aria-hidden="true" /> Deal again
                         </button>
@@ -838,7 +838,7 @@ const MODES = [
             'Everyone draws their own items from the same pool, at their own pace.',
             'Most items when the timer hits zero wins.',
         ],
-        caption: 'Three players, each on their own draws. Simulated.',
+        caption: 'Three players, each on their own draws.',
     },
     {
         key: 'run', name: 'RunBattle', Sim: SimRun, setting: <>Switched on in <code className="wk-typed">/settings</code>: Run Battle.</>,
@@ -847,7 +847,7 @@ const MODES = [
             'One item for the whole server. The first to get it scores, and everyone moves on to the next one together.',
             'No back-to-backs, no random events, and the round does not count toward stats.',
         ],
-        caption: 'One target, three players racing it. Simulated.',
+        caption: 'One target, three players racing it.',
     },
     {
         key: 'chain', name: 'ForceChain', Sim: SimChain, setting: <>Switched on in <code className="wk-typed">/settings</code>: Force Chain.</>,
@@ -856,7 +856,7 @@ const MODES = [
             'The bossbar shows your current item and the one after it.',
             'Beyond the next one, nothing is shown. The best players route for both at once.',
         ],
-        caption: 'The chain moving on after each find. Simulated.',
+        caption: 'The chain moving on after each find.',
     },
 ];
 
@@ -901,7 +901,7 @@ const EVENTS = [
     { key: 'SPECIAL_TRADER', name: 'Special Trader', face: 'EMERALD', weight: 2, once: true, minLeft: 0 },
 ];
 const EVENT = Object.fromEntries(EVENTS.map((e) => [e.key, e]));
-const EVENT_ROUND = 90;
+const EVENT_ROUND = ROUND.minutes;
 const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
 /** RandomEventManager.planSchedule, then pickWeighted at each slot. */
@@ -973,7 +973,7 @@ function Events({ calm }) {
                         One possible {EVENT_ROUND}-minute round: {plan.map((e) => `${EVENT[e.key].name} at minute ${Math.round(e.at / 60)}`).join(', ')}.
                     </p>
                     <div className="gp-round-row">
-                        <p className="wk-small">One possible {EVENT_ROUND}-minute round, scheduled and picked the way the server does it. The last five minutes stay clear.</p>
+                        <p className="wk-small">One possible {EVENT_ROUND}-minute round. No event starts in the last five minutes.</p>
                         <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setPlan(planRound(EVENT_ROUND))}>
                             <Dices size={16} aria-hidden="true" /> Another round
                         </button>

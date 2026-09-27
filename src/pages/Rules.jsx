@@ -8,7 +8,7 @@ import '../wiki/page.css';
 import '../wiki/rules.css';
 
 /*
- * Rules (THE EXPLORER'S ATLAS): playing fair on this server.
+ * Rules (THE EXPLORER'S ATLAS): playing fair in our rounds.
  *
  * Short on purpose: the network's rules come first, then what FIB adds (the mods that
  * are not allowed), then what holds the people running a round to the same standard:
@@ -39,8 +39,8 @@ export default function Rules({ onNavigate }) {
             <header className="wk-wrap pg-head">
                 <h1 className="wk-h2">Rules</h1>
                 <p className="wk-lede">
-                    Play fair, on the network's terms. Read this before your first round on our server; breaking it can
-                    get you disqualified.
+                    Play fair, on the network's terms. Read this before you join one of our rounds; breaking it can get
+                    you disqualified.
                 </p>
             </header>
 

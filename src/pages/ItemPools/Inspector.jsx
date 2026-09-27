@@ -213,8 +213,8 @@ function BulkView({ selection, byMaterial, changes, onClear }) {
  * What each part of the pool means for a round, from the plugin: stages join the
  * pool as the round runs (Gameplay draws exactly when), and a tag keeps an item out
  * unless the round's settings let it in (PoolExclusions: HARD lets in the Nether and,
- * with EXTREME also on, the extreme items; END lets in the End). This server's own
- * settings are config.yml's, via POOL_SETTINGS.
+ * with EXTREME also on, the extreme items; END lets in the End). The standard
+ * round's settings are config.yml's, via POOL_SETTINGS.
  */
 const STAGE_NOTES = {
     EARLY: 'In the pool from the start',
@@ -222,9 +222,9 @@ const STAGE_NOTES = {
     LATE: 'Joins the pool last',
 };
 function tagNote(t) {
-    if (t === 'NETHER') return `Only dealt when Hard is on${POOL_SETTINGS.hard ? '' : ' (off here)'}`;
-    if (t === 'END') return `Only dealt when End is on${POOL_SETTINGS.end ? '' : ' (off here)'}`;
-    return `Extremely hard to get in time. Only with Extreme on${POOL_SETTINGS.extreme ? '' : ', which it is not on this server'}`;
+    if (t === 'NETHER') return `Only dealt when Hard is on${POOL_SETTINGS.hard ? '' : ' (off in the standard round)'}`;
+    if (t === 'END') return `Only dealt when End is on${POOL_SETTINGS.end ? '' : ' (off in the standard round)'}`;
+    return `Extremely hard to get in time. Only with Extreme on${POOL_SETTINGS.extreme ? '' : ', which the standard round is not'}`;
 }
 
 /*

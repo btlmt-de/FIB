@@ -109,13 +109,45 @@ export const GAUGE = {
 };
 
 /**
- * The round's three stages (ItemDifficultiesManager's State). `at` is the share of
- * the round's time after which the stage's items can come up, from the plugin.
+ * The standard round: 60 minutes, 7 jokers each. Wherever the wiki says "a round"
+ * with a number in it, this is the round it means.
+ *
+ * It is not the plugin's: a round's length and jokers are whatever /start is given.
+ * And it is not config.yml's: the standard: block there (a 30-second countdown and 3
+ * jokers) is a default the plugin writes and never reads back, and the pages used to
+ * quote it as "this server", for a server that does not host public rounds yet. It is
+ * the round ForceItemBattle was designed and balanced around, which is the number a
+ * reader can use.
+ */
+export const ROUND = { minutes: 60, jokers: 7 };
+
+/**
+ * When Mid and Late join, in whole minutes, for a round of the given length: the
+ * plugin's UnlockSchedule.forRound, then unlockMinute, rounded half up. Below 50
+ * minutes they join at 11.11% and 28.88% of the round; from 50 minutes up at minute
+ * 5 and minute 15, so a long round does not hold Late back for half an hour.
+ */
+export const FIXED_UNLOCKS_FROM = 50;
+export function unlockMinutes(len) {
+    const pct = len < FIXED_UNLOCKS_FROM ? { MID: 11.11, LATE: 28.88 } : { MID: (5 / len) * 100, LATE: (15 / len) * 100 };
+    const at = (p) => Math.round((len * 60 * (p / 100)) / 60);
+    return { EARLY: 0, MID: at(pct.MID), LATE: at(pct.LATE) };
+}
+
+const STANDARD_UNLOCKS = unlockMinutes(ROUND.minutes);
+
+/**
+ * The round's three stages (ItemDifficultiesManager's State). `minute` is when the
+ * stage's items can first come up in the standard round (ROUND above): 0, 5 and 15.
+ *
+ * It used to be `at`, a share of the round (0, 11 and 29%). That is the plugin's rule
+ * only below 50 minutes, so every tooltip and the home page's clock described a round
+ * nobody plays.
  */
 export const STAGES = {
-    EARLY: { key: 'EARLY', label: 'Early', at: 0,  light: 'oklch(72% 0.15 138)', ink: 'oklch(82% 0.14 138)' },
-    MID:   { key: 'MID',   label: 'Mid',   at: 11, light: 'oklch(78% 0.13 82)',  ink: 'oklch(84% 0.12 84)' },
-    LATE:  { key: 'LATE',  label: 'Late',  at: 29, light: 'oklch(62% 0.21 30)',  ink: 'oklch(74% 0.15 34)' },
+    EARLY: { key: 'EARLY', label: 'Early', minute: STANDARD_UNLOCKS.EARLY, light: 'oklch(72% 0.15 138)', ink: 'oklch(82% 0.14 138)' },
+    MID:   { key: 'MID',   label: 'Mid',   minute: STANDARD_UNLOCKS.MID,   light: 'oklch(78% 0.13 82)',  ink: 'oklch(84% 0.12 84)' },
+    LATE:  { key: 'LATE',  label: 'Late',  minute: STANDARD_UNLOCKS.LATE,  light: 'oklch(62% 0.21 30)',  ink: 'oklch(74% 0.15 34)' },
 };
 
 /** The plugin's ItemTags, as words in their own light. */

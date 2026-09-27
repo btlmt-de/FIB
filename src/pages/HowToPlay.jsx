@@ -51,7 +51,7 @@ const GROUPS = [
                 key: 'config', face: 'WRITTEN_BOOK',
                 name: 'config.yml', href: `${GITHUB_SITE}/config.yml`,
                 where: 'plugins/ForceItemBattle/',
-                adds: <>This server's round settings, and the item descriptions <T>/info</T> prints.</>,
+                adds: <>The standard round's settings, and the item descriptions <T>/info</T> prints.</>,
                 more: { id: 'pools', label: 'Browse the item pools' },
             },
             {
@@ -133,7 +133,7 @@ function Host({ go }) {
                     Full control over who plays and how the round is configured.
                 </p>
                 <p className="wk-small">
-                    Built for Paper <span className="wk-datum hp-version">{PAPER_VERSION}</span>, the version the plugin pins.
+                    Supports Paper <span className="wk-datum hp-version">{PAPER_VERSION}</span>.
                 </p>
             </div>
 
@@ -148,7 +148,7 @@ function Host({ go }) {
                 ))}
                 <Bossbar
                     item={shown}
-                    caption="What a player reads at the top of the screen with both in place: the item they are hunting, and its icon. An illustration, with an item drawn from the pool."
+                    caption="What a player reads at the top of the screen with both in place: the item they are hunting, and its icon."
                 />
                 <p className="wk-p hp-then">
                     Restart the server. Then, as an operator, set the round up with{' '}
