@@ -921,28 +921,9 @@ function planRound(minutes) {
     return out;
 }
 
-const LOCATORS = ['WITHER_ROSE', 'MUSIC_DISC_CHIRP', 'KNOWLEDGE_BOOK'];
-const ARMOUR = ['IRON_HELMET', 'IRON_CHESTPLATE', 'IRON_LEGGINGS', 'IRON_BOOTS'];
-
-function Cycling({ list, live, label }) {
-    const [i, setI] = useState(0);
-    const step = useCallback(() => setI((n) => (n + 1) % list.length), [list.length]);
-    useTicker(step, 1600, live);
-    return <span className="gp-cycle" title={label}><ItemSlot key={list[i]} material={list[i]} size={48} tip={false} marks={false} className="gp-land" /></span>;
-}
-
-function Events({ calm }) {
+function Events({ go }) {
     const [plan, setPlan] = useState(() => planRound(EVENT_ROUND));
     const ref = useRef(null);
-    const on = useOnScreen(ref);
-    const live = on && !calm;
-    const offers = [
-        { el: <span className="gp-cycle"><ItemSlot material="NETHER_STAR" size={48} tip={false} marks={false} /><span className="wk-count">3</span></span>, name: '3 Wheels of Fortune', price: 1 },
-        { el: <ItemSlot material="TORCHFLOWER" size={48} tip={false} marks={false} />, name: 'Weathered Captain\'s Journal', price: 5 },
-        { el: <Cycling list={LOCATORS} live={live} label="A locator, rolled when the trader arrives" />, name: 'A locator', price: 5 },
-        { el: <ItemSlot material="IRON_PICKAXE" size={48} tip={false} marks={false} />, name: 'Enchanted iron pickaxe', price: 5 },
-        { el: <Cycling list={ARMOUR} live={live} label="One piece of iron armour, rolled when the trader arrives" />, name: 'Enchanted iron armour piece', price: 5 },
-    ];
 
     return (
         <section id="events" className="wk-wrap pg-sec" aria-labelledby="events-title" ref={ref}>
@@ -1008,29 +989,91 @@ function Events({ calm }) {
                         <div>
                             <h3 className="wk-name">Special Trader</h3>
                             <p className="gp-event-often">Once a round, and the rarest pick.</p>
-                            <p className="gp-event-text">A trader appears near spawn with five offers, one use each for every player:</p>
+                            <p className="gp-event-text">
+                                A second trader comes to spawn for five minutes, with five offers you can buy once each.{' '}
+                                <a className="wk-link" href="/structures#traders" onClick={go('structures#traders')}>Its offers</a>
+                            </p>
                         </div>
                     </li>
-                </ul>
-                <ul className="gp-offers" aria-label="The Special Trader's offers">
-                    {offers.map((o) => (
-                        <li key={o.name} className="gp-offer">
-                            {o.el}
-                            <span className="gp-offer-name">{o.name}</span>
-                            <span className="gp-offer-price">
-                                <img src="/fib-items/emerald.png" alt="" width="16" height="16" />
-                                <span className="wk-datum">{o.price}</span>
-                                <span className="wk-sr">{o.price === 1 ? 'emerald' : 'emeralds'}</span>
-                            </span>
-                        </li>
-                    ))}
                 </ul>
             </div>
         </section>
     );
 }
 
-/* ── 7. Strategy ─────────────────────────────────────────────────────────────── */
+/* ── 7. Traders ──────────────────────────────────────────────────────────────────
+ *
+ * When traders come, because that is part of how a round runs; what they sell and
+ * how trading with them works is Custom Content's (its Traders section), and this
+ * links there rather than drawing the offers twice. It did draw them, as two trade
+ * lists, for one revision: the Special Trader's offers had been hanging loose under
+ * the random events, and moving them here duplicated Custom Content's cards.
+ *
+ *   the rhythm   manager/WanderingTraderManager.startTimer: the first after 7 to 10
+ *                minutes, then its 5-minute stay plus another 7 to 10, and the clock
+ *                only counts while the round is running (not paused)
+ */
+
+const TRADER_STAY = 5 * 60;
+
+/** WanderingTraderManager.startTimer: arrival times, in seconds, over a round. */
+function planTraders(minutes) {
+    const out = [];
+    let t = randInt(7, 10) * 60;
+    while (t < minutes * 60) {
+        out.push(t);
+        t += TRADER_STAY + randInt(7, 10) * 60;
+    }
+    return out;
+}
+
+function Traders({ go }) {
+    const [stays, setStays] = useState(() => planTraders(ROUND.minutes));
+    const total = ROUND.minutes * 60;
+    const pct = (sec) => `${(sec / total) * 100}%`;
+
+    return (
+        <section id="traders" className="wk-wrap pg-sec" aria-labelledby="traders-title">
+            <div className="pg-sec-head">
+                <h2 id="traders-title" className="wk-h3">Traders at spawn</h2>
+                <p className="wk-p">
+                    A <strong>Wandering Trader</strong> comes to spawn again and again through the round, and a{' '}
+                    <strong>Special Trader</strong> only as a random event. Each stays five minutes, and chat tells
+                    everyone where it is.
+                </p>
+                <p className="wk-small">
+                    <a className="wk-link" href="/structures#traders" onClick={go('structures#traders')}>What they sell, and how trading works</a>
+                </p>
+            </div>
+
+            <div className="gp-trline">
+                <div className="gp-trline-track" aria-hidden="true">
+                    {stays.map((t) => (
+                        <span key={t} className="gp-trstay" style={{ left: pct(t), width: pct(Math.min(TRADER_STAY, total - t)) }}>
+                            <span className="gp-trstay-when">min {Math.round(t / 60)}</span>
+                        </span>
+                    ))}
+                </div>
+                <div className="gp-rail-ends" aria-hidden="true"><span>0</span><span>{ROUND.minutes} min</span></div>
+                <p className="wk-sr">
+                    One possible {ROUND.minutes}-minute round: a Wandering Trader arrives at minute{' '}
+                    {stays.map((t) => Math.round(t / 60)).join(', ')}.
+                </p>
+                <div className="gp-round-row">
+                    <p className="wk-small">
+                        One possible {ROUND.minutes}-minute round. The first Wandering Trader comes 7 to 10 minutes in; the
+                        next, 7 to 10 minutes after the last one leaves. The wait stops while the round is paused.
+                    </p>
+                    <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={() => setStays(planTraders(ROUND.minutes))}>
+                        <Dices size={16} aria-hidden="true" /> Another round
+                    </button>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* ── 8. Strategy ─────────────────────────────────────────────────────────────── */
 
 const TIPS = [
     { face: 'SHULKER_BOX', name: 'Keep one of everything',
@@ -1071,7 +1114,7 @@ function Strategy() {
 
 const CONTENTS = [
     ['round', 'The round'], ['pool', 'The pool'], ['jokers', 'Jokers'], ['back-to-backs', 'Back-to-backs'],
-    ['modes', 'Modes'], ['events', 'Random events'], ['strategy', 'Strategy'],
+    ['modes', 'Modes'], ['events', 'Random events'], ['traders', 'Traders'], ['strategy', 'Strategy'],
 ];
 
 export default function Gameplay({ onNavigate }) {
@@ -1095,7 +1138,8 @@ export default function Gameplay({ onNavigate }) {
             <Jokers />
             <BackToBacks calm={calm} />
             <Modes calm={calm} />
-            <Events calm={calm} />
+            <Events go={go} />
+            <Traders go={go} />
             <Strategy />
             <PageLinks ids={['pools', 'settings', 'commands', 'how-to-play']} go={go} />
             <Footer />

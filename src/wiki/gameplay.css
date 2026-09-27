@@ -359,12 +359,22 @@
 .gp-event-often { margin: 2px 0 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--wk-ink-3); }
 .gp-event-text { margin: 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); }
 
-.gp-offers { list-style: none; margin: -8px 0 0; padding: 18px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px 20px; box-shadow: inset 0 1px 0 var(--wk-line); }
-.gp-offer { display: grid; justify-items: start; gap: 6px; }
-.gp-offer-name { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--wk-ink); }
-.gp-offer-price { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--wk-ink-2); }
-.gp-offer-price img { image-rendering: pixelated; }
-.gp-cycle { position: relative; display: inline-grid; line-height: 0; }
+/* ── Traders ──────────────────────────────────────────────────────────────── */
+
+/* The rhythm: each Wandering Trader's five-minute stay as a band on the round. */
+.gp-trline { display: grid; gap: 10px; }
+.gp-trline-track { position: relative; height: 40px; }
+.gp-trline-track::before { content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 2px; background: var(--wk-line-hi); }
+.gp-trstay {
+  position: absolute; bottom: 0; height: 12px;
+  background: var(--wk-ink-2); border-radius: 2px;
+  box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.25), 0 0 0 3px var(--wk-ground);
+}
+.gp-trstay-when {
+  position: absolute; left: 0; bottom: 18px;
+  font-size: 13px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
 
 /* ── 7. Strategy ───────────────────────────────────────────────────────────── */
 
@@ -376,7 +386,6 @@
 
 @media (max-width: 1100px) {
   .gp-mode { grid-template-columns: 1fr; }
-  .gp-offers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
   .gp-b2b-stage { grid-template-columns: 1fr; }
@@ -393,7 +402,6 @@
   .gp-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gp-rung:nth-child(odd) { padding-left: 0; box-shadow: none; }
   .gp-rung:nth-child(even) { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
-  .gp-offers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gp-lane { grid-template-columns: 28px 78px 48px 2.5ch; gap: 10px; }
   .gp-lane-trail .gp-done:nth-child(-n+2) { display: none; }
   .gp-seq-to { flex-basis: 20px; }

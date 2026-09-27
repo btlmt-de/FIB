@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Dices from 'lucide-react/dist/esm/icons/dices';
 import Footer from '../components/common/Footer.jsx';
+import { useCalm } from '../config/power.js';
+import { useOnScreen, useTicker } from '../wiki/hooks.js';
 import PageLinks from '../wiki/PageLinks.jsx';
+import Trader from '../wiki/Trader.jsx';
 import { useGo } from '../wiki/pages.js';
 import { spriteFallback, spriteOf } from '../wiki/sprite.js';
 import { TABLES, pct, rangeText, roll } from '../wiki/loot.js';
@@ -457,13 +460,30 @@ const BIOME_NOTES = [
 
 /* ── Traders ────────────────────────────────────────────────────────────────── */
 
+/*
+ * Two offers are rolled when the trader arrives, so they are drawn turning through
+ * what they can be: the three locators, the four iron armour pieces. The shuffle
+ * lived on Gameplay's copy of these offers, and came here with them when Gameplay
+ * handed the offers back to this page.
+ */
 const SPECIAL = [
     { price: 1, get: { item: { ...ITEM.wheel, name: 'Wheels of Fortune' }, count: 3 }, note: 'Three for one emerald: the reason to run.' },
     { price: 5, get: { item: ITEM.journal }, note: 'Otherwise only found in shipwrecks.' },
-    { price: 5, get: { item: { name: 'A random locator', src: '/fib-items/knowledge_book.png' } }, note: 'Antimatter, Trial or Sulfur, rolled when the trader arrives.' },
+    { price: 5, get: { item: { name: 'A random locator' }, shuffle: [ITEM.antimatterLocator, ITEM.trialLocator, ITEM.sulfurLocator] }, note: 'Antimatter, Trial or Sulfur, rolled when the trader arrives.' },
     { price: 5, get: { item: { ...v('iron_pickaxe'), name: 'Iron Pickaxe' } }, note: 'Enchanted at level 30, no treasure enchantments.' },
-    { price: 5, get: { item: { ...v('iron_chestplate'), name: 'An iron armour piece' } }, note: 'A random piece, enchanted at level 30.' },
+    { price: 5, get: { item: { name: 'An iron armour piece' }, shuffle: ['iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots'].map(v) }, note: 'A random piece, enchanted at level 30.' },
 ];
+
+/** An offer rolled on arrival, turning through what it can be while it is on screen. */
+function Shuffle({ items, size }) {
+    const calm = useCalm();
+    const ref = useRef(null);
+    const on = useOnScreen(ref);
+    const [i, setI] = useState(0);
+    const step = useCallback(() => setI((n) => (n + 1) % items.length), [items.length]);
+    useTicker(step, 1600, on && !calm);
+    return <span ref={ref} className="cc-shuffle"><Face key={items[i].name} item={items[i]} size={size} className={i || on ? 'cc-drop' : ''} /></span>;
+}
 
 function Traders({ go }) {
     return (
@@ -478,22 +498,23 @@ function Traders({ go }) {
             </div>
 
             <div className="cc-cards">
-                <article className="cc-card">
-                    <h3 className="wk-name">Wandering Trader</h3>
+                <article className="cc-card cc-card--trader">
+                    <Trader kind="WANDERING" />
                     <p className="wk-p">
-                        Every 7 to 10 minutes, and gone 5 minutes after it arrives. Its offers are vanilla, with every
+                        First 7 to 10 minutes into the round, then again 7 to 10 minutes after each one leaves; each stays
+                        5 minutes. Its offers are vanilla, with every
                         price cut to <strong>a single item</strong>, usually one emerald, and it also sells Wheels of Fortune
                         at one emerald each.
                     </p>
                     <Exchange give={[{ item: v('emerald'), count: 1 }]} via={{ label: 'Wandering Trader' }} get={{ item: ITEM.wheel }} caption="Alongside its vanilla offers, each at one emerald." />
                 </article>
 
-                <article className="cc-card">
-                    <h3 className="wk-name">Special Trader</h3>
+                <article className="cc-card cc-card--trader">
+                    <Trader kind="SPECIAL" />
                     <p className="wk-p">
                         A random event, at most once a round, and gone after 5 minutes. Its five offers are rolled when it
                         arrives, so everyone sees the same five, and each is <strong>one purchase per player</strong>.{' '}
-                        <a className="wk-link" href="/gameplay#events" onClick={go('gameplay')}>How random events work</a>
+                        <a className="wk-link" href="/gameplay#events" onClick={go('gameplay#events')}>How random events work</a>
                     </p>
                     <ul className="cc-offers">
                         {SPECIAL.map((o) => (
@@ -501,7 +522,9 @@ function Traders({ go }) {
                                 <span className="cc-offer-draw" aria-hidden="true">
                                     <Face item={v('emerald')} size={36} count={o.price} />
                                     <To />
-                                    <Face item={o.get.item} size={44} count={o.get.count} />
+                                    {o.get.shuffle
+                                        ? <Shuffle items={o.get.shuffle} size={44} />
+                                        : <Face item={o.get.item} size={44} count={o.get.count} />}
                                 </span>
                                 <span className="cc-offer-text">
                                     <span className="cc-offer-name">{o.get.count ? `${o.get.count} ` : ''}{o.get.item.name}<span className="wk-sr">, for {o.price} {o.price === 1 ? 'emerald' : 'emeralds'}</span></span>
