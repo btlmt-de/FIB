@@ -8,8 +8,8 @@ import './villager.css';
  * Villagers, standing: Minecraft's own villager model built from its boxes and wearing
  * the game's own textures. Two kinds are drawn: the traders at spawn (Trader, with the
  * name over its head in the plugin's colour and the glowing outline the plugin gives
- * it) and a plain villager for someone you trade with (Villager, the Cleric who sells
- * the Eye of Antimatter).
+ * it) and a plain villager for someone you trade with (Villager: the Cleric who sells
+ * the Eye of Antimatter, the Cartographer who may sell the Sulfur Locator).
  *
  * Why boxes and not a 3D viewer. The model is a dozen boxes, so plain CSS 3D draws it
  * crisp at any size with no library; an embedded viewer (one was the inspiration)
@@ -41,6 +41,14 @@ const SKINS = {
     CLERIC: [
         '/fib-entities/villager/profession_level_iron.png',
         '/fib-entities/villager/profession_cleric.png',
+        '/fib-entities/villager/type_plains.png',
+        '/fib-entities/villager/villager.png',
+    ],
+    // A novice (level 1) cartographer: VillagerTradeListener rolls the Sulfur Locator
+    // offer the moment it takes the job, so that is the level it can be bought at.
+    CARTOGRAPHER: [
+        '/fib-entities/villager/profession_level_stone.png',
+        '/fib-entities/villager/profession_cartographer.png',
         '/fib-entities/villager/type_plains.png',
         '/fib-entities/villager/villager.png',
     ],
@@ -199,11 +207,11 @@ export function Head({ skin, size = 28 }) {
 }
 
 /** A villager you trade with: the model, no name over it, as the game draws one. */
-export function Villager({ skin = SKINS.CLERIC, px = 3 }) {
+export function Villager({ kind = 'CLERIC', px = 3 }) {
     const ref = useRef(null);
     return (
         <span className="vg" ref={ref} aria-hidden="true">
-            <Model skin={skin} px={px} watchRef={ref} />
+            <Model skin={SKINS[kind]} px={px} watchRef={ref} />
         </span>
     );
 }

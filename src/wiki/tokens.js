@@ -200,6 +200,31 @@ export const TOOLTIP = {
  */
 export const BOSSBAR = 'oklch(79.3% 0.194 143)';
 
+/**
+ * The rest of the round's screen (Gameplay's drawing of it), the same way: the action
+ * bar's clock (<gradient:#fcef64:#fcc44b:#ff9e59>) as its gradient's middle, and the
+ * game's own white text and green ping bars.
+ */
+export const HUD = {
+    clock: 'oklch(84.6% 0.155 80)',
+    text: 'oklch(100% 0 0)',
+    ping: 'oklch(87% 0.27 142)',
+    // The daytime sky, laid over the wiki's dusk scenery to lift it toward blue.
+    skyHigh: 'oklch(62% 0.1 235)',
+    skyLow: 'oklch(58% 0.07 220)',
+};
+
+/**
+ * The open sky the result stage floats in (Gameplay's drawing of it). Unlike the
+ * HUD's sky this is a fill, not a lift over scenery, so it is taken down until the
+ * game's white text displays clear AA on it: about 4.9:1 at the low end, where the
+ * item card and the podium labels stand.
+ */
+export const STAGE_SKY = {
+    high: 'oklch(36% 0.085 258)',
+    low: 'oklch(55% 0.085 242)',
+};
+
 export const font = {
     // Headings, figures, item names at display size, rarity words. Never body text.
     // 'FIB Figures' covers the digits only (see wiki.css): Handjet's dotted zero
@@ -236,6 +261,13 @@ export function cssVars() {
     v['--wk-tip-top'] = TOOLTIP.edgeTop;
     v['--wk-tip-bottom'] = TOOLTIP.edgeBottom;
     v['--wk-bossbar'] = BOSSBAR;
+    v['--wk-hud-clock'] = HUD.clock;
+    v['--wk-hud-text'] = HUD.text;
+    v['--wk-hud-ping'] = HUD.ping;
+    v['--wk-hud-sky-high'] = HUD.skyHigh;
+    v['--wk-hud-sky-low'] = HUD.skyLow;
+    v['--wk-stage-sky-high'] = STAGE_SKY.high;
+    v['--wk-stage-sky-low'] = STAGE_SKY.low;
     v['--wk-font-display'] = font.display;
     v['--wk-font-text'] = font.text;
     v['--wk-font-typed'] = font.typed;

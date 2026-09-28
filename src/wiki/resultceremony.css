@@ -5,17 +5,24 @@
  * game's text displays: no plate behind them, a hard shadow, drawn upwards from the
  * point they stand on.
  *
- * The stage's panel is the only thing here that is not in the game: in the world the
- * stage floats in open sky.
+ * In the world the stage floats in open sky, so the panel is sky too (STAGE_SKY in
+ * tokens.js, which says why it is that dark). It was the wiki's deep ground at first,
+ * which read as a black hole in the page rather than as a place (Sept 2026).
+ *
+ * The STATS card beside it has a fixed column and is always there, empty until the
+ * browsing starts. With an auto column the card's widest line (a long item name) set
+ * the stage's width, and through its aspect ratio its height, so the stage grew and
+ * shrank with every board browsed.
  *
  * Plain words in comments: no backticks.
  */
 
 .rs { margin: 0; display: grid; gap: 12px; }
-.rs-scene { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 24px; align-items: center; }
+.rs-scene { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 16px 24px; align-items: center; }
 .rs-stage {
   position: relative; container-type: inline-size; aspect-ratio: 17.6 / 14; overflow: hidden;
-  background: var(--wk-deep); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
+  background: linear-gradient(to bottom, var(--wk-stage-sky-high), var(--wk-stage-sky-low));
+  border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
 }
 
 /* A text display: centred on its point, growing upwards. */
@@ -50,25 +57,22 @@
 @keyframes rs-spot { 0% { transform: scale(0); } 50% { transform: scale(1.15); } 100% { transform: none; } }
 @keyframes rs-fly { from { transform: translate(calc(var(--from-x) * 1cqw), calc(var(--from-y) * 1cqw)) scale(var(--from-s)); } }
 
-/* The podium: a step of its block, rising from the ground; its player standing on it. */
+/* The podium: a step of its block, rising from the ground; its player standing on it.
+   Two whole blocks across each step, fitted to its height. The plugin stretches one
+   block display to the step's 2.2 by 1.4, 0.9 or 0.5; tiling at a block per block cut
+   a fifth of a block off the right-hand edge of every step, which read as a half block
+   rather than as a solid step. */
 .rs-step {
   position: absolute; left: calc(var(--x) * 1cqw); top: calc(var(--y) * 1cqw);
   width: calc(var(--w) * 1cqw); height: calc(var(--h) * 1cqw);
-  background: var(--tex) 0 0 / calc(var(--block) * 1cqw) calc(var(--block) * 1cqw); image-rendering: pixelated;
+  background: var(--tex) 0 0 / 50% 100% repeat-x; image-rendering: pixelated;
   box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.25);
   transform-origin: bottom; animation: rs-rise 1s var(--wk-ease) both;
 }
 @keyframes rs-rise { from { transform: scaleY(0.01); } }
 .rs-figure {
-  position: absolute; left: calc(var(--x) * 1cqw - 8 * var(--u) * 1cqw); top: calc(var(--y) * 1cqw);
-  width: calc(16 * var(--u) * 1cqw); height: calc(32 * var(--u) * 1cqw);
+  left: calc(var(--x) * 1cqw - 8 * var(--u) * 1cqw); top: calc(var(--y) * 1cqw);
   animation: rs-pop 250ms var(--wk-ease) both; transform-origin: bottom;
-}
-.rs-figure i {
-  position: absolute; left: calc(var(--fx) * var(--u) * 1cqw); top: calc(var(--fy) * var(--u) * 1cqw);
-  width: calc(var(--w) * var(--u) * 1cqw); height: calc(var(--h) * var(--u) * 1cqw);
-  background-size: calc(64 * var(--u) * 1cqw) calc(64 * var(--u) * 1cqw); background-repeat: no-repeat;
-  image-rendering: pixelated;
 }
 
 /* A firework: eight sparks in the step's colour. The winner's are stars. */
@@ -84,7 +88,7 @@
 }
 
 .rs-summary {
-  display: grid; font: 400 14px/1.45 var(--wk-font-text); color: #FFFFFF; white-space: nowrap;
+  display: grid; font: 400 14px/1.45 var(--wk-font-text); color: #FFFFFF; overflow-wrap: anywhere;
   text-shadow: 0.09em 0.09em 0 oklch(0% 0 0 / 0.6);
 }
 
@@ -99,6 +103,8 @@
 
 @media (max-width: 1100px) {
   .rs-scene { grid-template-columns: 1fr; }
+  /* Stacked under the stage it cannot resize it, so an empty card need not hold a row. */
+  .rs-summary:empty { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SETTINGS } from './settings.data.js';
 import { spriteFallback, spriteOf } from './sprite.js';
 import { Head } from './Villager.jsx';
+import Mini from './Mini.jsx';
 import './settingsmenu.css';
 
 /*
@@ -28,7 +29,7 @@ import './settingsmenu.css';
  * the click sounds.
  *
  * The one liberty: on the tooltip's near-black, dark gray is lifted so the plugin's
- * notes stay readable, the way the wheel lifts a rarity's ink for text.
+ * notes stay readable (Mini.jsx), the way the wheel lifts a rarity's ink for text.
  */
 
 const PER_PAGE = 7;
@@ -38,39 +39,6 @@ const HEADS = {
     prev: '/fib-entities/heads/prev.png', prevOff: '/fib-entities/heads/prev_off.png',
     next: '/fib-entities/heads/next.png', nextOff: '/fib-entities/heads/next_off.png',
 };
-
-const MC = {
-    black: '#000000', dark_blue: '#0000AA', dark_green: '#00AA00', dark_aqua: '#00AAAA',
-    dark_red: '#AA0000', dark_purple: '#AA00AA', gold: '#FFAA00', gray: '#AAAAAA',
-    dark_gray: '#555555', blue: '#5555FF', green: '#55FF55', aqua: '#55FFFF',
-    red: '#FF5555', light_purple: '#FF55FF', yellow: '#FFFF55', white: '#FFFFFF',
-};
-const TIP = { ...MC, dark_gray: '#8A8A8A' };
-
-/** The handful of MiniMessage the menu uses: colours, italic, bold. */
-function Mini({ text, palette = TIP, base = '#FFFFFF' }) {
-    const out = [];
-    let color = base;
-    let italic = false;
-    let bold = false;
-    let last = 0;
-    const push = (s) => { if (s) out.push({ s, color, italic, bold }); };
-    for (const m of text.matchAll(/<(\/?)([a-z_]+)>/g)) {
-        push(text.slice(last, m.index));
-        last = m.index + m[0].length;
-        const [, close, tag] = m;
-        if (tag === 'i' || tag === 'italic') italic = !close;
-        else if (tag === 'b' || tag === 'bold') bold = !close;
-        else if (palette[tag]) color = close ? base : palette[tag];
-    }
-    push(text.slice(last));
-    if (!out.length) return <span className="sm-line">&nbsp;</span>;
-    return (
-        <span className="sm-line">
-            {out.map((p, i) => <span key={i} style={{ color: p.color, fontStyle: p.italic ? 'italic' : 'normal', fontWeight: p.bold ? 700 : 'inherit' }}>{p.s}</span>)}
-        </span>
-    );
-}
 
 const plain = (text) => text.replace(/<[^>]+>/g, '');
 const initial = () => Object.fromEntries(SETTINGS.map((s) => [s.key, s.standard]));
@@ -139,7 +107,7 @@ export default function SettingsMenu() {
         <figure className="sm" aria-label="The /settings menu">
             <div className="sm-gui" style={{ '--gui': `url(${GUI})` }} onMouseLeave={() => setTip(null)}>
                 <span className="sm-title" aria-hidden="true">
-                    <Mini text="<dark_gray>» <dark_aqua>Settings <dark_gray>● <gray>Menu" palette={MC} base="#404040" />
+                    <Mini text="<dark_gray>» <dark_aqua>Settings <dark_gray>● <gray>Menu" base="#404040" lift={false} className="sm-line" />
                 </span>
                 {slots.map((x, i) => {
                     const col = i % 9;
@@ -176,8 +144,8 @@ export default function SettingsMenu() {
                 {shown && shown.kind !== 'pane' && (
                     <span className="sm-tip" role="tooltip" data-side={tip % 9 > 4 ? 'left' : 'right'}
                           style={{ '--col': tip % 9, '--row': Math.floor(tip / 9) }}>
-                        <Mini text={shown.name} />
-                        {shown.lore.map((l, i) => <Mini key={i} text={l} />)}
+                        <Mini text={shown.name} className="sm-line" />
+                        {shown.lore.map((l, i) => <Mini key={i} text={l} className="sm-line" />)}
                     </span>
                 )}
             </div>

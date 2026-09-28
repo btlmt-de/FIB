@@ -542,7 +542,7 @@ function Locators() {
                         Tracks a <strong>biome</strong>, the Sulfur Cave, and cannot be crafted. Each Cartographer has a 30% chance
                         to offer it. If yours did not, break and replace their job block to reset the profession and roll again.
                     </p>
-                    <Exchange give={[{ item: v('emerald'), count: 6 }, { item: v('compass') }]} via={{ label: 'Cartographer' }} get={{ item: ITEM.sulfurLocator }} caption="30% per cartographer; reroll by resetting their job block." />
+                    <Exchange give={[{ item: v('emerald'), count: 6 }, { item: v('compass') }]} via={{ label: 'Cartographer', figure: <Villager kind="CARTOGRAPHER" /> }} get={{ item: ITEM.sulfurLocator }} caption="30% per cartographer; reroll by resetting their job block." />
                     <p className="wk-small">In game: <Typed>/info sulfur_locator</Typed></p>
                 </article>
 

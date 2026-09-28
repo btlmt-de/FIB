@@ -60,14 +60,20 @@
 /* ── The trip into the Depths ──────────────────────────────────────────────── */
 
 /* Five steps on one rail, in the order they have to happen: the sequence is the
-   information, so they are numbered. Each step puts its words beside its drawing. */
+   information, so they are numbered. Each step puts its words beside its drawing.
+
+   The rail is drawn a step at a time, from each number down to the next one's centre,
+   where that number covers its end. It was one line down the whole list at first, with
+   the dividers masked off the gutter by a ground-coloured inset shadow; the mask hid the
+   rail as well, so only the first two numbers were joined (Sept 2026). Per step, it also
+   stops at the last number instead of running on down the last step's drawing. */
 .cc-steps { position: relative; list-style: none; margin: 0; padding: 0; display: grid; }
-.cc-steps::before { content: ""; position: absolute; left: 15px; top: 34px; bottom: 34px; width: 2px; background: var(--wk-line-hi); }
 .cc-step {
   position: relative; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 48px; align-items: start;
   padding: 22px 0 22px 52px;
 }
-.cc-step + .cc-step { box-shadow: inset 52px 0 0 var(--wk-ground), inset 0 1px 0 var(--wk-line); }
+.cc-step:not(:last-child)::before { content: ""; position: absolute; left: 15px; top: 38px; bottom: -38px; width: 2px; background: var(--wk-line-hi); }
+.cc-step + .cc-step::after { content: ""; position: absolute; left: 52px; right: 0; top: 0; height: 1px; background: var(--wk-line); }
 .cc-step-text { display: grid; gap: 10px; }
 .cc-step-title { margin: 0; display: flex; align-items: center; gap: 12px; font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.15; color: var(--wk-ink); }
 .cc-step-n {

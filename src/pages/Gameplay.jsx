@@ -12,6 +12,8 @@ import { POOL_BY_STAGE, POOL_SETTINGS, itemName, pick } from '../wiki/atlas.js';
 import { picks, useOnScreen, useTicker } from '../wiki/hooks.js';
 import { useGo } from '../wiki/pages.js';
 import { FIND_RARITY, FIXED_UNLOCKS_FROM, ROUND, STAGES, unlockMinutes } from '../wiki/tokens.js';
+import ResultCeremony from '../wiki/ResultCeremony.jsx';
+import RoundHud from '../wiki/RoundHud.jsx';
 import '../wiki/page.css';
 import '../wiki/gameplay.css';
 
@@ -150,6 +152,31 @@ function Round() {
                     <p className="wk-small">Or simply hold it and right-click.</p>
                 </div>
             </div>
+        </section>
+    );
+}
+
+/* ── Your screen ───────────────────────────────────────────────────────────────────
+ * Everything the plugin puts on a player's screen during a round, in one drawing
+ * (src/wiki/RoundHud.jsx says where each piece comes from). The words say only what
+ * the drawing cannot: that the tab list is where the numbers live.
+ */
+function Screen() {
+    return (
+        <section id="screen" className="wk-wrap pg-sec" aria-labelledby="screen-title">
+            <div className="pg-sec-head">
+                <h2 id="screen-title" className="wk-h3">Your screen</h2>
+                <p className="wk-p">
+                    The item you are hunting sits in the bossbar at the top, the time left and your score just above the
+                    hotbar. Everyone's current item follows their name.
+                </p>
+                <p className="wk-p">
+                    <strong>Hold Tab</strong> for the rest: which pools are open and when the next one joins, your jokers,
+                    the time of day on the surface, and any trader with its countdown.
+                </p>
+                <p className="wk-small">Scrub or play one round; point at a part below to find it.</p>
+            </div>
+            <RoundHud />
         </section>
     );
 }
@@ -1073,7 +1100,36 @@ function Traders({ go }) {
     );
 }
 
-/* ── 8. Strategy ─────────────────────────────────────────────────────────────── */
+/* ── 8. How a round ends ─────────────────────────────────────────────────────────
+ * The result stage, replayed (src/wiki/ResultCeremony.jsx says where each part of it
+ * comes from). The words here say what a player needs: who reveals, in what order,
+ * what each item shows, and where to look at anyone's result afterwards.
+ */
+function Results() {
+    return (
+        <section id="results" className="wk-wrap pg-sec" aria-labelledby="results-title">
+            <div className="pg-sec-head">
+                <h2 id="results-title" className="wk-h3">How a round ends</h2>
+                <p className="wk-p">
+                    When the clock runs out, a stage rises in the sky above spawn and everyone is seated in front of it.
+                    An operator reveals the results with <code className="wk-typed">/result</code>, one player or team
+                    at a time, <strong>worst place first</strong>, so the winner comes last.
+                </p>
+                <p className="wk-p">
+                    Every find flies up in turn with the time that was left when it was found. A joker glows red, a
+                    back-to-back in its rarity's colour and holds the spotlight longer. Then the name.
+                </p>
+                <p className="wk-small">
+                    After the winner the podium rises and anyone can browse every result, with its stats. The
+                    [Inventory] link in chat opens a player's full result screen.
+                </p>
+            </div>
+            <ResultCeremony />
+        </section>
+    );
+}
+
+/* ── 9. Strategy ─────────────────────────────────────────────────────────────── */
 
 const TIPS = [
     { face: 'SHULKER_BOX', name: 'Keep one of everything',
@@ -1113,8 +1169,8 @@ function Strategy() {
 /* ── The page ───────────────────────────────────────────────────────────────── */
 
 const CONTENTS = [
-    ['round', 'The round'], ['pool', 'The pool'], ['jokers', 'Jokers'], ['back-to-backs', 'Back-to-backs'],
-    ['modes', 'Modes'], ['events', 'Random events'], ['traders', 'Traders'], ['strategy', 'Strategy'],
+    ['round', 'The round'], ['screen', 'Your screen'], ['pool', 'The pool'], ['jokers', 'Jokers'], ['back-to-backs', 'Back-to-backs'],
+    ['modes', 'Modes'], ['events', 'Random events'], ['traders', 'Traders'], ['results', 'Results'], ['strategy', 'Strategy'],
 ];
 
 export default function Gameplay({ onNavigate }) {
@@ -1134,12 +1190,14 @@ export default function Gameplay({ onNavigate }) {
                 </nav>
             </header>
             <Round />
+            <Screen />
             <Clock />
             <Jokers />
             <BackToBacks calm={calm} />
             <Modes calm={calm} />
             <Events go={go} />
             <Traders go={go} />
+            <Results />
             <Strategy />
             <PageLinks ids={['pools', 'settings', 'commands', 'how-to-play']} go={go} />
             <Footer />

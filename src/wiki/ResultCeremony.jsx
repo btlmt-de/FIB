@@ -5,6 +5,7 @@ import SkipForward from 'lucide-react/dist/esm/icons/skip-forward';
 import { useCalm } from '../config/power.js';
 import { POOL_BY_STAGE, itemName } from './atlas.js';
 import Mini from './Mini.jsx';
+import SkinFigure from './SkinFigure.jsx';
 import { ROUND, STAGES } from './tokens.js';
 import { spriteFallback, spriteOf } from './sprite.js';
 import './resultceremony.css';
@@ -340,7 +341,7 @@ export default function ResultCeremony() {
                             <React.Fragment key={place}>
                                 <span className="rs-step" style={{
                                     '--x': px(podiumX(place) - STEP.width / 2), '--y': py(h), '--w': size(STEP.width), '--h': size(h),
-                                    '--tex': `url(/fib-entities/blocks/${STEP_BLOCK[place]}.png)`, '--block': size(1),
+                                    '--tex': `url(/fib-entities/blocks/${STEP_BLOCK[place]}.png)`,
                                 }} />
                                 {up && owner && (
                                     <>
@@ -358,13 +359,16 @@ export default function ResultCeremony() {
                         </span>
                     ))}
                 </div>
-                {shown && (
-                    <div className="rs-summary">
-                        {summaryOf(shown).map((l, i) => <Mini key={i} text={l} className="rs-line" />)}
-                        <Mini text="" className="rs-line" />
-                        <Mini text="<dark_gray>Click ◀ ▶ to browse" className="rs-line" />
-                    </div>
-                )}
+                {/* Always there, empty until browsing, so its column never resizes the stage. */}
+                <div className="rs-summary">
+                    {shown && (
+                        <>
+                            {summaryOf(shown).map((l, i) => <Mini key={i} text={l} className="rs-line" />)}
+                            <Mini text="" className="rs-line" />
+                            <Mini text="<dark_gray>Click ◀ ▶ to browse" className="rs-line" />
+                        </>
+                    )}
+                </div>
             </div>
 
             <div className="rs-chat" aria-live="polite">
@@ -397,35 +401,11 @@ export default function ResultCeremony() {
     );
 }
 
-/*
- * A player standing on their step, as the plugin's mannequin wears their skin, seen
- * from the front: each part of the body is its front face in the skin, the second
- * layer (hat, jacket, sleeves, trousers) over the first. Two blocks tall, sixteen skin
- * pixels to a block, so the podium label above it sits where the plugin puts it.
- * A slim skin (Alex) has three-pixel arms.
- */
+/* A player standing on their step, as the plugin's mannequin wears their skin: two
+   blocks tall, sixteen skin pixels to a block, so the podium label above it sits where
+   the plugin puts it. */
 function Figure({ skin, slim, x, y }) {
-    const arm = slim ? 3 : 4;
-    const parts = [
-        // [skin u, v, then the overlay's u, v], width, height, place in the figure
-        [[8, 8, 40, 8], 8, 8, 4, 0],
-        [[20, 20, 20, 36], 8, 12, 4, 8],
-        [[44, 20, 44, 36], arm, 12, 4 - arm, 8],
-        [[36, 52, 52, 52], arm, 12, 12, 8],
-        [[4, 20, 4, 36], 4, 12, 4, 20],
-        [[20, 52, 4, 52], 4, 12, 8, 20],
-    ];
-    return (
-        <span className="rs-figure" style={{ '--x': px(x), '--y': py(y + 2), '--u': size(1 / 16) }}>
-            {parts.map(([[u, v, ou, ov], w, h, fx, fy], i) => (
-                <i key={i} style={{
-                    '--w': w, '--h': h, '--fx': fx, '--fy': fy,
-                    backgroundImage: `url(${skin}), url(${skin})`,
-                    backgroundPosition: `calc(${-ou} * var(--u) * 1cqw) calc(${-ov} * var(--u) * 1cqw), calc(${-u} * var(--u) * 1cqw) calc(${-v} * var(--u) * 1cqw)`,
-                }} />
-            ))}
-        </span>
-    );
+    return <SkinFigure skin={skin} slim={slim} className="rs-figure" style={{ '--x': px(x), '--y': py(y + 2), '--u': size(1 / 16) }} />;
 }
 
 /** A text display, as the stage writes one: centred on its point, growing upwards. */

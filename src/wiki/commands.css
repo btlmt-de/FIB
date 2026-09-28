@@ -94,3 +94,51 @@
   .cm-seg { width: 100%; }
   .cm-seg > button { flex: 1 1 0; padding: 0 8px 2px; }
 }
+
+/* ── Trying a command (CommandChat) ───────────────────────────────────────────
+   The example is a button: the command, and a quiet "Try it" beside it. The chat
+   opens under its line across both columns, drawn the way the game draws chat:
+   white text with a hard shadow on a see-through black, and the chat bar under it
+   with its blinking underscore. The replies' colours are the plugin's own. */
+
+.cm-try {
+  display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 0; margin: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left;
+}
+.cm-try-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 14px; font-weight: 600; color: var(--wk-ink-2);
+  text-decoration: underline; text-decoration-color: var(--wk-line-hi); text-underline-offset: 3px;
+}
+.cm-try:hover .cm-try-label, .cm-try:focus-visible .cm-try-label, .cm-try[aria-expanded="true"] .cm-try-label { color: var(--wk-ink); text-decoration-color: var(--wk-ink); }
+.cm-try:hover code, .cm-try[aria-expanded="true"] code { color: var(--wk-ink); background: var(--wk-panel-hi); }
+.cm-try:focus-visible { outline: 2px solid var(--wk-ink); outline-offset: 3px; border-radius: 2px; }
+
+.cm-chat { grid-column: 1 / -1; margin: 6px 0 4px; display: grid; gap: 0; max-width: 720px; }
+.cm-chat-log {
+  display: grid; align-content: end; min-height: 44px; padding: 8px 10px 6px;
+  background: oklch(0% 0 0 / 0.5); border-radius: 2px 2px 0 0;
+  font: 400 14px/1.5 var(--wk-font-text); color: #FFFFFF; text-shadow: 0.09em 0.09em 0 oklch(0% 0 0 / 0.6);
+}
+.cm-chat-line { display: block; min-height: 1.5em; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cm-chat-line > .ip-mc-line { display: inline; }
+.cm-chat-seg { display: inline; white-space: pre-wrap; }
+.cm-chat-icon { display: inline-block; width: 16px; height: 16px; vertical-align: -3px; image-rendering: pixelated; }
+.cm-chat-bar {
+  display: flex; align-items: center; min-height: 30px; padding: 4px 10px;
+  background: oklch(0% 0 0 / 0.72); border-radius: 0 0 2px 2px;
+  font: 400 14px/1.4 var(--wk-font-typed); color: #FFFFFF;
+}
+.cm-chat-typed { white-space: pre; }
+.cm-chat-caret { color: #FFFFFF; opacity: 0.35; }
+.cm-chat-caret[data-on] { opacity: 1; animation: cm-blink 1s steps(1) infinite; }
+@keyframes cm-blink { 50% { opacity: 0; } }
+.cm-chat-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-top: 6px; min-height: 24px; }
+.cm-chat-again {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; border: 0; border-radius: 2px;
+  background: none; color: var(--wk-ink-2); font: 600 14px/1.4 var(--wk-font-text); cursor: pointer;
+}
+.cm-chat-again:hover, .cm-chat-again:focus-visible { color: var(--wk-ink); background: var(--wk-panel); }
+
+@media (prefers-reduced-motion: reduce) { .cm-chat-caret[data-on] { animation: none; } }
+html[data-saver="on"] .cm-chat-caret[data-on] { animation: none; }

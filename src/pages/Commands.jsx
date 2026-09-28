@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import Search from 'lucide-react/dist/esm/icons/search';
 import X from 'lucide-react/dist/esm/icons/x';
+import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import Footer from '../components/common/Footer.jsx';
 import PageLinks from '../wiki/PageLinks.jsx';
 import { useGo } from '../wiki/pages.js';
 import { COMMANDS, GROUPS } from '../wiki/commands.data.js';
+import CommandChat from '../wiki/CommandChat.jsx';
 import '../wiki/page.css';
 import '../wiki/commands.css';
 
@@ -22,6 +24,10 @@ import '../wiki/commands.css';
  * what must be given in angle brackets and what may be left off in square ones.
  * The list and every who and when come from commands.data.js; its header says how
  * they were checked and how the build keeps the list honest.
+ *
+ * An example that the game answers in chat can be tried: it is typed into a Minecraft
+ * chat bar under its line and answered with the plugin's own reply (CommandChat). One
+ * is open at a time, so the page never turns into a wall of chat boxes.
  */
 
 const WHO = {
@@ -49,7 +55,7 @@ function matches(c, q) {
     return q.split(/\s+/).every((w) => hay.includes(w.replace(/^\//, '')));
 }
 
-function Command({ c }) {
+function Command({ c, open, onTry }) {
     return (
         <li className="cm-cmd" id={`cmd-${c.name}`}>
             <ul className="cm-forms">
@@ -59,8 +65,18 @@ function Command({ c }) {
                         <span className="cm-form-text">
                             {f.text}
                             {f.who && f.who !== c.who && <span className="cm-chip cm-chip--who">{WHO[f.who]}</span>}
-                            {f.example && <span className="cm-example">e.g. <code className="wk-typed">{f.example}</code></span>}
+                            {f.example && !f.says && <span className="cm-example">e.g. <code className="wk-typed">{f.example}</code></span>}
+                            {f.example && f.says && (
+                                <span className="cm-example">
+                                    e.g.{' '}
+                                    <button type="button" className="cm-try" aria-expanded={open === `${c.name}|${i}`} onClick={() => onTry(`${c.name}|${i}`)}>
+                                        <code className="wk-typed">{f.example}</code>
+                                        <span className="cm-try-label"><MessageSquare size={14} aria-hidden="true" /> {open === `${c.name}|${i}` ? 'Close' : 'Try it'}</span>
+                                    </button>
+                                </span>
+                            )}
                         </span>
+                        {open === `${c.name}|${i}` && <CommandChat example={f.example} says={f.says} heard={f.heard} then={f.then} />}
                     </li>
                 ))}
             </ul>
@@ -79,6 +95,8 @@ export default function Commands({ onNavigate }) {
     const go = useGo(onNavigate);
     const [query, setQuery] = useState('');
     const [who, setWho] = useState('any');
+    const [open, setOpen] = useState(null);
+    const onTry = (key) => setOpen((k) => (k === key ? null : key));
     const q = query.trim().toLowerCase();
 
     const groups = useMemo(() => GROUPS.map((g) => ({
@@ -136,7 +154,7 @@ export default function Commands({ onNavigate }) {
                             {g.note && <p className="wk-small cm-group-note">{g.note}</p>}
                         </div>
                         <ul className="cm-list">
-                            {g.commands.map((c) => <Command key={c.name} c={c} />)}
+                            {g.commands.map((c) => <Command key={c.name} c={c} open={open} onTry={onTry} />)}
                         </ul>
                     </section>
                 ))}
