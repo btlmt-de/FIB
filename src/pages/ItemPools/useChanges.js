@@ -23,6 +23,18 @@ const OLD_DRAFT = 'fib_draft_';
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const sortTags = (t) => [...t].sort();
 
+/*
+ * What a commit actually wrote for one entry, so a staged change can be matched to it.
+ * The pool's is what `poolEdits` turns into register lines (type, stage, tags), the
+ * descriptions' is the lines. `base` and `oldState`/`oldTags` are left out: they are
+ * bookkeeping, and `fillBase` can rewrite a base mid-commit without the change being
+ * any different.
+ */
+const written = {
+    pool: (c) => [c?.type, c?.state ?? null, c?.tags ?? null],
+    info: (c) => c?.lines,
+};
+
 function load() {
     const empty = { pool: {}, info: {} };
     try {
@@ -59,8 +71,23 @@ function reducer(s, a) {
             if (a.change) info[a.material] = a.change; else delete info[a.material];
             return { ...s, info };
         }
-        case 'clear':
-            return { ...s, [a.what]: {} };
+        case 'committed': {
+            // Only what the commit wrote leaves the tray. A commit is several requests
+            // long and the tray stays usable meanwhile, so an entry staged, edited or
+            // undone while it ran is not the one that landed. This used to empty the
+            // whole list and dropped that work. Done here, not at the call site,
+            // because only the reducer sees the state as it is now rather than as it
+            // was when the commit started.
+            const next = { ...s[a.what] };
+            let changed = false;
+            for (const { material, ...c } of a.entries) {
+                if (next[material] && same(written[a.what](next[material]), written[a.what](c))) {
+                    delete next[material];
+                    changed = true;
+                }
+            }
+            return changed ? { ...s, [a.what]: next } : s;
+        }
         case 'fillBase': {
             // A migrated draft has no base until the page knows the item's description.
             const info = { ...s.info };
@@ -143,7 +170,8 @@ export default function useChanges(items) {
     }, [byMaterial]);
 
     const undoInfo = useCallback((material) => dispatch({ type: 'info', material, change: null }), []);
-    const clear = useCallback((what) => dispatch({ type: 'clear', what }), []);
+    /** Drop the entries a commit wrote: `entries` is the snapshot it was made from. */
+    const clearCommitted = useCallback((what, entries) => dispatch({ type: 'committed', what, entries }), []);
 
     /** An item as it will be once the staged pool change lands. */
     const effective = useCallback((item) => {
@@ -158,6 +186,6 @@ export default function useChanges(items) {
     return {
         pool: s.pool, info: s.info,
         poolCount: Object.keys(s.pool).length, infoCount: Object.keys(s.info).length,
-        setPool, addToPool, removeFromPool, undoPool, setInfo, undoInfo, clear, effective,
+        setPool, addToPool, removeFromPool, undoPool, setInfo, undoInfo, clearCommitted, effective,
     };
 }

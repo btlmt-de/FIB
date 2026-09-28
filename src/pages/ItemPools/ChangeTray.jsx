@@ -242,7 +242,7 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
                     note = `Committed, but the pull request was not opened: ${e.message}`;
                 }
             }
-            changes.clear('pool');
+            changes.clearCommitted('pool', snapshot);
             invalidateCache();
             setResult({ title: `${snapshot.length} pool ${snapshot.length === 1 ? 'change' : 'changes'} committed to ${target}.`, links, note });
             onDone?.(target);
@@ -366,7 +366,7 @@ function InfoCommit({ auth, changes, byMaterial, viewBranch, onDone, result, set
             if (next === content) throw new Error(`config.yml on ${branch} already says this.`);
             setStep('Committing…');
             const res = await writeFile(auth.token, REPOS.info, branch, next, sha, message.trim() || defaultMessage);
-            changes.clear('info');
+            changes.clearCommitted('info', snapshot);
             invalidateCache();
             setResult({
                 title: `${snapshot.length} /info ${snapshot.length === 1 ? 'change' : 'changes'} committed to ${branch}.`,
