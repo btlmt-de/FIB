@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { getTip, hideTip, showTip, subscribeTip } from './tipStore.js';
-import { itemName, itemSrc, stageOf, tagsOf, whereOf } from './atlas.js';
-import { STAGES, TAGS, REGION } from './tokens.js';
+import { itemName, itemSrc, stageOf, tagsOf, whereOf } from '../data/atlas.js';
+import { STAGES, TAGS, REGION } from '../tokens.js';
 
 /**
  * Items, the atoms of the wiki.

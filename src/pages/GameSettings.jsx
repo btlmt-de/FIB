@@ -1,13 +1,13 @@
 import React from 'react';
 import Footer from '../components/common/Footer.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
-import { useGo } from '../wiki/pages.js';
-import { spriteFallback, spriteOf } from '../wiki/sprite.js';
-import { SETTINGS } from '../wiki/settings.data.js';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { useGo } from '../wiki/shell/pages.js';
+import { spriteFallback, spriteOf } from '../wiki/game/sprite.js';
+import { SETTINGS } from '../wiki/data/settings.data.js';
 import { ROUND } from '../wiki/tokens.js';
-import SettingsMenu from '../wiki/SettingsMenu.jsx';
+import SettingsMenu from '../wiki/drawings/SettingsMenu.jsx';
 import '../wiki/page.css';
-import '../wiki/settings.css';
+import '../wiki/pages/settings.css';
 
 /*
  * Game Settings (THE EXPLORER'S ATLAS): every setting an operator can change in

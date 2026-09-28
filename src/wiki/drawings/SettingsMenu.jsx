@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { SETTINGS } from './settings.data.js';
-import { spriteFallback, spriteOf } from './sprite.js';
-import { Head } from './Villager.jsx';
-import Mini from './Mini.jsx';
+import { SETTINGS } from '../data/settings.data.js';
+import { spriteFallback, spriteOf } from '../game/sprite.js';
+import { Head } from '../game/Villager.jsx';
+import Mini from '../game/Mini.jsx';
 import './settingsmenu.css';
 
 /*

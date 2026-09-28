@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useCalm } from '../config/power.js';
+import { useCalm } from '../../config/power.js';
 
 /**
  * An environment: the place a region of the atlas is set in, drawn rather than

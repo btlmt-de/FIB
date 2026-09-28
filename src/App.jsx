@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 
 // Components
 import Navigation from './components/common/Navigation';
-import WikiRoot from './wiki/WikiRoot.jsx';
+import WikiRoot from './wiki/shell/WikiRoot.jsx';
 
 // Config
 import { COLORS } from './config/constants';

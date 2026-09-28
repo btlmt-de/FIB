@@ -5,18 +5,18 @@ import Play from 'lucide-react/dist/esm/icons/play';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw';
 import Footer from '../components/common/Footer.jsx';
 import { useCalm } from '../config/power.js';
-import Bossbar from '../wiki/Bossbar.jsx';
-import LoopBeats from '../wiki/LoopBeats.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
-import { ItemSlot, TooltipLayer } from '../wiki/items.jsx';
-import { POOL_BY_STAGE, POOL_SETTINGS, itemName, pick } from '../wiki/atlas.js';
+import Bossbar from '../wiki/game/Bossbar.jsx';
+import LoopBeats from '../wiki/drawings/LoopBeats.jsx';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { ItemSlot, TooltipLayer } from '../wiki/game/items.jsx';
+import { POOL_BY_STAGE, POOL_SETTINGS, itemName, pick } from '../wiki/data/atlas.js';
 import { picks, useOnScreen, useTicker } from '../wiki/hooks.js';
-import { useGo } from '../wiki/pages.js';
+import { useGo } from '../wiki/shell/pages.js';
 import { FIND_RARITY, FIXED_UNLOCKS_FROM, ROUND, STAGES, unlockMinutes } from '../wiki/tokens.js';
-import ResultCeremony from '../wiki/ResultCeremony.jsx';
-import RoundHud from '../wiki/RoundHud.jsx';
+import ResultCeremony from '../wiki/drawings/ResultCeremony.jsx';
+import RoundHud from '../wiki/drawings/RoundHud.jsx';
 import '../wiki/page.css';
-import '../wiki/gameplay.css';
+import '../wiki/pages/gameplay.css';
 
 /*
  * Gameplay (THE EXPLORER'S ATLAS). The rulebook, where home is the summary.
@@ -160,7 +160,7 @@ function Round() {
 
 /* ── Your screen ───────────────────────────────────────────────────────────────────
  * Everything the plugin puts on a player's screen during a round, in one drawing
- * (src/wiki/RoundHud.jsx says where each piece comes from). The words say only what
+ * (src/wiki/drawings/RoundHud.jsx says where each piece comes from). The words say only what
  * the drawing cannot: that the tab list is where the numbers live.
  */
 function Screen() {
@@ -1116,7 +1116,7 @@ function Traders({ go }) {
 }
 
 /* ── 8. How a round ends ─────────────────────────────────────────────────────────
- * The result stage, replayed (src/wiki/ResultCeremony.jsx says where each part of it
+ * The result stage, replayed (src/wiki/drawings/ResultCeremony.jsx says where each part of it
  * comes from). The words here say what a player needs: who reveals, in what order,
  * what each item shows, and where to look at anyone's result afterwards.
  */

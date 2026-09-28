@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw';
-import { useCalm } from '../config/power.js';
-import { McLine } from '../pages/ItemPools/McText.jsx';
-import Mini from './Mini.jsx';
-import { INFO } from './info.data.js';
-import { spriteFallback, spriteOf } from './sprite.js';
+import { useCalm } from '../../config/power.js';
+import { McLine } from '../../pages/ItemPools/McText.jsx';
+import Mini from '../game/Mini.jsx';
+import { INFO } from '../data/info.data.js';
+import { spriteFallback, spriteOf } from '../game/sprite.js';
 
 /*
  * A command as it happens in the game: typed into the chat bar, sent, and answered.

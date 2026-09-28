@@ -2,14 +2,14 @@ import React, { useMemo } from 'react';
 import ArrowDown from 'lucide-react/dist/esm/icons/arrow-down';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Footer from '../components/common/Footer.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
-import { ItemSlot } from '../wiki/items.jsx';
-import Bossbar from '../wiki/Bossbar.jsx';
-import { PAPER_VERSION, POOL_BY_STAGE, pick } from '../wiki/atlas.js';
-import { useGo } from '../wiki/pages.js';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { ItemSlot } from '../wiki/game/items.jsx';
+import Bossbar from '../wiki/game/Bossbar.jsx';
+import { PAPER_VERSION, POOL_BY_STAGE, pick } from '../wiki/data/atlas.js';
+import { useGo } from '../wiki/shell/pages.js';
 import { ROUND } from '../wiki/tokens.js';
 import '../wiki/page.css';
-import '../wiki/howtoplay.css';
+import '../wiki/pages/howtoplay.css';
 
 /*
  * How to Play (THE EXPLORER'S ATLAS). The first inner page on the system.
@@ -24,7 +24,7 @@ import '../wiki/howtoplay.css';
  * FIB_Worldgen.zip out of it into every new world's datapacks.
  *
  * What the resource pack and unicodeItems.json add is drawn rather than said: the
- * bossbar as the game draws it (wiki/Bossbar.jsx), with a real pool item.
+ * bossbar as the game draws it (wiki/game/Bossbar.jsx), with a real pool item.
  *
  * The Paper version is generated (PAPER_VERSION, from the plugin's
  * paper-version.json via vendor-pool.mjs). It used to be typed into this file and

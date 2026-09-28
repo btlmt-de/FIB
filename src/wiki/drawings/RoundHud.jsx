@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Pause from 'lucide-react/dist/esm/icons/pause';
 import Play from 'lucide-react/dist/esm/icons/play';
-import { useCalm } from '../config/power.js';
-import { POOL_BY_STAGE, itemName } from './atlas.js';
-import Environment from './Environment.jsx';
-import { useOnScreen } from './hooks.js';
-import Mini from './Mini.jsx';
-import { ROUND, STAGES } from './tokens.js';
-import { spriteFallback, spriteOf } from './sprite.js';
-import logo0 from '../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_0.png';
-import logo1 from '../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_1.png';
-import logo2 from '../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_2.png';
+import { useCalm } from '../../config/power.js';
+import { POOL_BY_STAGE, itemName } from '../data/atlas.js';
+import Environment from '../game/Environment.jsx';
+import { useOnScreen } from '../hooks.js';
+import Mini from '../game/Mini.jsx';
+import { ROUND, STAGES } from '../tokens.js';
+import { spriteFallback, spriteOf } from '../game/sprite.js';
+import logo0 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_0.png';
+import logo1 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_1.png';
+import logo2 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_2.png';
 import './roundhud.css';
 
 /*

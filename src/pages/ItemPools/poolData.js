@@ -17,7 +17,7 @@
  * component so the workspace, the inspector and the change tray share one copy.
  */
 
-import { PAPER_VERSION } from '../../wiki/atlas.js';
+import { PAPER_VERSION } from '../../wiki/data/atlas.js';
 
 export const PLUGIN_REPO = 'McPlayHDnet/ForceItemBattle';
 export const POOL_PATH = 'src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
@@ -199,5 +199,5 @@ export async function loadRegistry({ fresh = false } = {}) {
     return [];
 }
 
-/* Sprites: shared with Custom Content, see wiki/sprite.js. */
-export { spriteOf, spriteFallback } from '../../wiki/sprite.js';
+/* Sprites: shared with Custom Content, see wiki/game/sprite.js. */
+export { spriteOf, spriteFallback } from '../../wiki/game/sprite.js';

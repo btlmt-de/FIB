@@ -1,5 +1,5 @@
 import React from 'react';
-import { itemName, itemSrc } from './atlas.js';
+import { itemName, itemSrc } from '../data/atlas.js';
 
 /**
  * The plugin's bossbar, drawn: where a player reads the item they are hunting.

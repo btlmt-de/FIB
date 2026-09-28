@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import Play from 'lucide-react/dist/esm/icons/play';
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw';
 import SkipForward from 'lucide-react/dist/esm/icons/skip-forward';
-import { useCalm } from '../config/power.js';
-import { POOL_BY_STAGE, itemName } from './atlas.js';
-import Mini from './Mini.jsx';
-import SkinFigure from './SkinFigure.jsx';
-import { ROUND, STAGES } from './tokens.js';
-import { spriteFallback, spriteOf } from './sprite.js';
+import { useCalm } from '../../config/power.js';
+import { POOL_BY_STAGE, itemName } from '../data/atlas.js';
+import Mini from '../game/Mini.jsx';
+import SkinFigure from '../game/SkinFigure.jsx';
+import { ROUND, STAGES } from '../tokens.js';
+import { spriteFallback, spriteOf } from '../game/sprite.js';
 import './resultceremony.css';
 
 /*

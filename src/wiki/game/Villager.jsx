@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useCalm } from '../config/power.js';
-import { useOnScreen } from './hooks.js';
-import { TRADER } from './tokens.js';
+import { useCalm } from '../../config/power.js';
+import { useOnScreen } from '../hooks.js';
+import { TRADER } from '../tokens.js';
 import './villager.css';
 
 /*

@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Footer from '../components/common/Footer.jsx';
-import PageIndex from '../wiki/PageIndex.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
+import PageIndex from '../wiki/shell/PageIndex.jsx';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
 import { useCurrentSection } from '../wiki/hooks.js';
-import { useGo } from '../wiki/pages.js';
-import { CHANGELOG } from '../wiki/changelog.data.js';
+import { useGo } from '../wiki/shell/pages.js';
+import { CHANGELOG } from '../wiki/data/changelog.data.js';
 import '../wiki/page.css';
-import '../wiki/changelog.css';
+import '../wiki/pages/changelog.css';
 
 /*
  * Changelog (THE EXPLORER'S ATLAS): every release, newest first.
@@ -35,7 +35,7 @@ import '../wiki/changelog.css';
  * would hide the one continuous line this page draws, for a saving the index already
  * makes.
  *
- * The list itself is src/wiki/changelog.data.js, which the build checks against the
+ * The list itself is src/wiki/data/changelog.data.js, which the build checks against the
  * plugin's version on main.
  */
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TagGlyph } from '../../wiki/items.jsx';
+import { TagGlyph } from '../../wiki/game/items.jsx';
 import { STAGES, TAGS } from '../../wiki/tokens.js';
 import { STAGE_KEYS, TAG_KEYS, spriteFallback, spriteOf } from './poolData.js';
 

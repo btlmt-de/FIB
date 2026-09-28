@@ -1,6 +1,6 @@
 import React from 'react';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
-import { ItemSlot } from './items.jsx';
+import { ItemSlot } from '../game/items.jsx';
 import { PAGE } from './pages.js';
 
 /**

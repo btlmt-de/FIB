@@ -5,8 +5,8 @@
  */
 
 import { ITEM_WHERE, ITEM_TAGS, POOL_BY_STAGE, ATLAS_POOL_SIZE, POOL_SETTINGS, PAPER_VERSION } from './atlas.data.js';
-import { CUSTOM_ITEM_NAMES } from '../config/customItems.js';
-import { REGIONS } from './tokens.js';
+import { CUSTOM_ITEM_NAMES } from '../../config/customItems.js';
+import { REGIONS } from '../tokens.js';
 
 export { ATLAS_POOL_SIZE, POOL_SETTINGS, POOL_BY_STAGE, PAPER_VERSION };
 

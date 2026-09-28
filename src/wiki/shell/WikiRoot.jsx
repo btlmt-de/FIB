@@ -1,6 +1,6 @@
 import React from 'react';
-import { cssVars } from './tokens.js';
-import './wiki.css';
+import { cssVars } from '../tokens.js';
+import '../wiki.css';
 
 const VARS = cssVars();
 

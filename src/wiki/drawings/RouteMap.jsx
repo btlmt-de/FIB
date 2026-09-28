@@ -1,8 +1,8 @@
 import React from 'react';
-import { ItemSlot } from './items.jsx';
-import { itemName, stageOf } from './atlas.js';
-import { countLabel, shownRoutes } from './routes.js';
-import { STAGES } from './tokens.js';
+import { ItemSlot } from '../game/items.jsx';
+import { itemName, stageOf } from '../data/atlas.js';
+import { countLabel, shownRoutes } from '../data/routes.js';
+import { STAGES } from '../tokens.js';
 import './routemap.css';
 
 /*

@@ -3,15 +3,15 @@ import Dices from 'lucide-react/dist/esm/icons/dices';
 import Footer from '../components/common/Footer.jsx';
 import { useCalm } from '../config/power.js';
 import { useOnScreen, useTicker } from '../wiki/hooks.js';
-import PageLinks from '../wiki/PageLinks.jsx';
-import Trader, { Villager } from '../wiki/Villager.jsx';
-import Block from '../wiki/Block.jsx';
-import { useGo } from '../wiki/pages.js';
-import { spriteFallback, spriteOf } from '../wiki/sprite.js';
-import { TABLES, pct, rangeText, roll } from '../wiki/loot.js';
-import { DEPTHS_MAP } from '../wiki/depthsMap.data.js';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import Trader, { Villager } from '../wiki/game/Villager.jsx';
+import Block from '../wiki/game/Block.jsx';
+import { useGo } from '../wiki/shell/pages.js';
+import { spriteFallback, spriteOf } from '../wiki/game/sprite.js';
+import { TABLES, pct, rangeText, roll } from '../wiki/data/loot.js';
+import { DEPTHS_MAP } from '../wiki/data/depthsMap.data.js';
 import '../wiki/page.css';
-import '../wiki/content.css';
+import '../wiki/pages/content.css';
 // The pack's own portal surface, bundled from the resource pack this repo ships.
 import portalTexture from '../../ForceItemBattle/assets/minecraft/textures/block/antimatter_portal.png';
 
@@ -22,7 +22,7 @@ import portalTexture from '../../ForceItemBattle/assets/minecraft/textures/block
  * side, the traders, and the two changes to the world itself.
  *
  * What is derived and what is not. The loot is read from the datapack at build time
- * (wiki/loot.js), so the chances, counts and names are the datapack's. Recipes,
+ * (wiki/data/loot.js), so the chances, counts and names are the datapack's. Recipes,
  * trades and timings live in the plugin's Java, which the site cannot read at build
  * time, so they are written here; each was checked against the plugin's source on
  * main when this page was rebuilt (Sept 2026), and that check found three the old page
@@ -402,7 +402,7 @@ function Chest({ drops, cells }) {
 
 /*
  * The Depths from above, as a map of the loot: the wheel's render of the structure with
- * each room outlined where it shows (src/wiki/depthsMap.data.js says how that was
+ * each room outlined where it shows (src/wiki/data/depthsMap.data.js says how that was
  * measured). A room with loot is a way into its tables, and the tables' own tabs light
  * the room they belong to, so the map and the tabs are one control. The End Portal room
  * and the start are named too, because they are where the trip goes, but hold no loot.

@@ -5,18 +5,18 @@ import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Check from 'lucide-react/dist/esm/icons/check';
 import Dices from 'lucide-react/dist/esm/icons/dices';
 import { useCalm } from '../config/power.js';
-import Environment from '../wiki/Environment.jsx';
-import LoopBeats from '../wiki/LoopBeats.jsx';
-import RouteMap from '../wiki/RouteMap.jsx';
-import { ItemSlot, SlotGrid, TagGlyph, TooltipLayer } from '../wiki/items.jsx';
+import Environment from '../wiki/game/Environment.jsx';
+import LoopBeats from '../wiki/drawings/LoopBeats.jsx';
+import RouteMap from '../wiki/drawings/RouteMap.jsx';
+import { ItemSlot, SlotGrid, TagGlyph, TooltipLayer } from '../wiki/game/items.jsx';
 import {
     ALL_POOL, ATLAS_POOL_SIZE, PINNED_COUNT, POOL_BY_STAGE, POOL_SETTINGS,
     itemName, pick, regionItems, regionSlots, stageOf, tagsOf, whereOf,
-} from '../wiki/atlas.js';
-import { DEALABLE, countLabel, dealableFrom, routesFor } from '../wiki/routes.js';
+} from '../wiki/data/atlas.js';
+import { DEALABLE, countLabel, dealableFrom, routesFor } from '../wiki/data/routes.js';
 import { BEATS, FIND_RARITY, GAUGE, REGION, REGIONS, ROUND, STAGES, TAGS } from '../wiki/tokens.js';
-import { PAGES, useGo } from '../wiki/pages.js';
-import '../wiki/home.css';
+import { PAGES, useGo } from '../wiki/shell/pages.js';
+import '../wiki/pages/home.css';
 
 /*
  * The home page - the reference implementation of THE EXPLORER'S ATLAS.

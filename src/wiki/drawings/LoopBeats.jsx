@@ -1,5 +1,5 @@
 import React from 'react';
-import { BEATS } from './tokens.js';
+import { BEATS } from '../tokens.js';
 
 /*
  * The round's loop as one line: Draw, Think, Route, Obtain, Score, Next, joined by

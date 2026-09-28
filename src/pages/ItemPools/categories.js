@@ -10,7 +10,7 @@
  * Rule has no colour for "wood" or "food", so they are names only now.
  */
 
-import { PAPER_VERSION } from '../../wiki/atlas.js';
+import { PAPER_VERSION } from '../../wiki/data/atlas.js';
 
 // The server's version first (see REGISTRY_URLS in poolData.js), the moving branch as the fallback.
 const MISODE_ITEM_TAGS_URLS = [

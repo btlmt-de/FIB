@@ -1,11 +1,11 @@
 import React from 'react';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Footer from '../components/common/Footer.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
-import { useGo } from '../wiki/pages.js';
-import { spriteOf } from '../wiki/sprite.js';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { useGo } from '../wiki/shell/pages.js';
+import { spriteOf } from '../wiki/game/sprite.js';
 import '../wiki/page.css';
-import '../wiki/rules.css';
+import '../wiki/pages/rules.css';
 
 /*
  * Rules (THE EXPLORER'S ATLAS): playing fair in our rounds.

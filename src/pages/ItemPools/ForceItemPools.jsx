@@ -6,9 +6,9 @@ import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
 import Search from 'lucide-react/dist/esm/icons/search';
 import X from 'lucide-react/dist/esm/icons/x';
 import Footer from '../../components/common/Footer.jsx';
-import { TagGlyph } from '../../wiki/items.jsx';
+import { TagGlyph } from '../../wiki/game/items.jsx';
 import { STAGES, TAGS } from '../../wiki/tokens.js';
-import { PAPER_VERSION } from '../../wiki/atlas.js';
+import { PAPER_VERSION } from '../../wiki/data/atlas.js';
 import ChangeTray from './ChangeTray.jsx';
 import Inspector from './Inspector.jsx';
 import { McLine } from './McText.jsx';
@@ -20,7 +20,7 @@ import {
     DEFAULT_BRANCH, POOL_PATH, STAGE_KEYS, TAG_KEYS, displayNameOf, getViewBranch, loadPool,
     loadPublicBranches, loadRegistry, setViewBranch,
 } from './poolData.js';
-import '../../wiki/pools.css';
+import '../../wiki/pages/pools.css';
 
 /*
  * Item Pools (THE EXPLORER'S ATLAS): the workspace where the pool and its /info

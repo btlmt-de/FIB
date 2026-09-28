@@ -1,8 +1,8 @@
 import React from 'react';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Footer from '../components/common/Footer.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
-import { useGo } from '../wiki/pages.js';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { useGo } from '../wiki/shell/pages.js';
 import '../wiki/page.css';
 
 /*

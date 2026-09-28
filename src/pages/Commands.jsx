@@ -3,14 +3,14 @@ import Search from 'lucide-react/dist/esm/icons/search';
 import X from 'lucide-react/dist/esm/icons/x';
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import Footer from '../components/common/Footer.jsx';
-import PageIndex from '../wiki/PageIndex.jsx';
-import PageLinks from '../wiki/PageLinks.jsx';
+import PageIndex from '../wiki/shell/PageIndex.jsx';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
 import { useCurrentSection } from '../wiki/hooks.js';
-import { useGo } from '../wiki/pages.js';
-import { COMMANDS, GROUPS } from '../wiki/commands.data.js';
-import CommandChat from '../wiki/CommandChat.jsx';
+import { useGo } from '../wiki/shell/pages.js';
+import { COMMANDS, GROUPS } from '../wiki/data/commands.data.js';
+import CommandChat from '../wiki/drawings/CommandChat.jsx';
 import '../wiki/page.css';
-import '../wiki/commands.css';
+import '../wiki/pages/commands.css';
 
 /*
  * Commands (THE EXPLORER'S ATLAS): every command, who can use it and when.
