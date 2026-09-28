@@ -1,0 +1,8 @@
+/* A player from the front (SkinFigure.jsx). Sized by --u, one skin pixel in cqw. */
+.skin-figure { position: absolute; display: block; width: calc(16 * var(--u) * 1cqw); height: calc(32 * var(--u) * 1cqw); }
+.skin-figure i {
+  position: absolute; left: calc(var(--fx) * var(--u) * 1cqw); top: calc(var(--fy) * var(--u) * 1cqw);
+  width: calc(var(--w) * var(--u) * 1cqw); height: calc(var(--h) * var(--u) * 1cqw);
+  background-size: calc(64 * var(--u) * 1cqw) calc(64 * var(--u) * 1cqw); background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
