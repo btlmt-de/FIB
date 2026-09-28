@@ -446,78 +446,143 @@
 }
 .hm-more:hover { background: oklch(28% 0.010 255); }
 
-/* ── 7. The modes, each drawn as its mechanic ─────────────────────────────── */
+/* ── 7. The modes, as three frames of one diagram ─────────────────────────── */
 
-.hm-modes { padding: 64px 0 56px; }
+.hm-modes { --hm-gap: 40px; padding: 64px 0 56px; }
+/* The heading and its way onward share a baseline, so the link belongs to the
+   comparison under it rather than trailing off the end of the section. */
+.hm-modes-head, .hm-std-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px;
+}
+.hm-go { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.hm-go svg { color: var(--wk-ink-3); transition: transform 160ms var(--wk-ease); }
+.hm-go:hover svg { transform: translateX(2px); color: var(--wk-ink); }
+
+/* Three equal thirds. The gap is the one the standard round's columns use below,
+   so its dividers fall on the same lines. */
 .hm-mode-list {
-  list-style: none; margin: 20px 0 0; padding: 0;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px;
+  list-style: none; margin: 24px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hm-gap);
 }
-.hm-mode { display: grid; align-content: start; gap: 8px; min-width: 0; }
-.hm-mode-hook { margin: 0; font-size: 16px; font-weight: 600; color: var(--wk-ink); max-width: 36ch; }
-/* The mechanic itself, drawn on the ground: no panel around it. Given the most room
-   in the section, because the drawing explains the mode better than the line under it. */
-.hm-diagram {
-  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
-  height: 164px; margin-bottom: 8px;
+.hm-mode { display: grid; align-content: start; min-width: 0; }
+.hm-mode .hm-mech { margin-top: 22px; }
+.hm-mode-hook { margin: 6px 0 0; font-size: 16px; line-height: 1.45; font-weight: 600; color: var(--wk-ink); max-width: 34ch; }
+
+/*
+ * The frame. Every mode is drawn on this one grid, so heads, NOW, NEXT and the score
+ * sit on the same lines in all three, and the frames are the same height whatever is
+ * in them. Columns: head, trail, NOW, the step to NEXT, NEXT, score. Rows: the column
+ * heads, then three players.
+ */
+.hm-frame {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 56px 14px 40px 26px;
+  grid-template-rows: 14px repeat(3, 48px);
+  column-gap: 8px; row-gap: 12px;
+  align-items: center;
 }
-.hm-head { width: 32px; height: 32px; image-rendering: pixelated; flex-shrink: 0; }
-.hm-live .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--wk-ink); }
-.hm-diagram--fib { flex-direction: column; align-items: stretch; justify-content: center; gap: 14px; }
-.hm-lane { display: flex; align-items: center; gap: 4px; }
-.hm-lane .hm-head { margin-right: 8px; }
+.hm-frame > * { min-width: 0; line-height: 0; }
+.hm-f-head { grid-column: 1; }
+.hm-f-trail { grid-column: 2; }
+.hm-f-now { grid-column: 3; justify-self: center; }
+.hm-f-link { grid-column: 4; }
+.hm-f-next { grid-column: 5; justify-self: center; }
+.hm-f-score { grid-column: 6; justify-self: end; }
+.hm-f-k {
+  grid-row: 1;
+  font-size: 12px; font-weight: 600; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--wk-ink-3);
+}
+.hm-head { display: block; width: 28px; height: 28px; image-rendering: pixelated; }
+
+/* The one line language: 2px, solid where a path is known, dashed where it is not,
+   ending in the wiki's pixel arrowhead. */
+.hm-f-trail, .hm-f-link { position: relative; align-self: stretch; }
+.hm-f-trail::before, .hm-f-link::before {
+  content: ""; position: absolute; top: calc(50% - 1px); height: 2px;
+  left: 0; right: -4px;
+  background: var(--wk-line-hi);
+}
+.hm-f-trail::after, .hm-f-link::after {
+  content: ""; position: absolute; top: calc(50% - 5px); right: -8px; width: 6px; height: 10px;
+  background: var(--wk-ink-3);
+  clip-path: var(--wk-arrowhead);
+}
+.hm-f-link::before { left: -6px; }
+.hm-f-link:not([data-seen])::before {
+  background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
+}
+.hm-f-link:not([data-seen])::after { background: var(--wk-ink-4); }
+
+/* Found items, newest against NOW. Right to left and wrapping into a clipped second
+   line, so a narrow frame drops whole items off the far end, never half of one. */
+.hm-trail {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: row-reverse; flex-wrap: wrap; gap: 4px;
+  height: 36px; overflow: hidden;
+  margin: 6px 12px 0 8px;
+}
 .hm-done { position: relative; line-height: 0; }
-.hm-done .wk-slot { opacity: 0.55; }
+.hm-done .wk-sprite { opacity: 0.5; }
 .hm-tick {
   position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center;
   width: 14px; height: 14px; border-radius: 2px;
   background: var(--wk-s-early); color: oklch(14% 0.02 138);
 }
-.hm-lane .hm-live { margin-left: 8px; line-height: 0; }
-.hm-diagram--run { justify-content: space-between; max-width: 440px; }
-.hm-racers { display: grid; gap: 14px; flex: 1; margin-right: 12px; }
-.hm-racer { position: relative; display: flex; align-items: center; gap: 8px; }
-.hm-track { flex: 1; height: 2px; background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 5px, transparent 5px 9px); }
-.hm-racer[data-first] .hm-track { background: var(--wk-ink); }
-.hm-racer-plus { position: absolute; right: -2px; top: -14px; font-weight: 700; font-size: 16px; color: var(--wk-ink); }
-.hm-diagram--run .hm-live { line-height: 0; }
-.hm-diagram--chain { gap: 10px; }
-.hm-chain-step { position: relative; display: grid; justify-items: center; line-height: 0; }
-.hm-chain-cap {
-  position: absolute; top: calc(100% + 10px); left: 50%; transform: translateX(-50%);
-  font-size: 12.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; color: var(--wk-ink-3);
-}
-.hm-chain-hidden { display: flex; gap: 4px; }
-.hm-chain-to {
-  position: relative; flex: 0 0 22px; height: 2px; background: var(--wk-line-hi);
-}
-.hm-chain-to::after {
-  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
-  background: var(--wk-ink-3);
-  clip-path: var(--wk-arrowhead);
-}
-.hm-next { opacity: 0.8; }
-.hm-hidden { font-weight: 700; font-size: 22px; color: var(--wk-ink-4); }
+.hm-live .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--wk-ink); }
+.hm-hidden { font-weight: 700; font-size: 18px; line-height: 1; color: var(--wk-ink-4); }
+.hm-f-score { font-size: 18px; line-height: 1; color: var(--wk-ink-2); }
+.hm-f-score[data-plus] { color: var(--wk-ink); }
 
-.hm-rules {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px;
-  margin-top: 36px; padding-top: 16px;
-  box-shadow: inset 0 1px 0 var(--wk-line);
-  font-size: 14px; color: var(--wk-ink-3);
+/* RunBattle: the three rows run into one join and one shared item. The row that got
+   there first is the solid line; the others are still on their way. */
+.hm-f-race::before {
+  left: 8px; right: 0;
+  background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
 }
-.hm-rules-k { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
-.hm-rule { display: inline-flex; align-items: center; gap: 6px; }
-.hm-rule-name { font-weight: 700; color: var(--wk-ink); }
-.hm-rule .wk-figure { font-size: 16px; color: var(--wk-ink); }
-.hm-rule-state { font-weight: 700; color: var(--wk-ink-3); }
-.hm-rule[data-on="true"] .hm-rule-state { color: var(--wk-ink); }
+.hm-f-race::after { display: none; }
+.hm-f-race[data-first]::before { right: -4px; background: var(--wk-ink); }
+.hm-f-race[data-first]::after { display: block; background: var(--wk-ink); }
+.hm-f-join {
+  grid-column: 2; justify-self: end; align-self: stretch;
+  width: 2px; margin: 24px 0;
+  background: repeating-linear-gradient(180deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
+}
+
+/* ── The standard round ── */
+
+.hm-std { margin-top: 56px; padding-top: 22px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-std-head .wk-name { font-size: 25px; }
+/* Six columns on the modes' grid, two to a mode: the dividers fall on its gutters
+   and halfway through each third. */
+.hm-std-list {
+  margin: 18px 0 0;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px var(--hm-gap);
+}
+.hm-std-item { position: relative; display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 8px; min-width: 0; }
+.hm-std-item + .hm-std-item::before {
+  content: ""; position: absolute; left: calc(var(--hm-gap) / -2); top: 2px; bottom: 2px; width: 1px;
+  background: var(--wk-line);
+}
+.hm-std-item dt {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 14px; line-height: 1.3; color: var(--wk-ink-3);
+}
+.hm-std-item dd { margin: 0; display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.hm-std-v { font-size: 25px; color: var(--wk-ink); }
+.hm-std-unit { align-self: flex-end; margin-left: -2px; padding-bottom: 2px; font-size: 14px; font-weight: 600; color: var(--wk-ink-3); }
+.hm-std-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; color: var(--wk-ink); }
+.hm-std-state {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3);
+}
+.hm-std-item[data-on="false"] .hm-std-name { color: var(--wk-ink-3); }
+.hm-std-item[data-on="true"] .hm-std-state { color: var(--wk-ink); }
 /* A redstone lamp: lit when the setting is on. Not a control; the page cannot change the server. */
-.hm-lamp { width: 12px; height: 12px; background: var(--wk-slot); box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.6); }
-.hm-rule[data-on="true"] .hm-lamp {
+.hm-lamp { flex-shrink: 0; width: 12px; height: 12px; background: var(--wk-slot); box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.6); }
+.hm-std-item[data-on="true"] .hm-lamp {
   background: oklch(86% 0.13 85);
-  box-shadow: inset -2px -2px 0 oklch(62% 0.13 60), 0 0 10px oklch(86% 0.13 85 / 0.55);
+  box-shadow: inset -2px -2px 0 oklch(62% 0.13 60);
 }
-.hm-rules-links { display: inline-flex; gap: 18px; margin-left: auto; white-space: nowrap; font-size: 14px; }
 
 /* ── 8. Where next ────────────────────────────────────────────────────────── */
 
@@ -593,10 +658,10 @@
   .hm-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
   .hm-index-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hm-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
-  .hm-mode-list { grid-template-columns: 1fr; gap: 36px; }
-  .hm-mode { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
-  .hm-diagram { height: auto; padding: 8px 0 12px; }
-  .hm-diagram--chain { padding-bottom: 34px; }
+  /* Stacked, the frames keep one width so they still compare as a set. */
+  .hm-mode-list { grid-template-columns: minmax(0, 440px); gap: 44px; }
+  .hm-std-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hm-std-item:nth-child(3n + 1)::before { display: none; }
 }
 
 /* The round clock turns on its side below 900px: the flags become a descending list on
@@ -636,7 +701,12 @@
   .hm-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hm-rung:nth-child(odd) { padding-left: 0; box-shadow: none; }
   .hm-rung:nth-child(even) { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
-  .hm-rules-links { margin-left: 0; }
+}
+@media (max-width: 560px) {
+  .hm-std-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 32px; }
+  .hm-std-item + .hm-std-item::before { left: -16px; }
+  .hm-std-item:nth-child(3n + 1)::before { display: block; }
+  .hm-std-item:nth-child(odd)::before { display: none; }
 }
 
 /* ── Calm ─────────────────────────────────────────────────────────────────── */

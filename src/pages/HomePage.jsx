@@ -12,7 +12,6 @@ import {
     ALL_POOL, ATLAS_POOL_SIZE, PINNED_COUNT, POOL_BY_STAGE, POOL_SETTINGS,
     itemName, pick, regionItems, regionSlots, stageOf, tagsOf, whereOf,
 } from '../wiki/atlas.js';
-import { ITEM_TAGS } from '../wiki/atlas.data.js';
 import { DEALABLE, countLabel, dealableFrom, routesFor } from '../wiki/routes.js';
 import { FIND_RARITY, GAUGE, REGION, REGIONS, ROUND, STAGES, TAGS } from '../wiki/tokens.js';
 import { PAGES, useGo } from '../wiki/pages.js';
@@ -758,11 +757,40 @@ function World({ go, calm }) {
     );
 }
 
-/* ── 7. The modes, each drawn as its own mechanic ────────────────────────── */
+/* ── 7. The modes, as three frames of one diagram ────────────────────────────
+ * One rule, three ways to play it, so the three drawings are one drawing with one
+ * thing changed. Every frame is the same grid: the same three players on the same
+ * three rows, their found items trailing behind them, the item they hunt NOW in one
+ * column, what comes NEXT in the column after it, the score at the end. Read across,
+ * the difference between the modes is the difference between the frames:
+ *
+ *   ForceItemBattle  each row its own items, next unknown       ?  per row
+ *   RunBattle        the rows converge on ONE item, first scores
+ *   ForceChain       the same rows as ForceItemBattle, next shown  item per row
+ *
+ * *These were three unrelated drawings, and the reason they are not is worth keeping.*
+ * An inventory with ticks, a race of lines and a NOW / NEXT / ? belt each explained
+ * its own mode, but side by side they read as three different games. The owner asked
+ * for the comparison instead (Sept 2026). The belt's ? survives as ForceItemBattle's
+ * NEXT column: that the next item is hidden there is exactly what ForceChain changes.
+ *
+ * The draw is truthful to the plugin (ForceItemAssignment): in RunBattle one seeded
+ * sequence serves every player; otherwise each draws privately, and ForceChain only
+ * shows the next item the plugin always holds anyway.
+ */
 
 const HEADS = ['MHF_Steve', 'MHF_Alex', 'MHF_Villager'];
+const LANES = [0, 1, 2];
+/* Scores for the still frame. Uneven on purpose: each row moves at its own pace. */
+const FIB_SCORES = [5, 2, 4];
+const CHAIN_SCORES = [3, 4, 1];
+const RUN_WINNER = 1;
+const TRAIL = 4;
 
-function Head({ name, size = 32 }) {
+const onRow = (i) => ({ gridRow: i + 2 });
+const ALL_ROWS = { gridRow: '2 / 5' };
+
+function Head({ name, size = 28 }) {
     return <img className="hm-head" src={MC_HEAD(name)} alt="" width={size} height={size} loading="lazy" />;
 }
 
@@ -772,82 +800,132 @@ const Tick = () => (
     </span>
 );
 
-function ModeFIB({ items }) {
-    // Two players, each on a sequence of their own: found items behind, the current one lit.
-    return (
-        <div className="hm-diagram hm-diagram--fib" aria-hidden="true">
-            {[0, 1].map((p) => (
-                <div key={p} className="hm-lane">
-                    <Head name={HEADS[p]} />
-                    {items.slice(p * 4, p * 4 + 3).map((m) => (
-                        <span key={m} className="hm-done"><ItemSlot material={m} size={44} tip={false} marks={false} /><Tick /></span>
-                    ))}
-                    <span className="hm-live"><ItemSlot material={items[p * 4 + 3]} size={56} tip={false} /></span>
-                </div>
-            ))}
-        </div>
-    );
-}
+const Hidden = ({ style }) => (
+    <span className="hm-f-next" style={style}><span className="wk-slot hm-hidden" style={{ '--slot': '40px' }}>?</span></span>
+);
 
-function ModeRun({ items }) {
-    // One item for everyone; the first to it scores, the rest reset.
+/** Found items, newest first: the row lays them out right to left and drops whole ones that do not fit. */
+function Trail({ row, items }) {
     return (
-        <div className="hm-diagram hm-diagram--run" aria-hidden="true">
-            <div className="hm-racers">
-                {HEADS.map((h, i) => (
-                    <span key={h} className="hm-racer" data-first={i === 1 || undefined}>
-                        <Head name={h} />
-                        <span className="hm-track" />
-                        {i === 1 && <span className="hm-racer-plus">+1</span>}
-                    </span>
+        <span className="hm-f-trail" style={onRow(row)}>
+            <span className="hm-trail">
+                {items.map((m) => (
+                    <span key={m} className="hm-done"><ItemSlot material={m} size={36} tip={false} marks={false} /><Tick /></span>
                 ))}
-            </div>
-            <span className="hm-live"><ItemSlot material={items[0]} size={72} tip={false} /></span>
+            </span>
+        </span>
+    );
+}
+
+/** The frame every mode is drawn in: the column heads and the three players. */
+function Frame({ kind, children }) {
+    return (
+        <div className={`hm-frame hm-frame--${kind}`} aria-hidden="true">
+            <span className="hm-f-k hm-f-now">Now</span>
+            <span className="hm-f-k hm-f-next">Next</span>
+            {HEADS.map((h, i) => <span key={h} className="hm-f-head" style={onRow(i)}><Head name={h} /></span>)}
+            {children}
         </div>
     );
 }
 
-function ModeChain({ items }) {
-    // The current item and the next one are both visible; the rest are not.
+/** ForceItemBattle and ForceChain are the same frame; only whether NEXT is shown differs. */
+function ModeOwn({ kind, items, scores, showNext }) {
+    const per = TRAIL + 2;
     return (
-        <div className="hm-diagram hm-diagram--chain" aria-hidden="true">
-            <span className="hm-chain-step">
-                <span className="hm-live"><ItemSlot material={items[0]} size={64} tip={false} /></span>
-                <span className="hm-chain-cap">Now</span>
-            </span>
-            <span className="hm-chain-to" />
-            <span className="hm-chain-step">
-                <span className="hm-next"><ItemSlot material={items[1]} size={56} tip={false} marks={false} /></span>
-                <span className="hm-chain-cap">Next</span>
-            </span>
-            <span className="hm-chain-to" />
-            <span className="hm-chain-step">
-                <span className="hm-chain-hidden">
-                    <span className="wk-slot hm-hidden" style={{ '--slot': '48px' }}>?</span>
-                    <span className="wk-slot hm-hidden" style={{ '--slot': '48px' }}>?</span>
-                </span>
-                <span className="hm-chain-cap">Unknown</span>
-            </span>
+        <Frame kind={kind}>
+            {LANES.map((i) => {
+                const own = items.slice(i * per, i * per + per);
+                return (
+                    <React.Fragment key={i}>
+                        <Trail row={i} items={own.slice(2, 2 + Math.min(TRAIL, scores[i]))} />
+                        <span className="hm-f-now hm-live" style={onRow(i)}><ItemSlot material={own[0]} size={48} tip={false} marks={false} /></span>
+                        <span className="hm-f-link" data-seen={showNext || undefined} style={onRow(i)} />
+                        {showNext
+                            ? <span className="hm-f-next" style={onRow(i)}><ItemSlot material={own[1]} size={40} tip={false} marks={false} /></span>
+                            : <Hidden style={onRow(i)} />}
+                        <span className="hm-f-score wk-figure" style={onRow(i)}>{scores[i]}</span>
+                    </React.Fragment>
+                );
+            })}
+        </Frame>
+    );
+}
+
+function ModeRun({ item }) {
+    return (
+        <Frame kind="run">
+            {LANES.map((i) => <span key={i} className="hm-f-trail hm-f-race" data-first={i === RUN_WINNER || undefined} style={onRow(i)} />)}
+            <span className="hm-f-join" style={ALL_ROWS} />
+            <span className="hm-f-now hm-live" style={ALL_ROWS}><ItemSlot material={item} size={56} tip={false} marks={false} /></span>
+            <span className="hm-f-link" style={ALL_ROWS} />
+            <Hidden style={ALL_ROWS} />
+            <span className="hm-f-score wk-figure" data-plus="true" style={onRow(RUN_WINNER)}>+1</span>
+        </Frame>
+    );
+}
+
+/* ── The standard round ──────────────────────────────────────────────────────
+ * How a round is set up, as a line of settings rather than a sentence. The pool's
+ * own counts (how many items the Nether adds) belong to Item Pools, not here.
+ */
+function Standard({ go }) {
+    const { hard, extreme, end, backpackSize } = POOL_SETTINGS;
+    const { minutes, jokers } = ROUND;
+    const toggles = [
+        { name: 'Hard', does: 'Nether items', on: hard, glyph: 'NETHER' },
+        { name: 'End', does: 'End items', on: end, glyph: 'END' },
+        { name: 'Extreme', does: 'Extreme items', on: extreme, glyph: 'EXTREME' },
+    ];
+    return (
+        <div className="hm-std" role="group" aria-labelledby="hm-std-title">
+            <div className="hm-std-head">
+                <h3 id="hm-std-title" className="wk-name">McPlayHD.net standard round</h3>
+                <a className="wk-link hm-go" href="/settings" onClick={go('settings')}>Every setting<ArrowRight size={14} aria-hidden="true" /></a>
+            </div>
+            <dl className="hm-std-list">
+                <div className="hm-std-item">
+                    <dt>Round length</dt>
+                    <dd><span className="wk-figure hm-std-v">{minutes}</span><span className="hm-std-unit">min</span></dd>
+                </div>
+                {toggles.map((t) => (
+                    <div key={t.name} className="hm-std-item" data-on={t.on}>
+                        <dt><TagGlyph tag={t.glyph} size={11} />{t.does}</dt>
+                        <dd>
+                            <span className="hm-lamp" aria-hidden="true" />
+                            <span className="hm-std-name">{t.name}</span>
+                            <span className="hm-std-state">{t.on ? 'On' : 'Off'}</span>
+                        </dd>
+                    </div>
+                ))}
+                <div className="hm-std-item">
+                    <dt>Jokers</dt>
+                    <dd><span className="wk-figure hm-std-v">{jokers}</span></dd>
+                </div>
+                <div className="hm-std-item">
+                    <dt>Backpack slots</dt>
+                    <dd><span className="wk-figure hm-std-v">{backpackSize}</span></dd>
+                </div>
+            </dl>
         </div>
     );
 }
 
 function Modes({ go }) {
-    const items = usePicks(DEALABLE_BY_STAGE.EARLY, 8);
-    const run = usePicks(DEALABLE_BY_STAGE.MID, 1);
-    const chain = usePicks(DEALABLE, 2);
-    const { hard, extreme, end, backpackSize } = POOL_SETTINGS;
-    const { minutes, jokers } = ROUND;
-    const tagged = (t) => Object.values(ITEM_TAGS).filter((tags) => tags.includes(t)).length;
-    const rules = [
-        { name: 'Hard', does: `Nether-tagged items${hard ? `, ${fmt(tagged('NETHER'))}` : ''}`, on: hard, glyph: 'NETHER' },
-        { name: 'End', does: `End-tagged items${end ? `, ${fmt(tagged('END'))}` : ''}`, on: end, glyph: 'END' },
-        { name: 'Extreme', does: 'Extreme-tagged items', on: extreme, glyph: 'EXTREME' },
-    ];
-    const diagrams = { fib: <ModeFIB items={items} />, run: <ModeRun items={run} />, chain: <ModeChain items={chain} /> };
+    const fib = usePicks(DEALABLE_BY_STAGE.EARLY, 3 * (TRAIL + 2));
+    const chain = usePicks(DEALABLE_BY_STAGE.MID, 3 * (TRAIL + 2));
+    const [run] = usePicks(DEALABLE_BY_STAGE.MID, 1);
+    const diagrams = {
+        fib: <ModeOwn kind="fib" items={fib} scores={FIB_SCORES} />,
+        run: <ModeRun item={run} />,
+        chain: <ModeOwn kind="chain" items={chain} scores={CHAIN_SCORES} showNext />,
+    };
     return (
         <section className="wk-wrap hm-modes" aria-labelledby="hm-modes-title">
-            <h2 id="hm-modes-title" className="wk-h2">Three ways to play</h2>
+            <div className="hm-modes-head">
+                <h2 id="hm-modes-title" className="wk-h2">Three ways to play</h2>
+                <a className="wk-link hm-go" href="/gameplay" onClick={go('gameplay')}>Modes in detail<ArrowRight size={14} aria-hidden="true" /></a>
+            </div>
             <ul className="hm-mode-list">
                 {MODES.map((m) => (
                     <li key={m.key} className="hm-mode">
@@ -857,25 +935,7 @@ function Modes({ go }) {
                     </li>
                 ))}
             </ul>
-            <div className="hm-rules" aria-label="The standard round">
-                <span className="hm-rules-k">Standard round</span>
-                <span className="hm-rule"><span className="wk-figure">{minutes}</span> <span className="hm-rule-does">minutes</span></span>
-                {rules.map((r) => (
-                    <span key={r.name} className="hm-rule" data-on={r.on}>
-                        <span className="hm-lamp" aria-hidden="true" />
-                        <TagGlyph tag={r.glyph} size={11} />
-                        <span className="hm-rule-name">{r.name}</span>
-                        <span className="hm-rule-does">{r.does}</span>
-                        <span className="hm-rule-state">{r.on ? 'on' : 'off'}</span>
-                    </span>
-                ))}
-                <span className="hm-rule"><span className="hm-rule-name">Jokers</span> <span className="wk-figure">{jokers}</span></span>
-                <span className="hm-rule"><span className="hm-rule-name">Backpack</span> <span className="wk-figure">{backpackSize}</span> <span className="hm-rule-does">slots</span></span>
-                <span className="hm-rules-links">
-                    <a className="wk-link" href="/gameplay" onClick={go('gameplay')}>Modes in detail</a>
-                    <a className="wk-link" href="/settings" onClick={go('settings')}>Every setting</a>
-                </span>
-            </div>
+            <Standard go={go} />
         </section>
     );
 }
