@@ -1,0 +1,114 @@
+/*
+ * Your screen during a round (RoundHud.jsx). The screen is a container 427 Minecraft
+ * GUI pixels wide; --g is one of them, so every piece sits where the game draws it at
+ * any width: the bossbar two pixels from the top, the hotbar on the bottom edge, the
+ * hearts and hunger 39 up, the action bar 68 up, chat from 48 up. The HUD sprites are
+ * vanilla's own (public/fib-entities/hud). Text is white with the game's hard shadow.
+ *
+ * A piece the legend points at is outlined in white, the wiki's light for "this one".
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.hud { margin: 0; display: grid; gap: 14px; }
+.hud-screen {
+  position: relative; container-type: inline-size; aspect-ratio: 427 / 240; overflow: hidden;
+  border-radius: 2px; background: var(--wk-deep); box-shadow: inset 0 0 0 1px var(--wk-line);
+  --g: calc(100cqw / 427);
+  font: 400 calc(7.6 * var(--g)) / calc(9 * var(--g)) var(--wk-font-text); color: var(--wk-hud-text);
+  text-shadow: var(--g) var(--g) 0 oklch(0% 0 0 / 0.55);
+}
+.hud-screen > * { --g: calc(100cqw / 427); }
+.hud-world { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hud-night { position: absolute; inset: 0; background: oklch(14% 0.04 265); pointer-events: none; transition: opacity 400ms linear; }
+/* The scenery is a dusk; by day the sky lifts toward blue. */
+.hud-day { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--wk-hud-sky-high), var(--wk-hud-sky-low) 60%, transparent 85%); mix-blend-mode: screen; transition: opacity 400ms linear; }
+.hud-seg, .hud-line { display: inline; white-space: pre; }
+.hud-icon { display: inline-block; width: calc(9 * var(--g)); height: calc(9 * var(--g)); vertical-align: calc(-1.5 * var(--g)); image-rendering: pixelated; filter: drop-shadow(calc(0.6 * var(--g)) calc(0.6 * var(--g)) 0 oklch(0% 0 0 / 0.4)); }
+.hud-screen [data-lit] { outline: calc(1 * var(--g)) solid var(--wk-hud-text); outline-offset: calc(2 * var(--g)); }
+
+/* The plugin writes the item and the clock in gradients; as everywhere on the wiki, a
+   word takes its gradient's middle as one ink (--wk-bossbar, --wk-hud-clock). */
+.hud-grad { font-weight: 700; color: var(--wk-bossbar); }
+.hud-grad2 { font-weight: 700; color: var(--wk-hud-clock); }
+
+.hud-bossbar { position: absolute; left: 50%; top: calc(2 * var(--g)); transform: translateX(-50%); display: grid; justify-items: center; gap: calc(2 * var(--g)); }
+.hud-bossbar-name { white-space: nowrap; }
+.hud-bossbar-bar {
+  display: block; width: calc(182 * var(--g)); height: calc(5 * var(--g));
+  background-color: var(--wk-hud-text);
+  background-image: linear-gradient(90deg, transparent calc(100% - var(--g)), oklch(0% 0 0 / 0.3) calc(100% - var(--g)));
+  background-size: calc((100% + var(--g)) / 6) 100%;
+  box-shadow: 0 0 0 var(--g) oklch(0% 0 0 / 0.4);
+}
+
+.hud-title { position: absolute; left: 50%; top: calc(76 * var(--g)); transform: translateX(-50%); display: grid; justify-items: center; white-space: nowrap; animation: hud-in 300ms ease-out both; }
+.hud-title-big { display: block; font-size: calc(36 * var(--g)); line-height: 1; text-shadow: calc(4 * var(--g)) calc(4 * var(--g)) 0 oklch(0% 0 0 / 0.55); }
+.hud-title-sub { display: block; font-size: calc(18 * var(--g)); line-height: 1.2; text-shadow: calc(2 * var(--g)) calc(2 * var(--g)) 0 oklch(0% 0 0 / 0.55); }
+@keyframes hud-in { from { opacity: 0; } }
+
+.hud-chatbox {
+  display: grid; align-content: end; gap: 1px; min-height: calc(4 * 1.5em + 16px);
+  padding: 8px 10px; border-radius: 2px; background: oklch(0% 0 0 / 0.5);
+  font: 400 14px/1.5 var(--wk-font-text); color: var(--wk-hud-text); text-shadow: 0.09em 0.09em 0 oklch(0% 0 0 / 0.6);
+}
+.hud-chatbox[data-lit] { outline: 2px solid var(--wk-hud-text); outline-offset: 2px; }
+.hud-chat-line { display: block; animation: hud-in 300ms ease-out both; }
+.hud-chat-line .hud-seg { white-space: normal; }
+.hud-chatbox .hud-icon { width: 16px; height: 16px; vertical-align: -3px; filter: none; }
+
+.hud-actionbar { position: absolute; left: 50%; bottom: calc(59 * var(--g)); transform: translateX(-50%); white-space: nowrap; }
+
+.hud-bars { position: absolute; left: 50%; bottom: 0; width: calc(182 * var(--g)); height: calc(40 * var(--g)); transform: translateX(-50%); pointer-events: none; }
+.hud-hearts, .hud-food { position: absolute; bottom: calc(30 * var(--g)); display: flex; }
+.hud-hearts { left: 0; }
+.hud-food { right: 0; flex-direction: row-reverse; }
+.hud-hearts i, .hud-food i { display: block; width: calc(9 * var(--g)); height: calc(9 * var(--g)); margin-right: calc(-1 * var(--g)); background-size: 100% 100%; image-rendering: pixelated; }
+.hud-food i { margin: 0 0 0 calc(-1 * var(--g)); }
+.hud-hearts i { background-image: url(/fib-entities/hud/heart_full.png), url(/fib-entities/hud/heart_container.png); }
+.hud-food i { background-image: url(/fib-entities/hud/food_full.png), url(/fib-entities/hud/food_empty.png); }
+.hud-xp { position: absolute; left: 0; bottom: calc(24 * var(--g)); width: 100%; height: calc(5 * var(--g)); background: url(/fib-entities/hud/experience_bar_background.png) 0 0 / 100% 100%; image-rendering: pixelated; }
+
+.hud-hotbar { position: absolute; left: 50%; bottom: 0; width: calc(182 * var(--g)); height: calc(22 * var(--g)); transform: translateX(-50%); background: url(/fib-entities/hud/hotbar.png) 0 0 / 100% 100%; image-rendering: pixelated; }
+.hud-hot-item { position: absolute; left: calc((3 + var(--i) * 20) * var(--g)); top: calc(3 * var(--g)); width: calc(16 * var(--g)); height: calc(16 * var(--g)); }
+.hud-hot-item img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.hud-count { position: absolute; right: calc(-1 * var(--g)); bottom: calc(-2 * var(--g)); font-size: calc(9 * var(--g)); line-height: 1; }
+.hud-hot-sel { position: absolute; left: calc(-1 * var(--g)); top: calc(-1 * var(--g)); width: calc(24 * var(--g)); height: calc(23 * var(--g)); background: url(/fib-entities/hud/hotbar_selection.png) 0 0 / 100% 100%; image-rendering: pixelated; }
+
+/* Another player, standing in the world. */
+/* The tab list, over everything, as Tab shows it. */
+.hud-tab {
+  position: absolute; left: 50%; top: calc(8 * var(--g)); transform: translateX(-50%);
+  display: grid; justify-items: center; gap: calc(3 * var(--g)); padding: calc(3 * var(--g)) calc(4 * var(--g)) calc(4 * var(--g));
+  background: oklch(0% 0 0 / 0.58); min-width: calc(190 * var(--g));
+}
+.hud-tab-logo { display: flex; height: calc(35 * var(--g)); }
+.hud-tab-logo img { height: 100%; width: auto; margin-left: calc(-1 * var(--g)); image-rendering: pixelated; }
+.hud-tab-rows { display: grid; gap: var(--g); width: 100%; }
+.hud-tab-row { display: flex; align-items: center; gap: calc(2 * var(--g)); padding-right: var(--g); background: oklch(100% 0 0 / 0.13); }
+.hud-tab-face {
+  width: calc(8 * var(--g)); height: calc(8 * var(--g)); flex-shrink: 0;
+  background-size: 800% 800%; background-repeat: no-repeat; image-rendering: pixelated;
+  background-position: 71.4286% 14.2857%, 14.2857% 14.2857%;
+}
+.hud-ping {
+  margin-left: auto; width: calc(10 * var(--g)); height: calc(7 * var(--g)); flex-shrink: 0; background: var(--wk-hud-ping);
+  clip-path: polygon(0 80%, 16% 80%, 16% 100%, 20% 100%, 20% 60%, 36% 60%, 36% 100%, 40% 100%, 40% 40%, 56% 40%, 56% 100%, 60% 100%, 60% 20%, 76% 20%, 76% 100%, 80% 100%, 80% 0, 96% 0, 96% 100%, 0 100%);
+}
+.hud-tab-foot { display: grid; justify-items: center; }
+.hud-tab-foot > .hud-line { display: block; min-height: calc(9 * var(--g)); }
+
+.hud-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 16px; }
+.hud-scrub { flex: 1 1 280px; }
+
+.hud-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 24px; }
+.hud-legend li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 2px; cursor: default; }
+.hud-legend li[data-lit], .hud-legend li:focus-visible { background: var(--wk-panel); outline: none; }
+.hud-legend-name { font-size: 16px; font-weight: 700; color: var(--wk-ink); }
+.hud-legend-text { font-size: 14px; line-height: 1.45; color: var(--wk-ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-title, .hud-chat-line { animation: none; }
+  .hud-night, .hud-day { transition: none; }
+}
+html[data-saver="on"] :is(.hud-title, .hud-chat-line) { animation: none; }

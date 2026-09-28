@@ -1,0 +1,299 @@
+/*
+ * The route board (RouteMap.jsx). One grid, one set of columns:
+ *
+ *   label | sources | track | what you use, then a track | collector | the item
+ *
+ * Every way to the item is a subgrid row of it, so every source ends, every tool
+ * stands and every track meets the collector at the same x on every lane. The
+ * collector runs down the lanes and hands on to the item, which is drawn ONCE, in the
+ * last column, centred on the lanes it collects. Skip is a second list in the row
+ * under the board; its track runs past the collector's column into its own "?".
+ *
+ * Solid tracks are Minecraft, dashed tracks are the plugin's rules. An arrowhead
+ * only where a track arrives at a slot. Square ends and pixel arrowheads, never
+ * curves, never cards.
+ *
+ * The board spans its whole column. The spare width goes into the nodes (a tool's
+ * name beside it) and whatever is left falls between the label and the sources,
+ * which is why the label column is the only flexible one. Every other column is a
+ * fixed width, so the board is the same shape for every item, not only across one
+ * item's lanes: it depends on the screen, never on the deal.
+ *
+ * Vertical rhythm: every cell carries the lane's top padding (pad-top), and every
+ * track, junction and label is placed from it, so a 56px slot's centre is the line
+ * the whole lane is drawn on. Sizes here match the ones RouteMap.jsx passes: 56px for
+ * sources and tools, 72px for the item, 64px for the "?". Plain words in comments:
+ * no backticks.
+ */
+
+.rt {
+  --pad-top: 8px;
+  --bus-x: 6px;          /* where the collector stands inside its column */
+  display: grid;
+  grid-template-columns: [lab] minmax(136px, 1fr) [src] 222px [t1] 32px [act] 208px [bus] 28px [out] 148px [end];
+  min-width: 0;
+}
+
+.rt-lanes { display: grid; grid-template-columns: subgrid; list-style: none; margin: 0; padding: 0; }
+.rt-ways { grid-column: lab / out; grid-row: 1; }
+.rt-skip { grid-column: lab / end; grid-row: 2; }
+.rt-lane { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: start; transition: opacity 160ms var(--wk-ease); }
+.rt-cell { position: relative; min-width: 0; padding-block: var(--pad-top) 10px; }
+
+/* The label column: the lane's name in the interface face, with a small mark for its kind. */
+.rt-label {
+  grid-column: lab;
+  display: flex; align-items: flex-start; gap: 9px;
+  padding-top: calc(var(--pad-top) + 20px);
+  font-size: 13px; font-weight: 700; line-height: 1.25; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--wk-ink-2);
+  transition: color 160ms var(--wk-ease);
+}
+.rt-label-text { display: grid; }
+.rt-label-meta { margin-top: 3px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--wk-ink-3); }
+.rt-mark { flex-shrink: 0; width: 8px; height: 8px; margin-top: 3px; background: var(--wk-ink-3); transition: background 160ms var(--wk-ease), box-shadow 160ms var(--wk-ease); }
+.rt-rule .rt-mark { background: transparent; box-shadow: inset 0 0 0 2px var(--wk-ink-3); }
+
+/* ── The item: once, where every way arrives ─────────────────────────────── */
+
+.rt-dest {
+  grid-column: out; grid-row: 1; align-self: center;
+  display: grid; justify-items: start; gap: 8px;
+  padding: 12px 0;
+  transition: opacity 160ms var(--wk-ease);
+}
+.rt-dest-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.05; color: var(--wk-ink); text-wrap: balance; }
+.rt-dest-stage { font-size: 14px; line-height: 1.35; color: var(--wk-ink-3); }
+.rt-dest-slot { position: relative; line-height: 0; }
+.rt-dest .wk-slot {
+  background:
+    radial-gradient(circle at 50% 62%, color-mix(in oklch, var(--region, var(--wk-ink-3)) 38%, transparent), transparent 70%),
+    var(--wk-slot);
+  transition: box-shadow 160ms var(--wk-ease);
+}
+/* The collector hands on to the item: one track, one arrowhead, the only one into it. */
+.rt-dest-slot::before {
+  content: ""; position: absolute; top: calc(50% - 1px); height: 2px;
+  right: calc(100% + 4px); width: calc(28px - var(--bus-x) - 6px);
+  background: var(--wk-ink-3);
+  transition: background 160ms var(--wk-ease);
+}
+.rt-dest-slot::after {
+  content: ""; position: absolute; top: calc(50% - 5px); right: calc(100% + 3px); width: 6px; height: 10px;
+  background: var(--wk-ink-2);
+  clip-path: var(--wk-arrowhead);
+  transition: background 160ms var(--wk-ease);
+}
+
+/* ── Sources ─────────────────────────────────────────────────────────────── */
+
+.rt-src {
+  --lane-slot: 56px;   /* the slot the lane's line is centred on */
+  --src-slot: 56px;    /* this lane's source slots */
+  grid-column: src; display: flex; justify-content: flex-start; align-items: flex-start; gap: 4px;
+}
+/* The three recipes with more ingredients than the column holds at 56px. */
+.rt-src[data-n="4"] { --src-slot: 38px; }
+.rt-src[data-n="5"] { --src-slot: 32px; gap: 2px; }
+.rt-src[data-n] .wk-slot { --slot: var(--src-slot) !important; }
+.rt-src[data-n] > .rt-node { margin-top: calc((var(--lane-slot) - var(--src-slot)) / 2); }
+.rt-src[data-n] .rt-op { height: var(--src-slot); margin-top: calc((var(--lane-slot) - var(--src-slot)) / 2); padding: 0; }
+/* The sources start at the same x on every lane, so a lane with fewer of them than
+   the widest leaves room at the end of its cell: the track starts in that room, right
+   after its last source, and runs on into the track column. */
+.rt-src::after {
+  content: ""; flex: 1 0 0; align-self: flex-start;
+  height: 2px; margin: 27px 0 0 6px;
+  background: var(--wk-line-hi);
+  transition: background 160ms var(--wk-ease);
+}
+.rt-node { display: grid; justify-items: start; gap: 6px; flex-shrink: 0; }
+/* The last source is as wide as its slot, not its name, so the track after it starts
+   at the slot's edge on every lane. Sized to the name, "Inventory or backpack" (a full
+   84px caption) started its track about 28px later than a lane whose source had a
+   short name or none, and the owner saw that lane sit further right on every deal.
+   The name runs on under the track; the track is at the slot's middle, the name below
+   the slot, so they never meet. */
+.rt-src > .rt-node:last-child { width: var(--src-slot); }
+.rt-src > .rt-node:last-child > .rt-cap { width: max-content; }
+/* The slot sits at the node's left edge and its name reads from there. A centred slot
+   inside a caption-wide node started a few pixels further right on every lane with a
+   longer name, which is exactly the misalignment the fixed columns exist to prevent. */
+.rt-ing { position: relative; line-height: 0; }
+/* Two named sources side by side: room between them so their names do not run together. */
+.rt-src > .rt-node + .rt-node { margin-left: 8px; }
+.rt-op, .rt-more { height: 56px; display: grid; place-items: center; font-weight: 700; color: var(--wk-ink-3); }
+.rt-op { font-size: 16px; padding: 0 2px; }
+.rt-more { font-size: 14px; padding-right: 4px; }
+.rt-cap { max-width: 84px; font-size: 12.5px; line-height: 1.25; text-align: left; color: var(--wk-ink-2); text-wrap: balance; }
+.rt-odds { display: block; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink); }
+.rt-skipped { display: block; line-height: 0; opacity: 0.45; }
+
+/* ── What you use: a slot and its name, then the track on toward the item ─── */
+
+.rt-act { grid-column: act; display: flex; align-items: flex-start; }
+.rt-tool { flex: none; display: flex; align-items: center; gap: 12px; height: 56px; }
+.rt-tool-text { display: grid; gap: 2px; max-width: 112px; }
+.rt-tool-name { font-size: 14px; font-weight: 600; line-height: 1.25; color: var(--wk-ink); }
+.rt-tool-meta { font-size: 12.5px; line-height: 1.3; color: var(--wk-ink-3); }
+.rt-rule-first .rt-tool-meta { font-weight: 700; color: var(--wk-ink); }
+.rt-check { color: var(--found, var(--wk-s-early)); }
+
+/* ── Skip's own end: the next random item ────────────────────────────────── */
+
+.rt-out { grid-column: out; display: flex; justify-content: flex-start; }
+.rt-out .rt-node { justify-items: center; }
+.rt-out .rt-cap { text-align: center; }
+.rt-unknown {
+  margin-top: -4px;
+  font-weight: 700; font-size: 22px; color: var(--wk-ink-3);
+  outline: 2px dashed var(--wk-ink-4); outline-offset: -8px;
+}
+
+/* ── Tracks ──────────────────────────────────────────────────────────────── *
+ * The first runs from the sources to the tool; the second from the end of the
+ * tool's name to the collector, a step brighter because the item is closer.
+ * Both are fixed or content-sized: neither stretches to fill a wide screen.
+ */
+
+.rt-t1, .rt-bus { padding: 0; }
+/* Placed by name, not by order: on phones every cell shares the label's row. */
+.rt-t1 { grid-column: t1; }
+.rt-bus { grid-column: bus; }
+/* Stretched to the lane's full height, so its stretch of the collector reaches the next lane. */
+.rt-bus { align-self: stretch; }
+.rt-line {
+  position: absolute; top: calc(var(--pad-top) + 27px); height: 2px;
+  background: var(--wk-line-hi);
+  transition: background 160ms var(--wk-ease);
+}
+.rt-t1 .rt-line { left: 0; right: 5px; }
+.rt-fill {
+  position: relative; top: auto;
+  flex: 1 0 28px; margin: 27px 0 0 12px;
+  background: var(--wk-ink-3);
+}
+.rt-bus .rt-line { left: 0; right: calc(100% - var(--bus-x) - 2px); background: var(--wk-ink-3); }
+.rt-skip .rt-bus .rt-line { right: 5px; }
+.rt-line[data-arrive]::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3);
+  clip-path: var(--wk-arrowhead);
+  transition: background 160ms var(--wk-ease);
+}
+.rt-bus .rt-line[data-arrive]::after { background: var(--wk-ink-2); }
+
+/* A route with no tool passes through a junction where the tool's slot would stand:
+   no slot, so no arrowhead into it. */
+.rt-act--pass { display: block; padding: 0; }
+.rt-act--pass .rt-line { left: 0; right: 0; background: linear-gradient(90deg, var(--wk-line-hi) 0 28px, var(--wk-ink-3) 28px); }
+.rt-lane:has(.rt-act--pass) .rt-t1 .rt-line { right: 0; }
+.rt-junction {
+  position: absolute; left: 23px; top: calc(var(--pad-top) + 23px); width: 10px; height: 10px;
+  background: var(--wk-ink-3);
+  box-shadow: 0 0 0 3px var(--wk-ground);
+  transition: background 160ms var(--wk-ease);
+}
+
+/* The plugin's rules: dashed, and set apart under a rule. */
+.rt-rule .rt-line, .rt-rule .rt-src::after { background: repeating-linear-gradient(90deg, var(--wk-ink-3) 0 4px, transparent 4px 8px); }
+.rt-rule .rt-fill, .rt-rule .rt-bus .rt-line { background: repeating-linear-gradient(90deg, var(--wk-ink-2) 0 4px, transparent 4px 8px); }
+.rt-rule-first { --pad-top: 26px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.rt-skip .rt-lane { --pad-top: 18px; }
+
+/* ── The collector ───────────────────────────────────────────────────────── *
+ * Each way draws its stretch of it in its own collector cell, so it runs unbroken
+ * from the first lane's line to the last one's. Solid through Minecraft's routes,
+ * dashed where the rule joins it.
+ */
+
+.rt-ways .rt-bus::before {
+  content: ""; position: absolute; left: var(--bus-x); top: 0; bottom: 0; width: 2px;
+  background: var(--wk-ink-3);
+}
+.rt-ways .rt-lane:first-child .rt-bus::before { top: calc(var(--pad-top) + 27px); }
+.rt-ways .rt-rule-first .rt-bus::before {
+  bottom: auto; height: calc(var(--pad-top) + 29px);
+  background: repeating-linear-gradient(to bottom, var(--wk-ink-2) 0 4px, transparent 4px 8px);
+}
+
+/* ── Tracing one lane ────────────────────────────────────────────────────── *
+ * Pointing at a lane lights it from start to finish in white light and lets the
+ * others fall back, so one route can be read end to end. A way lights the item it
+ * arrives at; Skip lights its "?" and lets the item fall back with the others.
+ */
+
+.rt:has(.rt-lane:hover) .rt-lane:not(:hover),
+.rt:has(.rt-skip .rt-lane:hover) .rt-dest { opacity: 0.4; }
+.rt-lane:hover .rt-label { color: var(--wk-ink); }
+.rt-lane:hover .rt-mark,
+.rt-lane:hover .rt-junction,
+.rt-lane:hover .rt-line,
+.rt-lane:hover .rt-src::after,
+.rt-lane:hover .rt-line[data-arrive]::after,
+.rt:has(.rt-ways .rt-lane:hover) .rt-dest-slot::before,
+.rt:has(.rt-ways .rt-lane:hover) .rt-dest-slot::after { background: var(--wk-ink); }
+.rt-lane.rt-rule:hover .rt-mark { background: transparent; box-shadow: inset 0 0 0 2px var(--wk-ink); }
+.rt-lane.rt-rule:hover .rt-line, .rt-lane.rt-rule:hover .rt-src::after { background: repeating-linear-gradient(90deg, var(--wk-ink) 0 4px, transparent 4px 8px); }
+.rt:has(.rt-ways .rt-lane:hover) .rt-dest .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--wk-ink); }
+.rt-skip .rt-lane:hover .rt-unknown { outline-color: var(--wk-ink); color: var(--wk-ink); }
+
+/* Lanes enter on every new deal. On the cells, not the lane, so the entrance cannot
+   hold the lane's opacity against the tracing above. */
+.rt-lanes .rt-cell { animation: rt-in 260ms var(--wk-ease) both; animation-delay: calc(var(--i, 0) * 45ms); }
+.rt-lanes[data-calm] .rt-cell { animation: none; }
+@keyframes rt-in { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+/* ── Phones: the label rides above its lane, the lane keeps the grid ──────── *
+ * There is no width for names beside slots here, so the tool's name goes under its
+ * slot. The item stays in its column and sticks while the ways scroll past it.
+ */
+
+/* Below 840px the fixed desktop board (774px at its narrowest) no longer fits the
+   column, so the phone form takes over there rather than at the page's 760. */
+@media (max-width: 840px) {
+  .rt {
+    --bus-x: 4px;
+    grid-template-columns: [src] 190px [t1] 18px [act] 68px [bus] 20px [out] 60px [end];
+  }
+  .rt-src { --lane-slot: 48px; --src-slot: 48px; }
+  .rt-src[data-n="4"] { --src-slot: 32px; }
+  .rt-src[data-n="5"] { --src-slot: 26px; }
+  .rt-src[data-n] .rt-op { font-size: 14px; }
+  /* One size down, so a three-ingredient recipe still fits 390px. RouteMap.jsx sets
+     each slot's size inline, so this is the one place the board overrides it. */
+  .rt-src .wk-slot, .rt-act .wk-slot { --slot: 48px !important; }
+  .rt-dest .wk-slot, .rt-unknown { --slot: 60px !important; }
+  .rt-op, .rt-more { height: 48px; }
+  .rt-op { padding: 0; }
+  .rt-line { top: calc(var(--pad-top) + 23px); }
+  .rt-src::after { margin-top: 23px; }
+  /* Centred on where a tool's slot stands here: 48px centred in the 60px tool, so 30px in. */
+  .rt-junction { top: calc(var(--pad-top) + 19px); left: 25px; }
+  .rt-act--pass .rt-line { background: linear-gradient(90deg, var(--wk-line-hi) 0 30px, var(--wk-ink-3) 30px); }
+  .rt-ways { grid-column: src / out; }
+  .rt-skip { grid-column: src / end; }
+  /* The label rides above its lane, in the lane's own top padding rather than a row
+     of its own, so each lane stays one row and the collector can run unbroken down
+     through them. */
+  .rt-lane { --pad-top: 36px; }
+  .rt-rule-first { --pad-top: 66px; }
+  .rt-skip .rt-lane { --pad-top: 52px; }
+  .rt-lane > .rt-cell { grid-row: 1; }
+  .rt-label { grid-column: 1 / -1; align-self: start; padding: 8px 0 0; }
+  .rt-rule-first .rt-label { padding-top: 22px; }
+  .rt-ways .rt-lane:first-child .rt-bus::before { top: calc(var(--pad-top) + 23px); }
+  .rt-ways .rt-rule-first .rt-bus::before { height: calc(var(--pad-top) + 25px); }
+  .rt-cap { max-width: 64px; }
+  .rt-out .rt-cap { max-width: 60px; }
+  .rt-tool { flex-direction: column; gap: 6px; height: auto; width: 60px; }
+  .rt-tool-text { max-width: 60px; text-align: center; }
+  .rt-tool-name { font-size: 12.5px; font-weight: 400; color: var(--wk-ink-2); }
+  /* The tool's name is under its slot here, so the track cannot follow it in the
+     row: it is placed on the lane's line instead, from the slot's edge onward. */
+  .rt-fill { position: absolute; left: 56px; right: 0; top: calc(var(--pad-top) + 23px); margin: 0; }
+  .rt-dest { gap: 6px; }
+  .rt-dest-name { font-size: 19px; max-width: 60px; overflow-wrap: anywhere; }
+  .rt-dest-stage { font-size: 12.5px; max-width: 60px; }
+  .rt-dest-slot::before { width: calc(20px - var(--bus-x) - 6px); }
+}

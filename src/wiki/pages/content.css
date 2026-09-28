@@ -1,0 +1,298 @@
+/*
+ * Custom Content (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the
+ * skeleton is page.css.
+ *
+ * The page's drawings use the wiki's grammar and nothing new: items in sunk slots,
+ * straight 2px tracks ending in the pixel arrowhead, stack counts only for counts.
+ * A recipe is its 3x3 grid, the crafting table it is laid on, and the result; a trade
+ * or a smelt is what goes in, who or what it goes through (a villager, a furnace, both
+ * drawn as the game draws them), and what comes out. No section is a card:
+ * parts are divided by the 1px rule, as everywhere on the wiki.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.cc .wk-h3 { margin-bottom: 2px; }
+.cc-sec { display: grid; gap: 28px; padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 56px; }
+.cc-sec [id] { scroll-margin-top: 72px; }
+.cc-sec-head { display: grid; gap: 12px; max-width: 72ch; }
+
+/* ── The head: the custom items, and the page's contents ─────────────────── */
+
+.cc-contents { display: grid; gap: 8px; width: 100%; margin-top: 10px; }
+.cc-contents ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 12px; }
+.cc-content {
+  display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 6px;
+  border-radius: 2px; text-decoration: none; color: var(--wk-ink);
+  font-size: 16px; font-weight: 600; line-height: 1.25;
+  transition: background 140ms var(--wk-ease);
+}
+.cc-content:hover { background: var(--wk-panel); }
+.cc-content:hover .wk-sprite { transform: translateY(-2px) scale(1.07); }
+.cc-toc { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-top: 6px; }
+.cc-toc .wk-label { margin-right: 4px; }
+
+/* ── Tracks ────────────────────────────────────────────────────────────────── */
+
+.cc-to { position: relative; flex: 0 0 40px; height: 2px; background: var(--wk-line-hi); }
+.cc-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
+}
+/* A station with no item of its own (a villager) rides above its track as a word. */
+.cc-to:has(.cc-to-label) { flex-basis: 128px; }
+.cc-to-label {
+  position: absolute; left: 0; right: 8px; bottom: 8px; text-align: center;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wk-ink-3);
+  white-space: nowrap;
+}
+
+/* ── Crafting, trading, smelting ───────────────────────────────────────────── */
+
+.cc-craft, .cc-exchange { margin: 0; display: grid; gap: 10px; justify-items: start; }
+.cc-craft-row, .cc-exchange-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cc-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 2px; }
+.cc-give { display: inline-flex; gap: 2px; }
+.cc-result { display: inline-flex; align-items: center; gap: 12px; }
+.cc-result .wk-slot { background: radial-gradient(circle at 50% 60%, oklch(100% 0 0 / 0.06), transparent 70%), var(--wk-slot); }
+.cc-result-name { font-size: 16px; font-weight: 700; line-height: 1.25; color: var(--wk-ink); max-width: 16ch; }
+.cc-craft figcaption, .cc-exchange figcaption { max-width: 52ch; }
+
+/* The recipe being laid (Craft): the slot whose ingredient is landing on the table lifts
+   the way a slot under the cursor does, and the result pops as the craft lands. */
+.cc-grid .wk-slot[data-lift]::after { background: oklch(100% 0 0 / 0.09); }
+.cc-result[data-pop] .wk-slot { animation: cc-pop 300ms var(--wk-ease); }
+@keyframes cc-pop { 0% { transform: scale(0.8); } 55% { transform: scale(1.1); } 100% { transform: none; } }
+
+/* A smelt running (Smelt): the track out of the furnace fills as its progress arrow
+   does, white like the game's, over the cooking time; each result pops as the next
+   fill starts, the way a furnace works through a stack. */
+.cc-to-fill { position: absolute; inset: 0; background: var(--wk-ink); transform-origin: left; transform: scaleX(0); }
+[data-cook] .cc-to-fill { animation: cc-cook var(--cook) linear infinite; }
+[data-cook] .cc-result .wk-slot { animation: cc-cooked var(--cook) linear infinite; }
+@keyframes cc-cook { to { transform: none; } }
+@keyframes cc-cooked { 0% { transform: scale(1.1); } 4%, 100% { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-result[data-pop] .wk-slot, [data-cook] .cc-to-fill, [data-cook] .cc-result .wk-slot { animation: none; }
+}
+html[data-saver="on"] :is(.cc-result[data-pop] .wk-slot, [data-cook] .cc-to-fill, [data-cook] .cc-result .wk-slot) { animation: none; }
+
+/* ── The trip into the Depths ──────────────────────────────────────────────── */
+
+/* Five steps on one rail, in the order they have to happen: the sequence is the
+   information, so they are numbered. Each step puts its words beside its drawing.
+
+   The rail is drawn a step at a time, from each number down to the next one's centre,
+   where that number covers its end. It was one line down the whole list at first, with
+   the dividers masked off the gutter by a ground-coloured inset shadow; the mask hid the
+   rail as well, so only the first two numbers were joined (Sept 2026). Per step, it also
+   stops at the last number instead of running on down the last step's drawing. */
+.cc-steps { position: relative; list-style: none; margin: 0; padding: 0; display: grid; }
+.cc-step {
+  position: relative; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px 48px; align-items: start;
+  padding: 22px 0 22px 52px;
+}
+.cc-step:not(:last-child)::before { content: ""; position: absolute; left: 15px; top: 38px; bottom: -38px; width: 2px; background: var(--wk-line-hi); }
+.cc-step + .cc-step::after { content: ""; position: absolute; left: 52px; right: 0; top: 0; height: 1px; background: var(--wk-line); }
+.cc-step-text { display: grid; gap: 10px; }
+.cc-step-title { margin: 0; display: flex; align-items: center; gap: 12px; font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.15; color: var(--wk-ink); }
+.cc-step-n {
+  position: absolute; left: 0; top: 22px;
+  display: grid; place-items: center; width: 32px; height: 32px;
+  font-family: var(--wk-font-text); font-size: 16px; font-weight: 700; color: var(--wk-ink);
+  background: var(--wk-slot); border-radius: 2px;
+  box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), inset -2px -2px 0 oklch(30% 0.010 255 / 0.55);
+}
+.cc-step-draw { padding-top: 4px; }
+.cc-inside { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; }
+.cc-inside-item { display: flex; align-items: center; gap: 12px; padding: 4px; border-radius: 2px; color: inherit; text-decoration: none; }
+.cc-inside-item > span:last-child { display: grid; gap: 1px; }
+a.cc-inside-item:hover { background: var(--wk-panel); }
+.cc-inside-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+
+/* ── The loot ──────────────────────────────────────────────────────────────── */
+
+.cc-loot { display: grid; gap: 14px; }
+/* The map beside the tabs: pick a room on either and both follow. */
+.cc-loot-top { display: grid; grid-template-columns: minmax(0, 512px) minmax(0, 1fr); gap: 20px 40px; align-items: center; }
+.cc-loot-pick { display: grid; gap: 14px; align-content: center; }
+.cc-map { margin: 0; display: grid; gap: 8px; }
+.cc-map-view { position: relative; width: 100%; aspect-ratio: 256 / var(--crop-h); overflow: hidden; }
+/* The square render and its outlines, shifted up so only the cropped rows show. */
+.cc-map-view img, .cc-map-view svg { position: absolute; left: 0; top: var(--crop-top); width: 100%; height: var(--full); }
+.cc-map-view img { image-rendering: pixelated; }
+/* A room lights the way the wiki lights anything chosen: white, a line and a lift. */
+.cc-map-room { fill: transparent; stroke: transparent; stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill 140ms var(--wk-ease), stroke 140ms var(--wk-ease); }
+.cc-map-room[data-loot] { cursor: pointer; }
+.cc-map-room[data-loot][data-hover] { fill: oklch(100% 0 0 / 0.08); stroke: oklch(100% 0 0 / 0.55); }
+.cc-map-room[data-on] { fill: oklch(100% 0 0 / 0.12); stroke: var(--wk-ink); }
+.cc-map-name {
+  position: absolute; transform: translate(-50%, -50%);
+  padding: 2px 6px 3px; border: 0; border-radius: 2px;
+  font: 600 12.5px/1.2 var(--wk-font-text); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  color: var(--wk-ink-2); background: oklch(0% 0 0 / 0.62);
+}
+.cc-map-name[data-align="start"] { transform: translate(-20%, -50%); }
+.cc-map-name[data-align="end"] { transform: translate(-80%, -50%); }
+button.cc-map-name { cursor: pointer; }
+button.cc-map-name:hover, button.cc-map-name:focus-visible { color: var(--wk-ink); }
+button.cc-map-name[aria-pressed="true"] { color: var(--wk-ground); background: var(--wk-ink); }
+.cc-map-name--quiet { color: var(--wk-ink-3); pointer-events: none; }
+
+/* A structure that stands on its card, the way the traders do: its render beside the words. */
+.cc-card--render { grid-template-columns: 200px minmax(0, 1fr); column-gap: 28px; row-gap: 14px; }
+.cc-card--render > .cc-card-render { grid-column: 1; grid-row: 1 / span 2; width: 200px; height: auto; align-self: start; } /* shrunk from 256, so smoothed: pixel-sharp scaling is only even at whole multiples */
+.cc-card--render > .wk-name, .cc-card--render > .wk-p { grid-column: 2; }
+.cc-card--render > :not(.cc-card-render):not(.wk-name):not(.wk-p) { grid-column: 1 / -1; }
+.cc-rooms { display: flex; flex-wrap: wrap; gap: 2px; }
+.cc-rooms > button, .cc-seg > button {
+  min-height: 40px; padding: 0 14px 2px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.cc-rooms > button:hover, .cc-seg > button:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+/* Chosen is the ink block, the same as the chosen room's name on the map beside it,
+   so the tab and the map read as one control. It was the hover state plus a 3px bar,
+   which next to the map's inverted label read as the weaker of two selections (final
+   pass, Sept 2026). */
+.cc-rooms > button[aria-selected="true"], .cc-seg > button[aria-checked="true"] {
+  background: var(--wk-ink); color: var(--wk-ground); box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
+}
+.cc-room-text { max-width: 72ch; }
+.cc-loot-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 48px; align-items: start; }
+.cc-pools { display: grid; gap: 22px; min-width: 0; }
+.cc-pool { display: grid; gap: 8px; }
+.cc-drops { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0 28px; }
+.cc-drop-row {
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  min-height: 46px; padding: 4px 0; box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.55);
+}
+.cc-drop-row[data-empty] .cc-drop-name, .cc-drop-row[data-empty] .cc-drop-pct { color: var(--wk-ink-3); }
+.cc-drop-name { display: grid; gap: 1px; min-width: 0; font-size: 16px; font-weight: 600; color: var(--wk-ink); line-height: 1.25; }
+.cc-drop-count { font-weight: 500; color: var(--wk-ink-3); }
+.cc-drop-note { font-size: 14px; font-weight: 500; color: var(--wk-ink-3); }
+.cc-drop-pct { font-size: 16px; color: var(--wk-ink); }
+.cc-drops--inline { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+
+/* The opened chest: nine slots across, three rows, as the game's chest has. */
+.cc-open { --cell: 44px; display: grid; gap: 12px; justify-items: start; position: sticky; top: 72px; }
+.cc-btn { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
+.cc-chest {
+  display: grid; grid-template-columns: repeat(9, var(--cell)); gap: 2px; padding: 8px;
+  background: var(--wk-deep); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
+}
+.cc-chest .wk-slot { --slot: var(--cell) !important; }
+.cc-chest--shut .wk-slot { opacity: 0.6; }
+.cc-drop { animation: cc-land 280ms var(--wk-ease) both; }
+.cc-shuffle { display: inline-grid; line-height: 0; }
+
+/* The portal ruin: the render at a whole multiple where it fits, the portal placed on
+   it in percentages, so its corners stay on the frame at any width. */
+.cc-ruin { margin: 20px 0 0; display: grid; gap: 12px; justify-items: start; }
+.cc-ruin-view { position: relative; width: min(100%, 512px); aspect-ratio: 1; }
+.cc-ruin-view img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.cc-portal {
+  position: absolute; transform-origin: 0 0; pointer-events: none;
+  /* One frame fills the plane; the strip is 32 frames tall. The image is set inline. */
+  background-position: 0 0; background-size: 100% 3200%; background-repeat: no-repeat;
+  image-rendering: pixelated; opacity: 0.92;
+  animation: cc-portal-in 520ms steps(1, end) both;
+}
+.cc-portal[data-live] { animation: cc-portal-in 520ms steps(1, end) both, cc-portal-run 1.6s steps(32) infinite; }
+/* Lightning, then the portal: a white flash over the frame before the surface settles. */
+.cc-portal::after { content: ""; position: absolute; inset: 0; background: oklch(98% 0.02 300); animation: cc-strike 520ms ease-out both; }
+/* 32 steps of a 32-frame strip: a percentage position reaches the last frame at 100%,
+   so the run goes to 32/31 of it and each step lands exactly on a frame. */
+@keyframes cc-portal-run { to { background-position: 0 103.2258%; } }
+@keyframes cc-portal-in { from { opacity: 0; } 20% { opacity: 0.92; } to { opacity: 0.92; } }
+@keyframes cc-strike { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes cc-land { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.cc-open .wk-small { max-width: 44ch; }
+
+/* ── Locators ──────────────────────────────────────────────────────────────── */
+
+.cc-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.cc-table th, .cc-table td { padding: 8px 16px 8px 0; text-align: left; vertical-align: middle; box-shadow: inset 0 -1px 0 var(--wk-line); }
+.cc-table thead th { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
+.cc-table td { color: var(--wk-ink-2); }
+.cc-table-item { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; color: var(--wk-ink); text-decoration: none; }
+.cc-table-item:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* The detail of each thing, two to a row, divided by the rule rather than boxed. */
+.cc-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 56px; }
+.cc-card { display: grid; gap: 14px; align-content: start; padding: 24px 0 32px; box-shadow: inset 0 1px 0 var(--wk-line); }
+/* A trader's card: the trader standing beside what it is about, its nametag the
+   card's heading; the offers run the full width underneath. */
+.cc-card--trader { grid-template-columns: auto minmax(0, 1fr); column-gap: 28px; row-gap: 18px; }
+.cc-card--trader > .vg { grid-column: 1; grid-row: 1; align-self: start; }
+.cc-card--trader > .wk-p { grid-column: 2; grid-row: 1; align-self: center; }
+.cc-card--trader > :not(.vg):not(.wk-p) { grid-column: 1 / -1; }
+.cc-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; justify-self: start; }
+.cc-notes, .cc-offers { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.cc-note { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 4px 0; }
+.cc-note > span:nth-child(2) { display: grid; gap: 1px; }
+.cc-note-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+.cc-note-flavor { font-size: 14px; font-style: italic; color: var(--wk-ink-3); }
+.cc-note-pct { font-size: 16px; color: var(--wk-ink-2); }
+.cc-offer { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 6px 0; }
+.cc-offer-draw { display: inline-flex; align-items: center; gap: 10px; }
+.cc-offer-draw .cc-to { flex-basis: 24px; }
+.cc-offer-text { display: grid; gap: 2px; }
+.cc-offer-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .cc-loot-body { grid-template-columns: 1fr; }
+  .cc-open { position: static; }
+  .cc-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .cc-step { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .cc-open { --cell: 34px; }
+  .cc-chest { padding: 6px; }
+  .cc-table thead { display: none; }
+  .cc-table, .cc-table tbody, .cc-table tr, .cc-table th, .cc-table td { display: block; }
+  .cc-table tr { padding: 10px 0; box-shadow: inset 0 -1px 0 var(--wk-line); }
+  .cc-table th, .cc-table td { box-shadow: none; padding: 2px 0; }
+  .cc-table td { font-size: 14px; }
+  .cc-to:has(.cc-to-label) { flex-basis: 96px; }
+  .cc-contents ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-drop { animation: none; }
+  .cc-content:hover .wk-sprite { transform: none; }
+}
+html[data-saver="on"] .cc-drop { animation: none; }
+
+@media (max-width: 560px) {
+  .cc-card--trader { grid-template-columns: 1fr; }
+  .cc-card--trader > .vg { justify-self: start; }
+  .cc-card--trader > .wk-p { grid-column: 1; grid-row: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-portal, .cc-portal[data-live], .cc-portal::after { animation: none; }
+  .cc-portal::after { opacity: 0; }
+}
+html[data-saver="on"] :is(.cc-portal, .cc-portal[data-live], .cc-portal::after) { animation: none; }
+html[data-saver="on"] .cc-portal::after { opacity: 0; }
+
+@media (max-width: 900px) {
+  .cc-loot-top { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .cc-card--render { grid-template-columns: 1fr; }
+  .cc-card--render > .cc-card-render { grid-row: auto; width: 160px; }
+  .cc-card--render > .wk-name, .cc-card--render > .wk-p { grid-column: 1; }
+  .cc-map-name--quiet { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .cc-map-room { transition: none; } }

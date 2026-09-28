@@ -1,175 +1,23 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import X from 'lucide-react/dist/esm/icons/x';
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down';
-import BarChart3 from 'lucide-react/dist/esm/icons/bar-chart-3';
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import { COLORS as C, IMAGE_BASE_URL } from '../../config/constants';
+/**
+ * Item categories for the pool page, from Minecraft's own item tags.
+ *
+ * Moved here out of the old StatisticsDashboard modal when the page became one
+ * workspace: the categories are now a way to GROUP the browser (and the overview's
+ * coverage by category) rather than a report in a modal. The tag data is misode's
+ * mcmeta summary, resolved and cached for a day; each item falls in exactly one
+ * category, first match in CATEGORY_CONFIG order, with a few name patterns as the
+ * fallback. The categories carried display colours in the modal; the wiki's Datum
+ * Rule has no colour for "wood" or "food", so they are names only now.
+ */
 
-const SD_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
-  @keyframes sd-in   { from { opacity:0; transform:scale(0.97) translateY(8px); } to { opacity:1; transform:none; } }
-  @keyframes sd-spin { to { transform: rotate(360deg); } }
+import { PAPER_VERSION } from '../../wiki/data/atlas.js';
 
-  .sd { font-family: 'Barlow', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-  .sd-overlay {
-    position: fixed; inset: 0;
-    background: oklch(6% 0.022 255 / 0.88);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000; padding: 20px;
-  }
-  .sd-panel {
-    background: oklch(17% 0.025 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 10px;
-    width: 100%; max-width: 1000px; max-height: 90vh;
-    display: flex; flex-direction: column; overflow: hidden;
-    animation: sd-in 0.2s cubic-bezier(0.16,1,0.3,1) both;
-  }
-
-  /* Header */
-  .sd-header {
-    padding: 14px 22px; flex-shrink: 0;
-    border-bottom: 1px solid oklch(24% 0.022 255);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .sd-title {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-    color: oklch(94% 0.007 255);
-    display: flex; align-items: center; gap: 8px; margin: 0;
-  }
-  .sd-subtitle { font-size: 11.5px; color: oklch(42% 0.013 255); margin-top: 3px; }
-  .sd-close {
-    background: none; border: none; cursor: pointer; padding: 5px;
-    color: oklch(42% 0.013 255); border-radius: 4px;
-    display: flex; align-items: center; transition: color 0.12s;
-  }
-  .sd-close:hover { color: oklch(94% 0.007 255); }
-
-  /* Body */
-  .sd-body { flex: 1; overflow: auto; padding: 20px 22px; }
-
-  /* Section header */
-  .sd-section-title {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
-    color: oklch(42% 0.013 255); margin: 0 0 14px;
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  /* Top row: 2-col distribution panels */
-  .sd-dist-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  @media (max-width: 600px) { .sd-dist-row { grid-template-columns: 1fr; } }
-
-  .sd-dist-panel {
-    background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 8px; padding: 16px;
-  }
-
-  /* Distribution bars */
-  .sd-bar-rows { display: flex; flex-direction: column; gap: 9px; }
-  .sd-bar-row { display: flex; align-items: center; gap: 10px; }
-  .sd-bar-label { width: 60px; font-size: 12px; font-weight: 500; color: oklch(74% 0.012 255); flex-shrink: 0; }
-  .sd-bar-track {
-    flex: 1; height: 14px;
-    background: oklch(15.5% 0.025 255);
-    border-radius: 3px; overflow: hidden;
-  }
-  .sd-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s cubic-bezier(0.16,1,0.3,1); }
-  .sd-bar-value { width: 80px; font-size: 11.5px; color: oklch(42% 0.013 255); text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-
-  /* Coverage strip — full-width, inline data */
-  .sd-coverage {
-    background: oklch(18.5% 0.024 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 8px; padding: 13px 18px; margin-bottom: 20px;
-    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
-  }
-  .sd-cov-item {
-    display: flex; align-items: baseline; gap: 7px;
-    padding: 0 18px; border-right: 1px solid oklch(30% 0.019 255);
-    flex-shrink: 0;
-  }
-  .sd-cov-item:first-child { padding-left: 0; }
-  .sd-cov-item:last-child { border-right: none; }
-  .sd-cov-num {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums;
-    line-height: 1;
-  }
-  .sd-cov-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: oklch(42% 0.013 255); }
-
-  /* Categories section */
-  .sd-cat-panel {
-    background: oklch(21% 0.023 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 8px; padding: 16px;
-  }
-  .sd-cat-list { display: flex; flex-direction: column; }
-
-  .sd-cat-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 6px; cursor: pointer;
-    border-radius: 5px;
-    transition: background 0.1s;
-  }
-  .sd-cat-row:hover { background: oklch(25% 0.021 255); }
-  .sd-cat-chevron {
-    color: oklch(42% 0.013 255); flex-shrink: 0;
-    transition: transform 0.15s ease-out;
-  }
-  .sd-cat-chevron.open { transform: rotate(0deg); }
-  .sd-cat-chevron.closed { transform: rotate(-90deg); }
-  .sd-cat-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
-  .sd-cat-name { width: 130px; font-size: 12.5px; font-weight: 500; color: oklch(88% 0.009 255); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sd-cat-bar-track { flex: 1; height: 14px; background: oklch(15.5% 0.025 255); border-radius: 3px; overflow: hidden; }
-  .sd-cat-bar-fill { height: 100%; border-radius: 3px; opacity: 0.55; }
-  .sd-cat-count { width: 90px; font-size: 11.5px; color: oklch(42% 0.013 255); text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-
-  /* Expanded items grid */
-  .sd-items-grid {
-    margin: 4px 0 6px 26px; padding: 12px;
-    background: oklch(17% 0.025 255);
-    border: 1px solid oklch(30% 0.019 255);
-    border-radius: 6px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 4px; max-height: 280px; overflow: auto;
-  }
-  .sd-item-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 5px 7px; border-radius: 4px;
-    background: oklch(19.5% 0.024 255);
-    font-size: 11.5px;
-  }
-  .sd-item-img { width: 20px; height: 20px; image-rendering: pixelated; flex-shrink: 0; }
-  .sd-item-name { flex: 1; color: oklch(74% 0.012 255); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sd-item-state {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-    padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
-  }
-
-  /* Loading / error */
-  .sd-load-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px; color: oklch(58% 0.012 255);
-    background: none; font-weight: 400;
-  }
-  .sd-err-badge {
-    font-size: 10px; color: oklch(62% 0.22 25);
-    background: oklch(62% 0.22 25 / 0.10);
-    border: 1px solid oklch(62% 0.22 25 / 0.3);
-    padding: 2px 7px; border-radius: 4px;
-  }
-  .sd-hint { font-size: 11px; color: oklch(42% 0.013 255); font-weight: 400; }
-`;
-
-
-// Constants for fetching official Minecraft item tags
-const MISODE_ITEM_TAGS_URL = 'https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.json';
-const MISODE_TAGS_CACHE_KEY = 'forceitem_tags_cache_v1';
+// The server's version first (see REGISTRY_URLS in poolData.js), the moving branch as the fallback.
+const MISODE_ITEM_TAGS_URLS = [
+    `https://raw.githubusercontent.com/misode/mcmeta/${PAPER_VERSION}-summary/data/tag/item/data.json`,
+    'https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.json',
+];
+const MISODE_TAGS_CACHE_KEY = `forceitem_tags_cache_${PAPER_VERSION}`;
 const MISODE_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 // Item Tags caching functions (for official Minecraft categories)
@@ -204,14 +52,17 @@ async function fetchItemTags() {
     // Check cache first
     const cached = getTagsCache();
     if (cached) {
-        console.log('Using cached item tags data');
         return cached;
     }
 
     try {
-        const response = await fetch(MISODE_ITEM_TAGS_URL);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch item tags: ${response.status}`);
+        let response = null;
+        for (const url of MISODE_ITEM_TAGS_URLS) {
+            response = await fetch(url);
+            if (response.ok) break;
+        }
+        if (!response?.ok) {
+            throw new Error(`Failed to fetch item tags: ${response?.status}`);
         }
         const rawTags = await response.json();
 
@@ -220,7 +71,6 @@ async function fetchItemTags() {
 
         // Cache the result
         setTagsCache(resolvedTags);
-        console.log(`Fetched and resolved ${Object.keys(resolvedTags).length} item tags from Misode`);
 
         return resolvedTags;
     } catch (e) {
@@ -268,17 +118,12 @@ function resolveTagReferences(rawTags) {
     return resolved;
 }
 
-// Official Minecraft item tag categories with display names and colors
-// These map to the tags from misode/mcmeta repository
-// Categories are consolidated into broader groups for better organization
-
-// Consolidated category definitions
-// Each category can include multiple official tags + custom item lists
+// Consolidated categories: each can take several official tags plus a list of
+// items the tags miss. Order matters: an item lands in the first that claims it.
 const CATEGORY_CONFIG = [
     {
         id: 'wood',
         name: 'Wood',
-        color: '#8B4513',
         tags: [
             'planks', 'logs', 'wooden_stairs', 'wooden_slabs', 'wooden_doors',
             'wooden_fences', 'wooden_trapdoors', 'wooden_buttons', 'wooden_pressure_plates',
@@ -304,7 +149,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'stone',
         name: 'Stone & Bricks',
-        color: '#808080',
         tags: ['walls', 'stone_bricks'],
         // Stairs/slabs excluding wooden ones are handled separately
         customItems: [
@@ -352,14 +196,12 @@ const CATEGORY_CONFIG = [
     {
         id: 'ores',
         name: 'Ores',
-        color: '#FFD700',
         tags: ['coal_ores', 'copper_ores', 'iron_ores', 'gold_ores', 'diamond_ores', 'emerald_ores', 'lapis_ores', 'redstone_ores'],
         customItems: ['NETHER_QUARTZ_ORE', 'ANCIENT_DEBRIS', 'NETHER_GOLD_ORE']
     },
     {
         id: 'minerals',
         name: 'Minerals & Ingots',
-        color: '#00CED1',
         tags: ['coals'],
         customItems: [
             'GOLD_INGOT', 'GOLD_NUGGET', 'RAW_GOLD', 'GOLD_BLOCK', 'RAW_GOLD_BLOCK',
@@ -377,7 +219,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'copper',
         name: 'Copper',
-        color: '#B87333',
         tags: ['copper', 'copper_chests', 'copper_ores'],
         // Note: 'bars', 'chains', 'lanterns' tags removed - those are iron items
         customItems: [
@@ -417,7 +258,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'tools',
         name: 'Tools',
-        color: '#708090',
         tags: ['axes', 'pickaxes', 'shovels', 'hoes'],
         customItems: [
             'SHEARS', 'FLINT_AND_STEEL', 'BRUSH', 'LEAD', 'NAME_TAG',
@@ -429,7 +269,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'weapons_armor',
         name: 'Weapons & Armor',
-        color: '#DC143C',
         tags: ['swords', 'spears', 'arrows', 'head_armor', 'chest_armor', 'leg_armor', 'foot_armor'],
         customItems: [
             'TRIDENT', 'MACE', 'BOW', 'CROSSBOW', 'SHIELD', 'FIREWORK_ROCKET',
@@ -439,14 +278,12 @@ const CATEGORY_CONFIG = [
     {
         id: 'wool_fabric',
         name: 'Wool & Fabric',
-        color: '#FFFAF0',
         tags: ['wool', 'wool_carpets', 'beds', 'banners'],
         customItems: ['STRING', 'COBWEB', 'LEAD']
     },
     {
         id: 'terracotta',
         name: 'Terracotta',
-        color: '#E2725B',
         tags: ['terracotta'],
         customItems: [
             'DECORATED_POT', 'FLOWER_POT', 'BRICK',
@@ -460,7 +297,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'concrete',
         name: 'Concrete',
-        color: '#A9A9A9',
         customItems: [
             'WHITE_CONCRETE', 'ORANGE_CONCRETE', 'MAGENTA_CONCRETE', 'LIGHT_BLUE_CONCRETE',
             'YELLOW_CONCRETE', 'LIME_CONCRETE', 'PINK_CONCRETE', 'GRAY_CONCRETE',
@@ -475,7 +311,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'glass',
         name: 'Glass',
-        color: '#ADD8E6',
         customItems: [
             'GLASS', 'GLASS_PANE', 'TINTED_GLASS',
             'WHITE_STAINED_GLASS', 'ORANGE_STAINED_GLASS', 'MAGENTA_STAINED_GLASS', 'LIGHT_BLUE_STAINED_GLASS',
@@ -492,13 +327,11 @@ const CATEGORY_CONFIG = [
     {
         id: 'candles',
         name: 'Candles',
-        color: '#FFE4B5',
         tags: ['candles']
     },
     {
         id: 'dyes',
         name: 'Dyes',
-        color: '#FF69B4',
         customItems: [
             'WHITE_DYE', 'ORANGE_DYE', 'MAGENTA_DYE', 'LIGHT_BLUE_DYE',
             'YELLOW_DYE', 'LIME_DYE', 'PINK_DYE', 'GRAY_DYE',
@@ -510,7 +343,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'flowers_nature',
         name: 'Flowers & Plants',
-        color: '#FF69B4',
         tags: ['flowers', 'saplings', 'leaves'],
         customItems: [
             'GRASS_BLOCK', 'SHORT_GRASS', 'TALL_GRASS', 'FERN', 'LARGE_FERN',
@@ -536,7 +368,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'dirt_soil',
         name: 'Dirt & Soil',
-        color: '#8B4513',
         tags: ['dirt', 'sand'],
         customItems: [
             'FARMLAND', 'DIRT_PATH', 'SOUL_SAND', 'SOUL_SOIL',
@@ -551,7 +382,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'food',
         name: 'Food',
-        color: '#FF6347',
         tags: ['meat', 'fishes', 'eggs'],
         customItems: [
             'BREAD', 'APPLE', 'GOLDEN_APPLE', 'ENCHANTED_GOLDEN_APPLE', 'GOLDEN_CARROT',
@@ -572,7 +402,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'redstone',
         name: 'Redstone',
-        color: '#FF0000',
         tags: ['rails'],
         customItems: [
             'REDSTONE', 'REDSTONE_BLOCK', 'REDSTONE_TORCH', 'REDSTONE_LAMP',
@@ -587,7 +416,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'lighting',
         name: 'Lighting',
-        color: '#FFD700',
         tags: ['lanterns'],
         customItems: [
             'TORCH', 'SOUL_TORCH', 'REDSTONE_TORCH',
@@ -600,7 +428,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'ocean',
         name: 'Ocean',
-        color: '#20B2AA',
         customItems: [
             'PRISMARINE', 'PRISMARINE_BRICKS', 'DARK_PRISMARINE',
             'PRISMARINE_SHARD', 'PRISMARINE_CRYSTALS', 'SEA_LANTERN',
@@ -619,21 +446,18 @@ const CATEGORY_CONFIG = [
     {
         id: 'storage',
         name: 'Storage',
-        color: '#9932CC',
         tags: ['shulker_boxes', 'bundles'],
         customItems: ['ENDER_CHEST', 'SHULKER_SHELL']
     },
     {
         id: 'pottery',
         name: 'Pottery Sherds',
-        color: '#D2691E',
         tags: ['decorated_pot_sherds'],
         customItems: ['DECORATED_POT', 'BRUSH']
     },
     {
         id: 'music_discs',
         name: 'Music Discs',
-        color: '#1DB954',
         tags: ['creeper_drop_music_discs'],
         customItems: [
             'MUSIC_DISC_PIGSTEP', 'MUSIC_DISC_OTHERSIDE', 'MUSIC_DISC_5', 'MUSIC_DISC_RELIC',
@@ -644,7 +468,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'books_enchanting',
         name: 'Books & Enchanting',
-        color: '#8A2BE2',
         tags: ['bookshelf_books'],
         customItems: [
             'BOOKSHELF', 'CHISELED_BOOKSHELF', 'LECTERN', 'ENCHANTING_TABLE',
@@ -655,7 +478,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'potions_brewing',
         name: 'Potions & Brewing',
-        color: '#FF00FF',
         customItems: [
             'POTION', 'SPLASH_POTION', 'LINGERING_POTION',
             'BREWING_STAND', 'CAULDRON', 'GLASS_BOTTLE',
@@ -668,13 +490,11 @@ const CATEGORY_CONFIG = [
     {
         id: 'spawn_eggs',
         name: 'Spawn Eggs',
-        color: '#98FB98',
         customItems: [] // Will be matched by pattern
     },
     {
         id: 'mob_drops',
         name: 'Mob Drops',
-        color: '#8B7355',
         customItems: [
             'BONE', 'BONE_MEAL',
             'STRING', 'COBWEB', 'FEATHER',
@@ -695,7 +515,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'anvil',
         name: 'Anvils & Smithing',
-        color: '#4A4A4A',
         tags: ['anvil'],
         customItems: [
             'SMITHING_TABLE', 'GRINDSTONE',
@@ -715,7 +534,6 @@ const CATEGORY_CONFIG = [
     {
         id: 'iron',
         name: 'Iron',
-        color: '#B8B8B8',
         customItems: [
             'IRON_BLOCK', 'RAW_IRON_BLOCK', 'IRON_INGOT', 'IRON_NUGGET', 'RAW_IRON',
             'IRON_DOOR', 'IRON_TRAPDOOR', 'IRON_BARS',
@@ -731,7 +549,7 @@ const CATEGORY_CONFIG = [
 ];
 
 // Global variable to store resolved tags (loaded async)
-let resolvedItemTags = null;
+
 let itemTagsPromise = null;
 
 // Load item tags (call this early in the app)
@@ -741,15 +559,12 @@ function loadItemTags() {
         .then(tags => {
             if (!tags) {
                 itemTagsPromise = null;
-                resolvedItemTags = null;
                 return null;
             }
-            resolvedItemTags = tags;
             return tags;
         })
         .catch(err => {
             itemTagsPromise = null;
-            resolvedItemTags = null;
             throw err;
         });
     return itemTagsPromise;
@@ -887,265 +702,9 @@ function categorizeItem(material, tagCategoryMap = null) {
     return 'other';
 }
 
-function getCategoryInfo(categoryId) {
-    const category = CATEGORY_CONFIG.find(c => c.id === categoryId);
-    if (category) return category;
-    return { id: 'other', name: 'Other', color: C.dim };
+/** A category's name, or Other. */
+export function categoryName(id) {
+    return CATEGORY_CONFIG.find((c) => c.id === id)?.name ?? 'Other';
 }
 
-// Bar component
-function DistributionBar({ data, total }) {
-    return (
-        <div className="sd-bar-rows">
-            {data.map(({ label, value, color }) => {
-                const pct = total > 0 ? (value / total * 100) : 0;
-                return (
-                    <div key={label} className="sd-bar-row">
-                        <span className="sd-bar-label">{label}</span>
-                        <div className="sd-bar-track">
-                            <div className="sd-bar-fill" style={{ width: `${pct}%`, background: color }} />
-                        </div>
-                        <span className="sd-bar-value">{value} ({pct.toFixed(1)}%)</span>
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
-
-// Statistics Dashboard Component
-function StatisticsDashboard({ items, missingItems, onClose }) {
-    // State for expanded categories (lazy initialization)
-    const [expandedCategories, setExpandedCategories] = useState(() => new Set());
-    // State for loaded item tags
-    const [tagCategoryMap, setTagCategoryMap] = useState(null);
-    const [tagsLoading, setTagsLoading] = useState(true);
-    const [tagsError, setTagsError] = useState(false);
-
-    // Load item tags on mount
-    useEffect(() => {
-        loadItemTags().then(tags => {
-            if (tags) {
-                const categoryMap = buildTagCategoryMap(tags);
-                if (categoryMap && Object.keys(categoryMap).length > 0) {
-                    setTagCategoryMap(categoryMap);
-                    console.log(`Built category map with ${Object.keys(categoryMap).length} items`);
-                } else {
-                    setTagsError(true);
-                }
-            } else {
-                setTagsError(true);
-            }
-            setTagsLoading(false);
-        }).catch(() => {
-            setTagsError(true);
-            setTagsLoading(false);
-        });
-    }, []);
-
-    // Calculate state distribution
-    const stateStats = useMemo(() => {
-        const stats = { EARLY: 0, MID: 0, LATE: 0 };
-        items.forEach(item => {
-            if (item.state && stats[item.state] !== undefined) {
-                stats[item.state]++;
-            }
-        });
-        return stats;
-    }, [items]);
-
-    // Calculate tag distribution
-    const tagStats = useMemo(() => {
-        const stats = { NETHER: 0, END: 0, EXTREME: 0 };
-        items.forEach(item => {
-            if (item.tags) {
-                item.tags.forEach(tag => {
-                    if (stats[tag] !== undefined) {
-                        stats[tag]++;
-                    }
-                });
-            }
-        });
-        return stats;
-    }, [items]);
-
-    // Calculate category distribution with items grouped (uses official tags when available)
-    // Each item belongs to exactly one category for accurate distribution percentages
-    const categoryData = useMemo(() => {
-        const categoryItems = {};
-        items.forEach(item => {
-            const category = categorizeItem(item.material, tagCategoryMap);
-            if (!categoryItems[category]) {
-                categoryItems[category] = [];
-            }
-            categoryItems[category].push(item);
-        });
-        // Sort categories by count descending, then sort items within each category
-        return Object.entries(categoryItems)
-            .map(([id, catItems]) => ({
-                ...getCategoryInfo(id),
-                items: catItems.sort((a, b) => a.displayName.localeCompare(b.displayName)),
-                count: catItems.length
-            }))
-            .sort((a, b) => b.count - a.count);
-    }, [items, tagCategoryMap]);
-
-    const total = items.length;
-    const totalMissing = missingItems.length;
-
-    // Memoized toggle handler to prevent recreation on every render
-    const toggleCategory = useCallback((categoryId) => {
-        setExpandedCategories(prev => {
-            const next = new Set(prev);
-            if (next.has(categoryId)) {
-                next.delete(categoryId);
-            } else {
-                next.add(categoryId);
-            }
-            return next;
-        });
-    }, []);
-
-
-    const stateColors = { EARLY: C.early, MID: C.mid, LATE: C.late };
-
-    return (
-        <div className="sd sd-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-            <style>{SD_CSS}</style>
-            <div className="sd-panel">
-
-                {/* Header */}
-                <div className="sd-header">
-                    <div>
-                        <h2 className="sd-title">
-                            <BarChart3 size={16} style={{ color: C.amber }} />
-                            Pool Statistics
-                        </h2>
-                        <div className="sd-subtitle">Distribution analysis of {total} pool items</div>
-                    </div>
-                    <button className="sd-close" onClick={onClose}><X size={18} /></button>
-                </div>
-
-                {/* Body */}
-                <div className="sd-body">
-
-                    {/* Coverage strip */}
-                    <div className="sd-coverage">
-                        {[
-                            {
-                                num: ((total + totalMissing) > 0 ? (total / (total + totalMissing)) * 100 : 0).toFixed(1) + '%',
-                                label: 'In Pool',
-                                color: C.amber,
-                            },
-                            { num: total,        label: 'Pool Items', color: C.textMid },
-                            { num: totalMissing, label: 'Missing',    color: C.muted    },
-                            { num: stateStats.EARLY, label: 'Early',  color: C.early },
-                            { num: stateStats.MID,   label: 'Mid',    color: C.mid   },
-                            { num: stateStats.LATE,  label: 'Late',   color: C.late  },
-                        ].map(({ num, label, color }) => (
-                            <div key={label} className="sd-cov-item">
-                                <span className="sd-cov-num" style={{ color }}>{num}</span>
-                                <span className="sd-cov-label">{label}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Distribution panels */}
-                    <div className="sd-dist-row" style={{ marginBottom: 20 }}>
-                        <div className="sd-dist-panel">
-                            <div className="sd-section-title">Unlock Timing</div>
-                            <DistributionBar
-                                data={[
-                                    { label: 'Early', value: stateStats.EARLY, color: C.early },
-                                    { label: 'Mid',   value: stateStats.MID,   color: C.mid   },
-                                    { label: 'Late',  value: stateStats.LATE,  color: C.late  },
-                                ]}
-                                total={total}
-                            />
-                        </div>
-                        <div className="sd-dist-panel">
-                            <div className="sd-section-title">Special Tags</div>
-                            <DistributionBar
-                                data={[
-                                    { label: 'Nether',  value: tagStats.NETHER,  color: C.nether  },
-                                    { label: 'End',     value: tagStats.END,     color: C.end     },
-                                    { label: 'Extreme', value: tagStats.EXTREME, color: C.extreme },
-                                ]}
-                                total={total}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Categories */}
-                    <div className="sd-cat-panel">
-                        <div className="sd-section-title">
-                            Items by Category
-                            {tagsLoading ? (
-                                <span className="sd-load-badge">
-                                    <RefreshCw size={11} style={{ animation: 'sd-spin 1s linear infinite' }} />
-                                    Loading tags...
-                                </span>
-                            ) : tagsError ? (
-                                <span className="sd-err-badge">Tag data unavailable</span>
-                            ) : (
-                                <span className="sd-hint">click to expand</span>
-                            )}
-                        </div>
-
-                        <div className="sd-cat-list">
-                            {categoryData.map(({ id, name, color, items: catItems, count }) => {
-                                const isExpanded = expandedCategories.has(id);
-                                const pct = total > 0 ? (count / total * 100) : 0;
-                                return (
-                                    <div key={id}>
-                                        <div className="sd-cat-row" onClick={() => toggleCategory(id)}>
-                                            <ChevronDown
-                                                size={13}
-                                                className={`sd-cat-chevron ${isExpanded ? 'open' : 'closed'}`}
-                                            />
-                                            <div className="sd-cat-dot" style={{ background: color }} />
-                                            <span className="sd-cat-name">{name}</span>
-                                            <div className="sd-cat-bar-track">
-                                                <div className="sd-cat-bar-fill" style={{ width: `${pct}%`, background: color }} />
-                                            </div>
-                                            <span className="sd-cat-count">{count} ({pct.toFixed(1)}%)</span>
-                                        </div>
-
-                                        {isExpanded && (
-                                            <div className="sd-items-grid">
-                                                {catItems.map(item => {
-                                                    const stateCol = stateColors[item.state] || C.muted;
-                                                    return (
-                                                        <div key={item.material} className="sd-item-row">
-                                                            <img
-                                                                className="sd-item-img"
-                                                                src={`${IMAGE_BASE_URL}/${item.material.toLowerCase()}.png`}
-                                                                alt={item.displayName}
-                                                                onError={e => { e.target.onerror = null; e.target.src = `${IMAGE_BASE_URL}/barrier.png`; }}
-                                                            />
-                                                            <span className="sd-item-name">{item.displayName}</span>
-                                                            {item.state && (
-                                                                <span
-                                                                    className="sd-item-state"
-                                                                    style={{ color: stateCol, background: stateCol + '15' }}
-                                                                >
-                                                                    {item.state}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-export default StatisticsDashboard;
+export { CATEGORY_CONFIG, loadItemTags, buildTagCategoryMap, categorizeItem };

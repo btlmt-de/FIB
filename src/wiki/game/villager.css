@@ -1,0 +1,51 @@
+/*
+ * Villagers (Villager.jsx). A trader wears its name over its head the way the game
+ * draws a nametag, light text on a dark plate, in the plugin's colour for that
+ * trader; then the model, outlined in the same colour, because the plugin sets
+ * traders glowing and the game outlines a glowing entity in its team colour. A plain
+ * villager (the Cleric) has neither: the game gives it no name and no glow.
+ *
+ * The outline is four hard shadows, a crisp pixel edge: it is the game's glow
+ * outline, which is a line, not the soft halo the wiki does not use.
+ *
+ * The filter sits on a wrapper outside the 3D scene, because a filter flattens the
+ * element it is on: here it flattens the finished drawing, not the boxes.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.vg { display: inline-grid; justify-items: center; }
+.vg-trader { margin: 0; gap: 12px; }
+.vg-name {
+  margin: 0; padding: 3px 8px 4px;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1;
+  color: var(--vg-ink); background: oklch(0% 0 0 / 0.42); border-radius: 2px;
+  text-shadow: 2px 2px 0 oklch(0% 0 0 / 0.45);
+  white-space: nowrap;
+}
+
+.vg-glow {
+  display: block;
+  filter:
+    drop-shadow(2px 0 0 var(--vg-ink)) drop-shadow(-2px 0 0 var(--vg-ink))
+    drop-shadow(0 2px 0 var(--vg-ink)) drop-shadow(0 -2px 0 var(--vg-ink));
+}
+.vg-scene {
+  position: relative; display: block;
+  width: calc(var(--vg-px) * 24); height: calc(var(--vg-px) * 36);
+  perspective: calc(var(--vg-px) * 220); perspective-origin: 50% 35%;
+}
+.vg-root { position: absolute; left: 50%; top: calc(var(--vg-px) * 11); transform-style: preserve-3d; }
+.vg-part, .vg-box { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
+.vg-face {
+  position: absolute; display: block;
+  background-repeat: no-repeat; image-rendering: pixelated;
+  backface-visibility: hidden;
+}
+.vg-head { transition: transform 180ms var(--wk-ease); }
+
+@media (prefers-reduced-motion: reduce) { .vg-head { transition: none; } }
+html[data-saver="on"] .vg-head { transition: none; }
+
+/* A player head in a slot (Head): its face, flat. */
+.vg-headicon { display: block; background-repeat: no-repeat; image-rendering: pixelated; }

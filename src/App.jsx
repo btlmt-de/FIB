@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 
 // Components
 import Navigation from './components/common/Navigation';
+import WikiRoot from './wiki/shell/WikiRoot.jsx';
 
 // Config
 import { COLORS } from './config/constants';
@@ -61,7 +62,7 @@ function RouteFallback() {
  * the page scroll to nothing for the length of one chunk request.
  */
 function PageFallback() {
-    return <div style={{ minHeight: '70vh', background: COLORS.bg }} />;
+    return <div style={{ minHeight: '70vh', background: 'var(--wk-ground)' }} />;
 }
 
 // Route lookup map
@@ -78,6 +79,11 @@ const ROUTE_MAP = {
     'wheel': 'wheel',
     'stats': 'stats',
 };
+
+/** The rendered element with this id: Suspense can keep a hidden page mounted, and two pages share ids. */
+function visibleById(id) {
+    return [...document.querySelectorAll(`[id="${CSS.escape(id)}"]`)].find((x) => x.getClientRects().length > 0);
+}
 
 export default function App() {
     // Simple routing based on pathname
@@ -101,12 +107,48 @@ export default function App() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    const navigate = (page) => {
-        const path = page === 'home' ? '/' : `/${page}`;
+    // A target may name a section too ('structures#traders'): the page, then the
+    // section on it. Without one, a new page opens at its top. A section on the page
+    // already showing is scrolled to here: setting the same page again changes no
+    // state, so the effect below, which handles arriving on a new page, never runs.
+    const navigate = (target) => {
+        const [page, section] = target.split('#');
+        const path = (page === 'home' ? '/' : `/${page}`) + (section ? `#${section}` : '');
         window.history.pushState({}, '', path);
         setCurrentPage(page);
-        window.scrollTo(0, 0);
+        if (!section) window.scrollTo(0, 0);
+        else if (page === currentPage) visibleById(section)?.scrollIntoView();
     };
+
+    // Scroll to the #section in the address once it exists. Pages are lazy chunks,
+    // so right after a route change (or a first load with a #section) the element
+    // is not there yet: watch the DOM until it appears, and give up quietly after
+    // ten seconds. (A two-second poll was tried first and lost the race against a
+    // cold chunk in development.) Anything after a '?' in the hash is a query (the
+    // sign-in flow uses one), not a section.
+    //
+    // Only a section that is actually rendered counts. While the next chunk loads,
+    // Suspense keeps the page being left mounted and hides it with display: none,
+    // and two pages can share an id (Gameplay and Custom Content both have
+    // #traders), so the first match can be the old page's, invisible.
+    useEffect(() => {
+        const id = decodeURIComponent(window.location.hash.slice(1).split('?')[0]);
+        if (!id) return undefined;
+        const found = () => {
+            const el = visibleById(id);
+            if (el) el.scrollIntoView();
+            return Boolean(el);
+        };
+        if (found()) return undefined;
+        const observer = new MutationObserver(() => { if (found()) stop(); });
+        const timer = setTimeout(() => stop(), 10000);
+        function stop() {
+            observer.disconnect();
+            clearTimeout(timer);
+        }
+        observer.observe(document.body, { childList: true, subtree: true });
+        return stop;
+    }, [currentPage]);
 
     // Wheel page is standalone (no nav bar)
     if (currentPage === 'wheel') {
@@ -154,11 +196,10 @@ export default function App() {
         );
     }
 
+    // The wiki. WikiRoot carries its tokens and faces; the two routes above never
+    // render it, so they never load either.
     return (
-        <div style={{
-            minHeight: '100vh',
-            background: COLORS.bg
-        }}>
+        <WikiRoot>
             <Navigation currentPage={currentPage} onNavigate={navigate} />
 
             {/* The nav bar is outside the boundary deliberately: it is already
@@ -170,23 +211,23 @@ export default function App() {
             )}
 
             {currentPage === 'how-to-play' && (
-                <HowToPlay />
+                <HowToPlay onNavigate={navigate} />
             )}
 
             {currentPage === 'gameplay' && (
-                <Gameplay />
+                <Gameplay onNavigate={navigate} />
             )}
 
             {currentPage === 'changelog' && (
-                <Changelog />
+                <Changelog onNavigate={navigate} />
             )}
 
             {currentPage === 'imprint' && (
-                <Imprint />
+                <Imprint onNavigate={navigate} />
             )}
 
             {currentPage === 'rules' && (
-                <Rules />
+                <Rules onNavigate={navigate} />
             )}
 
             {currentPage === 'pools' && (
@@ -194,17 +235,17 @@ export default function App() {
             )}
 
             {currentPage === 'structures' && (
-                <CustomStructures />
+                <CustomStructures onNavigate={navigate} />
             )}
 
             {currentPage === 'commands' && (
-                <Commands />
+                <Commands onNavigate={navigate} />
             )}
 
             {currentPage === 'settings' && (
-                <GameSettings />
+                <GameSettings onNavigate={navigate} />
             )}
             </Suspense>
-        </div>
+        </WikiRoot>
     );
 }

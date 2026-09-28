@@ -1070,7 +1070,10 @@ function WheelOfFortunePage({ onBack }) {
             <CanvasNocturneField />
             <KotwArenaAtmosphere visible={arenaVisible} />
             <FirstBloodRoom visible={firstBloodRoomVisible} />
-            {highRoller && <HighRollerAtmosphere />}
+            {/* Keyed on the table for ParlourAtmosphere's reason below: the
+                room carries the bed, and a second table must be a fresh mount
+                to get a fresh take rather than inherit the first one's. */}
+            {highRoller && <HighRollerAtmosphere key={highRoller.openedAt || 'high-roller'} openedAt={highRoller.openedAt} />}
             <CommunityForgeAtmosphere visible={forgeVisible} />
 
             {/* THE PARLOUR's light, over the whole surface.

@@ -1,0 +1,26 @@
+/*
+ * Rules (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
+ * page.css, the question beside its answer. Nothing here is red: a rule is not an
+ * alarm, and the wiki has no hue for "forbidden".
+ *
+ * Three of its four sections are a sentence or two, so they take page.css's brief
+ * section rather than the full one: the page stays short without anything added to
+ * fill it (final pass, Sept 2026).
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.rl-btn { justify-self: start; }
+.rl-network, .rl-ask { display: grid; gap: 12px; justify-items: start; }
+
+.rl-mods { list-style: none; margin: 0; padding: 0; display: grid; }
+.rl-mod {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 16px; align-items: start;
+  padding: 14px 0; box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.6);
+}
+.rl-mod:first-child { padding-top: 0; }
+.rl-mod:last-child { padding-bottom: 0; box-shadow: none; }
+.rl-mod-text { display: grid; gap: 3px; padding-top: 2px; }
+.rl-mod-name { font-size: 18.5px; font-weight: 700; line-height: 1.3; color: var(--wk-ink); }
+.rl-mod-what { font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 64ch; }
+.rl-ops { display: grid; gap: 10px; max-width: 68ch; }

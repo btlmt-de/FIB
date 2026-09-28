@@ -1,0 +1,72 @@
+/*
+ * The /settings menu (SettingsMenu.jsx), drawn at twice the game's GUI scale: the
+ * vanilla chest texture (generic_54), cut to four rows the way the game cuts it (the
+ * top 89px: title and slots, then the panel's bottom edge), each 18px slot 36px here
+ * and each item 32px. Positions are the game's: the first slot's item at (8, 18),
+ * the title at (8, 6).
+ *
+ * A slot lights the way the game lights one, a half-white wash, which is also the
+ * wiki's rule that interaction is white. The tooltip is the game's tooltip frame, the
+ * same one every item tooltip on the wiki wears.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.sm { margin: 0; display: grid; gap: 12px; justify-items: start; }
+.sm-gui {
+  position: relative; width: 352px; height: 192px;
+  background: var(--gui) 0 0 / 512px 512px no-repeat; image-rendering: pixelated;
+}
+/* The panel's bottom edge, taken from the foot of the texture. */
+.sm-gui::after {
+  content: ""; position: absolute; left: 0; bottom: 0; width: 352px; height: 14px; pointer-events: none;
+  background: var(--gui) 0 -430px / 512px 512px no-repeat; image-rendering: pixelated;
+}
+.sm-title { position: absolute; left: 16px; top: 9px; font: 600 20px/1 var(--wk-font-display); white-space: nowrap; }
+
+.sm-slot {
+  position: absolute; left: calc((8px + var(--col) * 18px) * 2); top: calc((18px + var(--row) * 18px) * 2);
+  width: 32px; height: 32px; padding: 0; margin: 0; border: 0; background: none;
+  display: grid; place-items: center; color: inherit;
+}
+.sm-sprite { display: block; width: 32px; height: 32px; image-rendering: pixelated; }
+.sm-slot--live, .sm-slot[tabindex] { cursor: pointer; }
+.sm-slot--live::after, .sm-slot[tabindex]::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.sm-slot--live:hover::after, .sm-slot[tabindex]:hover::after,
+.sm-slot--live:focus-visible::after, .sm-slot[tabindex]:focus-visible::after { background: oklch(100% 0 0 / 0.5); }
+.sm-slot:focus-visible { outline: 2px solid var(--wk-ink); outline-offset: 2px; }
+.sm-slot[aria-disabled] { cursor: default; }
+.sm-count {
+  position: absolute; right: -2px; bottom: -4px;
+  font: 700 16px/1 var(--wk-font-text); color: #FFFFFF; text-shadow: 2px 2px 0 #3F3F3F;
+  pointer-events: none;
+}
+/* The game answers a refused click with a sound; here the slot shakes. */
+.sm-slot[data-refused] { animation: sm-refuse 240ms var(--wk-ease); }
+@keyframes sm-refuse { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+
+.sm-tip {
+  position: absolute; z-index: 5; pointer-events: none;
+  left: calc((8px + var(--col) * 18px) * 2 + 42px); top: calc((18px + var(--row) * 18px) * 2 - 8px);
+  display: grid; width: max-content; max-width: 320px;
+  padding: 6px 9px 7px;
+  background:
+    linear-gradient(var(--wk-tip-bg), var(--wk-tip-bg)) padding-box,
+    linear-gradient(var(--wk-tip-top), var(--wk-tip-bottom)) border-box;
+  border: 2px solid transparent; outline: 1px solid var(--wk-tip-bg); border-radius: 2px;
+  box-shadow: 0 14px 28px -12px oklch(0% 0 0 / 0.8);
+  font: 400 14px/1.45 var(--wk-font-text);
+}
+.sm-tip[data-side="left"] { left: auto; right: calc(352px - (8px + var(--col) * 18px) * 2 + 10px); }
+.sm-line { display: block; min-height: 1.45em; }
+
+.sm-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; max-width: 352px; }
+.sm-reset { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
+
+/* On a phone the tooltip has no room beside the slot, so it sits under the chest. */
+@media (max-width: 560px) {
+  .sm-tip, .sm-tip[data-side="left"] { left: 0; right: auto; top: calc(100% + 8px); max-width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) { .sm-slot[data-refused] { animation: none; } }
+html[data-saver="on"] .sm-slot[data-refused] { animation: none; }

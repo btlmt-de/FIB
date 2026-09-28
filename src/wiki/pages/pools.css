@@ -1,0 +1,573 @@
+/*
+ * Item Pools (THE EXPLORER'S ATLAS): the maintainers' workspace. Loaded with the
+ * page's own chunk. Operate, not Read: dense, keyboard-first, every control a real
+ * control, and the same world as the rest of the wiki (sunk slots, the stage and tag
+ * marks, white light for anything the pointer or the selection touches).
+ *
+ * Three regions: the browser, the inspector beside it, the tray along the bottom.
+ * --ip-top is the height of the nav plus the sticky toolbar, measured by the page.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.ip { --ip-top: 176px; display: block; min-height: 100vh; padding-bottom: 72px; }
+/* Wider than the reading pages: this page's job is to show as much of the pool as it can. */
+.ip-wrap { width: min(1840px, 100% - 40px); margin-inline: auto; }
+
+.ip-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 0; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--wk-ink-2);
+  text-decoration: underline; text-decoration-color: var(--wk-ink-4); text-underline-offset: 3px;
+  transition: color 140ms var(--wk-ease), text-decoration-color 140ms var(--wk-ease);
+}
+.ip-link:hover { color: var(--wk-ink); text-decoration-color: var(--wk-ink); }
+.ip-link:disabled { opacity: 0.5; cursor: default; }
+.ip-btn { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
+.ip-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+.ip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; }
+.ip-dim { color: var(--wk-ink-3); }
+.ip-mono { font-family: var(--wk-font-typed); font-size: 12.5px; color: var(--wk-ink-3); }
+.ip-tagword { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; white-space: nowrap; }
+.ip-spin { animation: ip-spin 900ms linear infinite; }
+@keyframes ip-spin { to { transform: rotate(360deg); } }
+
+/* Fields: cut into the surface, like a slot. */
+.ip-input, .ip-select select, .ip-search input, .ip-branch select {
+  min-height: 40px; padding: 0 12px;
+  font: 500 16px/1.2 var(--wk-font-text); color: var(--wk-ink);
+  background: var(--wk-slot); border: 0; border-radius: 2px;
+  box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.55), inset -1px -1px 0 var(--wk-line);
+}
+.ip-input::placeholder, .ip-search input::placeholder { color: var(--wk-ink-3); }
+.ip-mono-input { font-family: var(--wk-font-typed); font-size: 14px; }
+.ip-select select, .ip-branch select { padding-right: 28px; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--wk-ink-3) 50%), linear-gradient(-45deg, transparent 50%, var(--wk-ink-3) 50%);
+  background-position: right 14px center, right 9px center; background-size: 5px 5px; background-repeat: no-repeat; }
+.ip-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--wk-ink-2); cursor: pointer; }
+.ip-check input { width: 16px; height: 16px; accent-color: oklch(96% 0.006 95); }
+.ip-field { display: grid; gap: 6px; }
+.ip-error { margin: 0; font-size: 14px; color: var(--wk-ink); font-weight: 600; }
+.ip-error::before { content: "Not done: "; color: var(--wk-ink-3); font-weight: 500; }
+
+/* Segmented controls. The chosen one is the brighter block with the 3px white bar. */
+.ip-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.ip-seg > button {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 38px; padding: 0 12px 2px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.ip-seg > button:hover:not(:disabled) { background: var(--wk-panel-hi); color: var(--wk-ink); }
+.ip-seg > button[aria-pressed="true"], .ip-seg > button[aria-checked="true"] {
+  background: var(--wk-panel-hi); color: var(--wk-ink);
+  box-shadow: inset 0 -3px 0 var(--wk-ink);
+}
+.ip-seg > button:disabled { opacity: 0.45; cursor: default; }
+.ip-seg-n { font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
+.ip-seg--small > button { min-height: 32px; font-size: 13px; padding: 0 10px 2px; }
+.ip-seg--icons > button { width: 40px; justify-content: center; padding: 0 0 2px; }
+
+/* ── The toolbar ──────────────────────────────────────────────────────────── */
+
+.ip-bar {
+  position: sticky; top: 56px; z-index: 60;
+  background: oklch(11.5% 0.006 255 / 0.96);
+  box-shadow: inset 0 -1px 0 var(--wk-line), 0 12px 24px -20px oklch(0% 0 0 / 0.9);
+}
+.ip-bar-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 22px; padding: 14px 0 8px; }
+.ip-title { margin: 0; font-family: var(--wk-font-display); font-weight: 600; font-size: 30px; line-height: 1; color: var(--wk-ink); }
+.ip-facts { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; font-size: 14px; color: var(--wk-ink-3); }
+.ip-facts .wk-datum { color: var(--wk-ink); }
+.ip-branch { display: inline-flex; align-items: center; gap: 8px; }
+.ip-branch select { min-height: 30px; font-size: 14px; font-family: var(--wk-font-typed); }
+.ip-updated { font-variant-numeric: tabular-nums; }
+.ip-overview-btn { display: none; }
+
+.ip-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 2px 0 8px; }
+.ip-search { position: relative; display: inline-flex; align-items: center; flex: 1 1 320px; max-width: 460px; }
+.ip-search svg { position: absolute; left: 13px; color: var(--wk-ink-2); pointer-events: none; }
+.ip-search input { width: 100%; min-height: 44px; padding-left: 42px; font-size: 16px; }
+.ip-seg--primary > button { min-height: 44px; padding: 0 14px 2px; }
+.ip-seg-stage[data-stage] > span:first-child { font-weight: 700; }
+
+/* The secondary line: words that light up rather than more blocks. The chosen word
+   takes the brighter ground and the white bar, the same mark the primary line uses. */
+.ip-refine { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 28px; padding: 0 0 10px; }
+.ip-refine-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.ip-refine-label {
+  margin-right: 6px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3);
+}
+.ip-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 32px; padding: 0 9px 1px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-3);
+  background: none; border: 0; border-radius: 2px; cursor: pointer;
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.ip-toggle:hover { color: var(--wk-ink); background: var(--wk-panel); }
+.ip-toggle[aria-pressed="true"], .ip-toggle[aria-checked="true"] {
+  color: var(--wk-ink); background: var(--wk-panel); box-shadow: inset 0 -2px 0 var(--wk-ink);
+}
+.ip-toggle .ip-seg-n { font-weight: 600; }
+.ip-refine-btn { display: none; }
+.ip-refine-end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; margin-left: auto; }
+.ip-quiet-select {
+  min-height: 32px; padding: 0 22px 0 8px; cursor: pointer; appearance: none;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: none; border: 0; border-radius: 2px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--wk-ink-3) 50%), linear-gradient(-45deg, transparent 50%, var(--wk-ink-3) 50%);
+  background-position: right 11px center, right 6px center; background-size: 5px 5px; background-repeat: no-repeat;
+}
+.ip-quiet-select:hover { color: var(--wk-ink); background-color: var(--wk-panel); }
+
+/* ── The workspace ────────────────────────────────────────────────────────── */
+
+.ip-work { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 0 32px; align-items: start; padding-top: 16px; }
+.ip-browse { min-width: 0; }
+
+.ip-results { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; min-height: 32px; margin-bottom: 10px; font-size: 14px; color: var(--wk-ink-3); }
+.ip-results .wk-datum { color: var(--wk-ink); }
+.ip-results-note { color: var(--wk-ink-3); }
+.ip-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 10px;
+  background: var(--wk-panel-hi); border-radius: 2px; font-size: 13px; font-weight: 600; color: var(--wk-ink);
+}
+.ip-chip button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; background: none; border: 0; color: var(--wk-ink-3); cursor: pointer; border-radius: 2px; }
+.ip-chip button:hover { color: var(--wk-ink); background: var(--wk-panel); }
+
+.ip-error-block, .ip-empty { display: grid; justify-items: start; gap: 12px; padding: 32px 0; font-size: 16px; color: var(--wk-ink-2); }
+.ip-error-block p, .ip-empty p { margin: 0; max-width: 60ch; }
+
+.ip-groups { display: grid; gap: 22px; }
+.ip-group { content-visibility: auto; contain-intrinsic-size: auto 400px; }
+.ip-group-title {
+  display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.1; color: var(--wk-ink);
+}
+.ip-group-n { font-family: var(--wk-font-text); font-size: 14px; font-weight: 700; color: var(--wk-ink-3); font-variant-numeric: tabular-nums; }
+
+.ip-grid { display: grid; grid-template-columns: repeat(auto-fill, 52px); gap: 2px; }
+@keyframes ip-ghost { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.ip-ghost { animation: ip-ghost 1600ms ease-in-out infinite; animation-delay: calc(var(--i) * 20ms); }
+
+/* A slot as a button. Selected: a white ring. Staged: a dashed ring, because it is
+   not the game's yet. /info: a small mark in the top-left corner. */
+.ip-cell {
+  position: relative; display: block; padding: 0; line-height: 0;
+  background: none; border: 0; border-radius: 2px; cursor: pointer;
+}
+.ip-cell:hover .wk-slot::after { background: oklch(100% 0 0 / 0.09); }
+.ip-cell:hover .wk-sprite, .ip-cell:focus-visible .wk-sprite { transform: translateY(-2px) scale(1.07); }
+.ip-cell[data-staged] .wk-slot { outline: 2px dashed var(--wk-ink-3); outline-offset: -2px; }
+.ip-cell[aria-pressed="true"] .wk-slot { outline: 2px solid var(--wk-ink); outline-offset: -2px; }
+.ip-cell[data-removed] .wk-sprite { opacity: 0.3; }
+.ip-info-mark { position: absolute; top: 5px; left: 5px; width: 5px; height: 5px; background: var(--wk-ink-3); box-shadow: 1px 1px 0 oklch(0% 0 0 / 0.8); pointer-events: none; }
+.ip-cell:focus-visible { outline: 2px solid var(--wk-ink); outline-offset: 2px; }
+
+.ip-list { display: grid; }
+.ip-row-item {
+  display: grid; grid-template-columns: 36px minmax(160px, 1.1fr) 64px minmax(0, 0.8fr) minmax(0, 2fr) minmax(0, auto);
+  align-items: center; gap: 14px;
+  min-height: 46px; padding: 4px 10px 4px 6px;
+  background: none; border: 0; border-radius: 2px; cursor: pointer; text-align: left;
+  font: 16px/1.3 var(--wk-font-text); color: var(--wk-ink-2);
+  box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.55);
+  transition: background 120ms var(--wk-ease);
+}
+.ip-row-item:hover { background: var(--wk-panel); }
+.ip-row-item[aria-pressed="true"] { background: var(--wk-panel); box-shadow: inset 3px 0 0 var(--wk-ink); }
+.ip-row-item[data-removed] .wk-sprite { opacity: 0.3; }
+.ip-row-item[data-removed] .ip-row-name > span:first-child { text-decoration: line-through; }
+.ip-row-name { display: grid; min-width: 0; }
+.ip-row-name > span:first-child { font-weight: 600; color: var(--wk-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ip-row-stage { font-weight: 700; }
+.ip-row-tags, .ip-row-info { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ip-row-info { font-size: 14px; }
+.ip-row-info .ip-mc-line { display: inline; }
+.ip-row-staged { font-size: 13px; font-weight: 600; color: var(--wk-ink); white-space: nowrap; }
+
+/* ── The catalogue ────────────────────────────────────────────────────────── */
+
+/* The default view: one component on one fixed grid (see Entry in ForceItemPools).
+   Five across beside the sidebar at 1920px, about 285px each. Six was tried first
+   (236px): the text column came to 148px, and LATE NETHER EXTREME measures about
+   190px as chips, so the tags of 58 entries were clipped. Every chip whole on one
+   fixed row mattered more than a sixth column. Quiet by default: a
+   1px outline on the ground; hover takes the panel ground and a brighter outline,
+   selection the white ring. Colour lives only in the chips. */
+/* The minimum is measured, not picked. At 264px the grid went to four across from
+   about 1510px, and at 1536px (269px entries) fourteen chip rows lost their /info
+   word; at 1440px four across would be 245px entries, with 46 rows clipped and 8
+   names past two lines. 284px is the narrowest entry where only Wither Skeleton
+   Skull gives way, so the Catalogue is three across at 1440px, four from about
+   1590px and five at 1920px (final pass, Sept 2026). */
+.ip-catalogue { display: grid; grid-template-columns: repeat(auto-fill, minmax(284px, 1fr)); gap: 6px; }
+.ip-entry {
+  display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; column-gap: 10px;
+  height: 88px; padding: 0 12px;
+  background: none; border: 0; border-radius: 2px; cursor: pointer; text-align: left;
+  box-shadow: inset 0 0 0 1px oklch(27% 0.009 255 / 0.7);
+  transition: background 120ms var(--wk-ease), box-shadow 120ms var(--wk-ease);
+}
+.ip-entry:hover { background: var(--wk-panel); box-shadow: inset 0 0 0 1px var(--wk-line-hi); }
+.ip-entry[aria-pressed="true"] { background: var(--wk-panel); box-shadow: inset 0 0 0 2px var(--wk-ink); }
+.ip-entry[data-staged]:not([aria-pressed="true"]) { outline: 2px dashed var(--wk-ink-3); outline-offset: -2px; }
+.ip-entry[data-removed] .ip-entry-art { opacity: 0.3; }
+.ip-entry[data-removed] .ip-entry-name { text-decoration: line-through; text-decoration-color: var(--wk-ink-3); }
+
+/* The item itself, 52px, on nothing: the game's art does not need a frame. */
+.ip-entry-art { display: grid; place-items: center; width: 56px; height: 56px; }
+.ip-entry-art .wk-sprite { width: 52px; height: 52px; filter: drop-shadow(0 3px 2px oklch(0% 0 0 / 0.5)); }
+.ip-entry-art--ghost { width: 44px; height: 44px; margin: 6px; background: var(--wk-panel); border-radius: 2px; }
+
+/* Two fixed rows: a name area that is always two lines tall, and the chip row under
+   it, so a one-line Allium and a two-line armor trim put their chips at the same y. */
+.ip-entry-text { display: grid; grid-template-rows: 40px 20px; row-gap: 7px; min-width: 0; }
+.ip-entry-name {
+  align-self: start;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  font-size: 16px; font-weight: 600; line-height: 20px; color: var(--wk-ink);
+}
+.ip-entry-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; min-width: 0; height: 20px; overflow: hidden; }
+.ip-chip-tag {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 5px 0 6px; flex-shrink: 0;
+  font-size: 12.5px; font-weight: 600; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--c); border-radius: 2px;
+  background: color-mix(in oklch, var(--c) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c) 38%, transparent);
+}
+/* A world tag: the same row and height as the stage chip, but its glyph and word
+   alone, so the stage reads first and the tag as what it is, metadata on it. */
+.ip-chip-tag--world { gap: 4px; padding: 0 3px 0 5px; background: none; box-shadow: none; }
+.ip-chip-tag--world .wk-glyph { flex-shrink: 0; }
+/* /info is the one thing on the row allowed to give way: when the chips leave no room
+   (one item, Late Nether Extreme with /info) it wraps onto the hidden second line
+   rather than a tag being cut. The filter and the inspector still say it. */
+.ip-entry-infoword { margin-left: auto; padding-left: 6px; line-height: 20px; font-size: 12.5px; font-weight: 600; color: var(--wk-ink-3); white-space: nowrap; }
+.ip-entry.ip-ghost, .ip-row-item.ip-ghost { cursor: default; }
+
+/* The list's column names, held under the toolbar while the rows scroll. */
+.ip-list-head {
+  position: sticky; top: var(--ip-top); z-index: 5;
+  display: grid; grid-template-columns: 36px minmax(160px, 1.1fr) 64px minmax(0, 0.8fr) minmax(0, 2fr) minmax(0, auto);
+  gap: 14px; padding: 8px 10px 8px 6px;
+  background: var(--wk-ground); box-shadow: inset 0 -1px 0 var(--wk-line);
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3);
+}
+
+/* Where the sidebar has folded away, the breakdown stays above the items. */
+.ip-summary { display: none; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 8px; font-size: 14px; }
+.ip-summary .ip-link { text-decoration: none; font-weight: 700; }
+.ip-summary .wk-datum { color: var(--wk-ink); }
+
+/* The tooltip adds /info's own lines under the name, the way the game prints lore. */
+.ip-tip { max-width: 320px; }
+.ip-tip-lore { display: grid; margin-top: 3px; }
+.ip-tip-lore .ip-mc-line { min-height: 0; font-size: 13.5px; line-height: 1.45; }
+.ip-tip-more { font-size: 12.5px; color: var(--wk-ink-3); margin-top: 2px; }
+
+/* ── The inspector ────────────────────────────────────────────────────────── */
+
+.ip-inspect {
+  position: sticky; top: calc(var(--ip-top) + 12px);
+  max-height: calc(100vh - var(--ip-top) - 28px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px 4px 24px 28px;
+  box-shadow: inset 1px 0 0 var(--wk-line);
+  scrollbar-width: thin;
+}
+.ip-inspect-in { position: relative; }
+/* Room for the tray only while there is one, so the overview fits without an inner
+   scrollbar on an ordinary laptop screen. */
+.ip:has(.ip-tray) .ip-inspect { max-height: calc(100vh - var(--ip-top) - 92px); }
+.ip-close {
+  position: absolute; top: 0; right: 0;
+  display: grid; place-items: center; width: 40px; height: 40px;
+  background: var(--wk-panel); border: 0; border-radius: 2px; color: var(--wk-ink-2); cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+}
+.ip-close:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+
+.ip-item, .ip-overview { display: grid; gap: 0; }
+.ip-sec { display: grid; gap: 12px; padding: 18px 0; box-shadow: inset 0 1px 0 var(--wk-line); }
+.ip-sec:first-child, .ip-item-head + .ip-sec { box-shadow: inset 0 1px 0 var(--wk-line); }
+.ip-overview > .ip-sec:first-child { box-shadow: none; padding-top: 0; }
+
+.ip-item-head { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; align-items: center; padding: 0 48px 18px 0; }
+.ip-item-slot { background: radial-gradient(circle at 50% 60%, oklch(100% 0 0 / 0.06), transparent 70%), var(--wk-slot); }
+.ip-item-id { display: grid; gap: 3px; min-width: 0; }
+.ip-item-id .wk-name { overflow-wrap: anywhere; }
+.ip-item-status { margin: 2px 0 0; font-size: 14px; font-weight: 600; color: var(--wk-ink-2); }
+.ip-item-status[data-staged] { color: var(--wk-ink); }
+.ip-item-id .wk-small { margin: 0; }
+/* Reading an item: the facts as rows of a term and its value, no controls. */
+.ip-readout { margin: 0; display: grid; gap: 8px; }
+.ip-readout > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.ip-readout dt { font-size: 14px; color: var(--wk-ink-3); }
+.ip-readout dd { margin: 0; font-size: 16px; color: var(--wk-ink-2); }
+.ip-readout-note { font-size: 14px; color: var(--wk-ink-3); }
+.ip-readout dd strong { font-weight: 700; }
+.ip-edit-row { justify-items: start; }
+/* Editing: the one bar that says the pane is now a form, and the way back out. */
+.ip-editbar {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px;
+  padding: 12px 0 14px; box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.ip-editbar .wk-label { color: var(--wk-ink); }
+.ip-editbar-note { font-size: 13px; line-height: 1.4; color: var(--wk-ink-3); }
+.ip-was { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14px; color: var(--wk-ink-3); }
+
+.ip-poolctl { display: grid; gap: 8px; }
+.ip-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ip-seg > .ip-stage { justify-content: center; min-height: 44px; font-size: 16px; }
+.ip-stage-name { font-weight: 700; }
+.ip-seg > .ip-stage[aria-checked="true"][data-stage="early"] { box-shadow: inset 0 -3px 0 var(--wk-s-early); }
+.ip-seg > .ip-stage[aria-checked="true"][data-stage="mid"] { box-shadow: inset 0 -3px 0 var(--wk-s-mid); }
+.ip-seg > .ip-stage[aria-checked="true"][data-stage="late"] { box-shadow: inset 0 -3px 0 var(--wk-s-late); }
+.ip-tags { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ip-tag { justify-content: center; }
+
+.ip-bulk-head { display: grid; gap: 10px; padding: 0 48px 18px 0; justify-items: start; }
+.ip-strip { display: flex; flex-wrap: wrap; gap: 2px; }
+.ip-more { font-size: 12px; font-weight: 700; color: var(--wk-ink-2); }
+.ip-bulk-tags { display: grid; gap: 6px; font-size: 14px; }
+
+/* The overview: every figure is also a filter. */
+.ip-fig { margin: 0; font-size: 16px; color: var(--wk-ink-3); }
+.ip-fig .wk-figure { font-size: 40px; color: var(--wk-ink); margin-right: 6px; vertical-align: -4px; }
+.ip-bars, .ip-cats, .ip-commits { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ip-bar-row, .ip-cat, .ip-todo {
+  display: grid; align-items: center; gap: 12px;
+  padding: 6px 8px; margin: 0 -8px; width: calc(100% + 16px);
+  background: none; border: 0; border-radius: 2px; cursor: pointer; text-align: left;
+  font: 16px/1.3 var(--wk-font-text); color: var(--wk-ink-2);
+  transition: background 120ms var(--wk-ease);
+}
+.ip-bar-row:hover, .ip-cat:hover, .ip-todo:hover { background: var(--wk-panel); }
+.ip-bar-row { grid-template-columns: 86px minmax(0, 1fr) 48px; row-gap: 2px; }
+.ip-bar-note { grid-column: 1 / -1; font-size: 13px; line-height: 1.35; color: var(--wk-ink-3); }
+.ip-bars + .ip-bars { margin-top: 4px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--wk-line); }
+
+/* The maintenance fold: open for someone signed in to GitHub, closed for everyone else. */
+.ip-maint > summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  list-style: none; cursor: pointer; padding: 2px 0;
+}
+.ip-maint > summary::-webkit-details-marker { display: none; }
+.ip-maint > summary::before {
+  content: ""; width: 7px; height: 7px; align-self: center;
+  border-right: 2px solid var(--wk-ink-3); border-bottom: 2px solid var(--wk-ink-3);
+  transform: rotate(-45deg); transition: transform 160ms var(--wk-ease);
+}
+.ip-maint[open] > summary::before { transform: rotate(45deg); }
+.ip-maint > summary:hover .wk-label { color: var(--wk-ink); }
+.ip-maint-sum { font-size: 13px; color: var(--wk-ink-3); }
+.ip-maint-body { display: grid; gap: 10px; padding-top: 12px; }
+.ip-maint-label { margin-top: 8px; }
+.ip-history { display: grid; gap: 10px; margin-top: 8px; }
+.ip-bar-row .wk-datum, .ip-cat-n { text-align: right; color: var(--wk-ink); font-size: 16px; }
+.ip-bar-name { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; }
+.ip-meter { position: relative; height: 8px; background: var(--wk-slot); box-shadow: inset 1px 1px 0 oklch(4% 0 0 / 0.5); }
+.ip-meter > span { position: absolute; inset: 0 auto 0 0; background: var(--wk-ink-3); }
+.ip-todo { grid-template-columns: 64px minmax(0, 1fr); align-items: baseline; }
+.ip-todo-n { font-size: 22px; color: var(--wk-ink); text-align: right; }
+.ip-todo-sub { display: block; font-size: 13px; color: var(--wk-ink-3); }
+.ip-cat { grid-template-columns: minmax(0, 1fr) 90px 70px; }
+.ip-cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ip-cat-n { font-size: 13px; color: var(--wk-ink-3); white-space: nowrap; }
+.ip-cat-n .wk-datum { color: var(--wk-ink); }
+
+.ip-history-head { justify-content: space-between; }
+.ip-commit { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 6px 0; }
+.ip-commit img { border-radius: 2px; margin-top: 2px; }
+.ip-commit-text { display: grid; gap: 1px; min-width: 0; }
+.ip-commit-msg { font-size: 14px; font-weight: 600; color: var(--wk-ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ip-commit-msg:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ip-commit-meta { font-size: 13px; color: var(--wk-ink-3); }
+.ip-small-link { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+
+/* ── /info ────────────────────────────────────────────────────────────────── */
+
+/* The chat box /info prints into: black at half strength over the world, and the
+   game's hard text shadow. The sixteen chat colours inside it are the game's. */
+.ip-chat {
+  display: grid; gap: 0; padding: 8px 10px;
+  background: oklch(0% 0 0 / 0.5); border-radius: 2px;
+  font: 500 16px/1.5 var(--wk-font-text);
+  text-shadow: 2px 2px 0 oklch(0% 0 0 / 0.55);
+  overflow-wrap: anywhere;
+}
+.ip-mc-line { display: block; min-height: 1.5em; white-space: pre-wrap; }
+
+.ip-info { display: grid; gap: 12px; }
+.ip-info-empty { display: grid; gap: 10px; }
+.ip-info-empty p { margin: 0; }
+.ip-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ip-swatches { display: grid; grid-template-columns: repeat(8, 20px); gap: 3px; }
+.ip-swatch {
+  width: 20px; height: 20px; padding: 0; border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset -2px -2px 0 oklch(0% 0 0 / 0.3), 0 0 0 1px var(--wk-line);
+}
+.ip-swatch:hover { transform: translateY(-1px); box-shadow: inset -2px -2px 0 oklch(0% 0 0 / 0.3), 0 0 0 2px var(--wk-ink); }
+.ip-formats { display: inline-flex; gap: 2px; }
+.ip-code {
+  min-width: 32px; height: 32px; padding: 0 8px;
+  font: 700 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+}
+.ip-code:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+.ip-code[data-code="o"] { font-style: italic; }
+.ip-code[data-code="n"] { text-decoration: underline; }
+.ip-code[data-code="m"] { text-decoration: line-through; }
+.ip-code[data-code="r"] { font-weight: 600; }
+
+.ip-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; counter-reset: ln; }
+.ip-line { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 6px; counter-increment: ln; }
+.ip-line::before { content: counter(ln); font-size: 12px; font-weight: 700; color: var(--wk-ink-4); text-align: right; font-variant-numeric: tabular-nums; }
+.ip-line[data-active]::before { color: var(--wk-ink-2); }
+.ip-line-input {
+  width: 100%; min-height: 36px; padding: 0 10px;
+  font: 13.5px/1.2 var(--wk-font-typed); color: var(--wk-ink);
+  background: var(--wk-slot); border: 0; border-radius: 2px;
+  box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.55);
+}
+.ip-line-acts { display: inline-flex; gap: 2px; opacity: 0.55; transition: opacity 120ms var(--wk-ease); }
+.ip-line:hover .ip-line-acts, .ip-line[data-active] .ip-line-acts, .ip-line-acts:focus-within { opacity: 1; }
+.ip-icon {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  background: none; border: 0; border-radius: 2px; color: var(--wk-ink-2); cursor: pointer;
+}
+.ip-icon:hover:not(:disabled) { background: var(--wk-panel); color: var(--wk-ink); }
+.ip-icon:disabled { opacity: 0.3; cursor: default; }
+.ip-info-add .ip-select select { min-height: 40px; font-size: 14px; }
+
+.ip-copy { display: grid; gap: 8px; padding: 12px; background: var(--wk-deep); border-radius: 2px; }
+.ip-copy-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 320px; overflow-y: auto; }
+.ip-copy-item {
+  width: 100%; padding: 7px 8px; text-align: left;
+  background: none; border: 0; border-radius: 2px; cursor: pointer;
+  font: 600 14px/1.3 var(--wk-font-text); color: var(--wk-ink-2);
+}
+.ip-copy-item:hover, .ip-copy-item[aria-expanded="true"] { background: var(--wk-panel); color: var(--wk-ink); }
+.ip-copy-lines { display: grid; gap: 2px; padding: 4px 0 8px 8px; }
+.ip-copy-line {
+  padding: 3px 8px; text-align: left; background: oklch(0% 0 0 / 0.5); border: 0; border-radius: 2px; cursor: copy;
+  font: 500 14px/1.45 var(--wk-font-text); text-shadow: 2px 2px 0 oklch(0% 0 0 / 0.55);
+}
+.ip-copy-line:hover { box-shadow: 0 0 0 2px var(--wk-ink); }
+.ip-copy-lines .ip-btn { justify-self: start; margin-top: 4px; }
+.ip-info-foot { padding-top: 4px; }
+
+/* ── The tray and the drawer ──────────────────────────────────────────────── */
+
+.ip-tray {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
+  background: oklch(11.5% 0.006 255 / 0.97);
+  box-shadow: inset 0 1px 0 var(--wk-line-hi), 0 -12px 28px -18px oklch(0% 0 0 / 0.9);
+  animation: ip-rise 220ms var(--wk-ease);
+}
+@keyframes ip-rise { from { transform: translateY(100%); } to { transform: none; } }
+.ip-tray-in { width: min(1840px, 100% - 40px); margin-inline: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; min-height: 64px; padding: 8px 0; }
+.ip-tray-what { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; font-size: 16px; color: var(--wk-ink-2); }
+.ip-tray-what strong { font-family: var(--wk-font-display); font-weight: 600; font-size: 22px; color: var(--wk-ink); }
+.ip-tray-what .wk-datum { color: var(--wk-ink); font-size: 16px; }
+.ip-tray-note { font-size: 13px; color: var(--wk-ink-3); }
+.ip-tray-who { margin-left: auto; font-size: 14px; color: var(--wk-ink-3); }
+.ip-tray-who strong { color: var(--wk-ink-2); }
+
+.ip-scrim { position: fixed; inset: 56px 0 0; z-index: 110; background: oklch(6% 0.005 255 / 0.7); animation: ip-fade 200ms var(--wk-ease); }
+@keyframes ip-fade { from { opacity: 0; } to { opacity: 1; } }
+.ip-drawer {
+  position: fixed; top: 56px; right: 0; bottom: 0; z-index: 120;
+  width: min(640px, 100%); overflow-y: auto; overscroll-behavior: contain;
+  padding: 18px 24px 48px;
+  background: var(--wk-deep);
+  box-shadow: -24px 0 48px -24px oklch(0% 0 0 / 0.9), inset 1px 0 0 var(--wk-line);
+  animation: ip-slide 240ms var(--wk-ease);
+}
+@keyframes ip-slide { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.ip-drawer-head { position: relative; display: flex; align-items: center; min-height: 40px; padding-bottom: 14px; }
+.ip-drawer-empty { padding-top: 16px; }
+.ip-signin .ip-row img, .ip-avatar { border-radius: 2px; }
+.ip-signin-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+
+.ip-dest { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.1; color: var(--wk-ink); }
+.ip-dest-where { font-family: var(--wk-font-typed); font-size: 13px; font-weight: 400; color: var(--wk-ink-3); }
+.ip-changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ip-change { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 4px 0; }
+.ip-change-text { display: grid; min-width: 0; }
+.ip-change-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
+.ip-change-what { font-size: 14px; color: var(--wk-ink-3); }
+.ip-change-what.ip-link { font-weight: 500; justify-self: start; }
+.ip-change[data-type="remove"] .ip-change-name { text-decoration: line-through; text-decoration-color: var(--wk-ink-3); }
+.ip-gone .wk-sprite { opacity: 0.35; }
+.ip-compare { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 4px 0 10px; }
+.ip-compare > div { display: grid; gap: 6px; align-content: start; }
+.ip-diff summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--wk-ink-2); }
+.ip-diff summary:hover { color: var(--wk-ink); }
+.ip-pre {
+  margin: 8px 0 0; padding: 10px 12px; max-height: 240px; overflow: auto;
+  font: 12.5px/1.6 var(--wk-font-typed); color: var(--wk-ink-2);
+  background: var(--wk-slot); border-radius: 2px; box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.55);
+}
+.ip-form { display: grid; gap: 12px; padding-top: 6px; }
+.ip-done { display: grid; gap: 6px; justify-items: start; padding: 12px 14px; background: var(--wk-panel); border-radius: 2px; box-shadow: inset 3px 0 0 var(--wk-ink); }
+.ip-done p { margin: 0; }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1360px) {
+  .ip-work { gap: 0 24px; }
+}
+
+/* Below this the inspector is a sheet over the browser, opened by a selection or
+   the Overview link, and closed by its X or Escape. */
+@media (max-width: 1100px) {
+  .ip-work { grid-template-columns: 1fr; }
+  .ip-inspect { display: none; }
+  .ip-work[data-inspecting] .ip-inspect {
+    display: block; position: fixed; z-index: 90; top: 56px; left: 0; right: 0; bottom: 64px;
+    max-height: none; padding: 16px 16px 32px;
+    background: var(--wk-deep); box-shadow: 0 -1px 0 var(--wk-line);
+  }
+  .ip-overview-btn { display: inline-flex; }
+  .ip-summary { display: flex; }
+  .ip-refine-end { margin-left: 0; }
+  .ip-list-head { grid-template-columns: 36px minmax(0, 1fr) 60px minmax(0, 1.4fr); }
+  .ip-list-head > span:nth-child(4), .ip-list-head > span:nth-child(6) { display: none; }
+  .ip-row-item { grid-template-columns: 36px minmax(0, 1fr) 60px minmax(0, 1.4fr); }
+  .ip-row-tags, .ip-row-staged { display: none; }
+}
+@media (max-width: 720px) {
+  .ip-wrap, .ip-tray-in { width: calc(100% - 32px); }
+  .ip-search { flex-basis: 100%; max-width: none; }
+  .ip-wide { display: none; }
+  .ip-facts > span:first-child { display: none; }
+  .ip-refine { display: none; }
+  .ip-refine[data-open] { display: flex; }
+  .ip-refine-btn { display: inline-flex; }
+  /* The stage control carries the counts at this width; the summary would repeat it. */
+  .ip-summary { display: none; }
+  .ip-catalogue { grid-template-columns: 1fr; }
+  .ip-list-head { display: none; }
+  .ip-bar { position: static; }
+  .ip-row-item { grid-template-columns: 36px minmax(0, 1fr) 56px; }
+  .ip-row-info { display: none; }
+  .ip-tray-who, .ip-tray-note { display: none; }
+  .ip-tray-in .ip-btn { margin-left: auto; }
+  .ip-compare { grid-template-columns: 1fr; }
+  .ip-signin-form { grid-template-columns: 1fr; }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ip-ghost, .ip-spin, .ip-tray, .ip-drawer, .ip-scrim { animation: none; }
+  .ip-cell:hover .wk-sprite, .ip-cell:focus-visible .wk-sprite { transform: none; }
+}
+html[data-saver="on"] :is(.ip-ghost, .ip-tray, .ip-drawer, .ip-scrim) { animation: none; }

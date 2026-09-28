@@ -1,0 +1,409 @@
+/*
+ * THE EXPLORER'S ATLAS — the wiki's shared stylesheet.
+ *
+ * Every rule is scoped under .wk (the wiki's root) or names a wk- class, because
+ * this file ships in the entry chunk and the wheel and the stats module load that
+ * chunk too. Nothing here may style a bare element outside .wk.
+ *
+ * Values come from custom properties set by tokens.js (cssVars), never literals,
+ * so a colour lives in one file. Plain words in comments: no backticks.
+ */
+
+/* ── Figures ──────────────────────────────────────────────────────────────── *
+ * The display face (Handjet) draws its zero with a dot in the middle, and at the
+ * sizes a Y-level or a count is set, "Y 0 to 60" reads "Y 8 to 68" and 110 reads
+ * 118. On a page whose numbers are facts that is a wrong fact, not a style. So the
+ * digits 0-9 of every display-face run come from this face instead: Atkinson
+ * Hyperlegible Next Bold, a family drawn to keep 0/8/6 apart, subset to ten glyphs
+ * (Google Fonts, text=0123456789, OFL 1.1) and self-hosted at 1.8 kB. It is first
+ * in the display stack and its unicode-range admits only digits, so letters still
+ * fall through to Handjet.
+ */
+@font-face {
+  font-family: 'FIB Figures';
+  src: url('/fonts/fib-figures.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0030-0039;
+}
+
+/* ── The page ─────────────────────────────────────────────────────────────── */
+
+html:has(.wk) {
+  background: oklch(14.5% 0.007 255);
+  scrollbar-color: oklch(34% 0.010 255) oklch(11.5% 0.006 255);
+}
+
+.wk {
+  min-height: 100vh;
+  background: var(--wk-ground);
+  color: var(--wk-ink-2);
+  font-family: var(--wk-font-text);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+.wk ::selection { background: oklch(96% 0.006 95); color: oklch(14.5% 0.007 255); }
+.wk :focus-visible { outline: 2px solid var(--wk-ink); outline-offset: 2px; }
+
+.wk-wrap { width: min(1280px, 100% - 40px); margin-inline: auto; }
+
+/* The pixel arrowhead every track on the wiki ends in: a stepped triangle, drawn as
+   a clip-path so it takes the colour of whatever it clips. One definition, because
+   three stylesheets draw tracks and they must stay the same shape. */
+.wk { --wk-arrowhead: polygon(0 0, 33% 0, 33% 20%, 67% 20%, 67% 40%, 100% 40%, 100% 60%, 67% 60%, 67% 80%, 33% 80%, 33% 100%, 0 100%); }
+@media (max-width: 600px) { .wk-wrap { width: calc(100% - 32px); } }
+
+/* ── Type ──────────────────────────────────────────────────────────────────── *
+ * Handjet names things and counts things. Atkinson Hyperlegible Next
+ * says things about them.
+ * The display face never sets a sentence.
+ */
+
+.wk-d1, .wk-h2, .wk-h3, .wk-name {
+  font-family: var(--wk-font-display);
+  color: var(--wk-ink);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-wrap: balance;
+  margin: 0;
+}
+.wk-d1 { font-size: clamp(54px, 6.8vw, 94px); line-height: 0.98; }
+.wk-h2 { font-size: clamp(36px, 3.9vw, 52px); line-height: 1.05; }
+.wk-h3 { font-size: 30px; line-height: 1.1; }
+.wk-name { font-size: 25px; line-height: 1.15; }
+/*
+ * Data is set in the text face, never the display face. A Y-level, a count or a
+ * percentage is a fact a player acts on, and the display face's condensed digits
+ * and i were read wrong in review ("Y 0 to 60" as "Y 8 to 68", "cities" as
+ * "clties"). Setting only the digits in another face left a visible seam inside
+ * every label, so the whole datum moves: bold, tabular, the legible face.
+ */
+.wk-figure, .wk-datum {
+  font-family: var(--wk-font-text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.wk-lede { font-size: 18.5px; line-height: 1.55; color: var(--wk-ink-2); margin: 0; max-width: 58ch; text-wrap: pretty; }
+.wk-p { font-size: 16px; line-height: 1.6; color: var(--wk-ink-2); margin: 0; max-width: 68ch; text-wrap: pretty; }
+.wk-small { font-size: 14px; line-height: 1.5; color: var(--wk-ink-3); margin: 0; }
+.wk-label {
+  font-size: 12.5px; font-weight: 600; line-height: 1.2;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--wk-ink-3);
+}
+.wk-typed {
+  font-family: var(--wk-font-typed); font-size: 0.92em;
+  color: var(--wk-ink); background: var(--wk-slot);
+  padding: 1px 6px; border-radius: 2px;
+}
+.wk strong { color: var(--wk-ink); font-weight: 600; }
+/* Said to a screen reader where a drawing says it to everyone else. */
+.wk-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ── The loop (LoopBeats.jsx) ──────────────────────────────────────────────── *
+ * Six beats as stations on one line: each word, then a track that stretches to
+ * the next one, and under the row a dashed return from Next to Draw, because the
+ * loop has no end until the round does. Dashed, as a FIB rule is: Minecraft does
+ * not deal you the next item, the plugin does. The current beat (home only) is the
+ * brightest word with the 3px ink bar, the White Light rule.
+ */
+.wk-beats {
+  position: relative; list-style: none; margin: 0; padding: 0 0 16px;
+  display: flex; align-items: center; min-width: 0;
+}
+.wk-beat { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+.wk-beat:nth-last-child(2) { flex: 0 0 auto; }
+.wk-beat-word {
+  position: relative; padding: 6px 0 8px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-3); white-space: nowrap;
+  transition: color 120ms var(--wk-ease);
+}
+.wk-beat[aria-current="step"] .wk-beat-word { color: var(--wk-ink); }
+.wk-beat[aria-current="step"] .wk-beat-word::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--wk-ink);
+}
+.wk-beat-to { position: relative; flex: 1 1 auto; min-width: 12px; height: 2px; margin: 0 12px 0 10px; background: var(--wk-line-hi); }
+.wk-beat-to::after {
+  content: ""; position: absolute; right: -2px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
+}
+/* The return: down from under Next, back along the bottom, up into Draw. */
+.wk-beats-back {
+  position: absolute; left: 14px; right: 14px; bottom: 2px; height: 12px;
+  background:
+    repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px) left bottom / 100% 2px no-repeat,
+    linear-gradient(var(--wk-ink-4), var(--wk-ink-4)) right top / 2px 100% no-repeat,
+    linear-gradient(var(--wk-ink-4), var(--wk-ink-4)) left 0 top 5px / 2px calc(100% - 5px) no-repeat;
+}
+.wk-beats-back::before {
+  content: ""; position: absolute; left: -4px; top: -3px; width: 10px; height: 6px;
+  background: var(--wk-ink-3);
+  clip-path: polygon(0 100%, 0 67%, 20% 67%, 20% 33%, 40% 33%, 40% 0, 60% 0, 60% 33%, 80% 33%, 80% 67%, 100% 67%, 100% 100%);
+}
+@media (max-width: 600px) {
+  .wk-beat-word { font-size: 13px; }
+  .wk-beat-to { min-width: 8px; margin: 0 7px 0 5px; }
+}
+
+/* ── Links and buttons ─────────────────────────────────────────────────────── *
+ * A button is a stone block you press: a flat face, a darker lip along its
+ * bottom edge, and the lip disappears when it is down. Interaction is light, not
+ * hue, so the primary is the brightest thing on the page and nothing else is.
+ */
+
+.wk-link {
+  color: var(--wk-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--wk-ink-4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 160ms var(--wk-ease);
+}
+.wk-link:hover { text-decoration-color: var(--wk-ink); }
+
+.wk-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 44px; padding: 0 18px 3px;
+  font: 600 15px/1 var(--wk-font-text);
+  color: var(--wk-ground);
+  background: var(--wk-ink);
+  border: 0; border-radius: 2px;
+  box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.30), 0 8px 18px -10px oklch(0% 0 0 / 0.8);
+  cursor: pointer; text-decoration: none;
+  transition: background 160ms var(--wk-ease), transform 120ms var(--wk-ease), box-shadow 120ms var(--wk-ease);
+}
+.wk-btn:hover { background: oklch(100% 0 0); }
+.wk-btn:active { transform: translateY(2px); box-shadow: inset 0 -1px 0 oklch(0% 0 0 / 0.30); }
+.wk-btn svg { flex-shrink: 0; }
+
+.wk-btn--quiet {
+  color: var(--wk-ink);
+  background: var(--wk-panel-hi);
+  box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.35), inset 0 1px 0 var(--wk-line-hi);
+}
+.wk-btn--quiet:hover { background: oklch(27% 0.010 255); }
+
+/* ── Slots ─────────────────────────────────────────────────────────────────── *
+ * The inventory slot: cut into the surface, dark top-left, lit bottom-right.
+ */
+
+.wk-slot {
+  --slot: 56px;
+  position: relative;
+  display: inline-grid; place-items: center;
+  width: var(--slot); height: var(--slot);
+  flex-shrink: 0;
+  background: var(--wk-slot);
+  box-shadow:
+    inset 2px 2px 0 oklch(4% 0 0 / 0.65),
+    inset -2px -2px 0 oklch(30% 0.010 255 / 0.55);
+  border-radius: 2px;
+  outline-offset: 1px;
+}
+.wk-slot::after {
+  content: ""; position: absolute; inset: 2px;
+  background: oklch(100% 0 0 / 0);
+  transition: background 140ms var(--wk-ease);
+  pointer-events: none;
+}
+.wk-slot:hover::after, .wk-slot:focus-visible::after { background: oklch(100% 0 0 / 0.09); }
+.wk-slot[data-stage]::before {
+  content: ""; position: absolute; left: 4px; right: 4px; bottom: 3px; height: 2px;
+  background: var(--stage-light, transparent); opacity: 0.7;
+}
+.wk-slot[data-stage="early"] { --stage-light: var(--wk-s-early); }
+.wk-slot[data-stage="mid"] { --stage-light: var(--wk-s-mid); }
+.wk-slot[data-stage="late"] { --stage-light: var(--wk-s-late); }
+
+.wk-sprite {
+  width: 74%; height: 74%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 2px oklch(0% 0 0 / 0.55));
+  transition: transform 180ms var(--wk-ease);
+  user-select: none;
+}
+.wk-slot:hover .wk-sprite, .wk-slot:focus-visible .wk-sprite { transform: translateY(-2px) scale(1.07); }
+
+.wk-slot-mark { position: absolute; top: 4px; right: 4px; line-height: 0; }
+/* A stack count, where the game puts it: bottom right, white, hard shadow. */
+.wk-count {
+  position: absolute; right: 4px; bottom: 1px;
+  font-family: var(--wk-font-text); font-size: 16px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--wk-ink);
+  text-shadow: 2px 2px 0 oklch(22% 0 0);
+  pointer-events: none;
+}
+.wk-glyph { display: block; filter: drop-shadow(1px 1px 0 oklch(0% 0 0 / 0.8)); }
+
+.wk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--slot));
+  gap: 2px;
+}
+
+/* ── The tooltip, as the game draws it ─────────────────────────────────────── */
+
+.wk-tip {
+  position: fixed; z-index: 400;
+  max-width: 300px;
+  padding: 7px 10px 8px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--wk-tip-bg), var(--wk-tip-bg)) padding-box,
+    linear-gradient(var(--wk-tip-top), var(--wk-tip-bottom)) border-box;
+  border: 2px solid transparent;
+  outline: 1px solid var(--wk-tip-bg);
+  border-radius: 2px;
+  box-shadow: 0 14px 28px -12px oklch(0% 0 0 / 0.8);
+  font-size: 13.5px; line-height: 1.45;
+  color: oklch(74% 0.01 300);
+}
+.wk-tip-name { font-family: var(--wk-font-text); font-size: 16px; font-weight: 700; color: var(--wk-ink); margin-bottom: 3px; }
+.wk-tip-line { margin: 0; }
+.wk-tip-hi { color: var(--wk-ink-2); }
+.wk-tip-where { margin-top: 4px; }
+.wk-tip-members { margin-top: 4px; color: var(--wk-ink-3); }
+.wk-tip-id { margin-top: 5px; font-family: var(--wk-font-typed); font-size: 11.5px; color: oklch(58% 0.01 300); }
+
+/* ── Environments ──────────────────────────────────────────────────────────── *
+ * A place fades into the ground at its edges. It is never a rectangle.
+ */
+
+.wk-env {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  pointer-events: none;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);
+}
+
+/* A seam where two parts of the page meet: fades to nothing at both ends. */
+.wk-seam {
+  height: 1px; border: 0; margin: 0;
+  background: linear-gradient(90deg, transparent, var(--wk-line) 18%, var(--wk-line) 82%, transparent);
+}
+
+/* ── Navigation ────────────────────────────────────────────────────────────── */
+
+.wk-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: oklch(11.5% 0.006 255 / 0.94);
+  box-shadow: inset 0 -1px 0 var(--wk-line), 0 10px 24px -18px oklch(0% 0 0 / 0.9);
+}
+.wk-nav-in { display: flex; align-items: stretch; height: 56px; gap: 4px; }
+
+.wk-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px 0 0; margin-right: 6px;
+  background: none; border: 0; cursor: pointer;
+  color: var(--wk-ink); text-decoration: none;
+}
+.wk-brand .wk-slot { --slot: 36px; }
+.wk-brand-word { font-family: var(--wk-font-display); font-size: 27px; font-weight: 600; line-height: 1; white-space: nowrap; }
+
+.wk-nav-links { display: flex; align-items: stretch; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.wk-nav-sep { width: 1px; margin: 18px 8px; background: var(--wk-line); }
+.wk-nav-link {
+  position: relative;
+  display: flex; align-items: center;
+  padding: 0 11px;
+  background: none; border: 0; cursor: pointer;
+  font: 500 14px/1 var(--wk-font-text);
+  color: var(--wk-ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 140ms var(--wk-ease);
+}
+.wk-nav-link:hover { color: var(--wk-ink); }
+.wk-nav-link[aria-current="page"] { color: var(--wk-ink); }
+.wk-nav-link[aria-current="page"]::after {
+  content: ""; position: absolute; left: 11px; right: 11px; bottom: 0; height: 3px;
+  background: var(--wk-ink);
+}
+.wk-nav-exits { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.wk-exit {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px 0 4px;
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink);
+  text-decoration: none;
+  transition: background 140ms var(--wk-ease);
+}
+.wk-exit:hover { background: var(--wk-panel-hi); }
+.wk-exit .wk-slot { --slot: 28px; box-shadow: none; background: transparent; }
+.wk-exit-arrow { color: var(--wk-ink-3); }
+
+.wk-burger {
+  display: none; margin-left: auto; align-self: center;
+  width: 44px; height: 44px; place-items: center;
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  color: var(--wk-ink);
+  box-shadow: inset 0 -2px 0 oklch(0% 0 0 / 0.35);
+}
+
+@media (max-width: 1180px) {
+  .wk-nav-links, .wk-nav-sep, .wk-nav-exits { display: none; }
+  .wk-burger { display: grid; }
+}
+
+.wk-drawer-scrim {
+  position: fixed; inset: 56px 0 0; z-index: 99;
+  background: oklch(6% 0.005 255 / 0.7);
+}
+.wk-drawer {
+  position: fixed; top: 56px; right: 0; bottom: 0; z-index: 100;
+  width: min(380px, 100%);
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--wk-deep);
+  box-shadow: -20px 0 40px -20px oklch(0% 0 0 / 0.9);
+  padding: 14px 16px 28px;
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 220ms var(--wk-ease), visibility 0s linear 220ms;
+}
+.wk-drawer[data-open="true"] { transform: none; visibility: visible; transition: transform 220ms var(--wk-ease); }
+.wk-drawer .wk-label { display: block; padding: 14px 4px 8px; }
+.wk-drawer-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 48px; padding: 4px;
+  background: none; border: 0; border-radius: 2px; cursor: pointer;
+  text-align: left; text-decoration: none;
+  font: 500 16px/1.2 var(--wk-font-text); color: var(--wk-ink-2);
+}
+.wk-drawer-row .wk-slot { --slot: 40px; }
+.wk-drawer-row:hover { background: var(--wk-panel); color: var(--wk-ink); }
+.wk-drawer-row[aria-current="page"] { color: var(--wk-ink); background: var(--wk-panel); }
+.wk-drawer-row .wk-drawer-note { margin-left: auto; font-size: 13px; color: var(--wk-ink-3); }
+
+/* ── Footer ────────────────────────────────────────────────────────────────── */
+
+.wk-foot { padding: 28px 0 36px; }
+.wk-foot-in {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 28px;
+  font-size: 14px; color: var(--wk-ink-3);
+}
+.wk-foot-links { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.wk-foot-made { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; vertical-align: middle; }
+.wk-foot-made svg { color: var(--wk-ink-2); }
+.wk-foot a { color: var(--wk-ink-2); text-decoration: none; }
+.wk-foot a:hover { color: var(--wk-ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ── Calm ──────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .wk *, .wk *::before, .wk *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+}

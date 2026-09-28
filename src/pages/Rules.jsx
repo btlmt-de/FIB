@@ -1,236 +1,113 @@
 import React from 'react';
-import { COLORS as C } from '../config/constants';
-import Shield       from 'lucide-react/dist/esm/icons/shield';
-import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle';
-import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
-import Ban          from 'lucide-react/dist/esm/icons/ban';
-import Footer from "../components/common/Footer.jsx";
+import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
+import Footer from '../components/common/Footer.jsx';
+import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { useGo } from '../wiki/shell/pages.js';
+import { spriteOf } from '../wiki/game/sprite.js';
+import '../wiki/page.css';
+import '../wiki/pages/rules.css';
 
-const BANNED_MODS = [
-    { name: 'Minimap Modifications',  desc: 'Any mod that shows a map, player positions, or entity locations.' },
-    { name: 'Freecam',                desc: 'Mods that allow camera movement independent of your player.' },
-    { name: 'X-Ray',                  desc: 'Any texture pack or mod that reveals hidden blocks.' },
-    { name: 'BundlesBeyond',          desc: 'Removes the 12-item limit for viewing and extracting items from bundles.' },
-    { name: 'BoatItemView',           desc: 'Allows seeing items held in hand while riding a boat.' },
+/*
+ * Rules (THE EXPLORER'S ATLAS): playing fair in our rounds.
+ *
+ * Short on purpose: the network's rules come first, then what FIB adds (the mods that
+ * are not allowed), then what holds the people running a round to the same standard:
+ * fairplay/OpTransparencyListener announces to everyone any operator-only command an
+ * operator runs during a round (checked against the plugin on main, Sept 2026).
+ *
+ * Nothing here says what the server checks for on the players' side, or how. That is
+ * a decision, not an omission: whatever the server does about client mods stays off
+ * the public site, this page and its source included.
+ *
+ * Each mod gets a real item as its face, because a list of five names is easier to
+ * scan with one: they stand for what the mod does, and are never shown as a claim
+ * about the item.
+ */
+
+const MODS = [
+    { face: 'FILLED_MAP', name: 'Minimaps', text: 'Any mod that shows a map, or where players or mobs are.' },
+    { face: 'SPYGLASS', name: 'Freecam', text: 'Moving the camera away from your player.' },
+    { face: 'DIAMOND_ORE', name: 'X-ray', text: 'Any mod or resource pack that shows blocks you could not otherwise see.' },
+    { face: 'BUNDLE', name: 'BundlesBeyond', text: 'Removes the 12-item limit on seeing and taking items out of a bundle.' },
+    { face: 'OAK_BOAT', name: 'BoatItemView', text: 'Shows the item in your hand while you ride a boat.' },
 ];
 
-const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap');
-
-  .rul {
-    font-family: 'Barlow', system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    background: oklch(17% 0.025 255);
-    color: oklch(94% 0.007 255);
-    min-height: 100vh; display: flex; flex-direction: column;
-  }
-  .rul-shell {
-    max-width: 760px; margin: 0 auto;
-    padding: 0 28px; width: 100%; box-sizing: border-box;
-    flex: 1;
-  }
-  .rul-rule { height: 1px; background: oklch(24% 0.022 255); }
-
-  /* ── Header ── */
-  .rul-header { padding: 80px 0 64px; }
-  .rul-eyebrow {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px;
-    color: oklch(76% 0.16 68); margin: 0 0 14px;
-  }
-  .rul-h1 {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: clamp(44px, 6.5vw, 72px); font-weight: 800;
-    line-height: 0.95; letter-spacing: -0.5px; text-transform: uppercase;
-    color: oklch(94% 0.007 255); margin: 0 0 18px;
-  }
-  .rul-sub {
-    font-size: 15.5px; color: oklch(52% 0.012 255);
-    max-width: 480px; line-height: 1.72; margin: 0;
-  }
-
-  /* ── Body ── */
-  .rul-body { padding: 56px 0 80px; }
-
-  /* ── Two-col section layout ── */
-  .rul-section {
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 0 56px;
-    padding: 48px 0;
-    border-top: 1px solid oklch(22% 0.022 255);
-  }
-  .rul-section:last-child { border-bottom: 1px solid oklch(22% 0.022 255); }
-  @media (max-width: 620px) {
-    .rul-section { grid-template-columns: 1fr; gap: 24px 0; }
-  }
-
-  .rul-section-label { padding-top: 2px; }
-  .rul-section-title {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: clamp(18px, 2.5vw, 22px); font-weight: 800;
-    text-transform: uppercase; letter-spacing: 0.2px;
-    color: oklch(90% 0.009 255); margin: 0 0 6px;
-  }
-  .rul-section-desc {
-    font-size: 12.5px; color: oklch(48% 0.013 255); line-height: 1.6;
-  }
-
-  /* ── General Rules ── */
-  .rul-prose {
-    font-size: 14.5px; color: oklch(54% 0.012 255);
-    line-height: 1.78; margin: 0 0 20px;
-  }
-  .rul-ext-link {
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 9px 16px;
-    background: oklch(76% 0.16 68 / 0.09);
-    border: 1px solid oklch(76% 0.16 68 / 0.30);
-    border-radius: 6px;
-    color: oklch(76% 0.16 68);
-    text-decoration: none; font-size: 13.5px; font-weight: 600;
-    transition: background 0.12s ease-out, border-color 0.12s ease-out;
-  }
-  .rul-ext-link:hover {
-    background: oklch(76% 0.16 68 / 0.16);
-    border-color: oklch(76% 0.16 68 / 0.55);
-  }
-
-  /* ── Banned mod rows ── */
-  .rul-mod-list { display: flex; flex-direction: column; }
-  .rul-mod-row {
-    display: flex; align-items: flex-start; gap: 13px;
-    padding: 13px 0;
-    border-bottom: 1px solid oklch(22% 0.022 255);
-  }
-  .rul-mod-row:first-child { border-top: 1px solid oklch(22% 0.022 255); }
-  .rul-mod-icon {
-    width: 30px; height: 30px; border-radius: 6px; flex-shrink: 0;
-    background: oklch(62% 0.22 25 / 0.10);
-    border: 1px solid oklch(62% 0.22 25 / 0.25);
-    display: flex; align-items: center; justify-content: center;
-    margin-top: 1px;
-  }
-  .rul-mod-name {
-    font-size: 14px; font-weight: 600; color: oklch(88% 0.009 255);
-    margin-bottom: 3px; line-height: 1.2;
-  }
-  .rul-mod-desc { font-size: 13px; color: oklch(52% 0.012 255); line-height: 1.55; }
-
-  /* ── Policy note ── */
-  .rul-policy {
-    padding: 16px 20px;
-    background: oklch(76% 0.16 68 / 0.07);
-    border: 1px solid oklch(76% 0.16 68 / 0.22);
-    border-radius: 8px;
-  }
-  .rul-policy-title {
-    font-family: 'Barlow Condensed', system-ui, sans-serif;
-    font-size: 13.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
-    color: oklch(76% 0.16 68);
-    display: flex; align-items: center; gap: 7px; margin: 0 0 9px;
-  }
-  .rul-policy-text {
-    font-size: 13.5px; color: oklch(70% 0.011 255); line-height: 1.7; margin: 0;
-  }
-  .rul-policy-text strong { color: oklch(88% 0.009 255); }
-
-  @media (max-width: 520px) {
-    .rul-shell { padding: 0 20px; }
-    .rul-header { padding: 60px 0 52px; }
-    .rul-body   { padding: 40px 0 64px; }
-  }
-`;
-
-export default function Rules() {
+export default function Rules({ onNavigate }) {
+    const go = useGo(onNavigate);
     return (
-        <div className="rul">
-            <style>{CSS}</style>
+        <main className="pg rl">
+            <header className="wk-wrap pg-head">
+                <h1 className="wk-h2">Rules</h1>
+                <p className="wk-lede">
+                    Play fair, on the network's terms. Read this before you join one of our rounds; breaking it can get
+                    you disqualified.
+                </p>
+            </header>
 
-            <div className="rul-shell">
-                {/* Header */}
-                <div className="rul-header">
-                    <p className="rul-eyebrow">Server</p>
-                    <h1 className="rul-h1">Game Rules</h1>
-                    <p className="rul-sub">
-                        Guidelines for participating in ForceItemBattle games on our server.
-                        Please read before joining a round.
+            <section className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="network-title">
+                <div className="pg-sec-head">
+                    <h2 id="network-title" className="wk-h3">The network's rules first</h2>
+                    <p className="wk-p">Every rule of the McPlayHD network applies to ForceItemBattle rounds too.</p>
+                </div>
+                <div className="rl-network">
+                    <a className="wk-btn wk-btn--quiet rl-btn" href="https://mcplayhd.net/rules" target="_blank" rel="noopener noreferrer">
+                        Read them on mcplayhd.net <ArrowUpRight size={16} aria-hidden="true" />
+                    </a>
+                    <p className="wk-small">What follows is what ForceItemBattle adds to them.</p>
+                </div>
+            </section>
+
+            <section className="wk-wrap pg-sec" aria-labelledby="mods-title">
+                <div className="pg-sec-head">
+                    <h2 id="mods-title" className="wk-h3">Mods that are not allowed</h2>
+                    <p className="wk-p">Using any of these gets you disqualified.</p>
+                </div>
+                <ul className="rl-mods">
+                    {MODS.map((m) => (
+                        <li key={m.name} className="rl-mod">
+                            <span className="wk-slot" style={{ '--slot': '48px' }} aria-hidden="true">
+                                <img className="wk-sprite" src={spriteOf(m.face)} alt="" width="128" height="128" loading="lazy" draggable="false" />
+                            </span>
+                            <span className="rl-mod-text">
+                                <span className="rl-mod-name">{m.name}</span>
+                                <span className="rl-mod-what">{m.text}</span>
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+
+            <section className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="ops-title">
+                <div className="pg-sec-head">
+                    <h2 id="ops-title" className="wk-h3">Operators play by the same rules</h2>
+                    <p className="wk-p">The people running a round are held to it too.</p>
+                </div>
+                <div className="rl-ops">
+                    <p className="wk-p">
+                        When an operator runs an operator-only command during a round, the whole server is told, so a
+                        skipped item or a forced one never happens quietly.
+                    </p>
+                    <p className="wk-small">
+                        A few commands are left out, such as starting the round, the settings menu, <code className="wk-typed">/help</code> and
+                        private messages.
                     </p>
                 </div>
-            </div>
+            </section>
 
-            <div className="rul-rule" />
-
-            <div className="rul-shell">
-                <div className="rul-body">
-
-                    {/* General Rules */}
-                    <div className="rul-section">
-                        <div className="rul-section-label">
-                            <h2 className="rul-section-title">General Rules</h2>
-                            <div className="rul-section-desc">McPlayHD network-wide rules apply.</div>
-                        </div>
-                        <div>
-                            <p className="rul-prose">
-                                All rules from the McPlayHD network apply to ForceItemBattle games.
-                                Please familiarize yourself with them before joining.
-                            </p>
-                            <a
-                                href="https://mcplayhd.net/rules"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="rul-ext-link"
-                            >
-                                mcplayhd.net/rules <ExternalLink size={13} />
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Banned mods */}
-                    <div className="rul-section">
-                        <div className="rul-section-label">
-                            <h2 className="rul-section-title" style={{ color: 'oklch(72% 0.18 25)' }}>
-                                Prohibited Mods
-                            </h2>
-                            <div className="rul-section-desc">Using these will result in disqualification.</div>
-                        </div>
-                        <div className="rul-mod-list">
-                            {BANNED_MODS.map((mod, i) => (
-                                <div key={i} className="rul-mod-row">
-                                    <div className="rul-mod-icon">
-                                        <Ban size={15} style={{ color: 'oklch(62% 0.22 25)' }} />
-                                    </div>
-                                    <div>
-                                        <div className="rul-mod-name">{mod.name}</div>
-                                        <div className="rul-mod-desc">{mod.desc}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Policy note */}
-                    <div className="rul-section">
-                        <div className="rul-section-label">
-                            <h2 className="rul-section-title">General Policy</h2>
-                        </div>
-                        <div className="rul-policy">
-                            <div className="rul-policy-title">
-                                <AlertTriangle size={14} />
-                                When in doubt, ask first
-                            </div>
-                            <p className="rul-policy-text">
-                                Any modification that gives a clear advantage over vanilla Minecraft
-                                behaviour is not allowed. If you're unsure whether a specific mod is
-                                permitted, <strong>ask before using it</strong>.
-                            </p>
-                        </div>
-                    </div>
-
+            <section className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="ask-title">
+                <div className="pg-sec-head">
+                    <h2 id="ask-title" className="wk-h3">When in doubt, ask first</h2>
                 </div>
-            </div>
+                <div className="rl-ask">
+                    <p className="wk-p">
+                        Any modification that gives you a clear advantage over vanilla Minecraft is not allowed, listed here
+                        or not. If you are unsure whether a mod is allowed, <strong>ask before you use it</strong>.
+                    </p>
+                </div>
+            </section>
 
+            <PageLinks ids={['how-to-play', 'commands', 'gameplay', 'settings']} go={go} />
             <Footer />
-        </div>
+        </main>
     );
 }

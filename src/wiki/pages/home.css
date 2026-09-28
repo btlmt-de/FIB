@@ -1,0 +1,733 @@
+/*
+ * The home page (THE EXPLORER'S ATLAS). Loaded with the page's own chunk.
+ * Shared primitives live in wiki.css and routemap.css; this file is composition.
+ *
+ * The sections follow the game: the item you are handed, the ways to get it, the
+ * loop, the clock, the escapes, the world, the modes. Each is drawn as the mechanic
+ * it explains rather than as a box of text about it.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.hm { display: block; overflow-x: clip; }
+.hm .wk-h2 { margin-bottom: 12px; }
+.hm-source { margin: 14px 0 0; font-size: 12.5px; color: var(--wk-ink-3); }
+.hm-mech {
+  margin: 0;
+  font-family: var(--wk-font-display); font-weight: 600; font-size: 30px; line-height: 1.05;
+  color: var(--wk-ink);
+}
+
+/* ── 1. Opening: the item you were handed ─────────────────────────────────── */
+
+.hm-open { position: relative; padding-top: 8px; }
+.hm-open-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 32px;
+  min-height: clamp(460px, 58vh, 560px);
+}
+.hm-open-grid > * { min-width: 0; }
+.hm-open-copy {
+  position: relative; z-index: 2;
+  align-self: center;
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 28px 0 8px;
+}
+.hm-open-note { max-width: 52ch; }
+.hm-open-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+
+.hm-target {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 28px;
+  padding-left: 4%;
+  isolation: isolate;
+}
+.hm-target-env {
+  position: absolute; z-index: -1;
+  top: -12px; bottom: -48px; left: -12%;
+  right: calc((100vw - 100%) / -2);
+  animation: hm-fade 600ms var(--wk-ease) both;
+}
+.hm-target-env .wk-env {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12%), linear-gradient(to bottom, transparent 0, #000 12%, #000 76%, transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 12%), linear-gradient(to bottom, transparent 0, #000 12%, #000 76%, transparent 100%);
+  -webkit-mask-composite: source-in;
+          mask-composite: intersect;
+}
+@keyframes hm-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* The item itself: no card and no slot. It stands in the light of where it comes
+   from, and casts a shadow on the ground under it. */
+.hm-hero-item {
+  position: relative;
+  width: clamp(180px, 19vw, 256px); aspect-ratio: 1;
+  display: grid; place-items: center;
+}
+.hm-hero-item::before {
+  content: ""; position: absolute; inset: -22%; z-index: -1;
+  background: radial-gradient(closest-side, color-mix(in oklch, var(--region) 36%, transparent), transparent);
+  filter: blur(8px);
+}
+.hm-hero-sprite {
+  width: 100%; height: 100%;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 6px oklch(0% 0 0 / 0.5));
+  animation: hm-float 4.8s ease-in-out infinite;
+}
+.hm-hero-shadow {
+  position: absolute; left: 22%; right: 22%; bottom: -6%; height: 9%;
+  background: radial-gradient(closest-side, oklch(0% 0 0 / 0.55), transparent);
+  animation: hm-shadow 4.8s ease-in-out infinite;
+}
+.hm-hero-item[data-landed="0"] .hm-hero-sprite { animation: hm-land-a 280ms var(--wk-ease), hm-float 4.8s ease-in-out 280ms infinite; }
+.hm-hero-item[data-landed="1"] .hm-hero-sprite { animation: hm-land-b 280ms var(--wk-ease), hm-float 4.8s ease-in-out 280ms infinite; }
+@keyframes hm-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes hm-shadow { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(0.86); opacity: 0.75; } }
+@keyframes hm-land-a { from { transform: translateY(-14px); } to { transform: none; } }
+@keyframes hm-land-b { from { transform: translateY(-14px); } to { transform: none; } }
+
+.hm-hero-facts { min-width: 0; display: grid; gap: 8px; text-shadow: 0 1px 10px oklch(0% 0 0 / 0.9); }
+.hm-hero-name {
+  margin: 0;
+  font-family: var(--wk-font-display); font-weight: 600;
+  font-size: clamp(36px, 3.9vw, 52px); line-height: 1; color: var(--wk-ink);
+  text-wrap: balance;
+}
+.hm-hero-line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 16px; color: var(--wk-ink-2); }
+.hm-hero-tag { display: inline-flex; align-items: center; gap: 5px; }
+.hm-hero-dim { color: var(--wk-ink-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+.hm-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 8px; }
+.hm-draw { min-height: 40px; font-size: 14px; }
+.hm-hero-how { font-size: 16px; }
+
+/* ── 2. One item, many ways ───────────────────────────────────────────────── */
+
+/* The question on the left, the board on the right, about 35/65 so the board has the
+   weight to balance the heading. Tighter, about 28/72, where 65% would be narrower
+   than the board (it needs about 790px), and stacked below the nav's drawer width. */
+.hm-routes {
+  display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 13fr); gap: 40px 56px;
+  align-items: start;
+  padding: 64px 0 72px;
+}
+.hm-routes > * { min-width: 0; }
+#hm-routes-title { scroll-margin-top: 80px; }
+.hm-routes-head { display: grid; gap: 0; position: sticky; top: 88px; }
+.hm-routes-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 18px; }
+.hm-try { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hm-try-label { font-size: 14px; color: var(--wk-ink-3); margin-right: 6px; }
+.hm-try-item { padding: 0; border: 0; background: none; cursor: pointer; line-height: 0; border-radius: 2px; }
+.hm-try-item:hover .wk-slot::after { background: oklch(100% 0 0 / 0.1); }
+.hm-try-item[aria-pressed="true"] .wk-slot { box-shadow: inset 0 0 0 2px var(--wk-ink); }
+
+/* ── 3. The loop ──────────────────────────────────────────────────────────── */
+
+/* A transition between the two big drawings either side of it, so it is set tighter
+   than they are: the loop is one idea, and it used to sit in their full padding
+   with its strip floating in the middle of the space (final pass, Sept 2026). */
+.hm-loop {
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 48px;
+  align-items: center;
+  padding: 44px 0 44px;
+  box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.hm-loop-strip {
+  margin: 0;
+  display: grid; grid-template-columns: 216px 112px minmax(0, 1fr); align-items: center; gap: 14px 20px;
+}
+
+/* The round's sidebar scoreboard, drawn the way the game draws one: a dim translucent
+   block at the edge of the screen, names left, scores right, highest first. Each
+   player carries the item they are on right now, because each has their own. Rows
+   slide to their rank rather than jump. */
+.hm-board {
+  position: relative; list-style: none; margin: 0; padding: 0;
+  background: oklch(0% 0 0 / 0.34);
+  border-radius: 2px;
+}
+.hm-board-row {
+  position: absolute; left: 0; right: 0; top: 4px; height: 30px;
+  display: flex; align-items: center; gap: 8px; padding: 0 10px 0 8px;
+  font-size: 14px; color: var(--wk-ink-2);
+  transition: transform 280ms var(--wk-ease);
+}
+.hm-board-row[data-you] { background: oklch(100% 0 0 / 0.08); color: var(--wk-ink); font-weight: 700; }
+.hm-board-head { width: 18px; height: 18px; image-rendering: pixelated; flex-shrink: 0; }
+.hm-board-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-board-item { line-height: 0; }
+.hm-board-item .wk-slot { animation: hm-land-a 220ms var(--wk-ease); }
+.hm-board-score {
+  min-width: 2.2ch; text-align: right;
+  font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink);
+  animation: hm-bump 320ms var(--wk-ease);
+}
+@keyframes hm-bump { from { transform: translateY(-5px); opacity: 0.3; } }
+
+.hm-loop-now { position: relative; display: grid; place-items: center; height: 100px; }
+.hm-loop-now .wk-slot { animation: hm-land-a 220ms var(--wk-ease); }
+.hm-loop-now[data-beat="think"] .wk-slot,
+.hm-loop-now[data-beat="route"] .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), inset -2px -2px 0 oklch(30% 0.010 255 / 0.55), 0 0 0 2px var(--wk-ink-4); }
+.hm-loop-now[data-beat="obtain"] .wk-slot,
+.hm-loop-now[data-beat="score"] .wk-slot { box-shadow: 0 0 0 2px var(--wk-s-early); }
+.hm-loop-found {
+  position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; border-radius: 2px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  color: oklch(14% 0.02 138); background: var(--wk-s-early);
+  opacity: 0; transition: opacity 120ms var(--wk-ease);
+}
+.hm-loop-now[data-beat="obtain"] .hm-loop-found,
+.hm-loop-now[data-beat="score"] .hm-loop-found { opacity: 1; }
+.hm-loop-plus {
+  position: absolute; right: -10px; top: 8px;
+  font-weight: 700; font-size: 22px; color: var(--wk-ink);
+  opacity: 0;
+}
+.hm-loop-now[data-beat="score"] .hm-loop-plus { animation: hm-plus 600ms var(--wk-ease) both; }
+@keyframes hm-plus { 0% { opacity: 0; transform: translateY(8px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
+
+.hm-loop-trail { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; overflow: hidden; min-width: 0; }
+.hm-loop-trail li { position: relative; line-height: 0; opacity: calc(1 - var(--i) * 0.12); flex-shrink: 0; }
+.hm-loop-trail li:first-child { animation: hm-slide 260ms var(--wk-ease); }
+@keyframes hm-slide { from { transform: translateX(-24px); opacity: 0; } }
+.hm-loop-check {
+  position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center;
+  width: 16px; height: 16px; border-radius: 2px;
+  background: var(--wk-s-early); color: oklch(14% 0.02 138);
+}
+
+/* The beats span the strip under everything above them, so the loop's line runs the
+   full width of what it is describing (LoopBeats.jsx, wiki.css). */
+.hm-beats { grid-column: 1 / -1; margin-top: 2px; }
+.hm-loop-strip .hm-source { grid-column: 1 / -1; margin-top: 0; }
+
+/* ── 4. The round clock, as the pool it grows ─────────────────────────────── */
+
+.hm-pressure { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-pressure-head { margin-bottom: 28px; }
+/* The board: flags on the round's timeline, a strip of draws under them, the axis,
+   and the drawn item hanging where it unlocks. Everything is placed by its share of
+   the round (at, span), so the geometry is the schedule. */
+.hm-clock { margin: 0; }
+.hm-clock-board { position: relative; --draw: 36px; }
+
+/* A flag: a pole in its stage's light from the flag down to the axis, and what joins
+   there beside it. Anchored to the pole's foot, so taller flags grow upward. */
+.hm-clock-flags { position: relative; list-style: none; margin: 0; padding: 0; height: 136px; }
+.hm-flag {
+  position: absolute; left: calc(var(--at) * 1%); bottom: 0;
+  max-width: calc(var(--span) * 1% - 14px);
+  display: grid; justify-items: start; align-content: end; gap: 4px;
+  padding: 0 0 14px 16px;
+}
+.hm-flag::before {
+  content: ""; position: absolute; left: 0; top: 6px; width: 2px;
+  bottom: calc(-1 * (var(--draw) + 32px));
+  background: var(--c);
+}
+.hm-flag::after { content: ""; position: absolute; left: -4px; top: 2px; width: 10px; height: 10px; background: var(--c); }
+.hm-flag-when { display: none; }
+.hm-flag-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; }
+.hm-flag-count { font-size: 14px; line-height: 1.35; color: var(--wk-ink-2); }
+.hm-flag-count strong { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink); }
+.hm-flag-items { display: flex; gap: 4px; margin-top: 4px; }
+/* At the start the whole strip is Early, so the flag need not carry examples. */
+.hm-flag-items[data-start] { display: none; }
+.hm-flag-you { display: none; }
+
+/* The draws: one row of real items, stretch by stretch, each starting just past its pole. */
+.hm-clock-draws { position: relative; height: calc(var(--draw) + 4px); }
+.hm-clock-stretch {
+  position: absolute; top: 0; left: calc(var(--at) * 1% + 10px); width: calc(var(--span) * 1% - 12px);
+  display: flex; gap: 2px; overflow: hidden;
+}
+.hm-clock-stretch .wk-slot { background: oklch(11% 0.006 255); }
+
+/* The layers: a 3px line per stage from its pole to the round's end, Early at the
+   bottom and each later stage laid on top. Thin on purpose, the stages' light as an
+   accent (a line), never as a fill; the stacked block chart this replaced was the
+   wall of colour. */
+.hm-clock-layers { position: relative; height: 13px; margin-top: 8px; }
+.hm-clock-layer {
+  position: absolute; left: calc(var(--at) * 1%); right: 0; height: 3px;
+  background: color-mix(in oklch, var(--c) 72%, transparent);
+}
+.hm-clock-layer:nth-child(1) { bottom: 0; }
+.hm-clock-layer:nth-child(2) { bottom: 5px; }
+.hm-clock-layer:nth-child(3) { bottom: 10px; }
+
+/* The axis: a line, a square in the stage's light where each pole lands, the ticks. */
+.hm-clock-axis { position: relative; height: 2px; margin-top: 6px; background: var(--wk-line-hi); }
+.hm-clock-mark { position: absolute; top: -4px; left: calc(var(--at) * 1% - 4px); width: 10px; height: 10px; background: var(--c); box-shadow: 0 0 0 3px var(--wk-ground); }
+.hm-clock-mark:first-child { left: 0; }
+.hm-clock-tick {
+  /* Just past its mark, so the drawn item's hanger can drop straight down the mark. */
+  position: absolute; top: 10px; left: calc(var(--at) * 1% + 10px);
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3);
+}
+.hm-clock-tick:nth-child(4) { left: 14px; }
+.hm-clock-tick:last-child { left: auto; right: 0; }
+
+/* The drawn item, hung from the axis at the moment it can first come up. */
+.hm-clock-you {
+  position: relative; margin: 44px 0 0;
+  margin-left: max(0px, calc(var(--at) * 1% - 20px));
+  display: flex; align-items: center; gap: 12px;
+  font-size: 14px; color: var(--wk-ink-2);
+}
+.hm-clock-you strong { color: var(--wk-ink); }
+.hm-clock-you::before {
+  content: ""; position: absolute; left: 19px; top: -42px; height: 38px; width: 2px;
+  background: repeating-linear-gradient(to bottom, var(--wk-ink-3) 0 3px, transparent 3px 6px);
+}
+/* At 0% the first mark sits flush left rather than centred on the line. */
+.hm-clock-you[data-start]::before { left: 4px; }
+.hm-clock-you .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--c); }
+.hm-clock + .hm-source, .hm-clock .hm-source { margin-top: 20px; }
+/* ── 5. The escapes ───────────────────────────────────────────────────────── */
+
+.hm-escapes { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
+/* One grid for both halves, filled column by column: the sequences share a row, the
+   names share a row, the words share a row. The alignment is the relationship. */
+.hm-escapes-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-rows: repeat(4, auto);
+  grid-auto-flow: column;
+  column-gap: 64px; row-gap: 12px;
+  margin-top: 28px;
+}
+.hm-escapes-grid > * { min-width: 0; }
+
+/* A sequence: what you were handed, what happens to it, what you get. Both halves
+   draw theirs at the same size on the same line. */
+.hm-seq { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; max-width: 540px; }
+.hm-seq-node { flex: 1 1 0; min-width: 0; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.hm-seq-joker, .hm-seq-node:has(.hm-bundle), .hm-seq-node:has(.hm-seq-plus) { flex: 0 0 auto; }
+.hm-seq-node > .wk-slot {
+  background:
+    radial-gradient(circle at 50% 60%, color-mix(in oklch, var(--glow, transparent) 34%, transparent), transparent 70%),
+    var(--wk-slot);
+}
+.hm-seq-name { font-weight: 700; font-size: 16px; line-height: 1.3; color: var(--wk-ink); }
+.hm-seq-note { font-size: 14px; line-height: 1.4; color: var(--wk-ink-2); }
+.hm-seq-joker .hm-seq-note, .hm-seq-node:has(.hm-bundle) .hm-seq-note, .hm-seq-node:has(.hm-seq-plus) .hm-seq-note { max-width: 12ch; }
+.hm-seq-to {
+  position: relative; flex: 0 0 26px; height: 2px; margin-top: 31px;
+  background: var(--wk-line-hi);
+}
+.hm-seq-to::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3);
+  clip-path: var(--wk-arrowhead);
+}
+.hm-joker-card { display: inline-block; line-height: 0; transform: rotate(-4deg); filter: drop-shadow(0 8px 10px oklch(0% 0 0 / 0.6)); }
+.hm-joker-card img { height: 64px; width: auto; image-rendering: pixelated; }
+.hm-joker-hand { display: flex; padding: 6px 0 0 6px; }
+.hm-joker-card--small { margin-left: -10px; transform: rotate(calc((var(--i) - 1) * 7deg)); }
+.hm-joker-card--small img { height: 54px; }
+
+/* The backpack: a few slots, one of them already holding the item you were handed. */
+.hm-bundle { display: flex; align-items: center; gap: 6px; min-height: 64px; line-height: 0; }
+/* The bundle's contents, as the game shows them when you point at one. */
+.hm-bag { display: grid; grid-template-columns: repeat(3, 20px); gap: 2px; line-height: 0; }
+.hm-bag-cell { line-height: 0; }
+.hm-bag-cell:not([data-hit]) .wk-slot { opacity: 0.5; }
+.hm-bag-cell[data-hit] .wk-slot { box-shadow: 0 0 0 2px var(--wk-s-early); position: relative; z-index: 1; }
+.hm-seq-plus {
+  height: 64px; display: grid; place-items: center;
+  font-weight: 700; font-variant-numeric: tabular-nums; font-size: 40px; line-height: 1; color: var(--wk-ink);
+}
+
+.hm-ladder {
+  list-style: none; margin: 10px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.hm-rung { display: grid; align-content: start; gap: 6px; padding: 18px 14px 0 0; }
+.hm-rung + .hm-rung { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
+.hm-rung-bar {
+  height: 8px; margin-bottom: 6px;
+  background: repeating-linear-gradient(90deg, transparent 0 9px, oklch(14.5% 0.007 255) 9px 11px), linear-gradient(90deg, var(--f-from), var(--f-to));
+}
+.hm-rung:nth-child(1) .hm-rung-bar { width: 22%; }
+.hm-rung:nth-child(2) .hm-rung-bar { width: 42%; }
+.hm-rung:nth-child(3) .hm-rung-bar { width: 62%; }
+.hm-rung:nth-child(4) .hm-rung-bar { width: 82%; }
+.hm-rung:nth-child(5) .hm-rung-bar { width: 100%; }
+.hm-rung-name { font-family: var(--wk-font-display); font-size: 25px; font-weight: 600; line-height: 1.05; color: var(--f); overflow-wrap: anywhere; }
+.hm-rung-when { font-size: 14px; color: var(--wk-ink-2); }
+.hm-rung-note { font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; color: var(--wk-ink-3); }
+
+/* ── 6. The world, as the toolbox ─────────────────────────────────────────── */
+
+.hm-world { padding: 56px 0 8px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-world-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; }
+.hm-world-n { margin: 0; display: grid; justify-items: end; gap: 4px; text-align: right; }
+.hm-world-figure { font-weight: 700; font-variant-numeric: tabular-nums; font-size: clamp(56px, 6vw, 84px); line-height: 0.9; letter-spacing: -0.02em; color: var(--wk-ink); }
+.hm-world-k { font-size: 14px; color: var(--wk-ink-3); }
+.hm-regions { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 22px; }
+.hm-region-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 0 12px;
+  background: var(--wk-panel); border: 0; border-radius: 2px; cursor: pointer;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-2);
+  transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
+}
+.hm-region-chip:hover { background: var(--wk-panel-hi); color: var(--r-ink); }
+.hm-region-pip { width: 10px; height: 10px; background: var(--r); }
+.hm-region-y { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
+
+/* The bands were 34px top and bottom; the final pass took them to 26px and pulled the
+   meta column in, about 15% off the descent's height, with the environment, the
+   slots and the rail untouched (owner, Sept 2026: keep the section, lose the bulk). */
+.hm-band { position: relative; isolation: isolate; padding: 26px 0; }
+.hm-band > .wk-env { z-index: -2; }
+/* A scrim on the reading side, so the words sit on the ground, not on the picture. */
+.hm-band::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, oklch(14.5% 0.007 255 / 0.92) 0, oklch(14.5% 0.007 255 / 0.55) 30%, transparent 58%);
+  pointer-events: none;
+}
+.hm-band-in { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 36px; align-items: start; padding-left: 34px; }
+.hm-band-meta { display: grid; gap: 4px; }
+.hm-band-name { color: var(--r-ink); font-size: 37px; }
+.hm-band-y { margin: 0; font-family: var(--wk-font-text); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px; color: var(--wk-ink-2); }
+.hm-band-blurb { color: var(--wk-ink-2); max-width: 40ch; }
+.hm-band-count { margin: 2px 0 0; font-size: 14px; color: var(--wk-ink-3); }
+.hm-band-count .wk-figure { font-size: 22px; margin-right: 4px; color: var(--wk-ink); }
+.hm-band-grid { min-width: 0; }
+
+/* The descent rail: the world's depth, a mark at each region. Each band draws its own
+   stretch, so the rail reads as one line from the surface down through the Overworld
+   and stops at the Deep Dark. The Nether and the End are not further down, you go
+   through something to reach them: their stretch starts again after a gap, dashed.
+   It used to live in the page margin and vanished below 1380px, which is most
+   laptops; it now sits inside the column at every width. */
+.hm-descent { position: relative; margin-top: 12px; }
+.hm-band {
+  --rail-x: calc((100% - min(1280px, 100% - 40px)) / 2 + 7px);
+  --rail-mark: 46px;
+}
+.hm-band::after {
+  content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; width: 2px;
+  left: var(--rail-x);
+  background: var(--wk-line-hi);
+  pointer-events: none;
+}
+.hm-band[data-rail="top"]::after { top: var(--rail-mark); }
+.hm-band[data-rail="floor"]::after { background: linear-gradient(to bottom, var(--wk-line-hi) 55%, transparent); }
+.hm-band[data-rail="portal"]::after,
+.hm-band[data-rail="last"]::after { background: repeating-linear-gradient(to bottom, var(--wk-line-hi) 0 5px, transparent 5px 9px); }
+.hm-band[data-rail="portal"]::after { top: var(--rail-mark); }
+.hm-band[data-rail="last"]::after { bottom: calc(100% - var(--rail-mark)); }
+.hm-band-meta { position: relative; }
+.hm-band-meta::before {
+  content: ""; position: absolute; z-index: 2; left: -32px; top: 14px; width: 12px; height: 12px;
+  background: var(--r);
+  box-shadow: 0 0 0 3px var(--wk-ground);
+}
+@media (max-width: 600px) {
+  .hm-band { --rail-x: 23px; }
+}
+.hm-band .wk-slot { background: oklch(9% 0.006 255 / 0.86); }
+
+.hm-more {
+  display: grid; place-items: center;
+  width: var(--slot); height: var(--slot);
+  background: var(--wk-panel-hi);
+  box-shadow: inset 2px 2px 0 var(--wk-line-hi), inset -2px -2px 0 oklch(0% 0 0 / 0.4);
+  border-radius: 2px;
+  font-family: var(--wk-font-text); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px;
+  color: var(--wk-ink); text-decoration: none;
+  transition: background 140ms var(--wk-ease);
+}
+.hm-more:hover { background: oklch(28% 0.010 255); }
+
+/* ── 7. The modes, as three frames of one diagram ─────────────────────────── */
+
+.hm-modes { --hm-gap: 40px; padding: 64px 0 56px; }
+/* The heading and its way onward share a baseline, so the link belongs to the
+   comparison under it rather than trailing off the end of the section. */
+.hm-modes-head, .hm-std-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px;
+}
+.hm-go { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.hm-go svg { color: var(--wk-ink-3); transition: transform 160ms var(--wk-ease); }
+.hm-go:hover svg { transform: translateX(2px); color: var(--wk-ink); }
+
+/* Three equal thirds. The gap is the one the standard round's columns use below,
+   so its dividers fall on the same lines. */
+.hm-mode-list {
+  list-style: none; margin: 24px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hm-gap);
+}
+.hm-mode { display: grid; align-content: start; min-width: 0; }
+.hm-mode .hm-mech { margin-top: 22px; }
+.hm-mode-hook { margin: 6px 0 0; font-size: 16px; line-height: 1.45; font-weight: 600; color: var(--wk-ink); max-width: 34ch; }
+
+/*
+ * The frame. Every mode is drawn on this one grid, so heads, NOW, NEXT and the score
+ * sit on the same lines in all three, and the frames are the same height whatever is
+ * in them. Columns: head, trail, NOW, the step to NEXT, NEXT, score. Rows: the column
+ * heads, then three players.
+ */
+.hm-frame {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 56px 14px 40px 26px;
+  grid-template-rows: 14px repeat(3, 48px);
+  column-gap: 8px; row-gap: 12px;
+  align-items: center;
+}
+.hm-frame > * { min-width: 0; line-height: 0; }
+.hm-f-head { grid-column: 1; }
+.hm-f-trail { grid-column: 2; }
+.hm-f-now { grid-column: 3; justify-self: center; }
+.hm-f-link { grid-column: 4; }
+.hm-f-next { grid-column: 5; justify-self: center; }
+.hm-f-score { grid-column: 6; justify-self: end; }
+.hm-f-k {
+  grid-row: 1;
+  font-size: 12px; font-weight: 600; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--wk-ink-3);
+}
+.hm-head { display: block; width: 28px; height: 28px; image-rendering: pixelated; }
+
+/* The one line language: 2px, solid where a path is known, dashed where it is not,
+   ending in the wiki's pixel arrowhead. */
+.hm-f-trail, .hm-f-link { position: relative; align-self: stretch; }
+.hm-f-trail::before, .hm-f-link::before {
+  content: ""; position: absolute; top: calc(50% - 1px); height: 2px;
+  left: 0; right: -4px;
+  background: var(--wk-line-hi);
+}
+.hm-f-trail::after, .hm-f-link::after {
+  content: ""; position: absolute; top: calc(50% - 5px); right: -8px; width: 6px; height: 10px;
+  background: var(--wk-ink-3);
+  clip-path: var(--wk-arrowhead);
+}
+.hm-f-link::before { left: -6px; }
+.hm-f-link:not([data-seen])::before {
+  background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
+}
+.hm-f-link:not([data-seen])::after { background: var(--wk-ink-4); }
+
+/* Found items, newest against NOW. Right to left and wrapping into a clipped second
+   line, so a narrow frame drops whole items off the far end, never half of one. */
+.hm-trail {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: row-reverse; flex-wrap: wrap; gap: 4px;
+  height: 36px; overflow: hidden;
+  margin: 6px 12px 0 8px;
+}
+.hm-done { position: relative; line-height: 0; }
+.hm-done .wk-sprite { opacity: 0.5; }
+.hm-tick {
+  position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center;
+  width: 14px; height: 14px; border-radius: 2px;
+  background: var(--wk-s-early); color: oklch(14% 0.02 138);
+}
+.hm-live .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--wk-ink); }
+.hm-hidden { font-weight: 700; font-size: 18px; line-height: 1; color: var(--wk-ink-4); }
+.hm-f-score { font-size: 18px; line-height: 1; color: var(--wk-ink-2); }
+.hm-f-score[data-plus] { color: var(--wk-ink); }
+
+/* RunBattle: the three rows run into one join and one shared item. The row that got
+   there first is the solid line; the others are still on their way. */
+.hm-f-race::before {
+  left: 8px; right: 0;
+  background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
+}
+.hm-f-race::after { display: none; }
+.hm-f-race[data-first]::before { right: -4px; background: var(--wk-ink); }
+.hm-f-race[data-first]::after { display: block; background: var(--wk-ink); }
+/* The shared history: the same items on every row, lit only where that row claimed it. */
+.hm-done[data-lost] .wk-sprite { opacity: 0.2; }
+.hm-f-join {
+  grid-column: 2; justify-self: end; align-self: stretch;
+  width: 2px; margin: 24px 0;
+  background: repeating-linear-gradient(180deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
+}
+
+/* ── The standard round ── */
+
+.hm-std { margin-top: 56px; padding-top: 22px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-std-head .wk-name { font-size: 25px; }
+/* Six columns on the modes' grid, two to a mode: the dividers fall on its gutters
+   and halfway through each third. */
+.hm-std-list {
+  margin: 18px 0 0;
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px var(--hm-gap);
+}
+.hm-std-item { position: relative; display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 8px; min-width: 0; }
+.hm-std-item + .hm-std-item::before {
+  content: ""; position: absolute; left: calc(var(--hm-gap) / -2); top: 2px; bottom: 2px; width: 1px;
+  background: var(--wk-line);
+}
+.hm-std-item dt {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 14px; line-height: 1.3; color: var(--wk-ink-3);
+}
+.hm-std-item dd { margin: 0; display: flex; align-items: center; gap: 8px; min-height: 28px; }
+.hm-std-v { font-size: 25px; color: var(--wk-ink); }
+.hm-std-unit { align-self: flex-end; margin-left: -2px; padding-bottom: 2px; font-size: 14px; font-weight: 600; color: var(--wk-ink-3); }
+.hm-std-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1; color: var(--wk-ink); }
+.hm-std-state {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3);
+}
+.hm-std-item[data-on="false"] .hm-std-name { color: var(--wk-ink-3); }
+.hm-std-item[data-on="true"] .hm-std-state { color: var(--wk-ink); }
+/* A redstone lamp: lit when the setting is on. Not a control; the page cannot change the server. */
+.hm-lamp { flex-shrink: 0; width: 12px; height: 12px; background: var(--wk-slot); box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.6); }
+.hm-std-item[data-on="true"] .hm-lamp {
+  background: oklch(86% 0.13 85);
+  box-shadow: inset -2px -2px 0 oklch(62% 0.13 60);
+}
+
+/* ── 8. Where next ────────────────────────────────────────────────────────── */
+
+/* Plain links with visible names, grouped like the nav. Understated on purpose: at
+   the bottom of the page, getting somewhere matters more than being clever. */
+.hm-index { padding: 48px 0 40px; box-shadow: inset 0 1px 0 var(--wk-line); }
+.hm-index-groups {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 40px;
+  margin-top: 18px;
+}
+.hm-index-group { display: grid; align-content: start; gap: 6px; min-width: 0; }
+.hm-index-group .wk-label { padding: 0 6px 2px; }
+.hm-index-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.hm-page {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 52px; padding: 6px;
+  border-radius: 2px;
+  text-decoration: none; color: inherit;
+  transition: background 140ms var(--wk-ease);
+}
+.hm-page:hover { background: var(--wk-panel); }
+.hm-page:hover .wk-sprite, .hm-page:focus-visible .wk-sprite { transform: translateY(-2px) scale(1.07); }
+.hm-page-text { display: grid; gap: 2px; min-width: 0; }
+.hm-page-name { display: inline-flex; align-items: center; gap: 4px; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--wk-ink); }
+.hm-page-desc { font-size: 14px; line-height: 1.35; color: var(--wk-ink-3); }
+.hm-page-exit { color: var(--wk-ink-3); flex-shrink: 0; }
+
+/* ── 9. Made by ───────────────────────────────────────────────────────────── */
+
+.hm-team { padding: 8px 0 44px; }
+.hm-crew {
+  list-style: none; margin: 16px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 16px;
+}
+.hm-member { display: flex; align-items: center; gap: 12px; }
+.hm-member > span:last-child { display: grid; gap: 1px; }
+.hm-head-img { width: 40px; height: 40px; image-rendering: pixelated; }
+.hm-member-name { font-weight: 700; font-size: 16px; color: var(--wk-ink); }
+.hm-member-role { font-size: 14px; color: var(--wk-ink-3); }
+.hm-thanks { margin-top: 20px; max-width: none; }
+.hm-gh { width: 18px; height: 18px; border-radius: 2px; vertical-align: -4px; margin-right: 5px; }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1360px) {
+  .hm-routes { grid-template-columns: minmax(0, 7fr) minmax(0, 18fr); column-gap: 40px; }
+  /* The narrower intro column fits the seven examples in a row only without their label beside them. */
+  .hm-try-label { flex-basis: 100%; margin: 0 0 4px; }
+}
+@media (max-width: 1180px) and (min-width: 421px) {
+  .hm-try-label { flex-basis: auto; margin: 0 6px 0 0; }
+}
+@media (max-width: 420px) {
+  .hm-try-label { flex-basis: 100%; margin: 0 0 4px; }
+}
+@media (max-width: 1180px) {
+  .hm-routes { grid-template-columns: 1fr; gap: 28px; }
+  .hm-routes-head { position: static; }
+}
+
+@media (max-width: 1100px) {
+  .hm-open-grid { grid-template-columns: 1fr; gap: 0; min-height: 0; }
+  .hm-open-copy { padding-bottom: 8px; }
+  .hm-target { min-height: 320px; padding: 24px 0 8px; }
+  .hm-target-env { left: -40px; right: -40px; top: 0; bottom: -20px; }
+  .hm-target-env .wk-env {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 78%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 78%, transparent 100%);
+  }
+  .hm-loop { grid-template-columns: 1fr; gap: 24px; }
+  .hm-escapes-grid { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; }
+  .hm-seq--luck { margin-top: 36px; }
+  .hm-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
+  .hm-index-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hm-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
+  /* Stacked, the frames keep one width so they still compare as a set. */
+  .hm-mode-list { grid-template-columns: minmax(0, 440px); gap: 44px; }
+  .hm-std-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hm-std-item:nth-child(3n + 1)::before { display: none; }
+}
+
+/* The round clock turns on its side below 900px: the flags become a descending list on
+   a rail, each with its stage's items, and the drawn item sits under its own stage.
+   900, not the page's 720, because a flag carries three 40px items and the Mid flag's
+   18% of the round is narrower than that under about 880px; the flags collided. The
+   strip is not drawn in this form, so its caption goes with it. */
+@media (max-width: 900px) {
+  .hm-clock-flags { height: auto; }
+  .hm-flag { position: relative; left: auto; max-width: none; padding: 0 0 24px 28px; gap: 6px; }
+  .hm-flag::before { left: 4px; top: 6px; bottom: 0; }
+  .hm-flag:last-child::before { bottom: 18px; }
+  .hm-flag::after { left: 0; top: 2px; }
+  .hm-flag-when { display: block; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
+  .hm-flag-items[data-start] { display: flex; }
+  .hm-flag-you { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 14px; color: var(--wk-ink-2); }
+  .hm-flag-you strong { color: var(--wk-ink); }
+  .hm-clock-draws, .hm-clock-layers, .hm-clock-axis, .hm-clock-you, .hm-clock-caption { display: none; }
+}
+
+@media (max-width: 720px) {
+  .hm-target { grid-template-columns: 1fr; gap: 16px; }
+  .hm-hero-item { width: 168px; }
+  .hm-loop-strip { grid-template-columns: 96px minmax(0, 1fr); gap: 16px 12px; }
+  .hm-board { grid-column: 1 / -1; max-width: 320px; }
+  .hm-band { --rail-mark: 42px; }
+  .hm-band-in { padding-left: 30px; }
+  .hm-index-groups { grid-template-columns: 1fr; gap: 20px; }
+  .hm-seq { gap: 6px; }
+  .hm-seq-to { flex-basis: 16px; }
+  .hm-world-head { grid-template-columns: 1fr; gap: 16px; }
+  .hm-world-n { justify-items: start; text-align: left; }
+  .hm-band { padding: 22px 0; }
+  .hm-band::before { background: linear-gradient(180deg, oklch(14.5% 0.007 255 / 0.85) 0, oklch(14.5% 0.007 255 / 0.4) 45%, oklch(14.5% 0.007 255 / 0.2) 100%); }
+  .hm-band-in { grid-template-columns: 1fr; gap: 16px; }
+  .hm-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hm-rung:nth-child(odd) { padding-left: 0; box-shadow: none; }
+  .hm-rung:nth-child(even) { padding-left: 14px; box-shadow: inset 1px 0 0 var(--wk-line); }
+}
+@media (max-width: 560px) {
+  .hm-std-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 32px; }
+  .hm-std-item + .hm-std-item::before { left: -16px; }
+  .hm-std-item:nth-child(3n + 1)::before { display: block; }
+  .hm-std-item:nth-child(odd)::before { display: none; }
+}
+
+/* ── Calm ─────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-hero-sprite, .hm-hero-shadow, .hm-target-env, .hm-loop-now .wk-slot, .hm-loop-trail li,
+  .hm-board-score, .hm-board-item .wk-slot { animation: none !important; }
+  .hm-board-row { transition: none !important; }
+  .hm-page:hover .wk-sprite, .hm-page:focus-visible .wk-sprite { transform: none; }
+}
+html[data-saver="on"] .hm-hero-sprite,
+html[data-saver="on"] .hm-hero-shadow,
+html[data-saver="on"] .hm-target-env,
+html[data-saver="on"] .hm-loop-now .wk-slot,
+html[data-saver="on"] .hm-loop-trail li,
+html[data-saver="on"] .hm-board-score,
+html[data-saver="on"] .hm-board-item .wk-slot { animation: none; }
+html[data-saver="on"] .hm-board-row { transition: none; }
+html[data-saver="on"] .hm-page:hover .wk-sprite,
+html[data-saver="on"] .hm-page:focus-visible .wk-sprite { transform: none; }

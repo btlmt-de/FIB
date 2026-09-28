@@ -1,0 +1,105 @@
+/*
+ * Changelog (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
+ * page.css, one section per year.
+ *
+ * The track is drawn per release rather than once per list, so it can start at the
+ * newest node (with the arrowhead above it) and stop at the oldest one instead of
+ * running on past the last release into nothing.
+ *
+ * No hue anywhere. A release's kind is a word; a major release is told by its larger,
+ * filled node and its named heading.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+/* ── The head ─────────────────────────────────────────────────────────────── */
+
+/* The Minecraft updates, its label beside the list. The years are the sticky index. */
+.cl-index {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 10px 20px;
+  margin-top: 8px; max-width: 72ch;
+}
+.cl-index-list { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; padding: 0; list-style: none; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ── A year ───────────────────────────────────────────────────────────────── */
+
+.cl-year-title { margin: 0; font-size: 30px; line-height: 1.1; color: var(--wk-ink); }
+/* A busy year's months, each to its newest release: in the sticky head, so the
+   month list stays beside the releases it indexes. */
+.cl-months { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+
+/* ── The track ────────────────────────────────────────────────────────────── */
+
+.cl-track { position: relative; list-style: none; margin: 0; padding: 0; }
+.cl-rel {
+  position: relative;
+  display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 0 20px;
+  padding-bottom: 40px;
+  scroll-margin-top: 124px;
+}
+.cl-rel:last-child { padding-bottom: 0; }
+.cl-rel::before {
+  content: ""; position: absolute; left: 11px; top: 0; bottom: 0; width: 2px;
+  background: var(--wk-line-hi);
+}
+/* The newest end: the line starts above the first node and ends in the arrowhead. */
+.cl-track[data-newest] > .cl-rel:first-child::before { top: -12px; }
+.cl-track[data-newest]::before {
+  content: ""; position: absolute; left: 9px; top: -24px; width: 6px; height: 10px;
+  background: var(--wk-line-hi); clip-path: var(--wk-arrowhead); transform: rotate(-90deg);
+}
+/* The oldest end: the line stops at the first release there ever was. */
+.cl-track[data-oldest] > .cl-rel:last-child::before { bottom: auto; height: 12px; }
+
+.cl-node {
+  position: relative; z-index: 1;
+  justify-self: center; margin-top: 6px;
+  width: 10px; height: 10px;
+  background: var(--wk-ground); box-shadow: inset 0 0 0 2px var(--wk-ink-3);
+}
+.cl-rel[data-major] .cl-node { width: 16px; height: 16px; margin-top: 3px; background: var(--wk-ink); box-shadow: 0 0 0 3px var(--wk-ground); }
+.cl-rel:target .cl-node { box-shadow: inset 0 0 0 2px var(--wk-ink), 0 0 0 3px var(--wk-ground); }
+.cl-rel[data-major]:target .cl-node { box-shadow: 0 0 0 3px var(--wk-ground), 0 0 0 5px var(--wk-ink-3); }
+
+/* ── A release ────────────────────────────────────────────────────────────── */
+
+.cl-body { min-width: 0; }
+.cl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0; min-height: 22px; }
+.cl-v {
+  font-family: var(--wk-font-typed); font-size: 14px; color: var(--wk-ink);
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
+  transition: text-decoration-color 140ms var(--wk-ease);
+}
+.cl-v:hover, .cl-v:focus-visible { text-decoration-color: var(--wk-ink); }
+.cl-date { font-size: 14px; color: var(--wk-ink-2); font-variant-numeric: tabular-nums; }
+.cl-mc {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 7px;
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wk-ink-2);
+  border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line-hi);
+}
+
+.cl-title { margin: 6px 0 0; font-size: 18.5px; font-weight: 700; line-height: 1.3; color: var(--wk-ink); text-wrap: balance; }
+.cl-title.wk-name { margin-top: 4px; font-size: 25px; font-weight: 600; line-height: 1.15; }
+.cl-title--figure { font-size: 22px; font-variant-numeric: tabular-nums; }
+.cl-desc { margin: 4px 0 0; font-size: 16px; line-height: 1.55; color: var(--wk-ink-2); max-width: 64ch; text-wrap: pretty; }
+.cl-changes { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; max-width: 68ch; }
+.cl-changes li { position: relative; padding-left: 18px; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); text-wrap: pretty; }
+.cl-changes li::before { content: ""; position: absolute; left: 2px; top: 0.6em; width: 6px; height: 6px; background: var(--wk-ink-3); }
+
+/* ── Narrower screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .cl-year .pg-sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .cl-months { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; margin: 0; }
+}
+@media (max-width: 720px) {
+  .cl-rel { grid-template-columns: 20px minmax(0, 1fr); gap: 0 14px; padding-bottom: 32px; }
+  .cl-rel::before { left: 9px; }
+  .cl-track[data-newest]::before { left: 7px; }
+  .cl-index { grid-template-columns: 1fr; gap: 6px; }
+  .cl-index .wk-label:not(:first-child) { margin-top: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cl-v { transition: none; }
+}
