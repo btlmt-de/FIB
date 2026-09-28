@@ -438,11 +438,14 @@ async function writeSettings(rawYaml) {
   const settings = [];
   for (const m of java.matchAll(ENTRY)) {
     const [, key, name, , loreBody, path, rawDefault, material] = m;
-    const lore = loreBody ? [...loreBody.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((x) => plain(x[1])).filter(Boolean) : [];
+    const loreLines = loreBody ? [...loreBody.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((x) => x[1]) : [];
+    const lore = loreLines.map(plain).filter(Boolean);
+    // The same lines as the menu's tooltip prints them: MiniMessage kept, blank lines too.
+    const mm = loreLines.map((l) => l.replace(/\\"/g, '"'));
     const def = rawDefault.trim() === 'true' ? true : rawDefault.trim() === 'false' ? false : Number(rawDefault.trim());
     const raw = configured[path];
     const standard = raw === undefined ? def : raw === 'true' ? true : raw === 'false' ? false : Number(raw);
-    settings.push({ key, name, lore, path, default: def, standard, configured: raw !== undefined, material });
+    settings.push({ key, name, lore, mm, path, default: def, standard, configured: raw !== undefined, material });
   }
   if (settings.length < 10) {
     console.warn(`[WARNING] Only ${settings.length} settings parsed from GameSetting.java; its entry shape may have changed. settings.data.js was left as it was.`);
@@ -455,7 +458,8 @@ async function writeSettings(rawYaml) {
  * this repo's config.yml. Do not edit by hand.
  *
  * SETTINGS: every round setting in the order the plugin declares it. name and lore are
- *   the plugin's (lore is its in-game description, MiniMessage removed); path is the
+ *   the plugin's (lore is its in-game description, MiniMessage removed; mm is the same
+ *   lore as the /settings menu's tooltip prints it, MiniMessage and blank lines kept); path is the
  *   key under settings: in config.yml; default is the plugin's; standard is what this
  *   repo's config.yml sets, the standard round's settings, or the default where it
  *   sets nothing (configured says which); material is the item its /settings menu shows.

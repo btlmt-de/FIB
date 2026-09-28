@@ -46,3 +46,6 @@
 
 @media (prefers-reduced-motion: reduce) { .vg-head { transition: none; } }
 html[data-saver="on"] .vg-head { transition: none; }
+
+/* A player head in a slot (Head): its face, flat. */
+.vg-headicon { display: block; background-repeat: no-repeat; image-rendering: pixelated; }

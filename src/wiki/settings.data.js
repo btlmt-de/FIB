@@ -3,7 +3,8 @@
  * this repo's config.yml. Do not edit by hand.
  *
  * SETTINGS: every round setting in the order the plugin declares it. name and lore are
- *   the plugin's (lore is its in-game description, MiniMessage removed); path is the
+ *   the plugin's (lore is its in-game description, MiniMessage removed; mm is the same
+ *   lore as the /settings menu's tooltip prints it, MiniMessage and blank lines kept); path is the
  *   key under settings: in config.yml; default is the plugin's; standard is what this
  *   repo's config.yml sets, the standard round's settings, or the default where it
  *   sets nothing (configured says which); material is the item its /settings menu shows.
@@ -15,28 +16,28 @@
  */
 
 export const SETTINGS = [
-  {"key":"TEAM","name":"Teams","lore":["Toggle whether teams are allowed or not.","Only toggleable if 4 or more players are playing!"],"path":"isTeamGame","default":false,"standard":false,"configured":true,"material":"RED_BED"},
-  {"key":"TEAM_CHAT","name":"Team chat","lore":["Toggle whether team chat is enabled or not."],"path":"isTeamChat","default":false,"standard":false,"configured":false,"material":"FILLED_MAP"},
-  {"key":"KEEP_INVENTORY","name":"Keep Inventory","lore":["Toggle whether to keep items in inventory when you die or not."],"path":"keepinventory","default":true,"standard":true,"configured":true,"material":"TOTEM_OF_UNDYING"},
-  {"key":"FOOD","name":"Food","lore":["Toggle whether you should lose hunger while playing."],"path":"food","default":true,"standard":true,"configured":true,"material":"COOKED_BEEF"},
-  {"key":"BACKPACK","name":"Backpack","lore":["Toggle whether you can use backpacks."],"path":"backpack","default":true,"standard":true,"configured":true,"material":"BUNDLE"},
-  {"key":"BACKPACKSIZE","name":"Backpack rows","lore":["Changes size of backpack."],"path":"backpackRows","default":3,"standard":3,"configured":true,"material":"BUNDLE"},
-  {"key":"PVP","name":"PvP","lore":["Toggle whether PvP should be enabled or not."],"path":"pvp","default":false,"standard":false,"configured":true,"material":"IRON_SWORD"},
-  {"key":"HARD","name":"Hard","lore":["Toggle whether hard items & nether should be enabled."],"path":"hard","default":true,"standard":true,"configured":true,"material":"NETHERRACK"},
-  {"key":"EXTREME","name":"Extreme","lore":["Toggle whether the extreme version should be played."],"path":"extreme","default":true,"standard":false,"configured":true,"material":"BEACON"},
-  {"key":"END","name":"End","lore":["Toggle whether end should be accessible."],"path":"end","default":true,"standard":true,"configured":false,"material":"END_STONE"},
-  {"key":"FASTER_RANDOM_TICK","name":"Faster plants growth & decay","lore":[],"path":"fasterRandomTick","default":false,"standard":false,"configured":true,"material":"CACTUS"},
-  {"key":"POSITIONS","name":"Positions - /pos","lore":["Toggle whether positions can be set."],"path":"positions","default":true,"standard":true,"configured":false,"material":"LIME_WOOL"},
-  {"key":"ELYTRA","name":"Elytra gliding","lore":["Prevents gliding with an elytra."],"path":"elytraGliding","default":true,"standard":true,"configured":false,"material":"ELYTRA"},
-  {"key":"CHAIN","name":"Force Chain","lore":["Shows the next forced item."],"path":"forceChain","default":false,"standard":false,"configured":false,"material":"IRON_CHAIN"},
-  {"key":"RUN","name":"Run Battle","lore":["Only the first player to get the item gets the point."],"path":"runBattle","default":false,"standard":false,"configured":false,"material":"CLOCK"},
-  {"key":"STATS","name":"Stats","lore":["Toggle whether this round is played with stats."],"path":"stats","default":true,"standard":true,"configured":true,"material":"WRITABLE_BOOK"},
-  {"key":"ACHIEVEMENTS","name":"Achievements","lore":["Toggle whether this round is played with achievements."],"path":"achievements","default":true,"standard":true,"configured":false,"material":"NETHER_STAR"},
-  {"key":"SCORE","name":"Score","lore":["Toggle whether the score should be hidden or shown."],"path":"score","default":true,"standard":true,"configured":false,"material":"REDSTONE"},
-  {"key":"EVENT","name":"Event","lore":["Toggle event modifiers.","Some commands are OP only","Keep inventory is force enabled for 5 minutes"],"path":"eventModifiers","default":false,"standard":false,"configured":false,"material":"CAKE"},
-  {"key":"HARDER_TRACKERS","name":"Harder trackers","lore":["Make tracker recipes harder."],"path":"hardTrackers","default":false,"standard":false,"configured":false,"material":"KNOWLEDGE_BOOK"},
-  {"key":"QUICKIE","name":"Quickie","lore":["Restrict which item pools are used.","Cycle: Disabled → Early → Early + Mid.","Left-click: next • Right-click: previous"],"path":"quickie","default":0,"standard":0,"configured":false,"material":"FEATHER"},
-  {"key":"RANDOM_EVENTS","name":"Random events","lore":["Toggle whether random events occur during the round.","Roughly 3-4 per hour. Never in Run Battle."],"path":"randomEvents","default":true,"standard":true,"configured":false,"material":"FIREWORK_ROCKET"},
+  {"key":"TEAM","name":"Teams","lore":["Toggle whether teams are allowed or not.","Only toggleable if 4 or more players are playing!"],"mm":["","<gray>Toggle whether <dark_aqua>teams <gray>are allowed or not.","<dark_gray><i>Only toggleable if 4 or more players are playing!</i>",""],"path":"isTeamGame","default":false,"standard":false,"configured":true,"material":"RED_BED"},
+  {"key":"TEAM_CHAT","name":"Team chat","lore":["Toggle whether team chat is enabled or not."],"mm":["","<gray>Toggle whether <dark_aqua>team chat <gray>is enabled or not.",""],"path":"isTeamChat","default":false,"standard":false,"configured":false,"material":"FILLED_MAP"},
+  {"key":"KEEP_INVENTORY","name":"Keep Inventory","lore":["Toggle whether to keep items in inventory when you die or not."],"mm":["","<gray>Toggle whether to <dark_aqua>keep items in inventory <gray>when you die or not.",""],"path":"keepinventory","default":true,"standard":true,"configured":true,"material":"TOTEM_OF_UNDYING"},
+  {"key":"FOOD","name":"Food","lore":["Toggle whether you should lose hunger while playing."],"mm":["","<gray>Toggle whether you should <dark_aqua>lose hunger <gray>while playing.",""],"path":"food","default":true,"standard":true,"configured":true,"material":"COOKED_BEEF"},
+  {"key":"BACKPACK","name":"Backpack","lore":["Toggle whether you can use backpacks."],"mm":["","<gray>Toggle whether you can use <dark_aqua>backpacks<gray>.",""],"path":"backpack","default":true,"standard":true,"configured":true,"material":"BUNDLE"},
+  {"key":"BACKPACKSIZE","name":"Backpack rows","lore":["Changes size of backpack."],"mm":["","<gray>Changes size of <dark_aqua>backpack<gray>.",""],"path":"backpackRows","default":3,"standard":3,"configured":true,"material":"BUNDLE"},
+  {"key":"PVP","name":"PvP","lore":["Toggle whether PvP should be enabled or not."],"mm":["","<gray>Toggle whether <dark_aqua>PvP <gray>should be enabled or not.",""],"path":"pvp","default":false,"standard":false,"configured":true,"material":"IRON_SWORD"},
+  {"key":"HARD","name":"Hard","lore":["Toggle whether hard items & nether should be enabled."],"mm":["","<gray>Toggle whether <dark_aqua>hard items & nether <gray>should be enabled.",""],"path":"hard","default":true,"standard":true,"configured":true,"material":"NETHERRACK"},
+  {"key":"EXTREME","name":"Extreme","lore":["Toggle whether the extreme version should be played."],"mm":["","<gray>Toggle whether the <dark_aqua>extreme version <gray>should be played.",""],"path":"extreme","default":true,"standard":false,"configured":true,"material":"BEACON"},
+  {"key":"END","name":"End","lore":["Toggle whether end should be accessible."],"mm":["","<gray>Toggle whether <dark_aqua>end <gray>should be accessible.",""],"path":"end","default":true,"standard":true,"configured":false,"material":"END_STONE"},
+  {"key":"FASTER_RANDOM_TICK","name":"Faster plants growth & decay","lore":[],"mm":[],"path":"fasterRandomTick","default":false,"standard":false,"configured":true,"material":"CACTUS"},
+  {"key":"POSITIONS","name":"Positions - /pos","lore":["Toggle whether positions can be set."],"mm":["","<gray>Toggle whether <dark_aqua>positions <gray>can be set.",""],"path":"positions","default":true,"standard":true,"configured":false,"material":"LIME_WOOL"},
+  {"key":"ELYTRA","name":"Elytra gliding","lore":["Prevents gliding with an elytra."],"mm":["","<gray>Prevents gliding with an elytra<gray>.",""],"path":"elytraGliding","default":true,"standard":true,"configured":false,"material":"ELYTRA"},
+  {"key":"CHAIN","name":"Force Chain","lore":["Shows the next forced item."],"mm":["","<gray>Shows the next forced item.",""],"path":"forceChain","default":false,"standard":false,"configured":false,"material":"IRON_CHAIN"},
+  {"key":"RUN","name":"Run Battle","lore":["Only the first player to get the item gets the point."],"mm":["","<gray>Only the first player to get the item gets the point.",""],"path":"runBattle","default":false,"standard":false,"configured":false,"material":"CLOCK"},
+  {"key":"STATS","name":"Stats","lore":["Toggle whether this round is played with stats."],"mm":["","<gray>Toggle whether this round is played with <dark_aqua>stats<gray>.",""],"path":"stats","default":true,"standard":true,"configured":true,"material":"WRITABLE_BOOK"},
+  {"key":"ACHIEVEMENTS","name":"Achievements","lore":["Toggle whether this round is played with achievements."],"mm":["","<gray>Toggle whether this round is played with <dark_aqua>achievements<gray>.",""],"path":"achievements","default":true,"standard":true,"configured":false,"material":"NETHER_STAR"},
+  {"key":"SCORE","name":"Score","lore":["Toggle whether the score should be hidden or shown."],"mm":["","<gray>Toggle whether the score should be <dark_aqua>hidden <gray>or <dark_aqua>shown.",""],"path":"score","default":true,"standard":true,"configured":false,"material":"REDSTONE"},
+  {"key":"EVENT","name":"Event","lore":["Toggle event modifiers.","Some commands are OP only","Keep inventory is force enabled for 5 minutes"],"mm":["","<gray>Toggle <dark_aqua>event<gray> modifiers.","<gray>Some commands are OP only","<gray>Keep inventory is force enabled for 5 minutes","",""],"path":"eventModifiers","default":false,"standard":false,"configured":false,"material":"CAKE"},
+  {"key":"HARDER_TRACKERS","name":"Harder trackers","lore":["Make tracker recipes harder."],"mm":["","<gray>Make tracker recipes harder<gray>.",""],"path":"hardTrackers","default":false,"standard":false,"configured":false,"material":"KNOWLEDGE_BOOK"},
+  {"key":"QUICKIE","name":"Quickie","lore":["Restrict which item pools are used.","Cycle: Disabled → Early → Early + Mid.","Left-click: next • Right-click: previous"],"mm":["","<gray>Restrict which <dark_aqua>item pools <gray>are used.","<gray>Cycle: <dark_aqua>Disabled <gray>→ <dark_aqua>Early <gray>→ <dark_aqua>Early + Mid<gray>.","<dark_gray><i>Left-click: next • Right-click: previous</i>",""],"path":"quickie","default":0,"standard":0,"configured":false,"material":"FEATHER"},
+  {"key":"RANDOM_EVENTS","name":"Random events","lore":["Toggle whether random events occur during the round.","Roughly 3-4 per hour. Never in Run Battle."],"mm":["","<gray>Toggle whether <dark_aqua>random events <gray>occur during the round.","<dark_gray><i>Roughly 3-4 per hour. Never in Run Battle.</i>",""],"path":"randomEvents","default":true,"standard":true,"configured":false,"material":"FIREWORK_ROCKET"},
 ];
 
 export const DEAD_KEYS = [];

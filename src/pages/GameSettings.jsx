@@ -5,6 +5,7 @@ import { useGo } from '../wiki/pages.js';
 import { spriteFallback, spriteOf } from '../wiki/sprite.js';
 import { SETTINGS } from '../wiki/settings.data.js';
 import { ROUND } from '../wiki/tokens.js';
+import SettingsMenu from '../wiki/SettingsMenu.jsx';
 import '../wiki/page.css';
 import '../wiki/settings.css';
 
@@ -124,23 +125,26 @@ export default function GameSettings({ onNavigate }) {
 
     return (
         <main className="pg gs">
-            <header className="wk-wrap pg-head">
-                <h1 className="wk-h2">Game Settings</h1>
-                <p className="wk-lede">
-                    Every setting an operator can change in <code className="wk-typed">/settings</code> before a round, what it does, and
-                    how the standard round has it.
-                </p>
-                <p className="gs-standard">
-                    The standard round is <span className="wk-datum">{ROUND.minutes}</span> minutes
-                    with <span className="wk-datum">{ROUND.jokers}</span> jokers each, the round the game is balanced
-                    around, started with <code className="wk-typed">/start {ROUND.minutes} {ROUND.jokers}</code>. Its
-                    settings are the ones in our <a className="wk-link" href="/how-to-play#host">config.yml</a>{changed.length ? <>, which differs from the plugin's defaults in {changed.map((s, i) => (
-                        <React.Fragment key={s.key}>{i > 0 && (i === changed.length - 1 ? ' and ' : ', ')}<a className="wk-link" href={`#setting-${s.key.toLowerCase()}`}>{nameOf(s)}</a></React.Fragment>
-                    ))}</> : null}.
-                </p>
-                <nav className="gs-toc" aria-label="Groups">
-                    {grouped.filter((g) => g.settings.length).map((g) => <a key={g.key} className="wk-link" href={`#group-${g.key}`}>{g.name}</a>)}
-                </nav>
+            <header className="wk-wrap pg-head gs-head">
+                <div className="gs-head-text">
+                    <h1 className="wk-h2">Game Settings</h1>
+                    <p className="wk-lede">
+                        Every setting an operator can change in <code className="wk-typed">/settings</code> before a round, what it does, and
+                        how the standard round has it.
+                    </p>
+                    <p className="gs-standard">
+                        The standard round is <span className="wk-datum">{ROUND.minutes}</span> minutes
+                        with <span className="wk-datum">{ROUND.jokers}</span> jokers each, the round the game is balanced
+                        around, started with <code className="wk-typed">/start {ROUND.minutes} {ROUND.jokers}</code>. Its
+                        settings are the ones in our <a className="wk-link" href="/how-to-play#host">config.yml</a>{changed.length ? <>, which differs from the plugin's defaults in {changed.map((s, i) => (
+                            <React.Fragment key={s.key}>{i > 0 && (i === changed.length - 1 ? ' and ' : ', ')}<a className="wk-link" href={`#setting-${s.key.toLowerCase()}`}>{nameOf(s)}</a></React.Fragment>
+                        ))}</> : null}.
+                    </p>
+                    <nav className="gs-toc" aria-label="Groups">
+                        {grouped.filter((g) => g.settings.length).map((g) => <a key={g.key} className="wk-link" href={`#group-${g.key}`}>{g.name}</a>)}
+                    </nav>
+                </div>
+                <SettingsMenu />
             </header>
 
             <div className="wk-wrap">

@@ -11,6 +11,12 @@
  * Plain words in comments: no backticks.
  */
 
+/* The head: the words, and the menu itself beside them where there is room. */
+.gs-head { grid-template-columns: minmax(0, 1fr) auto; column-gap: 56px; align-items: start; }
+.gs-head-text { display: grid; gap: 14px; justify-items: start; }
+.gs-head .sm { margin-top: 6px; }
+@media (max-width: 1100px) { .gs-head { grid-template-columns: 1fr; row-gap: 28px; } }
+
 .gs-standard { margin: 4px 0 0; max-width: 72ch; font-size: 16px; line-height: 1.6; color: var(--wk-ink-2); }
 .gs-standard .wk-datum { color: var(--wk-ink); }
 .gs-toc { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; }

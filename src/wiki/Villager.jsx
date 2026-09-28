@@ -177,6 +177,27 @@ function Model({ skin, px, watchRef }) {
     );
 }
 
+/*
+ * A player head as a slot shows one: its face, straight on and flat, sitting in the
+ * slot, the skin's hat layer over its face layer. The plugin's menus page with heads
+ * wearing arrow skins, and the face is where those skins draw the arrow.
+ *
+ * It was a cube here at first, turned the way a slot turns a block. That is not how the
+ * game draws a head in a slot, and it hid the arrow, so it is the face alone now.
+ */
+export function Head({ skin, size = 28 }) {
+    const k = size / 8;
+    const layer = (u, v) => `${-u * k}px ${-v * k}px`;
+    return (
+        <span className="vg-headicon" aria-hidden="true" style={{
+            width: size, height: size,
+            backgroundImage: `url(${skin}), url(${skin})`,
+            backgroundSize: `${64 * k}px ${64 * k}px`,
+            backgroundPosition: `${layer(40, 8)}, ${layer(8, 8)}`,
+        }} />
+    );
+}
+
 /** A villager you trade with: the model, no name over it, as the game draws one. */
 export function Villager({ skin = SKINS.CLERIC, px = 3 }) {
     const ref = useRef(null);
