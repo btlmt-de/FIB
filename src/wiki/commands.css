@@ -38,9 +38,8 @@
 .cm-seg > button:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
 .cm-seg > button[aria-checked="true"] { background: var(--wk-panel-hi); color: var(--wk-ink); box-shadow: inset 0 -3px 0 var(--wk-ink); }
 .cm-key { margin-top: 2px; }
-.cm-toc { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 4px; }
 
-.cm-body { padding-bottom: 24px; }
+.cm-body { padding: 8px 0 24px; }
 .cm-count { margin: 0 0 8px; font-size: 14px; color: var(--wk-ink-3); }
 .cm-empty { display: grid; justify-items: start; gap: 12px; padding: 32px 0; font-size: 16px; color: var(--wk-ink-2); }
 .cm-empty p { margin: 0; }
@@ -50,13 +49,15 @@
    beside its drawing. */
 .cm-group {
   display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 16px 48px; align-items: start;
-  padding: 40px 0 44px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 64px;
+  padding: 40px 0 44px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 100px;
 }
-.cm-group-head { display: grid; gap: 10px; position: sticky; top: 88px; }
+.cm-group:first-child { box-shadow: none; }
+/* Under the nav (56) and the page index (46, page.css), with the gap the other pages leave. */
+.cm-group-head { display: grid; gap: 10px; position: sticky; top: 134px; }
 .cm-group-note { max-width: 36ch; }
 .cm-list { list-style: none; margin: 0; padding: 0; display: grid; }
 
-.cm-cmd { display: grid; gap: 8px; padding: 14px 0 16px; box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.6); scroll-margin-top: 80px; }
+.cm-cmd { display: grid; gap: 8px; padding: 14px 0 16px; box-shadow: inset 0 -1px 0 oklch(27% 0.009 255 / 0.6); scroll-margin-top: 112px; }
 .cm-cmd:first-child { padding-top: 4px; }
 .cm-forms { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .cm-form { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 6px 24px; align-items: baseline; }

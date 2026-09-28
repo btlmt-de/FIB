@@ -7,6 +7,7 @@ import { ItemSlot } from '../wiki/items.jsx';
 import Bossbar from '../wiki/Bossbar.jsx';
 import { PAPER_VERSION, POOL_BY_STAGE, pick } from '../wiki/atlas.js';
 import { useGo } from '../wiki/pages.js';
+import { ROUND } from '../wiki/tokens.js';
 import '../wiki/page.css';
 import '../wiki/howtoplay.css';
 
@@ -150,13 +151,42 @@ function Host({ go }) {
                     item={shown}
                     caption="What a player reads at the top of the screen with both in place: the item they are hunting, and its icon."
                 />
-                <p className="wk-p hp-then">
-                    Restart the server. Then, as an operator, set the round up with{' '}
-                    <code className="wk-typed">/settings</code> and start it with{' '}
-                    <code className="wk-typed hp-nowrap">/start &lt;minutes&gt; &lt;jokers&gt;</code>.
-                    Every other command is on the{' '}
-                    <a className="wk-link" href="/commands" onClick={go('commands')}>Commands</a> page.
-                </p>
+                {/*
+                  * Where the setup ends. It used to trail off in a paragraph under the
+                  * bossbar, so the board had no last step (owner, final pass, Sept 2026).
+                  * Now the board's own track carries on through the last four moves and
+                  * stops on a filled block: once /start is typed, the round is running.
+                  */}
+                <div className="hp-finish">
+                    <span className="wk-label">Then</span>
+                    <ol className="hp-finish-line">
+                        <li className="hp-finish-step">
+                            <span className="hp-finish-mark" aria-hidden="true" />
+                            <span className="hp-finish-what">Files installed</span>
+                            <span className="hp-finish-sub">Restart the server</span>
+                        </li>
+                        <li className="hp-finish-step">
+                            <span className="hp-finish-mark" aria-hidden="true" />
+                            <span className="hp-finish-what">Resource pack ready</span>
+                            <span className="hp-finish-sub">On each player's game</span>
+                        </li>
+                        <li className="hp-finish-step">
+                            <span className="hp-finish-mark" aria-hidden="true" />
+                            <code className="wk-typed hp-finish-cmd">/settings</code>
+                            <span className="hp-finish-sub">Set the round up, as an operator</span>
+                        </li>
+                        <li className="hp-finish-step" data-end="true">
+                            <span className="hp-finish-mark" aria-hidden="true" />
+                            <code className="wk-typed hp-finish-cmd">/start {ROUND.minutes} {ROUND.jokers}</code>
+                            <span className="hp-finish-sub">The round is on: {ROUND.minutes} minutes, {ROUND.jokers} jokers each</span>
+                        </li>
+                    </ol>
+                    <p className="wk-small">
+                        <code className="wk-typed hp-nowrap">/start &lt;minutes&gt; &lt;jokers&gt;</code> takes any length.
+                        Every other command is on the{' '}
+                        <a className="wk-link" href="/commands" onClick={go('commands')}>Commands</a> page.
+                    </p>
+                </div>
             </div>
         </section>
     );

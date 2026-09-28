@@ -45,7 +45,7 @@
   grid-column: lab;
   display: flex; align-items: flex-start; gap: 9px;
   padding-top: calc(var(--pad-top) + 20px);
-  font-size: 12.5px; font-weight: 600; line-height: 1.25; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 13px; font-weight: 700; line-height: 1.25; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--wk-ink-2);
   transition: color 160ms var(--wk-ease);
 }
@@ -62,12 +62,12 @@
   padding: 12px 0;
   transition: opacity 160ms var(--wk-ease);
 }
-.rt-dest-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.05; color: var(--wk-ink); text-wrap: balance; }
+.rt-dest-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 28px; line-height: 1.05; color: var(--wk-ink); text-wrap: balance; }
 .rt-dest-stage { font-size: 14px; line-height: 1.35; color: var(--wk-ink-3); }
 .rt-dest-slot { position: relative; line-height: 0; }
 .rt-dest .wk-slot {
   background:
-    radial-gradient(circle at 50% 62%, color-mix(in oklch, var(--region, var(--wk-ink-3)) 30%, transparent), transparent 70%),
+    radial-gradient(circle at 50% 62%, color-mix(in oklch, var(--region, var(--wk-ink-3)) 38%, transparent), transparent 70%),
     var(--wk-slot);
   transition: box-shadow 160ms var(--wk-ease);
 }

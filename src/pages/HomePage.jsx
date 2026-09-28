@@ -6,6 +6,7 @@ import Check from 'lucide-react/dist/esm/icons/check';
 import Dices from 'lucide-react/dist/esm/icons/dices';
 import { useCalm } from '../config/power.js';
 import Environment from '../wiki/Environment.jsx';
+import LoopBeats from '../wiki/LoopBeats.jsx';
 import RouteMap from '../wiki/RouteMap.jsx';
 import { ItemSlot, SlotGrid, TagGlyph, TooltipLayer } from '../wiki/items.jsx';
 import {
@@ -13,7 +14,7 @@ import {
     itemName, pick, regionItems, regionSlots, stageOf, tagsOf, whereOf,
 } from '../wiki/atlas.js';
 import { DEALABLE, countLabel, dealableFrom, routesFor } from '../wiki/routes.js';
-import { FIND_RARITY, GAUGE, REGION, REGIONS, ROUND, STAGES, TAGS } from '../wiki/tokens.js';
+import { BEATS, FIND_RARITY, GAUGE, REGION, REGIONS, ROUND, STAGES, TAGS } from '../wiki/tokens.js';
 import { PAGES, useGo } from '../wiki/pages.js';
 import '../wiki/home.css';
 
@@ -287,7 +288,6 @@ function Routes({ deal, calm }) {
  * Labelled as an illustration because the items are dealt, not played.
  */
 
-const BEATS = ['Draw', 'Think', 'Route', 'Obtain', 'Score', 'Next'];
 const BEAT_MS = 340;
 
 /*
@@ -377,11 +377,7 @@ function Loop({ calm }) {
                         </li>
                     ))}
                 </ol>
-                <ol className="hm-beats">
-                    {BEATS.map((b, i) => (
-                        <li key={b} aria-current={i === beat ? 'step' : undefined}>{b}</li>
-                    ))}
-                </ol>
+                <LoopBeats current={beat} className="hm-beats" />
                 <figcaption className="hm-source">A round, sped up.</figcaption>
             </figure>
         </section>
@@ -396,7 +392,11 @@ function Loop({ calm }) {
  * uniformly from every item unlocked so far (ItemDifficultiesManager.drawFrom). So
  * the strip starts all Early, and after each flag the new stage mixes in while the
  * earlier ones keep turning up, which is "nothing ever leaves" shown rather than
- * said. The drawn item hangs off the axis where it unlocks. Below 900px the timeline
+ * said. Just above the axis, each stage is also a thin layer from its unlock to the
+ * end of the round, stacked on the ones before it, so the eye reads a pool that piles
+ * up rather than three phases that take turns (final pass, Sept 2026: the flags said
+ * "+ Mid" and the strip showed it, but nothing drew the pool itself accumulating).
+ * The drawn item hangs off the axis where it unlocks. Below 900px the timeline
  * turns on its side and the strip is not drawn, so the caption about it goes too.
  *
  * *This replaced a stacked chart.* Each stage was a layer of block cells starting
@@ -511,6 +511,11 @@ function Pressure({ target }) {
                                 {draws[s].slice(0, fits(k)).map((m, j) => <ItemSlot key={`${m}-${j}`} material={m} size={DRAW_SLOT} />)}
                             </span>
                         ))}
+                    </div>
+                    {/* The pool, as layers that pile up: each stage runs from its unlock to
+                        the end of the round, stacked on the ones already there. */}
+                    <div className="hm-clock-layers" aria-hidden="true">
+                        {BOUNDS.map(([k, at]) => <span key={k} className="hm-clock-layer" style={{ '--at': at, '--c': STAGES[k].light }} />)}
                     </div>
                     <div className="hm-clock-axis" aria-hidden="true">
                         {BOUNDS.map(([k, at]) => <span key={k} className="hm-clock-mark" style={{ '--at': at, '--c': STAGES[k].light }} />)}
@@ -852,15 +857,40 @@ function ModeOwn({ kind, items, scores, showNext }) {
     );
 }
 
-function ModeRun({ item }) {
+/*
+ * RunBattle's history is one sequence for everybody, so every row carries the SAME
+ * items in the same columns, and each column is ticked on the one row that claimed it
+ * first; the others hold it dimmed. That is the mode in one look: one item at a time
+ * for the whole server, one point for whoever gets there. *The rows were bare lines*
+ * running into the join (owner, final pass, Sept 2026: long lines, little said), next
+ * to two frames full of items; the history gives it the same density without making
+ * the three drawings one drawing.
+ */
+const RUN_PAST_WINNERS = [2, 0, 1];
+const RUN_SCORES = LANES.map((i) => RUN_PAST_WINNERS.filter((w) => w === i).length + (i === RUN_WINNER ? 1 : 0));
+
+function ModeRun({ item, past }) {
     return (
         <Frame kind="run">
-            {LANES.map((i) => <span key={i} className="hm-f-trail hm-f-race" data-first={i === RUN_WINNER || undefined} style={onRow(i)} />)}
+            {LANES.map((i) => (
+                <span key={i} className="hm-f-trail hm-f-race" data-first={i === RUN_WINNER || undefined} style={onRow(i)}>
+                    <span className="hm-trail hm-trail--shared">
+                        {past.map((m, j) => (
+                            <span key={m} className="hm-done" data-lost={RUN_PAST_WINNERS[j] !== i || undefined}>
+                                <ItemSlot material={m} size={36} tip={false} marks={false} />
+                                {RUN_PAST_WINNERS[j] === i && <Tick />}
+                            </span>
+                        )).reverse()}
+                    </span>
+                </span>
+            ))}
             <span className="hm-f-join" style={ALL_ROWS} />
             <span className="hm-f-now hm-live" style={ALL_ROWS}><ItemSlot material={item} size={56} tip={false} marks={false} /></span>
             <span className="hm-f-link" style={ALL_ROWS} />
             <Hidden style={ALL_ROWS} />
-            <span className="hm-f-score wk-figure" data-plus="true" style={onRow(RUN_WINNER)}>+1</span>
+            {LANES.map((i) => (
+                <span key={i} className="hm-f-score wk-figure" data-plus={i === RUN_WINNER || undefined} style={onRow(i)}>{RUN_SCORES[i]}</span>
+            ))}
         </Frame>
     );
 }
@@ -914,10 +944,10 @@ function Standard({ go }) {
 function Modes({ go }) {
     const fib = usePicks(DEALABLE_BY_STAGE.EARLY, 3 * (TRAIL + 2));
     const chain = usePicks(DEALABLE_BY_STAGE.MID, 3 * (TRAIL + 2));
-    const [run] = usePicks(DEALABLE_BY_STAGE.MID, 1);
+    const [run, ...runPast] = usePicks(DEALABLE_BY_STAGE.MID, 1 + RUN_PAST_WINNERS.length);
     const diagrams = {
         fib: <ModeOwn kind="fib" items={fib} scores={FIB_SCORES} />,
-        run: <ModeRun item={run} />,
+        run: <ModeRun item={run} past={runPast} />,
         chain: <ModeOwn kind="chain" items={chain} scores={CHAIN_SCORES} showNext />,
     };
     return (

@@ -154,8 +154,12 @@ button.cc-map-name[aria-pressed="true"] { color: var(--wk-ground); background: v
   transition: background 140ms var(--wk-ease), color 140ms var(--wk-ease);
 }
 .cc-rooms > button:hover, .cc-seg > button:hover { background: var(--wk-panel-hi); color: var(--wk-ink); }
+/* Chosen is the ink block, the same as the chosen room's name on the map beside it,
+   so the tab and the map read as one control. It was the hover state plus a 3px bar,
+   which next to the map's inverted label read as the weaker of two selections (final
+   pass, Sept 2026). */
 .cc-rooms > button[aria-selected="true"], .cc-seg > button[aria-checked="true"] {
-  background: var(--wk-panel-hi); color: var(--wk-ink); box-shadow: inset 0 -3px 0 var(--wk-ink);
+  background: var(--wk-ink); color: var(--wk-ground); box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
 }
 .cc-room-text { max-width: 72ch; }
 .cc-loot-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 48px; align-items: start; }

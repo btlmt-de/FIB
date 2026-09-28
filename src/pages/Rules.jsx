@@ -44,7 +44,7 @@ export default function Rules({ onNavigate }) {
                 </p>
             </header>
 
-            <section className="wk-wrap pg-sec" aria-labelledby="network-title">
+            <section className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="network-title">
                 <div className="pg-sec-head">
                     <h2 id="network-title" className="wk-h3">The network's rules first</h2>
                     <p className="wk-p">Every rule of the McPlayHD network applies to ForceItemBattle rounds too.</p>
@@ -77,7 +77,7 @@ export default function Rules({ onNavigate }) {
                 </ul>
             </section>
 
-            <section className="wk-wrap pg-sec" aria-labelledby="ops-title">
+            <section className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="ops-title">
                 <div className="pg-sec-head">
                     <h2 id="ops-title" className="wk-h3">Operators play by the same rules</h2>
                     <p className="wk-p">The people running a round are held to it too.</p>
@@ -94,7 +94,7 @@ export default function Rules({ onNavigate }) {
                 </div>
             </section>
 
-            <section className="wk-wrap pg-sec" aria-labelledby="ask-title">
+            <section className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="ask-title">
                 <div className="pg-sec-head">
                     <h2 id="ask-title" className="wk-h3">When in doubt, ask first</h2>
                 </div>

@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Footer from '../components/common/Footer.jsx';
+import PageIndex from '../wiki/PageIndex.jsx';
 import PageLinks from '../wiki/PageLinks.jsx';
+import { useCurrentSection } from '../wiki/hooks.js';
 import { useGo } from '../wiki/pages.js';
 import { CHANGELOG } from '../wiki/changelog.data.js';
 import '../wiki/page.css';
@@ -21,9 +23,17 @@ import '../wiki/changelog.css';
  * Years are the sections, in the inner-page skeleton (page.css): the year on the left,
  * sticky, with what that year held, and its releases on the right.
  *
- * The one index is the Minecraft updates, in the head. "When did FIB get 1.21.10" is
- * the question this page is asked most and the one a long list answers worst, so each
+ * The head's index is the Minecraft updates. "When did FIB get 1.21.10" is the
+ * question this page is asked most and the one a long list answers worst, so each
  * Minecraft version links straight to the release that brought it.
+ *
+ * The years are the sticky index under the nav (PageIndex, as Commands has it), with
+ * the year being read marked, and a busy year's sticky head lists its months, each a
+ * link to that month's newest release. The years were a second row of links in the
+ * head, gone the moment the reader scrolled into the thousands of pixels below it
+ * (owner, final pass, Sept 2026). Collapsing years was considered and left out: it
+ * would hide the one continuous line this page draws, for a saving the index already
+ * makes.
  *
  * The list itself is src/wiki/changelog.data.js, which the build checks against the
  * plugin's version on main.
@@ -85,6 +95,7 @@ export default function Changelog({ onNavigate }) {
         }
         return groups;
     }, []);
+    const current = useCurrentSection(years.map((y) => `year-${y.year}`));
 
     const newest = CHANGELOG[0];
     const newestDate = parseDate(newest.date);
@@ -112,10 +123,6 @@ export default function Changelog({ onNavigate }) {
                             </li>
                         ))}
                     </ul>
-                    <span className="wk-label">Years</span>
-                    <ul className="cl-index-list">
-                        {years.map((y) => <li key={y.year}><a className="wk-link" href={`#year-${y.year}`}>{y.year}</a></li>)}
-                    </ul>
                 </nav>
                 <div className="pg-head-actions">
                     <a className="wk-btn wk-btn--quiet" href="https://github.com/McPlayHDnet/ForceItemBattle/releases" target="_blank" rel="noopener noreferrer">
@@ -124,8 +131,17 @@ export default function Changelog({ onNavigate }) {
                 </div>
             </header>
 
+            <PageIndex label="Years" current={current}
+                       items={years.map((y) => ({ id: `year-${y.year}`, label: y.year, n: y.entries.length }))} />
+
             {years.map((y, i) => {
                 const majors = y.entries.filter((e) => e.type === 'major').length;
+                // The newest release of each month, in the year's own order (newest first).
+                const months = [];
+                for (const e of y.entries) {
+                    const m = parseDate(e.date).month;
+                    if (MONTHS.includes(m) && months.at(-1)?.month !== m) months.push({ month: m, version: e.version });
+                }
                 return (
                     <section key={y.year} id={`year-${y.year}`} className="wk-wrap pg-sec cl-year" aria-labelledby={`year-${y.year}-title`}>
                         <div className="pg-sec-head">
@@ -134,6 +150,11 @@ export default function Changelog({ onNavigate }) {
                                 {y.entries.length} {y.entries.length === 1 ? 'release' : 'releases'}
                                 {majors > 0 && <>, {majors} of them major</>}
                             </p>
+                            {y.entries.length > 4 && months.length > 1 && (
+                                <ul className="cl-months" aria-label={`${y.year} by month`}>
+                                    {months.map((m) => <li key={m.month}><a className="wk-link" href={`#${anchor(m.version)}`}>{m.month}</a></li>)}
+                                </ul>
+                            )}
                         </div>
                         <ol className="cl-track" data-newest={i === 0 || undefined} data-oldest={i === years.length - 1 || undefined}>
                             {y.entries.map((e) => <Release key={e.version} entry={e} />)}

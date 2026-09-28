@@ -14,7 +14,7 @@
 
 /* ── The head ─────────────────────────────────────────────────────────────── */
 
-/* The two jump lists, labels in one column so the lists start on one line. */
+/* The Minecraft updates, its label beside the list. The years are the sticky index. */
 .cl-index {
   display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 10px 20px;
   margin-top: 8px; max-width: 72ch;
@@ -24,6 +24,9 @@
 /* ── A year ───────────────────────────────────────────────────────────────── */
 
 .cl-year-title { margin: 0; font-size: 30px; line-height: 1.1; color: var(--wk-ink); }
+/* A busy year's months, each to its newest release: in the sticky head, so the
+   month list stays beside the releases it indexes. */
+.cl-months { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
 
 /* ── The track ────────────────────────────────────────────────────────────── */
 
@@ -32,7 +35,7 @@
   position: relative;
   display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 0 20px;
   padding-bottom: 40px;
-  scroll-margin-top: 80px;
+  scroll-margin-top: 124px;
 }
 .cl-rel:last-child { padding-bottom: 0; }
 .cl-rel::before {
@@ -86,7 +89,8 @@
 /* ── Narrower screens ─────────────────────────────────────────────────────── */
 
 @media (max-width: 1100px) {
-  .cl-year .pg-sec-head { display: flex; align-items: baseline; gap: 14px; }
+  .cl-year .pg-sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .cl-months { display: flex; flex-wrap: wrap; gap: 4px 14px; flex-basis: 100%; margin: 0; }
 }
 @media (max-width: 720px) {
   .cl-rel { grid-template-columns: 20px minmax(0, 1fr); gap: 0 14px; padding-bottom: 32px; }

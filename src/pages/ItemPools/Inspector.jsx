@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import X from 'lucide-react/dist/esm/icons/x';
+import Pencil from 'lucide-react/dist/esm/icons/pencil';
 import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import { STAGES, TAGS } from '../../wiki/tokens.js';
 import { TagGlyph } from '../../wiki/items.jsx';
 import { PAPER_VERSION, POOL_SETTINGS } from '../../wiki/atlas.js';
 import InfoEditor from './InfoEditor.jsx';
+import { McChat } from './McText.jsx';
 import { PoolControls, Slot, StageWord, TagWords } from './parts.jsx';
 import { STAGE_KEYS, TAG_KEYS, displayNameOf } from './poolData.js';
 import { CATEGORY_CONFIG, categoryName } from './categories.js';
@@ -17,8 +19,12 @@ import { REPOS, recentCommits, storedAuth } from './github.js';
  *                      missing, coverage by category, and the last commits to both
  *                      files. Each figure is also a filter, so the overview is a way
  *                      into the work rather than a report about it.
- *   one item           the item as the game knows it, its stage and tags as
- *                      controls, and its /info editor.
+ *   one item           the item as the game knows it: stage, tags, /info as chat
+ *                      prints it. "Edit info" turns the same pane into the stage
+ *                      and tag controls and the /info editor, and "Done" turns it
+ *                      back. Editing stays on as you click through items, so a
+ *                      maintainer working down a list does not re-open it each
+ *                      time; clearing the selection ends it.
  *   several            what can be done to all of them at once.
  *
  * Nothing here writes to GitHub. Every control stages a change in the tray.
@@ -29,10 +35,13 @@ const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 export default function Inspector(props) {
     const { selection, onClear } = props;
+    const [editing, setEditing] = useState(false);
+    // Clearing the selection ends editing; set during render, React's reset-on-change idiom.
+    if (selection.length === 0 && editing) setEditing(false);
     return (
         <div className="ip-inspect-in">
             {selection.length === 0 && <Overview {...props} />}
-            {selection.length === 1 && <ItemView key={selection[0]} {...props} material={selection[0]} />}
+            {selection.length === 1 && <ItemView key={selection[0]} {...props} material={selection[0]} editing={editing} onEdit={setEditing} />}
             {selection.length > 1 && <BulkView {...props} />}
             {selection.length > 0 && (
                 <button type="button" className="ip-close" onClick={onClear} aria-label="Close the inspector">
@@ -45,7 +54,14 @@ export default function Inspector(props) {
 
 /* ── One item ───────────────────────────────────────────────────────────────── */
 
-function ItemView({ material, byMaterial, changes, pool, categoryOf }) {
+/*
+ * *The inspector was always an editor* (owner, final pass, Sept 2026): every item
+ * opened on stage buttons, tag toggles, a colour-code toolbar and line inputs, so a
+ * player looking up where an item stands met an admin form. Browsing now shows the
+ * item as a player would read it, and the controls appear only once someone asks for
+ * them. Nothing about the controls changed; they are the same staged edits.
+ */
+function ItemView({ material, byMaterial, changes, pool, categoryOf, editing, onEdit }) {
     const orig = byMaterial.get(material);
     const change = changes.pool[material];
     const staged = changes.info[material];
@@ -66,17 +82,49 @@ function ItemView({ material, byMaterial, changes, pool, categoryOf }) {
     else if (change?.type === 'modify') status = 'In the pool, change staged';
     else status = 'In the pool';
 
-    return (
-        <article className="ip-item" aria-labelledby="ip-item-name">
-            <header className="ip-item-head">
-                <Slot item={eff} size={72} className="ip-item-slot" eager />
-                <div className="ip-item-id">
-                    <h2 id="ip-item-name" className="wk-name">{name}</h2>
-                    <code className="ip-mono">minecraft:{material.toLowerCase()}</code>
-                    <p className="ip-item-status" data-staged={Boolean(change) || undefined}>{status}</p>
-                    {category && <p className="wk-small">{categoryName(category)}</p>}
+    const lines = staged ? staged.lines : orig?.description ?? null;
+
+    if (!editing) {
+        return (
+            <article className="ip-item" aria-labelledby="ip-item-name">
+                <ItemHead eff={eff} name={name} material={material} status={status} staged={Boolean(change)} category={category} />
+                <section className="ip-sec" aria-label="Pool">
+                    <span className="wk-label">Pool</span>
+                    {inPool && change?.type !== 'remove' ? (
+                        <dl className="ip-readout">
+                            <div><dt>Stage</dt><dd><strong><StageWord state={eff.state} /></strong> <span className="ip-readout-note">{STAGE_NOTES[eff.state]}</span></dd></div>
+                            <div><dt>Tags</dt><dd>{eff.tags.length ? <TagWords tags={eff.tags} /> : <span className="ip-readout-note">None</span>}</dd></div>
+                        </dl>
+                    ) : (
+                        <p className="wk-small">Not dealt in any round.</p>
+                    )}
+                </section>
+                {inPool && (
+                    <section className="ip-sec" aria-label="/info">
+                        <span className="wk-label">/info</span>
+                        {lines?.length
+                            ? <McChat lines={lines} />
+                            : <p className="wk-small">No /info for this item yet. Players see nothing when they ask about it.</p>}
+                    </section>
+                )}
+                <div className="ip-sec ip-edit-row">
+                    <button type="button" className="wk-btn wk-btn--quiet ip-btn" onClick={() => onEdit(true)}>
+                        <Pencil size={14} aria-hidden="true" /> Edit info
+                    </button>
                 </div>
-            </header>
+            </article>
+        );
+    }
+
+    return (
+        <article className="ip-item" data-editing="true" aria-labelledby="ip-item-name">
+            <ItemHead eff={eff} name={name} material={material} status={status} staged={Boolean(change)} category={category} />
+
+            <div className="ip-editbar">
+                <span className="wk-label">Editing</span>
+                <span className="ip-editbar-note">Every change is staged in the tray; nothing is sent until you commit it.</span>
+                <button type="button" className="wk-btn ip-btn" onClick={() => onEdit(false)}>Done</button>
+            </div>
 
             <section className="ip-sec" aria-label="Pool">
                 <span className="wk-label">Pool</span>
@@ -120,7 +168,7 @@ function ItemView({ material, byMaterial, changes, pool, categoryOf }) {
                     <InfoEditor
                         key={material}
                         item={{ material, displayName: name }}
-                        lines={staged ? staged.lines : orig?.description ?? null}
+                        lines={lines}
                         base={orig?.description ?? null}
                         staged={Boolean(staged)}
                         onChange={(lines) => changes.setInfo(material, lines)}
@@ -130,6 +178,20 @@ function ItemView({ material, byMaterial, changes, pool, categoryOf }) {
                 </section>
             )}
         </article>
+    );
+}
+
+function ItemHead({ eff, name, material, status, staged, category }) {
+    return (
+        <header className="ip-item-head">
+            <Slot item={eff} size={72} className="ip-item-slot" eager />
+            <div className="ip-item-id">
+                <h2 id="ip-item-name" className="wk-name">{name}</h2>
+                <code className="ip-mono">minecraft:{material.toLowerCase()}</code>
+                <p className="ip-item-status" data-staged={staged || undefined}>{status}</p>
+                {category && <p className="wk-small">{categoryName(category)}</p>}
+            </div>
+        </header>
     );
 }
 

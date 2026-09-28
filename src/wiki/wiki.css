@@ -109,6 +109,51 @@ html:has(.wk) {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
+/* ── The loop (LoopBeats.jsx) ──────────────────────────────────────────────── *
+ * Six beats as stations on one line: each word, then a track that stretches to
+ * the next one, and under the row a dashed return from Next to Draw, because the
+ * loop has no end until the round does. Dashed, as a FIB rule is: Minecraft does
+ * not deal you the next item, the plugin does. The current beat (home only) is the
+ * brightest word with the 3px ink bar, the White Light rule.
+ */
+.wk-beats {
+  position: relative; list-style: none; margin: 0; padding: 0 0 16px;
+  display: flex; align-items: center; min-width: 0;
+}
+.wk-beat { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+.wk-beat:nth-last-child(2) { flex: 0 0 auto; }
+.wk-beat-word {
+  position: relative; padding: 6px 0 8px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-3); white-space: nowrap;
+  transition: color 120ms var(--wk-ease);
+}
+.wk-beat[aria-current="step"] .wk-beat-word { color: var(--wk-ink); }
+.wk-beat[aria-current="step"] .wk-beat-word::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--wk-ink);
+}
+.wk-beat-to { position: relative; flex: 1 1 auto; min-width: 12px; height: 2px; margin: 0 12px 0 10px; background: var(--wk-line-hi); }
+.wk-beat-to::after {
+  content: ""; position: absolute; right: -2px; top: -4px; width: 6px; height: 10px;
+  background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
+}
+/* The return: down from under Next, back along the bottom, up into Draw. */
+.wk-beats-back {
+  position: absolute; left: 14px; right: 14px; bottom: 2px; height: 12px;
+  background:
+    repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px) left bottom / 100% 2px no-repeat,
+    linear-gradient(var(--wk-ink-4), var(--wk-ink-4)) right top / 2px 100% no-repeat,
+    linear-gradient(var(--wk-ink-4), var(--wk-ink-4)) left 0 top 5px / 2px calc(100% - 5px) no-repeat;
+}
+.wk-beats-back::before {
+  content: ""; position: absolute; left: -4px; top: -3px; width: 10px; height: 6px;
+  background: var(--wk-ink-3);
+  clip-path: polygon(0 100%, 0 67%, 20% 67%, 20% 33%, 40% 33%, 40% 0, 60% 0, 60% 33%, 80% 33%, 80% 67%, 100% 67%, 100% 100%);
+}
+@media (max-width: 600px) {
+  .wk-beat-word { font-size: 13px; }
+  .wk-beat-to { min-width: 8px; margin: 0 7px 0 5px; }
+}
+
 /* ── Links and buttons ─────────────────────────────────────────────────────── *
  * A button is a stone block you press: a flat face, a darker lip along its
  * bottom edge, and the lip disappears when it is down. Interaction is light, not

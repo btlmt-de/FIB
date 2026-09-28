@@ -227,11 +227,26 @@ function Sprite({ material }) {
     return <img className="rs-sprite" src={spriteOf(material)} data-material={material} onError={spriteFallback} alt="" width="128" height="128" draggable="false" />;
 }
 
+/*
+ * It opens on the END of the round, not on the empty stage before the first /result.
+ * The empty sky was the first thing a reader saw, and at that size it said nothing:
+ * no scores, no winner, a blank card column (owner, final pass, Sept 2026). Finished,
+ * the same drawing is the state the page has been building towards: the podium up,
+ * the winner's finds on the stage, their STATS beside it, and every result in chat,
+ * worst first. Playing it replays the reveal from the top.
+ */
+function opening() {
+    const round = playRound();
+    return { round, st: finished(round) };
+}
+
 export default function ResultCeremony() {
     const calm = useCalm();
-    const [round, setRound] = useState(playRound);
-    const [st, setSt] = useState(OPENING);
+    const [first] = useState(opening);
+    const [round, setRound] = useState(first.round);
+    const [st, setSt] = useState(first.st);
     const [playing, setPlaying] = useState(false);
+    const [played, setPlayed] = useState(false);
     const timers = useRef([]);
     useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -245,6 +260,7 @@ export default function ResultCeremony() {
         setRound(r);
         setSt(OPENING);
         setPlaying(true);
+        setPlayed(true);
         let t = 600;
         // Worst place first, the winner last.
         [...r].reverse().forEach((p) => {
@@ -377,14 +393,14 @@ export default function ResultCeremony() {
 
             <figcaption className="gp-round-row rs-foot">
                 <p className="wk-small">
-                    One made-up round: four players, their finds drawn from the real pool. The stage floats above spawn
-                    and everyone watches from seats in front of it.
+                    One made-up round, finished: four players, their finds drawn from the real pool.
+                    {!calm && <> Play it to watch the reveal from the first <code className="wk-typed">/result</code>.</>}
                 </p>
                 <span className="rs-actions">
                     {!calm && (
                         playing
                             ? <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" onClick={skip}><SkipForward size={16} aria-hidden="true" /> Skip to the podium</button>
-                            : <button type="button" className="wk-btn gp-btn-sm" onClick={play}>{st.done ? <RotateCcw size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />} {st.done ? 'Another round' : 'Play the results'}</button>
+                            : <button type="button" className="wk-btn gp-btn-sm" onClick={play}>{played ? <RotateCcw size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />} {played ? 'Another round' : 'Play the results'}</button>
                     )}
                     {view.browsing != null && (
                         <>

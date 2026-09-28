@@ -24,16 +24,52 @@
 
 /* ── A section: the question beside its drawing ───────────────────────────── */
 
+/* Documentation is set a step denser than home (which keeps 56/64): an inner page is
+   read to find something, not to be shown around. A brief section, one line of
+   drawing under a short head, takes less again, so a small answer does not sit in a
+   large field (final pass, Sept 2026). */
 .pg-sec {
-  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 32px 56px;
+  display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 28px 56px;
   align-items: start;
-  padding: 56px 0 64px;
+  padding: 48px 0 56px;
   box-shadow: inset 0 1px 0 var(--wk-line);
   scroll-margin-top: 56px;
 }
+.pg-sec--brief { padding: 40px 0 44px; }
 .pg-sec > * { min-width: 0; }
 .pg-sec-head { display: grid; gap: 12px; position: sticky; top: 88px; }
 .pg-sec-head .wk-h3 { margin-bottom: 2px; }
+
+/* ── The index of a long reference page (PageIndex.jsx) ───────────────────── */
+
+/* Held under the 56px nav, one line, in the nav's own grammar: ink3 words, ink and
+   a 3px bar for where you are. On a phone it scrolls sideways rather than wrapping,
+   so it stays one line tall. 46px, which the pages' sticky heads sit under. */
+.pg-index {
+  position: sticky; top: 56px; z-index: 20;
+  background: var(--wk-ground);
+  box-shadow: inset 0 -1px 0 var(--wk-line), inset 0 1px 0 var(--wk-line);
+}
+.pg-index-list {
+  list-style: none; margin-block: 0; padding: 0;
+  display: flex; gap: 2px 22px; overflow-x: auto; scrollbar-width: none;
+}
+.pg-index-list::-webkit-scrollbar { display: none; }
+.pg-index-list > li { flex-shrink: 0; }
+.pg-index-link {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 46px;
+  font: 600 14px/1 var(--wk-font-text); color: var(--wk-ink-3); text-decoration: none; white-space: nowrap;
+  transition: color 140ms var(--wk-ease);
+}
+a.pg-index-link:hover { color: var(--wk-ink); }
+.pg-index-link[aria-current] { color: var(--wk-ink); }
+.pg-index-link[aria-current]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--wk-ink); }
+.pg-index-link[aria-disabled] { color: var(--wk-ink-4); }
+.pg-index-n { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-4); }
+.pg-index-link[aria-current] .pg-index-n, a.pg-index-link:hover .pg-index-n { color: var(--wk-ink-3); }
+/* A page with the index moves its sticky section heads down under it. */
+.pg:has(.pg-index) .pg-sec { scroll-margin-top: 100px; }
+.pg:has(.pg-index) .pg-sec-head { top: 134px; }
 
 /* ── Where next ───────────────────────────────────────────────────────────── */
 
@@ -105,6 +141,7 @@
 @media (max-width: 720px) {
   .pg-head { padding: 36px 0 32px; }
   .pg-sec { padding: 40px 0 48px; }
+  .pg-sec--brief { padding: 32px 0 36px; }
 }
 
 /* ── Calm ─────────────────────────────────────────────────────────────────── */

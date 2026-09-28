@@ -51,6 +51,8 @@
 /* ── 1. One item at a time ─────────────────────────────────────────────────── */
 
 .gp-round { display: grid; gap: 20px; }
+/* The loop sits over the two draws it describes, and runs the width of them. */
+.gp-beats { margin-bottom: 4px; }
 .gp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px; }
 .gp-pair-one { display: grid; gap: 10px; justify-items: start; min-width: 0; }
 .gp-pair-one .wk-bossbar-draw { width: min(340px, 100%); }
@@ -194,8 +196,6 @@
    column, with the words above it rather than beside. */
 .gp-sec-wide { grid-template-columns: 1fr; }
 .gp-sec-wide .pg-sec-head { position: static; max-width: 72ch; }
-.gp-b2b-wrap { display: grid; gap: 22px; }
-.gp-sub { margin-top: 20px; }
 
 .gp-b2b-stage { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 32px 48px; align-items: start; }
 .gp-inv { position: relative; display: grid; gap: 6px; justify-items: start; }
@@ -225,13 +225,20 @@
 .gp-inside-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--wk-ink-3); }
 .gp-inside-label .wk-slot { box-shadow: none; background: transparent; }
 
-.gp-b2b-read { display: grid; gap: 12px; align-content: start; min-height: 360px; }
+.gp-b2b-read { display: grid; gap: 12px; align-content: start; }
 .gp-b2b-read .wk-bossbar-draw { width: min(340px, 100%); }
 .gp-b2b-line { margin: 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 44ch; }
 .gp-b2b-chain { margin: 0; font-size: 16px; color: var(--wk-ink-3); }
 .gp-b2b-chain .wk-datum { font-size: 22px; color: var(--wk-ink); }
-.gp-b2b-math { margin: 0; font-size: 14px; line-height: 1.6; color: var(--wk-ink-3); max-width: 46ch; }
-.gp-b2b-math .wk-datum { color: var(--wk-ink); }
+/* The point, in the light the find rang in: the whole payoff of this section. How
+   rare it was is the next section's question. */
+.gp-b2b-point {
+  margin: 0; display: flex; align-items: baseline; gap: 10px;
+  font-weight: 700; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--wk-s-early-ink);
+  animation: gp-drop 280ms var(--wk-ease) both;
+}
+.gp-b2b-point span { font-size: 16px; font-weight: 600; color: var(--wk-ink-2); }
 .gp-grade {
   margin: 0;
   font-family: var(--wk-font-display); font-weight: 600; font-size: 52px; line-height: 1;
@@ -276,7 +283,7 @@
 
 /* ── 5. The modes ──────────────────────────────────────────────────────────── */
 
-.gp-modes { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 56px; }
+.gp-modes { padding: 48px 0 56px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 56px; }
 .gp-mode-list { list-style: none; margin: 24px 0 0; padding: 0; display: grid; }
 .gp-mode {
   display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px 56px; align-items: center;
@@ -389,7 +396,8 @@
 }
 @media (max-width: 900px) {
   .gp-b2b-stage { grid-template-columns: 1fr; }
-  .gp-b2b-read { min-height: 300px; }
+  /* Stacked, the readout's changing lines would move the page under a reader. */
+  .gp-b2b-read { min-height: 210px; }
   .gp-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
   .gp-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
 }
@@ -418,8 +426,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gp-land, .gp-draw, .gp-plus, .gp-live, .gp-lane-trail .gp-done, .gp-belt-step, .gp-evmark,
-  .gp-grade, .gp-racer-plus, .gp-cell.is-hit .wk-sprite { animation: none; }
+  .gp-grade, .gp-b2b-point, .gp-racer-plus, .gp-cell.is-hit .wk-sprite { animation: none; }
   .gp-sched-name, .gp-sched-bar { transition: none; }
 }
 html[data-saver="on"] :is(.gp-land, .gp-draw, .gp-plus, .gp-live, .gp-lane-trail .gp-done, .gp-belt-step, .gp-evmark,
-  .gp-grade, .gp-racer-plus, .gp-cell.is-hit .wk-sprite) { animation: none; }
+  .gp-grade, .gp-b2b-point, .gp-racer-plus, .gp-cell.is-hit .wk-sprite) { animation: none; }

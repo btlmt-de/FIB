@@ -6,6 +6,7 @@ import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw';
 import Footer from '../components/common/Footer.jsx';
 import { useCalm } from '../config/power.js';
 import Bossbar from '../wiki/Bossbar.jsx';
+import LoopBeats from '../wiki/LoopBeats.jsx';
 import PageLinks from '../wiki/PageLinks.jsx';
 import { ItemSlot, TooltipLayer } from '../wiki/items.jsx';
 import { POOL_BY_STAGE, POOL_SETTINGS, itemName, pick } from '../wiki/atlas.js';
@@ -121,6 +122,7 @@ function Round() {
             </div>
 
             <div className="gp-round">
+                <LoopBeats className="gp-beats" />
                 <div className="gp-pair">
                     {deal.map((m, i) => (
                         <div key={i} className="gp-pair-one">
@@ -591,9 +593,6 @@ function BackToBack({ calm }) {
         <Cells cells={cells} where={where} hit={hit} found={found} scanAt={scanAt(where)} {...extra} />
     );
 
-    const p = oddsOf(scene.held, POOL_ALL, Math.max(1, streak));
-    const grade = RARITY[gradeOf(p)];
-
     return (
         <div className="gp-b2b" ref={ref}>
             <div className="gp-b2b-stage">
@@ -622,14 +621,9 @@ function BackToBack({ calm }) {
                     {phase === 'scan' && <p className="gp-b2b-line">Checking everything you hold…</p>}
                     {phase === 'hit' && hit && (
                         <>
-                            <p className="gp-b2b-line"><strong>Already held.</strong> {WHERE[hit.where]}. It counts on the spot.</p>
+                            <p className="gp-b2b-line"><strong>Already held.</strong> {WHERE[hit.where]}.</p>
+                            <p className="gp-b2b-point" key={streak}>+1 <span>on the spot</span></p>
                             <p className="gp-b2b-chain">Chain <span className="wk-datum">{streak}</span></p>
-                            <p className="gp-b2b-math">
-                                You hold <span className="wk-datum">{scene.held}</span> different items; <span className="wk-datum">{fmt(POOL_ALL)}</span> can
-                                come up. (<span className="wk-datum">{scene.held}</span> ÷ <span className="wk-datum">{fmt(POOL_ALL)}</span>){streak > 1 && <sup>{streak}</sup>} ={' '}
-                                <span className="wk-datum">{formatPercent(p * 100)}</span>
-                            </p>
-                            <p className="gp-grade" style={{ '--grade': grade.ink }}>{grade.label}</p>
                         </>
                     )}
                     {phase === 'miss' && (
@@ -721,6 +715,14 @@ function Odds() {
     );
 }
 
+/*
+ * Back-to-backs are two sections, and the split is the point. The mechanic (the next
+ * item is already on you, so it counts) and the grade (how unlikely that was) used to
+ * share one head, which asked a reader to take in inventory search, containers,
+ * instant scoring, chains, a probability formula and five grades at once (owner, final
+ * pass, Sept 2026). Now the scan shows only the find and the point; the formula and the
+ * ladder are the next section's.
+ */
 function BackToBacks({ calm }) {
     return (
         <section id="back-to-backs" className="wk-wrap pg-sec gp-sec-wide" aria-labelledby="b2b-title">
@@ -729,21 +731,34 @@ function BackToBacks({ calm }) {
                 <p className="wk-p">
                     After every find, the game checks whether you <strong>already hold the next item</strong>: your
                     inventory, your backpack, and every shulker box and bundle in either (a bundle inside a shulker
-                    box too), and on a team your teammate's inventory as well. If it is there, it counts on the spot, and the item after it is
-                    checked the same way. That is a back-to-back, and they chain.
+                    box too), and on a team your teammate's inventory as well.
                 </p>
                 <p className="wk-p">
-                    The game grades each one by how unlikely it was: the share of the pool you hold, raised to
-                    the length of the chain. Handed the very item you just found is Extraordinary, whatever the odds.
+                    If it is there, it counts on the spot, and the item after it is checked the same way. That is a
+                    back-to-back, and they chain.
                 </p>
                 <p className="wk-small">No back-to-backs in Run Battle.</p>
             </div>
+            <BackToBack calm={calm} />
+        </section>
+    );
+}
 
-            <div className="gp-b2b-wrap">
-                <BackToBack calm={calm} />
-                <h3 className="wk-name gp-sub">Work out the odds</h3>
-                <Odds />
+function Luck() {
+    return (
+        <section id="odds" className="wk-wrap pg-sec" aria-labelledby="odds-title">
+            <div className="pg-sec-head">
+                <h2 id="odds-title" className="wk-h3">How lucky was that</h2>
+                <p className="wk-p">
+                    Every back-to-back is graded by how unlikely it was: the share of the pool you hold, raised to
+                    the length of the chain.
+                </p>
+                <p className="wk-p">
+                    Handed the very item you just found is Extraordinary, whatever the odds. Legendary and RNGesus
+                    are announced to the whole server.
+                </p>
             </div>
+            <Odds />
         </section>
     );
 }
@@ -1060,7 +1075,7 @@ function Traders({ go }) {
     const pct = (sec) => `${(sec / total) * 100}%`;
 
     return (
-        <section id="traders" className="wk-wrap pg-sec" aria-labelledby="traders-title">
+        <section id="traders" className="wk-wrap pg-sec pg-sec--brief" aria-labelledby="traders-title">
             <div className="pg-sec-head">
                 <h2 id="traders-title" className="wk-h3">Traders at spawn</h2>
                 <p className="wk-p">
@@ -1169,7 +1184,7 @@ function Strategy() {
 /* ── The page ───────────────────────────────────────────────────────────────── */
 
 const CONTENTS = [
-    ['round', 'The round'], ['screen', 'Your screen'], ['pool', 'The pool'], ['jokers', 'Jokers'], ['back-to-backs', 'Back-to-backs'],
+    ['round', 'The round'], ['screen', 'Your screen'], ['pool', 'The pool'], ['jokers', 'Jokers'], ['back-to-backs', 'Back-to-backs'], ['odds', 'The odds'],
     ['modes', 'Modes'], ['events', 'Random events'], ['traders', 'Traders'], ['results', 'Results'], ['strategy', 'Strategy'],
 ];
 
@@ -1194,6 +1209,7 @@ export default function Gameplay({ onNavigate }) {
             <Clock />
             <Jokers />
             <BackToBacks calm={calm} />
+            <Luck />
             <Modes calm={calm} />
             <Events go={go} />
             <Traders go={go} />

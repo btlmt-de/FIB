@@ -595,6 +595,12 @@ function Browser({ groups, mode, selection, onSelect, changes, order }) {
  * as free-floating coloured words with glyphs, and kept the slot's stage bar under a
  * 38px texture, eight across. The owner found it noisy at scale and the art too
  * small; fewer, calmer entries (five across at 1920px) read better than more.
+ *
+ * The stage is the chip; a world tag (Nether, End, Extreme) follows it on the same
+ * row as its glyph and word with no box, because the stage is the classification and
+ * a tag is metadata on it (owner, final pass, Sept 2026: three equal chips gave the
+ * two the same weight). Still on the fixed row, so never free-floating like the first
+ * Catalogue's words.
  */
 function Entry({ item: i, props }) {
     return (
@@ -608,7 +614,7 @@ function Entry({ item: i, props }) {
                         : (
                             <>
                                 {i.state && <span className="ip-chip-tag" style={{ '--c': STAGES[i.state].ink }}>{STAGES[i.state].label}</span>}
-                                {i.tags.map((t) => <span key={t} className="ip-chip-tag" style={{ '--c': TAGS[t].ink }}>{TAGS[t].label}</span>)}
+                                {i.tags.map((t) => <span key={t} className="ip-chip-tag ip-chip-tag--world" style={{ '--c': TAGS[t].ink }}><TagGlyph tag={t} size={8} />{TAGS[t].label}</span>)}
                             </>
                         )}
                     {i.description?.length > 0 && <span className="ip-entry-infoword">/info</span>}

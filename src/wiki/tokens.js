@@ -121,6 +121,9 @@ export const GAUGE = {
  */
 export const ROUND = { minutes: 60, jokers: 7 };
 
+/** The round's loop, beat by beat (LoopBeats.jsx draws it; home's loop steps through it). */
+export const BEATS = ['Draw', 'Think', 'Route', 'Obtain', 'Score', 'Next'];
+
 /**
  * When Mid and Late join, in whole minutes, for a round of the given length: the
  * plugin's UnlockSchedule.forRound, then unlockMinute, rounded half up. Below 50

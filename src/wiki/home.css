@@ -126,15 +126,18 @@
 
 /* ── 3. The loop ──────────────────────────────────────────────────────────── */
 
+/* A transition between the two big drawings either side of it, so it is set tighter
+   than they are: the loop is one idea, and it used to sit in their full padding
+   with its strip floating in the middle of the space (final pass, Sept 2026). */
 .hm-loop {
   display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 48px;
   align-items: center;
-  padding: 56px 0 64px;
+  padding: 44px 0 44px;
   box-shadow: inset 0 1px 0 var(--wk-line);
 }
 .hm-loop-strip {
   margin: 0;
-  display: grid; grid-template-columns: 216px 112px minmax(0, 1fr); align-items: center; gap: 20px;
+  display: grid; grid-template-columns: 216px 112px minmax(0, 1fr); align-items: center; gap: 14px 20px;
 }
 
 /* The round's sidebar scoreboard, drawn the way the game draws one: a dim translucent
@@ -164,7 +167,7 @@
 }
 @keyframes hm-bump { from { transform: translateY(-5px); opacity: 0.3; } }
 
-.hm-loop-now { position: relative; display: grid; place-items: center; height: 112px; }
+.hm-loop-now { position: relative; display: grid; place-items: center; height: 100px; }
 .hm-loop-now .wk-slot { animation: hm-land-a 220ms var(--wk-ease); }
 .hm-loop-now[data-beat="think"] .wk-slot,
 .hm-loop-now[data-beat="route"] .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), inset -2px -2px 0 oklch(30% 0.010 255 / 0.55), 0 0 0 2px var(--wk-ink-4); }
@@ -198,25 +201,9 @@
   background: var(--wk-s-early); color: oklch(14% 0.02 138);
 }
 
-.hm-beats {
-  grid-column: 1 / -1;
-  list-style: none; margin: 4px 0 0; padding: 0;
-  display: flex; flex-wrap: wrap; gap: 4px 0;
-}
-.hm-beats li {
-  position: relative;
-  padding: 6px 12px 8px;
-  font-size: 14px; font-weight: 600; line-height: 1;
-  color: var(--wk-ink-3);
-  transition: color 120ms var(--wk-ease);
-}
-.hm-beats li + li::before {
-  content: ""; position: absolute; left: -3px; top: 50%; width: 6px; height: 2px; background: var(--wk-line-hi);
-}
-.hm-beats li[aria-current="step"] { color: var(--wk-ink); }
-.hm-beats li[aria-current="step"]::after {
-  content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; background: var(--wk-ink);
-}
+/* The beats span the strip under everything above them, so the loop's line runs the
+   full width of what it is describing (LoopBeats.jsx, wiki.css). */
+.hm-beats { grid-column: 1 / -1; margin-top: 2px; }
 .hm-loop-strip .hm-source { grid-column: 1 / -1; margin-top: 0; }
 
 /* ── 4. The round clock, as the pool it grows ─────────────────────────────── */
@@ -240,7 +227,7 @@
 }
 .hm-flag::before {
   content: ""; position: absolute; left: 0; top: 6px; width: 2px;
-  bottom: calc(-1 * (var(--draw) + 17px));
+  bottom: calc(-1 * (var(--draw) + 32px));
   background: var(--c);
 }
 .hm-flag::after { content: ""; position: absolute; left: -4px; top: 2px; width: 10px; height: 10px; background: var(--c); }
@@ -261,8 +248,21 @@
 }
 .hm-clock-stretch .wk-slot { background: oklch(11% 0.006 255); }
 
+/* The layers: a 3px line per stage from its pole to the round's end, Early at the
+   bottom and each later stage laid on top. Thin on purpose, the stages' light as an
+   accent (a line), never as a fill; the stacked block chart this replaced was the
+   wall of colour. */
+.hm-clock-layers { position: relative; height: 13px; margin-top: 8px; }
+.hm-clock-layer {
+  position: absolute; left: calc(var(--at) * 1%); right: 0; height: 3px;
+  background: color-mix(in oklch, var(--c) 72%, transparent);
+}
+.hm-clock-layer:nth-child(1) { bottom: 0; }
+.hm-clock-layer:nth-child(2) { bottom: 5px; }
+.hm-clock-layer:nth-child(3) { bottom: 10px; }
+
 /* The axis: a line, a square in the stage's light where each pole lands, the ticks. */
-.hm-clock-axis { position: relative; height: 2px; margin-top: 12px; background: var(--wk-line-hi); }
+.hm-clock-axis { position: relative; height: 2px; margin-top: 6px; background: var(--wk-line-hi); }
 .hm-clock-mark { position: absolute; top: -4px; left: calc(var(--at) * 1% - 4px); width: 10px; height: 10px; background: var(--c); box-shadow: 0 0 0 3px var(--wk-ground); }
 .hm-clock-mark:first-child { left: 0; }
 .hm-clock-tick {
@@ -383,7 +383,10 @@
 .hm-region-pip { width: 10px; height: 10px; background: var(--r); }
 .hm-region-y { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
 
-.hm-band { position: relative; isolation: isolate; padding: 34px 0; }
+/* The bands were 34px top and bottom; the final pass took them to 26px and pulled the
+   meta column in, about 15% off the descent's height, with the environment, the
+   slots and the rail untouched (owner, Sept 2026: keep the section, lose the bulk). */
+.hm-band { position: relative; isolation: isolate; padding: 26px 0; }
 .hm-band > .wk-env { z-index: -2; }
 /* A scrim on the reading side, so the words sit on the ground, not on the picture. */
 .hm-band::before {
@@ -392,11 +395,11 @@
   pointer-events: none;
 }
 .hm-band-in { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 36px; align-items: start; padding-left: 34px; }
-.hm-band-meta { display: grid; gap: 6px; }
+.hm-band-meta { display: grid; gap: 4px; }
 .hm-band-name { color: var(--r-ink); font-size: 37px; }
 .hm-band-y { margin: 0; font-family: var(--wk-font-text); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px; color: var(--wk-ink-2); }
 .hm-band-blurb { color: var(--wk-ink-2); max-width: 40ch; }
-.hm-band-count { margin: 4px 0 0; font-size: 14px; color: var(--wk-ink-3); }
+.hm-band-count { margin: 2px 0 0; font-size: 14px; color: var(--wk-ink-3); }
 .hm-band-count .wk-figure { font-size: 22px; margin-right: 4px; color: var(--wk-ink); }
 .hm-band-grid { min-width: 0; }
 
@@ -409,7 +412,7 @@
 .hm-descent { position: relative; margin-top: 12px; }
 .hm-band {
   --rail-x: calc((100% - min(1280px, 100% - 40px)) / 2 + 7px);
-  --rail-mark: 54px;
+  --rail-mark: 46px;
 }
 .hm-band::after {
   content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; width: 2px;
@@ -543,6 +546,8 @@
 .hm-f-race::after { display: none; }
 .hm-f-race[data-first]::before { right: -4px; background: var(--wk-ink); }
 .hm-f-race[data-first]::after { display: block; background: var(--wk-ink); }
+/* The shared history: the same items on every row, lit only where that row claimed it. */
+.hm-done[data-lost] .wk-sprite { opacity: 0.2; }
 .hm-f-join {
   grid-column: 2; justify-self: end; align-self: stretch;
   width: 2px; margin: 24px 0;
@@ -679,7 +684,7 @@
   .hm-flag-items[data-start] { display: flex; }
   .hm-flag-you { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 14px; color: var(--wk-ink-2); }
   .hm-flag-you strong { color: var(--wk-ink); }
-  .hm-clock-draws, .hm-clock-axis, .hm-clock-you, .hm-clock-caption { display: none; }
+  .hm-clock-draws, .hm-clock-layers, .hm-clock-axis, .hm-clock-you, .hm-clock-caption { display: none; }
 }
 
 @media (max-width: 720px) {
@@ -687,15 +692,14 @@
   .hm-hero-item { width: 168px; }
   .hm-loop-strip { grid-template-columns: 96px minmax(0, 1fr); gap: 16px 12px; }
   .hm-board { grid-column: 1 / -1; max-width: 320px; }
-  .hm-beats li { padding: 6px 8px 8px; }
-  .hm-band { --rail-mark: 48px; }
+  .hm-band { --rail-mark: 42px; }
   .hm-band-in { padding-left: 30px; }
   .hm-index-groups { grid-template-columns: 1fr; gap: 20px; }
   .hm-seq { gap: 6px; }
   .hm-seq-to { flex-basis: 16px; }
   .hm-world-head { grid-template-columns: 1fr; gap: 16px; }
   .hm-world-n { justify-items: start; text-align: left; }
-  .hm-band { padding: 28px 0; }
+  .hm-band { padding: 22px 0; }
   .hm-band::before { background: linear-gradient(180deg, oklch(14.5% 0.007 255 / 0.85) 0, oklch(14.5% 0.007 255 / 0.4) 45%, oklch(14.5% 0.007 255 / 0.2) 100%); }
   .hm-band-in { grid-template-columns: 1fr; gap: 16px; }
   .hm-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }

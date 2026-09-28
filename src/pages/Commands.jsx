@@ -3,7 +3,9 @@ import Search from 'lucide-react/dist/esm/icons/search';
 import X from 'lucide-react/dist/esm/icons/x';
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
 import Footer from '../components/common/Footer.jsx';
+import PageIndex from '../wiki/PageIndex.jsx';
 import PageLinks from '../wiki/PageLinks.jsx';
+import { useCurrentSection } from '../wiki/hooks.js';
 import { useGo } from '../wiki/pages.js';
 import { COMMANDS, GROUPS } from '../wiki/commands.data.js';
 import CommandChat from '../wiki/CommandChat.jsx';
@@ -106,6 +108,7 @@ export default function Commands({ onNavigate }) {
             .filter((c) => matches(c, q)),
     })).filter((g) => g.commands.length), [q, who]);
     const shown = groups.reduce((n, g) => n + g.commands.length, 0);
+    const current = useCurrentSection(groups.map((g) => `group-${g.key}`));
 
     return (
         <main className="pg cm">
@@ -134,10 +137,12 @@ export default function Commands({ onNavigate }) {
                     <code className="wk-typed"><span className="cm-opt">[name]</span></code> can be left off, and{' '}
                     <code className="wk-typed">a | b</code> means one of them. A command is open to everyone unless it says otherwise.
                 </p>
-                <nav className="cm-toc" aria-label="Groups">
-                    {GROUPS.map((g) => <a key={g.key} className="wk-link" href={`#group-${g.key}`}>{g.name}</a>)}
-                </nav>
             </header>
+
+            <PageIndex
+                label="Groups" current={current}
+                items={GROUPS.map((g) => ({ id: `group-${g.key}`, label: g.name, n: groups.find((x) => x.key === g.key)?.commands.length ?? 0 }))}
+            />
 
             <div className="wk-wrap cm-body" aria-live="polite">
                 {q && <p className="cm-count">{shown ? `${shown} ${shown === 1 ? 'command matches' : 'commands match'}` : ''}</p>}

@@ -199,7 +199,13 @@
    fixed row mattered more than a sixth column. Quiet by default: a
    1px outline on the ground; hover takes the panel ground and a brighter outline,
    selection the white ring. Colour lives only in the chips. */
-.ip-catalogue { display: grid; grid-template-columns: repeat(auto-fill, minmax(264px, 1fr)); gap: 6px; }
+/* The minimum is measured, not picked. At 264px the grid went to four across from
+   about 1510px, and at 1536px (269px entries) fourteen chip rows lost their /info
+   word; at 1440px four across would be 245px entries, with 46 rows clipped and 8
+   names past two lines. 284px is the narrowest entry where only Wither Skeleton
+   Skull gives way, so the Catalogue is three across at 1440px, four from about
+   1590px and five at 1920px (final pass, Sept 2026). */
+.ip-catalogue { display: grid; grid-template-columns: repeat(auto-fill, minmax(284px, 1fr)); gap: 6px; }
 .ip-entry {
   display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; column-gap: 10px;
   height: 88px; padding: 0 12px;
@@ -234,6 +240,10 @@
   background: color-mix(in oklch, var(--c) 9%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c) 38%, transparent);
 }
+/* A world tag: the same row and height as the stage chip, but its glyph and word
+   alone, so the stage reads first and the tag as what it is, metadata on it. */
+.ip-chip-tag--world { gap: 4px; padding: 0 3px 0 5px; background: none; box-shadow: none; }
+.ip-chip-tag--world .wk-glyph { flex-shrink: 0; }
 /* /info is the one thing on the row allowed to give way: when the chips leave no room
    (one item, Late Nether Extreme with /info) it wraps onto the hidden second line
    rather than a tag being cut. The filter and the inspector still say it. */
@@ -293,6 +303,21 @@
 .ip-item-status { margin: 2px 0 0; font-size: 14px; font-weight: 600; color: var(--wk-ink-2); }
 .ip-item-status[data-staged] { color: var(--wk-ink); }
 .ip-item-id .wk-small { margin: 0; }
+/* Reading an item: the facts as rows of a term and its value, no controls. */
+.ip-readout { margin: 0; display: grid; gap: 8px; }
+.ip-readout > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.ip-readout dt { font-size: 14px; color: var(--wk-ink-3); }
+.ip-readout dd { margin: 0; font-size: 16px; color: var(--wk-ink-2); }
+.ip-readout-note { font-size: 14px; color: var(--wk-ink-3); }
+.ip-readout dd strong { font-weight: 700; }
+.ip-edit-row { justify-items: start; }
+/* Editing: the one bar that says the pane is now a form, and the way back out. */
+.ip-editbar {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px;
+  padding: 12px 0 14px; box-shadow: inset 0 1px 0 var(--wk-line);
+}
+.ip-editbar .wk-label { color: var(--wk-ink); }
+.ip-editbar-note { font-size: 13px; line-height: 1.4; color: var(--wk-ink-3); }
 .ip-was { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; font-size: 14px; color: var(--wk-ink-3); }
 
 .ip-poolctl { display: grid; gap: 8px; }

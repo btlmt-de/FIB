@@ -188,7 +188,7 @@ export default function RouteMap({ material, jokers, calm }) {
                 read before the list; the grid places it on the right. */}
             <div className="rt-dest">
                 <span className="rt-dest-name">{name}</span>
-                <span className="rt-dest-slot"><ItemSlot material={material} size={72} /></span>
+                <span className="rt-dest-slot"><ItemSlot material={material} size={80} /></span>
                 {stage && (
                     <span className="rt-dest-stage">
                         <span style={{ color: STAGES[stage].ink }}>{STAGES[stage].label}</span> item, handed to you
