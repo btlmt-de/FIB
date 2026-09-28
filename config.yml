@@ -325,7 +325,7 @@ descriptions:
     - "&b&lEnchanted Golden Apple &7| &6Item Information"
     - "&7"
     - "&7Structure - Chest Loot Table:"
-    - "&eTrail Chambers &7- &a22.5% &6(Ominous Vault)"
+    - "&eTrial Chambers &7- &a22.5% &6(Ominous Vault)"
     - "&eAncient City &7- &68.4%"
     - "&eBastion &7- &65.3% (Treasure Chest)"
     - "&eWoodland Mansion &7- &c3.1%"
@@ -935,7 +935,7 @@ descriptions:
     - "&7"
     - "&7Structure: &aMineshafts&7, &aStronghold Library&7, &aIgloo Basement&7, &aAbandoned Villages&7, &aWoodland Mansion"
     - "&7Tool: &aShears"
-    - "&7Can be obtained by using &sshears"
+    - "&7Can be obtained by using &ashears"
   TUFF:
     - "&b&lTuff &7| &6Item Information"
     - "&7"
@@ -1381,7 +1381,7 @@ descriptions:
     - "&7Biomes: &aLush Caves"
     - "&7Structure - Chest Loot Table:"
     - "&eShipwreck &7- &a42.1% (Supply Chest)"
-    - "&eTrail Chambers &7- &a20.4% (Supply Chest)"
+    - "&eTrial Chambers &7- &a20.4% (Supply Chest)"
     - "&aThe Wandering Trader &7may sell &amoss blocks"
   BIG_DRIPLEAF:
     - "&b&lBig Dripleaf &7| &6Item Information"
@@ -1692,16 +1692,16 @@ descriptions:
     - "&7Biomes: &aSavanna&7, &aSavanna Plateau&7, &aWindswept Savanna&7, &aBadlands&7, &aEroded Badlands&7, &aWooded Badlands"
     - "&7The &aarmadillo scute &7can be obtained by brushing an armadillo"
   RESIN_CLUMP:
-    - "&b&lResin Clumb &7| &6Item Information"
+    - "&b&lResin Clump &7| &6Item Information"
     - "&7"
-    - "&7Biomes: &Pale Garden"
+    - "&7Biomes: &aPale Garden"
     - "&aThe Pale Garden &7typically generates inside of the &adark forest &7(meaning the dark forest typically surrounds this biome)"
     - "&7Hitting a protected creaking during &anight time &7causes resin clumps to be placed on the wood near its linked creaking heart"
     - "&7There is a &a5-second cooldown &7before hitting a creaking can generate resin clumps again"
     - "&7It also drops when a creaking heart is mined or destroyed"
     - "&7Structure: &aWoodland Mansion"
     - "&eChest &7- &a53.8%"
-    - "&eQuantity&: &c2&7-&c4"
+    - "&eQuantity&7: &c2&7-&c4"
   RESIN_BLOCK:
     - "&b&lResin Block &7| &6Item Information"
     - "&7"
@@ -1763,7 +1763,7 @@ descriptions:
   BUSH:
     - "&b&lBush &7| &6Item Information"
     - "&7"
-    - "&7Biomes: &aForest&7 &aPlains&7, &aBirch Forest&7, &aOld Growth Birch Forest&7, &aWindswept Shit&7, &aRiver & Frozen River Shores"
+    - "&7Biomes: &aForest&7 &aPlains&7, &aBirch Forest&7, &aOld Growth Birch Forest&7, &aWindswept Hills&7, &aRiver & Frozen River Shores"
     - "&7Tool: &aShears"
     - "&7Can be obtained by using &ashears"
   FIREFLY_BUSH:
@@ -1822,7 +1822,7 @@ descriptions:
   BROWN_EGG:
     - "&b&lBrown Egg &7| &6Item Information"
     - "&7"
-    - "&7Biomes: &Savanna&7, &aSavanna Plateau&7, &aWindswept Savanna&7, &aJungle&7, &aSparse Jungle&7, &aBamboo Jungle"
+    - "&7Biomes: &aSavanna&7, &aSavanna Plateau&7, &aWindswept Savanna&7, &aJungle&7, &aSparse Jungle&7, &aBamboo Jungle"
     - "&aBadlands&7, &aEroded Badlands&7, &aWooded Badlands"
     - "&7Characteristics: &abrown&7, &aorange"
     - "&aBrown eggs &7are dropped by &awarm chickens"

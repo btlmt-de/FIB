@@ -41,8 +41,9 @@
 
 .cm-body { padding: 8px 0 24px; }
 .cm-count { margin: 0 0 8px; font-size: 14px; color: var(--wk-ink-3); }
-.cm-empty { display: grid; justify-items: start; gap: 12px; padding: 32px 0; font-size: 16px; color: var(--wk-ink-2); }
-.cm-empty p { margin: 0; }
+/* The empty state's words live in the live region above its button, so only they are announced. */
+.cm-empty-text { margin: 32px 0 0; font-size: 16px; color: var(--wk-ink-2); }
+.cm-empty { display: grid; justify-items: start; padding: 12px 0 32px; }
 .cm-btn { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
 
 /* A group: its heading beside its commands, as the other inner pages set a question

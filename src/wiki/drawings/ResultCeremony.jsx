@@ -127,10 +127,14 @@ const PLAYERS = [
  */
 function playFinds(count) {
     const total = ROUND.minutes * 60;
+    // Each target is rolled once, and capped at the indices there are to fill, so a
+    // short list cannot leave either loop waiting for an index that does not exist.
     const jokers = new Set();
-    while (jokers.size < randInt(0, 2)) jokers.add(randInt(2, count - 1));
+    const jokerTarget = Math.min(randInt(0, 2), Math.max(0, count - 2));
+    while (jokers.size < jokerTarget) jokers.add(randInt(2, count - 1));
     const b2bs = new Set();
-    while (b2bs.size < randInt(1, 3)) { const i = randInt(1, count - 1); if (!jokers.has(i)) b2bs.add(i); }
+    const b2bTarget = Math.min(randInt(1, 3), Math.max(0, count - 1 - jokers.size));
+    while (b2bs.size < b2bTarget) { const i = randInt(1, count - 1); if (!jokers.has(i)) b2bs.add(i); }
     const weights = Array.from({ length: count }, (_, i) => (b2bs.has(i) ? 0 : rand(0.4, 1.6)));
     const scale = (total - rand(40, 240)) / weights.reduce((a, b) => a + b, 0);
     const seen = new Set();

@@ -146,6 +146,16 @@ function poolFilter(settings) {
  * a second, hand-kept list — which is the only way the wiki is allowed to say it.
  */
 
+/*
+ * One /info line as plain words: the colour and format codes out, and then any '&'
+ * still glued to a word, which is a code typed wrong ("&Savanna" for "&aSavanna");
+ * the game prints those literally, but the atlas is not the game's chat. An '&' with
+ * space after it is a real ampersand ("River & Frozen River Shores") and stays.
+ */
+function cleanLine(text) {
+  return text.replace(/&[0-9a-fk-or]/gi, '').replace(/&(?=\S)/g, '').trim();
+}
+
 /** Material -> the /info lines, colour codes stripped. */
 function readDescriptions(yaml) {
   const out = new Map();
@@ -156,7 +166,7 @@ function readDescriptions(yaml) {
     const key = line.match(/^ {2}([A-Z0-9_]+):\s*$/);
     if (key) { current = []; out.set(key[1], current); continue; }
     const entry = line.match(/^ {4}- "(.*)"\s*$/);
-    if (entry && current) { current.push(entry[1].replace(/&[0-9a-fk-or]/gi, '').trim()); continue; }
+    if (entry && current) { current.push(cleanLine(entry[1])); continue; }
     if (/^\S/.test(line)) break; // the next top-level key ends the block
   }
   return out;
@@ -207,11 +217,17 @@ const STRUCTURE_REGIONS = [
   ['caves', /Geode|Mineshaft|Stronghold/i],
 ];
 
+/* Structures no STRUCTURE_REGIONS entry recognises, reported once per run: each
+   falls back to surface, which is right for a village and wrong for a misspelt
+   "Trail Chambers", so the list is the thing to read. */
+const unmatchedStructures = new Set();
+
 function regionOf(tags, where) {
   if (tags.includes('END')) return 'end';
   if (tags.includes('NETHER')) return 'nether';
   if (where.structure) {
     const hit = STRUCTURE_REGIONS.find(([, re]) => re.test(where.structure));
+    if (!hit) unmatchedStructures.add(where.structure);
     return hit ? hit[0] : 'surface';
   }
   if (where.biomes) return /ocean/i.test(where.biomes) ? 'ocean' : 'surface';
@@ -225,6 +241,9 @@ function buildAtlas(pool, tagsOf, descriptions) {
     const w = parseWhere(descriptions.get(material) ?? []);
     const region = regionOf(tags, w);
     if (region) where[material] = [region, w.structure, w.chance, w.biomes];
+  }
+  if (unmatchedStructures.size) {
+    console.log(`Structures pinned to the surface for want of a region: ${[...unmatchedStructures].sort().join(', ')}.`);
   }
   const tags = Object.fromEntries(pool.filter((m) => tagsOf.has(m)).map((m) => [m, tagsOf.get(m)]));
   return { where, tags, described: pool.filter((m) => descriptions.has(m)).length };

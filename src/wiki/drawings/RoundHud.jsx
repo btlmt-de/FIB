@@ -181,7 +181,10 @@ export default function RoundHud() {
     const [lit, setLit] = useState(null);
     const ref = useRef(null);
     const on = useOnScreen(ref);
-    const running = playing && on && !calm;
+    // The end of the round stops playback by being the end: derived, so the interval's
+    // updater stays pure and nothing has to set state after the fact.
+    const active = playing && t < TOTAL;
+    const running = active && on && !calm;
 
     useEffect(() => {
         if (!running) return undefined;
@@ -190,9 +193,7 @@ export default function RoundHud() {
                 const left = TOTAL - now;
                 // Quick through the quiet stretches, slow where a title shows, so it can be read.
                 const step = left > 330 ? 9 : left > 288 ? 1.2 : left > 72 ? 9 : 0.4;
-                const next = Math.min(TOTAL, now + step);
-                if (next >= TOTAL) setPlaying(false);
-                return next;
+                return Math.min(TOTAL, now + step);
             });
         }, 100);
         return () => clearInterval(id);
@@ -265,8 +266,8 @@ export default function RoundHud() {
 
             <div className="hud-controls">
                 {!calm && (
-                    <button type="button" className="wk-btn gp-btn-sm" onClick={() => { if (t >= TOTAL) setT(0); setPlaying((x) => !x); }} aria-pressed={playing}>
-                        {playing ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />} {playing ? 'Pause' : t >= TOTAL ? 'Play again' : 'Play the round'}
+                    <button type="button" className="wk-btn gp-btn-sm" onClick={() => { if (t >= TOTAL) { setT(0); setPlaying(true); } else setPlaying((x) => !x); }} aria-pressed={active}>
+                        {active ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />} {active ? 'Pause' : t >= TOTAL ? 'Play again' : 'Play the round'}
                     </button>
                 )}
                 <button type="button" className="wk-btn wk-btn--quiet gp-btn-sm" aria-pressed={tab} onClick={() => setTab((x) => !x)}>

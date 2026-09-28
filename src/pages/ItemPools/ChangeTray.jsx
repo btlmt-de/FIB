@@ -149,6 +149,7 @@ function SignIn({ auth, setAuth }) {
 
 /* ── Committing ─────────────────────────────────────────────────────────────── */
 
+/** The repo's branches, and a way to add one this page just created without asking GitHub again. */
 function useBranches(auth, repo) {
     const [branches, setBranches] = useState(null);
     useEffect(() => {
@@ -157,7 +158,8 @@ function useBranches(auth, repo) {
         listBranches(auth.token, repo).then((b) => { if (live) setBranches(b); }).catch(() => { if (live) setBranches([]); });
         return () => { live = false; };
     }, [auth.token, repo]);
-    return auth.token ? branches : null;
+    const add = (name) => setBranches((b) => (b?.includes(name) ? b : [...(b ?? []), name]));
+    return [auth.token ? branches : null, add];
 }
 
 function Result({ result }) {
@@ -183,7 +185,7 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
     const counts = { add: 0, modify: 0, remove: 0 };
     entries.forEach((e) => { counts[e.type]++; });
 
-    const branches = useBranches(auth, REPOS.pool.repo);
+    const [branches, addBranch] = useBranches(auth, REPOS.pool.repo);
     const [mode, setMode] = useState('new');
     const [name, setName] = useState(() => `pool/${auth.user?.login ?? 'update'}-${today()}`);
     const [existing, setExisting] = useState('');
@@ -201,18 +203,30 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
     const commit = async () => {
         setResult(null);
         const snapshot = entries;
+        let created = false;
         try {
             setStep('Checking you can push to the plugin repo…');
             if (!(await canPush(auth.token, REPOS.pool.repo))) throw new Error(`${auth.user.login} cannot push to ${REPOS.pool.repo}.`);
+            const { additions, removals } = poolEdits(snapshot);
+            // A new branch is only created once the edit is known to read and to change
+            // something, read off main (what the branch would start from). It used to be
+            // created first, so a failed read or a no-op left an unused branch behind, and
+            // the retry then refused the name because that branch existed.
+            const from = mode === 'new' ? REPOS.pool.base : target;
+            setStep(`Reading the pool on ${from}…`);
+            let { content, sha } = await readFile(auth.token, REPOS.pool, from);
+            let next = modifyJavaFile(content, additions, removals);
+            if (next === content) throw new Error(`${from} already has these changes.`);
             if (mode === 'new') {
                 setStep(`Creating ${target} from main…`);
                 await createBranch(auth.token, REPOS.pool.repo, target, REPOS.pool.base);
+                created = true;
+                // Main can move between that read and the branch: read the branch itself,
+                // so the write is against the file it really holds.
+                ({ content, sha } = await readFile(auth.token, REPOS.pool, target));
+                next = modifyJavaFile(content, additions, removals);
+                if (next === content) throw new Error(`${target} already has these changes.`);
             }
-            setStep(`Reading the pool on ${target}…`);
-            const { content, sha } = await readFile(auth.token, REPOS.pool, target);
-            const { additions, removals } = poolEdits(snapshot);
-            const next = modifyJavaFile(content, additions, removals);
-            if (next === content) throw new Error(`${target} already has these changes.`);
             setStep('Committing…');
             const msg = message.trim() || defaultMessage;
             const res = await writeFile(auth.token, REPOS.pool, target, next, sha, msg);
@@ -233,7 +247,16 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
             setResult({ title: `${snapshot.length} pool ${snapshot.length === 1 ? 'change' : 'changes'} committed to ${target}.`, links, note });
             onDone?.(target);
         } catch (e) {
-            setResult({ error: e.message });
+            if (created) {
+                // The branch exists now: offer it, so a retry adds to it instead of
+                // failing on the name.
+                addBranch(target);
+                setExisting(target);
+                setMode('existing');
+                setResult({ error: `${e.message} ${target} was created; it is chosen under Existing branch, so trying again commits to it.` });
+            } else {
+                setResult({ error: e.message });
+            }
         } finally {
             setStep(null);
         }
@@ -320,7 +343,7 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
 function InfoCommit({ auth, changes, byMaterial, viewBranch, onDone, result, setResult }) {
     const entries = useMemo(() => Object.entries(changes.info).map(([material, c]) => ({ material, ...c }))
         .sort((a, b) => a.material.localeCompare(b.material)), [changes.info]);
-    const branches = useBranches(auth, REPOS.info.repo);
+    const [branches] = useBranches(auth, REPOS.info.repo);
     const [branch, setBranch] = useState(viewBranch);
     const [message, setMessage] = useState('');
     const [open, setOpen] = useState(null);

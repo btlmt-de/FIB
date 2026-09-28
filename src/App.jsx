@@ -80,6 +80,11 @@ const ROUTE_MAP = {
     'stats': 'stats',
 };
 
+/** The rendered element with this id: Suspense can keep a hidden page mounted, and two pages share ids. */
+function visibleById(id) {
+    return [...document.querySelectorAll(`[id="${CSS.escape(id)}"]`)].find((x) => x.getClientRects().length > 0);
+}
+
 export default function App() {
     // Simple routing based on pathname
     const getPageFromPath = () => {
@@ -103,13 +108,16 @@ export default function App() {
     }, []);
 
     // A target may name a section too ('structures#traders'): the page, then the
-    // section on it. Without one, a new page opens at its top.
+    // section on it. Without one, a new page opens at its top. A section on the page
+    // already showing is scrolled to here: setting the same page again changes no
+    // state, so the effect below, which handles arriving on a new page, never runs.
     const navigate = (target) => {
         const [page, section] = target.split('#');
         const path = (page === 'home' ? '/' : `/${page}`) + (section ? `#${section}` : '');
         window.history.pushState({}, '', path);
         setCurrentPage(page);
         if (!section) window.scrollTo(0, 0);
+        else if (page === currentPage) visibleById(section)?.scrollIntoView();
     };
 
     // Scroll to the #section in the address once it exists. Pages are lazy chunks,
@@ -127,7 +135,7 @@ export default function App() {
         const id = decodeURIComponent(window.location.hash.slice(1).split('?')[0]);
         if (!id) return undefined;
         const found = () => {
-            const el = [...document.querySelectorAll(`[id="${CSS.escape(id)}"]`)].find((x) => x.getClientRects().length > 0);
+            const el = visibleById(id);
             if (el) el.scrollIntoView();
             return Boolean(el);
         };

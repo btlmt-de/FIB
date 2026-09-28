@@ -144,11 +144,15 @@ export default function Commands({ onNavigate }) {
                 items={GROUPS.map((g) => ({ id: `group-${g.key}`, label: g.name, n: groups.find((x) => x.key === g.key)?.commands.length ?? 0 }))}
             />
 
-            <div className="wk-wrap cm-body" aria-live="polite">
-                {q && <p className="cm-count">{shown ? `${shown} ${shown === 1 ? 'command matches' : 'commands match'}` : ''}</p>}
+            <div className="wk-wrap cm-body">
+                {/* Only the outcome of a search is announced: the whole list (and any chat
+                    opened in it) used to sit in the live region and was read out on change. */}
+                <div aria-live="polite">
+                    {q && shown > 0 && <p className="cm-count">{`${shown} ${shown === 1 ? 'command matches' : 'commands match'}`}</p>}
+                    {!shown && <p className="cm-empty-text">No command matches “{query}”.</p>}
+                </div>
                 {!shown && (
                     <div className="cm-empty">
-                        <p>No command matches “{query}”.</p>
                         <button type="button" className="wk-btn wk-btn--quiet cm-btn" onClick={() => { setQuery(''); setWho('any'); }}>Show every command</button>
                     </div>
                 )}
