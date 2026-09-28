@@ -34,13 +34,18 @@
 
 /* ── Tracks ────────────────────────────────────────────────────────────────── */
 
-.cc-to { position: relative; flex: 0 0 40px; height: 2px; background: var(--wk-line-hi); }
+/* A track is sized by its width, never by flex-basis alone. It is an empty span, and
+   Firefox measures how wide a wrapping row wants to be from each item's content, not
+   its flex-basis, so a track sized only by flex-basis counted as 0px there: the row came
+   out short by every track in it and the result wrapped under its arrow at every width,
+   while Chrome, which does count the basis, drew it on one line (Sept 2026). */
+.cc-to { position: relative; flex: none; width: 40px; height: 2px; background: var(--wk-line-hi); }
 .cc-to::after {
   content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
   background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
 }
 /* A station with no item of its own (a villager) rides above its track as a word. */
-.cc-to:has(.cc-to-label) { flex-basis: 128px; }
+.cc-to:has(.cc-to-label) { width: 128px; }
 .cc-to-label {
   position: absolute; left: 0; right: 8px; bottom: 8px; text-align: center;
   font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--wk-ink-3);
@@ -56,6 +61,12 @@
 .cc-result { display: inline-flex; align-items: center; gap: 12px; }
 .cc-result .wk-slot { background: radial-gradient(circle at 50% 60%, oklch(100% 0 0 / 0.06), transparent 70%), var(--wk-slot); }
 .cc-result-name { font-size: 16px; font-weight: 700; line-height: 1.25; color: var(--wk-ink); max-width: 16ch; }
+/* The result stays beside its arrow: it gives up width, and its name wraps to two lines,
+   before the row is allowed to break. Since the crafting table and the furnace joined
+   the rows, a recipe is about 560px wide, and at 1024 to 1200 wide the steps' drawing
+   column is narrower than that, so the whole result dropped under the arrow. The row
+   still wraps on a phone, where the grid and the table alone do not fit. */
+:is(.cc-craft-row, .cc-exchange-row) > .cc-result:last-child { flex: 1 1 0; min-width: 150px; }
 .cc-craft figcaption, .cc-exchange figcaption { max-width: 52ch; }
 
 /* The recipe being laid (Craft): the slot whose ingredient is landing on the table lifts
@@ -239,7 +250,7 @@ button.cc-map-name[aria-pressed="true"] { color: var(--wk-ground); background: v
 .cc-note-pct { font-size: 16px; color: var(--wk-ink-2); }
 .cc-offer { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 6px 0; }
 .cc-offer-draw { display: inline-flex; align-items: center; gap: 10px; }
-.cc-offer-draw .cc-to { flex-basis: 24px; }
+.cc-offer-draw .cc-to { width: 24px; }
 .cc-offer-text { display: grid; gap: 2px; }
 .cc-offer-name { font-size: 16px; font-weight: 600; color: var(--wk-ink); }
 
@@ -261,7 +272,7 @@ button.cc-map-name[aria-pressed="true"] { color: var(--wk-ground); background: v
   .cc-table tr { padding: 10px 0; box-shadow: inset 0 -1px 0 var(--wk-line); }
   .cc-table th, .cc-table td { box-shadow: none; padding: 2px 0; }
   .cc-table td { font-size: 14px; }
-  .cc-to:has(.cc-to-label) { flex-basis: 96px; }
+  .cc-to:has(.cc-to-label) { width: 96px; }
   .cc-contents ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
