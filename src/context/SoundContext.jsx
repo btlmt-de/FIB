@@ -64,6 +64,21 @@ const SOUND_FILES = {
      * `startParlourSoundtrack` takes the elapsed offset and seeks to it.
      */
     parlourSoundtrack: '/sounds/roulette.mp3',
+    /*
+     * HIGH ROLLER's bed, and the third that does not loop.
+     *
+     * 56s against a table that runs at most 54.5s end to end: the 41.5s from
+     * the open to the settle (ActivityContext's HIGH_ROLLER_MAX_LIFETIME_MS note
+     * has the sum) plus the 13s the result stays on the felt. One take covers
+     * the longest table there is, so a loop would only ever be heard as the
+     * opening coming back over a reveal.
+     *
+     * The table usually ends EARLIER than that - it settles as soon as every
+     * seat is done - and the bed simply stops with it. Sought like the
+     * Parlour's, because it is the same kind of room: a page loaded mid-hand
+     * joins the take where the table is, measured from the same `openedAt`.
+     */
+    highRollerSoundtrack: '/sounds/highroller.mp3',
     recursion: '/sounds/recursion.mp3',
     insane: '/sounds/sfxinsane.mp3',
     mythic: '/sounds/sfxmythic.mp3',
@@ -106,6 +121,7 @@ const DEFAULT_SETTINGS = {
      */
     arrivalCrateEnabled: true,
     parlourSoundtrackEnabled: true,
+    highRollerSoundtrackEnabled: true,
     recursionEnabled: true,
     insaneEnabled: true,
     mythicEnabled: true,
@@ -143,6 +159,7 @@ const DEFAULT_SETTINGS = {
 const EVENT_SOUNDTRACK = {
     arrival: 'arrivalSoundtrack',
     roulette: 'parlourSoundtrack',
+    high_roller: 'highRollerSoundtrack',
     king_of_wheel: 'kotwSoundtrack',
     first_blood: 'firstBloodSoundtrack',
     community_goal: 'communityGoalSoundtrack',
@@ -299,6 +316,7 @@ export function SoundProvider({ children }) {
     const [isFirstBloodPlaying, setIsFirstBloodPlaying] = useState(false);
     const [isArrivalPlaying, setIsArrivalPlaying] = useState(false);
     const [isParlourPlaying, setIsParlourPlaying] = useState(false);
+    const [isHighRollerPlaying, setIsHighRollerPlaying] = useState(false);
     const [hasInteracted, setHasInteracted] = useState(false);
     const [previewingSound, setPreviewingSound] = useState(null); // Track which sound is previewing
 
@@ -311,6 +329,7 @@ export function SoundProvider({ children }) {
     const communityGoalSoundtrackRef = useRef(null);
     const arrivalSoundtrackRef = useRef(null);
     const parlourSoundtrackRef = useRef(null);
+    const highRollerSoundtrackRef = useRef(null);
     const sfxRefs = useRef({
         arrivalCrate1: null,
         arrivalCrate2: null,
@@ -421,6 +440,16 @@ export function SoundProvider({ children }) {
         parlourSoundtrack.onerror = () => console.warn('[Sound] Parlour soundtrack file not found - add roulette.mp3 to /public/sounds/');
         parlourSoundtrackRef.current = parlourSoundtrack;
 
+        // Create High Roller audio element
+        //
+        // `loop = false`, and set again in startHighRollerSoundtrack, for the
+        // Parlour's reason directly above.
+        const highRollerSoundtrack = new Audio(SOUND_FILES.highRollerSoundtrack);
+        highRollerSoundtrack.loop = false;
+        highRollerSoundtrack.preload = 'none';
+        highRollerSoundtrack.onerror = () => console.warn('[Sound] High Roller soundtrack file not found - add highroller.mp3 to /public/sounds/');
+        highRollerSoundtrackRef.current = highRollerSoundtrack;
+
         // Create SFX audio elements
         //
         // 'auto' for everything except the four crate takes, which are fetched
@@ -470,6 +499,10 @@ export function SoundProvider({ children }) {
             if (parlourSoundtrackRef.current) {
                 parlourSoundtrackRef.current.pause();
                 parlourSoundtrackRef.current = null;
+            }
+            if (highRollerSoundtrackRef.current) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current = null;
             }
             Object.keys(sfxRefs.current).forEach(key => {
                 if (sfxRefs.current[key]) {
@@ -554,6 +587,16 @@ export function SoundProvider({ children }) {
         }
     }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.parlourSoundtrackEnabled]);
 
+    // Update High Roller soundtrack volume when settings change (real-time)
+    useEffect(() => {
+        if (highRollerSoundtrackRef.current) {
+            const effectiveVolume = settings.enabled && settings.highRollerSoundtrackEnabled
+                ? settings.masterVolume * settings.musicVolume
+                : 0;
+            highRollerSoundtrackRef.current.volume = effectiveVolume;
+        }
+    }, [settings.masterVolume, settings.musicVolume, settings.enabled, settings.highRollerSoundtrackEnabled]);
+
     // Update SFX volumes in real-time (for any currently playing sounds including preview)
     useEffect(() => {
         const effectiveVolume = settings.enabled
@@ -602,6 +645,7 @@ export function SoundProvider({ children }) {
             case 'communityGoalSoundtrack': return { audio: communityGoalSoundtrackRef.current, isSoundtrack: true };
             case 'arrivalSoundtrack': return { audio: arrivalSoundtrackRef.current, isSoundtrack: true };
             case 'parlourSoundtrack': return { audio: parlourSoundtrackRef.current, isSoundtrack: true };
+            case 'highRollerSoundtrack': return { audio: highRollerSoundtrackRef.current, isSoundtrack: true };
             default: return { audio: sfxRefs.current[name] || null, isSoundtrack: false };
         }
     }, []);
@@ -783,6 +827,8 @@ export function SoundProvider({ children }) {
         // bed underneath it. A spin already in flight when the table opened is
         // the one case that reaches here.
         if (isParlourPlaying) return;
+        // And HIGH ROLLER, which also takes the band for its table.
+        if (isHighRollerPlaying) return;
 
         const effectiveVolume = settings.masterVolume * settings.musicVolume;
 
@@ -816,6 +862,10 @@ export function SoundProvider({ children }) {
                     }
                     // Check if a parlour opened during spin.wav - if so, don't start soundtrack
                     if (parlourSoundtrackRef.current && !parlourSoundtrackRef.current.paused) {
+                        return;
+                    }
+                    // Check if a High Roller table opened during spin.wav - if so, don't start soundtrack
+                    if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
                         return;
                     }
                     if (soundtrackRef.current && !soundtrackRef.current.error) {
@@ -854,7 +904,7 @@ export function SoundProvider({ children }) {
                 // Silently fail
             }
         }
-    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying]);
+    }, [settings.enabled, settings.soundtrackEnabled, settings.masterVolume, settings.musicVolume, isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, isHighRollerPlaying]);
 
     // Stop soundtrack (stops both spin and soundtrack)
     const stopSoundtrack = useCallback(() => {
@@ -938,6 +988,13 @@ export function SoundProvider({ children }) {
                 parlourSoundtrackRef.current.currentTime = 0;
                 setIsParlourPlaying(false);
             }
+
+            // Stop High Roller soundtrack if playing
+            if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current.currentTime = 0;
+                setIsHighRollerPlaying(false);
+            }
             await recursionSoundtrackRef.current.play();
             setIsRecursionPlaying(true);
             setHasInteracted(true);
@@ -954,13 +1011,13 @@ export function SoundProvider({ children }) {
             setIsRecursionPlaying(false);
 
             // Resume main soundtrack if it was playing before recursion (and no other event soundtrack is active)
-            if (isPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && !isHighRollerPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, isHighRollerPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start KOTW soundtrack
     const startKotwSoundtrack = useCallback(async () => {
@@ -1021,6 +1078,13 @@ export function SoundProvider({ children }) {
                 parlourSoundtrackRef.current.currentTime = 0;
                 setIsParlourPlaying(false);
             }
+
+            // Stop High Roller soundtrack if playing
+            if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current.currentTime = 0;
+                setIsHighRollerPlaying(false);
+            }
             await kotwSoundtrackRef.current.play();
             setIsKotwPlaying(true);
             setHasInteracted(true);
@@ -1037,13 +1101,13 @@ export function SoundProvider({ children }) {
             setIsKotwPlaying(false);
 
             // Resume main soundtrack if it was playing before KOTW (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && !isHighRollerPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, isHighRollerPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start First Blood soundtrack
     const startFirstBloodSoundtrack = useCallback(async () => {
@@ -1104,6 +1168,13 @@ export function SoundProvider({ children }) {
                 parlourSoundtrackRef.current.currentTime = 0;
                 setIsParlourPlaying(false);
             }
+
+            // Stop High Roller soundtrack if playing
+            if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current.currentTime = 0;
+                setIsHighRollerPlaying(false);
+            }
             await firstBloodSoundtrackRef.current.play();
             setIsFirstBloodPlaying(true);
             setHasInteracted(true);
@@ -1120,13 +1191,13 @@ export function SoundProvider({ children }) {
             setIsFirstBloodPlaying(false);
 
             // Resume main soundtrack if it was playing before First Blood (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && !isHighRollerPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, isHighRollerPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Start Community Goal soundtrack
     const startCommunityGoalSoundtrack = useCallback(async () => {
@@ -1187,6 +1258,13 @@ export function SoundProvider({ children }) {
                 parlourSoundtrackRef.current.currentTime = 0;
                 setIsParlourPlaying(false);
             }
+
+            // Stop High Roller soundtrack if playing
+            if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current.currentTime = 0;
+                setIsHighRollerPlaying(false);
+            }
             await communityGoalSoundtrackRef.current.play();
             setIsCommunityGoalPlaying(true);
             setHasInteracted(true);
@@ -1203,13 +1281,13 @@ export function SoundProvider({ children }) {
             setIsCommunityGoalPlaying(false);
 
             // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isArrivalPlaying && !isParlourPlaying && !isHighRollerPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isArrivalPlaying, isParlourPlaying, isHighRollerPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     /*
      * ── THE ARRIVAL ──────────────────────────────────────────────────────────
@@ -1293,6 +1371,13 @@ export function SoundProvider({ children }) {
                 setIsParlourPlaying(false);
             }
 
+            // Stop High Roller soundtrack if playing
+            if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current.currentTime = 0;
+                setIsHighRollerPlaying(false);
+            }
+
             await arrivalSoundtrackRef.current.play();
             setIsArrivalPlaying(true);
             setHasInteracted(true);
@@ -1309,13 +1394,13 @@ export function SoundProvider({ children }) {
             setIsArrivalPlaying(false);
 
             // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isParlourPlaying && !isHighRollerPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isParlourPlaying, isHighRollerPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     /*
      * ── THE PARLOUR ──────────────────────────────────────────────────────────
@@ -1403,6 +1488,13 @@ export function SoundProvider({ children }) {
                 setIsArrivalPlaying(false);
             }
 
+            // Stop High Roller soundtrack if playing
+            if (highRollerSoundtrackRef.current && !highRollerSoundtrackRef.current.paused) {
+                highRollerSoundtrackRef.current.pause();
+                highRollerSoundtrackRef.current.currentTime = 0;
+                setIsHighRollerPlaying(false);
+            }
+
             await audio.play();
             setIsParlourPlaying(true);
             setHasInteracted(true);
@@ -1419,13 +1511,112 @@ export function SoundProvider({ children }) {
             setIsParlourPlaying(false);
 
             // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
-            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isHighRollerPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
                 const effectiveVolume = settings.masterVolume * settings.musicVolume;
                 soundtrackRef.current.volume = effectiveVolume;
                 soundtrackRef.current.play().catch(() => {});
             }
         }
-    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isHighRollerPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
+
+    /*
+     * ── HIGH ROLLER ──────────────────────────────────────────────────────────
+     *
+     * The Parlour's shape exactly, one table along: a take that does not loop,
+     * sought to wherever the table already is, and no `isHighRollerPlaying`
+     * guard against a restart because a second table is a fresh mount and must
+     * get a fresh take. The notes on `startParlourSoundtrack` and `joinTake`
+     * are the reasoning; none of it changes for blackjack.
+     */
+    const startHighRollerSoundtrack = useCallback(async (elapsedAt) => {
+        if (!highRollerSoundtrackRef.current) return;
+        if (!settings.enabled || !settings.highRollerSoundtrackEnabled) return;
+        if (highRollerSoundtrackRef.current.error) return;
+
+        try {
+            const audio = highRollerSoundtrackRef.current;
+            const effectiveVolume = settings.masterVolume * settings.musicVolume;
+            audio.loop = false;
+            audio.volume = effectiveVolume;
+
+            joinTake(audio, elapsedAt);
+
+            // Stop the spin intro if playing and clear its callback
+            if (spinRef.current) {
+                spinRef.current.pause();
+                spinRef.current.onended = null;
+            }
+
+            // Pause main soundtrack if playing (don't reset position so we can resume)
+            if (soundtrackRef.current && !soundtrackRef.current.paused) {
+                soundtrackRef.current.pause();
+            }
+
+            // Stop recursion soundtrack if playing
+            if (recursionSoundtrackRef.current && !recursionSoundtrackRef.current.paused) {
+                recursionSoundtrackRef.current.pause();
+                recursionSoundtrackRef.current.currentTime = 0;
+                setIsRecursionPlaying(false);
+            }
+
+            // Stop KOTW soundtrack if playing
+            if (kotwSoundtrackRef.current && !kotwSoundtrackRef.current.paused) {
+                kotwSoundtrackRef.current.pause();
+                kotwSoundtrackRef.current.currentTime = 0;
+                setIsKotwPlaying(false);
+            }
+
+            // Stop First Blood soundtrack if playing
+            if (firstBloodSoundtrackRef.current && !firstBloodSoundtrackRef.current.paused) {
+                firstBloodSoundtrackRef.current.pause();
+                firstBloodSoundtrackRef.current.currentTime = 0;
+                setIsFirstBloodPlaying(false);
+            }
+
+            // Stop Community Goal soundtrack if playing
+            if (communityGoalSoundtrackRef.current && !communityGoalSoundtrackRef.current.paused) {
+                communityGoalSoundtrackRef.current.pause();
+                communityGoalSoundtrackRef.current.currentTime = 0;
+                setIsCommunityGoalPlaying(false);
+            }
+
+            // Stop Arrival soundtrack if playing
+            if (arrivalSoundtrackRef.current && !arrivalSoundtrackRef.current.paused) {
+                arrivalSoundtrackRef.current.pause();
+                arrivalSoundtrackRef.current.currentTime = 0;
+                setIsArrivalPlaying(false);
+            }
+
+            // Stop Parlour soundtrack if playing
+            if (parlourSoundtrackRef.current && !parlourSoundtrackRef.current.paused) {
+                parlourSoundtrackRef.current.pause();
+                parlourSoundtrackRef.current.currentTime = 0;
+                setIsParlourPlaying(false);
+            }
+
+            await audio.play();
+            setIsHighRollerPlaying(true);
+            setHasInteracted(true);
+        } catch {
+            // Silently fail
+        }
+    }, [settings.enabled, settings.highRollerSoundtrackEnabled, settings.masterVolume, settings.musicVolume]);
+
+    // Stop High Roller soundtrack
+    const stopHighRollerSoundtrack = useCallback(() => {
+        if (highRollerSoundtrackRef.current) {
+            highRollerSoundtrackRef.current.pause();
+            highRollerSoundtrackRef.current.currentTime = 0;
+            setIsHighRollerPlaying(false);
+
+            // Resume main soundtrack if it was playing before (and no other event soundtrack is active)
+            if (isPlaying && !isRecursionPlaying && !isKotwPlaying && !isFirstBloodPlaying && !isCommunityGoalPlaying && !isArrivalPlaying && !isParlourPlaying && soundtrackRef.current && settings.enabled && settings.soundtrackEnabled) {
+                const effectiveVolume = settings.masterVolume * settings.musicVolume;
+                soundtrackRef.current.volume = effectiveVolume;
+                soundtrackRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPlaying, isRecursionPlaying, isKotwPlaying, isFirstBloodPlaying, isCommunityGoalPlaying, isArrivalPlaying, isParlourPlaying, settings.masterVolume, settings.musicVolume, settings.enabled, settings.soundtrackEnabled]);
 
     // Stop any currently previewing sound
     const stopPreview = useCallback(() => {
@@ -1685,6 +1876,10 @@ export function SoundProvider({ children }) {
                     parlourSoundtrackRef.current.pause();
                     setIsParlourPlaying(false);
                 }
+                if (highRollerSoundtrackRef.current) {
+                    highRollerSoundtrackRef.current.pause();
+                    setIsHighRollerPlaying(false);
+                }
                 stopPreview();
             }
             return { ...prev, enabled: newEnabled };
@@ -1708,6 +1903,7 @@ export function SoundProvider({ children }) {
         isCommunityGoalPlaying,
         isArrivalPlaying,
         isParlourPlaying,
+        isHighRollerPlaying,
         hasInteracted,
         audioLoaded,
         startSoundtrack,
@@ -1725,6 +1921,8 @@ export function SoundProvider({ children }) {
         stopArrivalSoundtrack,
         startParlourSoundtrack,
         stopParlourSoundtrack,
+        startHighRollerSoundtrack,
+        stopHighRollerSoundtrack,
         primeSound,
         primeEventSound,
         playSfx,

@@ -270,7 +270,38 @@ function useTableClock(active) {
     return serverNow();
 }
 
-export function HighRollerAtmosphere() {
+/*
+ * The room, and the room's voice.
+ *
+ * The bed hangs here for ParlourAtmosphere's reason: this is the one piece of
+ * the event WheelPage mounts for exactly the table's lifetime and behind no
+ * viewport check, so a phone hears the table too. WheelPage keys it on
+ * `openedAt`, so a second table is a fresh mount and a fresh take.
+ *
+ * The clock is handed over rather than a reading of it - see `joinTake` in
+ * SoundContext - so a page loaded mid-hand joins the take where the table is.
+ * There is no "too late to start" guard like the Parlour's T_END check: a take
+ * asked for past its own end is clamped to its last few milliseconds by
+ * `joinTake`, and ActivityContext's dead-man switch tears the table down well
+ * before that can happen anyway.
+ *
+ * Callbacks through a ref, effect on `openedAt` alone: `useSound`'s callbacks
+ * are rebuilt on every settings change, and a volume slider moved mid-hand
+ * would otherwise restart the take from the top.
+ */
+export function HighRollerAtmosphere({ openedAt }) {
+    const { startHighRollerSoundtrack, stopHighRollerSoundtrack } = useSound();
+    const soundRef = useRef({ startHighRollerSoundtrack, stopHighRollerSoundtrack });
+    useEffect(() => {
+        soundRef.current = { startHighRollerSoundtrack, stopHighRollerSoundtrack };
+    });
+    useEffect(() => {
+        if (!openedAt) return undefined;
+        soundRef.current?.startHighRollerSoundtrack?.(
+            () => Math.max(0, (serverNow() - openedAt) / 1000),
+        );
+        return () => soundRef.current?.stopHighRollerSoundtrack?.();
+    }, [openedAt]);
     return <div className="hr-room" aria-hidden="true"><div className="hr-room-wall"/><div className="hr-room-vignette"/></div>;
 }
 

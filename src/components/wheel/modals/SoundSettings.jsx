@@ -1,7 +1,7 @@
 import React from 'react';
-import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, Map, X, RotateCcw, Play, Square, Swords, Droplet, Target, TrainFront, PackageOpen, Spade } from 'lucide-react';
+import { Volume2, VolumeX, Music, Zap, Sparkles, Star, Gem, Diamond, Map, X, RotateCcw, Play, Square, Swords, Droplet, Target, TrainFront, PackageOpen, Spade, CircleDot } from 'lucide-react';
 import { useSound } from '../../../context/SoundContext.jsx';
-import { COLORS } from '../config/constants';
+import { COLORS, EVENT_IDENTITY } from '../config/constants';
 // The rarity rows take their colour from the ladder rather than naming hues here.
 // They used to be literals, and they had drifted: Legendary was COLORS.purple while
 // the ladder calls Legendary gold and gives purple to Exotic - so adding the Exotic
@@ -650,7 +650,7 @@ export function SoundSettingsPanel({ onClose }) {
                                     color: COLORS.redInk,
                                     flexShrink: 0,
                                 }}>
-                                    <Spade size={16} />
+                                    <CircleDot size={16} />
                                 </div>
                                 <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
                                     The Parlour
@@ -669,6 +669,48 @@ export function SoundSettingsPanel({ onClose }) {
                                 />
                             </div>
 
+                            {/* HIGH ROLLER's bed. The event's own gold from
+                                EVENT_IDENTITY, which is already a light enough
+                                step to read as text on this panel, and the
+                                spade from config/eventIcons.js - the Parlour
+                                row above had it before blackjack did, and
+                                gave it up for the roulette glyph so the two
+                                tables are not told apart by colour alone. */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                            }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    background: `${EVENT_IDENTITY.high_roller.color}15`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: EVENT_IDENTITY.high_roller.color,
+                                    flexShrink: 0,
+                                }}>
+                                    <Spade size={16} />
+                                </div>
+                                <span style={{ flex: 1, color: COLORS.text, fontSize: '13px', fontWeight: '500' }}>
+                                    High Roller
+                                </span>
+                                <PreviewButton
+                                    onClick={() => previewSound('highRollerSoundtrack')}
+                                    disabled={!settings.enabled}
+                                    isActive={previewingSound === 'highRollerSoundtrack'}
+                                />
+                                <ToggleSwitch
+                                    checked={settings.highRollerSoundtrackEnabled}
+                                    onChange={(v) => updateSetting('highRollerSoundtrackEnabled', v)}
+                                    disabled={!settings.enabled}
+                                    color={EVENT_IDENTITY.high_roller.color}
+                                    ariaLabel="Toggle High Roller music"
+                                />
+                            </div>
+
                             {/* Music volume */}
                             <div style={{
                                 display: 'flex',
@@ -679,7 +721,7 @@ export function SoundSettingsPanel({ onClose }) {
                                 <VolumeSlider
                                     value={settings.musicVolume}
                                     onChange={(v) => updateSetting('musicVolume', v)}
-                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled && !settings.arrivalSoundtrackEnabled && !settings.parlourSoundtrackEnabled)}
+                                    disabled={!settings.enabled || (!settings.soundtrackEnabled && !settings.recursionSoundtrackEnabled && !settings.kotwSoundtrackEnabled && !settings.firstBloodSoundtrackEnabled && !settings.communityGoalSoundtrackEnabled && !settings.arrivalSoundtrackEnabled && !settings.parlourSoundtrackEnabled && !settings.highRollerSoundtrackEnabled)}
                                     color={COLORS.accent}
                                     ariaLabel="Music volume"
                                 />
