@@ -1,0 +1,109 @@
+/*
+ * The result stage (ResultCeremony.jsx). The stage is a container, and everything on
+ * it is placed in stage widths (cqw), converted from the plugin's blocks by the
+ * component, so the drawing keeps its proportions at any width. The texts are the
+ * game's text displays: no plate behind them, a hard shadow, drawn upwards from the
+ * point they stand on.
+ *
+ * The stage's panel is the only thing here that is not in the game: in the world the
+ * stage floats in open sky.
+ *
+ * Plain words in comments: no backticks.
+ */
+
+.rs { margin: 0; display: grid; gap: 12px; }
+.rs-scene { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 24px; align-items: center; }
+.rs-stage {
+  position: relative; container-type: inline-size; aspect-ratio: 17.6 / 14; overflow: hidden;
+  background: var(--wk-deep); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
+}
+
+/* A text display: centred on its point, growing upwards. */
+.rs-text, .rs-btn {
+  position: absolute; left: calc(var(--x) * 1cqw); top: calc(var(--y) * 1cqw); transform: translate(-50%, -100%);
+  display: grid; justify-items: center; text-align: center; white-space: nowrap;
+  font: 400 max(11px, calc(var(--fs) * 1cqw))/1.15 var(--wk-font-text); color: #FFFFFF;
+  text-shadow: 0.09em 0.09em 0 oklch(0% 0 0 / 0.6);
+}
+.rs-text--display { font-family: var(--wk-font-display); font-weight: 600; }
+.rs-line { display: block; }
+.rs-btn { padding: 2px 6px; border: 0; border-radius: 2px; background: none; cursor: pointer; font-family: var(--wk-font-display); font-weight: 600; }
+.rs-btn:hover { background: oklch(100% 0 0 / 0.1); }
+
+/* An item: in the spotlight, flying to its slot, or settled in the grid. The outline is
+   the glow the plugin gives a joker or a back-to-back. */
+.rs-item {
+  position: absolute;
+  left: calc(var(--x) * 1cqw - var(--s) * 0.5cqw); top: calc(var(--y) * 1cqw - var(--s) * 0.5cqw);
+  width: calc(var(--s) * 1cqw); height: calc(var(--s) * 1cqw);
+  filter:
+    drop-shadow(1.5px 0 0 var(--glow)) drop-shadow(-1.5px 0 0 var(--glow))
+    drop-shadow(0 1.5px 0 var(--glow)) drop-shadow(0 -1.5px 0 var(--glow));
+  animation: rs-pop 150ms var(--wk-ease) both;
+}
+.rs-sprite { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+/* Pop up a little large, then settle: POP_TICKS, then SETTLE_TICKS. */
+.rs-spot { animation: rs-spot 300ms var(--wk-ease) both; }
+/* The flight from the spotlight: FLIGHT_TICKS, 300ms. */
+.rs-item[data-fly] { animation: rs-fly 300ms var(--wk-ease) both; }
+@keyframes rs-pop { from { transform: scale(0); } }
+@keyframes rs-spot { 0% { transform: scale(0); } 50% { transform: scale(1.15); } 100% { transform: none; } }
+@keyframes rs-fly { from { transform: translate(calc(var(--from-x) * 1cqw), calc(var(--from-y) * 1cqw)) scale(var(--from-s)); } }
+
+/* The podium: a step of its block, rising from the ground; its player standing on it. */
+.rs-step {
+  position: absolute; left: calc(var(--x) * 1cqw); top: calc(var(--y) * 1cqw);
+  width: calc(var(--w) * 1cqw); height: calc(var(--h) * 1cqw);
+  background: var(--tex) 0 0 / calc(var(--block) * 1cqw) calc(var(--block) * 1cqw); image-rendering: pixelated;
+  box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.25);
+  transform-origin: bottom; animation: rs-rise 1s var(--wk-ease) both;
+}
+@keyframes rs-rise { from { transform: scaleY(0.01); } }
+.rs-figure {
+  position: absolute; left: calc(var(--x) * 1cqw - 8 * var(--u) * 1cqw); top: calc(var(--y) * 1cqw);
+  width: calc(16 * var(--u) * 1cqw); height: calc(32 * var(--u) * 1cqw);
+  animation: rs-pop 250ms var(--wk-ease) both; transform-origin: bottom;
+}
+.rs-figure i {
+  position: absolute; left: calc(var(--fx) * var(--u) * 1cqw); top: calc(var(--fy) * var(--u) * 1cqw);
+  width: calc(var(--w) * var(--u) * 1cqw); height: calc(var(--h) * var(--u) * 1cqw);
+  background-size: calc(64 * var(--u) * 1cqw) calc(64 * var(--u) * 1cqw); background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+/* A firework: eight sparks in the step's colour. The winner's are stars. */
+.rs-burst { position: absolute; left: calc(var(--x) * 1cqw); top: calc(var(--y) * 1cqw); width: 0; height: 0; }
+.rs-burst i {
+  position: absolute; left: -0.4cqw; top: -0.4cqw; width: 0.8cqw; height: 0.8cqw; background: var(--c);
+  animation: rs-spark 1.4s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+.rs-burst[data-star] i:nth-child(odd) { clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); width: 1.2cqw; height: 1.2cqw; }
+@keyframes rs-spark {
+  from { transform: rotate(var(--a)) translateX(0); opacity: 1; }
+  to { transform: rotate(var(--a)) translateX(calc(var(--s) * 1cqw)); opacity: 0; }
+}
+
+.rs-summary {
+  display: grid; font: 400 14px/1.45 var(--wk-font-text); color: #FFFFFF; white-space: nowrap;
+  text-shadow: 0.09em 0.09em 0 oklch(0% 0 0 / 0.6);
+}
+
+/* The chat, as the game prints it: the operator's /result and each announcement. */
+.rs-chat {
+  display: grid; align-content: end; gap: 1px; min-height: calc(4 * 1.45em + 16px);
+  padding: 8px 10px; border-radius: 2px; background: oklch(0% 0 0 / 0.45);
+  font: 400 14px/1.45 var(--wk-font-text); color: #FFFFFF; text-shadow: 0.09em 0.09em 0 oklch(0% 0 0 / 0.6);
+}
+.rs-chatline { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 1100px) {
+  .rs-scene { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-item, .rs-spot, .rs-item[data-fly], .rs-step, .rs-figure { animation: none; }
+  .rs-burst { display: none; }
+}
+html[data-saver="on"] :is(.rs-item, .rs-spot, .rs-item[data-fly], .rs-step, .rs-figure) { animation: none; }
+html[data-saver="on"] .rs-burst { display: none; }
