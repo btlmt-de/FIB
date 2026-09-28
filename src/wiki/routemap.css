@@ -62,7 +62,7 @@
   padding: 12px 0;
   transition: opacity 160ms var(--wk-ease);
 }
-.rt-dest-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 28px; line-height: 1.05; color: var(--wk-ink); text-wrap: balance; }
+.rt-dest-name { font-family: var(--wk-font-display); font-weight: 600; font-size: 25px; line-height: 1.05; color: var(--wk-ink); text-wrap: balance; }
 .rt-dest-stage { font-size: 14px; line-height: 1.35; color: var(--wk-ink-3); }
 .rt-dest-slot { position: relative; line-height: 0; }
 .rt-dest .wk-slot {
@@ -108,6 +108,14 @@
   transition: background 160ms var(--wk-ease);
 }
 .rt-node { display: grid; justify-items: start; gap: 6px; flex-shrink: 0; }
+/* The last source is as wide as its slot, not its name, so the track after it starts
+   at the slot's edge on every lane. Sized to the name, "Inventory or backpack" (a full
+   84px caption) started its track about 28px later than a lane whose source had a
+   short name or none, and the owner saw that lane sit further right on every deal.
+   The name runs on under the track; the track is at the slot's middle, the name below
+   the slot, so they never meet. */
+.rt-src > .rt-node:last-child { width: var(--src-slot); }
+.rt-src > .rt-node:last-child > .rt-cap { width: max-content; }
 /* The slot sits at the node's left edge and its name reads from there. A centred slot
    inside a caption-wide node started a few pixels further right on every lane with a
    longer name, which is exactly the misalignment the fixed columns exist to prevent. */
