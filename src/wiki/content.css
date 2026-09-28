@@ -4,8 +4,9 @@
  *
  * The page's drawings use the wiki's grammar and nothing new: items in sunk slots,
  * straight 2px tracks ending in the pixel arrowhead, stack counts only for counts.
- * A crafting table is drawn as the game draws one (a 3x3 grid, a track, the result),
- * a trade or a smelt as what goes in, where, and what comes out. No section is a card:
+ * A recipe is its 3x3 grid, the crafting table it is laid on, and the result; a trade
+ * or a smelt is what goes in, who or what it goes through (a villager, a furnace, both
+ * drawn as the game draws them), and what comes out. No section is a card:
  * parts are divided by the 1px rule, as everywhere on the wiki.
  *
  * Plain words in comments: no backticks.
@@ -56,6 +57,26 @@
 .cc-result .wk-slot { background: radial-gradient(circle at 50% 60%, oklch(100% 0 0 / 0.06), transparent 70%), var(--wk-slot); }
 .cc-result-name { font-size: 16px; font-weight: 700; line-height: 1.25; color: var(--wk-ink); max-width: 16ch; }
 .cc-craft figcaption, .cc-exchange figcaption { max-width: 52ch; }
+
+/* The recipe being laid (Craft): the slot whose ingredient is landing on the table lifts
+   the way a slot under the cursor does, and the result pops as the craft lands. */
+.cc-grid .wk-slot[data-lift]::after { background: oklch(100% 0 0 / 0.09); }
+.cc-result[data-pop] .wk-slot { animation: cc-pop 300ms var(--wk-ease); }
+@keyframes cc-pop { 0% { transform: scale(0.8); } 55% { transform: scale(1.1); } 100% { transform: none; } }
+
+/* A smelt running (Smelt): the track out of the furnace fills as its progress arrow
+   does, white like the game's, over the cooking time; each result pops as the next
+   fill starts, the way a furnace works through a stack. */
+.cc-to-fill { position: absolute; inset: 0; background: var(--wk-ink); transform-origin: left; transform: scaleX(0); }
+[data-cook] .cc-to-fill { animation: cc-cook var(--cook) linear infinite; }
+[data-cook] .cc-result .wk-slot { animation: cc-cooked var(--cook) linear infinite; }
+@keyframes cc-cook { to { transform: none; } }
+@keyframes cc-cooked { 0% { transform: scale(1.1); } 4%, 100% { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-result[data-pop] .wk-slot, [data-cook] .cc-to-fill, [data-cook] .cc-result .wk-slot { animation: none; }
+}
+html[data-saver="on"] :is(.cc-result[data-pop] .wk-slot, [data-cook] .cc-to-fill, [data-cook] .cc-result .wk-slot) { animation: none; }
 
 /* ── The trip into the Depths ──────────────────────────────────────────────── */
 

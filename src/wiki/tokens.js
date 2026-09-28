@@ -225,6 +225,18 @@ export const STAGE_SKY = {
     low: 'oklch(55% 0.085 242)',
 };
 
+/**
+ * A lit furnace's particles (Block.jsx), in the colours of the game's own sprites:
+ * the flame's orange edge and pale core, and the smoke's grey. Vanilla's smoke is
+ * dark, a random grey from black to 0.3, so it is taken from that range; a mid grey
+ * vanished against the furnace's stone.
+ */
+export const PARTICLE = {
+    flame: 'oklch(76% 0.16 62)',
+    flameCore: 'oklch(94% 0.08 95)',
+    smoke: 'oklch(30% 0.004 255)',
+};
+
 export const font = {
     // Headings, figures, item names at display size, rarity words. Never body text.
     // 'FIB Figures' covers the digits only (see wiki.css): Handjet's dotted zero
@@ -268,6 +280,9 @@ export function cssVars() {
     v['--wk-hud-sky-low'] = HUD.skyLow;
     v['--wk-stage-sky-high'] = STAGE_SKY.high;
     v['--wk-stage-sky-low'] = STAGE_SKY.low;
+    v['--wk-flame'] = PARTICLE.flame;
+    v['--wk-flame-core'] = PARTICLE.flameCore;
+    v['--wk-smoke'] = PARTICLE.smoke;
     v['--wk-font-display'] = font.display;
     v['--wk-font-text'] = font.text;
     v['--wk-font-typed'] = font.typed;

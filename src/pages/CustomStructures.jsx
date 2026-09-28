@@ -5,6 +5,7 @@ import { useCalm } from '../config/power.js';
 import { useOnScreen, useTicker } from '../wiki/hooks.js';
 import PageLinks from '../wiki/PageLinks.jsx';
 import Trader, { Villager } from '../wiki/Villager.jsx';
+import Block from '../wiki/Block.jsx';
 import { useGo } from '../wiki/pages.js';
 import { spriteFallback, spriteOf } from '../wiki/sprite.js';
 import { TABLES, pct, rangeText, roll } from '../wiki/loot.js';
@@ -85,9 +86,9 @@ const RECIPES = {
 
 /* ── Drawing pieces ─────────────────────────────────────────────────────────── */
 
-function Face({ item, size = 48, count = null, className = '' }) {
+function Face({ item, size = 48, count = null, className = '', lift = false }) {
     return (
-        <span className={`wk-slot ${className}`} style={{ '--slot': `${size}px` }} title={item.name}>
+        <span className={`wk-slot ${className}`} style={{ '--slot': `${size}px` }} title={item.name} data-lift={lift || undefined}>
             <img className="wk-sprite" src={item.src ?? spriteOf(item.material)} data-material={item.material}
                  onError={spriteFallback} alt="" width="128" height="128" loading="lazy" draggable="false" />
             {count != null && count > 1 && <span className="wk-count">{count}</span>}
@@ -95,19 +96,50 @@ function Face({ item, size = 48, count = null, className = '' }) {
     );
 }
 
-const To = ({ label }) => <span className="cc-to" aria-hidden="true">{label && <span className="cc-to-label">{label}</span>}</span>;
+const To = ({ label, fill = false }) => (
+    <span className="cc-to" aria-hidden="true">
+        {label && <span className="cc-to-label">{label}</span>}
+        {fill && <span className="cc-to-fill" />}
+    </span>
+);
 
-/** A crafting table: the 3x3 grid, a track, the result. The grid is drawn; the sentence is for a screen reader. */
+/*
+ * A recipe being made. The ingredients go down on the table one at a time, in reading
+ * order, each lifting its slot in the grid as it lands in the same cell of the table's
+ * own grid; with all of them down the table nods, its grid clears and the result pops.
+ * Crafting in the game is instant: this is the recipe told in order, not a timing. The
+ * grid beside the table always holds the whole recipe, because the grid is the
+ * information. Still (off screen, reduced motion, saver), the recipe lies on the table.
+ */
+const PLACE_MS = 380;
+const CRAFT_HOLD = 2;   // ticks with everything down, before the craft
+const RESULT_HOLD = 6;  // ticks showing the result, before the table is laid again
+
+/** A crafting table: the 3x3 grid, the table, the result. The sentence is for a screen reader. */
 function Craft({ grid, result, caption }) {
     const ingredients = [...new Set(grid.flat().filter(Boolean).map((c) => c.name))];
+    const cells = grid.flatMap((row, r) => row.map((item, c) => item && { item, cell: [r, c], i: r * 3 + c, key: `${r}${c}` })).filter(Boolean);
+    const n = cells.length;
+    const craftAt = n + CRAFT_HOLD;
+    const ref = useRef(null);
+    const calm = useCalm();
+    const live = useOnScreen(ref) && !calm;
+    const [t, setT] = useState(0);
+    const tick = useCallback(() => setT((x) => (x + 1) % (craftAt + 1 + RESULT_HOLD)), [craftAt]);
+    useTicker(tick, PLACE_MS, live);
+    const crafted = live && t >= craftAt;
+    const onTable = !live ? cells : crafted ? [] : cells.slice(0, Math.min(t, n));
+    const landing = live && t >= 1 && t <= n ? cells[t - 1].i : null;
     return (
-        <figure className="cc-craft">
+        <figure className="cc-craft" ref={ref}>
             <div className="cc-craft-row" aria-hidden="true">
                 <span className="cc-grid">
-                    {grid.flat().map((c, i) => (c ? <Face key={i} item={c} size={40} /> : <span key={i} className="wk-slot" style={{ '--slot': '40px' }} />))}
+                    {grid.flat().map((c, i) => (c ? <Face key={i} item={c} size={40} lift={i === landing} /> : <span key={i} className="wk-slot" style={{ '--slot': '40px' }} />))}
                 </span>
                 <To />
-                <span className="cc-result"><Face item={result} size={64} /><span className="cc-result-name">{result.name}</span></span>
+                <Block kind="CRAFTING_TABLE" items={onTable} bump={live && t === craftAt} />
+                <To />
+                <span className="cc-result" data-pop={(live && t === craftAt) || undefined}><Face item={result} size={64} /><span className="cc-result-name">{result.name}</span></span>
             </div>
             <figcaption className="wk-small">
                 <span className="wk-sr">Crafted from {ingredients.join(', ')}. </span>{caption}
@@ -116,19 +148,13 @@ function Craft({ grid, result, caption }) {
     );
 }
 
-/** A trade or a smelt: what goes in, where, what comes out. */
+/** A trade: what goes in, who with, what comes out. */
 function Exchange({ give, via, get, caption }) {
     return (
         <figure className="cc-exchange">
             <div className="cc-exchange-row" aria-hidden="true">
                 <span className="cc-give">{give.map((g) => <Face key={g.item.name} item={g.item} size={48} count={g.count} />)}</span>
                 <To label={via?.label} />
-                {via?.item && (
-                    <>
-                        <Face item={via.item} size={48} className="cc-via" />
-                        <To />
-                    </>
-                )}
                 {via?.figure && (
                     <>
                         {via.figure}
@@ -139,6 +165,32 @@ function Exchange({ give, via, get, caption }) {
             </div>
             <figcaption className="wk-small">
                 <span className="wk-sr">{give.map((g) => `${g.count ?? 1} ${g.item.name}`).join(' and ')}{via?.label ? `, ${via.label}` : ''}, for {get.item.name}. </span>{caption}
+            </figcaption>
+        </figure>
+    );
+}
+
+/*
+ * A smelt, running: the furnace lit, and the track out of it filling as the furnace's
+ * own progress arrow fills, at the recipe's own cooking time. The result pops as each
+ * fill completes and the next begins, the way a furnace fed a stack works through it.
+ * Still, the furnace stays lit, since lit is what it is while it smelts.
+ */
+function Smelt({ input, result, seconds, caption }) {
+    const ref = useRef(null);
+    const calm = useCalm();
+    const live = useOnScreen(ref) && !calm;
+    return (
+        <figure className="cc-exchange" ref={ref} data-cook={live || undefined} style={{ '--cook': `${seconds}s` }}>
+            <div className="cc-exchange-row" aria-hidden="true">
+                <span className="cc-give"><Face item={input} size={48} /></span>
+                <To />
+                <Block kind="FURNACE" lit live={live} />
+                <To fill />
+                <span className="cc-result"><Face item={result} size={64} /><span className="cc-result-name">{result.name}</span></span>
+            </div>
+            <figcaption className="wk-small">
+                <span className="wk-sr">{input.name}, smelted in a furnace, for {result.name}. </span>{caption}
             </figcaption>
         </figure>
     );
@@ -554,7 +606,7 @@ function Locators() {
                         footprints are dusted across the ground to the nearest ruins. It is a tool, never used up, and it still
                         brushes suspicious sand and gravel as normal.
                     </p>
-                    <Exchange give={[{ item: v('brush') }]} via={{ item: v('furnace'), label: null }} get={{ item: ITEM.brush }} caption="Any brush, any furnace, no chance involved." />
+                    <Smelt input={v('brush')} result={ITEM.brush} seconds={10} caption="Any brush, any furnace, no chance involved. Ten seconds, like any smelt." />
                     <p className="wk-small">In game: <Typed>/info kiln_fired_brush</Typed></p>
                 </article>
 
