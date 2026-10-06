@@ -26,7 +26,7 @@ import '../wiki/pages/home.css';
  * counts, the next one replaces it with no pause (the loop). Meanwhile the clock
  * runs and the pool only grows harder (the pressure). Sometimes the right move is to
  * skip it, or you are lucky and already holding it (the escapes). Only then the
- * world, as the toolbox all of this draws on, and the three modes, each drawn as its
+ * world, as the toolbox all of this draws on, and the four modes, each drawn as its
  * own mechanic.
  *
  * An earlier version opened on the world instead, and read as a game about which
@@ -60,6 +60,8 @@ const MODES = [
       text: 'A single item is active for all players at once. The first to collect it scores, and everyone else resets to chase the next one.' },
     { key: 'chain', name: 'ForceChain', hook: 'Your next item is always visible. Plan two moves ahead.',
       text: 'You can always see both your current item and the one after it. The best players route for both at once.' },
+    { key: 'mirror', name: 'MirrorBattle', hook: 'Everyone hunts the same items, in the same order.',
+      text: 'One row of items for everybody, each player on it at their own pace. Every pool is open from the first item.' },
 ];
 
 const TEAM = [
@@ -762,8 +764,8 @@ function World({ go, calm }) {
     );
 }
 
-/* ── 7. The modes, as three frames of one diagram ────────────────────────────
- * One rule, three ways to play it, so the three drawings are one drawing with one
+/* ── 7. The modes, as four frames of one diagram ─────────────────────────────
+ * One rule, four ways to play it, so the four drawings are one drawing with one
  * thing changed. Every frame is the same grid: the same three players on the same
  * three rows, their found items trailing behind them, the item they hunt NOW in one
  * column, what comes NEXT in the column after it, the score at the end. Read across,
@@ -772,6 +774,9 @@ function World({ go, calm }) {
  *   ForceItemBattle  each row its own items, next unknown       ?  per row
  *   RunBattle        the rows converge on ONE item, first scores
  *   ForceChain       the same rows as ForceItemBattle, next shown  item per row
+ *   MirrorBattle     every row walks ONE sequence, each at its     ?  per row
+ *                    own pace, so the same items sit at different
+ *                    depths in each trail
  *
  * *These were three unrelated drawings, and the reason they are not is worth keeping.*
  * An inventory with ticks, a race of lines and a NOW / NEXT / ? belt each explained
@@ -781,7 +786,13 @@ function World({ go, calm }) {
  *
  * The draw is truthful to the plugin (ForceItemAssignment): in RunBattle one seeded
  * sequence serves every player; otherwise each draws privately, and ForceChain only
- * shows the next item the plugin always holds anyway.
+ * shows the next item the plugin always holds anyway. MirrorBattle (Oct 2026) draws
+ * one row for the round and gives every Score Owner its own cursor into it; Run
+ * Battle overrides it, because Run already shares one row.
+ *
+ * MirrorBattle made it four, and the list went from three thirds to two by two: four
+ * frames in one row left the trail room for a single item, and the trail is what
+ * tells MirrorBattle apart from ForceItemBattle.
  */
 
 const HEADS = ['MHF_Steve', 'MHF_Alex', 'MHF_Villager'];
@@ -789,6 +800,9 @@ const LANES = [0, 1, 2];
 /* Scores for the still frame. Uneven on purpose: each row moves at its own pace. */
 const FIB_SCORES = [5, 2, 4];
 const CHAIN_SCORES = [3, 4, 1];
+const MIRROR_SCORES = [4, 1, 3];
+/* Every stage at once, the way the mode opens the pool. Built once: usePicks memoises on it. */
+const MIRROR_DEAL = [...DEALABLE_BY_STAGE.EARLY, ...DEALABLE_BY_STAGE.MID, ...DEALABLE_BY_STAGE.LATE];
 const RUN_WINNER = 1;
 const TRAIL = 4;
 
@@ -853,6 +867,28 @@ function ModeOwn({ kind, items, scores, showNext }) {
                     </React.Fragment>
                 );
             })}
+        </Frame>
+    );
+}
+
+/*
+ * MirrorBattle: one sequence, read by each row at its own depth. Row i has found the
+ * first MIRROR_SCORES[i] items and hunts the next, so the item one row is hunting
+ * already sits ticked in a faster row's trail. NEXT stays hidden: the plugin draws
+ * the row's next item only when its first player reaches it.
+ */
+function ModeMirror({ items, scores }) {
+    return (
+        <Frame kind="mirror">
+            {LANES.map((i) => (
+                <React.Fragment key={i}>
+                    <Trail row={i} items={items.slice(0, scores[i]).reverse().slice(0, TRAIL)} />
+                    <span className="hm-f-now hm-live" style={onRow(i)}><ItemSlot material={items[scores[i]]} size={48} tip={false} marks={false} /></span>
+                    <span className="hm-f-link" style={onRow(i)} />
+                    <Hidden style={onRow(i)} />
+                    <span className="hm-f-score wk-figure" style={onRow(i)}>{scores[i]}</span>
+                </React.Fragment>
+            ))}
         </Frame>
     );
 }
@@ -945,15 +981,17 @@ function Modes({ go }) {
     const fib = usePicks(DEALABLE_BY_STAGE.EARLY, 3 * (TRAIL + 2));
     const chain = usePicks(DEALABLE_BY_STAGE.MID, 3 * (TRAIL + 2));
     const [run, ...runPast] = usePicks(DEALABLE_BY_STAGE.MID, 1 + RUN_PAST_WINNERS.length);
+    const mirror = usePicks(MIRROR_DEAL, Math.max(...MIRROR_SCORES) + 1);
     const diagrams = {
         fib: <ModeOwn kind="fib" items={fib} scores={FIB_SCORES} />,
         run: <ModeRun item={run} past={runPast} />,
         chain: <ModeOwn kind="chain" items={chain} scores={CHAIN_SCORES} showNext />,
+        mirror: <ModeMirror items={mirror} scores={MIRROR_SCORES} />,
     };
     return (
         <section className="wk-wrap hm-modes" aria-labelledby="hm-modes-title">
             <div className="hm-modes-head">
-                <h2 id="hm-modes-title" className="wk-h2">Three ways to play</h2>
+                <h2 id="hm-modes-title" className="wk-h2">Four ways to play</h2>
                 <a className="wk-link hm-go" href="/gameplay" onClick={go('gameplay')}>Modes in detail<ArrowRight size={14} aria-hidden="true" /></a>
             </div>
             <ul className="hm-mode-list">

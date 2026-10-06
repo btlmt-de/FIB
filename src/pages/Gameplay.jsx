@@ -32,8 +32,10 @@ import '../wiki/pages/gameplay.css';
  *                               model/FindOutcome: a skip scores except in Run Battle
  *   back-to-backs               manager/BackToBackManager (what is searched) and
  *                               model/BackToBackProbability + Rarity (the odds, the grade)
- *   the modes                   manager/ForceItemAssignment (private draws, or one seeded
- *                               sequence for the whole server in Run Battle)
+ *   the modes                   manager/ForceItemAssignment (private draws, one seeded
+ *                               sequence for the whole server in Run Battle, or one row
+ *                               every owner walks at its own pace in Mirror Battle) and
+ *                               UnlockSchedule.allAtOnce, Mirror Battle's open pool
  *   random events               randomevents/*: the schedule, weights and rewards
  *
  * Where a drawing needs a round, it is the standard one (ROUND in tokens.js: 60
@@ -228,7 +230,8 @@ function Clock() {
                 </p>
                 <p className="wk-small">
                     A Quickie round stops at Early, or at Early and Mid. The length is set when the round
-                    is started, with <code className="wk-typed">/start</code>.
+                    is started, with <code className="wk-typed">/start</code>. In Mirror Battle every stage
+                    the round allows is open from the first item.
                 </p>
             </div>
 
@@ -835,6 +838,41 @@ function SimRun({ live }) {
     );
 }
 
+/* One row for everyone: each lane's trail is the same items, at its own depth. */
+function SimMirror({ live }) {
+    const [state, setState] = useState(() => ({ seq: picks(EARLY_MID, 6), scores: [4, 1, 3] }));
+    const step = useCallback(() => {
+        setState(({ seq, scores }) => {
+            const next = scores.map((n, i) => (Math.random() > [0.2, 0.14, 0.1][i] ? n : n + 1));
+            const grown = seq.length > Math.max(...next) ? seq : [...seq, pick(EARLY_MID)];
+            return { seq: grown, scores: next };
+        });
+    }, []);
+    useTicker(step, 420, live);
+    return (
+        <div className="gp-sim gp-sim--fib" aria-hidden="true">
+            {state.scores.map((score, i) => {
+                const from = Math.max(0, score - 4);
+                const trail = state.seq.slice(from, score);
+                return (
+                    <div key={HEADS[i]} className="gp-lane">
+                        <Head name={HEADS[i]} />
+                        <span className="gp-lane-trail">
+                            {trail.map((m, j) => (
+                                <span key={from + j} className="gp-done" style={{ '--age': trail.length - 1 - j }}>
+                                    <ItemSlot material={m} size={36} tip={false} marks={false} /><Tick />
+                                </span>
+                            ))}
+                        </span>
+                        <span className="gp-live" key={score}><ItemSlot material={state.seq[score]} size={48} tip={false} /></span>
+                        <span className="wk-figure gp-lane-score">{score}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 function SimChain({ live }) {
     // done, now, next, and one drawn but not shown yet.
     const [seq, setSeq] = useState(() => picks(EARLY_MID, 4));
@@ -900,6 +938,15 @@ const MODES = [
         ],
         caption: 'The chain moving on after each find.',
     },
+    {
+        key: 'mirror', name: 'MirrorBattle', Sim: SimMirror, setting: <>Switched on in <code className="wk-typed">/settings</code>: Mirror Battle. Run Battle wins if both are on.</>,
+        hook: 'Everyone hunts the same items, in the same order.',
+        rules: [
+            'One row of items for the whole round. Each player or team works through it at their own pace, so whatever a faster player just found is coming your way too.',
+            'Every pool is open from the first item; nothing unlocks later.',
+        ],
+        caption: 'Three players on one row of items, each at their own place in it.',
+    },
 ];
 
 function Mode({ mode, calm }) {
@@ -927,7 +974,7 @@ function Mode({ mode, calm }) {
 function Modes({ calm }) {
     return (
         <section id="modes" className="wk-wrap gp-modes" aria-labelledby="modes-title">
-            <h2 id="modes-title" className="wk-h3">Three ways to play</h2>
+            <h2 id="modes-title" className="wk-h3">Four ways to play</h2>
             <ul className="gp-mode-list">
                 {MODES.map((m) => <Mode key={m.key} mode={m} calm={calm} />)}
             </ul>
