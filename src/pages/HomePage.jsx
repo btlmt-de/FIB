@@ -61,7 +61,7 @@ const MODES = [
     { key: 'chain', name: 'ForceChain', hook: 'Your next item is always visible. Plan two moves ahead.',
       text: 'You can always see both your current item and the one after it. The best players route for both at once.' },
     { key: 'mirror', name: 'MirrorBattle', hook: 'Everyone hunts the same items, in the same order.',
-      text: 'One row of items for everybody, each player on it at their own pace. Every pool is open from the first item.' },
+      text: 'One row of items for everybody, each player on it at their own pace. Every pool the round allows is open from the first item.' },
 ];
 
 const TEAM = [

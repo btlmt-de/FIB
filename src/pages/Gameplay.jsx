@@ -943,7 +943,7 @@ const MODES = [
         hook: 'Everyone hunts the same items, in the same order.',
         rules: [
             'One row of items for the whole round. Each player or team works through it at their own pace, so whatever a faster player just found is coming your way too.',
-            'Every pool is open from the first item; nothing unlocks later.',
+            'Every pool the round allows is open from the first item; nothing unlocks later. A Quickie round still stops where it would.',
         ],
         caption: 'Three players on one row of items, each at their own place in it.',
     },
