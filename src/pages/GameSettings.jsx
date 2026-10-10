@@ -43,6 +43,7 @@ const QUICKIE = ['Disabled', 'Early only', 'Early + Mid'];
 /* What each setting does, in players' words. Keyed by the enum's name. */
 const NOTES = {
     RUN: { group: 'mode', on: 'One item for the whole server. The first to get it scores, and everyone moves on together. Back-to-backs, random events and stats are off for the round.', off: 'Everyone draws their own items.', link: ['/gameplay#modes', 'The modes'] },
+    MIRROR: { group: 'mode', on: 'One row of items for everyone, each player or team at their own pace, with every pool the round allows open from the start.', off: 'Everyone draws their own items.', needs: 'Ignored in Run Battle', link: ['/gameplay#modes', 'The modes'] },
     CHAIN: { group: 'mode', on: 'The bossbar shows your next item after the current one.', off: 'Only the current item is shown.', link: ['/gameplay#modes', 'The modes'] },
     TEAM: { group: 'mode', on: 'Players play in teams: one score, one set of jokers, one backpack.', off: 'Everyone plays alone.', needs: 'Only with 4 or more players' },
     TEAM_CHAT: { group: 'mode', on: 'Chat goes to your team; /shout reaches everyone.', off: 'Chat goes to everyone.', needs: 'With Teams' },

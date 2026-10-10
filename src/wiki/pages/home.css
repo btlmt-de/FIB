@@ -449,7 +449,7 @@
 }
 .hm-more:hover { background: oklch(28% 0.010 255); }
 
-/* ── 7. The modes, as three frames of one diagram ─────────────────────────── */
+/* ── 7. The modes, as four frames of one diagram ──────────────────────────── */
 
 .hm-modes { --hm-gap: 40px; padding: 64px 0 56px; }
 /* The heading and its way onward share a baseline, so the link belongs to the
@@ -461,11 +461,12 @@
 .hm-go svg { color: var(--wk-ink-3); transition: transform 160ms var(--wk-ease); }
 .hm-go:hover svg { transform: translateX(2px); color: var(--wk-ink); }
 
-/* Three equal thirds. The gap is the one the standard round's columns use below,
-   so its dividers fall on the same lines. */
+/* Two by two. These were three equal thirds whose dividers fell on the standard
+   round's columns below; MirrorBattle made four, and four in one row left the trail
+   room for one item, which is the part that tells the modes apart. */
 .hm-mode-list {
   list-style: none; margin: 24px 0 0; padding: 0;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hm-gap);
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px var(--hm-gap);
 }
 .hm-mode { display: grid; align-content: start; min-width: 0; }
 .hm-mode .hm-mech { margin-top: 22px; }

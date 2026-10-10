@@ -9,7 +9,7 @@
 
 export const PAGES = [
     { id: 'how-to-play', name: 'How to Play', face: 'CRAFTING_TABLE', text: 'Join our server, or host a round yourself with the plugin, pack and datapack.' },
-    { id: 'gameplay', name: 'Gameplay', face: 'COMPASS', text: 'The loop, the three modes, the pool stages and strategy.' },
+    { id: 'gameplay', name: 'Gameplay', face: 'COMPASS', text: 'The loop, the four modes, the pool stages and strategy.' },
     { id: 'pools', name: 'Item Pools', face: 'CHEST', text: 'Every item the game can hand you, by stage and tag.' },
     { id: 'structures', name: 'Custom Content', face: 'STRUCTURE_BLOCK', text: 'The structures and items built for this edition.' },
     { id: 'commands', name: 'Commands', face: 'COMMAND_BLOCK', text: 'Every command, what it does and who can use it.' },
