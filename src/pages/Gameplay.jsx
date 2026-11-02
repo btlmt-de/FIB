@@ -1201,7 +1201,7 @@ const TIPS = [
     { face: 'FILLED_MAP', name: 'Split up',
       text: 'In a team, head in entirely different directions. Covering more biomes means a better chance of being near whatever comes up.' },
     { face: 'BARREL', name: 'Build a base you can read',
-      text: 'Compact, near varied biomes or caves, and sorted, so nothing gets lost mid-round. A good setup matters more than luck.' },
+      text: 'Compact, near varied biomes or caves, and sorted, so nothing gets lost mid-round.' },
 ];
 
 function Strategy() {
@@ -1209,9 +1209,6 @@ function Strategy() {
         <section id="strategy" className="wk-wrap pg-sec" aria-labelledby="strategy-title">
             <div className="pg-sec-head">
                 <h2 id="strategy-title" className="wk-h3">Playing it well</h2>
-                <p className="wk-p">
-                    There is no single meta. The players who win consistently stay organised, decide quickly and adapt.
-                </p>
             </div>
             <ul className="gp-tips">
                 {TIPS.map((t) => (
@@ -1243,8 +1240,7 @@ export default function Gameplay({ onNavigate }) {
             <header className="wk-wrap pg-head">
                 <h1 className="wk-h2">Gameplay</h1>
                 <p className="wk-lede">
-                    Everything you need to understand ForceItemBattle: how the loop works, which modes exist,
-                    and how the best players stay ahead.
+                    How a round runs, from the first item you are handed to the result screen.
                 </p>
                 <nav className="gp-toc" aria-label="On this page">
                     <span className="wk-label">On this page</span>

@@ -301,7 +301,7 @@ function Depths() {
                 <p className="wk-p">
                     A loot dungeon in a dimension of its own, and the fast way to the End. You do not dig down to it:
                     you open a portal to it, and the portal you open is <strong>yours alone</strong>. Nobody can follow you
-                    in and empty the barrels first. Finding the doorway is cheap. Opening it is not.
+                    in and empty the barrels first.
                 </p>
             </div>
 
@@ -322,8 +322,7 @@ function Depths() {
                 </Step>
                 <Step n="3" title="Craft the Totem of Antimatter" drawing={<Craft grid={RECIPES.totem} result={ITEM.totem} caption="Spent every time a portal is opened." />}>
                     <p className="wk-p">
-                        The real price of the trip: the eye goes in at the top, and the totem is used up each time you
-                        open a portal.
+                        The eye goes in at the top, and the totem is used up each time you open a portal.
                     </p>
                 </Step>
                 <Step n="4" title="Open your portal" drawing={<>
@@ -651,7 +650,7 @@ const BIOME_NOTES = [
  * handed the offers back to this page.
  */
 const SPECIAL = [
-    { price: 1, get: { item: { ...ITEM.wheel, name: 'Wheels of Fortune' }, count: 3 }, note: 'Three for one emerald: the reason to run.' },
+    { price: 1, get: { item: { ...ITEM.wheel, name: 'Wheels of Fortune' }, count: 3 }, note: 'Three for one emerald.' },
     { price: 5, get: { item: ITEM.journal }, note: 'Otherwise only found in shipwrecks.' },
     { price: 5, get: { item: { name: 'A random locator' }, shuffle: [ITEM.antimatterLocator, ITEM.trialLocator, ITEM.sulfurLocator] }, note: 'Antimatter, Trial or Sulfur, rolled when the trader arrives.' },
     { price: 5, get: { item: { ...v('iron_pickaxe'), name: 'Iron Pickaxe' } }, note: 'Enchanted at level 30, no treasure enchantments.' },
@@ -780,8 +779,8 @@ export default function CustomStructures({ onNavigate }) {
             <header className="wk-wrap pg-head">
                 <h1 className="wk-h2">Custom Content</h1>
                 <p className="wk-lede">
-                    FIB was made for short rounds, which meant leaving out harder parts of Minecraft like the End. Instead of
-                    leaving them out, we built structures and items that bring them within reach.
+                    Short rounds used to leave the harder parts of Minecraft, like the End, out of play. These structures
+                    and items bring them within reach.
                 </p>
                 <nav className="cc-contents" aria-label="The custom items">
                     <span className="wk-label">The custom items</span>

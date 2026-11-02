@@ -53,7 +53,6 @@ export default function Rules({ onNavigate }) {
                     <a className="wk-btn wk-btn--quiet rl-btn" href="https://mcplayhd.net/rules" target="_blank" rel="noopener noreferrer">
                         Read them on mcplayhd.net <ArrowUpRight size={16} aria-hidden="true" />
                     </a>
-                    <p className="wk-small">What follows is what ForceItemBattle adds to them.</p>
                 </div>
             </section>
 

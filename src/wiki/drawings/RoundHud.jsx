@@ -167,7 +167,7 @@ const PARTS = [
     { key: 'bossbar', name: 'Bossbar', text: 'The item you are hunting, with its icon. In Force Chain, the one after it too.' },
     { key: 'actionbar', name: 'Action bar', text: 'The time left, then your score (your team\'s in a team round). The score shows only with Score on.' },
     { key: 'hotbar', name: 'Hotbar', text: 'Your kit: stone tools, your jokers in the fifth slot, the backpack in the last.' },
-    { key: 'chat', name: 'Chat', text: 'A new pool as it opens, a trader as it arrives and leaves. Drawn under the screen here, so it covers nothing.' },
+    { key: 'chat', name: 'Chat', text: 'A new pool as it opens, a trader as it arrives and leaves.' },
     { key: 'title', name: 'Titles', text: '5 minutes, 1 minute, 30 and 10 seconds left, then the last five in large numbers.' },
     { key: 'tab', name: 'Tab list', text: 'Hold Tab: every player with their current item after their name, the open pools and when the next opens, your jokers, the time of day on the surface, and any trader with its countdown.' },
 ];

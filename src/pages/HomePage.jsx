@@ -199,7 +199,7 @@ function Opening({ go, deal }) {
                     <p className="wk-small hm-open-note">
                         Popularised by{' '}
                         <a className="wk-link" href="https://www.youtube.com/@BastiGHG" target="_blank" rel="noopener noreferrer">BastiGHG</a>.
-                        {' '}This is the <strong>McPlayHD.net</strong> edition: our rules, our balance, our world.
+                        {' '}This is the <strong>McPlayHD.net</strong> edition.
                     </p>
                     <div className="hm-open-actions">
                         <a className="wk-btn" href="/how-to-play" onClick={go('how-to-play')}>
@@ -260,7 +260,7 @@ function Routes({ deal, calm }) {
     return (
         <section className="wk-wrap hm-routes" aria-labelledby="hm-routes-title" style={{ '--region': region.light }}>
             <div className="hm-routes-head">
-                <h2 id="hm-routes-title" className="wk-h2">One item. Many ways to get it.</h2>
+                <h2 id="hm-routes-title" className="wk-h2">Every way to get it</h2>
                 <p className="wk-p">
                     The game hands you an item and nothing else. Every way Minecraft offers to get it is open, and the
                     round goes to whoever picks the fastest one from where they are standing.
@@ -577,7 +577,7 @@ function Escapes() {
      */
     return (
         <section className="wk-wrap hm-escapes" aria-labelledby="hm-escapes-title">
-            <h2 id="hm-escapes-title" className="wk-h2">Sometimes it costs you. Sometimes it pays.</h2>
+            <h2 id="hm-escapes-title" className="wk-h2">Jokers and back-to-backs</h2>
             <div className="hm-escapes-grid">
                 <div className="hm-seq" role="img"
                      aria-label={`${itemName(skipped)} would cost too long, so a joker trades it for ${itemName(next)}.`}>
