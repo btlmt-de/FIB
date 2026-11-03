@@ -1,17 +1,4 @@
-/*
- * Gameplay (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
- * page.css, this file is the page's drawings.
- *
- * Motion here is information, never garnish: a simulation moves because the mode it
- * explains is a thing that moves. So every one of them runs only while on screen,
- * and under reduced motion or saver mode stands still on a frame that still says
- * what it shows (the JS stops the clocks; this file stops the keyframes).
- *
- * Colour follows the Datum Rule: stage light for stages, the grade inks for grades,
- * white light for anything the pointer or the sweep touches.
- *
- * Plain words in comments: no backticks.
- */
+/* The JS stops the clocks under calm; this file stops the keyframes. */
 
 .gp-head { width: 32px; height: 32px; image-rendering: pixelated; flex-shrink: 0; }
 .gp-tick {
@@ -26,7 +13,6 @@
 .gp-btns { display: inline-flex; gap: 6px; }
 .gp-seq-cap { font-size: 14px; line-height: 1.3; color: var(--wk-ink-3); text-align: center; }
 
-/* The track every drawing on the wiki uses, here for the jokers and the chain. */
 .gp-seq-to { position: relative; flex: 0 0 36px; height: 2px; margin-top: -24px; background: var(--wk-line-hi); transition: background 200ms var(--wk-ease); }
 .gp-seq-to::after {
   content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
@@ -42,7 +28,6 @@
 .gp-toc .wk-label { margin-right: 4px; }
 .gp-toc .wk-link { font-size: 16px; }
 
-/* Things that arrive drop in from above, over the draw's 280ms. */
 @keyframes gp-drop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: none; } }
 @keyframes gp-rise { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-22px); } }
 @keyframes gp-in-right { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
@@ -51,7 +36,6 @@
 /* ── 1. One item at a time ─────────────────────────────────────────────────── */
 
 .gp-round { display: grid; gap: 20px; }
-/* The loop sits over the two draws it describes, and runs the width of them. */
 .gp-beats { margin-bottom: 4px; }
 .gp-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 40px; }
 .gp-pair-one { display: grid; gap: 10px; justify-items: start; min-width: 0; }
@@ -74,7 +58,6 @@
 .gp-field .wk-label { grid-column: 1 / -1; }
 .gp-field-val { font-size: 18px; color: var(--wk-ink); min-width: 4ch; text-align: right; }
 
-/* Range inputs, drawn in the wiki's terms: a 2px rail and a square thumb. */
 .gp-field input[type="range"], .gp-scrub {
   -webkit-appearance: none; appearance: none;
   width: 100%; height: 28px; margin: 0; background: transparent; cursor: pointer;
@@ -91,11 +74,7 @@
   box-shadow: inset 0 -3px 0 oklch(0% 0 0 / 0.3);
 }
 
-/* The schedule: a lane per stage on one minute axis. The name column is fixed, so
-   the track column is the same width in every lane and the playhead, the scrubber
-   and the ticks can span all three. A lane's bar runs from its unlock to the end of
-   the round: outlined in the stage's light ahead of the playhead, filled behind it.
-   Before its unlock a lane is only the round's 2px line. */
+/* The name column is fixed so the playhead, scrubber and ticks can span all three lanes. */
 .gp-sched {
   --name: 150px;
   position: relative;
@@ -122,8 +101,7 @@
 .gp-sched-head {
   grid-column: 2; grid-row: 1 / 4; position: relative; pointer-events: none;
 }
-/* The playhead is the handle: a white line through every lane with a square grip on
-   top. The range input over it is invisible and takes the drag anywhere on the lanes. */
+/* The invisible range input over the lanes takes the drag anywhere. */
 .gp-sched-head::before {
   content: ""; position: absolute; top: -6px; bottom: -6px; left: var(--at); width: 2px; margin-left: -1px;
   background: var(--wk-ink);
@@ -151,7 +129,6 @@
 .gp-clock-read .wk-datum { color: var(--wk-ink); }
 .gp-big { font-size: 22px; }
 
-/* The pool as three blocks to scale; a stage is lit once it has joined. */
 .gp-poolbar { display: flex; gap: 2px; }
 .gp-poolbar-seg {
   position: relative; min-width: 0; height: 12px;
@@ -192,8 +169,6 @@
 
 /* ── 4. Back-to-backs ──────────────────────────────────────────────────────── */
 
-/* The one section where the drawing is wider than the question: it takes the full
-   column, with the words above it rather than beside. */
 .gp-sec-wide { grid-template-columns: 1fr; }
 .gp-sec-wide .pg-sec-head { position: static; max-width: 72ch; }
 
@@ -203,11 +178,9 @@
 .gp-inv-grid { display: grid; grid-template-columns: repeat(var(--cols), 40px); gap: 2px; }
 .gp-hotbar { margin-top: 6px; }
 
-/* The sweep: white light passing slot by slot, as the pointer lights a slot. */
 .gp-cell::after { transition: background 90ms linear; }
 .gp-cell.is-scan::after { background: oklch(100% 0 0 / 0.22); }
 .gp-cell.is-scan { outline: 2px solid var(--wk-ink); outline-offset: -1px; }
-/* A find rings in the item's stage light (the slot's own stage bar says which). */
 .gp-cell.is-hit {
   box-shadow: inset 0 0 0 2px var(--stage-light, var(--wk-s-early)), 0 0 14px -2px var(--stage-light, var(--wk-s-early));
   z-index: 1;
@@ -219,7 +192,6 @@
 .gp-cell.is-plugin .wk-sprite { opacity: 0.35; }
 
 .gp-inside { display: flex; flex-wrap: wrap; gap: 14px 24px; margin-top: 10px; padding-top: 10px; box-shadow: inset 0 1px 0 var(--wk-line); }
-/* A container's contents stay dim until the sweep opens it. */
 .gp-inside-one { display: grid; gap: 6px; opacity: 0.4; transition: opacity 240ms var(--wk-ease); }
 .gp-inside-one[data-open] { opacity: 1; }
 .gp-inside-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--wk-ink-3); }
@@ -230,8 +202,6 @@
 .gp-b2b-line { margin: 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 44ch; }
 .gp-b2b-chain { margin: 0; font-size: 16px; color: var(--wk-ink-3); }
 .gp-b2b-chain .wk-datum { font-size: 22px; color: var(--wk-ink); }
-/* The point, in the light the find rang in: the whole payoff of this section. How
-   rare it was is the next section's question. */
 .gp-b2b-point {
   margin: 0; display: flex; align-items: baseline; gap: 10px;
   font-weight: 700; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums;
@@ -265,8 +235,6 @@
 .gp-odds-pct { font-size: clamp(40px, 5vw, 56px); color: var(--wk-ink); }
 .gp-odds-result .gp-grade { font-size: 36px; animation: none; }
 
-/* The ladder: five rungs, each a block-celled bar that grows with the tier. The lit
-   rung is the grade; the rest step back to 40%. */
 .gp-ladder { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
 .gp-rung { display: grid; align-content: start; gap: 6px; padding: 12px 14px 4px; box-shadow: inset 1px 0 0 var(--wk-line); opacity: 0.4; transition: opacity 200ms var(--wk-ease); }
 .gp-rung:first-child { padding-left: 0; box-shadow: none; }
@@ -342,7 +310,6 @@
 .gp-evline { display: grid; gap: 10px; }
 .gp-evline-track { position: relative; height: 72px; margin-top: 18px; }
 .gp-evline-track::before { content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 2px; background: var(--wk-line-hi); }
-/* The last five minutes, where nothing starts: the rail goes dashed. */
 .gp-evline-end {
   position: absolute; right: 0; bottom: 5px; height: 2px;
   background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, var(--wk-ground) 4px 8px);
@@ -356,7 +323,6 @@
 .gp-evmark-when { position: absolute; top: -18px; font-size: 13px; font-weight: 700; color: var(--wk-ink-3); white-space: nowrap; }
 
 .gp-event-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
-/* One event per row: its face, its name and how often, then the rule beside them. */
 .gp-event { display: grid; grid-template-columns: 48px 13rem minmax(0, 1fr); gap: 6px 16px; align-items: start; }
 .gp-event > div { display: contents; }
 .gp-event > .wk-slot { grid-row: 1 / span 2; }
@@ -368,7 +334,6 @@
 
 /* ── Traders ──────────────────────────────────────────────────────────────── */
 
-/* The rhythm: each Wandering Trader's five-minute stay as a band on the round. */
 .gp-trline { display: grid; gap: 10px; }
 .gp-trline-track { position: relative; height: 40px; }
 .gp-trline-track::before { content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 2px; background: var(--wk-line-hi); }
@@ -396,7 +361,7 @@
 }
 @media (max-width: 900px) {
   .gp-b2b-stage { grid-template-columns: 1fr; }
-  /* Stacked, the readout's changing lines would move the page under a reader. */
+  /* Reserved height: the readout's changing lines would otherwise move the page. */
   .gp-b2b-read { min-height: 210px; }
   .gp-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
   .gp-rung:nth-child(4) { padding-left: 0; box-shadow: none; }

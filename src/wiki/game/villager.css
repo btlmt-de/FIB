@@ -1,18 +1,4 @@
-/*
- * Villagers (Villager.jsx). A trader wears its name over its head the way the game
- * draws a nametag, light text on a dark plate, in the plugin's colour for that
- * trader; then the model, outlined in the same colour, because the plugin sets
- * traders glowing and the game outlines a glowing entity in its team colour. A plain
- * villager (the Cleric) has neither: the game gives it no name and no glow.
- *
- * The outline is four hard shadows, a crisp pixel edge: it is the game's glow
- * outline, which is a line, not the soft halo the wiki does not use.
- *
- * The filter sits on a wrapper outside the 3D scene, because a filter flattens the
- * element it is on: here it flattens the finished drawing, not the boxes.
- *
- * Plain words in comments: no backticks.
- */
+/* The glow filter sits on a wrapper outside the 3D scene: a filter flattens the element it is on. */
 
 .vg { display: inline-grid; justify-items: center; }
 .vg-trader { margin: 0; gap: 12px; }
@@ -47,5 +33,4 @@
 @media (prefers-reduced-motion: reduce) { .vg-head { transition: none; } }
 html[data-saver="on"] .vg-head { transition: none; }
 
-/* A player head in a slot (Head): its face, flat. */
 .vg-headicon { display: block; background-repeat: no-repeat; image-rendering: pixelated; }

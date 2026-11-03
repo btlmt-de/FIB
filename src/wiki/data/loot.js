@@ -1,32 +1,16 @@
-/**
- * The custom structures' loot, read from the datapack at build time.
- *
- * FIB_Worldgen ships in this repo, and its loot tables are the truth about what a
- * container holds. The Custom Content page used to carry them as hand-typed
- * percentages, which is how the Weathered Captain's Journal came to be listed at 30%
- * in shipwrecks while the datapack gives it 20%, and how the vault room's table went
- * unlisted altogether. Importing the JSON means a change to the datapack is a change
- * to the page (the Derived Atlas Rule, for loot).
- *
- * Only what the tables say is read: pools, rolls, weights, set_count, set_name and the
- * enchantment functions. What a table cannot say (how many pots a room has, how many
- * minecarts) stays in the page's words.
- */
+/* Read from the datapack's loot tables at build time; what a table cannot say (pot and minecart counts) stays in the page. */
 
 const FILES = import.meta.glob(
     ['/FIB_Worldgen/data/fib/loot_table/*.json', '/FIB_Worldgen/data/minecraft/loot_table/chests/shipwreck_map.json'],
     { eager: true, import: 'default' },
 );
 
-/* The plugin's custom items, where a table hands one out. Their sprites live in the
-   pack's item folder, vendored to /fib-custom. */
 const CUSTOM = {
     'fib:items/eye_of_antimatter': { name: 'Eye of Antimatter', src: '/fib-custom/eye_of_antimatter.png' },
     'fib:items/totem_of_antimatter': { name: 'Totem of Antimatter', src: '/fib-custom/totem_of_antimatter.png' },
     'fib:items/antimatter_trial_key': { name: 'Antimatter Trial Key', src: '/fib-custom/antimatter_trial_key.png' },
     'fib:items/weathered_captains_journal': { name: "Weathered Captain's Journal", src: '/fib-custom/old_book.png' },
 };
-/* Custom models the pack draws differently from the vanilla item. */
 const MODELS = { gros_michel: '/fib-custom/gros_michel.png', cavendish: '/fib-custom/cavendish.png', wheel: '/fib-custom/wheel.png' };
 
 const bare = (id) => id.replace(/^minecraft:/, '');
@@ -83,7 +67,6 @@ function readTable(json) {
 
 export const TABLES = Object.fromEntries(Object.entries(FILES).map(([path, json]) => [path.split('/').pop().replace('.json', ''), readTable(json)]));
 
-/** A chance as the page prints it: two places, never "0.00%". */
 export function pct(p) {
     const v = p * 100;
     if (v >= 10) return `${v.toFixed(1).replace(/\.0$/, '')}%`;
@@ -91,7 +74,6 @@ export function pct(p) {
     return `${Number(v.toPrecision(2))}%`;
 }
 
-/** One opening of a container, rolled with the table's own weights and counts. */
 export function roll(pools, rng = Math.random) {
     const out = [];
     for (const p of pools) {

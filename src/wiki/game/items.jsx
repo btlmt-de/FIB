@@ -3,23 +3,6 @@ import { getTip, hideTip, showTip, subscribeTip } from './tipStore.js';
 import { itemName, itemSrc, stageOf, tagsOf, whereOf } from '../data/atlas.js';
 import { STAGES, TAGS, REGION } from '../tokens.js';
 
-/**
- * Items, the atoms of the wiki.
- *
- * An item is always a real pool sprite in a SLOT — a square cut into the surface
- * with Minecraft's inventory bevel (dark top-left, lit bottom-right), never an icon
- * floating in a card. What the game knows about it rides on the slot as marks, each
- * with a word behind it in the tooltip:
- *
- *   - its stage as a 2px bar of that stage's light along the slot floor;
- *   - a NETHER / END / EXTREME tag as a pixel glyph in the top corner, the way the
- *     Collection Book marks a tier.
- *
- * Hover or focus shows the item's tooltip, drawn like the game's own: the violet
- * frame, the name, then the grey lines /info would print. One tooltip layer serves
- * the whole page; slots only publish what they are pointing at.
- */
-
 
 /* ── Pixel glyphs for the tags. 7x7, drawn, one colour each. ─────────────────── */
 
@@ -57,10 +40,6 @@ export function ItemSprite({ material, className = '', eager = false }) {
     );
 }
 
-/**
- * One item in a slot. `size` is the slot's CSS size in px. When `tip` is false the
- * slot is decoration beside a name that already says everything (a nav face).
- */
 export function ItemSlot({
     material, size = 56, tip: withTip = true, marks = true, tabIndex, className = '', eager,
     onPoint, onFocus, family = null, members = null,
@@ -94,7 +73,6 @@ export function ItemSlot({
     );
 }
 
-/** Where a family's members are found, most common first. */
 function familyPlaces(members) {
     const n = new Map();
     for (const m of members) {
@@ -109,7 +87,6 @@ function describeFamily({ name, members }) {
     return `${name}, ${members.length} kinds${places.length ? `, found in ${places.join(', ')}` : ''}`;
 }
 
-/** The whole tooltip as one sentence, for a screen reader. */
 function describe(material) {
     const parts = [itemName(material)];
     const stage = stageOf(material);
@@ -122,11 +99,7 @@ function describe(material) {
     return parts.join('. ');
 }
 
-/**
- * A grid of slots with ONE tab stop. Arrow keys walk it like an inventory, Home and
- * End jump to the ends. A region can hold dozens of items and a reader tabbing
- * through the page should not have to press Tab dozens of times to leave it.
- */
+/* One tab stop for the whole grid, so a region of dozens of items does not cost dozens of Tabs. */
 export function SlotGrid({ items, size = 52, label, className = '', onPoint, after = null }) {
     const [active, setActive] = useState(0);
     const ref = useRef(null);
@@ -166,12 +139,10 @@ export function TooltipLayer() {
     const t = useSyncExternalStore(subscribeTip, getTip, () => null);
     const ref = useRef(null);
 
-    // Placed straight onto the element before paint: measuring needs it rendered,
-    // and a state round-trip would show it one frame in the wrong place.
+    // Placed before paint: a state round-trip would show it one frame in the wrong place.
     useLayoutEffect(() => {
         const el = ref.current;
         if (!t || !el) return;
-        // Beside the slot, the way the game draws it; below it when neither side fits.
         const box = el.getBoundingClientRect();
         const r = t.rect;
         const vw = window.innerWidth; const vh = window.innerHeight;

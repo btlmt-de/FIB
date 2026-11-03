@@ -1,18 +1,4 @@
-/*
- * Blocks (Block.jsx). One cube of three faces, turned the way an inventory icon is
- * and drawn without perspective, as a slot draws a block. Everything is in texture
- * pixels times the block's pixel size, so it keeps its proportions at any size.
- *
- * The faces are shaded as the game shades a block: the top at full light, the front
- * a fifth darker and the side two fifths, by an inset shadow over the texture.
- *
- * The faces are flat, and so is everything in them. What lies on a face (the table's
- * ingredients) is part of it; what hangs in the air (the furnace's particles) is in
- * .bk-fx, a flat layer over the whole block. Children standing off a face in 3D were
- * buried behind it by Chrome's 3D sorting; Block.jsx says more.
- *
- * Plain words in comments: no backticks.
- */
+/* Anything in the air in front of a face lives in the flat .bk-fx layer: Chrome's 3D sorting buries children standing off a face. */
 
 .bk {
   --bk-s: calc(var(--bk-px) * 16);
@@ -29,8 +15,6 @@
 .bk-top { transform: rotateX(90deg) translateZ(calc(var(--bk-s) / 2)); }
 .bk-front { transform: translateZ(calc(var(--bk-s) / 2)); box-shadow: inset 0 0 0 var(--bk-s) oklch(0% 0 0 / 0.2); }
 .bk-side { transform: rotateY(90deg) translateZ(calc(var(--bk-s) / 2)); box-shadow: inset 0 0 0 var(--bk-s) oklch(0% 0 0 / 0.4); }
-/* A lit furnace gives off light (level 13), so its front is not shaded, and the fire
-   in it breathes a little, by the same inset overlay the shading uses. */
 .bk-front[data-lit] { box-shadow: none; animation: bk-flicker 1.9s steps(1) infinite; }
 @keyframes bk-flicker {
   0%, 100% { box-shadow: none; }
@@ -39,8 +23,6 @@
   80% { box-shadow: inset 0 0 0 var(--bk-s) oklch(100% 0 0 / 0.03); }
 }
 
-/* An ingredient lying in its cell of the table's grid, set down: it comes in large and
-   faint and settles, which in the table's plane reads as coming down onto it. */
 .bk-item {
   position: absolute; left: calc(var(--x) * var(--bk-px)); top: calc(var(--y) * var(--bk-px));
   width: calc(var(--s) * var(--bk-px)); height: calc(var(--s) * var(--bk-px));
@@ -48,12 +30,9 @@
 }
 @keyframes bk-drop { from { transform: scale(1.9); opacity: 0; } 50% { opacity: 1; } }
 
-/* The block nods as a craft lands. */
 .bk[data-bump] { animation: bk-bump 260ms var(--wk-ease); }
 @keyframes bk-bump { 40% { transform: translateY(calc(var(--bk-px) * -1.5)); } }
 
-/* A flame and its smoke, where Block.jsx projects the front face's low middle to; the
-   flame dies where it is while the smoke drifts up and thins. */
 .bk-fx { position: absolute; left: 50%; top: 52%; pointer-events: none; }
 .bk-puff { position: absolute; left: calc(var(--x) * var(--bk-px)); top: calc(var(--y) * var(--bk-px)); }
 .bk-puff i {

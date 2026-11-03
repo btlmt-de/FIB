@@ -1,23 +1,8 @@
-/*
- * THE EXPLORER'S ATLAS — the wiki's shared stylesheet.
- *
- * Every rule is scoped under .wk (the wiki's root) or names a wk- class, because
- * this file ships in the entry chunk and the wheel and the stats module load that
- * chunk too. Nothing here may style a bare element outside .wk.
- *
- * Values come from custom properties set by tokens.js (cssVars), never literals,
- * so a colour lives in one file. Plain words in comments: no backticks.
- */
+/* Ships in the entry chunk that wheel and stats also load: every rule is scoped under .wk or a wk- class. */
 
-/* ── Figures ──────────────────────────────────────────────────────────────── *
- * The display face (Handjet) draws its zero with a dot in the middle, and at the
- * sizes a Y-level or a count is set, "Y 0 to 60" reads "Y 8 to 68" and 110 reads
- * 118. On a page whose numbers are facts that is a wrong fact, not a style. So the
- * digits 0-9 of every display-face run come from this face instead: Atkinson
- * Hyperlegible Next Bold, a family drawn to keep 0/8/6 apart, subset to ten glyphs
- * (Google Fonts, text=0123456789, OFL 1.1) and self-hosted at 1.8 kB. It is first
- * in the display stack and its unicode-range admits only digits, so letters still
- * fall through to Handjet.
+/*
+ * ── Figures ──
+ * Digits only, from a 1.8 kB Atkinson subset: Handjet's dotted zero reads as an 8.
  */
 @font-face {
   font-family: 'FIB Figures';
@@ -50,17 +35,10 @@ html:has(.wk) {
 
 .wk-wrap { width: min(1280px, 100% - 40px); margin-inline: auto; }
 
-/* The pixel arrowhead every track on the wiki ends in: a stepped triangle, drawn as
-   a clip-path so it takes the colour of whatever it clips. One definition, because
-   three stylesheets draw tracks and they must stay the same shape. */
 .wk { --wk-arrowhead: polygon(0 0, 33% 0, 33% 20%, 67% 20%, 67% 40%, 100% 40%, 100% 60%, 67% 60%, 67% 80%, 33% 80%, 33% 100%, 0 100%); }
 @media (max-width: 600px) { .wk-wrap { width: calc(100% - 32px); } }
 
-/* ── Type ──────────────────────────────────────────────────────────────────── *
- * Handjet names things and counts things. Atkinson Hyperlegible Next
- * says things about them.
- * The display face never sets a sentence.
- */
+/* ── Type ── */
 
 .wk-d1, .wk-h2, .wk-h3, .wk-name {
   font-family: var(--wk-font-display);
@@ -74,13 +52,7 @@ html:has(.wk) {
 .wk-h2 { font-size: clamp(36px, 3.9vw, 52px); line-height: 1.05; }
 .wk-h3 { font-size: 30px; line-height: 1.1; }
 .wk-name { font-size: 25px; line-height: 1.15; }
-/*
- * Data is set in the text face, never the display face. A Y-level, a count or a
- * percentage is a fact a player acts on, and the display face's condensed digits
- * and i were read wrong in review ("Y 0 to 60" as "Y 8 to 68", "cities" as
- * "clties"). Setting only the digits in another face left a visible seam inside
- * every label, so the whole datum moves: bold, tabular, the legible face.
- */
+/* Data takes the text face whole: digits alone in another face left a seam inside every label. */
 .wk-figure, .wk-datum {
   font-family: var(--wk-font-text);
   font-weight: 700;
@@ -103,19 +75,12 @@ html:has(.wk) {
   padding: 1px 6px; border-radius: 2px;
 }
 .wk strong { color: var(--wk-ink); font-weight: 600; }
-/* Said to a screen reader where a drawing says it to everyone else. */
 .wk-sr {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* ── The loop (LoopBeats.jsx) ──────────────────────────────────────────────── *
- * Six beats as stations on one line: each word, then a track that stretches to
- * the next one, and under the row a dashed return from Next to Draw, because the
- * loop has no end until the round does. Dashed, as a FIB rule is: Minecraft does
- * not deal you the next item, the plugin does. The current beat (home only) is the
- * brightest word with the 3px ink bar, the White Light rule.
- */
+/* ── The loop (LoopBeats.jsx) ── */
 .wk-beats {
   position: relative; list-style: none; margin: 0; padding: 0 0 16px;
   display: flex; align-items: center; min-width: 0;
@@ -136,7 +101,6 @@ html:has(.wk) {
   content: ""; position: absolute; right: -2px; top: -4px; width: 6px; height: 10px;
   background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
 }
-/* The return: down from under Next, back along the bottom, up into Draw. */
 .wk-beats-back {
   position: absolute; left: 14px; right: 14px; bottom: 2px; height: 12px;
   background:
@@ -154,11 +118,7 @@ html:has(.wk) {
   .wk-beat-to { min-width: 8px; margin: 0 7px 0 5px; }
 }
 
-/* ── Links and buttons ─────────────────────────────────────────────────────── *
- * A button is a stone block you press: a flat face, a darker lip along its
- * bottom edge, and the lip disappears when it is down. Interaction is light, not
- * hue, so the primary is the brightest thing on the page and nothing else is.
- */
+/* ── Links and buttons ── */
 
 .wk-link {
   color: var(--wk-ink);
@@ -192,9 +152,7 @@ html:has(.wk) {
 }
 .wk-btn--quiet:hover { background: oklch(27% 0.010 255); }
 
-/* ── Slots ─────────────────────────────────────────────────────────────────── *
- * The inventory slot: cut into the surface, dark top-left, lit bottom-right.
- */
+/* ── Slots ── */
 
 .wk-slot {
   --slot: 56px;
@@ -235,7 +193,6 @@ html:has(.wk) {
 .wk-slot:hover .wk-sprite, .wk-slot:focus-visible .wk-sprite { transform: translateY(-2px) scale(1.07); }
 
 .wk-slot-mark { position: absolute; top: 4px; right: 4px; line-height: 0; }
-/* A stack count, where the game puts it: bottom right, white, hard shadow. */
 .wk-count {
   position: absolute; right: 4px; bottom: 1px;
   font-family: var(--wk-font-text); font-size: 16px; font-weight: 700; line-height: 1;
@@ -276,9 +233,7 @@ html:has(.wk) {
 .wk-tip-members { margin-top: 4px; color: var(--wk-ink-3); }
 .wk-tip-id { margin-top: 5px; font-family: var(--wk-font-typed); font-size: 11.5px; color: oklch(58% 0.01 300); }
 
-/* ── Environments ──────────────────────────────────────────────────────────── *
- * A place fades into the ground at its edges. It is never a rectangle.
- */
+/* ── Environments ── */
 
 .wk-env {
   position: absolute; inset: 0;
@@ -290,7 +245,6 @@ html:has(.wk) {
           mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 78%, transparent 100%);
 }
 
-/* A seam where two parts of the page meet: fades to nothing at both ends. */
 .wk-seam {
   height: 1px; border: 0; margin: 0;
   background: linear-gradient(90deg, transparent, var(--wk-line) 18%, var(--wk-line) 82%, transparent);

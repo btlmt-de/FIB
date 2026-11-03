@@ -1,19 +1,6 @@
-/**
- * GitHub for the Item Pools workspace: one sign-in, two repos.
- *
- * The workspace commits to two places. Pool changes go to the PLUGIN repo, always on
- * a branch of their own with a pull request into main (main and master are
- * protected here, as the old pool manager had it). Description changes go to THIS
- * repo's config.yml on the branch the page is showing, main included, which is how
- * the description editor always worked.
- *
- * Auth is a personal access token with the repo scope. It used to be stored twice
- * in two ways: the description editor kept it in localStorage forever, the pool
- * manager kept it in memory unless asked to remember it for 60 days. One tray means
- * one token, and the second, safer rule wins. A token left behind by the old editor
- * has no expiry recorded, so it is cleared once and the maintainer signs in again.
- * Access is checked per repo when it is needed, since one token may reach one repo
- * and not the other.
+/*
+ * Pool changes go to the plugin repo on a branch with a pull request; /info changes go to this repo's config.yml.
+ * An old editor's token has no expiry recorded, so it is cleared once.
  */
 
 import { CONFIG_PATH, DEFAULT_BRANCH, PLUGIN_REPO, POOL_PATH, SITE_REPO } from './poolData.js';
@@ -86,7 +73,6 @@ async function gh(token, path, init = {}) {
 
 export const whoAmI = (token) => gh(token, '/user');
 
-/** Whether this token may push to the repo; throws if it cannot see it at all. */
 export async function canPush(token, repo) {
     const info = await gh(token, `/repos/${repo}`);
     return info.permissions?.push === true;
@@ -127,7 +113,6 @@ export function openPullRequest(token, repo, { title, head, base, body }) {
     return gh(token, `/repos/${repo}/pulls`, { method: 'POST', body: JSON.stringify({ title, head, base, body }) });
 }
 
-/** The last commits that touched a file. Works signed out, within GitHub's anonymous limit. */
 export function recentCommits(token, { repo, path }, n = 20) {
     return gh(token, `/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=${n}`);
 }

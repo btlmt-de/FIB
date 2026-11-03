@@ -1,15 +1,4 @@
-/**
- * Minecraft's legacy formatting codes, as config.yml's descriptions use them
- * (&b&lName &7| &6Item Information). /info prints each line into chat through
- * translateAmpersandCodes, so this renders a line the way chat will show it.
- *
- * The sixteen colours are the game's own chat colours. They are a drawing of the
- * game's text, the same kind of thing as the tooltip frame, not wiki colours: they
- * are never used for anything but rendering a description.
- *
- * There were two copies of this parser (the page's skipped underline and
- * strikethrough); this is the complete one.
- */
+/* Renders a description the way /info's translateAmpersandCodes prints it in chat. Game colours, never used as wiki colours. */
 
 export const MC_COLORS = {
     0: '#000000', 1: '#0000AA', 2: '#00AA00', 3: '#00AAAA',
@@ -33,7 +22,6 @@ export const FORMAT_CODES = [
     { code: 'r', name: 'Reset' },
 ];
 
-/** The field lines config.yml's descriptions are made of, as the old editor offered them. */
 export const FIELDS = [
     { name: 'Structure', template: '&7Structure: &a', hint: 'Village, Desert Pyramid…' },
     { name: 'Biomes', template: '&7Biomes: &a', hint: 'Desert, Plains…' },
@@ -47,7 +35,6 @@ export const FIELDS = [
     { name: 'Plain text', template: '&7', hint: 'Custom description text…' },
 ];
 
-/** The header every description opens with, the one the old editor started from. */
 export const headerFor = (displayName) => `&b&l${displayName} &7| &6Item Information`;
 
 const WHITE = '#FFFFFF';

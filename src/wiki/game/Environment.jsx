@@ -1,27 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useCalm } from '../../config/power.js';
 
-/**
- * An environment: the place a region of the atlas is set in, drawn rather than
- * photographed.
- *
- * Why a canvas and not screenshots. A screenshot is a rectangle, and the brief for
- * this system is that the world should be something the page stands inside, not a
- * picture hung behind it. So each place is built from what makes Minecraft
- * recognisable at a glance with no texture pack at all: a stepped block horizon,
- * fogged layers receding behind it, the light of the place, and its particles —
- * fireflies, bubbles, cave dust, trial-spawner flames, sculk souls, Nether ash, End
- * rods. The blocks carry a per-block tonal jitter, which is what reads as "blocks"
- * rather than "bar chart" once the silhouette is dark.
- *
- * Cost. The silhouettes are rendered once per size to an offscreen canvas; a frame
- * is one blit, one light and a few dozen squares, at ~30fps, and only while the
- * canvas is on screen and the tab is visible. Under reduced motion or saver mode it
- * draws a single still frame — the place stays, only the drift stops.
- *
- * `light` (0..1) is where the place's light sits horizontally. The atlas moves it
- * toward whichever item the reader is pointing at, so the place answers the item.
- */
+/* Silhouettes render once per size offscreen; frames run only on screen and in a visible tab. Calm draws one still frame. */
 
 /* ── Deterministic randomness, so a place looks the same on every visit ──────── */
 
@@ -48,9 +28,9 @@ function noise1(seed) {
     };
 }
 
-/* ── Places ──────────────────────────────────────────────────────────────────
- * Every colour is a fixed oklch value, not a token: these are paints for a
- * picture, dark by design, and none of them is ever read as text.
+/*
+ * ── Places ──
+ * Fixed oklch paints, not tokens: dark by design and never read as text.
  */
 
 const PRESETS = {
@@ -135,7 +115,6 @@ function paintBlocks(ctx, cells, B, color, texture, r) {
     ctx.fillStyle = color;
     for (const [x, y, w, h] of cells) ctx.fillRect(x, y, w, h);
     if (!texture) return;
-    // Per-block tonal jitter: the difference between "a silhouette" and "blocks".
     for (const [x, y, w, h] of cells) {
         for (let by = y; by < y + h; by += B) {
             for (let bx = x; bx < x + w; bx += B) {
@@ -211,8 +190,6 @@ function paintLayer(ctx, W, H, layer, r, s) {
     }
 
     if (layer.kind === 'city') {
-        // An ancient city's skyline: stepped towers either side of the great portal
-        // frame, the one silhouette every player who has found one recognises.
         const floor = H - Math.round(H * 0.16);
         const mid = Math.round(W * (0.55 + (r() - 0.5) * 0.2) / B) * B;
         const frameW = 11 * B;
@@ -234,8 +211,6 @@ function paintLayer(ctx, W, H, layer, r, s) {
     }
 
     if (layer.kind === 'chamber') {
-        // Trial chamber walls: a grid of recessed rooms, each lit along its top edge
-        // the way copper bulbs light a corridor.
         const rows = 3;
         const rh = Math.round((H * 0.62) / rows / B) * B;
         const y0 = Math.round(H * 0.18);
@@ -257,7 +232,6 @@ function paintLayer(ctx, W, H, layer, r, s) {
     }
 
     if (layer.kind === 'pillars') {
-        // The obsidian spikes around the End's main island, far off in the haze.
         ctx.fillStyle = layer.color;
         const count = Math.max(4, Math.round(W / (B * 22)));
         for (let k = 0; k < count; k++) {
@@ -273,7 +247,6 @@ function paintLayer(ctx, W, H, layer, r, s) {
     }
 
     if (layer.kind === 'islands') {
-        // Floating End stone: a flat-ish top with a stepped, tapering underside.
         for (let k = 0; k < layer.count; k++) {
             const cx = Math.round(((k + 0.5) / layer.count + (r() - 0.5) * 0.25) * W / B);
             const half = 6 + Math.floor(r() * 10);
@@ -307,7 +280,6 @@ function paintStill(canvas, preset, seed, W, H, s) {
         }
     }
     if (preset.moon) {
-        // Square, because it is.
         const m = Math.round(22 * s);
         const mx = Math.round(W * 0.78);
         const my = Math.round(H * 0.16);
@@ -379,7 +351,7 @@ export default function Environment({ region, light = 0.5, seed = 7, className =
     const ref = useRef(null);
     const lightRef = useRef(light);
     const calm = useCalm();
-    // Read by the running loop without restarting it; the loop eases toward it.
+    // Read by the running loop without restarting it.
     useEffect(() => { lightRef.current = light; }, [light]);
 
     useEffect(() => {

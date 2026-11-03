@@ -5,15 +5,6 @@ import PageLinks from '../wiki/shell/PageLinks.jsx';
 import { useGo } from '../wiki/shell/pages.js';
 import '../wiki/page.css';
 
-/*
- * Imprint (THE EXPLORER'S ATLAS). A legal page, so the words are not the wiki's to
- * improve: the site is operated by McPlayHD.net, and the imprint itself lives on
- * mcplayhd.net. This page only says so and points there. Nothing is drawn, on purpose;
- * it is the one inner page with no question to answer beyond "who runs this".
- *
- * The skeleton alone (page.css), so it needs no stylesheet of its own.
- */
-
 export default function Imprint({ onNavigate }) {
     const go = useGo(onNavigate);
     return (

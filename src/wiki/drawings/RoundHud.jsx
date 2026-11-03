@@ -13,35 +13,7 @@ import logo1 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_lo
 import logo2 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_2.png';
 import './roundhud.css';
 
-/*
- * Your screen during a round: every piece of the HUD the plugin fills, where the game
- * draws it, over one standard round you can scrub through or play. Each piece is the
- * plugin's own (main, Sept 2026):
- *
- *   bossbar      TimerManager.sendPlayingHud: the item, its name in a green gradient,
- *                on a white notched bar
- *   action bar   the same: the time left in a yellow-to-orange gradient, bold, then
- *                "Your score" (or "Team score") when the Score setting is on
- *   hotbar       PlayerOutfitter and RoundSetup: stone axe, pickaxe and shovel, the
- *                jokers in the fifth slot, the backpack in the last
- *   nameplates   ScoreboardManager: a player's current item after their name, in the
- *                tab list (and over their head, which your own screen never shows)
- *   chat         TimerManager.announceUnlockedPools; WanderingTraderManager's arrival
- *                and departure lines
- *   titles       RoundClock's milestones: 5 minutes, 1 minute, 30 and 10 seconds left,
- *                then the last five counted in large red numbers
- *   tab list     PlayerLifecycleListener's banner (the resource pack's three logo
- *                glyphs) and TabListManager's footer: the open pools and when the next
- *                opens, your jokers, the surface's clock, each trader's countdown
- *
- * It is your screen alone, first person: an earlier version stood another player in
- * the world with their nameplate, and their item (which in a solo round is never
- * yours) read as the bossbar out of step.
- *
- * The round itself is made up: your finds, drawn from the real pool as it opens, two jokers spent, the Wandering Trader on its real rhythm, the day
- * turning at Minecraft's pace from dawn. The world behind it is the wiki's own
- * surface scenery, dimmed at night.
- */
+/* Each HUD piece mirrors the plugin: TimerManager, PlayerOutfitter, ScoreboardManager, RoundClock, TabListManager. */
 
 // The screen is 427 Minecraft GUI pixels wide and 240 tall; roundhud.css sizes one of
 // them (--g) from the screen's width.
@@ -71,7 +43,6 @@ const worldClock = (ticks) => {
 /** TimeFormat.countdownPhrase. */
 const phrase = (s) => (s % 60 === 0 ? `${s / 60} ${s === 60 ? 'minute' : 'minutes'} left` : `${s} seconds left`);
 
-/** One player's finds over the round: when each lands, and what each was. */
 function finds(count, jokers) {
     const times = Array.from({ length: count }, () => rand(40, TOTAL - 60)).sort((a, b) => a - b);
     const seen = new Set();
@@ -79,7 +50,6 @@ function finds(count, jokers) {
     while (skip.size < jokers) skip.add(randInt(3, count - 2));
     let assigned = 0;
     return times.map((t, i) => {
-        // An item is dealt from what the pool held when the one before it was found.
         const open = ['EARLY', 'MID', 'LATE'].filter((k) => assigned >= STAGES[k].minute * 60);
         const pool = open.flatMap((k) => POOL_BY_STAGE[k]);
         let material;
@@ -111,7 +81,6 @@ function plan() {
     return { you, trade, chat };
 }
 
-/** Where the round stands at a second: what every piece of the HUD shows. */
 function stateAt(p, t) {
     const left = TOTAL - t;
     const done = p.you.filter((f) => f.t <= t);
@@ -140,7 +109,6 @@ function stateAt(p, t) {
     };
 }
 
-/** A line of HUD text, with {item:MATERIAL} icons set in it as the resource pack draws them. */
 function Line({ text, className = 'hud-line' }) {
     const parts = text.split(/\{item:([A-Z0-9_]+)\}/);
     return (
@@ -167,7 +135,7 @@ const PARTS = [
     { key: 'bossbar', name: 'Bossbar', text: 'The item you are hunting, with its icon. In Force Chain, the one after it too.' },
     { key: 'actionbar', name: 'Action bar', text: 'The time left, then your score (your team\'s in a team round). The score shows only with Score on.' },
     { key: 'hotbar', name: 'Hotbar', text: 'Your kit: stone tools, your jokers in the fifth slot, the backpack in the last.' },
-    { key: 'chat', name: 'Chat', text: 'A new pool as it opens, a trader as it arrives and leaves. Drawn under the screen here, so it covers nothing.' },
+    { key: 'chat', name: 'Chat', text: 'A new pool as it opens, a trader as it arrives and leaves.' },
     { key: 'title', name: 'Titles', text: '5 minutes, 1 minute, 30 and 10 seconds left, then the last five in large numbers.' },
     { key: 'tab', name: 'Tab list', text: 'Hold Tab: every player with their current item after their name, the open pools and when the next opens, your jokers, the time of day on the surface, and any trader with its countdown.' },
 ];
@@ -181,8 +149,7 @@ export default function RoundHud() {
     const [lit, setLit] = useState(null);
     const ref = useRef(null);
     const on = useOnScreen(ref);
-    // The end of the round stops playback by being the end: derived, so the interval's
-    // updater stays pure and nothing has to set state after the fact.
+    // Derived rather than set, so the interval's updater stays pure.
     const active = playing && t < TOTAL;
     const running = active && on && !calm;
 
@@ -191,7 +158,6 @@ export default function RoundHud() {
         const id = setInterval(() => {
             setT((now) => {
                 const left = TOTAL - now;
-                // Quick through the quiet stretches, slow where a title shows, so it can be read.
                 const step = left > 330 ? 9 : left > 288 ? 1.2 : left > 72 ? 9 : 0.4;
                 return Math.min(TOTAL, now + step);
             });
@@ -259,7 +225,6 @@ export default function RoundHud() {
                 )}
             </div>
 
-            {/* Chat, in a window of its own under the screen, where it covers no part of the HUD. */}
             <div className="hud-chatbox" data-lit={hl('chat')} aria-live="polite">
                 {s.chat.map((l) => <Line key={l} text={l} className="hud-chat-line" />)}
             </div>

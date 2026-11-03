@@ -5,32 +5,7 @@ import { Head } from '../game/Villager.jsx';
 import Mini from '../game/Mini.jsx';
 import './settingsmenu.css';
 
-/*
- * The /settings menu, as an operator opens it: the plugin's SettingsInventory drawn in
- * the game's own chest texture, set to the standard round, and working the way the
- * menu works. Every detail below is the plugin's (gui/SettingsInventory, GuiItems,
- * settings/GameSetting, QuickieMode on main, Sept 2026); none of it is decoration.
- *
- *   the chest     four rows, every slot a grey glass pane unless something sits on it
- *   row two       seven settings a page (22 settings, four pages), each as its item
- *   row three     under each, its state: a lime dye (Enabled), a red dye (Disabled), a
- *                 stone button counting backpack rows, Quickie's mode by name
- *   the corners   player heads in arrow skins turn the page; the top-right slot is
- *                 "Manage presets" (an operator's; it opens another menu, not drawn)
- *   clicking      a setting or the state under it switches it. Quickie cycles, the other
- *                 way on a right-click. Backpack rows go up on a left-click and down on
- *                 a right-click, one to six, and refuse while the backpack is off
- *   the tooltip   the item's name and lore, coloured by the plugin's own MiniMessage
- *                 (settings.data.js keeps it), never italic, as ItemBuilder sets them
- *
- * The drawing is a toy: nothing it changes goes anywhere, and "Back to the standard
- * round" puts it back. Two things the game does are left out: Teams refuses with fewer
- * than four players online (there are no players here, and its tooltip says so), and
- * the click sounds.
- *
- * The one liberty: on the tooltip's near-black, dark gray is lifted so the plugin's
- * notes stay readable (Mini.jsx), the way the wheel lifts a rarity's ink for text.
- */
+/* Mirrors the plugin's SettingsInventory, GuiItems and GameSetting. Teams' four-player check and click sounds are left out. */
 
 const PER_PAGE = 7;
 const QUICKIE = ['Disabled', 'Early only', 'Early + Mid'];
@@ -43,7 +18,6 @@ const HEADS = {
 const plain = (text) => text.replace(/<[^>]+>/g, '');
 const initial = () => Object.fromEntries(SETTINGS.map((s) => [s.key, s.standard]));
 
-/** What the row under a setting shows, as SettingsInventory builds it. */
 function stateOf(s, v, values) {
     if (s.key === 'QUICKIE') {
         return v > 0
@@ -75,7 +49,6 @@ export default function SettingsMenu() {
         if (s.key === 'QUICKIE') {
             setValues({ ...values, QUICKIE: (v + (right ? QUICKIE.length - 1 : 1)) % QUICKIE.length });
         } else if (typeof s.default === 'number') {
-            // The item itself does nothing; only the stone button counts, and only with a backpack.
             if (slot < 19) return;
             const next = v + (right ? -1 : 1);
             if (!values.BACKPACK || next < 1 || next > 6) setRefused(slot);
@@ -85,7 +58,6 @@ export default function SettingsMenu() {
         }
     };
 
-    // The chest, slot by slot: panes everywhere, then what sits on them.
     const slots = Array.from({ length: 36 }, () => ({ kind: 'pane' }));
     slots[8] = { kind: 'item', material: 'STRUCTURE_VOID', name: '<dark_gray>» <yellow>Manage presets', lore: [] };
     SETTINGS.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE).forEach((s, i) => {

@@ -9,36 +9,6 @@ import { CHANGELOG } from '../wiki/data/changelog.data.js';
 import '../wiki/page.css';
 import '../wiki/pages/changelog.css';
 
-/*
- * Changelog (THE EXPLORER'S ATLAS): every release, newest first.
- *
- * The drawing is the track the wiki already uses for anything that runs in one
- * direction: a 2px line down the releases with the pixel arrowhead at the newest end,
- * pointing up, where the next release will go. Each release is a node on it. A major
- * release is a larger, filled node and a named heading; every other release is the
- * same small open node, and its kind is a word, never a colour. The old page gave the
- * four kinds four hues, which is the Datum Rule broken four times over: nothing a
- * player reads here is measured by them.
- *
- * Years are the sections, in the inner-page skeleton (page.css): the year on the left,
- * sticky, with what that year held, and its releases on the right.
- *
- * The head's index is the Minecraft updates. "When did FIB get 1.21.10" is the
- * question this page is asked most and the one a long list answers worst, so each
- * Minecraft version links straight to the release that brought it.
- *
- * The years are the sticky index under the nav (PageIndex, as Commands has it), with
- * the year being read marked, and a busy year's sticky head lists its months, each a
- * link to that month's newest release. The years were a second row of links in the
- * head, gone the moment the reader scrolled into the thousands of pixels below it
- * (owner, final pass, Sept 2026). Collapsing years was considered and left out: it
- * would hide the one continuous line this page draws, for a saving the index already
- * makes.
- *
- * The list itself is src/wiki/data/changelog.data.js, which the build checks against the
- * plugin's version on main.
- */
-
 const KIND = { major: 'Major', feature: 'Feature', update: 'Update', fix: 'Fixes' };
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -136,7 +106,6 @@ export default function Changelog({ onNavigate }) {
 
             {years.map((y, i) => {
                 const majors = y.entries.filter((e) => e.type === 'major').length;
-                // The newest release of each month, in the year's own order (newest first).
                 const months = [];
                 for (const e of y.entries) {
                     const m = parseDate(e.date).month;

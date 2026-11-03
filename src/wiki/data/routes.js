@@ -1,15 +1,4 @@
-/**
- * Routes as the page draws them: "how could I get this item?"
- *
- * The data (routes.data.js) is Minecraft's own, for the server's version; this file
- * only decides how each kind of route is said and which icon stands for it. Every
- * icon is a real item sprite: the station you would use, the block you would mine,
- * the spawn egg of the mob, the workstation of the villager.
- *
- * Two routes are not Minecraft data but FIB rules, and apply to every item: you may
- * already be carrying it (it counts the moment it is assigned), and you may spend a
- * joker. The route map adds those itself.
- */
+/* Already-carrying and joker routes are FIB rules, not Minecraft data: the route map adds them itself. */
 
 import { ROUTES, MOB_ICON, ROUTES_VERSION } from './routes.data.js';
 import { ALL_POOL, itemName, whereOf } from './atlas.js';
@@ -23,7 +12,6 @@ const STATION = {
     campfire_cooking: ['CAMPFIRE', 'campfire'],
 };
 
-/** A villager profession by the workstation that gives it the job. */
 const WORKSTATION = {
     armorer: ['BLAST_FURNACE', 'Armorer'],
     butcher: ['SMOKER', 'Butcher'],
@@ -43,7 +31,6 @@ const WORKSTATION = {
 };
 const LEVEL = ['', 'Novice', 'Apprentice', 'Journeyman', 'Expert', 'Master'];
 
-/** The ways of getting something that are neither a recipe nor a drop. */
 const GAMEPLAY = {
     fishing: { verb: 'Fish', icon: 'FISHING_ROD', label: 'Fishing' },
     bartering: { verb: 'Barter', icon: 'GOLD_INGOT', label: 'Piglin bartering' },
@@ -59,11 +46,7 @@ const GAMEPLAY = {
     harvest: { verb: 'Harvest', icon: null, label: 'Harvest it' },
 };
 
-/*
- * A structure by the block a player recognises it by, so three loot sources are three
- * different places rather than one chest drawn three times. Presentation only: which
- * structures hold an item is still the loot tables' answer.
- */
+/* Presentation only: which structures hold an item is still the loot tables' answer. */
 const STRUCTURE_FACE = {
     'Abandoned Camp': 'CAMPFIRE',
     'Ancient City': 'SCULK_SHRIEKER',
@@ -96,15 +79,10 @@ const mobSource = (id) => ({ m: MOB_ICON[id] ?? null, label: titleMob(id) });
 const chain = (list) => list.map(([m, n, extra]) => ({
     m,
     n,
-    // A tag is shown by one member and named for the group; "+1" means one alternative.
     label: extra && !extra.startsWith('+') ? `any ${extra.replace(/_/g, ' ')}` : itemName(m),
     alt: extra.startsWith?.('+') ? Number(extra.slice(1)) : 0,
 }));
 
-/**
- * Every data route for one item, in the order a player would think of them: make it,
- * cook it, mine it, kill for it, loot it, trade for it, then the unusual ones.
- */
 export function routesFor(material) {
     const r = ROUTES[material];
     if (!r) return [];
@@ -118,12 +96,8 @@ export function routesFor(material) {
     if (r.smith) out.push({ kind: 'smith', verb: 'Upgrade', station: ['SMITHING_TABLE', 'smithing table'], chain: chain(r.smith) });
 
     if (r.mine) out.push({ kind: 'mine', verb: 'Mine', sources: r.mine.map((m) => ({ m, label: itemName(m) })) });
-    // Its own block. Where it generates is the world's answer, not a structure's: /info
-    // naming a structure (ancient debris: "Bastion") says where it can ALSO turn up,
-    // which the loot route already carries, so only biomes are used here.
+    // Only biomes: a structure /info names (ancient debris: Bastion) is already covered by the loot route.
     if (r.self) {
-        // `short` is what the route board prints under the face; the biome list is the
-        // item's own tooltip, and the full label stays the screen reader's sentence.
         out.push({ kind: 'self', verb: 'Find', sources: [{ m: material, short: 'In the world', label: info?.biomes ? `in ${info.biomes}, and break it` : 'where it generates, and break it' }] });
     }
     if (r.mob) out.push({ kind: 'mob', verb: 'Hunt', sources: r.mob.map(mobSource) });
@@ -133,7 +107,6 @@ export function routesFor(material) {
             sources: r.chest.map((s) => ({
                 m: faceOf(s, 'CHEST'),
                 label: s,
-                // config.yml's /info carries the odds for the structure it names.
                 odds: info?.structure && info?.chance && s.toLowerCase().startsWith(info.structure.toLowerCase()) ? info.chance : null,
             })),
         });
@@ -157,21 +130,14 @@ export function routesFor(material) {
     return out;
 }
 
-/** The routes the map actually shows: the first few, in the order above. */
 export const MAX_SHOWN = 5;
 export const shownRoutes = (material) => routesFor(material).slice(0, MAX_SHOWN);
 
-/** Whether any shown source carries /info odds, so the page only credits /info when it used it. */
 export const showsOdds = (material) => shownRoutes(material).some((r) => r.sources?.slice(0, 3).some((s) => s.odds));
 
-/*
- * "8 gold ingots", not "8 gold ingot". Minecraft's own names are mass nouns about as
- * often as not (8 wheat, 4 string, 3 gunpowder, 8 cobblestone), so this pluralises
- * only the count nouns it knows and leaves everything else as the game says it.
- */
+/* Minecraft's names are often mass nouns (8 wheat, 4 string), so only known count nouns are pluralised. */
 const COUNTABLE = /\b(ingot|nugget|stick|log|pearl|rod|eye|bone|feather|shell|shard|scrap|fragment|crystal|bottle|bucket|egg|apple|carrot|potato|seed|brick|slab|block|ball|bowl|arrow|book|button|rail|torch|sign|emerald|diamond|star|tear|head|skull|chain|plate|pane|tile|door|bed|boat|wart|berry|cookie|melon slice|pickaxe|sword|axe|shovel|hoe|disc|flower|mushroom|sapling|leaf|pod|template|sherd|key|core|horn|scute|spike|lantern)$/i;
 export function countLabel(n, label) {
-    // A tag names a group: "6 planks (any kind)", not "6 any planks".
     if (label.startsWith('any ')) return `${n > 1 ? `${n} ` : ''}${label.slice(4)} (any kind)`;
     if (n <= 1) return label;
     if (!COUNTABLE.test(label)) return `${n} ${label}`;
@@ -184,10 +150,9 @@ export function countLabel(n, label) {
     return `${n} ${plural}`;
 }
 
-/* ── What the page deals ──────────────────────────────────────────────────────
- * Families (twenty sherds, eighteen trim templates) are one problem in twenty
- * colourways; dealing them shows one sprite. An item needs at least two distinct
- * data routes to be worth dealing on a page whose point is that there is a choice.
+/*
+ * ── What the page deals ──
+ * An item needs at least two distinct routes to be worth dealing; families show one sprite and sit out.
  */
 const FAMILY = /_(POTTERY_SHERD|ARMOR_TRIM_SMITHING_TEMPLATE)$/;
 export const DEALABLE = ALL_POOL.filter((m) => !FAMILY.test(m) && routesFor(m).length >= 2);

@@ -7,22 +7,7 @@ import { spriteOf } from '../wiki/game/sprite.js';
 import '../wiki/page.css';
 import '../wiki/pages/rules.css';
 
-/*
- * Rules (THE EXPLORER'S ATLAS): playing fair in our rounds.
- *
- * Short on purpose: the network's rules come first, then what FIB adds (the mods that
- * are not allowed), then what holds the people running a round to the same standard:
- * fairplay/OpTransparencyListener announces to everyone any operator-only command an
- * operator runs during a round (checked against the plugin on main, Sept 2026).
- *
- * Nothing here says what the server checks for on the players' side, or how. That is
- * a decision, not an omission: whatever the server does about client mods stays off
- * the public site, this page and its source included.
- *
- * Each mod gets a real item as its face, because a list of five names is easier to
- * scan with one: they stand for what the mod does, and are never shown as a claim
- * about the item.
- */
+/* Never say what the server checks for on the client side, here or in this source. */
 
 const MODS = [
     { face: 'FILLED_MAP', name: 'Minimaps', text: 'Any mod that shows a map, or where players or mobs are.' },
@@ -53,7 +38,6 @@ export default function Rules({ onNavigate }) {
                     <a className="wk-btn wk-btn--quiet rl-btn" href="https://mcplayhd.net/rules" target="_blank" rel="noopener noreferrer">
                         Read them on mcplayhd.net <ArrowUpRight size={16} aria-hidden="true" />
                     </a>
-                    <p className="wk-small">What follows is what ForceItemBattle adds to them.</p>
                 </div>
             </section>
 

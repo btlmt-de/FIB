@@ -1,14 +1,4 @@
-/**
- * The two file rewrites the workspace commits: the pool (Java) and the descriptions
- * (config.yml). Pure string in, string out, so what a commit will contain can be
- * shown in review before anything is sent.
- *
- * Both are the old modals' code moved here unchanged in behaviour (ItemPoolManager's
- * modifyJavaFile, DescriptionEditor's update and delete), with one fix: description
- * lines are written through yamlQuote, so a quote in the text no longer breaks the
- * file. They are applied to the file as it is on the target branch at commit time,
- * never to the copy the page loaded, so a commit cannot undo someone else's.
- */
+/* Applied to the file as it is on the target branch at commit time, never the loaded copy, so a commit cannot undo someone else's. */
 
 import { REGISTER_REGEX, yamlQuote } from './poolData.js';
 
@@ -32,12 +22,7 @@ export function registerLine(material, state, tags = []) {
     return `        register(Material.${material}, State.${state}, ${tags.map((t) => `ItemTag.${t}`).join(', ')});`;
 }
 
-/*
- * Rewrites the whole registerAllItems() body, sorted by material. That is safe only
- * because the plugin keeps that method as a flat, sorted, comment-free list (checked
- * Sept 2026); a comment or a grouping added there would be lost by the next commit
- * from this page.
- */
+/* Safe only while the plugin keeps registerAllItems() a flat, sorted, comment-free list: anything else there is lost on commit. */
 export function modifyJavaFile(content, additions, removals) {
     const existing = parseExistingItems(content);
     const existingMaterials = new Set(existing.map((i) => i.material));
@@ -64,7 +49,6 @@ export function modifyJavaFile(content, additions, removals) {
     return content.substring(0, methodStart) + body + content.substring(methodEnd);
 }
 
-/** Pending pool changes as the additions and removals modifyJavaFile takes. */
 export function poolEdits(changes) {
     return {
         additions: changes.filter((c) => c.type === 'add' || c.type === 'modify')
@@ -74,7 +58,6 @@ export function poolEdits(changes) {
     };
 }
 
-/** The pull request's body, grouped the way the old manager wrote it. */
 export function pullRequestBody(changes) {
     const adds = changes.filter((c) => c.type === 'add');
     const mods = changes.filter((c) => c.type === 'modify');
@@ -104,7 +87,6 @@ export function updateDescriptionInConfig(content, materialName, descriptionLine
         if (line.trim() === 'descriptions:') { inDescriptions = true; result.push(line); continue; }
         if (!inDescriptions) { result.push(line); continue; }
 
-        // Leaving the section (a new top-level key): add the item there if it was never seen.
         if (/^[a-zA-Z]/.test(line) && !line.startsWith(' ')) {
             inTargetItem = false;
             if (!targetFound) { writeItem(); targetFound = true; }
@@ -151,14 +133,13 @@ export function deleteDescriptionFromConfig(content, materialName) {
     return result.join('\n');
 }
 
-/** Every pending description change, applied in order to one config.yml. */
 export function applyDescriptionChanges(content, changes) {
     return changes.reduce((text, c) => (c.lines === null
         ? deleteDescriptionFromConfig(text, c.material)
         : updateDescriptionInConfig(text, c.material, trimTrailingEmpty(c.lines))), content);
 }
 
-/** Trailing empty lines are dropped on save; a "&7" spacer is kept, it is content. */
+/* A "&7" spacer is content and is kept. */
 export function trimTrailingEmpty(lines) {
     const out = [...lines];
     while (out.length > 1 && out[out.length - 1] === '') out.pop();

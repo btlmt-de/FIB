@@ -1,18 +1,6 @@
-/*
- * An inner page of the wiki (THE EXPLORER'S ATLAS). Loaded with each inner page's
- * own chunk, so every class here is pg- and needs no .wk scope of its own.
- *
- * The home page is the showcase; an inner page is reference, read on a phone beside
- * the game. So the skeleton is quieter than home's: a title at the section size
- * (the display size is home's wordmark, once), a lede, then sections that put the
- * question on the left and its drawing on the right, divided by one inset rule.
- *
- * Plain words in comments: no backticks.
- */
+/* Loaded with each inner page's chunk, so classes are pg- and need no .wk scope. */
 
 .pg { display: block; overflow-x: clip; }
-/* A page shorter than the screen (Imprint): the footer sits at the bottom of the
-   screen rather than halfway up it. 56px is the nav. */
 .pg--short { display: flex; flex-direction: column; min-height: calc(100dvh - 56px); }
 .pg--short > .wk-foot { margin-top: auto; }
 
@@ -24,10 +12,6 @@
 
 /* ── A section: the question beside its drawing ───────────────────────────── */
 
-/* Documentation is set a step denser than home (which keeps 56/64): an inner page is
-   read to find something, not to be shown around. A brief section, one line of
-   drawing under a short head, takes less again, so a small answer does not sit in a
-   large field (final pass, Sept 2026). */
 .pg-sec {
   display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 28px 56px;
   align-items: start;
@@ -42,9 +26,6 @@
 
 /* ── The index of a long reference page (PageIndex.jsx) ───────────────────── */
 
-/* Held under the 56px nav, one line, in the nav's own grammar: ink3 words, ink and
-   a 3px bar for where you are. On a phone it scrolls sideways rather than wrapping,
-   so it stays one line tall. 46px, which the pages' sticky heads sit under. */
 .pg-index {
   position: sticky; top: 56px; z-index: 20;
   background: var(--wk-ground);
@@ -67,13 +48,11 @@ a.pg-index-link:hover { color: var(--wk-ink); }
 .pg-index-link[aria-disabled] { color: var(--wk-ink-4); }
 .pg-index-n { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-4); }
 .pg-index-link[aria-current] .pg-index-n, a.pg-index-link:hover .pg-index-n { color: var(--wk-ink-3); }
-/* A page with the index moves its sticky section heads down under it. */
 .pg:has(.pg-index) .pg-sec { scroll-margin-top: 100px; }
 .pg:has(.pg-index) .pg-sec-head { top: 134px; }
 
 /* ── Where next ───────────────────────────────────────────────────────────── */
 
-/* The home page's index row (hm-page in home.css), for inner pages. */
 .pg-next { padding: 48px 0 40px; box-shadow: inset 0 1px 0 var(--wk-line); }
 .pg-next-list {
   list-style: none; margin: 18px 0 0; padding: 0;
@@ -100,15 +79,11 @@ a.pg-index-link:hover { color: var(--wk-ink); }
 .wk-bossbar-title { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; }
 .wk-bossbar-item { display: inline-flex; align-items: center; gap: 7px; min-width: 0; animation: wk-bossbar-in 280ms var(--wk-ease); }
 @keyframes wk-bossbar-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-/* Force Chain's arrow to the next item, as a track: the game prints a grey arrow glyph. */
 .wk-bossbar-to { position: relative; flex: 0 0 18px; height: 2px; background: var(--wk-ink-3); }
 .wk-bossbar-to::after {
   content: ""; position: absolute; right: -1px; top: -4px; width: 6px; height: 10px;
   background: var(--wk-ink-3); clip-path: var(--wk-arrowhead);
 }
-/* The plugin draws the name on a green gradient; here it takes that gradient's one
-   ink, the way a gradient grade's word does everywhere else on the wiki. Hard text
-   shadow, as the game's text has. */
 .wk-bossbar-name {
   font-family: var(--wk-font-text); font-size: 18px; font-weight: 700; line-height: 1.2;
   color: var(--wk-bossbar);
@@ -120,8 +95,7 @@ a.pg-index-link:hover { color: var(--wk-ink); }
   image-rendering: pixelated;
   filter: drop-shadow(1px 1px 0 oklch(0% 0 0 / 0.4));
 }
-/* A full white bar in six notches. Each tile ends in a notch, and the tiles are a
-   sixth of the width plus a notch, so the sixth notch falls past the bar's end. */
+/* Each tile is a sixth of the width plus a notch, so the sixth notch falls past the bar's end. */
 .wk-bossbar-bar {
   width: 100%; height: 10px;
   background-color: var(--wk-ink);

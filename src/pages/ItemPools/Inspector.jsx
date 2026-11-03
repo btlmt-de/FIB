@@ -12,31 +12,13 @@ import { STAGE_KEYS, TAG_KEYS, displayNameOf } from './poolData.js';
 import { CATEGORY_CONFIG, categoryName } from './categories.js';
 import { REPOS, recentCommits, storedAuth } from './github.js';
 
-/**
- * The inspector: the right-hand half of the workspace.
- *
- *   nothing selected   the pool at a glance: stages, tags, /info coverage, what is
- *                      missing, coverage by category, and the last commits to both
- *                      files. Each figure is also a filter, so the overview is a way
- *                      into the work rather than a report about it.
- *   one item           the item as the game knows it: stage, tags, /info as chat
- *                      prints it. "Edit info" turns the same pane into the stage
- *                      and tag controls and the /info editor, and "Done" turns it
- *                      back. Editing stays on as you click through items, so a
- *                      maintainer working down a list does not re-open it each
- *                      time; clearing the selection ends it.
- *   several            what can be done to all of them at once.
- *
- * Nothing here writes to GitHub. Every control stages a change in the tray.
- */
-
 const fmt = (n) => n.toLocaleString('en-US');
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 
 export default function Inspector(props) {
     const { selection, onClear } = props;
     const [editing, setEditing] = useState(false);
-    // Clearing the selection ends editing; set during render, React's reset-on-change idiom.
+    // Set during render: React's reset-on-change idiom.
     if (selection.length === 0 && editing) setEditing(false);
     return (
         <div className="ip-inspect-in">
@@ -54,13 +36,6 @@ export default function Inspector(props) {
 
 /* ── One item ───────────────────────────────────────────────────────────────── */
 
-/*
- * *The inspector was always an editor* (owner, final pass, Sept 2026): every item
- * opened on stage buttons, tag toggles, a colour-code toolbar and line inputs, so a
- * player looking up where an item stands met an admin form. Browsing now shows the
- * item as a player would read it, and the controls appear only once someone asks for
- * them. Nothing about the controls changed; they are the same staged edits.
- */
 function ItemView({ material, byMaterial, changes, pool, categoryOf, editing, onEdit }) {
     const orig = byMaterial.get(material);
     const change = changes.pool[material];
@@ -271,13 +246,7 @@ function BulkView({ selection, byMaterial, changes, onClear }) {
 
 /* ── The overview ───────────────────────────────────────────────────────────── */
 
-/*
- * What each part of the pool means for a round, from the plugin: stages join the
- * pool as the round runs (Gameplay draws exactly when), and a tag keeps an item out
- * unless the round's settings let it in (PoolExclusions: HARD lets in the Nether and,
- * with EXTREME also on, the extreme items; END lets in the End). The standard
- * round's settings are config.yml's, via POOL_SETTINGS.
- */
+/* Mirrors the plugin's PoolExclusions: HARD lets in Nether (and Extreme with EXTREME), END lets in End. */
 const STAGE_NOTES = {
     EARLY: 'In the pool from the start',
     MID: 'Joins the pool part-way through',
@@ -289,12 +258,6 @@ function tagNote(t) {
     return `Extremely hard to get in time. Only with Extreme on${POOL_SETTINGS.extreme ? '' : ', which the standard round is not'}`;
 }
 
-/*
- * The overview answers "what is in this pool". The maintainers' figures (what has no
- * /info, what is missing, coverage by category, the commits) are real work but not a
- * player's question, so they fold into one section that is open for someone signed
- * in to GitHub and closed for everyone else.
- */
 function Overview({ pool, missing, onFilter, categoryOf, categoriesReady }) {
     const total = pool.length;
     const byStage = STAGE_KEYS.map((s) => [s, pool.filter((i) => i.state === s).length]);

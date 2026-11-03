@@ -6,21 +6,10 @@ import Mini from '../game/Mini.jsx';
 import { INFO } from '../data/info.data.js';
 import { spriteFallback, spriteOf } from '../game/sprite.js';
 
-/*
- * A command as it happens in the game: typed into the chat bar, sent, and answered.
- * The answer is the plugin's own, line for line (commands.data.js has them, and says
- * where each came from); /info's is the item's own description from config.yml. An
- * item icon in a line is drawn the way the resource pack's font draws one in chat.
- *
- * It types at a steady hand and answers a beat later, then waits to be replayed.
- * Under reduced motion or saver mode it opens already answered.
- */
-
 const TYPE_MS = 34;
 const SEND_MS = 260;
 const LINE_MS = 45;
 
-/** One chat line: MiniMessage, with {item:MATERIAL} icons set in the text. */
 function Line({ text }) {
     const parts = text.split(/\{item:([A-Z0-9_]+)\}/);
     if (parts.length === 1) return <Mini text={text} className="cm-chat-line" />;

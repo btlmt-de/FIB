@@ -22,40 +22,6 @@ import {
 } from './poolData.js';
 import '../../wiki/pages/pools.css';
 
-/*
- * Item Pools (THE EXPLORER'S ATLAS): the workspace where the pool and its /info
- * descriptions are maintained, and where anyone can look through them.
- *
- * Maintainers first (owner, Sept 2026). The page is one screen: the pool on the left,
- * an inspector on the right, and a tray along the bottom that collects every staged
- * change until it is committed. It replaced a browse page with four modals on top of
- * it (a description editor, a pool manager, a statistics report and a commit
- * history), each with its own idea of signing in and saving.
- *
- * Three ways to look at the pool, because they serve three jobs:
- *
- *   Catalogue   the default. A large texture, the name, the stage and tags as chips,
- *               and /info when there is one: every entry says what it is and how FIB
- *               classifies it without a hover. Five across on a 1920px screen.
- *   Inventory   52px slots, the densest view, for people who read textures. Names
- *               and classification are in the tooltip.
- *   List        one row per item, for inspection: stage, tags, the first /info line.
- *
- * *The Catalogue is a correction, and the reason is worth keeping.* The first build
- * of this page made the Inventory the default, and the owner found that it had gone
- * too far towards density: to answer "where is Ancient Debris" or "is this a Nether
- * item" a reader had to recognise a texture or decode a 2px bar and hover. This page
- * is an item database first; the stage bar and tag glyph are reinforcement, never
- * the only place a classification is written.
- *
- *   the browser     every item, filtered and grouped; click to inspect, Ctrl or Cmd
- *                   to add to a selection, Shift for a range, arrows to move
- *   the inspector   the overview when nothing is selected, an item, or a selection
- *   the tray        see ChangeTray.jsx
- *
- * The data paths are poolData.js, the file rewrites edits.js, GitHub github.js.
- */
-
 const fmt = (n) => n.toLocaleString('en-US');
 const VIEW_KEY = 'fib_pools_view';
 const VIEWS = [
@@ -86,7 +52,6 @@ function readParams() {
     }
 }
 
-/** Catalogue, Inventory or List: a per-viewer convenience, remembered in this browser. */
 function useMode() {
     const [mode, setMode] = useState(() => {
         try {
@@ -135,8 +100,7 @@ export default function ForceItemPools() {
     const bar = useRef(null);
     const main = useRef(null);
 
-    // The inspector and the drawer sit under the sticky toolbar, whose height changes
-    // as the filters wrap; measured into --ip-top rather than guessed.
+    // Measured: the sticky toolbar's height changes as the filters wrap.
     useLayoutEffect(() => {
         const el = bar.current;
         if (!el) return undefined;
@@ -177,7 +141,6 @@ export default function ForceItemPools() {
     const switchBranch = (b) => { setBranch(b); setViewBranch(b); load(b, true); };
     const categoryOf = useCallback((m) => categorizeItem(m, tagMap), [tagMap]);
 
-    /* What the browser can show. A staged addition is part of the pool view already. */
     const missing = useMemo(() => registry.filter((m) => !byMaterial.has(m)), [registry, byMaterial]);
     const universe = useMemo(() => {
         if (view === 'missing') {
@@ -229,7 +192,6 @@ export default function ForceItemPools() {
 
     const order = useMemo(() => groups.flatMap((g) => g.items.map((i) => i.material)), [groups]);
 
-    /* The pool's own breakdown, for the filter labels and the narrow-screen summary. */
     const counts = useMemo(() => {
         const pool = view === 'pool' ? universe : [];
         const c = { total: pool.length };
@@ -238,7 +200,6 @@ export default function ForceItemPools() {
         return c;
     }, [view, universe]);
 
-    /* Selection: click, Ctrl or Cmd to add, Shift for a range, Escape to clear. */
     const select = useCallback((material, e) => {
         if (e?.shiftKey && anchor.current) {
             const a = order.indexOf(anchor.current);
@@ -310,7 +271,6 @@ export default function ForceItemPools() {
                     </p>
                 </div>
 
-                {/* The primary line: find something, choose the pool, choose a stage. */}
                 <div className="ip-wrap ip-filters">
                     <label className="ip-search">
                         <Search size={18} aria-hidden="true" />
@@ -338,14 +298,12 @@ export default function ForceItemPools() {
                             ))}
                         </div>
                     )}
-                    {/* On a phone the secondary line folds behind this, so the items start near the top. */}
                     <button type="button" className="ip-link ip-refine-btn" aria-expanded={refineOpen} aria-controls="ip-refine"
                             onClick={() => setRefineOpen((v) => !v)}>
                         Filters and view{tags.length + (info !== 'any') + (group !== 'none') > 0 ? ` (${tags.length + (info !== 'any') + (group !== 'none')})` : ''}
                     </button>
                 </div>
 
-                {/* The secondary line, quieter: words that light up, not more blocks. */}
                 <div className="ip-wrap ip-refine" id="ip-refine" data-open={refineOpen || undefined}>
                     {view === 'pool' && (
                         <>
@@ -391,7 +349,6 @@ export default function ForceItemPools() {
 
             <div className="ip-wrap ip-work" data-inspecting={inspecting || undefined}>
                 <section className="ip-browse" aria-label="Items">
-                    {/* Where the sidebar has folded away, the pool's breakdown stays in view. */}
                     {view === 'pool' && counts.total > 0 && (
                         <p className="ip-summary">
                             {STAGE_KEYS.map((s) => <button key={s} type="button" className="ip-link" onClick={() => setStage(s)}><span style={{ color: STAGES[s].ink }}>{STAGES[s].label}</span> <span className="wk-datum">{fmt(counts[s])}</span></button>)}
@@ -475,16 +432,7 @@ function Skeleton({ mode }) {
 
 /* ── The browser ────────────────────────────────────────────────────────────── */
 
-/*
- * One tab stop for the whole browser, as an inventory has: arrows move, Home and End
- * jump, Enter or Space inspects (the entries are real buttons). Up and down move by
- * one row of whatever the view is, measured, so it works at any window size.
- *
- * The tooltip is immediate in the Inventory, where it is the only place a name is
- * written, and waits a moment in the Catalogue, where the entry already says what it
- * is and the tooltip only adds the /info preview: a pointer crossing the catalogue
- * should not strobe tooltips.
- */
+/* The tooltip waits in the Catalogue, where entries already name the item, so a crossing pointer does not strobe tooltips. */
 const TIP_DELAY = { inventory: 0, catalogue: 450 };
 
 function Browser({ groups, mode, selection, onSelect, changes, order }) {
@@ -577,31 +525,7 @@ function Browser({ groups, mode, selection, onSelect, changes, order }) {
     );
 }
 
-/*
- * A catalogue entry. One component, one fixed grid, so that across hundreds of them
- * the only thing that varies is the item:
- *
- *   texture   a fixed 56px column, the 52px sprite on its own: no slot, no stage bar,
- *             no glyph. The item art is the strongest thing this page has.
- *   name      a fixed two-line area, 16px, whether the name needs one line or two.
- *   tags      a fixed row under it: the stage and any tags as outlined chips in their
- *             own ink, then "/info" as a quiet word at the end when there is one.
- *
- * Every name starts at the same x, every chip row at the same y, every entry is the
- * same height. One piece of information gets one representation: LATE is written
- * once, as a chip, and nothing else on the entry is red.
- *
- * *This replaced a first Catalogue* whose labels followed the name's wrapping, sat
- * as free-floating coloured words with glyphs, and kept the slot's stage bar under a
- * 38px texture, eight across. The owner found it noisy at scale and the art too
- * small; fewer, calmer entries (five across at 1920px) read better than more.
- *
- * The stage is the chip; a world tag (Nether, End, Extreme) follows it on the same
- * row as its glyph and word with no box, because the stage is the classification and
- * a tag is metadata on it (owner, final pass, Sept 2026: three equal chips gave the
- * two the same weight). Still on the fixed row, so never free-floating like the first
- * Catalogue's words.
- */
+/* Fixed grid so every entry is the same height and only the item varies. */
 function Entry({ item: i, props }) {
     return (
         <button type="button" className="ip-entry" {...props}>
@@ -663,7 +587,6 @@ function Row({ item: i, props, changes }) {
     );
 }
 
-/* The game's tooltip, for a slot under the pointer: what the slot's marks say, in words. */
 function Tip({ item: i, rect, changes }) {
     const ref = useRef(null);
     useLayoutEffect(() => {
@@ -678,8 +601,7 @@ function Tip({ item: i, rect, changes }) {
         el.style.visibility = 'visible';
     }, [rect]);
     const staged = stagedWords(i, changes);
-    // /info's own lines, as lore under the name: the header repeats the name, and the
-    // spacers are spacing, so the preview starts at the first line that says something.
+    // Skip the header (it repeats the name) and spacer lines.
     const lines = (i.description ?? []).slice(1).filter((l) => stripMc(l).trim());
     const preview = lines.slice(0, 4);
     const more = lines.length - preview.length;

@@ -1,14 +1,6 @@
 import React from 'react';
 
-/*
- * The handful of MiniMessage the plugin's own strings use, drawn as the game draws
- * them: the sixteen named colours, bold and italic. Used wherever the wiki prints a
- * line the plugin wrote (the /settings menu's tooltips, the result stage's texts), so
- * the colours are the plugin's own rather than copied by hand.
- *
- * lift: on a near-black panel the game's dark gray (#555555) is barely readable, so it
- * is lifted to #8A8A8A there, the way the wheel lifts a rarity's ink for text.
- */
+/* lift: the game's dark gray (#555555) is unreadable on near-black panels, so it is lifted to #8A8A8A. */
 
 const MC = {
     black: '#000000', dark_blue: '#0000AA', dark_green: '#00AA00', dark_aqua: '#00AAAA',

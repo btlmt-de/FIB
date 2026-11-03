@@ -1,14 +1,4 @@
-/*
- * Your screen during a round (RoundHud.jsx). The screen is a container 427 Minecraft
- * GUI pixels wide; --g is one of them, so every piece sits where the game draws it at
- * any width: the bossbar two pixels from the top, the hotbar on the bottom edge, the
- * hearts and hunger 39 up, the action bar 68 up, chat from 48 up. The HUD sprites are
- * vanilla's own (public/fib-entities/hud). Text is white with the game's hard shadow.
- *
- * A piece the legend points at is outlined in white, the wiki's light for "this one".
- *
- * Plain words in comments: no backticks.
- */
+/* --g is one Minecraft GUI pixel of the 427-wide screen, so every piece sits where the game draws it. */
 
 .hud { margin: 0; display: grid; gap: 14px; }
 .hud-screen {
@@ -21,14 +11,11 @@
 .hud-screen > * { --g: calc(100cqw / 427); }
 .hud-world { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hud-night { position: absolute; inset: 0; background: oklch(14% 0.04 265); pointer-events: none; transition: opacity 400ms linear; }
-/* The scenery is a dusk; by day the sky lifts toward blue. */
 .hud-day { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(var(--wk-hud-sky-high), var(--wk-hud-sky-low) 60%, transparent 85%); mix-blend-mode: screen; transition: opacity 400ms linear; }
 .hud-seg, .hud-line { display: inline; white-space: pre; }
 .hud-icon { display: inline-block; width: calc(9 * var(--g)); height: calc(9 * var(--g)); vertical-align: calc(-1.5 * var(--g)); image-rendering: pixelated; filter: drop-shadow(calc(0.6 * var(--g)) calc(0.6 * var(--g)) 0 oklch(0% 0 0 / 0.4)); }
 .hud-screen [data-lit] { outline: calc(1 * var(--g)) solid var(--wk-hud-text); outline-offset: calc(2 * var(--g)); }
 
-/* The plugin writes the item and the clock in gradients; as everywhere on the wiki, a
-   word takes its gradient's middle as one ink (--wk-bossbar, --wk-hud-clock). */
 .hud-grad { font-weight: 700; color: var(--wk-bossbar); }
 .hud-grad2 { font-weight: 700; color: var(--wk-hud-clock); }
 
@@ -75,8 +62,6 @@
 .hud-count { position: absolute; right: calc(-1 * var(--g)); bottom: calc(-2 * var(--g)); font-size: calc(9 * var(--g)); line-height: 1; }
 .hud-hot-sel { position: absolute; left: calc(-1 * var(--g)); top: calc(-1 * var(--g)); width: calc(24 * var(--g)); height: calc(23 * var(--g)); background: url(/fib-entities/hud/hotbar_selection.png) 0 0 / 100% 100%; image-rendering: pixelated; }
 
-/* Another player, standing in the world. */
-/* The tab list, over everything, as Tab shows it. */
 .hud-tab {
   position: absolute; left: 50%; top: calc(8 * var(--g)); transform: translateX(-50%);
   display: grid; justify-items: center; gap: calc(3 * var(--g)); padding: calc(3 * var(--g)) calc(4 * var(--g)) calc(4 * var(--g));

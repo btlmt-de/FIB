@@ -1,23 +1,10 @@
-/*
- * The /settings menu (SettingsMenu.jsx), drawn at twice the game's GUI scale: the
- * vanilla chest texture (generic_54), cut to four rows the way the game cuts it (the
- * top 89px: title and slots, then the panel's bottom edge), each 18px slot 36px here
- * and each item 32px. Positions are the game's: the first slot's item at (8, 18),
- * the title at (8, 6).
- *
- * A slot lights the way the game lights one, a half-white wash, which is also the
- * wiki's rule that interaction is white. The tooltip is the game's tooltip frame, the
- * same one every item tooltip on the wiki wears.
- *
- * Plain words in comments: no backticks.
- */
+/* Twice the game's GUI scale, from the vanilla generic_54 texture cut to four rows; positions are the game's. */
 
 .sm { margin: 0; display: grid; gap: 12px; justify-items: start; }
 .sm-gui {
   position: relative; width: 352px; height: 192px;
   background: var(--gui) 0 0 / 512px 512px no-repeat; image-rendering: pixelated;
 }
-/* The panel's bottom edge, taken from the foot of the texture. */
 .sm-gui::after {
   content: ""; position: absolute; left: 0; bottom: 0; width: 352px; height: 14px; pointer-events: none;
   background: var(--gui) 0 -430px / 512px 512px no-repeat; image-rendering: pixelated;
@@ -41,7 +28,6 @@
   font: 700 16px/1 var(--wk-font-text); color: #FFFFFF; text-shadow: 2px 2px 0 #3F3F3F;
   pointer-events: none;
 }
-/* The game answers a refused click with a sound; here the slot shakes. */
 .sm-slot[data-refused] { animation: sm-refuse 240ms var(--wk-ease); }
 @keyframes sm-refuse { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
@@ -63,7 +49,6 @@
 .sm-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; max-width: 352px; }
 .sm-reset { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
 
-/* On a phone the tooltip has no room beside the slot, so it sits under the chest. */
 @media (max-width: 560px) {
   .sm-tip, .sm-tip[data-side="left"] { left: 0; right: auto; top: calc(100% + 8px); max-width: 100%; }
 }

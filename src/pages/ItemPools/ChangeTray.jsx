@@ -10,22 +10,6 @@ import {
     openPullRequest, readFile, saveAuth, storedAuth, whoAmI, writeFile,
 } from './github.js';
 
-/**
- * The change tray: everything staged, reviewed and committed from one place.
- *
- * It replaced two modals with two different ideas of how to commit. Now there is one
- * list per destination, each saying where it will land before it is sent:
- *
- *   Pool changes   the plugin repo, on a new or existing branch (never main or master),
- *                  with a pull request into main ticked by default. The live pool only
- *                  changes when that is merged, and the tray says so.
- *   /info changes  this repo's config.yml, on the branch the page is showing unless
- *                  another is picked. All of them in one commit.
- *
- * Both rewrite the file as it is on the target branch at the moment of commit, never
- * the copy the page loaded, so nobody else's commit is overwritten.
- */
-
 const today = () => new Date().toISOString().slice(0, 10).replace(/-/g, '');
 const list = (names, n = 3) => (names.length <= n ? names.join(', ').replace(/, ([^,]*)$/, ' and $1')
     : `${names.slice(0, n).join(', ')} and ${names.length - n} more`);
@@ -34,8 +18,7 @@ export default function ChangeTray({ changes, byMaterial, viewBranch, onInfoComm
     const [open, setOpenRaw] = useState(false);
     const setOpen = (v) => { setOpenRaw(v); if (!v) setResults({}); };
     const [auth, setAuth] = useState(storedAuth);
-    // Kept here, not in the sections: a section's list empties the moment its commit
-    // lands, and the links to the commit and the pull request must outlive it.
+    // Kept here: a section's list empties when its commit lands, and the result links must outlive it.
     const [results, setResults] = useState({});
     const resultFor = (k) => ({ result: results[k], setResult: (r) => setResults((x) => ({ ...x, [k]: r })) });
     const total = changes.poolCount + changes.infoCount;
@@ -149,7 +132,6 @@ function SignIn({ auth, setAuth }) {
 
 /* ── Committing ─────────────────────────────────────────────────────────────── */
 
-/** The repo's branches, and a way to add one this page just created without asking GitHub again. */
 function useBranches(auth, repo) {
     const [branches, setBranches] = useState(null);
     useEffect(() => {
@@ -208,10 +190,7 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
             setStep('Checking you can push to the plugin repo…');
             if (!(await canPush(auth.token, REPOS.pool.repo))) throw new Error(`${auth.user.login} cannot push to ${REPOS.pool.repo}.`);
             const { additions, removals } = poolEdits(snapshot);
-            // A new branch is only created once the edit is known to read and to change
-            // something, read off main (what the branch would start from). It used to be
-            // created first, so a failed read or a no-op left an unused branch behind, and
-            // the retry then refused the name because that branch existed.
+            // Create the branch only once the edit is known to change something: a failed read used to leave an unused branch behind.
             const from = mode === 'new' ? REPOS.pool.base : target;
             setStep(`Reading the pool on ${from}…`);
             let { content, sha } = await readFile(auth.token, REPOS.pool, from);
@@ -221,8 +200,7 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
                 setStep(`Creating ${target} from main…`);
                 await createBranch(auth.token, REPOS.pool.repo, target, REPOS.pool.base);
                 created = true;
-                // Main can move between that read and the branch: read the branch itself,
-                // so the write is against the file it really holds.
+                // Main can move between that read and the branch: read the branch itself.
                 ({ content, sha } = await readFile(auth.token, REPOS.pool, target));
                 next = modifyJavaFile(content, additions, removals);
                 if (next === content) throw new Error(`${target} already has these changes.`);
@@ -248,8 +226,7 @@ function PoolCommit({ auth, changes, byMaterial, onDone, result, setResult }) {
             onDone?.(target);
         } catch (e) {
             if (created) {
-                // The branch exists now: offer it, so a retry adds to it instead of
-                // failing on the name.
+                // Offer the new branch so a retry adds to it instead of failing on the name.
                 addBranch(target);
                 setExisting(target);
                 setMode('existing');

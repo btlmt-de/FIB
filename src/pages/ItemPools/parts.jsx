@@ -3,12 +3,7 @@ import { TagGlyph } from '../../wiki/game/items.jsx';
 import { STAGES, TAGS } from '../../wiki/tokens.js';
 import { STAGE_KEYS, TAG_KEYS, spriteFallback, spriteOf } from './poolData.js';
 
-/*
- * The workspace's own item pieces. The wiki's ItemSlot reads stage and tags from the
- * build-time atlas, which is the deployed pool filtered by config.yml; this page is
- * the live, unfiltered pool from GitHub plus whatever is staged, so its slots are
- * drawn from the item they are given. Same classes, same marks, different source.
- */
+/* Not the wiki's ItemSlot: that reads the build-time atlas, this page shows the live pool plus staged changes. */
 
 export function Sprite({ material, eager = false }) {
     return (
@@ -17,7 +12,6 @@ export function Sprite({ material, eager = false }) {
     );
 }
 
-/** A slot for an item: stage bar, a tag glyph, sunk like every slot on the wiki. */
 export function Slot({ item, size = 52, className = '', eager }) {
     const tag = item.tags?.includes('END') ? 'END' : item.tags?.includes('NETHER') ? 'NETHER' : item.tags?.includes('EXTREME') ? 'EXTREME' : null;
     return (
@@ -29,13 +23,11 @@ export function Slot({ item, size = 52, className = '', eager }) {
     );
 }
 
-/** The stage as a word in its ink. */
 export function StageWord({ state }) {
     if (!state) return null;
     return <span style={{ color: STAGES[state].ink }}>{STAGES[state].label}</span>;
 }
 
-/** Tags as glyph and word, the Redundant Channel Rule. */
 export function TagWords({ tags }) {
     if (!tags?.length) return null;
     return tags.map((t) => (
@@ -43,7 +35,6 @@ export function TagWords({ tags }) {
     ));
 }
 
-/** Stage and tags as controls: the three stages as one choice, each tag on or off. */
 export function PoolControls({ state, tags, onChange, disabled = false }) {
     return (
         <div className="ip-poolctl">

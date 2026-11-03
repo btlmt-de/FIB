@@ -6,19 +6,6 @@ import X from 'lucide-react/dist/esm/icons/x';
 import { COLOR_NAMES, FIELDS, FORMAT_CODES, MC_COLORS, headerFor, stripMc } from './mcFormat.js';
 import { McChat, McLine } from './McText.jsx';
 
-/**
- * An item's /info lines, edited in place in the inspector.
- *
- * Every keystroke is a staged change (the tray commits it), so there is no save
- * button here and nothing to lose: this replaced the description editor modal, whose
- * work only reached GitHub if the modal was saved before it was closed. The toolbar
- * is the old editor's: the sixteen colour codes, the format codes, the field
- * templates config.yml's descriptions are built from, and copying lines from an item
- * that already has a good description.
- *
- * Codes are inserted at the caret of the line last focused. Lines are typed strings
- * (the Mono Rule), and the chat preview above them is what /info will print.
- */
 export default function InfoEditor({ item, lines, base, staged, onChange, onUndo, pool }) {
     const [active, setActive] = useState(0);
     const [copying, setCopying] = useState(false);
@@ -165,7 +152,6 @@ export default function InfoEditor({ item, lines, base, staged, onChange, onUndo
                                             </button>
                                         ))}
                                         <button type="button" className="wk-btn wk-btn--quiet ip-btn" onClick={() => {
-                                            // The header names the item it was copied from; keep ours.
                                             const [head, ...rest] = o.description;
                                             set(/Item Information/.test(stripMc(head)) ? [lines[0] ?? headerFor(item.displayName), ...rest] : [...o.description]);
                                             setCopying(false);

@@ -10,36 +10,7 @@ import { ROUND, STAGES } from '../tokens.js';
 import { spriteFallback, spriteOf } from '../game/sprite.js';
 import './resultceremony.css';
 
-/*
- * How a round ends: the result stage, replayed. When the clock runs out the plugin
- * builds a stage in the sky above spawn and seats everyone in front of it; an operator
- * then runs /result once per player or team, worst place first, so the winner comes
- * last. This draws what the seats see, from straight ahead, and runs the plugin's own
- * choreography at the plugin's own pace. All of it is ceremony/* on main (Sept 2026):
- *
- *   the stage     StageLayout: a 16 by 8 canvas floating 4 to 12 blocks up, the title
- *                 and counter over it, the spotlight and the item card in front of it,
- *                 the podium in front of that. Drawn from the front in those blocks.
- *   a reveal      ResultStage.reveal: the grid clears, the title turns to ????????,
- *                 each find pops into the spotlight with its card (the item, the time
- *                 left when it was found, Joker, the back-to-back and its odds) and flies
- *                 to its slot; then the name, and the chat line with its [Inventory] link
- *   the pace      StageTimeline, in ticks of 50ms: 8 between finds, a tick less for every
- *                 8 past 10 finds, never under 4; a back-to-back holds longer by its
- *                 rarity (Rare 10, Epic 14 ticks); the next pops while one still flies
- *   the grid      StageLayout.gridFor: the column count that gives the biggest cell
- *   the glow      StagePalette: a joker glows red, a back-to-back in its rarity's colour
- *   the finale    after the winner: the podium rises (gold, iron, copper; first in the
- *                 middle, second to the audience's left), the top three step up third
- *                 first, fireworks, and then everyone can browse every result with
- *                 Previous and Next, a STATS card beside it (SummaryCard)
- *
- * The round is made up, and says so: four players with Minecraft's default skins, their
- * finds drawn from the real pool the way the pool opens in a standard round, a joker or
- * two and a back-to-back or two each. Between reveals the operator's /result is shown
- * in the chat, since in the game someone has to type it. Left out: the sounds, the
- * on-screen title that repeats the name, and the seats.
- */
+/* Replays the plugin's ceremony/* (StageLayout, ResultStage, StageTimeline, StagePalette) at its own pace. Sounds and seats are left out. */
 
 const TICK = 50;
 const X0 = -8.8;
@@ -120,15 +91,9 @@ const PLAYERS = [
     { name: 'Noor', skin: '/fib-entities/skins/noor.png' },
 ];
 
-/*
- * One possible round of the standard length: each player's finds spread over it, each
- * drawn from what the pool held at that minute (Early from the start, Mid from minute 5,
- * Late from minute 15), none twice. A back-to-back is handed in on the spot.
- */
 function playFinds(count) {
     const total = ROUND.minutes * 60;
-    // Each target is rolled once, and capped at the indices there are to fill, so a
-    // short list cannot leave either loop waiting for an index that does not exist.
+    // Targets are capped at the indices there are, so a short list cannot leave a loop waiting forever.
     const jokers = new Set();
     const jokerTarget = Math.min(randInt(0, 2), Math.max(0, count - 2));
     while (jokers.size < jokerTarget) jokers.add(randInt(2, count - 1));
@@ -208,7 +173,6 @@ const OPENING = {
     done: false,
 };
 
-/** The stage once everything is over: the podium up, the winner's items browsable. */
 function finished(round) {
     const winner = round[0];
     return {
@@ -231,14 +195,7 @@ function Sprite({ material }) {
     return <img className="rs-sprite" src={spriteOf(material)} data-material={material} onError={spriteFallback} alt="" width="128" height="128" draggable="false" />;
 }
 
-/*
- * It opens on the END of the round, not on the empty stage before the first /result.
- * The empty sky was the first thing a reader saw, and at that size it said nothing:
- * no scores, no winner, a blank card column (owner, final pass, Sept 2026). Finished,
- * the same drawing is the state the page has been building towards: the podium up,
- * the winner's finds on the stage, their STATS beside it, and every result in chat,
- * worst first. Playing it replays the reveal from the top.
- */
+/* Opens on the finished stage: the empty one said nothing at first sight. */
 function opening() {
     const round = playRound();
     return { round, st: finished(round) };
@@ -266,7 +223,6 @@ export default function ResultCeremony() {
         setPlaying(true);
         setPlayed(true);
         let t = 600;
-        // Worst place first, the winner last.
         [...r].reverse().forEach((p) => {
             const count = p.finds.length;
             const layout = gridFor(count);
@@ -289,12 +245,11 @@ export default function ResultCeremony() {
             at(t + (dealt + 40) * TICK, () => patch((s) => ({ ...named(p), chat: [...s.chat, announcement(p)].slice(-4) })));
             t += (dealt + 40) * TICK + 1400;
         });
-        // The finale, as ResultStage.finale runs it.
+        // ResultStage.finale
         t -= 1400;
         const podium = t + 50 * TICK;
         at(podium, () => patch({ podium: 1 }));
         [3, 2, 1].forEach((place) => at(podium + (20 + (4 - place) * 15) * TICK, () => patch((s) => ({ standing: [...s.standing, place] }))));
-        // Two rockets beside each step, every second for three seconds.
         for (let d = 20 + 45, wave = 0; d <= 20 + 105; d += 20, wave++) {
             const shots = [1, 2, 3].flatMap((place) => [-1.6, 1.6].map((side) => ({ id: `${wave}${place}${side}`, place, x: podiumX(place) + side, y: rand(7.5, 11.5) })));
             at(podium + d * TICK, () => patch((s) => ({ bursts: [...s.bursts, ...shots] })));
@@ -304,7 +259,6 @@ export default function ResultCeremony() {
 
     const skip = () => { stop(); setSt(finished(round)); setPlaying(false); };
 
-    // Under reduced motion or saver mode the stage is shown finished, and still browsable.
     const view = calm && !st.done ? finished(round) : st;
 
     const browse = (step) => {
@@ -379,7 +333,7 @@ export default function ResultCeremony() {
                         </span>
                     ))}
                 </div>
-                {/* Always there, empty until browsing, so its column never resizes the stage. */}
+                {/* Always rendered, so its column never resizes the stage. */}
                 <div className="rs-summary">
                     {shown && (
                         <>
@@ -421,14 +375,11 @@ export default function ResultCeremony() {
     );
 }
 
-/* A player standing on their step, as the plugin's mannequin wears their skin: two
-   blocks tall, sixteen skin pixels to a block, so the podium label above it sits where
-   the plugin puts it. */
+/* Two blocks tall, sixteen skin pixels a block, so the podium label sits where the plugin puts it. */
 function Figure({ skin, slim, x, y }) {
     return <SkinFigure skin={skin} slim={slim} className="rs-figure" style={{ '--x': px(x), '--y': py(y + 2), '--u': size(1 / 16) }} />;
 }
 
-/** A text display, as the stage writes one: centred on its point, growing upwards. */
 function Text({ x, y, scale, line, lines, display }) {
     return (
         <span className={display ? 'rs-text rs-text--display' : 'rs-text'} style={{ '--x': px(x), '--y': py(y), '--fs': size(0.2 * scale) }}>

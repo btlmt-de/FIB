@@ -18,25 +18,6 @@ import { BEATS, FIND_RARITY, GAUGE, REGION, REGIONS, ROUND, STAGES, TAGS } from 
 import { PAGES, useGo } from '../wiki/shell/pages.js';
 import '../wiki/pages/home.css';
 
-/*
- * The home page - the reference implementation of THE EXPLORER'S ATLAS.
- *
- * It tells the game in the order a player lives it. You are handed an item. You work
- * out how to get it (the route map: every real way Minecraft allows). You get it, it
- * counts, the next one replaces it with no pause (the loop). Meanwhile the clock
- * runs and the pool only grows harder (the pressure). Sometimes the right move is to
- * skip it, or you are lucky and already holding it (the escapes). Only then the
- * world, as the toolbox all of this draws on, and the four modes, each drawn as its
- * own mechanic.
- *
- * An earlier version opened on the world instead, and read as a game about which
- * biome an item lives in. It is not: the world is the solution space, not the point.
- *
- * Nothing here that the game already knows is typed in by hand. The pool, stages,
- * tags and server settings come from the plugin and config.yml (vendor-pool.mjs);
- * the routes from Minecraft's own data for the server's version (vendor-routes.mjs).
- */
-
 // Same renderer as the wheel's heads - see getMinecraftHeadUrl for why not mc-heads.
 const MC_HEAD = (u) => `https://minotar.net/helm/${u}/100`;
 const GH_AVT = (u) => `https://github.com/${u}.png?size=100`;
@@ -45,11 +26,7 @@ const fmt = (n) => n.toLocaleString('en-US');
 
 /* ── Content that is not derived ───────────────────────────────────────────── */
 
-/*
- * Examples for "or try one of these": chosen by hand to show how differently the
- * problem can be shaped (a recipe, a structure only, a mob or fishing or a trader,
- * the Nether, the End). The routes shown for them are still the derived ones.
- */
+/* Chosen by hand to show different route shapes; the routes shown are still derived. */
 const EXAMPLES = ['FIRE_CHARGE', 'BREAD', 'ECHO_SHARD', 'NAUTILUS_SHELL', 'ENDER_PEARL', 'NETHERITE_INGOT', 'WHITE_WOOL']
     .filter((m) => routesFor(m).length);
 
@@ -80,7 +57,6 @@ const THANKS = [
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-/** How many slot columns fit a container, kept current as it resizes. */
 function useColumns(ref, slot, gap = 2) {
     const [cols, setCols] = useState(8);
     useEffect(() => {
@@ -95,7 +71,6 @@ function useColumns(ref, slot, gap = 2) {
     return cols;
 }
 
-/** True while an element is on screen, so off-screen loops cost nothing. */
 function useOnScreen(ref) {
     const [on, setOn] = useState(false);
     useEffect(() => {
@@ -108,7 +83,6 @@ function useOnScreen(ref) {
     return on;
 }
 
-/** n distinct picks, fixed for the life of the page. */
 function usePicks(list, n) {
     return useMemo(() => {
         const out = new Set();
@@ -119,23 +93,14 @@ function usePicks(list, n) {
 
 const regionOf = (m) => REGION[whereOf(m)?.region] ?? REGION.surface;
 
-/*
- * The dealable items of each stage, once per page. usePicks memoises on the list it is
- * given, and dealableFrom builds a new array every call, so passing its result straight
- * in re-dealt the round clock, the backpack and the modes on every render (a resize, a
- * Draw another) and ran routesFor over the pool each time.
- */
+/* Built once: usePicks memoises on its list, and a fresh array each render re-dealt everything on every resize. */
 const DEALABLE_BY_STAGE = {
     EARLY: dealableFrom(POOL_BY_STAGE.EARLY),
     MID: dealableFrom(POOL_BY_STAGE.MID),
     LATE: dealableFrom(POOL_BY_STAGE.LATE),
 };
 
-/* ── The draw ────────────────────────────────────────────────────────────────
- * The game's verb, and the page's one fast motion: a riffle through wrong items at
- * ~55ms, then the real one lands. One draw drives the hero and the route map, so
- * "Draw another" anywhere deals both.
- */
+/* ── The draw ── */
 
 function useDraw(calm) {
     const [target, setTarget] = useState(() => pick(DEALABLE));
@@ -151,9 +116,7 @@ function useDraw(calm) {
     const draw = (next = pick(DEALABLE.filter((m) => m !== target))) => {
         window.clearInterval(timer.current);
         if (calm) { setTarget(next); setFace(next); setLanded((n) => n + 1); return; }
-        // Land only once the real sprite is decoded. A browser keeps painting the
-        // old src until the new one arrives, so landing early showed the last wrong
-        // item under the right name.
+        // Land only once the real sprite is decoded, or the old wrong item shows under the right name.
         let ready = false;
         const img = new Image();
         img.onload = img.onerror = () => { ready = true; };
@@ -168,7 +131,6 @@ function useDraw(calm) {
         }, 55);
     };
 
-    // One arrival on load: the page opens by handing you something.
     useEffect(() => {
         draw(target);
         return () => window.clearInterval(timer.current);
@@ -199,7 +161,7 @@ function Opening({ go, deal }) {
                     <p className="wk-small hm-open-note">
                         Popularised by{' '}
                         <a className="wk-link" href="https://www.youtube.com/@BastiGHG" target="_blank" rel="noopener noreferrer">BastiGHG</a>.
-                        {' '}This is the <strong>McPlayHD.net</strong> edition: our rules, our balance, our world.
+                        {' '}This is the <strong>McPlayHD.net</strong> edition.
                     </p>
                     <div className="hm-open-actions">
                         <a className="wk-btn" href="/how-to-play" onClick={go('how-to-play')}>
@@ -209,9 +171,6 @@ function Opening({ go, deal }) {
                     </div>
                 </div>
 
-                {/* The item is the object the page revolves around: no card, no
-                    slot, just the thing itself standing in the light of where it
-                    comes from. */}
                 <div className="hm-target" style={{ '--region': region.light, '--region-ink': region.ink }}>
                     <div className="hm-target-env" key={region.key}>
                         <Environment region={region.key} seed={3} light={0.3} />
@@ -230,9 +189,7 @@ function Opening({ go, deal }) {
                                 </span>
                             ))}
                         </p>
-                        {/* Only where the data pins it. An unpinned item still stands in
-                            a place (the scenery needs one), but the page does not claim
-                            the item comes from there. */}
+                        {/* An unpinned item still needs scenery, but the page must not claim it comes from there. */}
                         {pinned && (
                             <p className="hm-hero-line">
                                 <span style={{ color: region.ink }}>{region.name}</span>
@@ -260,7 +217,7 @@ function Routes({ deal, calm }) {
     return (
         <section className="wk-wrap hm-routes" aria-labelledby="hm-routes-title" style={{ '--region': region.light }}>
             <div className="hm-routes-head">
-                <h2 id="hm-routes-title" className="wk-h2">One item. Many ways to get it.</h2>
+                <h2 id="hm-routes-title" className="wk-h2">Every way to get it</h2>
                 <p className="wk-p">
                     The game hands you an item and nothing else. Every way Minecraft offers to get it is open, and the
                     round goes to whoever picks the fastest one from where they are standing.
@@ -285,18 +242,11 @@ function Routes({ deal, calm }) {
     );
 }
 
-/* ── 3. The loop ─────────────────────────────────────────────────────────────
- * A round, sped up: an item arrives, it is found, it counts, the next replaces it.
- * Labelled as an illustration because the items are dealt, not played.
- */
+/* ── 3. The loop ── */
 
 const BEAT_MS = 340;
 
-/*
- * The others in the round, each on a random item of their own. Illustration: their
- * odds of scoring on a beat are set so the race stays close (you score once every six
- * beats), not measured from anything. The names are the crew's, below.
- */
+/* Odds are set to keep the race close, not measured. */
 const RIVALS = [
     { name: 'apppaa', score: 8, p: 1 / 6.5 },
     { name: 'stupxd', score: 6, p: 1 / 7.5 },
@@ -308,7 +258,6 @@ function Loop({ calm }) {
     const ref = useRef(null);
     const onScreen = useOnScreen(ref);
     const early = DEALABLE_BY_STAGE.EARLY;
-    // The count always equals the checked items behind it, including standing still.
     const [state, setState] = useState(() => {
         const trail = Array.from({ length: 7 }, () => pick(early));
         return {
@@ -322,7 +271,6 @@ function Loop({ calm }) {
         const t = window.setInterval(() => {
             setState((s) => {
                 const beat = (s.beat + 1) % BEATS.length;
-                // Meanwhile, everyone else: found theirs, +1, a new item.
                 const rivals = s.rivals.map((r) => (Math.random() < r.p ? { ...r, score: r.score + 1, item: pick(early) } : r));
                 if (BEATS[beat] === 'Score') return { ...s, beat, rivals, score: s.score + 1, trail: [s.current, ...s.trail].slice(0, 7) };
                 if (BEATS[beat] === 'Next') return { ...s, beat, rivals, current: pick(early) };
@@ -333,8 +281,7 @@ function Loop({ calm }) {
     }, [calm, onScreen, early]);
 
     const beat = calm ? 4 : state.beat;
-    // The sidebar scoreboard, as the game draws it: highest first. You win a tie on
-    // your own screen.
+    // You win a tie on your own screen.
     const board = [{ name: 'You', you: true, score: state.score, item: state.current }, ...state.rivals]
         .map((p, order) => ({ ...p, order }))
         .sort((a, b) => b.score - a.score || a.order - b.order);
@@ -386,29 +333,11 @@ function Loop({ calm }) {
     );
 }
 
-/* ── 4. The pressure ─────────────────────────────────────────────────────────
- * The round clock, drawn as one pool that items join. The round's timeline is the
- * backbone; each unlock is a flag on it, in its stage's light, carrying real items
- * of the stage that joins there and the count it adds. Under the flags runs a strip
- * of real draws, one per step of the round, taken the way the plugin takes them:
- * uniformly from every item unlocked so far (ItemDifficultiesManager.drawFrom). So
- * the strip starts all Early, and after each flag the new stage mixes in while the
- * earlier ones keep turning up, which is "nothing ever leaves" shown rather than
- * said. Just above the axis, each stage is also a thin layer from its unlock to the
- * end of the round, stacked on the ones before it, so the eye reads a pool that piles
- * up rather than three phases that take turns (final pass, Sept 2026: the flags said
- * "+ Mid" and the strip showed it, but nothing drew the pool itself accumulating).
- * The drawn item hangs off the axis where it unlocks. Below 900px the timeline
- * turns on its side and the strip is not drawn, so the caption about it goes too.
- *
- * *This replaced a stacked chart.* Each stage was a layer of block cells starting
- * where it unlocked, heights to scale, stacked on the stages before it. It was
- * correct and read badly: hundreds of coloured cells, a staircase, and three bands
- * that looked like three separate phases of the round. The items now carry it, and
- * the stage colours are accents (a flag, a stage bar, a word), not fills.
+/*
+ * ── 4. The pressure ──
+ * The strip draws the way ItemDifficultiesManager.drawFrom does: uniformly from everything unlocked so far.
  */
 
-/* Placed by minute of the standard round (ROUND in tokens.js), as a share of it. */
 const pctOf = (minute) => (minute / ROUND.minutes) * 100;
 const BOUNDS = ['EARLY', 'MID', 'LATE'].map((k) => [k, pctOf(STAGES[k].minute)]);
 const SPAN = Object.fromEntries(BOUNDS.map(([k, at], i) => [k, (BOUNDS[i + 1]?.[1] ?? 100) - at]));
@@ -420,7 +349,6 @@ const DRAW_SLOT = 36;
 const DRAW_STEP = DRAW_SLOT + 2;
 const DRAWS_MAX = 48;
 
-/** An element's content width, kept current as it resizes. */
 function useWidth(ref) {
     const [w, setW] = useState(0);
     useEffect(() => {
@@ -433,18 +361,7 @@ function useWidth(ref) {
     return w;
 }
 
-/*
- * The strip's draws, made once per page and sliced to fit, so a resize reveals more
- * of the same round rather than dealing a new one. Each stretch draws exactly the way
- * the plugin does, uniformly from everything unlocked by then: a stage by its share of
- * the pool, then an item in it, which is the same as one uniform pick from the union.
- *
- * It used to force the first draw after an unlock to be the new stage, spending the
- * flag's own items, and to avoid repeats within a stretch. That made the flags visibly
- * land in the pool, and it made the strip overstate the new stage on the short Mid
- * stretch, under a caption saying every item is equally likely. The caption is the
- * claim, so the strip now keeps it and a flag's items turn up only by chance.
- */
+/* Made once and sliced to fit, so a resize shows more of the same round. Strictly uniform: the caption claims every item is equally likely. */
 function drawRound() {
     return BOUNDS.map((_, s) => {
         const open = BOUNDS.slice(0, s + 1).map(([t]) => t);
@@ -487,8 +404,6 @@ function Pressure({ target }) {
             </div>
             <figure className="hm-clock">
                 <div className="hm-clock-board" ref={boardRef}>
-                    {/* The unlocks, as flags on the timeline: who joins, how many, and
-                        how big the pool is once they have. */}
                     <ol className="hm-clock-flags">
                         {BOUNDS.map(([k, at], i) => (
                             <li key={k} className="hm-flag" style={{ '--at': at, '--span': SPAN[k], '--c': STAGES[k].light }}>
@@ -506,7 +421,6 @@ function Pressure({ target }) {
                             </li>
                         ))}
                     </ol>
-                    {/* One draw per step of the round, from the pool as it stood then. */}
                     <div className="hm-clock-draws" aria-hidden="true">
                         {BOUNDS.map(([k, at], s) => (
                             <span key={k} className="hm-clock-stretch" style={{ '--at': at, '--span': SPAN[k] }}>
@@ -514,8 +428,6 @@ function Pressure({ target }) {
                             </span>
                         ))}
                     </div>
-                    {/* The pool, as layers that pile up: each stage runs from its unlock to
-                        the end of the round, stacked on the ones already there. */}
                     <div className="hm-clock-layers" aria-hidden="true">
                         {BOUNDS.map(([k, at]) => <span key={k} className="hm-clock-layer" style={{ '--at': at, '--c': STAGES[k].light }} />)}
                     </div>
@@ -536,7 +448,6 @@ function Pressure({ target }) {
 }
 /* ── 5. The escapes ──────────────────────────────────────────────────────── */
 
-/** A route in a few words: its verb and its first ingredients or sources. */
 function routeLine(r) {
     if (!r) return '';
     const what = r.chain
@@ -545,12 +456,6 @@ function routeLine(r) {
     return `${r.verb}: ${what}`;
 }
 
-/*
- * The joker's trade, drawn with the route data. The item worth skipping is dealt from
- * the Late items that only another dimension offers and no recipe makes; the item it
- * trades for is an Early one you can craft. Each shows its real first route, so the
- * "is it worth it" is visible, not asserted.
- */
 function Escapes() {
     const costly = useMemo(() => DEALABLE_BY_STAGE.LATE.filter((m) => {
         const t = tagsOf(m);
@@ -560,24 +465,14 @@ function Escapes() {
     const [skipped] = usePicks(costly.length ? costly : DEALABLE_BY_STAGE.LATE, 1);
     const [next] = usePicks(cheap.length ? cheap : DEALABLE_BY_STAGE.EARLY, 1);
     const skipTag = tagsOf(skipped).find((t) => t === 'END' || t === 'NETHER');
-    // The lucky one: an item handed to you that is already sitting in a bundle you carry.
-    // A bundle rather than a plain backpack grid, because the bundle is the case
-    // players miss: InventorySearch opens bundles (and shulker boxes) wherever they
-    // are, in the inventory, the backpack, or a bundle inside a shulker box.
+    // A bundle, because InventorySearch opens bundles and shulker boxes wherever they are, and players miss that.
     const bagFrom = useMemo(() => DEALABLE_BY_STAGE.EARLY.filter((m) => m !== next), [next]);
     const bag = usePicks(bagFrom, 6);
     const lucky = bag[3];
     const { jokers } = ROUND;
-    /*
-     * The two halves are one grid, not two columns side by side: each half's sequence,
-     * name, words and extra sit on the same rows as the other's, so the costly draw and
-     * the lucky one read as the same machine running two ways. Both sequences have the
-     * same grammar (what you were handed, what happens to it, what you get), drawn at
-     * the same size on the same line.
-     */
     return (
         <section className="wk-wrap hm-escapes" aria-labelledby="hm-escapes-title">
-            <h2 id="hm-escapes-title" className="wk-h2">Sometimes it costs you. Sometimes it pays.</h2>
+            <h2 id="hm-escapes-title" className="wk-h2">Jokers and back-to-backs</h2>
             <div className="hm-escapes-grid">
                 <div className="hm-seq" role="img"
                      aria-label={`${itemName(skipped)} would cost too long, so a joker trades it for ${itemName(next)}.`}>
@@ -607,8 +502,6 @@ function Escapes() {
                     arrives straight away. You get <strong>{jokers}</strong> in a round, so choose which items to give
                     up.
                 </p>
-                {/* Three cards stand for the hand: enough to read as jokers, and the count is
-                    in the sentence above. Seven fanned out read as clutter. */}
                 <div className="hm-joker-hand" aria-hidden="true">
                     {Array.from({ length: 3 }, (_, i) => (
                         <span key={i} className="hm-joker-card hm-joker-card--small" style={{ '--i': i }}>
@@ -667,12 +560,7 @@ function Escapes() {
 
 /* ── 6. The world, as the toolbox ────────────────────────────────────────── */
 
-/*
- * The descent rail, by band. The five Overworld places are one physical column, top
- * to bottom, so their rail is one solid line from the surface down to the Deep Dark,
- * where it stops. The Nether and the End are not further down: you go through
- * something to reach them. Their rail starts again after a gap, dashed.
- */
+/* The Nether and End are reached through something, not further down: their rail restarts after a gap, dashed. */
 const RAIL = { surface: 'top', ocean: 'world', caves: 'world', trial: 'world', deepdark: 'floor', nether: 'portal', end: 'last' };
 
 function RegionBand({ region, index, go }) {
@@ -756,7 +644,6 @@ function World({ go, calm }) {
                     </button>
                 ))}
             </nav>
-            {/* The descent: one rail down the atlas's edge, a mark at every region. */}
             <div className="hm-descent">
                 {REGIONS.map((r, i) => <RegionBand key={r.key} region={r} index={i} go={go} />)}
             </div>
@@ -764,44 +651,17 @@ function World({ go, calm }) {
     );
 }
 
-/* ── 7. The modes, as four frames of one diagram ─────────────────────────────
- * One rule, four ways to play it, so the four drawings are one drawing with one
- * thing changed. Every frame is the same grid: the same three players on the same
- * three rows, their found items trailing behind them, the item they hunt NOW in one
- * column, what comes NEXT in the column after it, the score at the end. Read across,
- * the difference between the modes is the difference between the frames:
- *
- *   ForceItemBattle  each row its own items, next unknown       ?  per row
- *   RunBattle        the rows converge on ONE item, first scores
- *   ForceChain       the same rows as ForceItemBattle, next shown  item per row
- *   MirrorBattle     every row walks ONE sequence, each at its     ?  per row
- *                    own pace, so the same items sit at different
- *                    depths in each trail
- *
- * *These were three unrelated drawings, and the reason they are not is worth keeping.*
- * An inventory with ticks, a race of lines and a NOW / NEXT / ? belt each explained
- * its own mode, but side by side they read as three different games. The owner asked
- * for the comparison instead (Sept 2026). The belt's ? survives as ForceItemBattle's
- * NEXT column: that the next item is hidden there is exactly what ForceChain changes.
- *
- * The draw is truthful to the plugin (ForceItemAssignment): in RunBattle one seeded
- * sequence serves every player; otherwise each draws privately, and ForceChain only
- * shows the next item the plugin always holds anyway. MirrorBattle (Oct 2026) draws
- * one row for the round and gives every Score Owner its own cursor into it; Run
- * Battle overrides it, because Run already shares one row.
- *
- * MirrorBattle made it four, and the list went from three thirds to two by two: four
- * frames in one row left the trail room for a single item, and the trail is what
- * tells MirrorBattle apart from ForceItemBattle.
+/*
+ * ── 7. The modes ──
+ * True to ForceItemAssignment: RunBattle shares one seeded sequence; MirrorBattle gives each Score Owner a cursor into one row.
  */
 
 const HEADS = ['MHF_Steve', 'MHF_Alex', 'MHF_Villager'];
 const LANES = [0, 1, 2];
-/* Scores for the still frame. Uneven on purpose: each row moves at its own pace. */
 const FIB_SCORES = [5, 2, 4];
 const CHAIN_SCORES = [3, 4, 1];
 const MIRROR_SCORES = [4, 1, 3];
-/* Every stage at once, the way the mode opens the pool. Built once: usePicks memoises on it. */
+/* Built once: usePicks memoises on it. */
 const MIRROR_DEAL = [...DEALABLE_BY_STAGE.EARLY, ...DEALABLE_BY_STAGE.MID, ...DEALABLE_BY_STAGE.LATE];
 const RUN_WINNER = 1;
 const TRAIL = 4;
@@ -823,7 +683,6 @@ const Hidden = ({ style }) => (
     <span className="hm-f-next" style={style}><span className="wk-slot hm-hidden" style={{ '--slot': '40px' }}>?</span></span>
 );
 
-/** Found items, newest first: the row lays them out right to left and drops whole ones that do not fit. */
 function Trail({ row, items }) {
     return (
         <span className="hm-f-trail" style={onRow(row)}>
@@ -836,7 +695,6 @@ function Trail({ row, items }) {
     );
 }
 
-/** The frame every mode is drawn in: the column heads and the three players. */
 function Frame({ kind, children }) {
     return (
         <div className={`hm-frame hm-frame--${kind}`} aria-hidden="true">
@@ -848,7 +706,6 @@ function Frame({ kind, children }) {
     );
 }
 
-/** ForceItemBattle and ForceChain are the same frame; only whether NEXT is shown differs. */
 function ModeOwn({ kind, items, scores, showNext }) {
     const per = TRAIL + 2;
     return (
@@ -871,12 +728,7 @@ function ModeOwn({ kind, items, scores, showNext }) {
     );
 }
 
-/*
- * MirrorBattle: one sequence, read by each row at its own depth. Row i has found the
- * first MIRROR_SCORES[i] items and hunts the next, so the item one row is hunting
- * already sits ticked in a faster row's trail. NEXT stays hidden: the plugin draws
- * the row's next item only when its first player reaches it.
- */
+/* NEXT stays hidden: the plugin draws the row's next item only when its first player reaches it. */
 function ModeMirror({ items, scores }) {
     return (
         <Frame kind="mirror">
@@ -893,15 +745,6 @@ function ModeMirror({ items, scores }) {
     );
 }
 
-/*
- * RunBattle's history is one sequence for everybody, so every row carries the SAME
- * items in the same columns, and each column is ticked on the one row that claimed it
- * first; the others hold it dimmed. That is the mode in one look: one item at a time
- * for the whole server, one point for whoever gets there. *The rows were bare lines*
- * running into the join (owner, final pass, Sept 2026: long lines, little said), next
- * to two frames full of items; the history gives it the same density without making
- * the three drawings one drawing.
- */
 const RUN_PAST_WINNERS = [2, 0, 1];
 const RUN_SCORES = LANES.map((i) => RUN_PAST_WINNERS.filter((w) => w === i).length + (i === RUN_WINNER ? 1 : 0));
 
@@ -931,10 +774,7 @@ function ModeRun({ item, past }) {
     );
 }
 
-/* ── The standard round ──────────────────────────────────────────────────────
- * How a round is set up, as a line of settings rather than a sentence. The pool's
- * own counts (how many items the Nether adds) belong to Item Pools, not here.
- */
+/* ── The standard round ── */
 function Standard({ go }) {
     const { hard, extreme, end, backpackSize } = POOL_SETTINGS;
     const { minutes, jokers } = ROUND;
@@ -1008,16 +848,7 @@ function Modes({ go }) {
     );
 }
 
-/* ── 8. Where next ───────────────────────────────────────────────────────────
- * Every page, named in plain words, grouped the way the nav groups them.
- *
- * *This was a hotbar, and the reason it is not is worth keeping.* Every page stood
- * as a 60px slot in one bar, named above the bar on hover the way the game names
- * the held item. It was clever, and at the bottom of a long page it did not read as
- * links: a row of blocks with one name at a time is a puzzle when all a reader wants
- * is somewhere to go. The owner asked for the labels to be visible at once. The
- * items stay, small, beside names that say it.
- */
+/* ── 8. Where next ── */
 
 const GROUPS = [
     { label: 'Play', ids: ['how-to-play', 'gameplay', 'pools', 'structures'] },
