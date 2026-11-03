@@ -1,13 +1,3 @@
-/*
- * The home page (THE EXPLORER'S ATLAS). Loaded with the page's own chunk.
- * Shared primitives live in wiki.css and routemap.css; this file is composition.
- *
- * The sections follow the game: the item you are handed, the ways to get it, the
- * loop, the clock, the escapes, the world, the modes. Each is drawn as the mechanic
- * it explains rather than as a box of text about it.
- *
- * Plain words in comments: no backticks.
- */
 
 .hm { display: block; overflow-x: clip; }
 .hm .wk-h2 { margin-bottom: 12px; }
@@ -60,8 +50,6 @@
 }
 @keyframes hm-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* The item itself: no card and no slot. It stands in the light of where it comes
-   from, and casts a shadow on the ground under it. */
 .hm-hero-item {
   position: relative;
   width: clamp(180px, 19vw, 256px); aspect-ratio: 1;
@@ -106,9 +94,7 @@
 
 /* ── 2. One item, many ways ───────────────────────────────────────────────── */
 
-/* The question on the left, the board on the right, about 35/65 so the board has the
-   weight to balance the heading. Tighter, about 28/72, where 65% would be narrower
-   than the board (it needs about 790px), and stacked below the nav's drawer width. */
+/* Tighter, about 28/72, where 65% would be narrower than the board's ~790px. */
 .hm-routes {
   display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 13fr); gap: 40px 56px;
   align-items: start;
@@ -126,9 +112,6 @@
 
 /* ── 3. The loop ──────────────────────────────────────────────────────────── */
 
-/* A transition between the two big drawings either side of it, so it is set tighter
-   than they are: the loop is one idea, and it used to sit in their full padding
-   with its strip floating in the middle of the space (final pass, Sept 2026). */
 .hm-loop {
   display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 48px;
   align-items: center;
@@ -140,10 +123,6 @@
   display: grid; grid-template-columns: 216px 112px minmax(0, 1fr); align-items: center; gap: 14px 20px;
 }
 
-/* The round's sidebar scoreboard, drawn the way the game draws one: a dim translucent
-   block at the edge of the screen, names left, scores right, highest first. Each
-   player carries the item they are on right now, because each has their own. Rows
-   slide to their rank rather than jump. */
 .hm-board {
   position: relative; list-style: none; margin: 0; padding: 0;
   background: oklch(0% 0 0 / 0.34);
@@ -201,8 +180,6 @@
   background: var(--wk-s-early); color: oklch(14% 0.02 138);
 }
 
-/* The beats span the strip under everything above them, so the loop's line runs the
-   full width of what it is describing (LoopBeats.jsx, wiki.css). */
 .hm-beats { grid-column: 1 / -1; margin-top: 2px; }
 .hm-loop-strip .hm-source { grid-column: 1 / -1; margin-top: 0; }
 
@@ -210,14 +187,10 @@
 
 .hm-pressure { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
 .hm-pressure-head { margin-bottom: 28px; }
-/* The board: flags on the round's timeline, a strip of draws under them, the axis,
-   and the drawn item hanging where it unlocks. Everything is placed by its share of
-   the round (at, span), so the geometry is the schedule. */
 .hm-clock { margin: 0; }
 .hm-clock-board { position: relative; --draw: 36px; }
 
-/* A flag: a pole in its stage's light from the flag down to the axis, and what joins
-   there beside it. Anchored to the pole's foot, so taller flags grow upward. */
+/* Anchored to the pole's foot, so taller flags grow upward. */
 .hm-clock-flags { position: relative; list-style: none; margin: 0; padding: 0; height: 136px; }
 .hm-flag {
   position: absolute; left: calc(var(--at) * 1%); bottom: 0;
@@ -236,11 +209,9 @@
 .hm-flag-count { font-size: 14px; line-height: 1.35; color: var(--wk-ink-2); }
 .hm-flag-count strong { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink); }
 .hm-flag-items { display: flex; gap: 4px; margin-top: 4px; }
-/* At the start the whole strip is Early, so the flag need not carry examples. */
 .hm-flag-items[data-start] { display: none; }
 .hm-flag-you { display: none; }
 
-/* The draws: one row of real items, stretch by stretch, each starting just past its pole. */
 .hm-clock-draws { position: relative; height: calc(var(--draw) + 4px); }
 .hm-clock-stretch {
   position: absolute; top: 0; left: calc(var(--at) * 1% + 10px); width: calc(var(--span) * 1% - 12px);
@@ -248,10 +219,6 @@
 }
 .hm-clock-stretch .wk-slot { background: oklch(11% 0.006 255); }
 
-/* The layers: a 3px line per stage from its pole to the round's end, Early at the
-   bottom and each later stage laid on top. Thin on purpose, the stages' light as an
-   accent (a line), never as a fill; the stacked block chart this replaced was the
-   wall of colour. */
 .hm-clock-layers { position: relative; height: 13px; margin-top: 8px; }
 .hm-clock-layer {
   position: absolute; left: calc(var(--at) * 1%); right: 0; height: 3px;
@@ -261,19 +228,17 @@
 .hm-clock-layer:nth-child(2) { bottom: 5px; }
 .hm-clock-layer:nth-child(3) { bottom: 10px; }
 
-/* The axis: a line, a square in the stage's light where each pole lands, the ticks. */
 .hm-clock-axis { position: relative; height: 2px; margin-top: 6px; background: var(--wk-line-hi); }
 .hm-clock-mark { position: absolute; top: -4px; left: calc(var(--at) * 1% - 4px); width: 10px; height: 10px; background: var(--c); box-shadow: 0 0 0 3px var(--wk-ground); }
 .hm-clock-mark:first-child { left: 0; }
 .hm-clock-tick {
-  /* Just past its mark, so the drawn item's hanger can drop straight down the mark. */
+  /* Just past its mark, so the drawn item's hanger can drop straight down it. */
   position: absolute; top: 10px; left: calc(var(--at) * 1% + 10px);
   font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3);
 }
 .hm-clock-tick:nth-child(4) { left: 14px; }
 .hm-clock-tick:last-child { left: auto; right: 0; }
 
-/* The drawn item, hung from the axis at the moment it can first come up. */
 .hm-clock-you {
   position: relative; margin: 44px 0 0;
   margin-left: max(0px, calc(var(--at) * 1% - 20px));
@@ -285,15 +250,12 @@
   content: ""; position: absolute; left: 19px; top: -42px; height: 38px; width: 2px;
   background: repeating-linear-gradient(to bottom, var(--wk-ink-3) 0 3px, transparent 3px 6px);
 }
-/* At 0% the first mark sits flush left rather than centred on the line. */
 .hm-clock-you[data-start]::before { left: 4px; }
 .hm-clock-you .wk-slot { box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.65), 0 0 0 2px var(--c); }
 .hm-clock + .hm-source, .hm-clock .hm-source { margin-top: 20px; }
 /* ── 5. The escapes ───────────────────────────────────────────────────────── */
 
 .hm-escapes { padding: 56px 0 64px; box-shadow: inset 0 1px 0 var(--wk-line); }
-/* One grid for both halves, filled column by column: the sequences share a row, the
-   names share a row, the words share a row. The alignment is the relationship. */
 .hm-escapes-grid {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -304,8 +266,6 @@
 }
 .hm-escapes-grid > * { min-width: 0; }
 
-/* A sequence: what you were handed, what happens to it, what you get. Both halves
-   draw theirs at the same size on the same line. */
 .hm-seq { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; max-width: 540px; }
 .hm-seq-node { flex: 1 1 0; min-width: 0; display: grid; justify-items: center; gap: 6px; text-align: center; }
 .hm-seq-joker, .hm-seq-node:has(.hm-bundle), .hm-seq-node:has(.hm-seq-plus) { flex: 0 0 auto; }
@@ -332,9 +292,7 @@
 .hm-joker-card--small { margin-left: -10px; transform: rotate(calc((var(--i) - 1) * 7deg)); }
 .hm-joker-card--small img { height: 54px; }
 
-/* The backpack: a few slots, one of them already holding the item you were handed. */
 .hm-bundle { display: flex; align-items: center; gap: 6px; min-height: 64px; line-height: 0; }
-/* The bundle's contents, as the game shows them when you point at one. */
 .hm-bag { display: grid; grid-template-columns: repeat(3, 20px); gap: 2px; line-height: 0; }
 .hm-bag-cell { line-height: 0; }
 .hm-bag-cell:not([data-hit]) .wk-slot { opacity: 0.5; }
@@ -383,12 +341,8 @@
 .hm-region-pip { width: 10px; height: 10px; background: var(--r); }
 .hm-region-y { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wk-ink-3); }
 
-/* The bands were 34px top and bottom; the final pass took them to 26px and pulled the
-   meta column in, about 15% off the descent's height, with the environment, the
-   slots and the rail untouched (owner, Sept 2026: keep the section, lose the bulk). */
 .hm-band { position: relative; isolation: isolate; padding: 26px 0; }
 .hm-band > .wk-env { z-index: -2; }
-/* A scrim on the reading side, so the words sit on the ground, not on the picture. */
 .hm-band::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(90deg, oklch(14.5% 0.007 255 / 0.92) 0, oklch(14.5% 0.007 255 / 0.55) 30%, transparent 58%);
@@ -403,12 +357,6 @@
 .hm-band-count .wk-figure { font-size: 22px; margin-right: 4px; color: var(--wk-ink); }
 .hm-band-grid { min-width: 0; }
 
-/* The descent rail: the world's depth, a mark at each region. Each band draws its own
-   stretch, so the rail reads as one line from the surface down through the Overworld
-   and stops at the Deep Dark. The Nether and the End are not further down, you go
-   through something to reach them: their stretch starts again after a gap, dashed.
-   It used to live in the page margin and vanished below 1380px, which is most
-   laptops; it now sits inside the column at every width. */
 .hm-descent { position: relative; margin-top: 12px; }
 .hm-band {
   --rail-x: calc((100% - min(1280px, 100% - 40px)) / 2 + 7px);
@@ -452,8 +400,6 @@
 /* ── 7. The modes, as four frames of one diagram ──────────────────────────── */
 
 .hm-modes { --hm-gap: 40px; padding: 64px 0 56px; }
-/* The heading and its way onward share a baseline, so the link belongs to the
-   comparison under it rather than trailing off the end of the section. */
 .hm-modes-head, .hm-std-head {
   display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px;
 }
@@ -461,9 +407,6 @@
 .hm-go svg { color: var(--wk-ink-3); transition: transform 160ms var(--wk-ease); }
 .hm-go:hover svg { transform: translateX(2px); color: var(--wk-ink); }
 
-/* Two by two. These were three equal thirds whose dividers fell on the standard
-   round's columns below; MirrorBattle made four, and four in one row left the trail
-   room for one item, which is the part that tells the modes apart. */
 .hm-mode-list {
   list-style: none; margin: 24px 0 0; padding: 0;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px var(--hm-gap);
@@ -472,12 +415,7 @@
 .hm-mode .hm-mech { margin-top: 22px; }
 .hm-mode-hook { margin: 6px 0 0; font-size: 16px; line-height: 1.45; font-weight: 600; color: var(--wk-ink); max-width: 34ch; }
 
-/*
- * The frame. Every mode is drawn on this one grid, so heads, NOW, NEXT and the score
- * sit on the same lines in all three, and the frames are the same height whatever is
- * in them. Columns: head, trail, NOW, the step to NEXT, NEXT, score. Rows: the column
- * heads, then three players.
- */
+/* One grid for every mode, so heads, NOW, NEXT and the score line up across frames. */
 .hm-frame {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 56px 14px 40px 26px;
@@ -499,8 +437,6 @@
 }
 .hm-head { display: block; width: 28px; height: 28px; image-rendering: pixelated; }
 
-/* The one line language: 2px, solid where a path is known, dashed where it is not,
-   ending in the wiki's pixel arrowhead. */
 .hm-f-trail, .hm-f-link { position: relative; align-self: stretch; }
 .hm-f-trail::before, .hm-f-link::before {
   content: ""; position: absolute; top: calc(50% - 1px); height: 2px;
@@ -518,8 +454,7 @@
 }
 .hm-f-link:not([data-seen])::after { background: var(--wk-ink-4); }
 
-/* Found items, newest against NOW. Right to left and wrapping into a clipped second
-   line, so a narrow frame drops whole items off the far end, never half of one. */
+/* Right to left and clipped to one line, so a narrow frame drops whole items, never half of one. */
 .hm-trail {
   position: relative; z-index: 1;
   display: flex; flex-direction: row-reverse; flex-wrap: wrap; gap: 4px;
@@ -538,8 +473,6 @@
 .hm-f-score { font-size: 18px; line-height: 1; color: var(--wk-ink-2); }
 .hm-f-score[data-plus] { color: var(--wk-ink); }
 
-/* RunBattle: the three rows run into one join and one shared item. The row that got
-   there first is the solid line; the others are still on their way. */
 .hm-f-race::before {
   left: 8px; right: 0;
   background: repeating-linear-gradient(90deg, var(--wk-ink-4) 0 4px, transparent 4px 8px);
@@ -547,7 +480,6 @@
 .hm-f-race::after { display: none; }
 .hm-f-race[data-first]::before { right: -4px; background: var(--wk-ink); }
 .hm-f-race[data-first]::after { display: block; background: var(--wk-ink); }
-/* The shared history: the same items on every row, lit only where that row claimed it. */
 .hm-done[data-lost] .wk-sprite { opacity: 0.2; }
 .hm-f-join {
   grid-column: 2; justify-self: end; align-self: stretch;
@@ -559,8 +491,7 @@
 
 .hm-std { margin-top: 56px; padding-top: 22px; box-shadow: inset 0 1px 0 var(--wk-line); }
 .hm-std-head .wk-name { font-size: 25px; }
-/* Six columns on the modes' grid, two to a mode: the dividers fall on its gutters
-   and halfway through each third. */
+/* Six columns on the modes' grid, so the dividers fall on its gutters. */
 .hm-std-list {
   margin: 18px 0 0;
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 20px var(--hm-gap);
@@ -583,7 +514,6 @@
 }
 .hm-std-item[data-on="false"] .hm-std-name { color: var(--wk-ink-3); }
 .hm-std-item[data-on="true"] .hm-std-state { color: var(--wk-ink); }
-/* A redstone lamp: lit when the setting is on. Not a control; the page cannot change the server. */
 .hm-lamp { flex-shrink: 0; width: 12px; height: 12px; background: var(--wk-slot); box-shadow: inset 2px 2px 0 oklch(4% 0 0 / 0.6); }
 .hm-std-item[data-on="true"] .hm-lamp {
   background: oklch(86% 0.13 85);
@@ -592,8 +522,6 @@
 
 /* ── 8. Where next ────────────────────────────────────────────────────────── */
 
-/* Plain links with visible names, grouped like the nav. Understated on purpose: at
-   the bottom of the page, getting somewhere matters more than being clever. */
 .hm-index { padding: 48px 0 40px; box-shadow: inset 0 1px 0 var(--wk-line); }
 .hm-index-groups {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px 40px;
@@ -635,7 +563,6 @@
 
 @media (max-width: 1360px) {
   .hm-routes { grid-template-columns: minmax(0, 7fr) minmax(0, 18fr); column-gap: 40px; }
-  /* The narrower intro column fits the seven examples in a row only without their label beside them. */
   .hm-try-label { flex-basis: 100%; margin: 0 0 4px; }
 }
 @media (max-width: 1180px) and (min-width: 421px) {
@@ -664,17 +591,12 @@
   .hm-ladder { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
   .hm-index-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hm-rung:nth-child(4) { padding-left: 0; box-shadow: none; }
-  /* Stacked, the frames keep one width so they still compare as a set. */
   .hm-mode-list { grid-template-columns: minmax(0, 440px); gap: 44px; }
   .hm-std-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .hm-std-item:nth-child(3n + 1)::before { display: none; }
 }
 
-/* The round clock turns on its side below 900px: the flags become a descending list on
-   a rail, each with its stage's items, and the drawn item sits under its own stage.
-   900, not the page's 720, because a flag carries three 40px items and the Mid flag's
-   18% of the round is narrower than that under about 880px; the flags collided. The
-   strip is not drawn in this form, so its caption goes with it. */
+/* 900, not 720: a flag carries three 40px items, and the Mid flag's share collides below about 880px. */
 @media (max-width: 900px) {
   .hm-clock-flags { height: auto; }
   .hm-flag { position: relative; left: auto; max-width: none; padding: 0 0 24px 28px; gap: 6px; }

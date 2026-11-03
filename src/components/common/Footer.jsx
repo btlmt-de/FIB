@@ -1,15 +1,6 @@
 import React from 'react';
 import Heart from 'lucide-react/dist/esm/icons/heart';
 
-/*
- * The wiki's footer (styles in src/wiki/wiki.css). One line: who runs it, where the
- * code lives, the legal page, and the one disclaimer every Minecraft site owes.
- *
- * It used to take a style prop so pages still on the old system could sit it on
- * their own ground. Every wiki page has moved (Sept 2026), so the prop went with the
- * last of them.
- */
-
 const LINKS = [
     { label: 'GitHub',       href: 'https://github.com/McPlayHDnet/ForceItemBattle', external: true },
     { label: 'McPlayHD.net', href: 'https://mcplayhd.net',                           external: true },

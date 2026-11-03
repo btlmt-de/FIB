@@ -19,37 +19,8 @@ import '../wiki/page.css';
 import '../wiki/pages/gameplay.css';
 
 /*
- * Gameplay (THE EXPLORER'S ATLAS). The rulebook, where home is the summary.
- *
- * Every rule on this page is the plugin's, read out of its source on main, and every
- * drawing runs the plugin's own arithmetic rather than an approximation of it:
- *
- *   the pool's unlock marks     manager/UnlockSchedule: 11.11% and 28.88% of the round
- *                               below 50 minutes, minute 5 and minute 15 from 50 up
- *   what counts as getting it   listener/ItemsListener's handlers, asking FindDetection
- *   jokers                      model/JokerSpend and listener/ClickableItemsListener:
- *                               the item is handed over and the find is marked skipped;
- *                               model/FindOutcome: a skip scores except in Run Battle
- *   back-to-backs               manager/BackToBackManager (what is searched) and
- *                               model/BackToBackProbability + Rarity (the odds, the grade)
- *   the modes                   manager/ForceItemAssignment (private draws, one seeded
- *                               sequence for the whole server in Run Battle, or one row
- *                               every owner walks at its own pace in Mirror Battle) and
- *                               UnlockSchedule.allAtOnce, Mirror Battle's open pool
- *   random events               randomevents/*: the schedule, weights and rewards
- *
- * Where a drawing needs a round, it is the standard one (ROUND in tokens.js: 60
- * minutes, 7 jokers), the round the game was balanced around. The page used to quote
- * config.yml's 3 jokers as "this server", a number the plugin never reads.
- *
- * An earlier version of this page said every player gets "the same items, in the same
- * order". That is Run Battle only; in a normal round each player draws privately. It
- * also stated that games "typically run 45 to 120 minutes", which nothing on the
- * server records, so it is gone (DESIGN.md, the Honest Claim Rule).
- *
- * Every simulation is labelled an illustration, runs only while it is on screen, and
- * stands still under reduced motion or saver mode on a frame that still says what it
- * shows.
+ * Every rule and drawing mirrors the plugin on main: UnlockSchedule, FindDetection, JokerSpend, BackToBackManager,
+ * ForceItemAssignment, randomevents/*. Recheck them after a plugin change.
  */
 
 const MC_HEAD = (u) => `https://minotar.net/helm/${u}/100`;
@@ -160,11 +131,7 @@ function Round() {
     );
 }
 
-/* ── Your screen ───────────────────────────────────────────────────────────────────
- * Everything the plugin puts on a player's screen during a round, in one drawing
- * (src/wiki/drawings/RoundHud.jsx says where each piece comes from). The words say only what
- * the drawing cannot: that the tab list is where the numbers live.
- */
+/* ── Your screen ── */
 function Screen() {
     return (
         <section id="screen" className="wk-wrap pg-sec" aria-labelledby="screen-title">
@@ -199,8 +166,7 @@ function Clock() {
     const size = open.reduce((n, s) => n + COUNT[s], 0);
     const openKey = open.join();
 
-    // A fresh draw only when the pool itself changes (or on request), so dragging the
-    // playhead inside a stage does not reshuffle the row under the reader's eyes.
+    // Redrawn only when the pool changes, so scrubbing within a stage does not reshuffle the row.
     const draws = useMemo(() => {
         const union = open.flatMap((s) => POOL_BY_STAGE[s]);
         return Array.from({ length: DRAWS }, () => pick(union));
@@ -209,7 +175,6 @@ function Clock() {
 
     const step = useCallback(() => setAt((a) => Math.min(len, a + 1)), [len]);
     useEffect(() => { if (playing && at >= len) setPlaying(false); }, [playing, at, len]);
-    // About six seconds for any round, so a long one is not a longer wait.
     useTicker(step, Math.max(40, Math.round(6000 / len)), playing);
 
     const changeLen = (v) => { setLen(v); setAt((a) => Math.min(a, v)); };
@@ -251,15 +216,7 @@ function Clock() {
                         {playing ? 'Pause' : at >= len ? 'Play again' : 'Play the round'}
                     </button>
                 </div>
-                {/*
-                  * One lane per stage on a shared minute axis. It used to be three flags on
-                  * one rail, and at a standard 60 minutes all three landed in the first
-                  * quarter with their labels stacked on each other; lanes keep each stage's
-                  * name and minute in a column of its own, however short the gaps are. A
-                  * lane's bar is the stretch its items are in the pool, lit up to the
-                  * playhead, so the long flat run after the last unlock reads as what it is:
-                  * from there on, everything can come up.
-                  */}
+                {/* One lane per stage: as flags on one rail, all three stacked up in the first quarter of a 60-minute round. */}
                 <div className="gp-sched" style={{ '--at': pos(at) }}>
                     {ORDER.map((s, i) => (
                         <div key={s} className="gp-sched-lane" data-stage={s.toLowerCase()} data-open={at >= unlock[s] || undefined}
@@ -433,15 +390,7 @@ function Jokers() {
 const COLS = 9;
 const POOL_ALL = COUNT.EARLY + COUNT.MID + COUNT.LATE;
 
-/*
- * One made-up inventory, dealt so that the chain runs twice and then stops: the
- * first item is inside a bundle in the inventory, the second inside a shulker box in
- * the backpack, the third is held nowhere. Both finds are in containers on purpose:
- * a loose item is the case nobody needs explaining, and InventorySearch opens
- * bundles and shulker boxes wherever they sit, which is the case players miss. The
- * odds are the plugin's formula over what this inventory really holds, against the
- * whole pool.
- */
+/* Both finds are inside containers on purpose: InventorySearch opens bundles and shulker boxes wherever they sit. */
 function dealScene() {
     const n = { main: 17, hotbar: 6, backpack: 11, shulker: 5, bundle: 3 };
     const want = n.main + n.hotbar + n.backpack + n.shulker + n.bundle + 1;
@@ -463,17 +412,11 @@ function dealScene() {
     const bundle = take(n.bundle);
     const miss = pick(POOL_BY_STAGE.LATE.filter((m) => !held.includes(m)));
     const chain = [pick(bundle), pick(shulker.filter(Boolean)), miss];
-    // Plugin items (the joker) are skipped, as InventorySearch skips them; the shulker
-    // and the bundle count as themselves AND for what is inside them.
+    // As InventorySearch: plugin items are skipped; containers count as themselves and for their contents.
     const distinct = new Set([...main, ...hotbar, ...backpack, ...shulker, ...bundle].filter((m) => m && m !== 'JOKER'));
     return { main, hotbar, backpack, shulker, bundle, chain, held: distinct.size };
 }
 
-/**
- * The order the drawing sweeps in: inventory, hotbar, backpack, and a container's
- * contents the moment the sweep reaches the container, so the drawing says "inside
- * this one" rather than "somewhere else".
- */
 function scanOrder(scene) {
     const out = [];
     const inside = { BUNDLE: 'bundle', SHULKER_BOX: 'shulker' };
@@ -519,10 +462,8 @@ const Cells = memo(function Cells({ cells, where, hit, found, scanAt = -1, cols 
     );
 });
 
-/** Before the sweep: the first item handed over, nothing searched yet. */
 const fresh = (scene) => ({ scene, step: 0, cursor: -1, hit: null, found: [], phase: 'idle', open: {} });
 
-/** Calm has no sweep: it lands on the end of the chain, both finds marked. */
 function settled(scene) {
     const o = scanOrder(scene);
     return {
@@ -533,7 +474,7 @@ function settled(scene) {
 }
 
 function BackToBack({ calm }) {
-    // One object, so a step of the sequence is one update rather than five that must agree.
+    // One object, so a step is one update rather than five that must agree.
     const [st, setSt] = useState(() => (calm ? settled(dealScene()) : fresh(dealScene())));
     const { scene, step, cursor, hit, found, phase, open } = st;
     const order = useMemo(() => scanOrder(scene), [scene]);
@@ -543,22 +484,18 @@ function BackToBack({ calm }) {
     const target = scene.chain[step];
     const streak = found.length + (phase === 'hit' ? 1 : 0);
 
-    // Starts the first time it is on screen, after a beat so the reader sees the
-    // inventory before it is searched.
     useEffect(() => {
         if (calm || phase !== 'idle' || !onScreen) return undefined;
         const id = setTimeout(() => setSt((x) => ({ ...x, cursor: 0, phase: 'scan' })), 350);
         return () => clearTimeout(id);
     }, [calm, phase, onScreen]);
 
-    // Saver mode switched on mid-sequence: stop where the chain ends.
     useEffect(() => {
         if (!calm || phase === 'hit' || phase === 'miss') return undefined;
         const id = setTimeout(() => setSt((x) => settled(x.scene)), 0);
         return () => clearTimeout(id);
     }, [calm, phase]);
 
-    // The sweep: one cell per tick until the handed item turns up, or the last cell.
     useEffect(() => {
         if (phase !== 'scan') return undefined;
         const id = setTimeout(() => {
@@ -574,7 +511,6 @@ function BackToBack({ calm }) {
         return () => clearTimeout(id);
     }, [phase, cursor, order]);
 
-    // After a find: hold the grade on screen, then hand over the next item and sweep again.
     useEffect(() => {
         if (phase !== 'hit' || calm) return undefined;
         const id = setTimeout(() => {
@@ -588,8 +524,7 @@ function BackToBack({ calm }) {
         setSt(calm ? settled(next) : { ...fresh(next), cursor: 0, phase: 'scan' });
     };
 
-    // The sweep lights one cell; each grid is told only whether that cell is one of its own,
-    // so the memoised grids it is not passing through do not re-render.
+    // Each grid only learns whether the swept cell is its own, so the memoised others skip re-rendering.
     const sweep = phase === 'scan' ? order[cursor] : null;
     const scanAt = (where) => (sweep && sweep.where === where ? sweep.i : -1);
     const grid = (where, cells, extra = {}) => (
@@ -718,14 +653,6 @@ function Odds() {
     );
 }
 
-/*
- * Back-to-backs are two sections, and the split is the point. The mechanic (the next
- * item is already on you, so it counts) and the grade (how unlikely that was) used to
- * share one head, which asked a reader to take in inventory search, containers,
- * instant scoring, chains, a probability formula and five grades at once (owner, final
- * pass, Sept 2026). Now the scan shows only the find and the point; the formula and the
- * ladder are the next section's.
- */
 function BackToBacks({ calm }) {
     return (
         <section id="back-to-backs" className="wk-wrap pg-sec gp-sec-wide" aria-labelledby="b2b-title">
@@ -809,7 +736,6 @@ function SimRun({ live }) {
         target: pick(POOL_BY_STAGE.MID), pos: [0, 0, 0], winner: null, hold: 0, scores,
         speed: HEADS.map(() => 0.012 + Math.random() * 0.016),
     });
-    // The still frame (calm, or before it scrolls in) is a finished race: the +1 is the point.
     const [race, setRace] = useState(() => ({ ...fresh([2, 3, 1]), pos: [0.62, 1, 0.48], winner: 1 }));
     const step = useCallback(() => {
         setRace((r) => {
@@ -838,7 +764,6 @@ function SimRun({ live }) {
     );
 }
 
-/* One row for everyone: each lane's trail is the same items, at its own depth. */
 function SimMirror({ live }) {
     const [state, setState] = useState(() => ({ seq: picks(EARLY_MID, 6), scores: [4, 1, 3] }));
     const step = useCallback(() => {
@@ -874,7 +799,6 @@ function SimMirror({ live }) {
 }
 
 function SimChain({ live }) {
-    // done, now, next, and one drawn but not shown yet.
     const [seq, setSeq] = useState(() => picks(EARLY_MID, 4));
     const step = useCallback(() => setSeq((s) => [s[1], s[2], s[3], pick(EARLY_MID)]), []);
     useTicker(step, 2400, live);
@@ -1090,17 +1014,9 @@ function Events({ go }) {
     );
 }
 
-/* ── 7. Traders ──────────────────────────────────────────────────────────────────
- *
- * When traders come, because that is part of how a round runs; what they sell and
- * how trading with them works is Custom Content's (its Traders section), and this
- * links there rather than drawing the offers twice. It did draw them, as two trade
- * lists, for one revision: the Special Trader's offers had been hanging loose under
- * the random events, and moving them here duplicated Custom Content's cards.
- *
- *   the rhythm   manager/WanderingTraderManager.startTimer: the first after 7 to 10
- *                minutes, then its 5-minute stay plus another 7 to 10, and the clock
- *                only counts while the round is running (not paused)
+/*
+ * ── 7. Traders ──
+ * Offers live on Custom Content; this section only shows when traders come.
  */
 
 const TRADER_STAY = 5 * 60;
@@ -1162,11 +1078,7 @@ function Traders({ go }) {
     );
 }
 
-/* ── 8. How a round ends ─────────────────────────────────────────────────────────
- * The result stage, replayed (src/wiki/drawings/ResultCeremony.jsx says where each part of it
- * comes from). The words here say what a player needs: who reveals, in what order,
- * what each item shows, and where to look at anyone's result afterwards.
- */
+/* ── 8. How a round ends ── */
 function Results() {
     return (
         <section id="results" className="wk-wrap pg-sec" aria-labelledby="results-title">

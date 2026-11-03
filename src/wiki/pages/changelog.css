@@ -1,20 +1,6 @@
-/*
- * Changelog (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
- * page.css, one section per year.
- *
- * The track is drawn per release rather than once per list, so it can start at the
- * newest node (with the arrowhead above it) and stop at the oldest one instead of
- * running on past the last release into nothing.
- *
- * No hue anywhere. A release's kind is a word; a major release is told by its larger,
- * filled node and its named heading.
- *
- * Plain words in comments: no backticks.
- */
 
 /* ── The head ─────────────────────────────────────────────────────────────── */
 
-/* The Minecraft updates, its label beside the list. The years are the sticky index. */
 .cl-index {
   display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 10px 20px;
   margin-top: 8px; max-width: 72ch;
@@ -24,8 +10,6 @@
 /* ── A year ───────────────────────────────────────────────────────────────── */
 
 .cl-year-title { margin: 0; font-size: 30px; line-height: 1.1; color: var(--wk-ink); }
-/* A busy year's months, each to its newest release: in the sticky head, so the
-   month list stays beside the releases it indexes. */
 .cl-months { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
 
 /* ── The track ────────────────────────────────────────────────────────────── */
@@ -42,13 +26,11 @@
   content: ""; position: absolute; left: 11px; top: 0; bottom: 0; width: 2px;
   background: var(--wk-line-hi);
 }
-/* The newest end: the line starts above the first node and ends in the arrowhead. */
 .cl-track[data-newest] > .cl-rel:first-child::before { top: -12px; }
 .cl-track[data-newest]::before {
   content: ""; position: absolute; left: 9px; top: -24px; width: 6px; height: 10px;
   background: var(--wk-line-hi); clip-path: var(--wk-arrowhead); transform: rotate(-90deg);
 }
-/* The oldest end: the line stops at the first release there ever was. */
 .cl-track[data-oldest] > .cl-rel:last-child::before { bottom: auto; height: 12px; }
 
 .cl-node {

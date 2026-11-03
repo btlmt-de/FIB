@@ -7,20 +7,8 @@ import BatteryLow from 'lucide-react/dist/esm/icons/battery-low';
 import { useSaverMode, setSaverMode } from '../../config/power.js';
 
 /*
- * The wiki's navigation bar (THE EXPLORER'S ATLAS; styles in src/wiki/wiki.css).
- *
- * It lives in the entry chunk, which the wheel and the stats module also load, so it
- * deliberately imports nothing from the wiki's item atlas: that is 50 kB of pool
- * data no /wheel visitor should pay for. The faces here are plain sprites.
- *
- * The brand slot shows a random item on every load, which it always has: the
- * site's mark is "some item", because that is the game. It used to draw from the
- * plugin's whole icon font, and some of those sprites are a few pixels of redstone
- * that read as a smudge at 36px and vanish in the drawer, so it now draws from a
- * short list of items that hold their shape at any size, one per region of the atlas.
- *
- * Stats and the Wheel are separate worlds with their own chrome and no nav bar, so
- * they are exits rather than tabs: set apart on the right, each wearing its item.
+ * Ships in the entry chunk that wheel and stats also load: import nothing from the wiki atlas.
+ * Brand items are ones that stay legible at small sizes.
  */
 
 const BRAND_ITEMS = ['diamond', 'heart_of_the_sea', 'amethyst_shard', 'trial_key', 'echo_shard', 'blaze_rod', 'ender_pearl'];
@@ -69,7 +57,6 @@ export default function Navigation({ currentPage, onNavigate }) {
     const burgerRef = useRef(null);
 
     const go = (id) => (e) => {
-        // Real hrefs, so middle-click and copy-link work; a plain click stays in-app.
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
         e.preventDefault();
         setOpen(false);
@@ -174,14 +161,7 @@ export default function Navigation({ currentPage, onNavigate }) {
                     </a>
                 ))}
 
-                {/*
-                 * Saver mode's second entrance. The setting is device-wide, so a
-                 * player who turned it on inside the wheel must be able to turn it off
-                 * from a reference page without going back to the wheel. It sits under
-                 * its own label because it is not a place you go, and the drawer stays
-                 * open on tap: nothing else visible changes on a reference page when
-                 * it flips, so the state word under the thumb is the confirmation.
-                 */}
+                {/* Saver mode is device-wide, so it must be switchable from the wiki too. */}
                 <span className="wk-label">Display</span>
                 <button
                     type="button"

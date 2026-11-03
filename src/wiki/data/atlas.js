@@ -1,8 +1,3 @@
-/**
- * Reading the atlas. Every question the wiki asks about an item goes through here,
- * so there is one answer to "what is this called", "when can it come up" and
- * "where does it live", and all three come from generated data.
- */
 
 import { ITEM_WHERE, ITEM_TAGS, POOL_BY_STAGE, ATLAS_POOL_SIZE, POOL_SETTINGS, PAPER_VERSION } from './atlas.data.js';
 import { CUSTOM_ITEM_NAMES } from '../../config/customItems.js';
@@ -15,7 +10,6 @@ for (const [stage, items] of Object.entries(POOL_BY_STAGE)) {
     for (const m of items) STAGE_OF.set(m, stage);
 }
 
-/** A few materials whose mechanical title-case reads wrong. */
 const NAME_FIX = {
     TNT: 'TNT',
     TNT_MINECART: 'Minecart with TNT',
@@ -39,7 +33,6 @@ export const itemSrc = (material) => `/fib-items/${material.toLowerCase()}.png`;
 export const stageOf = (material) => STAGE_OF.get(material) ?? null;
 export const tagsOf = (material) => ITEM_TAGS[material] ?? [];
 
-/** { region, structure, chance, biomes } or null when /info says nothing. */
 export function whereOf(material) {
     const w = ITEM_WHERE[material];
     if (!w) return null;
@@ -47,13 +40,7 @@ export function whereOf(material) {
     return { region, structure, chance, biomes };
 }
 
-/*
- * Every pinned item of one region, dealt round-robin across the places /info names
- * (Trail Ruins, Village, Desert Pyramid, ... and "no structure, just biomes") so the
- * first rows show the region's range. Sorted hardest-first, the Overworld opened on
- * two dozen near-identical pottery sherds, because Trail Ruins alone owns a dozen
- * of them. Within a place the harder stage still leads.
- */
+/* Dealt round-robin across places: sorted by stage, Trail Ruins' dozen sherds filled the first rows. */
 const STAGE_RANK = { LATE: 0, MID: 1, EARLY: 2 };
 const BY_REGION = new Map(REGIONS.map((r) => [r.key, []]));
 for (const [material, [region]] of Object.entries(ITEM_WHERE)) {
@@ -77,24 +64,15 @@ for (const [key, list] of BY_REGION) {
 }
 export const regionItems = (key) => BY_REGION.get(key) ?? [];
 
-/** How many items the atlas pins. Each material lives in exactly one region. */
 export const PINNED_COUNT = Object.keys(ITEM_WHERE).length;
 
-/*
- * Families: one sprite shape in twenty colourways. Laid out one per slot they drown
- * a region (Trail Ruins alone owns a dozen sherds), so a region shows each family
- * ONCE, as a stack with a count, the way the game shows a stack in an inventory.
- */
+/* One slot per family, as a stack with a count; laid out one per slot they drown a region. */
 const FAMILIES = [
     { key: 'sherds', name: 'Pottery Sherds', test: (m) => m.endsWith('_POTTERY_SHERD') },
     { key: 'trims', name: 'Armor Trim Templates', test: (m) => m.endsWith('_ARMOR_TRIM_SMITHING_TEMPLATE') },
 ];
 const familyOf = (m) => FAMILIES.find((f) => f.test(m)) ?? null;
 
-/**
- * A region as slots: plain materials as { material }, and each family folded into
- * its first member as { material, family, members }.
- */
 export function regionSlots(key) {
     const out = [];
     const seen = new Map();
@@ -109,14 +87,9 @@ export function regionSlots(key) {
     return out;
 }
 
-/**
- * Items worth drawing on the home page: pinned to a named structure, so the draw
- * always lands on something /info can say something specific about. Families sit
- * out: a draw that keeps landing on a sherd shows one sprite, not the pool.
- */
+/* Pinned to a named structure so /info has something specific to say; families sit out. */
 export const DRAWABLE = Object.keys(ITEM_WHERE).filter((m) => ITEM_WHERE[m][1] && !familyOf(m));
 
-/** Any pool item, for the riffle's wrong answers. */
 export const ALL_POOL = [...POOL_BY_STAGE.EARLY, ...POOL_BY_STAGE.MID, ...POOL_BY_STAGE.LATE];
 
 export function pick(list, rng = Math.random) {

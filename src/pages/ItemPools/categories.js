@@ -1,18 +1,7 @@
-/**
- * Item categories for the pool page, from Minecraft's own item tags.
- *
- * Moved here out of the old StatisticsDashboard modal when the page became one
- * workspace: the categories are now a way to GROUP the browser (and the overview's
- * coverage by category) rather than a report in a modal. The tag data is misode's
- * mcmeta summary, resolved and cached for a day; each item falls in exactly one
- * category, first match in CATEGORY_CONFIG order, with a few name patterns as the
- * fallback. The categories carried display colours in the modal; the wiki's Datum
- * Rule has no colour for "wood" or "food", so they are names only now.
- */
+/* First match in CATEGORY_CONFIG order wins; name patterns are the fallback. Tags come from misode's mcmeta, cached for a day. */
 
 import { PAPER_VERSION } from '../../wiki/data/atlas.js';
 
-// The server's version first (see REGISTRY_URLS in poolData.js), the moving branch as the fallback.
 const MISODE_ITEM_TAGS_URLS = [
     `https://raw.githubusercontent.com/misode/mcmeta/${PAPER_VERSION}-summary/data/tag/item/data.json`,
     'https://raw.githubusercontent.com/misode/mcmeta/summary/data/tag/item/data.json',
@@ -20,7 +9,6 @@ const MISODE_ITEM_TAGS_URLS = [
 const MISODE_TAGS_CACHE_KEY = `forceitem_tags_cache_${PAPER_VERSION}`;
 const MISODE_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
-// Item Tags caching functions (for official Minecraft categories)
 function getTagsCache() {
     try {
         const cached = localStorage.getItem(MISODE_TAGS_CACHE_KEY);
@@ -47,9 +35,7 @@ function setTagsCache(data) {
     }
 }
 
-// Fetch official Minecraft item tags from Misode's mcmeta
 async function fetchItemTags() {
-    // Check cache first
     const cached = getTagsCache();
     if (cached) {
         return cached;
@@ -66,10 +52,8 @@ async function fetchItemTags() {
         }
         const rawTags = await response.json();
 
-        // Process and resolve tag references
         const resolvedTags = resolveTagReferences(rawTags);
 
-        // Cache the result
         setTagsCache(resolvedTags);
 
         return resolvedTags;
@@ -79,7 +63,6 @@ async function fetchItemTags() {
     }
 }
 
-// Resolve tag references (e.g., "#minecraft:logs" -> actual items)
 function resolveTagReferences(rawTags) {
     const resolved = {};
 
@@ -93,12 +76,10 @@ function resolveTagReferences(rawTags) {
 
         for (const val of tag.values) {
             if (val.startsWith('#minecraft:')) {
-                // It's a reference to another tag
                 const refTag = val.replace('#minecraft:', '');
                 const refItems = extractItems(refTag, visited);
                 refItems.forEach(item => items.add(item));
             } else {
-                // It's an actual item - convert to our format
                 const material = val.replace('minecraft:', '').toUpperCase();
                 items.add(material);
             }
@@ -107,7 +88,6 @@ function resolveTagReferences(rawTags) {
         return items;
     }
 
-    // Resolve all tags
     for (const tagName of Object.keys(rawTags)) {
         const items = extractItems(tagName);
         if (items.size > 0) {
@@ -118,8 +98,6 @@ function resolveTagReferences(rawTags) {
     return resolved;
 }
 
-// Consolidated categories: each can take several official tags plus a list of
-// items the tags miss. Order matters: an item lands in the first that claims it.
 const CATEGORY_CONFIG = [
     {
         id: 'wood',
@@ -548,11 +526,8 @@ const CATEGORY_CONFIG = [
     }
 ];
 
-// Global variable to store resolved tags (loaded async)
-
 let itemTagsPromise = null;
 
-// Load item tags (call this early in the app)
 function loadItemTags() {
     if (itemTagsPromise) return itemTagsPromise;
     itemTagsPromise = fetchItemTags()
@@ -570,7 +545,6 @@ function loadItemTags() {
     return itemTagsPromise;
 }
 
-// Build item-to-categories mapping from official tags and custom items
 function buildTagCategoryMap(tags) {
     if (!tags) return null;
 
@@ -579,9 +553,7 @@ function buildTagCategoryMap(tags) {
     for (const category of CATEGORY_CONFIG) {
         const categoryItems = new Set();
 
-        // Add items from official tags
         if (category.tags) {
-            // Build set of items to exclude
             const excludeItems = new Set();
             if (category.excludeTags) {
                 for (const excludeTag of category.excludeTags) {
@@ -592,7 +564,6 @@ function buildTagCategoryMap(tags) {
                 }
             }
 
-            // Add items from each tag
             for (const tagName of category.tags) {
                 const tagItems = tags[tagName];
                 if (tagItems) {
@@ -605,14 +576,12 @@ function buildTagCategoryMap(tags) {
             }
         }
 
-        // Add custom items
         if (category.customItems) {
             for (const item of category.customItems) {
                 categoryItems.add(item);
             }
         }
 
-        // Map each item to this category
         for (const item of categoryItems) {
             if (!itemToCategories[item]) {
                 itemToCategories[item] = [];
@@ -626,30 +595,23 @@ function buildTagCategoryMap(tags) {
     return itemToCategories;
 }
 
-// Categorize an item using official Minecraft tags
-// Returns a single category ID - first match wins based on CATEGORY_CONFIG order
 function categorizeItem(material, tagCategoryMap = null) {
-    // If tag system is not loaded, return 'other'
     if (!tagCategoryMap) {
         return 'other';
     }
 
-    // Check tag-based categories - return first match only
     if (tagCategoryMap[material] && tagCategoryMap[material].length > 0) {
         return tagCategoryMap[material][0];
     }
 
-    // Special case: Spawn eggs (pattern-based since there are too many to list)
+    // Spawn eggs by pattern: too many to list.
     if (material.endsWith('_SPAWN_EGG')) {
         return 'spawn_eggs';
     }
 
-    // Pattern-based fallbacks for items that contain specific keywords
-    // This catches any items that aren't explicitly listed but belong to a category
     if (material.includes('COPPER') && !material.includes('_ORE')) {
         return 'copper';
     }
-    // Lightning Rod variants are made of copper but don't have COPPER in name
     if (material.includes('LIGHTNING_ROD')) {
         return 'copper';
     }
@@ -694,15 +656,12 @@ function categorizeItem(material, tagCategoryMap = null) {
                 return 'wood';
             }
         }
-        // Copper is already handled above
-        // Everything else (stone, brick, etc.) goes to stone
         return 'stone';
     }
 
     return 'other';
 }
 
-/** A category's name, or Other. */
 export function categoryName(id) {
     return CATEGORY_CONFIG.find((c) => c.id === id)?.name ?? 'Other';
 }

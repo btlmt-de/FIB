@@ -1,15 +1,3 @@
-/*
- * How to Play (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the
- * skeleton is page.css, this file is the page's two drawings.
- *
- * The install board is the route board's grammar turned to setup: an object in a
- * slot, a straight 2px track with the pixel arrowhead, and where it arrives. Every
- * file's track ends at the folder it goes in, so the board reads as a map of the
- * server rather than a list of downloads. Tracks are solid: nothing here is a FIB
- * rule, and dashed means that on this wiki.
- *
- * Plain words in comments: no backticks.
- */
 
 /* ── The install board ────────────────────────────────────────────────────── */
 
@@ -18,8 +6,6 @@
 .hp-group .wk-label { padding-bottom: 6px; }
 .hp-files { list-style: none; margin: 0; padding: 0; display: grid; }
 
-/* Slot, name, track, destination. The name column is fixed so every track starts at
-   the same x and every path lines up under the one above it. */
 .hp-file {
   display: grid;
   grid-template-columns: 56px 13.5rem 48px minmax(0, 1fr);
@@ -41,7 +27,6 @@
 .hp-file-need { font-size: 14px; line-height: 1.3; color: var(--wk-ink-3); }
 .hp-file-need[data-need="required"] { color: var(--wk-ink); font-weight: 600; }
 .hp-file-need[data-need="recommended"] { color: var(--wk-ink-2); }
-/* The pack's download link and its hash are unbroken strings; let them break anywhere rather than push the page sideways on a phone. */
 .hp-url { overflow-wrap: anywhere; }
 
 .hp-track {
@@ -58,7 +43,7 @@
 }
 
 .hp-file-to { min-width: 0; padding-top: 15px; }
-/* Said by the track on a wide screen; said in words once the track is gone. */
+/* Said by the track on a wide screen, in words once the track is gone. */
 .hp-into {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
@@ -71,7 +56,6 @@
 }
 .hp-file-adds { margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 60ch; text-wrap: pretty; }
 
-/* Tracing, as on the route board: the row under the pointer lights in white. */
 .hp-file:hover .hp-track, .hp-file:focus-within .hp-track { background: var(--wk-ink-2); }
 .hp-file:hover .hp-track::after, .hp-file:focus-within .hp-track::after { background: var(--wk-ink); }
 .hp-file:hover .wk-slot::after, .hp-file:focus-within .wk-slot::after { background: oklch(100% 0 0 / 0.09); }
@@ -80,10 +64,6 @@
 
 /* ── Where it all lands ───────────────────────────────────────────────────── */
 
-/* The folder the board's tracks arrive in, drawn whole, beside the server.properties
-   lines. A file from the board wears the same face as its row, so the two read as one
-   map; vanilla folders stay quiet in ink-3. The tree's guides are the board's solid
-   2px track turned vertical, with a stub into each entry. */
 .hp-setup {
   display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px;
   padding-top: 24px; box-shadow: inset 0 1px 0 var(--wk-line);
@@ -105,7 +85,6 @@
 .hp-prop { display: grid; gap: 6px; padding: 12px 0; box-shadow: inset 0 1px 0 var(--wk-line); }
 .hp-prop:first-child { padding-top: 0; box-shadow: none; }
 .hp-prop dt { min-width: 0; display: grid; gap: 6px; justify-items: start; }
-/* The opt-in that replaces the line above it, not one more line to add. */
 .hp-prop-lead { font-size: 14px; line-height: 1.4; color: var(--wk-ink-3); }
 .hp-prop-line {
   display: inline-block; max-width: 100%;
@@ -115,12 +94,8 @@
 }
 .hp-prop-says { margin: 0; font-size: 16px; line-height: 1.5; color: var(--wk-ink-2); max-width: 60ch; text-wrap: pretty; }
 
-/* The bossbar (Bossbar.jsx) sits under the board as its last row. */
 .hp-board > .wk-bossbar { margin-top: 4px; padding-top: 24px; box-shadow: inset 0 1px 0 var(--wk-line); }
 
-/* The end of the setup: the board's track carried through four stations, stopping
-   on a filled block, the brightest thing in the section, because that is where the
-   reader is done. Solid, like every track here: nothing in it is a FIB rule. */
 .hp-finish { display: grid; gap: 14px; padding-top: 22px; box-shadow: inset 0 1px 0 var(--wk-line); }
 .hp-finish-line { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; }
 .hp-finish-step { position: relative; display: grid; justify-items: start; align-content: start; gap: 6px; }
@@ -144,7 +119,6 @@
 .hp-join-body { display: grid; gap: 28px; }
 .hp-soon { color: var(--wk-ink-3); }
 
-/* Three steps on one straight track, in the order they have to happen. */
 .hp-steps {
   list-style: none; margin: 0; padding: 0;
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px;
@@ -173,8 +147,6 @@
   .hp-setup { grid-template-columns: minmax(0, 1fr); gap: 28px; }
 }
 
-/* The track needs room to read as a track; below this the destination goes under
-   the name and says "Goes in" instead. */
 @media (max-width: 720px) {
   .hp-file { grid-template-columns: 56px minmax(0, 1fr); row-gap: 10px; }
   .hp-track { display: none; }

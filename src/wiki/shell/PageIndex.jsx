@@ -1,20 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 
-/*
- * The sticky index of a long reference page (Commands, Changelog): one line of its
- * sections under the nav, held there while the page scrolls, each with a count, and
- * the section being read marked the way the nav marks the current page (ink and a 3px
- * bar). A section with nothing in it right now (a search that matches none of its
- * commands) stays in place, dimmed, so the line does not rearrange under the pointer.
- *
- * *Both pages had a row of plain links at the end of the head* (owner, final pass,
- * Sept 2026): useful once, then scrolled away, on pages several screens long on a
- * phone. A sidebar was the other way to keep it in reach and was not taken: it costs
- * the content a column for a handful of words.
- */
+/* An empty section stays in place, dimmed, so the line does not rearrange under the pointer. */
 export default function PageIndex({ label, items, current }) {
-    // On a phone the line scrolls sideways: keep the section being read in view on it,
-    // without touching the page's own scroll.
+    // Scrolls the index sideways only, never the page.
     const list = useRef(null);
     useEffect(() => {
         const ol = list.current;

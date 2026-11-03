@@ -12,26 +12,6 @@ import CommandChat from '../wiki/drawings/CommandChat.jsx';
 import '../wiki/page.css';
 import '../wiki/pages/commands.css';
 
-/*
- * Commands (THE EXPLORER'S ATLAS): every command, who can use it and when.
- *
- * Grouped by what a player is trying to do (their item, getting around, their kit,
- * talking, their records, running the round) rather than split into "player" and
- * "gamemaster" halves: who may run a command is written on the command, as a chip,
- * and the Operators filter still gives the gamemaster's list in one click. The same
- * goes for when: the plugin refuses /bp before a round and /forceteam after one
- * starts, and the page now says so instead of leaving a player to find out.
- *
- * A command is typed, so every usage is set in the typed face (the Mono Rule), with
- * what must be given in angle brackets and what may be left off in square ones.
- * The list and every who and when come from commands.data.js; its header says how
- * they were checked and how the build keeps the list honest.
- *
- * An example that the game answers in chat can be tried: it is typed into a Minecraft
- * chat bar under its line and answered with the plugin's own reply (CommandChat). One
- * is open at a time, so the page never turns into a wall of chat boxes.
- */
-
 const WHO = {
     all: 'Everyone',
     op: 'Operators',
@@ -39,7 +19,6 @@ const WHO = {
 };
 
 function Usage({ name, args }) {
-    // Split "<a> [b | c]" into its parts so required and optional read differently.
     const parts = args ? args.split(/(<[^>]+>|\[[^\]]+\])/).filter(Boolean) : [];
     return (
         <code className="cm-usage">
@@ -82,7 +61,6 @@ function Command({ c, open, onTry }) {
                     </li>
                 ))}
             </ul>
-            {/* Everyone is the default and is said once, in the key; only a restriction gets a chip. */}
             {(c.who !== 'all' || c.when?.length > 0) && (
                 <p className="cm-chips">
                     {c.who !== 'all' && <span className="cm-chip cm-chip--who" data-who={c.who}>{WHO[c.who]}</span>}
@@ -145,8 +123,7 @@ export default function Commands({ onNavigate }) {
             />
 
             <div className="wk-wrap cm-body">
-                {/* Only the outcome of a search is announced: the whole list (and any chat
-                    opened in it) used to sit in the live region and was read out on change. */}
+                {/* Only the search outcome is live: the whole list in the region was read out on every change. */}
                 <div aria-live="polite">
                     {q && shown > 0 && <p className="cm-count">{`${shown} ${shown === 1 ? 'command matches' : 'commands match'}`}</p>}
                     {!shown && <p className="cm-empty-text">No command matches “{query}”.</p>}

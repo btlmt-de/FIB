@@ -1,17 +1,4 @@
-/*
- * Game Settings (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the
- * skeleton is page.css.
- *
- * Each setting is one fixed block, the Commands page's rhythm: the item the game's
- * /settings menu shows for it, its name, what on and off do, and this server's value
- * in a column of its own at the right, so the whole column can be read down in one
- * glance. On and off are the menu's lime and red dye beside the word; that is the only
- * colour on the page, and it is the game's.
- *
- * Plain words in comments: no backticks.
- */
 
-/* The head: the words, and the menu itself beside them where there is room. */
 .gs-head { grid-template-columns: minmax(0, 1fr) auto; column-gap: 56px; align-items: start; }
 .gs-head-text { display: grid; gap: 14px; justify-items: start; }
 .gs-head .sm { margin-top: 6px; }
@@ -49,7 +36,6 @@
   border-radius: 2px; box-shadow: inset 0 0 0 1px var(--wk-line);
 }
 
-/* This server's value, in a column of its own. */
 .gs-here { display: grid; gap: 4px; justify-items: start; padding-top: 2px; }
 .gs-here-label { font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3); }
 .gs-here-value { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--wk-ink); }

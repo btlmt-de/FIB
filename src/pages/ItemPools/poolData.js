@@ -1,21 +1,4 @@
-/**
- * Reading the pool and its descriptions, for the Item Pools workspace.
- *
- * Two files, two repos, and the page is the only place they meet:
- *
- *   the POOL          ItemDifficultiesManager.java on the PLUGIN's GitHub main
- *                     (McPlayHDnet/ForceItemBattle), one register() call per item
- *   the DESCRIPTIONS  config.yml's descriptions: block on a branch of THIS repo
- *                     (btlmt-de/FIB), the lines /info prints
- *
- * The Java path below is a cross-repo contract (see CLAUDE.md, "The path is part of
- * the contract"): moving or renaming the file on the plugin side 404s this page at
- * runtime, and REGISTER_REGEX is copied verbatim into the plugin's
- * CrossRepoContractTest. Change either only in step with the plugin.
- *
- * Everything here is the old ForceItemPools.jsx's loading code, moved out of the
- * component so the workspace, the inspector and the change tray share one copy.
- */
+/* POOL_PATH is a cross-repo contract (CLAUDE.md, "The path is part of the contract"): moving the file 404s this page. */
 
 import { PAPER_VERSION } from '../../wiki/data/atlas.js';
 
@@ -28,13 +11,7 @@ export const CONFIG_PATH = 'config.yml';
 const CONFIG_BASE_URL = `https://raw.githubusercontent.com/${SITE_REPO}`;
 const PUBLIC_BRANCHES_URL = `https://api.github.com/repos/${SITE_REPO}/branches`;
 
-/*
- * Every item the server's Minecraft version has, for the Missing view. Pinned to the
- * version the plugin pins (PAPER_VERSION) rather than misode's moving registries
- * branch, which tracks the newest snapshot: an item that only exists in a snapshot is
- * not missing from this server's pool, it does not exist there yet. The branch is
- * kept as the fallback for the day a new version's tag has not been cut.
- */
+/* Pinned to PAPER_VERSION, not misode's moving branch: a snapshot-only item is not missing from this server's pool. */
 const REGISTRY_URLS = [
     `https://raw.githubusercontent.com/misode/mcmeta/${PAPER_VERSION}-registries/item/data.json`,
     'https://raw.githubusercontent.com/misode/mcmeta/refs/heads/registries/item/data.json',
@@ -70,12 +47,7 @@ export function parseJavaFile(content) {
     return items;
 }
 
-/*
- * A YAML double-quoted string, the way config.yml writes every description line.
- * The old editor wrote lines without escaping, so a quote typed into a description
- * would have broken config.yml for the whole server. No line uses one today, which
- * is why escaping on write and unescaping on read changes nothing already there.
- */
+/* Escaped on write: a quote typed into a description would break config.yml for the whole server. */
 export const yamlQuote = (s) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 const yamlUnquote = (s) => s.replace(/\\(["\\])/g, '$1');
 
@@ -121,7 +93,6 @@ function writeCache(items, branch) {
     } catch { /* storage full or blocked: the page works without it */ }
 }
 
-/** Called after any commit, so the next load reads GitHub rather than the cache. */
 export function invalidateCache() {
     try {
         localStorage.removeItem(CACHE_KEY);
@@ -138,11 +109,7 @@ export function setViewBranch(branch) {
 
 /* ── Loading ─────────────────────────────────────────────────────────────────── */
 
-/**
- * The pool from the plugin's main, with the descriptions from `branch` of this
- * repo merged in. The pool is always main: pool changes land on a plugin branch and
- * a pull request, and are not the live pool until merged.
- */
+/* The pool is always the plugin's main: pool changes are not live until their pull request merges. */
 export async function loadPool(branch, { fresh = false } = {}) {
     if (!fresh) {
         const cached = readCache(branch);
@@ -162,7 +129,6 @@ export async function loadPool(branch, { fresh = false } = {}) {
     return { items, timestamp: Date.now() };
 }
 
-/** This repo's branches, unauthenticated: which config.yml the page can show. */
 export async function loadPublicBranches() {
     try {
         const res = await fetch(`${PUBLIC_BRANCHES_URL}?per_page=100`);
@@ -174,7 +140,6 @@ export async function loadPublicBranches() {
     }
 }
 
-/** Every item material in the server's Minecraft version, upper-cased, air excluded. */
 export async function loadRegistry({ fresh = false } = {}) {
     if (!fresh) {
         try {
@@ -199,5 +164,4 @@ export async function loadRegistry({ fresh = false } = {}) {
     return [];
 }
 
-/* Sprites: shared with Custom Content, see wiki/game/sprite.js. */
 export { spriteOf, spriteFallback } from '../../wiki/game/sprite.js';

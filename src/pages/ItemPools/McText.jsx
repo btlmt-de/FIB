@@ -1,9 +1,6 @@
 import React from 'react';
 import { parseMc } from './mcFormat.js';
 
-/* Descriptions rendered as the game's chat prints them. The parsing is mcFormat.js. */
-
-/** One description line as chat prints it. An empty line keeps its height. */
 export function McLine({ text }) {
     const parts = parseMc(text || '');
     if (!parts.length) return <span className="ip-mc-line">&nbsp;</span>;
@@ -21,7 +18,6 @@ export function McLine({ text }) {
     );
 }
 
-/** A whole description as the /info chat block. */
 export function McChat({ lines, className = '' }) {
     return (
         <div className={`ip-chat ${className}`}>

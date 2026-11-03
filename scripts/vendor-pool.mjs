@@ -1,37 +1,6 @@
-/**
- * Vendors the FIB item pool into `src/pages/Stats/itemPool.js`.
- *
- * The stats collection book shows the WHOLE pool — found items lit, missing
- * ones dimmed — so it needs the complete list of items the game can ask for.
- * No endpoint returns it: `/items` is only the rarity snapshot of items that
- * have already come up in matches, and `/collection/{player}` carries the pool
- * SIZE (totalItems) but not its names.
- *
- * The authoritative source is the plugin itself: every
- * `register(Material.X, State.Y, ...)` call in ItemDifficultiesManager.java is
- * a pool item, minus the tag classes the live config disables. The deployed
- * config (config.yml, repo root) has `extreme: false`, which removes exactly
- * the 50 EXTREME-tagged items: 1,367 registered - 50 = the 1,317 the service
- * reports as totalItems. The same filter is applied here from the same file,
- * so a config change re-filters on the next run.
- *
- * This runs on `prebuild`, so a production build always vendors a fresh pool.
- * It was manual for a long time and drifted badly: thirteen items (the trail
- * ruins set and TORCHFLOWER_SEEDS) were missing and seven more had a stale
- * phase, which the stats pages render as "Unassigned" or the wrong colour with
- * nothing to signal the snapshot is old. The cost of wiring it in is that a
- * build now needs GitHub reachable — the fetch failure below is fatal on
- * purpose, because a build that quietly falls back to the old snapshot is the
- * exact failure this is meant to end.
- *
- * `npm run dev` does NOT trigger prebuild, so run it by hand after a pool change
- * if you want the dev server to see it:
- *
- *   npm run vendor:pool
- *
- * The same run writes the wiki's atlas (`src/wiki/data/atlas.data.js`): the pool again,
- * with its tags, and where config.yml's /info lines say each item is found. See the
- * atlas block below main()'s helpers.
+/*
+ * Vendors the plugin's item pool (and the wiki atlas, settings, custom names) from ItemDifficultiesManager.java on GitHub main.
+ * Runs on prebuild; a fetch failure is fatal on purpose, so a build never ships a stale pool. Run by hand for npm run dev.
  */
 
 import { readFile, writeFile, readdir } from 'node:fs/promises';
@@ -43,55 +12,24 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGIN_RAW =
   'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/src/main/java/forceitembattle';
 
-/* The same URL the item-pools page parses at runtime. */
+/* Cross-repo contract: the item-pools page parses the same URL at runtime. */
 const JAVA_URL = `${PLUGIN_RAW}/manager/ItemDifficultiesManager.java`;
-/* Custom items — see CUSTOM below. */
 const CUSTOM_URL = `${PLUGIN_RAW}/model/CustomMaterials.java`;
-/*
- * The Paper version the plugin pins (run-paper boots it, production runs it), for the
- * How to Play page's "built for Paper X". That line was typed by hand and had already
- * drifted a release behind when it moved here. vendor-routes.mjs reads the same file
- * for its Minecraft data, but routes.data.js is 120 kB and a page that wants one
- * string should not pay for it, so the version is written into the atlas too.
- */
+/* Written into the atlas too: routes.data.js is 120 kB, too much to import for one version string. */
 /* Where the plugin registers its commands; see checkCommands. */
 const GRADLE_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/build.gradle.kts';
 const PAPER_VERSION_URL = 'https://raw.githubusercontent.com/McPlayHDnet/ForceItemBattle/main/paper-version.json';
 
 const CONFIG = join(root, 'config.yml');
 const OUT = join(root, 'src/pages/Stats/itemPool.js');
-/*
- * The custom names ship in their own module rather than alongside the pool, because
- * Gameplay.jsx needs them and Gameplay is in the main bundle while itemPool.js belongs
- * to the lazily-loaded Stats chunk. Importing one name out of itemPool.js does NOT
- * tree-shake the 1,300-entry arrays out — the Stats chunk still uses them, so Rollup
- * keeps the module whole and hoists it into the shared parent, which measured as
- * +31 kB (+8.6 kB gzipped) on first paint for everyone who never opens Stats.
- */
+/* Its own module: importing from itemPool.js hoists the Stats chunk's arrays into first paint (+31 kB). */
 const OUT_CUSTOM = join(root, 'src/config/customItems.js');
 const TEXTURES = join(root, 'public/fib-items');
-/*
- * The wiki's atlas: where each pool item lives. Its own module for the same reason
- * customItems.js is one — the wiki must not pull the Stats chunk's 1,300-entry arrays
- * into its first paint — and because it answers a question itemPool.js does not: not
- * WHEN an item can come up, but WHERE the world keeps it.
- */
+/* Its own module, like customItems.js, so the wiki never pulls the Stats chunk's arrays. */
 const OUT_ATLAS = join(root, 'src/wiki/data/atlas.data.js');
-/*
- * The round settings, for the Game Settings page: the plugin's GameSetting enum (name,
- * in-game description, config key, default, and the item its /settings menu shows)
- * joined to this repo's config.yml, which is the deployed one. The page used to keep
- * its own list, and had drifted into settings that do not exist (Nether, Player
- * Trading) and defaults that were the wrong way round.
- */
 const SETTINGS_URL = `${PLUGIN_RAW}/settings/GameSetting.java`;
 const OUT_SETTINGS = join(root, 'src/wiki/data/settings.data.js');
 
-/*
- * The Commands page plays each example in chat, and /info's answer is the item's own
- * description from config.yml. Only the items its examples ask for are written out,
- * colour codes kept, so the chat shows exactly what the game prints.
- */
 const OUT_INFO = join(root, 'src/wiki/data/info.data.js');
 
 const REGISTER = /register\(Material\.(\w+),\s*State\.(\w+)((?:,\s*ItemTag\.\w+)*)\)/g;
@@ -102,16 +40,9 @@ const REGISTER = /register\(Material\.(\w+),\s*State\.(\w+)((?:,\s*ItemTag\.\w+)
  */
 const CUSTOM = /^ {4}([A-Z][A-Z0-9_]*)\(Material\.(\w+),\s*"([^"]+)",\s*"((?:[^"\\]|\\.)*)"/gm;
 
-/*
- * The plugin's own SHARES_MATERIAL_WITH_POOL_ITEM set — the custom items that must
- * NOT answer for their bare material. BRUSH is an EARLY force item found by crafting
- * a plain one, and TOTEM_OF_UNDYING is a LATE/EXTREME force item, so both keep their
- * vanilla names; CustomMaterials.nameOf() excludes them for exactly this reason and
- * reading the set means a change there does not need a change here.
- */
+/* The plugin's own SHARES_MATERIAL_WITH_POOL_ITEM: these keep their vanilla names. */
 const SHARES_MATERIAL = /SHARES_MATERIAL_WITH_POOL_ITEM\s*=\s*\n?\s*Set\.of\(([^)]*)\)/;
 
-/** The two-space-indented booleans under `settings:` in config.yml. */
 function readSettings(yaml) {
   const get = (key, fallback) => {
     const m = yaml.match(new RegExp(`^  ${key}:\\s*(true|false)\\s*$`, 'm'));
@@ -120,13 +51,12 @@ function readSettings(yaml) {
   return {
     hard: get('hard', false),
     extreme: get('extreme', false),
-    /* Never written to config.yml: the live pool (1,317) includes the 34
-       END-tagged items, so enabled is the proven default. */
+    /* Never written to config.yml: the live pool (1,317) includes END items, so enabled is the proven default. */
     end: get('end', true),
   };
 }
 
-/** The same exclusions ItemDifficultiesManager.filterDisabledItems applies. */
+/* Mirrors ItemDifficultiesManager.filterDisabledItems. */
 function poolFilter(settings) {
   return (tags) => {
     if (!settings.hard && (tags.includes('NETHER') || tags.includes('EXTREME'))) return false;
@@ -136,27 +66,16 @@ function poolFilter(settings) {
   };
 }
 
-/* ── The atlas ──────────────────────────────────────────────────────────────
- *
- * config.yml's `descriptions:` block is what /info prints in game, written by the
- * team per item. About 150 of those name the structure an item comes from
- * ("Structure: Ancient City") or list the loot tables that drop it with their odds
- * ("Woodland Mansion - 28.3%"), and about 150 name biomes. With the plugin's own
- * NETHER / END tags that is enough to say where most interesting items live without
- * a second, hand-kept list — which is the only way the wiki is allowed to say it.
+/*
+ * ── The atlas ──
+ * Where items live comes from config.yml's /info lines plus the plugin's tags, never a hand-kept list.
  */
 
-/*
- * One /info line as plain words: the colour and format codes out, and then any '&'
- * still glued to a word, which is a code typed wrong ("&Savanna" for "&aSavanna");
- * the game prints those literally, but the atlas is not the game's chat. An '&' with
- * space after it is a real ampersand ("River & Frozen River Shores") and stays.
- */
+/* An '&' glued to a word is a mistyped code and is dropped; '& ' is a real ampersand. */
 function cleanLine(text) {
   return text.replace(/&[0-9a-fk-or]/gi, '').replace(/&(?=\S)/g, '').trim();
 }
 
-/** Material -> the /info lines, colour codes stripped. */
 function readDescriptions(yaml) {
   const out = new Map();
   const start = yaml.search(/^descriptions:\s*$/m);
@@ -172,7 +91,6 @@ function readDescriptions(yaml) {
   return out;
 }
 
-/** The structure, its loot odds and the biomes one item's /info lines name. */
 function parseWhere(lines) {
   let structure = null;
   let chance = null;
@@ -194,7 +112,6 @@ function parseWhere(lines) {
     inLoot = false;
   }
   if (!structure && loot.length) {
-    // The likeliest source is the one a player would go to.
     const best = loot.reduce((a, b) => (parseFloat(b.chance) > parseFloat(a.chance) ? b : a));
     structure = best.name;
     chance = best.chance;
@@ -202,12 +119,7 @@ function parseWhere(lines) {
   return { structure, chance, biomes };
 }
 
-/*
- * Region by first match. Tags outrank structures because they are the plugin's own
- * word: an END-tagged item is an End item wherever /info says it was found. A
- * structure is read by its FIRST name, so "Snowy Plains Village, Ancient City" pins to
- * the village — the easier of the two, and the one the team listed first.
- */
+/* Tags outrank structures; a structure is read by its first name. */
 const STRUCTURE_REGIONS = [
   ['end', /End City|End Ship/i],
   ['deepdark', /Ancient City/i],
@@ -217,9 +129,7 @@ const STRUCTURE_REGIONS = [
   ['caves', /Geode|Mineshaft|Stronghold/i],
 ];
 
-/* Structures no STRUCTURE_REGIONS entry recognises, reported once per run: each
-   falls back to surface, which is right for a village and wrong for a misspelt
-   "Trail Chambers", so the list is the thing to read. */
+/* Reported once per run: unmatched structures fall back to surface, which is wrong for a typo. */
 const unmatchedStructures = new Set();
 
 function regionOf(tags, where) {
@@ -252,9 +162,7 @@ function buildAtlas(pool, tagsOf, descriptions) {
 function atlasModule({ where, tags, described }, pool, stateOf, settings, yaml, paperVersion) {
   const keys = Object.keys(where).sort();
   const stage = (s) => pool.filter((m) => stateOf.get(m) === s);
-  // The backpack is Backpack rows (settings.backpackRows, which the plugin reads) times
-  // nine. It used to be standard.backpackSize, which the plugin never reads, and jokers
-  // came from standard.jokers the same way; the round's jokers are ROUND in tokens.js.
+  // settings.backpackRows is what the plugin reads; standard.* in config.yml is never read.
   const rows = Number(yaml.match(/^ {2}backpackRows:\s*(\d+)\s*$/m)?.[1] ?? 3);
   const live = { ...settings, backpackSize: rows * 9 };
   return `/**
@@ -335,12 +243,7 @@ async function main() {
   }
   const pool = [...kept.keys()].sort();
 
-  /*
-   * Custom items, keyed by the material they ride on. Six of them own their material
-   * outright — nobody is sent to find a knowledge book or a nether star as such — so
-   * the plugin's nameOf() answers with the custom name and the site has to agree, or
-   * the item index calls the Wheel of Fortune a "Nether Star".
-   */
+  /* Six custom items own their material outright, so the site must name them as the plugin's nameOf() does. */
   const shared = new Set(
     (customJava.match(SHARES_MATERIAL)?.[1] ?? '').split(',').map((s) => s.trim()).filter(Boolean),
   );
@@ -410,8 +313,6 @@ ${customKeys.map((n) => `  ${n}: ${JSON.stringify(customNames.get(n))},`).join('
   const atlas = buildAtlas(pool, tagsOf, readDescriptions(yaml));
   await writeFile(OUT_ATLAS, atlasModule(atlas, pool, kept, settings, yaml, paperVersion));
 
-  /* Texture coverage, so a pool addition that outruns vendor-textures is loud
-     here rather than a slow remote fallback in the browser. */
   let textures = [];
   try {
     textures = await readdir(TEXTURES);
@@ -443,7 +344,6 @@ ${customKeys.map((n) => `  ${n}: ${JSON.stringify(customNames.get(n))},`).join('
   await writeInfoSamples(yaml);
 }
 
-/** The /info text, colour codes kept, of every item a Commands example asks /info about. */
 async function writeInfoSamples(yaml) {
   const { COMMANDS } = await import('../src/wiki/data/commands.data.js');
   const wanted = COMMANDS.flatMap((c) => c.forms)
@@ -471,11 +371,10 @@ export const INFO = ${JSON.stringify(info, null, 2)};
 `);
 }
 
-/* MiniMessage to plain words: the lore is written for the game's chat. */
 const plain = (line) => line.replace(/<[^>]+>/g, '').trim();
 
 async function writeSettings(rawYaml) {
-  // config.yml is checked out with CRLF on Windows; the block patterns below are line-based.
+  // config.yml is checked out with CRLF on Windows; the patterns below are line-based.
   const yaml = rawYaml.replace(/\r\n/g, '\n');
   let java;
   try {
@@ -495,7 +394,6 @@ async function writeSettings(rawYaml) {
     const [, key, name, , loreBody, path, rawDefault, material] = m;
     const loreLines = loreBody ? [...loreBody.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((x) => x[1]) : [];
     const lore = loreLines.map(plain).filter(Boolean);
-    // The same lines as the menu's tooltip prints them: MiniMessage kept, blank lines too.
     const mm = loreLines.map((l) => l.replace(/\\"/g, '"'));
     const def = rawDefault.trim() === 'true' ? true : rawDefault.trim() === 'false' ? false : Number(rawDefault.trim());
     const raw = configured[path];
@@ -535,13 +433,7 @@ export const DEAD_KEYS = ${JSON.stringify(dead)};
   if (dead.length) console.warn(`[WARNING] config.yml sets ${dead.map((k) => `settings.${k}`).join(', ')}, which no setting reads; the server ignores ${dead.length === 1 ? 'it' : 'them'}.`);
 }
 
-/*
- * The Commands page's list against the plugin's. The page's words are hand-written
- * (src/wiki/data/commands.data.js) but the list is not the page's to decide: a command the
- * plugin registers must be on it, and one the plugin dropped must not be. Registration
- * lives in build.gradle.kts (commands.register, which generates plugin.yml). A warning,
- * not a failure: the page can be a release behind for a day without breaking the build.
- */
+/* A warning, not a failure: the Commands list may trail the plugin by a release. */
 async function checkCommands() {
   try {
     const res = await fetch(GRADLE_URL);
@@ -559,10 +451,7 @@ async function checkCommands() {
   }
 }
 
-// The Changelog is hand-written (src/wiki/data/changelog.data.js), so a release can ship
-// without an entry. The plugin's build.gradle.kts carries the version it builds as
-// (version = "26.9.3"); when that is not the newest entry, say so. A warning, not a
-// failure: the entry is words someone has to write, and a build is no place to wait.
+// A warning, not a failure: a changelog entry is words someone has to write.
 async function checkChangelog() {
   try {
     const res = await fetch(GRADLE_URL);

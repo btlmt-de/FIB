@@ -4,48 +4,19 @@ import { useOnScreen } from '../hooks.js';
 import { TRADER } from '../tokens.js';
 import './villager.css';
 
-/*
- * Villagers, standing: Minecraft's own villager model built from its boxes and wearing
- * the game's own textures. Two kinds are drawn: the traders at spawn (Trader, with the
- * name over its head in the plugin's colour and the glowing outline the plugin gives
- * it) and a plain villager for someone you trade with (Villager: the Cleric who sells
- * the Eye of Antimatter, the Cartographer who may sell the Sulfur Locator).
- *
- * Why boxes and not a 3D viewer. The model is a dozen boxes, so plain CSS 3D draws it
- * crisp at any size with no library; an embedded viewer (one was the inspiration)
- * would bring its own frame and none of the behaviour below, and a 3D engine would be
- * ~150 KB for a dozen boxes.
- *
- * The geometry is vanilla's VillagerModel, which the wandering trader renders with too:
- * each box is its texture offset, its size and its corner relative to the part's pivot,
- * in model pixels, the way the game declares it. The hood is the model's hat layer, a
- * hair larger than the head; the robe is the body's jacket. The hat brim is left out:
- * every texture drawn here leaves it empty.
- *
- * A villager is several textures stacked, as the game layers them: the base villager,
- * its biome type, its profession's outfit, and the badge on its belt for its level. A
- * face takes all of them as stacked backgrounds, the top layer first. The textures are
- * vanilla 26.3, in public/fib-entities.
- *
- * It looks at you. Villagers turn their heads to watch a player nearby, so the head
- * follows the pointer, within the neck's reach, while the model is on screen. With no
- * pointer to follow (a phone) it glances around now and then instead. Under reduced
- * motion or saver mode it stands still, facing you.
- */
+/* Geometry is vanilla's VillagerModel, textures vanilla 26.3. Plain CSS 3D: a 3D engine would be ~150 KB for a dozen boxes. */
 
 const TEX = 64;
 
 const SKINS = {
     WANDERING_TRADER: ['/fib-entities/wandering_trader.png'],
-    // An apprentice (level 2) cleric from the plains, top layer first.
     CLERIC: [
         '/fib-entities/villager/profession_level_iron.png',
         '/fib-entities/villager/profession_cleric.png',
         '/fib-entities/villager/type_plains.png',
         '/fib-entities/villager/villager.png',
     ],
-    // A novice (level 1) cartographer: VillagerTradeListener rolls the Sulfur Locator
-    // offer the moment it takes the job, so that is the level it can be bought at.
+    // Level 1: VillagerTradeListener rolls the Sulfur Locator offer the moment it takes the job.
     CARTOGRAPHER: [
         '/fib-entities/villager/profession_level_stone.png',
         '/fib-entities/villager/profession_cartographer.png',
@@ -70,21 +41,13 @@ const ARMS = [
 ];
 const LEG = [{ uv: [0, 22], size: [4, 12, 4], at: [-2, 0, -2] }];
 
-/** How far the head turns, as the game limits it, and the body's three-quarter stance. */
 const YAW_REACH = 55;
 const PITCH_REACH = 30;
 const BODY_YAW = -22;
 
-/** Facing the reader: the head turned back against the body's three-quarter stance. */
 const NEUTRAL = { yaw: -BODY_YAW, pitch: 0 };
 
-/*
- * One box, as six faces. Each face shows its piece of the texture laid out the way
- * Minecraft unwraps a box: the top and bottom in the first row, then the right side,
- * front, left side and back in the second. Minecraft's front is -Z; here the front
- * faces the reader, so z flips. A mirrored box (the left arm and leg) swaps its sides
- * and flips every face, as the game's mirror does.
- */
+/* Minecraft's box unwrap. Its front is -Z; here the front faces the reader, so z flips. */
 function Box({ px, skin, uv: [u, v], size: [w, h, d], at: [x, y, z], inflate = 0, mirror = false }) {
     const W = (w + 2 * inflate) * px;
     const H = (h + 2 * inflate) * px;
@@ -132,7 +95,6 @@ function Part({ px, skin, pivot: [x, y, z], turn = '', boxes }) {
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
-/** Where the head looks: the pointer where there is one, a glance around where not. */
 function useGaze(headRef, active) {
     const [gaze, setGaze] = useState(NEUTRAL);
     useEffect(() => {
@@ -147,7 +109,6 @@ function useGaze(headRef, active) {
                     if (!r) return;
                     const dx = e.clientX - (r.left + r.width / 2);
                     const dy = e.clientY - (r.top + r.height / 2);
-                    // An absolute direction on screen, then relative to the turned body.
                     const yaw = (Math.atan2(dx, 420) * 180) / Math.PI - BODY_YAW;
                     const pitch = (-Math.atan2(dy, 420) * 180) / Math.PI;
                     setGaze({ yaw: clamp(yaw, -YAW_REACH, YAW_REACH), pitch: clamp(pitch, -PITCH_REACH, PITCH_REACH) });
@@ -160,11 +121,9 @@ function useGaze(headRef, active) {
         const id = setInterval(glance, 2800);
         return () => clearInterval(id);
     }, [active, headRef]);
-    // Standing still (off screen, reduced motion, saver) it faces the reader.
     return active ? gaze : NEUTRAL;
 }
 
-/** The model alone, sized by px (screen pixels to a texture pixel), watching the pointer. */
 function Model({ skin, px, watchRef }) {
     const headRef = useRef(null);
     const calm = useCalm();
@@ -185,14 +144,7 @@ function Model({ skin, px, watchRef }) {
     );
 }
 
-/*
- * A player head as a slot shows one: its face, straight on and flat, sitting in the
- * slot, the skin's hat layer over its face layer. The plugin's menus page with heads
- * wearing arrow skins, and the face is where those skins draw the arrow.
- *
- * It was a cube here at first, turned the way a slot turns a block. That is not how the
- * game draws a head in a slot, and it hid the arrow, so it is the face alone now.
- */
+/* The face only, as the game draws a head in a slot: the plugin's arrow skins draw the arrow there. */
 export function Head({ skin, size = 28 }) {
     const k = size / 8;
     const layer = (u, v) => `${-u * k}px ${-v * k}px`;
@@ -206,7 +158,6 @@ export function Head({ skin, size = 28 }) {
     );
 }
 
-/** A villager you trade with: the model, no name over it, as the game draws one. */
 export function Villager({ kind = 'CLERIC', px = 3 }) {
     const ref = useRef(null);
     return (
@@ -216,7 +167,6 @@ export function Villager({ kind = 'CLERIC', px = 3 }) {
     );
 }
 
-/** A trader at spawn: its name over its head, and the outline it glows with, in the plugin's colour. */
 export default function Trader({ kind = 'WANDERING', px = 5, heading = 'h3', id }) {
     const t = TRADER[kind];
     const ref = useRef(null);

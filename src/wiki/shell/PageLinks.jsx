@@ -3,14 +3,6 @@ import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import { ItemSlot } from '../game/items.jsx';
 import { PAGE } from './pages.js';
 
-/**
- * "Where next" at the foot of an inner page: a few pages named in plain words, each
- * beside the item that stands for it in the nav. The same row as the home page's
- * index (see HomePage's Index for why it is not a hotbar), styled in page.css.
- *
- * `ids` is the page's own choice of what a reader of it would want next, not the
- * whole site; the nav already carries the whole site.
- */
 export default function PageLinks({ ids, go, title = 'Where next' }) {
     return (
         <nav className="wk-wrap pg-next" aria-labelledby="pg-next-title">

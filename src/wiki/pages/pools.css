@@ -1,17 +1,6 @@
-/*
- * Item Pools (THE EXPLORER'S ATLAS): the maintainers' workspace. Loaded with the
- * page's own chunk. Operate, not Read: dense, keyboard-first, every control a real
- * control, and the same world as the rest of the wiki (sunk slots, the stage and tag
- * marks, white light for anything the pointer or the selection touches).
- *
- * Three regions: the browser, the inspector beside it, the tray along the bottom.
- * --ip-top is the height of the nav plus the sticky toolbar, measured by the page.
- *
- * Plain words in comments: no backticks.
- */
+/* --ip-top is the nav plus the sticky toolbar, measured by the page. */
 
 .ip { --ip-top: 176px; display: block; min-height: 100vh; padding-bottom: 72px; }
-/* Wider than the reading pages: this page's job is to show as much of the pool as it can. */
 .ip-wrap { width: min(1840px, 100% - 40px); margin-inline: auto; }
 
 .ip-link {
@@ -32,7 +21,6 @@
 .ip-spin { animation: ip-spin 900ms linear infinite; }
 @keyframes ip-spin { to { transform: rotate(360deg); } }
 
-/* Fields: cut into the surface, like a slot. */
 .ip-input, .ip-select select, .ip-search input, .ip-branch select {
   min-height: 40px; padding: 0 12px;
   font: 500 16px/1.2 var(--wk-font-text); color: var(--wk-ink);
@@ -50,7 +38,6 @@
 .ip-error { margin: 0; font-size: 14px; color: var(--wk-ink); font-weight: 600; }
 .ip-error::before { content: "Not done: "; color: var(--wk-ink-3); font-weight: 500; }
 
-/* Segmented controls. The chosen one is the brighter block with the 3px white bar. */
 .ip-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; }
 .ip-seg > button {
   display: inline-flex; align-items: center; gap: 6px;
@@ -93,8 +80,6 @@
 .ip-seg--primary > button { min-height: 44px; padding: 0 14px 2px; }
 .ip-seg-stage[data-stage] > span:first-child { font-weight: 700; }
 
-/* The secondary line: words that light up rather than more blocks. The chosen word
-   takes the brighter ground and the white bar, the same mark the primary line uses. */
 .ip-refine { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 28px; padding: 0 0 10px; }
 .ip-refine-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; }
 .ip-refine-label {
@@ -154,8 +139,7 @@
 @keyframes ip-ghost { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 .ip-ghost { animation: ip-ghost 1600ms ease-in-out infinite; animation-delay: calc(var(--i) * 20ms); }
 
-/* A slot as a button. Selected: a white ring. Staged: a dashed ring, because it is
-   not the game's yet. /info: a small mark in the top-left corner. */
+/* Staged is a dashed ring: it is not the game's yet. */
 .ip-cell {
   position: relative; display: block; padding: 0; line-height: 0;
   background: none; border: 0; border-radius: 2px; cursor: pointer;
@@ -192,19 +176,7 @@
 
 /* ── The catalogue ────────────────────────────────────────────────────────── */
 
-/* The default view: one component on one fixed grid (see Entry in ForceItemPools).
-   Five across beside the sidebar at 1920px, about 285px each. Six was tried first
-   (236px): the text column came to 148px, and LATE NETHER EXTREME measures about
-   190px as chips, so the tags of 58 entries were clipped. Every chip whole on one
-   fixed row mattered more than a sixth column. Quiet by default: a
-   1px outline on the ground; hover takes the panel ground and a brighter outline,
-   selection the white ring. Colour lives only in the chips. */
-/* The minimum is measured, not picked. At 264px the grid went to four across from
-   about 1510px, and at 1536px (269px entries) fourteen chip rows lost their /info
-   word; at 1440px four across would be 245px entries, with 46 rows clipped and 8
-   names past two lines. 284px is the narrowest entry where only Wither Skeleton
-   Skull gives way, so the Catalogue is three across at 1440px, four from about
-   1590px and five at 1920px (final pass, Sept 2026). */
+/* 284px is measured: the narrowest entry where only one item's chips give way (3 across at 1440px, 5 at 1920px). */
 .ip-catalogue { display: grid; grid-template-columns: repeat(auto-fill, minmax(284px, 1fr)); gap: 6px; }
 .ip-entry {
   display: grid; grid-template-columns: 56px minmax(0, 1fr); align-items: center; column-gap: 10px;
@@ -219,13 +191,11 @@
 .ip-entry[data-removed] .ip-entry-art { opacity: 0.3; }
 .ip-entry[data-removed] .ip-entry-name { text-decoration: line-through; text-decoration-color: var(--wk-ink-3); }
 
-/* The item itself, 52px, on nothing: the game's art does not need a frame. */
 .ip-entry-art { display: grid; place-items: center; width: 56px; height: 56px; }
 .ip-entry-art .wk-sprite { width: 52px; height: 52px; filter: drop-shadow(0 3px 2px oklch(0% 0 0 / 0.5)); }
 .ip-entry-art--ghost { width: 44px; height: 44px; margin: 6px; background: var(--wk-panel); border-radius: 2px; }
 
-/* Two fixed rows: a name area that is always two lines tall, and the chip row under
-   it, so a one-line Allium and a two-line armor trim put their chips at the same y. */
+/* Fixed rows so one-line and two-line names put their chips at the same y. */
 .ip-entry-text { display: grid; grid-template-rows: 40px 20px; row-gap: 7px; min-width: 0; }
 .ip-entry-name {
   align-self: start;
@@ -240,17 +210,12 @@
   background: color-mix(in oklch, var(--c) 9%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--c) 38%, transparent);
 }
-/* A world tag: the same row and height as the stage chip, but its glyph and word
-   alone, so the stage reads first and the tag as what it is, metadata on it. */
 .ip-chip-tag--world { gap: 4px; padding: 0 3px 0 5px; background: none; box-shadow: none; }
 .ip-chip-tag--world .wk-glyph { flex-shrink: 0; }
-/* /info is the one thing on the row allowed to give way: when the chips leave no room
-   (one item, Late Nether Extreme with /info) it wraps onto the hidden second line
-   rather than a tag being cut. The filter and the inspector still say it. */
+/* /info is the one thing allowed to wrap onto the hidden line, rather than a tag being cut. */
 .ip-entry-infoword { margin-left: auto; padding-left: 6px; line-height: 20px; font-size: 12.5px; font-weight: 600; color: var(--wk-ink-3); white-space: nowrap; }
 .ip-entry.ip-ghost, .ip-row-item.ip-ghost { cursor: default; }
 
-/* The list's column names, held under the toolbar while the rows scroll. */
 .ip-list-head {
   position: sticky; top: var(--ip-top); z-index: 5;
   display: grid; grid-template-columns: 36px minmax(160px, 1.1fr) 64px minmax(0, 0.8fr) minmax(0, 2fr) minmax(0, auto);
@@ -259,12 +224,10 @@
   font-size: 12.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--wk-ink-3);
 }
 
-/* Where the sidebar has folded away, the breakdown stays above the items. */
 .ip-summary { display: none; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 8px; font-size: 14px; }
 .ip-summary .ip-link { text-decoration: none; font-weight: 700; }
 .ip-summary .wk-datum { color: var(--wk-ink); }
 
-/* The tooltip adds /info's own lines under the name, the way the game prints lore. */
 .ip-tip { max-width: 320px; }
 .ip-tip-lore { display: grid; margin-top: 3px; }
 .ip-tip-lore .ip-mc-line { min-height: 0; font-size: 13.5px; line-height: 1.45; }
@@ -280,8 +243,7 @@
   scrollbar-width: thin;
 }
 .ip-inspect-in { position: relative; }
-/* Room for the tray only while there is one, so the overview fits without an inner
-   scrollbar on an ordinary laptop screen. */
+/* Room for the tray only while there is one, so the overview fits a laptop screen without an inner scrollbar. */
 .ip:has(.ip-tray) .ip-inspect { max-height: calc(100vh - var(--ip-top) - 92px); }
 .ip-close {
   position: absolute; top: 0; right: 0;
@@ -303,7 +265,6 @@
 .ip-item-status { margin: 2px 0 0; font-size: 14px; font-weight: 600; color: var(--wk-ink-2); }
 .ip-item-status[data-staged] { color: var(--wk-ink); }
 .ip-item-id .wk-small { margin: 0; }
-/* Reading an item: the facts as rows of a term and its value, no controls. */
 .ip-readout { margin: 0; display: grid; gap: 8px; }
 .ip-readout > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: baseline; }
 .ip-readout dt { font-size: 14px; color: var(--wk-ink-3); }
@@ -311,7 +272,6 @@
 .ip-readout-note { font-size: 14px; color: var(--wk-ink-3); }
 .ip-readout dd strong { font-weight: 700; }
 .ip-edit-row { justify-items: start; }
-/* Editing: the one bar that says the pane is now a form, and the way back out. */
 .ip-editbar {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px;
   padding: 12px 0 14px; box-shadow: inset 0 1px 0 var(--wk-line);
@@ -335,7 +295,6 @@
 .ip-more { font-size: 12px; font-weight: 700; color: var(--wk-ink-2); }
 .ip-bulk-tags { display: grid; gap: 6px; font-size: 14px; }
 
-/* The overview: every figure is also a filter. */
 .ip-fig { margin: 0; font-size: 16px; color: var(--wk-ink-3); }
 .ip-fig .wk-figure { font-size: 40px; color: var(--wk-ink); margin-right: 6px; vertical-align: -4px; }
 .ip-bars, .ip-cats, .ip-commits { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -351,7 +310,6 @@
 .ip-bar-note { grid-column: 1 / -1; font-size: 13px; line-height: 1.35; color: var(--wk-ink-3); }
 .ip-bars + .ip-bars { margin-top: 4px; padding-top: 8px; box-shadow: inset 0 1px 0 var(--wk-line); }
 
-/* The maintenance fold: open for someone signed in to GitHub, closed for everyone else. */
 .ip-maint > summary {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
   list-style: none; cursor: pointer; padding: 2px 0;
@@ -391,8 +349,6 @@
 
 /* ── /info ────────────────────────────────────────────────────────────────── */
 
-/* The chat box /info prints into: black at half strength over the world, and the
-   game's hard text shadow. The sixteen chat colours inside it are the game's. */
 .ip-chat {
   display: grid; gap: 0; padding: 8px 10px;
   background: oklch(0% 0 0 / 0.5); border-radius: 2px;
@@ -525,8 +481,6 @@
   .ip-work { gap: 0 24px; }
 }
 
-/* Below this the inspector is a sheet over the browser, opened by a selection or
-   the Overview link, and closed by its X or Escape. */
 @media (max-width: 1100px) {
   .ip-work { grid-template-columns: 1fr; }
   .ip-inspect { display: none; }
@@ -551,7 +505,6 @@
   .ip-refine { display: none; }
   .ip-refine[data-open] { display: flex; }
   .ip-refine-btn { display: inline-flex; }
-  /* The stage control carries the counts at this width; the summary would repeat it. */
   .ip-summary { display: none; }
   .ip-catalogue { grid-template-columns: 1fr; }
   .ip-list-head { display: none; }

@@ -1,11 +1,4 @@
-/**
- * Every page of the site, named in plain words, with the item that stands for it.
- *
- * One list, because the home page's "Where next" and each inner page's own "Where
- * next" name the same places and must say the same thing about them. The faces
- * match the nav's (Navigation.jsx keeps its own copy of the faces only, because it
- * ships in the entry chunk and must not pull this module or the atlas behind it).
- */
+/* Navigation.jsx keeps its own copy of the faces: it ships in the entry chunk and must not import this or the atlas. */
 
 export const PAGES = [
     { id: 'how-to-play', name: 'How to Play', face: 'CRAFTING_TABLE', text: 'Join our server, or host a round yourself with the plugin, pack and datapack.' },
@@ -22,7 +15,6 @@ export const PAGES = [
 
 export const PAGE = Object.fromEntries(PAGES.map((p) => [p.id, p]));
 
-/** An in-app link that is still a real link: middle-click and copy work. */
 export function useGo(onNavigate) {
     return (id) => (e) => {
         if (!onNavigate || e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;

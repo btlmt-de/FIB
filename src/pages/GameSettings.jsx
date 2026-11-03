@@ -9,25 +9,7 @@ import SettingsMenu from '../wiki/drawings/SettingsMenu.jsx';
 import '../wiki/page.css';
 import '../wiki/pages/settings.css';
 
-/*
- * Game Settings (THE EXPLORER'S ATLAS): every setting an operator can change in
- * /settings, what it does, and how the standard round has it.
- *
- * The list is not the page's. settings.data.js is generated (vendor-pool.mjs) from
- * the plugin's GameSetting enum and this repo's config.yml, the deployed one: name,
- * in-game description, the item the /settings menu shows for it, the plugin's default
- * and the standard round's value. The page used to keep a list of its own, and it had drifted
- * into settings that do not exist (Nether, which is part of Hard; Player Trading,
- * which is a dead key in config.yml) and defaults the wrong way round (PvP, Keep
- * Inventory, Backpack, Hard).
- *
- * What IS the page's: the grouping and the plain "when on / when off" lines below,
- * each checked against what the plugin does with the setting on main (Sept 2026). A
- * setting the plugin adds later still appears, under Other, with its in-game words.
- *
- * On and off are drawn the way the game's settings menu draws them, a lime dye for
- * enabled and a red dye for disabled, always beside the word.
- */
+/* settings.data.js is generated from the plugin's GameSetting enum and config.yml; only the grouping and NOTES are the page's. */
 
 const GROUPS = [
     { key: 'mode', name: 'How the round is played' },
@@ -40,7 +22,6 @@ const GROUPS = [
 
 const QUICKIE = ['Disabled', 'Early only', 'Early + Mid'];
 
-/* What each setting does, in players' words. Keyed by the enum's name. */
 const NOTES = {
     RUN: { group: 'mode', on: 'One item for the whole server. The first to get it scores, and everyone moves on together. Back-to-backs, random events and stats are off for the round.', off: 'Everyone draws their own items.', link: ['/gameplay#modes', 'The modes'] },
     MIRROR: { group: 'mode', on: 'One row of items for everyone, each player or team at their own pace, with every pool the round allows open from the start.', off: 'Everyone draws their own items.', needs: 'Ignored in Run Battle', link: ['/gameplay#modes', 'The modes'] },
@@ -67,7 +48,6 @@ const NOTES = {
     EVENT: { group: 'event', on: 'For events and tournaments: /pause, /resume and /pos become operator-only, keep inventory is forced on for the first five minutes, and advancement messages are hidden.', off: 'Standard rules.' },
 };
 
-/* The plugin's own names, cleaned where they carry a command ("Positions - /pos"). */
 const nameOf = (s) => s.name.replace(/\s*-\s*\/\w+$/, '');
 
 function Dye({ on }) {

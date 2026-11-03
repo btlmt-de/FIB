@@ -1,20 +1,7 @@
-/**
- * Vendors FIB item sprites out of the resource pack into `public/fib-items/`.
- *
- * Why this exists: the stats module used to point at
- * raw.githubusercontent.com for every item sprite. That host is not a CDN — it
- * sends `cache-control: max-age=300`, so a browser revalidated every sprite on
- * the item index every five minutes, and GitHub throttles the origin. Serving
- * them from our own origin makes them immutable, cacheable assets.
- *
- * Why not copy all ~1,500: the pack is 17 MB of 128x128 PNGs, and the app can
- * only ever render items that appear in the data. Copying the reachable set
- * keeps the repo and the build small. Sprites outside the set fall back to the
- * remote URL at render time (see ITEM_TEXTURE_FALLBACK), so nothing breaks —
- * it just isn't fast, which is the right pressure to re-run this.
- *
- *   node scripts/vendor-textures.mjs          # copy the reachable set
- *   node scripts/vendor-textures.mjs --all    # copy the entire pack
+/*
+ * Copies only reachable sprites into public/fib-items (the pack is 17 MB); others fall back to GitHub at render time.
+ *   node scripts/vendor-textures.mjs          # the reachable set
+ *   node scripts/vendor-textures.mjs --all    # the whole pack
  */
 
 import { readdir, mkdir, copyFile, stat } from 'node:fs/promises';
@@ -25,37 +12,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/fib');
 const OUT = join(root, 'public/fib-items');
 
-/**
- * The pack's custom items (cavendish, the antimatter set, the wheel) live in
- * `item/` rather than `fib/` and are referenced by name, not by pool membership,
- * so there is no reachable set to compute — the whole directory is ~16 KB and
- * gets copied wholesale.
- *
- * `.mcmeta` sidecars are deliberately not copied. They describe vertical
- * animation strips for a handful of textures (knowledge_book, sulfur_locator,
- * trial_locator), and a browser has no idea what to do with one — it would
- * render the strip as a tall static image.
- *
- * *Something does reference those three now*, and this warning caught it the hard
- * way. The wheel's Exotic tier is the plugin's custom items, so it wanted all
- * three locators, and pointing them at these strips rendered each as a single
- * column 8, 10 and 26 frames tall. The fix was not a sprite-sheet renderer: the
- * same three items are already vendored into public/fib-items as static
- * single-frame renders keyed by MATERIAL name — knowledge_book, music_disc_chirp,
- * wither_rose — which is what the stats item index has always drawn. The Exotic
- * entries point there (see EXOTIC_ITEMS in src/config/constants.js and
- * SEED_SPECIAL_ITEMS in the wheel-backend).
- *
- * That leaves a dependency worth knowing about: those three sprites survive in
- * public/fib-items only because KNOWLEDGE_BOOK, MUSIC_DISC_CHIRP and WITHER_ROSE
- * are still force items in the plugin's pool, and this script vendors by pool
- * membership. Drop them from ItemDifficultiesManager and the sprites stop being
- * copied, and the wheel's locator artwork 404s.
+/*
+ * No .mcmeta: knowledge_book, sulfur_locator and trial_locator are animated strips a browser draws as one tall image.
+ * The wheel's locator art uses the static renders in public/fib-items instead, which exist only while KNOWLEDGE_BOOK,
+ * MUSIC_DISC_CHIRP and WITHER_ROSE stay in the plugin's pool.
  */
 const CUSTOM_SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/item');
 const CUSTOM_OUT = join(root, 'public/fib-custom');
 
-/** The item names the app can actually reach, read from the data layer. */
 async function reachableKeys() {
   const { ITEM_POOL, itemKey } = await import('../src/pages/Stats/data.js');
   return new Set(ITEM_POOL.map(itemKey));
@@ -85,10 +49,7 @@ async function main() {
 
   await mkdir(OUT, { recursive: true });
 
-  // Sizes are collected and summed afterwards rather than accumulated into a
-  // shared counter: `total += await ...` inside a Promise.all reads `total`
-  // before its own await resolves, so concurrent copies lose each other's
-  // updates and the reported figure comes out an order of magnitude short.
+  // Summed afterwards: `total += await` inside Promise.all loses concurrent updates.
   const sizes = await Promise.all(
     files.map(async (f) => {
       await copyFile(join(SRC, f), join(OUT, f));
@@ -112,7 +73,6 @@ async function main() {
   await copyCustom();
 }
 
-/** Copies the `item/` custom textures. Absence is a warning, not a failure. */
 async function copyCustom() {
   let available;
   try {

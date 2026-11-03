@@ -1,16 +1,3 @@
-/*
- * Commands (THE EXPLORER'S ATLAS). Loaded with the page's own chunk; the skeleton is
- * page.css.
- *
- * A reference to look things up in, often from a phone mid-round, so the search is the
- * first thing and every command is one regular block: its usages in the typed face
- * down the left, what each does beside it, and a line of chips for who and when.
- * The chips carry no colour: who and when are not data with a hue on this wiki, so
- * they are words in outlines, the Operators one a step brighter because it is the one
- * that stops people.
- *
- * Plain words in comments: no backticks.
- */
 
 .cm-find { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; width: 100%; margin-top: 8px; }
 .cm-search { position: relative; display: inline-flex; align-items: center; flex: 1 1 320px; max-width: 520px; }
@@ -41,19 +28,17 @@
 
 .cm-body { padding: 8px 0 24px; }
 .cm-count { margin: 0 0 8px; font-size: 14px; color: var(--wk-ink-3); }
-/* The empty state's words live in the live region above its button, so only they are announced. */
+/* The empty state's words sit in the live region, so only they are announced. */
 .cm-empty-text { margin: 32px 0 0; font-size: 16px; color: var(--wk-ink-2); }
 .cm-empty { display: grid; justify-items: start; padding: 12px 0 32px; }
 .cm-btn { min-height: 40px; font-size: 14px; padding: 0 14px 3px; }
 
-/* A group: its heading beside its commands, as the other inner pages set a question
-   beside its drawing. */
 .cm-group {
   display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 16px 48px; align-items: start;
   padding: 40px 0 44px; box-shadow: inset 0 1px 0 var(--wk-line); scroll-margin-top: 100px;
 }
 .cm-group:first-child { box-shadow: none; }
-/* Under the nav (56) and the page index (46, page.css), with the gap the other pages leave. */
+/* Under the nav (56) and the page index (46). */
 .cm-group-head { display: grid; gap: 10px; position: sticky; top: 134px; }
 .cm-group-note { max-width: 36ch; }
 .cm-list { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -97,11 +82,7 @@
   .cm-seg > button { flex: 1 1 0; padding: 0 8px 2px; }
 }
 
-/* ── Trying a command (CommandChat) ───────────────────────────────────────────
-   The example is a button: the command, and a quiet "Try it" beside it. The chat
-   opens under its line across both columns, drawn the way the game draws chat:
-   white text with a hard shadow on a see-through black, and the chat bar under it
-   with its blinking underscore. The replies' colours are the plugin's own. */
+/* ── Trying a command (CommandChat) ── */
 
 .cm-try {
   display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap;

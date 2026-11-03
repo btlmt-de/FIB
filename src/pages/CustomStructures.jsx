@@ -12,41 +12,16 @@ import { TABLES, pct, rangeText, roll } from '../wiki/data/loot.js';
 import { DEPTHS_MAP } from '../wiki/data/depthsMap.data.js';
 import '../wiki/page.css';
 import '../wiki/pages/content.css';
-// The pack's own portal surface, bundled from the resource pack this repo ships.
 import portalTexture from '../../ForceItemBattle/assets/minecraft/textures/block/antimatter_portal.png';
 
 /*
- * Custom Content (THE EXPLORER'S ATLAS): what FIB adds to Minecraft, organised by
- * what it is for a player. The Antimatter Depths as the trip it is (find the ruin,
- * buy the eye, craft the totem, open your own portal, go in), the locators side by
- * side, the traders, and the two changes to the world itself.
- *
- * What is derived and what is not. The loot is read from the datapack at build time
- * (wiki/data/loot.js), so the chances, counts and names are the datapack's. Recipes,
- * trades and timings live in the plugin's Java, which the site cannot read at build
- * time, so they are written here; each was checked against the plugin's source on
- * main when this page was rebuilt (Sept 2026), and that check found three the old page
- * had wrong: the Eye of Antimatter costs 6 emeralds, not 5; the journal turns up in
- * 20% of shipwreck map chests, not 30%; and the second Trial Locator recipe belongs to
- * the Harder trackers setting, not to Hard.
- *
- *   recipes      manager/RecipeManager (the kiln brush: the datapack's fib:kiln_fired_brush)
- *   trades       listener/VillagerTradeListener, manager/WanderingTraderManager (its vanilla
- *                offers keep their vanilla use limits: only the price is cut to one of each
- *                ingredient, whatever a comment there says about unlimited uses)
- *   journal      listener/JournalListener, model/BiomeNote
- *
- * The random events used to be described here too. They are Gameplay's (the same
- * text, kept in two places, had already drifted), and this page points there.
+ * Loot is read from the datapack (wiki/data/loot.js). Recipes, trades and timings are typed here from the plugin's
+ * RecipeManager, VillagerTradeListener, WanderingTraderManager and JournalListener: recheck them after a plugin change.
  */
 
 /* ── Items ───────────────────────────────────────────────────────────────────── */
 
-/*
- * The plugin's custom items. Three of them animate in the pack (knowledge_book,
- * sulfur_locator, trial_locator are vertical sprite strips), so they are drawn from
- * the static single-frame renders in /fib-items, keyed by the material they sit on.
- */
+/* Three of these animate in the pack as sprite strips, so the static renders in /fib-items are used. */
 const ITEM = {
     antimatterLocator: { name: 'Antimatter Locator', src: '/fib-items/knowledge_book.png' },
     eye: { name: 'Eye of Antimatter', src: '/fib-custom/eye_of_antimatter.png' },
@@ -103,19 +78,11 @@ const To = ({ label, fill = false }) => (
     </span>
 );
 
-/*
- * A recipe being made. The ingredients go down on the table one at a time, in reading
- * order, each lifting its slot in the grid as it lands in the same cell of the table's
- * own grid; with all of them down the table nods, its grid clears and the result pops.
- * Crafting in the game is instant: this is the recipe told in order, not a timing. The
- * grid beside the table always holds the whole recipe, because the grid is the
- * information. Still (off screen, reduced motion, saver), the recipe lies on the table.
- */
+/* Crafting is instant in the game; this tells the recipe in order. */
 const PLACE_MS = 380;
 const CRAFT_HOLD = 2;   // ticks with everything down, before the craft
 const RESULT_HOLD = 6;  // ticks showing the result, before the table is laid again
 
-/** A crafting table: the 3x3 grid, the table, the result. The sentence is for a screen reader. */
 function Craft({ grid, result, caption }) {
     const ingredients = [...new Set(grid.flat().filter(Boolean).map((c) => c.name))];
     const cells = grid.flatMap((row, r) => row.map((item, c) => item && { item, cell: [r, c], i: r * 3 + c, key: `${r}${c}` })).filter(Boolean);
@@ -148,7 +115,6 @@ function Craft({ grid, result, caption }) {
     );
 }
 
-/** A trade: what goes in, who with, what comes out. */
 function Exchange({ give, via, get, caption }) {
     return (
         <figure className="cc-exchange">
@@ -170,12 +136,6 @@ function Exchange({ give, via, get, caption }) {
     );
 }
 
-/*
- * A smelt, running: the furnace lit, and the track out of it filling as the furnace's
- * own progress arrow fills, at the recipe's own cooking time. The result pops as each
- * fill completes and the next begins, the way a furnace fed a stack works through it.
- * Still, the furnace stays lit, since lit is what it is while it smelts.
- */
 function Smelt({ input, result, seconds, caption }) {
     const ref = useRef(null);
     const calm = useCalm();
@@ -198,7 +158,6 @@ function Smelt({ input, result, seconds, caption }) {
 
 const Typed = ({ children }) => <code className="wk-typed">{children}</code>;
 
-/** Objects on a track with no product at the end: an act, drawn. */
 function Sequence({ parts, caption }) {
     return (
         <figure className="cc-exchange">
@@ -212,7 +171,6 @@ function Sequence({ parts, caption }) {
     );
 }
 
-/* What the Depths hold, as the blocks you will meet, each a way into its loot. */
 const INSIDE = [
     { item: { ...v('decorated_pot'), name: 'Decorated Pot' }, what: '27 in the storage room', room: 'antimatter_depths_storage_pots' },
     { item: { ...v('chest_minecart'), name: 'Chest Minecart' }, what: '2 in the mines', room: 'antimatter_depths_mines' },
@@ -222,25 +180,8 @@ const INSIDE = [
 ];
 
 /*
- * The ruin as it stands (the wheel's render of the datapack's antimatter_depths_portal
- * structure), with the portal as each player sees it: filled for the player who opened
- * it, an empty frame for anyone else. That is the rule people get wrong, so it is
- * shown rather than told.
- *
- * Where the portal goes is not eyeballed. The plugin puts it 2 blocks behind the vault
- * that opens it and 3.5 up, 3 wide and 4 tall (AntimatterPortalManager.frameOf); the
- * structure's vaults stand at (6, 1, 4) and (6, 1, 8), so the opening is x 5 to 8, y 3
- * to 7, across z 6.5. That plane was placed on the render by fitting every block of the
- * structure to the render's silhouette (2:1 isometric, 10.75px a block, 87% overlap),
- * which also puts the front vault where the render shows it. Below, the plane is its
- * top-left corner, its bottom edge and its height, in the render's own 256px. Its sides
- * are vertical, so it is a rectangle skewed along one axis: placed in percentages of the
- * render, it scales with the image at any width with nothing measured.
- *
- * The surface is the pack's own antimatter_portal texture, one 16px frame stretched
- * across the opening as the plugin's scaled item display stretches it, running through
- * its 32 frames at the game's 20 a second. Opening it strikes lightning on the frame,
- * so the portal arrives behind a flash.
+ * The portal plane follows AntimatterPortalManager.frameOf (2 behind the vault, 3.5 up, 3x4), fitted to the 256px render;
+ * the values below are its corner, bottom edge and height in render pixels.
  */
 const RUIN = { src: '/fib-relics/antimatter_portal.png', size: 256 };
 const PORTAL_PLANE = { x: 111.6, y: 81.2, along: [32.3, -16.1], down: 49.6 };
@@ -374,14 +315,11 @@ const ROOMS = [
     { key: 'antimatter_depths_vault', name: 'Vault', text: 'The vault room\'s reward: one of four.' },
 ];
 
-/* A drop as the page names it: the pack's custom items by their own name, anything
-   else by its vanilla name with the game's custom name beside it. */
 function dropName(e) {
     if (e.src && e.custom) return { name: e.custom, also: null };
     return { name: e.name, also: e.custom };
 }
 
-/* A chest is 27 slots, and loot lands in random ones, as the game spreads it. */
 function spread(drops) {
     const slots = Array(27).fill(null);
     const free = [...slots.keys()].sort(() => Math.random() - 0.5);
@@ -399,13 +337,7 @@ function Chest({ drops, cells }) {
     );
 }
 
-/*
- * The Depths from above, as a map of the loot: the wheel's render of the structure with
- * each room outlined where it shows (src/wiki/data/depthsMap.data.js says how that was
- * measured). A room with loot is a way into its tables, and the tables' own tabs light
- * the room they belong to, so the map and the tabs are one control. The End Portal room
- * and the start are named too, because they are where the trip goes, but hold no loot.
- */
+/* depthsMap.data.js says how the room outlines were measured. */
 const PLACES = [
     { piece: 'storage', name: 'Storage', rooms: ['antimatter_depths_storage', 'antimatter_depths_storage_pots', 'antimatter_depths_treasure'] },
     { piece: 'mines', name: 'Mines', rooms: ['antimatter_depths_mines'] },
@@ -415,7 +347,6 @@ const PLACES = [
     { piece: 'start', name: 'You arrive', rooms: [] },
 ];
 
-/* The render's empty sky and ground cut away: the rows of the 256px render the Depths fills, with a little air. */
 const MAP_ROWS = [30, 226];
 
 function DepthsMap({ room, onRoom }) {
@@ -459,7 +390,6 @@ function DepthsMap({ room, onRoom }) {
 function Loot() {
     const [room, setRoom] = useState(ROOMS[0].key);
     const [opened, setOpened] = useState(null);
-    // The trip's "Go in" step links straight to a room's table.
     useEffect(() => {
         const pick = (e) => { setRoom(e.detail); setOpened(null); };
         window.addEventListener('cc-room', pick);
@@ -643,12 +573,6 @@ const BIOME_NOTES = [
 
 /* ── Traders ────────────────────────────────────────────────────────────────── */
 
-/*
- * Two offers are rolled when the trader arrives, so they are drawn turning through
- * what they can be: the three locators, the four iron armour pieces. The shuffle
- * lived on Gameplay's copy of these offers, and came here with them when Gameplay
- * handed the offers back to this page.
- */
 const SPECIAL = [
     { price: 1, get: { item: { ...ITEM.wheel, name: 'Wheels of Fortune' }, count: 3 }, note: 'Three for one emerald.' },
     { price: 5, get: { item: ITEM.journal }, note: 'Otherwise only found in shipwrecks.' },
@@ -657,7 +581,6 @@ const SPECIAL = [
     { price: 5, get: { item: { name: 'An iron armour piece' }, shuffle: ['iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots'].map(v) }, note: 'A random piece, enchanted at level 30.' },
 ];
 
-/** An offer rolled on arrival, turning through what it can be while it is on screen. */
 function Shuffle({ items, size }) {
     const calm = useCalm();
     const ref = useRef(null);

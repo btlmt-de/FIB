@@ -11,62 +11,14 @@ import { ROUND } from '../wiki/tokens.js';
 import '../wiki/page.css';
 import '../wiki/pages/howtoplay.css';
 
-/*
- * How to Play (THE EXPLORER'S ATLAS). The first inner page on the system.
- *
- * The page's job is getting someone into a round, and the useful answer to "what do
- * I download" is WHERE each file goes and WHAT it changes once it is there. So the
- * old list of five download rows became the install board: each file in a slot, a
- * track to the folder it belongs in, one line on what it adds. Those destinations
- * are read off the plugin, not guessed: the data folder is plugins/ForceItemBattle
- * (rootProject.name), unicodeItems.json is read from it
- * (ItemDifficultiesManager.readItemUnicodes), and WorldReset copies
- * FIB_Worldgen.zip out of it into every new world's datapacks.
- *
- * What the resource pack and unicodeItems.json add is drawn rather than said: the
- * bossbar as the game draws it (wiki/game/Bossbar.jsx), with a real pool item.
- *
- * The Paper version is generated (PAPER_VERSION, from the plugin's
- * paper-version.json via vendor-pool.mjs). It used to be typed into this file and
- * was a release behind when it moved.
- *
- * Under the board, the server folder those tracks arrive in, drawn whole, and the
- * server.properties lines. Both are read off the 26.3 test server (plugin/run), not
- * remembered from older versions:
- * - The resource pack is a server pack; the plugin never sends one itself. The board
- *   once filed it under "each player's game", which was wrong (owner, Nov 2026).
- *   Without resource-pack-sha1 the server logs that the pack "will be updated on the
- *   client only if you change the name of the pack", which is why the hash is a line
- *   of its own rather than a footnote. The page prints it rather than sending the
- *   host off to hash it themselves, and the default link is pinned to a commit, with
- *   unicodeItems.json pinned to the same one, because the two only line up as a
- *   pair. Following main is offered as the opt-in. vite.config.js reads the commit,
- *   the hash and the pack's version at build time and records the reasoning.
- * - The datapack needs no line. With initial-enabled-packs left at vanilla, the test
- *   world's level.dat still lists file/FIB_Worldgen.zip as enabled: a pack sitting in
- *   world/datapacks when the world is created is switched on by itself. There is one
- *   world folder now, the Nether and End inside it under dimensions/, so
- *   world/datapacks is the only place it goes.
- * - It shapes terrain only as it generates, so an existing world never gets it.
- *   That is why /reset is a step in "Then": it deletes the world, copies the pack in
- *   (WorldReset) and restarts. The restart goes through spigot.yml's restart-script;
- *   with no script there the server just stops, and the note says so.
- *
- * Words in this section are instructions only (owner, Nov 2026): what to put where
- * and which line to set. Why a link is pinned or how the datapack switches itself on
- * lives here and in vite.config.js, not on the page.
- */
-
-/* ── Content ───────────────────────────────────────────────────────────────── */
+// Paths and server.properties keys mirror the plugin (data folder, WorldReset's datapack copy) and
+// the 26.3 server in plugin/run; recheck both after a Minecraft or plugin change.
 
 const GITHUB_SITE = 'https://github.com/btlmt-de/FIB/blob/main';
-/** The pack the page pins hosts to, read at build time; vite.config.js says why. */
 const PACK = import.meta.env.PACK;
-/** What resource-pack needs is the file itself, not GitHub's page for it. */
 const PACK_PINNED = `https://raw.githubusercontent.com/btlmt-de/FIB/${PACK.commit}/ForceItemBattle.zip`;
 const PACK_LATEST = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle.zip';
 
-/** A string you type or a file you edit: the Mono Rule's one use. */
 const T = ({ children }) => <code className="wk-typed">{children}</code>;
 
 const GROUPS = [
@@ -109,7 +61,6 @@ const GROUPS = [
     },
 ];
 
-/** The server folder once everything is in. A face marks a file from the board above. */
 const TREE = [
     { name: 'server.properties' },
     { name: 'plugins/', children: [
@@ -258,12 +209,6 @@ function Host({ go }) {
                     item={shown}
                     caption="The bossbar, with the pack and unicodeItems.json in place."
                 />
-                {/*
-                  * Where the setup ends. It used to trail off in a paragraph under the
-                  * bossbar, so the board had no last step (owner, final pass, Sept 2026).
-                  * Now the board's own track carries on through the last four moves and
-                  * stops on a filled block: once /start is typed, the round is running.
-                  */}
                 <div className="hp-finish">
                     <span className="wk-label">Then</span>
                     <ol className="hp-finish-line">
