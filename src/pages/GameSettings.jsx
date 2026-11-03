@@ -117,7 +117,7 @@ export default function GameSettings({ onNavigate }) {
                         The standard round is <span className="wk-datum">{ROUND.minutes}</span> minutes
                         with <span className="wk-datum">{ROUND.jokers}</span> jokers each, the round the game is balanced
                         around, started with <code className="wk-typed">/start {ROUND.minutes} {ROUND.jokers}</code>. Its
-                        settings are the ones in our <a className="wk-link" href="/how-to-play#host">config.yml</a>{changed.length ? <>, which differs from the plugin's defaults in {changed.map((s, i) => (
+                        settings are the plugin's defaults{changed.length ? <>, except for {changed.map((s, i) => (
                             <React.Fragment key={s.key}>{i > 0 && (i === changed.length - 1 ? ' and ' : ', ')}<a className="wk-link" href={`#setting-${s.key.toLowerCase()}`}>{nameOf(s)}</a></React.Fragment>
                         ))}</> : null}.
                     </p>

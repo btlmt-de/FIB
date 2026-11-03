@@ -32,13 +32,6 @@ const GROUPS = [
                 adds: 'The game itself.',
             },
             {
-                key: 'config', face: 'WRITTEN_BOOK', need: 'Optional',
-                name: 'config.yml', href: `${GITHUB_SITE}/config.yml`,
-                where: 'plugins/ForceItemBattle/',
-                adds: <>The standard round's settings, and the item descriptions <T>/info</T> prints.</>,
-                more: { id: 'pools', label: 'Browse the item pools' },
-            },
-            {
                 key: 'unicode', face: 'NAME_TAG', need: 'Recommended',
                 name: 'unicodeItems.json', href: `https://github.com/btlmt-de/FIB/blob/${PACK.commit}/unicodeItems.json`,
                 where: 'plugins/ForceItemBattle/',
@@ -66,7 +59,6 @@ const TREE = [
     { name: 'plugins/', children: [
         { name: 'ForceItemBattle-<version>.jar', face: 'REPEATING_COMMAND_BLOCK' },
         { name: 'ForceItemBattle/', children: [
-            { name: 'config.yml', face: 'WRITTEN_BOOK' },
             { name: 'unicodeItems.json', face: 'NAME_TAG' },
             { name: 'FIB_Worldgen.zip', face: 'STRUCTURE_BLOCK' },
         ] },
