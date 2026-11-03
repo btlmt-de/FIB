@@ -16,6 +16,8 @@ standard:
   jokers: 3
   backpackSize: 27
 isReset: false
+fib-service:
+  url: 'http://127.0.0.7:29708'
 
 descriptions:
   ANGLER_POTTERY_SHERD:
