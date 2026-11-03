@@ -29,11 +29,42 @@ import '../wiki/pages/howtoplay.css';
  * The Paper version is generated (PAPER_VERSION, from the plugin's
  * paper-version.json via vendor-pool.mjs). It used to be typed into this file and
  * was a release behind when it moved.
+ *
+ * Under the board, the server folder those tracks arrive in, drawn whole, and the
+ * server.properties lines. Both are read off the 26.3 test server (plugin/run), not
+ * remembered from older versions:
+ * - The resource pack is a server pack; the plugin never sends one itself. The board
+ *   once filed it under "each player's game", which was wrong (owner, Nov 2026).
+ *   Without resource-pack-sha1 the server logs that the pack "will be updated on the
+ *   client only if you change the name of the pack", which is why the hash is a line
+ *   of its own rather than a footnote. The page prints it rather than sending the
+ *   host off to hash it themselves, and the default link is pinned to a commit, with
+ *   unicodeItems.json pinned to the same one, because the two only line up as a
+ *   pair. Following main is offered as the opt-in. vite.config.js reads the commit,
+ *   the hash and the pack's version at build time and records the reasoning.
+ * - The datapack needs no line. With initial-enabled-packs left at vanilla, the test
+ *   world's level.dat still lists file/FIB_Worldgen.zip as enabled: a pack sitting in
+ *   world/datapacks when the world is created is switched on by itself. There is one
+ *   world folder now, the Nether and End inside it under dimensions/, so
+ *   world/datapacks is the only place it goes.
+ * - It shapes terrain only as it generates, so an existing world never gets it.
+ *   That is why /reset is a step in "Then": it deletes the world, copies the pack in
+ *   (WorldReset) and restarts. The restart goes through spigot.yml's restart-script;
+ *   with no script there the server just stops, and the note says so.
+ *
+ * Words in this section are instructions only (owner, Nov 2026): what to put where
+ * and which line to set. Why a link is pinned or how the datapack switches itself on
+ * lives here and in vite.config.js, not on the page.
  */
 
 /* ── Content ───────────────────────────────────────────────────────────────── */
 
 const GITHUB_SITE = 'https://github.com/btlmt-de/FIB/blob/main';
+/** The pack the page pins hosts to, read at build time; vite.config.js says why. */
+const PACK = import.meta.env.PACK;
+/** What resource-pack needs is the file itself, not GitHub's page for it. */
+const PACK_PINNED = `https://raw.githubusercontent.com/btlmt-de/FIB/${PACK.commit}/ForceItemBattle.zip`;
+const PACK_LATEST = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle.zip';
 
 /** A string you type or a file you edit: the Mono Rule's one use. */
 const T = ({ children }) => <code className="wk-typed">{children}</code>;
@@ -43,43 +74,79 @@ const GROUPS = [
         label: 'On the server',
         files: [
             {
-                key: 'plugin', face: 'REPEATING_COMMAND_BLOCK', required: true,
+                key: 'plugin', face: 'REPEATING_COMMAND_BLOCK', need: 'Required',
                 name: 'ForceItemBattle plugin', href: 'https://github.com/McPlayHDnet/ForceItemBattle',
                 where: 'plugins/',
-                adds: 'The game itself. Everything below builds on it.',
+                adds: 'The game itself.',
             },
             {
-                key: 'config', face: 'WRITTEN_BOOK',
+                key: 'config', face: 'WRITTEN_BOOK', need: 'Optional',
                 name: 'config.yml', href: `${GITHUB_SITE}/config.yml`,
                 where: 'plugins/ForceItemBattle/',
                 adds: <>The standard round's settings, and the item descriptions <T>/info</T> prints.</>,
                 more: { id: 'pools', label: 'Browse the item pools' },
             },
             {
-                key: 'unicode', face: 'NAME_TAG',
-                name: 'unicodeItems.json', href: `${GITHUB_SITE}/unicodeItems.json`,
+                key: 'unicode', face: 'NAME_TAG', need: 'Recommended',
+                name: 'unicodeItems.json', href: `https://github.com/btlmt-de/FIB/blob/${PACK.commit}/unicodeItems.json`,
                 where: 'plugins/ForceItemBattle/',
-                adds: 'Which glyph in the resource pack is which item. Without it the plugin runs with no item icons.',
+                adds: 'Tells the plugin which pack glyph is which item. Needed for icons; this version matches the pack below.',
             },
             {
-                key: 'worldgen', face: 'STRUCTURE_BLOCK',
+                key: 'worldgen', face: 'STRUCTURE_BLOCK', need: 'Recommended',
                 name: 'Worldgen datapack', href: `${GITHUB_SITE}/FIB_Worldgen.zip`,
                 where: 'plugins/ForceItemBattle/',
-                adds: <>The custom structures built around FIB. <T>/reset</T> copies it into every new world.</>,
+                adds: 'The custom structures.',
                 more: { id: 'structures', label: 'See the structures' },
+            },
+            {
+                key: 'pack', face: 'PAINTING', need: 'Recommended',
+                name: 'Resource pack', href: `${GITHUB_SITE}/ForceItemBattle.zip`,
+                where: 'server.properties',
+                adds: <>Item icons in the bossbar, tab and chat. Needs <T>unicodeItems.json</T>.</>,
             },
         ],
     },
+];
+
+/** The server folder once everything is in. A face marks a file from the board above. */
+const TREE = [
+    { name: 'server.properties' },
+    { name: 'plugins/', children: [
+        { name: 'ForceItemBattle-<version>.jar', face: 'REPEATING_COMMAND_BLOCK' },
+        { name: 'ForceItemBattle/', children: [
+            { name: 'config.yml', face: 'WRITTEN_BOOK' },
+            { name: 'unicodeItems.json', face: 'NAME_TAG' },
+            { name: 'FIB_Worldgen.zip', face: 'STRUCTURE_BLOCK' },
+        ] },
+    ] },
+    { name: 'world/', children: [
+        { name: 'datapacks/', children: [
+            { name: 'FIB_Worldgen.zip', face: 'STRUCTURE_BLOCK', note: 'put here by /reset' },
+        ] },
+    ] },
+];
+
+const PROPS = [
     {
-        label: 'On each player\'s game',
-        files: [
-            {
-                key: 'pack', face: 'PAINTING',
-                name: 'Resource pack', href: `${GITHUB_SITE}/ForceItemBattle.zip`,
-                where: 'resourcepacks/',
-                adds: <>Item icons beside item names, in the bossbar, tab and chat. Players add it themselves, or you serve it with <T>resource-pack</T> in <T>server.properties</T>.</>,
-            },
-        ],
+        line: <>resource-pack=<span className="hp-url">{PACK_PINNED}</span></>,
+        says: PACK.version && <>Pack <span className="wk-datum">{PACK.version}</span></>,
+    },
+    {
+        line: <>resource-pack-sha1=<span className="hp-url">{PACK.sha1}</span></>,
+    },
+    {
+        lead: 'Or, to always get the newest pack:',
+        line: <>resource-pack=<span className="hp-url">{PACK_LATEST}</span></>,
+        says: <>After every pack update, copy the new hash from this page and the new <T>unicodeItems.json</T>.</>,
+    },
+    {
+        line: 'require-resource-pack=true',
+        says: 'Optional: disconnects players who decline the pack.',
+    },
+    {
+        line: 'initial-enabled-packs=vanilla',
+        says: 'Leave as is. The datapack turns itself on.',
     },
 ];
 
@@ -101,9 +168,7 @@ function FileRow({ file, go }) {
                     <ArrowUpRight size={14} className="hp-file-out" aria-hidden="true" />
                     <span className="wk-sr"> (opens GitHub)</span>
                 </a>
-                <span className="hp-file-need" data-required={file.required ? 'true' : undefined}>
-                    {file.required ? 'Required' : 'Optional'}
-                </span>
+                <span className="hp-file-need" data-need={file.need.toLowerCase()}>{file.need}</span>
             </div>
             <span className="hp-track" aria-hidden="true" />
             <div className="hp-file-to">
@@ -123,6 +188,48 @@ function FileRow({ file, go }) {
     );
 }
 
+function TreeRows({ rows }) {
+    return (
+        <ul className="hp-tree-list">
+            {rows.map((r, i) => (
+                <li key={`${r.name}${i}`} className="hp-tree-row">
+                    <span className="hp-tree-line">
+                        {r.face && <ItemSlot material={r.face} size={24} tip={false} marks={false} />}
+                        <code className="hp-tree-name" data-fib={r.face ? 'true' : undefined}>{r.name}</code>
+                        {r.note && <span className="hp-tree-note">{r.note}</span>}
+                    </span>
+                    {r.children && <TreeRows rows={r.children} />}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+function ServerSetup() {
+    return (
+        <div className="hp-setup">
+            <div className="hp-tree">
+                <span className="wk-label">Your server folder</span>
+                <TreeRows rows={TREE} />
+            </div>
+            <div className="hp-props">
+                <span className="wk-label">In server.properties</span>
+                <dl className="hp-props-list">
+                    {PROPS.map((p, i) => (
+                        <div key={i} className="hp-prop" data-alt={p.lead ? 'true' : undefined}>
+                            <dt>
+                                {p.lead && <span className="hp-prop-lead">{p.lead}</span>}
+                                <code className="hp-prop-line">{p.line}</code>
+                            </dt>
+                            {p.says && <dd className="hp-prop-says">{p.says}</dd>}
+                        </div>
+                    ))}
+                </dl>
+            </div>
+        </div>
+    );
+}
+
 function Host({ go }) {
     const shown = useMemo(() => pick(POOL_BY_STAGE.EARLY), []);
     return (
@@ -131,7 +238,6 @@ function Host({ go }) {
                 <h2 id="host-title" className="wk-h3">Host your own</h2>
                 <p className="wk-p">
                     Run ForceItemBattle on your own server.
-                    Full control over who plays and how the round is configured.
                 </p>
                 <p className="wk-small">
                     Supports Paper <span className="wk-datum hp-version">{PAPER_VERSION}</span>.
@@ -147,9 +253,10 @@ function Host({ go }) {
                         </ol>
                     </div>
                 ))}
+                <ServerSetup />
                 <Bossbar
                     item={shown}
-                    caption="What a player reads at the top of the screen with both in place: the item they are hunting, and its icon."
+                    caption="The bossbar, with the pack and unicodeItems.json in place."
                 />
                 {/*
                   * Where the setup ends. It used to trail off in a paragraph under the
@@ -163,12 +270,12 @@ function Host({ go }) {
                         <li className="hp-finish-step">
                             <span className="hp-finish-mark" aria-hidden="true" />
                             <span className="hp-finish-what">Files installed</span>
-                            <span className="hp-finish-sub">Restart the server</span>
+                            <span className="hp-finish-sub">Start the server</span>
                         </li>
                         <li className="hp-finish-step">
                             <span className="hp-finish-mark" aria-hidden="true" />
-                            <span className="hp-finish-what">Resource pack ready</span>
-                            <span className="hp-finish-sub">On each player's game</span>
+                            <code className="wk-typed hp-finish-cmd">/reset</code>
+                            <span className="hp-finish-sub">A fresh world, generated with the datapack</span>
                         </li>
                         <li className="hp-finish-step">
                             <span className="hp-finish-mark" aria-hidden="true" />
@@ -181,6 +288,10 @@ function Host({ go }) {
                             <span className="hp-finish-sub">The round is on: {ROUND.minutes} minutes, {ROUND.jokers} jokers each</span>
                         </li>
                     </ol>
+                    <p className="wk-small">
+                        <code className="wk-typed">/reset</code> restarts through <code className="wk-typed">restart-script</code> in{' '}
+                        <code className="wk-typed">spigot.yml</code>. Without one, start the server again yourself.
+                    </p>
                     <p className="wk-small">
                         <code className="wk-typed hp-nowrap">/start &lt;minutes&gt; &lt;jokers&gt;</code> takes any length.
                         Every other command is on the{' '}
