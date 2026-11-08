@@ -260,7 +260,7 @@ export default function ForceItemPools() {
                         </span>
                         <label className="ip-branch">
                             /info from
-                            <select value={branch} onChange={(e) => switchBranch(e.target.value)} disabled={loading} aria-label="Which branch's config.yml to show and edit">
+                            <select value={branch} onChange={(e) => switchBranch(e.target.value)} disabled={loading} aria-label="Which plugin branch's descriptions to show and edit">
                                 {branches.map((b) => <option key={b} value={b}>{b}</option>)}
                             </select>
                         </label>

@@ -1,9 +1,9 @@
 /*
- * Pool changes go to the plugin repo on a branch with a pull request; /info changes go to this repo's config.yml.
+ * Pool changes go to the plugin repo on a branch with a pull request; /info changes go straight to the plugin's descriptions.yml.
  * An old editor's token has no expiry recorded, so it is cleared once.
  */
 
-import { CONFIG_PATH, DEFAULT_BRANCH, PLUGIN_REPO, POOL_PATH, SITE_REPO } from './poolData.js';
+import { DEFAULT_BRANCH, DESCRIPTIONS_PATH, PLUGIN_REPO, POOL_PATH } from './poolData.js';
 
 const API = 'https://api.github.com';
 export const TOKEN_URL = 'https://github.com/settings/tokens/new?description=FIB%20Item%20Pools&scopes=repo';
@@ -12,7 +12,7 @@ export const BRANCH_NAME = /^[a-zA-Z0-9._/-]+$/;
 
 export const REPOS = {
     pool: { repo: PLUGIN_REPO, path: POOL_PATH, label: 'Plugin', base: 'main' },
-    info: { repo: SITE_REPO, path: CONFIG_PATH, label: 'Descriptions', base: DEFAULT_BRANCH },
+    info: { repo: PLUGIN_REPO, path: DESCRIPTIONS_PATH, label: 'Descriptions', base: DEFAULT_BRANCH },
 };
 
 /* ── The token ───────────────────────────────────────────────────────────────── */
