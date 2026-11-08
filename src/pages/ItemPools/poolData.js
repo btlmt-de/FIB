@@ -6,10 +6,9 @@ export const PLUGIN_REPO = 'McPlayHDnet/ForceItemBattle';
 export const POOL_PATH = 'src/main/java/forceitembattle/manager/ItemDifficultiesManager.java';
 export const POOL_RAW_URL = `https://raw.githubusercontent.com/${PLUGIN_REPO}/main/${POOL_PATH}`;
 
-export const SITE_REPO = 'btlmt-de/FIB';
-export const CONFIG_PATH = 'config.yml';
-const CONFIG_BASE_URL = `https://raw.githubusercontent.com/${SITE_REPO}`;
-const PUBLIC_BRANCHES_URL = `https://api.github.com/repos/${SITE_REPO}/branches`;
+export const DESCRIPTIONS_PATH = 'src/main/resources/descriptions.yml';
+const RAW_BASE_URL = `https://raw.githubusercontent.com/${PLUGIN_REPO}`;
+const PUBLIC_BRANCHES_URL = `https://api.github.com/repos/${PLUGIN_REPO}/branches`;
 
 /* Pinned to PAPER_VERSION, not misode's moving branch: a snapshot-only item is not missing from this server's pool. */
 const REGISTRY_URLS = [
@@ -47,11 +46,11 @@ export function parseJavaFile(content) {
     return items;
 }
 
-/* Escaped on write: a quote typed into a description would break config.yml for the whole server. */
+/* Escaped on write: a quote typed into a description would break /info for the whole server. */
 export const yamlQuote = (s) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 const yamlUnquote = (s) => s.replace(/\\(["\\])/g, '$1');
 
-export function parseConfigYaml(content) {
+export function parseDescriptions(content) {
     const descriptions = {};
     let inDescriptions = false;
     let current = null;
@@ -117,12 +116,12 @@ export async function loadPool(branch, { fresh = false } = {}) {
     }
     const [javaRes, configRes] = await Promise.all([
         fetch(POOL_RAW_URL, { cache: 'no-store' }),
-        fetch(`${CONFIG_BASE_URL}/${encodeURIComponent(branch)}/${CONFIG_PATH}?t=${Date.now()}`),
+        fetch(`${RAW_BASE_URL}/${encodeURIComponent(branch)}/${DESCRIPTIONS_PATH}?t=${Date.now()}`),
     ]);
     if (!javaRes.ok) throw new Error(`Could not read the pool from GitHub (HTTP ${javaRes.status}).`);
     const items = parseJavaFile(await javaRes.text());
     if (configRes.ok) {
-        const descriptions = parseConfigYaml(await configRes.text());
+        const descriptions = parseDescriptions(await configRes.text());
         for (const item of items) item.description = descriptions[item.material] ?? null;
     }
     writeCache(items, branch);

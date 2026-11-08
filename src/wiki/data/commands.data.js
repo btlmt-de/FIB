@@ -23,7 +23,7 @@
  *           plugin's own MiniMessage; {item:MATERIAL} is an item's icon, the way the
  *           resource pack's font draws one in chat. Names, numbers and places in it are
  *           an example's; the wording and colours are the plugin's. 'info' is the item's
- *           own /info text from config.yml (info.data.js, generated). A form whose
+ *           own /info text from the plugin's descriptions.yml (info.data.js, generated). A form whose
  *           command answers with a menu, a teleport or a title says nothing here.
  *   heard   'everyone' when the whole server sees the answer, not only you
  *   then    what happens after the chat, when it is not chat (a menu opening)

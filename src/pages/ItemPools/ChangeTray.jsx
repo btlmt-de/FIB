@@ -337,10 +337,10 @@ function InfoCommit({ auth, changes, byMaterial, viewBranch, onDone, result, set
         try {
             setStep('Checking you can push to this repo…');
             if (!(await canPush(auth.token, REPOS.info.repo))) throw new Error(`${auth.user.login} cannot push to ${REPOS.info.repo}.`);
-            setStep(`Reading config.yml on ${branch}…`);
+            setStep(`Reading descriptions.yml on ${branch}…`);
             const { content, sha } = await readFile(auth.token, REPOS.info, branch);
             const next = applyDescriptionChanges(content, snapshot);
-            if (next === content) throw new Error(`config.yml on ${branch} already says this.`);
+            if (next === content) throw new Error(`descriptions.yml on ${branch} already says this.`);
             setStep('Committing…');
             const res = await writeFile(auth.token, REPOS.info, branch, next, sha, message.trim() || defaultMessage);
             changes.clearCommitted('info', snapshot);
@@ -361,7 +361,7 @@ function InfoCommit({ auth, changes, byMaterial, viewBranch, onDone, result, set
     return (
         <section className="ip-sec ip-commit-sec" aria-labelledby="ip-info-commit">
             <h3 id="ip-info-commit" className="ip-dest">
-                /info <span className="ip-dest-where">{REPOS.info.repo}, config.yml</span>
+                /info <span className="ip-dest-where">{REPOS.info.repo}, descriptions.yml</span>
             </h3>
             {entries.length > 0 && <ul className="ip-changes">
                 {entries.map((c) => {

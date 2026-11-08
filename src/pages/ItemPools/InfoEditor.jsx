@@ -25,7 +25,7 @@ export default function InfoEditor({ item, lines, base, staged, onChange, onUndo
         return (
             <div className="ip-info-empty">
                 {base
-                    ? <p className="wk-small"><strong>Staged for deletion.</strong> The description will be removed from config.yml.</p>
+                    ? <p className="wk-small"><strong>Staged for deletion.</strong> The description will be removed from the plugin.</p>
                     : <p className="wk-small">No /info for this item yet. Players see nothing when they ask about it.</p>}
                 <span className="ip-row">
                     {base

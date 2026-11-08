@@ -70,7 +70,7 @@ export function pullRequestBody(changes) {
     return `## Changes\n\n${sections.join('\n\n')}\n\nOpened from the Item Pools page.`;
 }
 
-/* ── The descriptions: config.yml's descriptions: block ──────────────────────── */
+/* ── The descriptions: descriptions.yml's descriptions: block ──────────────────────── */
 
 export function updateDescriptionInConfig(content, materialName, descriptionLines) {
     const configLines = content.split('\n');
