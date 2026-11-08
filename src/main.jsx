@@ -9,7 +9,7 @@ import './index.css'
 // session.
 import './config/power.js'
 import App from './App.jsx'
-import unicodeItems from '../unicodeItems.json'
+import unicodeItems from '@resources/unicodeItems.json'
 import { IMAGE_BASE_URL } from './config/constants'
 
 // Register service worker for texture caching

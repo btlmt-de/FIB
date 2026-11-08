@@ -92,7 +92,7 @@ export const RELIC_IMAGE_BASE_URL = '/fib-relics';
  * The upstream pack. Kept for tooling and for anything that genuinely wants the
  * canonical remote URL. Not a runtime fallback for the pool — see above.
  */
-export const REMOTE_IMAGE_BASE_URL = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+export const REMOTE_IMAGE_BASE_URL = 'https://raw.githubusercontent.com/eltobit0/fib-resources/main/ForceItemBattle/assets/minecraft/textures/fib';
 export const WHEEL_TEXTURE_URL  = '/wheel.png';
 /**
  * The desktop reel's tile pitch, and the height of the band it runs in.

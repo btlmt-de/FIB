@@ -12,7 +12,7 @@ import { TABLES, pct, rangeText, roll } from '../wiki/data/loot.js';
 import { DEPTHS_MAP } from '../wiki/data/depthsMap.data.js';
 import '../wiki/page.css';
 import '../wiki/pages/content.css';
-import portalTexture from '../../ForceItemBattle/assets/minecraft/textures/block/antimatter_portal.png';
+import portalTexture from '@resources/ForceItemBattle/assets/minecraft/textures/block/antimatter_portal.png';
 
 /*
  * Loot is read from the datapack (wiki/data/loot.js). Recipes, trades and timings are typed here from the plugin's

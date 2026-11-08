@@ -72,7 +72,7 @@ const ATLAS_INDEX_PATTERN = /\/fib-atlas\.json$/;
 
 // The remote pack, still matched so that anything not yet vendored — and any
 // client running a build from before the move — keeps its cache-first path.
-const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/btlmt-de\/FIB\/.*\/textures\/(fib|item)\/.+\.png$/;
+const REMOTE_TEXTURE_PATTERN = /raw\.githubusercontent\.com\/(btlmt-de\/FIB|eltobit0\/fib-resources)\/.*\/textures\/(fib|item)\/.+\.png$/;
 
 // Player heads. mc-heads.net is what getMinecraftHeadUrl() actually returns;
 // the minotar.net pattern this replaced had stopped matching anything. `head/`

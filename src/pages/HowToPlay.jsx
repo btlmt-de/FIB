@@ -14,10 +14,11 @@ import '../wiki/pages/howtoplay.css';
 // Paths and server.properties keys mirror the plugin (data folder, WorldReset's datapack copy) and
 // the 26.3 server in plugin/run; recheck both after a Minecraft or plugin change.
 
-const GITHUB_SITE = 'https://github.com/btlmt-de/FIB/blob/main';
+const RESOURCES = 'https://github.com/eltobit0/fib-resources';
 const PACK = import.meta.env.PACK;
-const PACK_PINNED = `https://raw.githubusercontent.com/btlmt-de/FIB/${PACK.commit}/ForceItemBattle.zip`;
-const PACK_LATEST = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle.zip';
+const RELEASE = `${RESOURCES}/releases/download/${PACK.tag}`;
+const PACK_PINNED = `${RELEASE}/ForceItemBattle.zip`;
+const PACK_LATEST = `${RESOURCES}/releases/latest/download/ForceItemBattle.zip`;
 
 const T = ({ children }) => <code className="wk-typed">{children}</code>;
 
@@ -33,20 +34,20 @@ const GROUPS = [
             },
             {
                 key: 'unicode', face: 'NAME_TAG', need: 'Recommended',
-                name: 'unicodeItems.json', href: `https://github.com/btlmt-de/FIB/blob/${PACK.commit}/unicodeItems.json`,
+                name: 'unicodeItems.json', href: `${RELEASE}/unicodeItems.json`,
                 where: 'plugins/ForceItemBattle/',
                 adds: 'Tells the plugin which pack glyph is which item. Needed for icons; this version matches the pack below.',
             },
             {
                 key: 'worldgen', face: 'STRUCTURE_BLOCK', need: 'Recommended',
-                name: 'Worldgen datapack', href: `${GITHUB_SITE}/FIB_Worldgen.zip`,
+                name: 'Worldgen datapack', href: `${RELEASE}/FIB_Worldgen.zip`,
                 where: 'plugins/ForceItemBattle/',
                 adds: 'The custom structures.',
                 more: { id: 'structures', label: 'See the structures' },
             },
             {
                 key: 'pack', face: 'PAINTING', need: 'Recommended',
-                name: 'Resource pack', href: `${GITHUB_SITE}/ForceItemBattle.zip`,
+                name: 'Resource pack', href: `${RESOURCES}/releases/tag/${PACK.tag}`,
                 where: 'server.properties',
                 adds: <>Item icons in the bossbar, tab and chat. Needs <T>unicodeItems.json</T>.</>,
             },
