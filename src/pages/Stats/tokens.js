@@ -334,7 +334,7 @@ export const RARITY_LABEL = {
 export const ITEM_TEXTURE_BASE = '/fib-items';
 
 export const ITEM_TEXTURE_FALLBACK =
-  'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+  'https://raw.githubusercontent.com/eltobit0/fib-resources/main/ForceItemBattle/assets/minecraft/textures/fib';
 
 /**
  * Source textures are 128x128 (8x upscales of the 16x16 originals), so display

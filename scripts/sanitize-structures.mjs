@@ -43,7 +43,7 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync, gzipSync } from 'node:zlib';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = join(root, 'FIB_Worldgen/data/fib/structure');
+const DIR = join(root, '../resources/FIB_Worldgen/data/fib/structure');
 
 /** Every .nbt under the structure root, so new subfolders are picked up automatically. */
 function structureFiles(dir) {

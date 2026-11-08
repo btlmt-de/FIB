@@ -1,6 +1,6 @@
 /* Only reachable items are vendored into public/fib-items, so a missing sprite falls back to the pack on GitHub, then the barrier. */
 
-const REMOTE = 'https://raw.githubusercontent.com/btlmt-de/FIB/main/ForceItemBattle/assets/minecraft/textures/fib';
+const REMOTE = 'https://raw.githubusercontent.com/eltobit0/fib-resources/main/ForceItemBattle/assets/minecraft/textures/fib';
 
 export const spriteOf = (material) => `/fib-items/${material.toLowerCase()}.png`;
 

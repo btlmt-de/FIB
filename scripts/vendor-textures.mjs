@@ -9,7 +9,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/fib');
+const SRC = join(root, '../resources/ForceItemBattle/assets/minecraft/textures/fib');
 const OUT = join(root, 'public/fib-items');
 
 /*
@@ -17,7 +17,7 @@ const OUT = join(root, 'public/fib-items');
  * The wheel's locator art uses the static renders in public/fib-items instead, which exist only while KNOWLEDGE_BOOK,
  * MUSIC_DISC_CHIRP and WITHER_ROSE stay in the plugin's pool.
  */
-const CUSTOM_SRC = join(root, 'ForceItemBattle/assets/minecraft/textures/item');
+const CUSTOM_SRC = join(root, '../resources/ForceItemBattle/assets/minecraft/textures/item');
 const CUSTOM_OUT = join(root, 'public/fib-custom');
 
 async function reachableKeys() {

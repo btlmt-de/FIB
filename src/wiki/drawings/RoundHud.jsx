@@ -8,9 +8,9 @@ import { useOnScreen } from '../hooks.js';
 import Mini from '../game/Mini.jsx';
 import { ROUND, STAGES } from '../tokens.js';
 import { spriteFallback, spriteOf } from '../game/sprite.js';
-import logo0 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_0.png';
-import logo1 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_1.png';
-import logo2 from '../../../ForceItemBattle/assets/minecraft/textures/fib/tab_logo_2.png';
+import logo0 from '@resources/ForceItemBattle/assets/minecraft/textures/fib/tab_logo_0.png';
+import logo1 from '@resources/ForceItemBattle/assets/minecraft/textures/fib/tab_logo_1.png';
+import logo2 from '@resources/ForceItemBattle/assets/minecraft/textures/fib/tab_logo_2.png';
 import './roundhud.css';
 
 /* Each HUD piece mirrors the plugin: TimerManager, PlayerOutfitter, ScoreboardManager, RoundClock, TabListManager. */

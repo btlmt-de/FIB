@@ -12,17 +12,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          path: site
+
+      - name: Checkout resources
+        uses: actions/checkout@v4
+        with:
+          repository: eltobit0/fib-resources
+          path: resources
+          sparse-checkout: |
+            ForceItemBattle/assets
+            FIB_Worldgen/data
+            unicodeItems.json
+          sparse-checkout-cone-mode: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: site/package-lock.json
 
       - name: Install dependencies
+        working-directory: site
         run: npm ci
 
       - name: Build
+        working-directory: site
         run: npm run build
 
       - name: Setup SSH
@@ -36,4 +52,4 @@ jobs:
         run: |
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/deploy_key" \
-            dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_TARGET }}/
+            site/dist/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_TARGET }}/

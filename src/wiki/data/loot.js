@@ -1,7 +1,7 @@
 /* Read from the datapack's loot tables at build time; what a table cannot say (pot and minecart counts) stays in the page. */
 
 const FILES = import.meta.glob(
-    ['/FIB_Worldgen/data/fib/loot_table/*.json', '/FIB_Worldgen/data/minecraft/loot_table/chests/shipwreck_map.json'],
+    ['@resources/FIB_Worldgen/data/fib/loot_table/*.json', '@resources/FIB_Worldgen/data/minecraft/loot_table/chests/shipwreck_map.json'],
     { eager: true, import: 'default' },
 );
 
