@@ -3,6 +3,7 @@ import ArrowUpRight from 'lucide-react/dist/esm/icons/arrow-up-right';
 import Footer from '../components/common/Footer.jsx';
 import PageIndex from '../wiki/shell/PageIndex.jsx';
 import PageLinks from '../wiki/shell/PageLinks.jsx';
+import { itemSrc } from '../wiki/data/atlas.js';
 import { useCurrentSection } from '../wiki/hooks.js';
 import { useGo } from '../wiki/shell/pages.js';
 import { CHANGELOG } from '../wiki/data/changelog.data.js';
@@ -31,22 +32,40 @@ function Release({ entry }) {
     const major = entry.type === 'major';
     return (
         <li className="cl-rel" data-major={major || undefined} id={anchor(entry.version)}>
-            <span className="cl-node" aria-hidden="true" />
+            <span className="wk-slot cl-node" aria-hidden="true">
+                {entry.face && (
+                    <img className="wk-sprite" src={entry.face.startsWith('/') ? entry.face : itemSrc(entry.face)}
+                         alt="" loading="lazy" decoding="async" draggable="false" />
+                )}
+            </span>
             <div className="cl-body">
                 <p className="cl-meta">
                     <a className="cl-v" href={`#${anchor(entry.version)}`}>v{entry.version}</a>
                     <time className="cl-date" dateTime={date.iso}>{date.day ? `${date.day} ${date.month}` : entry.date}</time>
                     <span className="wk-label">{KIND[entry.type] ?? KIND.update}</span>
-                    {entry.mc && <span className="cl-mc">Minecraft {entry.mc.join(', ')}</span>}
                 </p>
                 <h3 className={major ? (isNumeric(entry.title) ? 'cl-title cl-title--figure' : 'wk-name cl-title') : 'cl-title'}>
                     {entry.title}
+                    {entry.mc && !/^[\d.\s-]+$/.test(entry.title) && (
+                        <span className="cl-mc">
+                            <img src={itemSrc('GRASS_BLOCK')} alt="" width="16" height="16" />
+                            Minecraft {entry.mc.join(', ')}
+                        </span>
+                    )}
                 </h3>
                 {entry.description && <p className="cl-desc">{entry.description}</p>}
                 {entry.changes?.length > 0 && (
                     <ul className="cl-changes">
                         {entry.changes.map((c) => <li key={c}>{c}</li>)}
                     </ul>
+                )}
+                {entry.fixes?.length > 0 && (
+                    <>
+                        <p className="wk-label cl-fixed">Fixed</p>
+                        <ul className="cl-changes">
+                            {entry.fixes.map((c) => <li key={c}>{c}</li>)}
+                        </ul>
+                    </>
                 )}
             </div>
         </li>
